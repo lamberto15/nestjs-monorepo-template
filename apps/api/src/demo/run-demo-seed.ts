@@ -1,11 +1,16 @@
 // First: .env.development into process.env (as main.ts), NODE_ENV included.
 import '../dev-env.js';
 import { NestFactory } from '@nestjs/core';
+import { createLogger } from '../core/logging/logging.js';
 import { DemoSeedRefused, nodeEnvRefusal } from './demo-guard.js';
 import { DemoSeedModule } from './demo-seed.module.js';
 import { type DemoSeedResult, DemoSeeder } from './demo-seeder.js';
 
-/** What the seed made, for the terminal: the passwords are in no log and nowhere else. */
+/**
+ * What the seed made, for the terminal: straight to stdout, never through
+ * the app's logger (which redacts secrets, and may ship its lines
+ * elsewhere): the passwords are in no log and nowhere else.
+ */
 function report(result: DemoSeedResult) {
   if (!result.seeded) {
     console.log(
@@ -34,9 +39,10 @@ if (refused) {
   process.exit(1);
 }
 const app = await NestFactory.createApplicationContext(DemoSeedModule, {
-  // The app's warnings and errors only: the first administrator's password
-  // (AccessSeeder, on a new database), then the seed's own report.
-  logger: ['warn', 'error'],
+  // The app's logger (its redaction included), warnings and errors only:
+  // the first administrator's creation (AccessSeeder, on a new database),
+  // then the seed's own report.
+  logger: createLogger(process.env, { logLevels: ['warn', 'error', 'fatal'] }),
 });
 try {
   report(await app.get(DemoSeeder).seed());
