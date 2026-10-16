@@ -306,6 +306,9 @@ export class CaptchaService {
       });
     }
     const ttl = this.windowSeconds() * 1000;
+    // Not raised by RATE_LIMIT_MULTIPLIER (ScaledThrottlerGuard): this is
+    // the security fallback while the captcha is on and its provider down,
+    // and the load test runs with CAPTCHA_MODE=off, so it never gets here.
     const limit = this.config.get('CAPTCHA_DEGRADED_LIMIT', { infer: true });
     let retryAfter = 0;
     for (const tracker of trackers) {

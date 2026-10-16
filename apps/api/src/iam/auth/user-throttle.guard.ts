@@ -5,7 +5,7 @@ import {
   SetMetadata,
   UseGuards,
 } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ScaledThrottlerGuard } from '../../core/http/scaled-throttler.guard.js';
 import type { RequestPrincipal } from './principal.js';
 
 export interface UserThrottleOptions {
@@ -28,6 +28,7 @@ const USER_THROTTLE = Symbol('user-throttle');
  * Custom: the global guard runs before authentication, when the request has
  * no user yet, and the throttler's named throttlers apply to every route.
  * This one runs after the authentication guard, on the routes that ask.
+ * RATE_LIMIT_MULTIPLIER raises it too (ScaledThrottlerGuard).
  */
 export const UserThrottle = (options: UserThrottleOptions) =>
   applyDecorators(
@@ -36,7 +37,7 @@ export const UserThrottle = (options: UserThrottleOptions) =>
   );
 
 @Injectable()
-export class UserThrottlerGuard extends ThrottlerGuard {
+export class UserThrottlerGuard extends ScaledThrottlerGuard {
   override async canActivate(context: ExecutionContext) {
     const options = this.reflector.getAllAndOverride<
       UserThrottleOptions | undefined

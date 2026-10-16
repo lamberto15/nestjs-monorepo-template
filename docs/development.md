@@ -95,6 +95,131 @@ provider, and remove `floci` from `compose.dev.yaml`.
   authentication stores against the suites their packages ship.
 - `TEST_LOGS=1 pnpm test:e2e` shows the app's errors and warnings.
 
+## Load tests
+
+A baseline of what three routes cost under load on the production stack,
+kept from run to run, so a change that makes one twice as slow fails, and the
+cost of tenancy's row-level security ([roadmap](roadmap.md), 1a) can be
+measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
+
+| Scenario | Request | Load (one minute each, one after the other) |
+| --- | --- | --- |
+| `signIn` | `POST /v1/auth/sign-in`, 20 seeded users | 2/s (below) |
+| `list` | `GET /v1/notes` with filters and a sort (status, `title.contains`, `createdAt.gte`…), the load-test client's key | 50/s |
+| `create` | `POST /v1/notes` with an `Idempotency-Key`, the same key | 20/s |
+
+- **What runs:** `loadtest/run.sh` starts `compose.yaml` + `compose.prod.yaml`
+  (api ×2, worker, migrate, PostgreSQL, Redis: the image and limits a
+  deployment runs) with `compose.loadtest.yaml` on top (named with `-f`: an
+  exported `COMPOSE_FILE` is ignored), under its own project name and its
+  own generated env file (`loadtest/results/stack.env`: the repository's
+  `.env` is never read).
+  The project must be named `loadtest-<name>` (`loadtest-local`, CI
+  `loadtest-ci`; `LOADTEST_PROJECT`): any other name stops the script before
+  it does anything, since `down` removes the project's volumes and must never
+  reach a deployment, whatever a project made from the template is called. k6 (`loadtest/scenarios.js`, pinned image) runs in
+  the stack's network against `http://caddy`, nothing is published on the
+  host, and the stack and its volumes are removed at the end.
+- **What the overlay changes:** Caddy is the stock `caddy` image on plain
+  HTTP (the production one needs a Cloudflare token for its certificate),
+  with the same balancing (`loadtest/Caddyfile`); the backup service is left
+  out.
+- **No limit is turned off.** k6's requests come from one address and sign
+  the same users in hundreds of times, so the stack sets
+  `RATE_LIMIT_MULTIPLIER=1000` (every rate limit ×1000, the throttler still
+  runs: [configuration](configuration.md)) with `APP_ENV=loadtest`: under
+  `NODE_ENV=production` the app refuses to start with a multiplier above 1
+  and any other `APP_ENV`, so the overlay added to a deployment by mistake
+  stops it rather than raising its limits. List and create go through
+  a **dedicated API client**, `load-test`, with a daily quota of 10 million
+  (the quota is counted on every request, as for any client). `k6`'s
+  `setup()` makes it, the users and 300 notes through the API, as the
+  administrator the stack seeds. The users' password is generated per stack
+  by `run.sh` (`LOADTEST_USER_PASSWORD`; k6 refuses to seed without it), and
+  `setup()` first checks the target's rate limit is raised (only a
+  load-test stack's is), so k6 pointed at a real deployment seeds nothing.
+- **The bot check (roadmap item 4) is off:** the load test measures the
+  app, not a captcha, so `compose.loadtest.yaml` sets `CAPTCHA_MODE=off`
+  (whatever its default becomes) and k6 sends no captcha token. Measuring
+  the guard's own cost would need its stub provider, which production
+  refuses, allowed with `APP_ENV=loadtest`: a follow-up.
+  `RATE_LIMIT_MULTIPLIER` raises the throttler's limits only, not the
+  captcha's fail-open tier (`CAPTCHA_DEGRADED_LIMIT`), which an off captcha
+  never reaches.
+
+**Why sign-in runs at 2/s only:** a password check (scrypt, N = 2^17) takes
+about 0.4 s of a CPU and 128 MiB outside the heap, and libuv runs four at
+once per process. At 5/s, more than two replicas of one CPU can hash, the
+checks queue, four run at once, and the api container passes its 512 MiB
+(`API_MEMORY`) and is OOM-killed (found by the first local run: 84–97% of
+sign-ins failed while replicas restarted). That is a capacity limit to fix
+on its own (bound the hashes in flight per process, or size `API_MEMORY`
+for four); the baseline measures below it.
+
+Locally (Docker; about five minutes plus the image's build):
+
+```bash
+loadtest/run.sh                      # up, run, down; the table at the end
+cat loadtest/results/baseline.json   # the baseline
+node loadtest/compare.mjs --current loadtest/results/baseline.json --previous old.json
+loadtest/run.sh up && loadtest/run.sh run && loadtest/run.sh down   # keep the stack between runs
+node --test loadtest/compare.test.mjs loadtest/run.test.mjs   # the comparison's and run.sh's tests
+SIGN_IN_RATE=1 PHASE_SECONDS=20 loadtest/run.sh   # a lighter load (not comparable with CI's)
+```
+
+**The baseline** (`baseline.json`, the `load-test-baseline` artifact of
+each run, kept 90 days) has, per scenario, its rate, the requests made, the
+failed share, the dropped iterations (requests k6 couldn't start on time:
+the stack didn't keep up with the rate), and the latency in milliseconds
+(`avg`, `med`, `p90`, `p95`, `p99`, `max`), with the commit and k6's image.
+
+**In CI** (`.github/workflows/load-test.yml`): **manual only for now**, to
+save Actions minutes: Actions → Load test → Run workflow, on `main`, on a
+GitHub runner (4 CPUs). To run it on a schedule again (weekly, say), add
+`schedule: [{ cron: '37 2 * * 1' }]` under the workflow's `on:`; scheduled
+runs on `main` count as references like dispatched ones. Each run builds
+the image, runs `run.sh` and uploads the baseline, then
+`loadtest/compare.mjs` compares it with two references from `main` and
+writes a table for each to the job summary:
+
+- **the previous run**: the latest successful manual (or scheduled) run on
+  `main`, for a sudden regression;
+- **the anchor** (the `load-test-anchor` artifact): the last run accepted
+  with `record_only`, or the first baseline, for a slow creep that the
+  previous run never shows (1.9× a run fails against it two runs later).
+  It expires after 90 days; the next passing run on `main` becomes the new
+  anchor.
+
+- **It fails only on a 2× regression** against either reference: a
+  scenario whose median or p95 reached twice the reference's and grew by at
+  least 20 ms (a 3 ms route at 7 ms is a runner's noise), or whose failed
+  share or dropped iterations reached twice the reference's (above 0.5% of
+  the requests). A scenario whose rate or phase length changed isn't
+  compared. A missing reference compares nothing: the first run records only.
+- **A broken or saturated run never becomes the baseline:** more than 1%
+  failed requests, or more than 1% of a scenario's iterations dropped, fails
+  k6's thresholds, so the run fails and the next one compares with the last
+  good one.
+- **Reading a regression:** the summary names the scenario and the stat
+  (`p95 120 → 260 ms (×2.17)`). Open the two runs' commits
+  (`commit` in each baseline): the change between them is the suspect. Rerun
+  once (Run workflow) before digging: a GitHub runner is shared hardware, and
+  a single slow run happens. Twice slower on a rerun: profile that route.
+- **Accepting a change** (a route slower by design, row-level security for
+  instance): run the workflow on `main` with `record_only` checked. That run
+  compares nothing and, if it passes, becomes both the previous run and the
+  anchor the next run compares with. Dispatched on another branch it
+  counts for neither: only runs on `main` are references.
+- **Pull requests** that change `loadtest/`, `compose.loadtest.yaml` or the
+  workflow run it too, report-only and never as a baseline.
+- **No self-hosted runner.** The numbers come from GitHub's runners only. A
+  self-hosted one (the owner's Mac) would only ever run behind
+  `workflow_dispatch`, never on a schedule or a pull request: a pull
+  request's code must never run on it.
+- **k6's version** (`K6_IMAGE` in `loadtest/run.sh`, tag and digest) is raised
+  by hand, as oasdiff's and squawk's are; a new version may move the numbers,
+  so raise it with a `record_only` run.
+
 ## Typed client
 
 `packages/api-client` (`@nestjs-monorepo-template/api-client`, a pnpm
