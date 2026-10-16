@@ -1,0 +1,51 @@
+// First: .env.development into process.env (as main.ts), NODE_ENV included.
+import '../dev-env.js';
+import { NestFactory } from '@nestjs/core';
+import { DemoSeedRefused, nodeEnvRefusal } from './demo-guard.js';
+import { DemoSeedModule } from './demo-seed.module.js';
+import { type DemoSeedResult, DemoSeeder } from './demo-seeder.js';
+
+/** What the seed made, for the terminal: the passwords are in no log and nowhere else. */
+function report(result: DemoSeedResult) {
+  if (!result.seeded) {
+    console.log(
+      `The demo data is already here (seeded ${result.since.toISOString()}): nothing changed. Its passwords were shown then; set a new one through PATCH /v1/access/users/{id} as the administrator.`,
+    );
+    return;
+  }
+  console.log(
+    `Demo data: ${result.users.length} users, ${result.notes} notes. Their passwords, shown once:\n`,
+  );
+  const width = Math.max(...result.users.map((user) => user.email.length));
+  for (const user of result.users) {
+    console.log(
+      `  ${user.email.padEnd(width)}  ${user.password}  ${user.name} (${user.roles.join(', ')})`,
+    );
+  }
+  console.log(
+    "\nThe administrator is the first start's (ADMIN_EMAIL). Swagger UI: /api.",
+  );
+}
+
+// NODE_ENV before the app boots: production never connects, let alone migrates.
+const refused = nodeEnvRefusal(process.env.NODE_ENV);
+if (refused) {
+  console.error(refused);
+  process.exit(1);
+}
+const app = await NestFactory.createApplicationContext(DemoSeedModule, {
+  // The app's warnings and errors only: the first administrator's password
+  // (AccessSeeder, on a new database), then the seed's own report.
+  logger: ['warn', 'error'],
+});
+try {
+  report(await app.get(DemoSeeder).seed());
+} catch (error) {
+  if (!(error instanceof DemoSeedRefused)) {
+    throw error;
+  }
+  console.error(error.message);
+  process.exitCode = 1;
+} finally {
+  await app.close();
+}

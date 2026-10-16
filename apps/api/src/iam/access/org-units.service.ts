@@ -14,7 +14,7 @@ import { asc, count, eq, inArray } from 'drizzle-orm';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { Tree, TreeCycleError } from '../../core/database/tree.js';
 import { AuditService } from '../audit/audit.service.js';
-import type { UserPrincipal } from '../auth/principal.js';
+import type { SystemPrincipal, UserPrincipal } from '../auth/principal.js';
 import { orgUnitTree, orgUnits, userOrgUnits } from '../iam.tables.js';
 import { AccessService } from './access.service.js';
 
@@ -62,8 +62,9 @@ export class OrgUnitsService {
       .sort((a, b) => a.depth - b.depth);
   }
 
+  /** `actor`: an administrator, or a system job (the demo seed, src/demo). */
   async create(
-    actor: UserPrincipal,
+    actor: UserPrincipal | SystemPrincipal,
     input: { name: string; parentId?: string | null },
     ip?: string,
   ) {

@@ -57,5 +57,7 @@ import { NoteDocumentsController } from './note-documents.controller.js';
     NotePublishApproval,
     NoteDocuments,
   ],
+  // The demo seed (src/demo) writes notes through it.
+  exports: [NotesService],
 })
 export class NotesModule {}

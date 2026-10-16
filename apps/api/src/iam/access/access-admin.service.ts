@@ -30,7 +30,7 @@ import {
   sql,
 } from 'drizzle-orm';
 import type { PageQuery } from '../../core/http/pagination.js';
-import type { UserPrincipal } from '../auth/principal.js';
+import type { SystemPrincipal, UserPrincipal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import { BreachedPasswordsService } from '../account/breached-passwords.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -91,6 +91,14 @@ export interface ClientChanges {
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
 }
+
+/**
+ * Who may create users: an administrator (a request), or a system job
+ * that declares what it grants (the demo seed, src/demo). The grant rules
+ * apply to both: a job holds only its declared permissions, never
+ * `all.manage`, so it can't make an administrator.
+ */
+type UserCreator = UserPrincipal | SystemPrincipal;
 
 /**
  * Changes to roles and users, with the rules that keep access control safe:
@@ -285,7 +293,7 @@ export class AccessAdminService {
     };
   }
 
-  async createUser(actor: UserPrincipal, input: UserInput, ip?: string) {
+  async createUser(actor: UserCreator, input: UserInput, ip?: string) {
     await this.checkRoleGrant(actor, input.roleIds);
     if (input.password) {
       await this.breachedPasswords.assertNotBreached(
@@ -490,10 +498,7 @@ export class AccessAdminService {
   }
 
   /** Validates the permissions against the catalog, and checks the actor may grant each. */
-  private async checkGrant(
-    actor: UserPrincipal,
-    permissions: PermissionInput[],
-  ) {
+  private async checkGrant(actor: UserCreator, permissions: PermissionInput[]) {
     const actorPermissions = await this.access.permissions(actor);
     const isAdmin = actorPermissions.some(isAll);
     const valid: PermissionInput[] = [];
@@ -534,7 +539,7 @@ export class AccessAdminService {
     return valid;
   }
 
-  private async checkRoleGrant(actor: UserPrincipal, roleIds: string[]) {
+  private async checkRoleGrant(actor: UserCreator, roleIds: string[]) {
     if (!roleIds.length) {
       return;
     }

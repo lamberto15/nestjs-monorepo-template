@@ -36,11 +36,13 @@ pnpm install
 pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES), Gotenberg (PDF)
 cp apps/api/env.development.example apps/api/.env.development   # optional: point the app at them
 pnpm start:dev            # http://localhost:3000/api
+pnpm db:seed:demo         # optional: demo users, notes and tags (passwords printed once)
 ```
 
 The first start creates the administrator (`ADMIN_EMAIL`; the password is
-logged once unless `ADMIN_PASSWORD` is set). More in
-[development](docs/development.md).
+logged once unless `ADMIN_PASSWORD` is set). Or open the repository in its
+devcontainer (`.devcontainer/`): the same services, nothing to install. More
+in [development](docs/development.md).
 
 ## Deploy
 

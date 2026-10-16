@@ -5,7 +5,11 @@ pnpm install
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
 cp apps/api/env.development.example apps/api/.env.development   # points the app at them
 pnpm start:dev            # the API and the workers, with reload: http://localhost:3000/api
+pnpm db:seed:demo         # optional: demo users, notes, tags (passwords printed once)
 ```
+
+Or open the repository in its [devcontainer](#devcontainer): the same
+services, Node.js and pnpm at the repository's versions, nothing to install.
 
 Every command runs from the repository root. The API lives in `apps/api`
 ([architecture](architecture.md)); the root's scripts run its tasks there,
@@ -44,6 +48,105 @@ Not deploying to AWS (R2, MinIO, Resend, Postmark…)? Switch the lines at the
 end of `apps/api/.env.development` (local disk, SMTP to Mailpit), point them at your
 provider, and remove `floci` from `compose.dev.yaml`.
 
+## Demo data
+
+`pnpm db:seed:demo` fills a development database with a small, believable
+company: org units (Sales, Sales North under it, Engineering), six users in
+the example roles (two team leads, three editors, a viewer), four tags, and
+seven notes owned by those users, tagged, two with a comment that mentions a
+colleague, one with a text file attached. The data is
+`apps/api/src/demo/demo-data.ts`: change it with your features.
+
+- **Through the services, as the system principal** `system:demo-seed`
+  ([permissions](permissions.md), "The system principal"): a standalone
+  application context (`NestFactory.createApplicationContext`, NestJS's way
+  for scripts) of the app plus `DemoSeeder`, with no workers in it
+  (`APP_ROLE=api`). Every write has its audit entry with the seed as the
+  actor, and the job may do only what `DEMO_SEED_JOB` declares
+  (`src/demo/demo.jobs.ts`), checked where a controller checks and where
+  the services do (granting a role takes holding its permissions, so the
+  seed can't make an administrator). The notes are their users' (so `mine`
+  and "in my units" show something), created on their behalf. What the
+  seed starts (the notes' publication, their webhooks) waits in PostgreSQL
+  for the app's workers: `pnpm start:dev` runs them.
+- **Passwords are generated** and printed once, with the addresses
+  (`<first>.<last>@demo.example.com`): a fixed password would be in every
+  breach list, which sign-up and password changes refuse. Lost one? Set a
+  new one as the administrator (`PATCH /v1/access/users/{id}`).
+- **Development databases only, by a positive check**: it runs only when
+  both say so, and refuses (exit 1, nothing written) otherwise:
+  - `NODE_ENV` is set to `development` (or `test`). Unset doesn't count,
+    although the app treats it as development: `env.development.example`
+    sets it (add `NODE_ENV=development` to a `.env.development` made
+    before), the devcontainer too. A production container
+    (`NODE_ENV=production`) refuses before connecting to anything.
+  - The database is marked as a development database: the database-wide
+    setting `app.dev_database = on`. NODE_ENV alone proves nothing (app10
+    runs the same image), so the database must say it too. Only a superuser
+    can write the setting: the app's role can't, nor an administrator through
+    the API, so a production database never has it. The development
+    services set it when they create their database
+    (`dev/postgres/10-dev-database.sql`, mounted into PostgreSQL's
+    `docker-entrypoint-initdb.d`); a volume made before this needs it once:
+    `pnpm services:up && pnpm db:mark-dev` (Compose's `exec` into the
+    development project's PostgreSQL, never another project's).
+- **Once:** everything is one transaction under an advisory lock, and a
+  database that already has demo users is left alone ("already here",
+  exit 0). To start over, drop the development database's volume
+  (`pnpm services:down`, then `docker volume rm <name>-dev_postgres_data`) or
+  delete the demo users.
+- **Tenancy** ([roadmap](roadmap.md), 1a) adds the demo tenant in one
+  place: `DemoSeeder.seed()` creates it before `system.run()` and passes it
+  `{ tenantId }`.
+- Its tests: `src/demo/demo-guard.spec.ts` (both halves of the check) and
+  `test/demo-seed.e2e-spec.ts` (refused on an unmarked database and under
+  another NODE_ENV, then a run on a marked one, and a second that changes
+  nothing).
+
+## Devcontainer
+
+`.devcontainer/` is a [development container](https://containers.dev)
+(VS Code's Dev Containers, GitHub Codespaces, `devcontainer up`): a
+workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
+`devEngines`), psql and redis-cli, next to the development services
+(PostgreSQL, Redis, Mailpit, Gotenberg) taken from `compose.yaml` and
+`compose.dev.yaml` with `extends`, so their pinned images are the same.
+
+- **No Floci (AWS locally)**, to keep it lean: nothing in the development
+  workflow needs it. Files go to the local disk (`apps/api/.data`) and mail
+  over SMTP straight to Mailpit, the app's own alternatives to S3 and SES
+  (set in the container's environment). To work on the S3 or SES code
+  paths, use `pnpm services:up` on the host, which runs Floci.
+
+- **Open the main checkout**, not a worktree: a worktree's `.git` file
+  points at a path on the host, which the container doesn't have.
+- **On creation** (`.devcontainer/post-create.sh`): `pnpm install`, and
+  `apps/api/.env.development` copied from `apps/api/env.development.example`
+  when there is none (yours, if you have one, comes with the repository's
+  folder). Then `pnpm start:dev` (port 3000 is forwarded; Mailpit's inbox
+  as `mailpit:8025`) and `pnpm db:seed:demo`.
+- **The services' addresses:** the workspace shares PostgreSQL's network,
+  so the file's `127.0.0.1:5432` reaches it; Redis, Mailpit and Gotenberg
+  are reached by name, set in the container's environment
+  (`.devcontainer/compose.yaml`) with `STORAGE_DRIVER=local` and
+  `MAIL_TRANSPORT=smtp`: the environment wins over the file. `NODE_ENV` is
+  `development` there, and the database is marked as a development one when
+  it's created: the demo seed runs.
+- **The e2e tests** use the container's services instead of starting their
+  own: `TEST_DATABASE_URL` (the server, as its superuser, whose password is
+  `PGPASSWORD`) and `REDIS_URL` are set (see "Tests"). No Docker inside the
+  container: the load tests run on the host.
+- **Its own Compose project** (`nestjs-monorepo-template-devcontainer`),
+  with its own volumes and nothing published on the host, so it runs beside
+  `pnpm services:up` and never near a production stack:
+  `.devcontainer/compose.yaml` is its only file, so Compose never reads the
+  root's `.env` (production's).
+- **`node_modules` are the container's** (volumes): the Linux binaries of
+  oxlint, esbuild, turbo and lefthook never replace the host's. A frontend
+  added under `apps/` needs a volume for its own `node_modules` too.
+- Dependabot raises the base image; pnpm's version is raised with
+  `devEngines` by hand (`PNPM_VERSION`).
+
 ## Commands
 
 | Command | Does |
@@ -54,6 +157,8 @@ provider, and remove `floci` from `compose.dev.yaml`.
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:check` | the migrations match the schema |
 | `pnpm migrate` | apply migrations as `DATABASE_OWNER_URL`, then make or check the app role of `DATABASE_URL` (what a deploy runs) |
+| `pnpm db:seed:demo` | demo users, notes and tags on a development database ("Demo data") |
+| `pnpm db:mark-dev` | mark the development services' database as a development one, once, for a volume made before the marker |
 | `pnpm services:up` / `services:down` | the development services |
 | `pnpm client:generate` | the typed client's `openapi.json` and `schema.ts` (after any route change) |
 | `pnpm client:check` | they match the API (CI) |
@@ -66,10 +171,14 @@ provider, and remove `floci` from `compose.dev.yaml`.
   manual workflow clock. `apps/api/test/setup-env.ts` sets the environment before
   AppModule loads.
   - The run starts a throwaway PostgreSQL in **Docker** (on tmpfs, no fsync)
-    and a `redis-server`, or uses `TEST_DATABASE_URL` and `REDIS_URL` (CI).
-    Docker must be running; without it, set `TEST_DATABASE_URL` to a server
-    where the role may create databases, the development one for instance
-    (`apps/api/.env.development`'s `DATABASE_URL`, with `postgres` as the database).
+    and a `redis-server`, or uses `TEST_DATABASE_URL` and `REDIS_URL` (CI,
+    and the [devcontainer](#devcontainer), which sets both).
+    Docker must be running; without it, set `TEST_DATABASE_URL` to a
+    superuser of a server of your own, the development one for instance
+    (`apps/api/.env.development`'s `DATABASE_OWNER_URL`, with `postgres` as
+    the database): the run makes its roles and databases there, and the demo
+    seed's test marks its database as a development one, which only a
+    superuser may.
   - The database is migrated once as a template; every `bootApp()` (and
     `testDatabase()`) gets a copy of its own, in milliseconds, and drops it
     when closed: tests never see each other's rows, and the run leaves the

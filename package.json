@@ -17,6 +17,8 @@
     "db:check": "pnpm --filter @nestjs-monorepo-template/api db:check",
     "db:studio": "pnpm --filter @nestjs-monorepo-template/api db:studio",
     "migrate": "pnpm --filter @nestjs-monorepo-template/api migrate",
+    "db:seed:demo": "pnpm --filter @nestjs-monorepo-template/api db:seed:demo",
+    "db:mark-dev": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -f /docker-entrypoint-initdb.d/10-dev-database.sql'",
     "services:up": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml up -d",
     "services:down": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml down",
     "openapi:dump": "pnpm --filter @nestjs-monorepo-template/api openapi:dump",
