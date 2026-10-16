@@ -20,5 +20,6 @@ export * from './platform/usage/usage.tables.js';
 export * from './platform/revisions/revisions.tables.js';
 export * from './platform/approvals/approvals.tables.js';
 export * from './platform/money/money.tables.js';
+export * from './platform/deliverability/deliverability.tables.js';
 // Features
 export * from './features/notes/notes.tables.js';

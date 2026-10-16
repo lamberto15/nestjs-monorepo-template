@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, Logger, type Type } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  Optional,
+  type Type,
+} from '@nestjs/common';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import {
   type Mailable,
@@ -9,6 +15,16 @@ import {
   Mailer,
 } from '@nestjs/mail';
 import { type Job, type Queue, UnrecoverableError } from 'bullmq';
+import { Counter } from 'prom-client';
+import { MetricsService } from '../metrics/metrics.service.js';
+import {
+  isEssentialMail,
+  MAIL_SUPPRESSION,
+  type MailSuppression,
+  normalizeAddress,
+  SUPPRESSION_REASONS,
+  type SuppressionReason,
+} from './mail-suppression.js';
 
 /** The queue every mail goes through. */
 export const MAIL_QUEUE = 'mail';
@@ -24,6 +40,15 @@ interface QueuedMail {
   html?: string;
   text?: string;
   headers: Record<string, string>;
+  /** The mail class carries `@EssentialMail()`: it still goes to an address that complained. */
+  essential?: boolean;
+}
+
+/** What a mail job ends as: sent, or skipped for every recipient. */
+export interface MailJobResult {
+  messageId?: string;
+  /** Recipients the suppression list kept the mail from, with why. */
+  skipped: { address: string; reason: SuppressionReason }[];
 }
 
 /**
@@ -68,6 +93,7 @@ export class MailQueue {
         html: message.html,
         text: message.text,
         headers: { ...message.headers },
+        essential: isEssentialMail(mail),
       },
       {
         jobId,
@@ -79,23 +105,67 @@ export class MailQueue {
   }
 }
 
+/**
+ * The worker's side: asks the suppression list about every recipient right
+ * before sending (the list is read then, not when the mail was queued,
+ * since a job may wait hours), drops the ones it names, and sends to the
+ * rest. A mail with no recipient left is done, not failed: its result
+ * says who was skipped and why, and `mail_suppressed_total` counts them.
+ */
 @Processor(MAIL_QUEUE, { concurrency: 5 })
 export class MailProcessor extends WorkerHost {
   private readonly logger = new Logger('MailQueue');
+  private readonly sent: Counter;
+  private readonly suppressed: Counter<'reason'>;
 
-  constructor(private readonly mailer: Mailer) {
+  constructor(
+    private readonly mailer: Mailer,
+    metrics: MetricsService,
+    @Optional()
+    @Inject(MAIL_SUPPRESSION)
+    private readonly suppression?: MailSuppression,
+  ) {
     super();
+    this.sent = new Counter({
+      name: 'mail_sent_total',
+      help: 'Mails the transport accepted (the mail queue, on the workers).',
+      registers: [metrics.registry],
+    });
+    this.sent.inc(0);
+    this.suppressed = new Counter({
+      name: 'mail_suppressed_total',
+      help: 'Recipients a mail was not sent to because the suppression list names them, by reason.',
+      labelNames: ['reason'] as const,
+      registers: [metrics.registry],
+    });
+    for (const reason of SUPPRESSION_REASONS) {
+      this.suppressed.labels(reason).inc(0);
+    }
   }
 
-  async process(job: Job<QueuedMail>) {
+  async process(job: Job<QueuedMail>): Promise<MailJobResult> {
+    const { recipients, skipped } = await this.allowed(job);
+    if (
+      recipients.to.length + recipients.cc.length + recipients.bcc.length ===
+      0
+    ) {
+      this.logger.warn('Mail not sent: every recipient is suppressed', {
+        jobId: job.id,
+        mail: job.name,
+        skipped,
+      });
+      return { skipped };
+    }
     try {
       const sent = await this.mailer.send({
         ...job.data,
+        ...recipients,
         idempotencyKey: job.id,
         // The queue retries, over hours; the mailer makes one attempt per try.
         retry: false,
       });
-      return { messageId: sent.messageId };
+      this.sent.inc();
+      return { messageId: sent.messageId, skipped };
     } catch (error) {
       if (error instanceof MailError && error.permanent) {
         this.logger.warn(`Mail refused for good: ${error.message}`, {
@@ -105,5 +175,38 @@ export class MailProcessor extends WorkerHost {
       }
       throw error;
     }
+  }
+
+  /** The recipients the list lets through, and the ones it kept (counted). */
+  private async allowed(job: Job<QueuedMail>) {
+    const { to, cc, bcc, essential = false } = job.data;
+    const skipped: MailJobResult['skipped'] = [];
+    if (!this.suppression) {
+      return { recipients: { to, cc, bcc }, skipped };
+    }
+    const all = [...to, ...cc, ...bcc].map((r) => normalizeAddress(r.address));
+    const verdicts = await this.suppression.check(all, {
+      essential,
+      mail: job.name,
+    });
+    const keep = (list: MailAddress[]) =>
+      list.filter((recipient) => {
+        const verdict = verdicts.get(normalizeAddress(recipient.address));
+        if (!verdict || verdict.send) {
+          return true;
+        }
+        skipped.push({ address: recipient.address, reason: verdict.reason });
+        this.suppressed.labels(verdict.reason).inc();
+        return false;
+      });
+    const recipients = { to: keep(to), cc: keep(cc), bcc: keep(bcc) };
+    if (skipped.length > 0) {
+      this.logger.log('Suppressed recipients left out of a mail', {
+        jobId: job.id,
+        mail: job.name,
+        skipped,
+      });
+    }
+    return { recipients, skipped };
   }
 }

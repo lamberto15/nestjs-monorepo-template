@@ -382,7 +382,7 @@ Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
 blackbox exporter 0.1 CPU and 64 MB). Logs are
 bounded like the rest of the stack (`DOCKER_LOG_*`).
 
-**The alerts** (35 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
+**The alerts** (38 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
 
 | Alert | Fires when | Severity |
@@ -405,6 +405,7 @@ warning: look today):
 | `ApprovalsNotApplied` | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked | warning |
 | `ExchangeRatesStale` | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md)) | warning |
 | `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp` | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too) | critical |
+| `MailBounceRateHigh`, `MailComplaints` | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md)) | warning |
 | `CaptchaProviderUnavailable` | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection") | warning |
 | `PostgresDown`, `RedisDown` | the exporter can't reach it for 1 min | critical |
 | `PostgresConnectionsHigh` | connections above 80% of `max_connections` for 5 min | warning |

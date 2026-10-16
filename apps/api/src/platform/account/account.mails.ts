@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { I18nService } from '@nestjs/i18n';
 import type { Mailable, MailRenderContext } from '@nestjs/mail';
 import { type CoreEnv, webUrl } from '../../core/config/core.env.js';
+import { EssentialMail } from '../../core/mail/mail-suppression.js';
 
 export interface AccountDeletionMailData {
   name: string;
@@ -12,7 +13,12 @@ export interface AccountDeletionMailData {
   timezone: string | null;
 }
 
-/** "Your account will be deleted on …, unless you cancel": sent when a user asks for the deletion. */
+/**
+ * "Your account will be deleted on …, unless you cancel": sent when a user
+ * asks for the deletion. A notice of a destructive action the person
+ * asked for: essential, so it still goes to an address that complained.
+ */
+@EssentialMail()
 @Injectable()
 export class AccountDeletionMail implements Mailable<AccountDeletionMailData> {
   constructor(

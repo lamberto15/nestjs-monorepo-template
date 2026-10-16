@@ -22,7 +22,7 @@ describe('access control (e2e)', () => {
     const catalog = await node.admin().get('/v1/access/catalog').expect(200);
     expect(
       catalog.body.subjects.map((s: { subject: string }) => s.subject),
-    ).toEqual(['Access', 'Approval', 'Ops', 'Note']);
+    ).toEqual(['Access', 'Approval', 'Ops', 'MailSuppression', 'Note']);
   });
 
   it('opens each access and ops route only to the permissions it needs: 403 otherwise', async () => {

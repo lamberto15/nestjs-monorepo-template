@@ -681,6 +681,70 @@ tests:
               summary: api cannot reach the captcha provider
               description: 'Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: 16.67m per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare''s status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too).'
 
+  - name: hard bounces above 5% of the mail sent alert, below they don't, and few sends stay quiet
+    interval: 1m
+    input_series:
+      # The workers send 2 mails a minute (120 an hour, two replicas).
+      - series: 'mail_sent_total{job="worker",instance="10.0.0.4:3000"}'
+        values: '0+1x80'
+      - series: 'mail_sent_total{job="worker",instance="10.0.0.5:3000"}'
+        values: '0+1x80'
+      # The api receives one hard bounce every 5 minutes: 12 an hour of 120 sent, 10%.
+      - series: 'mail_events_total{job="api",instance="10.0.0.2:3000",provider="ses",type="hard_bounce"}'
+        values: '0 0 0 0 0 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 6 6 6 6 6 7 7 7 7 7 8 8 8 8 8 9 9 9 9 9 10 10 10 10 10 11 11 11 11 11 12 12 12 12 12 13 13 13 13 13 14 14 14 14 14 15 15 15 15 15 16'
+      - series: 'mail_events_total{job="api",instance="10.0.0.3:3000",provider="ses",type="hard_bounce"}'
+        values: '0x80'
+    alert_rule_test:
+      # Too early: fewer than 20 mails sent in the window.
+      - eval_time: 8m
+        alertname: MailBounceRateHigh
+        exp_alerts: []
+      # 10% for long enough.
+      - eval_time: 75m
+        alertname: MailBounceRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 10.17% of the mail sent in the last hour bounced hard
+              description: 'Over 5% of the mails sent in the last hour went to addresses that don''t exist, for 15 minutes (at least 20 sent). They are being suppressed (GET /v1/mail/suppressions?reason=hard_bounce); find where the addresses came from (an import, a sign-up form without verification). SES suspends sending near 5%.'
+
+  - name: a few hard bounces among many mails stay quiet
+    interval: 1m
+    input_series:
+      - series: 'mail_sent_total{job="worker",instance="10.0.0.4:3000"}'
+        values: '0+5x80'
+      # 2 bounces an hour of 300 sent.
+      - series: 'mail_events_total{job="api",instance="10.0.0.2:3000",provider="ses",type="hard_bounce"}'
+        values: '0x30 1x30 2x20'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: MailBounceRateHigh
+        exp_alerts: []
+
+  - name: one spam complaint alerts for the hour it happened in
+    interval: 1m
+    input_series:
+      - series: 'mail_events_total{job="api",instance="10.0.0.2:3000",provider="ses",type="complaint"}'
+        values: '0x10 1x70'
+      - series: 'mail_events_total{job="api",instance="10.0.0.2:3000",provider="ses",type="hard_bounce"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: MailComplaints
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: MailComplaints
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 1 spam complaints in the last hour
+              description: 'Recipients reported mail from the app as spam (GET /v1/mail/suppressions?reason=complaint shows who, with the provider''s feedback type). They are suppressed; look at what was sent to them and why. Providers throttle a sender above 0.1% complaints.'
+      - eval_time: 79m
+        alertname: MailComplaints
+        exp_alerts: []
+
   - name: a single failed captcha check stays quiet
     interval: 1m
     input_series:

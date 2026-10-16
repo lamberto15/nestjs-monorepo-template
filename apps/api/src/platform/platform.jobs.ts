@@ -104,6 +104,27 @@ export const EXCHANGE_RATES_JOB = defineSystemJob({
   permissions: [],
 });
 
+/**
+ * MailEventsProcessor: the bounces and complaints a mail provider reported
+ * (platform/deliverability), into the suppression list.
+ */
+export const MAIL_INTAKE_JOB = defineSystemJob({
+  key: 'mail-intake',
+  label: 'Mail intake',
+  description:
+    'Records the bounces and complaints a mail provider reports (SES through SNS) and keeps the suppression list from them.',
+  permissions: [],
+});
+
+/** MailEventsRetentionJob: events older than MAIL_EVENTS_RETENTION_DAYS. */
+export const MAIL_EVENTS_RETENTION_JOB = defineSystemJob({
+  key: 'mail-events-retention',
+  label: 'Mail events retention',
+  description:
+    'Deletes bounce, complaint and delivery events older than MAIL_EVENTS_RETENTION_DAYS, every night.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
@@ -115,4 +136,6 @@ export const PLATFORM_SYSTEM_JOBS = [
   REPORT_RUNNER_JOB,
   APPROVALS_JOB,
   EXCHANGE_RATES_JOB,
+  MAIL_INTAKE_JOB,
+  MAIL_EVENTS_RETENTION_JOB,
 ];

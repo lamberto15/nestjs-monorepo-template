@@ -61,6 +61,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Files attached to records (uploads, downloads, the orphan sweep) | [docs/attachments.md](docs/attachments.md) |
 | Tags (labels) on records: managing them, filtering lists by them | [docs/tags.md](docs/tags.md) |
 | Scheduled reports (an export run on a schedule, mailed with a link) | [docs/reports.md](docs/reports.md) |
+| Email deliverability (SPF, DKIM, DMARC for SES; bounces and complaints through SNS; the suppression list the sender respects) | [docs/deliverability.md](docs/deliverability.md) |
 | Record revisions: history, diff between two, restore one (retention) | [docs/revisions.md](docs/revisions.md) |
 | Approvals: declared policies, stages, approver rules, delegation, escalation, extending | [docs/approvals.md](docs/approvals.md) |
 | API clients' usage per day and route, daily quotas (429 `quota_exceeded`) | [docs/usage.md](docs/usage.md) |
@@ -80,7 +81,7 @@ pnpm db:check                                           # after table changes
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 
-Current state: 318 unit (310 API, 8 client) and 473 e2e tests pass (edge cases in
+Current state: 336 unit (328 API, 8 client) and 482 e2e tests pass (edge cases in
 `apps/api/test/edge-*.e2e-spec.ts`, security regressions in `apps/api/test/security.e2e-spec.ts`),
 lint is clean, the image builds, and the production stack (api + worker +
 PostgreSQL 18 + Redis 8) was run and verified.

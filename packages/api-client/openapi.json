@@ -8252,6 +8252,1033 @@
         ]
       }
     },
+    "/v1/webhooks/mail/{provider}": {
+      "post": {
+        "description": "`ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.",
+        "operationId": "MailEventsController_handle_v1",
+        "parameters": [
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "ses",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "The provider’s notification, as it sends it.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "events",
+                        "handshake",
+                        "ignored"
+                      ]
+                    },
+                    "events": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "received",
+                    "kind",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not the provider’s format (sns_malformed)."
+          },
+          "401": {
+            "description": "The signature does not verify (sns_signature_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused)."
+          },
+          "403": {
+            "description": "The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed)."
+          },
+          "404": {
+            "description": "No such provider."
+          },
+          "503": {
+            "description": "The signing certificate could not be fetched (sns_certificate_unavailable): the provider retries."
+          }
+        },
+        "summary": "A mail provider reports bounces and complaints",
+        "tags": [
+          "incoming webhooks"
+        ]
+      }
+    },
+    "/v1/mail/suppressions": {
+      "get": {
+        "description": "Addresses mail is not sent to (`suppressedAt` set) and addresses being watched for soft bounces (`suppressedAt.isNull=true`). `?address=ada@example.com` (any case), `?address.endsWith=@example.com`, `?reason=complaint`, `?source=ses`; `?sort=-lastSeenAt`. Cursor pages.",
+        "operationId": "SuppressionsController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "address",
+            "required": false,
+            "in": "query",
+            "description": "Filter: address =",
+            "schema": {
+              "description": "Filter: address =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "address.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: address contains",
+            "schema": {
+              "description": "Filter: address contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "address.endsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: address endsWith",
+            "schema": {
+              "description": "Filter: address endsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "reason",
+            "required": false,
+            "in": "query",
+            "description": "Filter: reason =",
+            "schema": {
+              "description": "Filter: reason =",
+              "type": "string",
+              "enum": [
+                "hard_bounce",
+                "soft_bounce",
+                "complaint",
+                "manual"
+              ]
+            }
+          },
+          {
+            "name": "reason.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: reason in",
+            "schema": {
+              "description": "Filter: reason in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason.notIn",
+            "required": false,
+            "in": "query",
+            "description": "Filter: reason notIn",
+            "schema": {
+              "description": "Filter: reason notIn",
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "description": "Filter: source =",
+            "schema": {
+              "description": "Filter: source =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "source.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: source in",
+            "schema": {
+              "description": "Filter: source in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "suppressedAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: suppressedAt gte",
+            "schema": {
+              "description": "Filter: suppressedAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "suppressedAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: suppressedAt lt",
+            "schema": {
+              "description": "Filter: suppressedAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "suppressedAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: suppressedAt between",
+            "schema": {
+              "description": "Filter: suppressedAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "suppressedAt.isNull",
+            "required": false,
+            "in": "query",
+            "description": "Filter: suppressedAt isNull",
+            "schema": {
+              "description": "Filter: suppressedAt isNull",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lastSeenAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: lastSeenAt gte",
+            "schema": {
+              "description": "Filter: lastSeenAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "lastSeenAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: lastSeenAt lt",
+            "schema": {
+              "description": "Filter: lastSeenAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "lastSeenAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: lastSeenAt between",
+            "schema": {
+              "description": "Filter: lastSeenAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "createdAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gt",
+            "schema": {
+              "description": "Filter: createdAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gte",
+            "schema": {
+              "description": "Filter: createdAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lt",
+            "schema": {
+              "description": "Filter: createdAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lte",
+            "schema": {
+              "description": "Filter: createdAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt between",
+            "schema": {
+              "description": "Filter: createdAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "updatedAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt gt",
+            "schema": {
+              "description": "Filter: updatedAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt gte",
+            "schema": {
+              "description": "Filter: updatedAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt lt",
+            "schema": {
+              "description": "Filter: updatedAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt lte",
+            "schema": {
+              "description": "Filter: updatedAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "updatedAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: updatedAt between",
+            "schema": {
+              "description": "Filter: updatedAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"address\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: address (eq, contains, endsWith); reason (eq, in, notIn); source (eq, in); suppressedAt (gte, lt, between, isNull); lastSeenAt (gte, lt, between); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"address\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: address (eq, contains, endsWith); reason (eq, in, notIn); source (eq, in); suppressedAt (gte, lt, between, isNull); lastSeenAt (gte, lt, between); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -address. Sortable: address, suppressedAt, lastSeenAt, createdAt, updatedAt.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -address. Sortable: address, suppressedAt, lastSeenAt, createdAt, updatedAt.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: address,reason. Fields: id, address, reason, source, note, lastDetail, events, softBounces, firstSeenAt, lastSeenAt, suppressedAt, skipped, lastSkippedAt, createdBy, createdAt, updatedAt.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: address,reason. Fields: id, address, reason, source, note, lastDetail, events, softBounces, firstSeenAt, lastSeenAt, suppressedAt, skipped, lastSkippedAt, createdBy, createdAt, updatedAt.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string",
+                            "example": "ada@example.com"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "hard_bounce",
+                              "soft_bounce",
+                              "complaint",
+                              "manual"
+                            ],
+                            "description": "`hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`."
+                          },
+                          "source": {
+                            "type": "string",
+                            "description": "The provider that reported it (`ses`), or `manual`."
+                          },
+                          "note": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "lastDetail": {
+                            "nullable": true,
+                            "description": "The provider’s last word: a bounce sub-type, a diagnostic code.",
+                            "type": "string"
+                          },
+                          "events": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Bounces and complaints reported for it."
+                          },
+                          "softBounces": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Transient bounces in a row."
+                          },
+                          "firstSeenAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "lastSeenAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "suppressedAt": {
+                            "nullable": true,
+                            "description": "Null: only watched (soft bounces under the threshold); set: mail is not sent to it.",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "skipped": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Mails not sent to it since."
+                          },
+                          "lastSkippedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "createdBy": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "address",
+                          "reason",
+                          "source",
+                          "note",
+                          "lastDetail",
+                          "events",
+                          "softBounces",
+                          "firstSeenAt",
+                          "lastSeenAt",
+                          "suppressedAt",
+                          "skipped",
+                          "lastSkippedAt",
+                          "createdBy",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session or token."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "The suppression list, newest first",
+        "tags": [
+          "mail"
+        ]
+      },
+      "post": {
+        "description": "A manual entry (`reason: manual`): nothing is sent to the address, essential mail included, until it is removed. Audited (`mailSuppression.created`).",
+        "operationId": "SuppressionsController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "example": "ada@example.com"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "address"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string",
+                      "example": "ada@example.com"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "hard_bounce",
+                        "soft_bounce",
+                        "complaint",
+                        "manual"
+                      ],
+                      "description": "`hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`."
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "The provider that reported it (`ses`), or `manual`."
+                    },
+                    "note": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "lastDetail": {
+                      "nullable": true,
+                      "description": "The provider’s last word: a bounce sub-type, a diagnostic code.",
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Bounces and complaints reported for it."
+                    },
+                    "softBounces": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Transient bounces in a row."
+                    },
+                    "firstSeenAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "lastSeenAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "suppressedAt": {
+                      "nullable": true,
+                      "description": "Null: only watched (soft bounces under the threshold); set: mail is not sent to it.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "skipped": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Mails not sent to it since."
+                    },
+                    "lastSkippedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "createdBy": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "address",
+                    "reason",
+                    "source",
+                    "note",
+                    "lastDetail",
+                    "events",
+                    "softBounces",
+                    "firstSeenAt",
+                    "lastSeenAt",
+                    "suppressedAt",
+                    "skipped",
+                    "lastSkippedAt",
+                    "createdBy",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not an email address."
+          },
+          "401": {
+            "description": "No valid session or token."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "The address is listed already."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Stop mail to an address",
+        "tags": [
+          "mail"
+        ]
+      }
+    },
+    "/v1/mail/suppressions/{id}": {
+      "get": {
+        "operationId": "SuppressionsController_findOne_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string",
+                      "example": "ada@example.com"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "hard_bounce",
+                        "soft_bounce",
+                        "complaint",
+                        "manual"
+                      ],
+                      "description": "`hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`."
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "The provider that reported it (`ses`), or `manual`."
+                    },
+                    "note": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "lastDetail": {
+                      "nullable": true,
+                      "description": "The provider’s last word: a bounce sub-type, a diagnostic code.",
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Bounces and complaints reported for it."
+                    },
+                    "softBounces": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Transient bounces in a row."
+                    },
+                    "firstSeenAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "lastSeenAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "suppressedAt": {
+                      "nullable": true,
+                      "description": "Null: only watched (soft bounces under the threshold); set: mail is not sent to it.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "skipped": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Mails not sent to it since."
+                    },
+                    "lastSkippedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "createdBy": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "address",
+                    "reason",
+                    "source",
+                    "note",
+                    "lastDetail",
+                    "events",
+                    "softBounces",
+                    "firstSeenAt",
+                    "lastSeenAt",
+                    "suppressedAt",
+                    "skipped",
+                    "lastSkippedAt",
+                    "createdBy",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session or token."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "One entry",
+        "tags": [
+          "mail"
+        ]
+      },
+      "delete": {
+        "description": "Removes the entry. For a bounced address, once the mailbox is known to work; for a complaint, only when the person asked for mail again. A new bounce or complaint lists it again. Audited (`mailSuppression.deleted`).",
+        "operationId": "SuppressionsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid session or token."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Send mail to the address again",
+        "tags": [
+          "mail"
+        ]
+      }
+    },
     "/v1/approvals/delegations": {
       "get": {
         "operationId": "ApprovalDelegationsController_list_v1",

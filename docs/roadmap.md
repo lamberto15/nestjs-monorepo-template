@@ -38,6 +38,7 @@ first project is built on the template; until then they report only.
 | 24. Session method and step-up | **Done** (#37): the session records how it was signed into; `@RecentAuthentication()` on sensitive routes, `POST /v1/auth/reauthenticate`. Follow-ups: a no-sign-in cancel link in the deletion mail; per-request `prompt=login` for OIDC. |
 | 4. Bot protection | **Done** (#42): Cloudflare Turnstile behind a `CaptchaVerifier` interface, `@Captcha()` on sign-in, sign-up, the magic-link request and forgot password, the token in `X-Captcha-Token`; modes `off` (default), `always`, `after-failures` (per address and per email and address, the same for unknown accounts); 2 s timeout and a circuit breaker (@nestjs/resilience); fail-open under a strict tier with a metric, an alert and a replay set, fail-closed configurable; the token sign-in of native apps shares the counters and the challenge (a web view when asked); the stub verifier for tests and load tests, refused in production. docs/auth.md, "Bot protection". Follow-ups: the widget in the frontend starter (7); app attestation for the token sign-in. |
 | 14. Money and currency | **Done** (#41): `Money` (bigint minor units, ISO 4217 exponents, one rounding by a named mode, largest-remainder allocation), `formatMoney()` with an explicit numbering system, `moneyColumns()`; the ECB's daily rates fetched by `system:exchange-rates`, conversion through the euro carrying rate, day and source, `GET /v1/money/rates` and `/convert`, the `ExchangeRatesStale` alert. docs/money.md. |
+| 22. Email deliverability | **Done**: `POST /v1/webhooks/mail/ses` verifies SNS notifications (signature versions 1 and 2, certificate URL and `SubscribeURL` restricted to SNS hosts, `SES_SNS_TOPIC_ARNS` allow-list, replay-safe), a queue job as `system:mail-intake` keeps the suppression list (hard/soft bounces with a threshold, complaints, manual entries; `GET/POST/DELETE /v1/mail/suppressions`, audited); the mail worker skips listed recipients (`@EssentialMail()` still reaches an address that complained); entries in the data export and erased with the account; SPF/DKIM/DMARC and the SNS setup in docs/deliverability.md; `MailBounceRateHigh`, `MailComplaints` alerts. Pluggable: Postmark, SendGrid… as adapters later. |
 | Everything else | Not started. |
 
 ## Decisions for the owner (recommendation first)
@@ -525,9 +526,10 @@ After 1a and 5.
 
 ### 22. Email deliverability
 
-- Bounces and complaints arrive through the incoming-webhooks module and feed a
-  suppression list, which the mail sender respects.
-- SPF, DKIM and DMARC go in the deployment docs.
+- Bounces and complaints arrive from the provider (Amazon SES through SNS, behind
+  a `MailEventIntake` interface; other providers are adapters of their own) and
+  feed a suppression list, which the mail sender respects.
+- SPF, DKIM and DMARC are documented ([deliverability.md](deliverability.md)).
 
 ### 23. Log redaction
 

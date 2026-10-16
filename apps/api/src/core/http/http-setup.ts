@@ -20,6 +20,12 @@ export function setupHttp(app: NestExpressApplication) {
   // First of all: every response, an error of the body parser included, carries its id.
   app.use(assignRequestId);
 
+  // SNS posts its JSON as text/plain (the mail intake, platform/deliverability):
+  // parsed as text, with the raw bytes kept (`rawBody`) for the signature
+  // check, as the JSON parser keeps them for the other incoming webhooks.
+  // SNS messages are at most 256 KB.
+  app.useBodyParser('text', { type: 'text/plain', limit: '512kb' });
+
   // HSTS, nosniff, frame-ancestors 'none', a strict CSP (Swagger UI's assets
   // are served from this origin, so it works with the default policy)...
   app.useSecurityHeaders({
