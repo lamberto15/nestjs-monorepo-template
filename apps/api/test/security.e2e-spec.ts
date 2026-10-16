@@ -1,11 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { getDrizzleToken } from '@nestjs/drizzle';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { AccountService } from '../src/iam/account/account.service.js';
 import { PasskeysService } from '../src/iam/account/passkeys.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
-import { passkeys, userIdentities, users } from '../src/iam/iam.tables.js';
+import {
+  passkeys,
+  sessions,
+  userIdentities,
+  users,
+} from '../src/iam/iam.tables.js';
 import { SoftwareAuthenticator } from './software-authenticator.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
 
@@ -299,5 +304,56 @@ describe('security (e2e)', () => {
       .post('/v1/auth/passkeys/sign-in')
       .send({ response: forged })
       .expect(401);
+  });
+
+  it('answers a query parameter sent twice on the OIDC routes with a redirect or a 400, never a 500', async () => {
+    // `?redirectTo=/a&redirectTo=//evil` reaches the handler as an array:
+    // a string method on it threw (500), and the array could not be
+    // checked as a path of the web app (CodeQL
+    // js/type-confusion-through-parameter-tampering). Linking from a stale
+    // session is the flow that reads `redirectTo`, to send the browser back.
+    const me = await node.user(['editor']);
+    const db = node.app.get<Database>(getDrizzleToken());
+    const current = (
+      (await me.agent.get('/v1/auth/sessions').expect(200)).body.items as {
+        id: string;
+        current: boolean;
+      }[]
+    ).find((item) => item.current)!;
+    await db
+      .update(sessions)
+      .set({
+        metadata: sql`${sessions.metadata} || ${JSON.stringify({
+          authenticatedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+        })}::jsonb`,
+      })
+      .where(eq(sessions.id, current.id));
+    const twice = await me.agent
+      .get(
+        '/v1/auth/oidc/google/login?link=true&redirectTo=/settings&redirectTo=//evil.example',
+      )
+      .expect(302);
+    // Not a string: as if absent, so the web app's root.
+    expect(twice.headers.location).toBe(
+      'https://web.example.com/?error=reauthentication_required',
+    );
+    // `link` twice is not `true`: not a link flow, so past the checks the
+    // route's 404 (no provider is configured here), not a 500.
+    await me.agent
+      .get('/v1/auth/oidc/google/login?link=true&link=true')
+      .expect(404);
+    // The callback: a repeated `code` or `state` is refused before anything reads it.
+    const refused = await node
+      .http()
+      .get('/v1/auth/oidc/google/callback?code=a&code=b&state=s')
+      .expect(400);
+    expect(refused.body.code).toBe('validation_failed');
+    expect(refused.body.errors).toEqual([
+      { path: 'code', message: expect.any(String) },
+    ]);
+    await node
+      .http()
+      .get('/v1/auth/oidc/google/callback?code=a&state=s&state=t')
+      .expect(400);
   });
 });
