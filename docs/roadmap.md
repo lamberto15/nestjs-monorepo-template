@@ -38,6 +38,7 @@ first project is built on the template; until then they report only.
 | 24. Session method and step-up | **Done** (#37): the session records how it was signed into; `@RecentAuthentication()` on sensitive routes, `POST /v1/auth/reauthenticate`. Follow-ups: a no-sign-in cancel link in the deletion mail; per-request `prompt=login` for OIDC. |
 | 4. Bot protection | **Done** (#42): Cloudflare Turnstile behind a `CaptchaVerifier` interface, `@Captcha()` on sign-in, sign-up, the magic-link request and forgot password, the token in `X-Captcha-Token`; modes `off` (default), `always`, `after-failures` (per address and per email and address, the same for unknown accounts); 2 s timeout and a circuit breaker (@nestjs/resilience); fail-open under a strict tier with a metric, an alert and a replay set, fail-closed configurable; the token sign-in of native apps shares the counters and the challenge (a web view when asked); the stub verifier for tests and load tests, refused in production. docs/auth.md, "Bot protection". Follow-ups: the widget in the frontend starter (7); app attestation for the token sign-in. |
 | 14. Money and currency | **Done** (#41): `Money` (bigint minor units, ISO 4217 exponents, one rounding by a named mode, largest-remainder allocation), `formatMoney()` with an explicit numbering system, `moneyColumns()`; the ECB's daily rates fetched by `system:exchange-rates`, conversion through the euro carrying rate, day and source, `GET /v1/money/rates` and `/convert`, the `ExchangeRatesStale` alert. docs/money.md. |
+| 17-lite. Load-test baseline | **Done** (#43): k6 (sign-in, a filtered list, create) on the production stack (`compose.loadtest.yaml`, `loadtest/run.sh`), on a GitHub runner, manual only for now (`workflow_dispatch`, to save Actions minutes; a schedule is one line under `on:`), the `load-test-baseline` artifact, fails at 2× the previous run or the anchor (median, p95, errors, dropped iterations); `RATE_LIMIT_MULTIPLIER` and the `load-test` API client (high quota) instead of disabled limits. docs/development.md, "Load tests". The bot check stays off on its stack (`CAPTCHA_MODE=off`); measuring it is a follow-up. Follow-up: concurrent sign-ins OOM-kill an api replica (four scrypt hashes of 128 MiB pass `API_MEMORY` 512M), so the baseline signs in at 2/s; bound the hashes in flight. |
 | Everything else | Not started. |
 
 ## Decisions for the owner (recommendation first)
@@ -483,7 +484,7 @@ After 1a and 5.
 
 - **17-lite (phase B):**
   - sign-in, list with filters, and create;
-  - nightly on a GitHub runner, with a JSON baseline artifact;
+  - nightly on a GitHub runner, with a JSON baseline artifact (built as manual-only for now, to save Actions minutes);
   - fails only on 2× regressions.
 - **17-full:**
   - export and realtime;

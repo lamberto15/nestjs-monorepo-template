@@ -755,6 +755,12 @@ merged migration fails it already):
 
 - **The same PostgreSQL and Redis as Compose:** CI reads their images from
   `compose.yaml` (job `compose-images`). Change them there only.
+- **Load test:** `.github/workflows/load-test.yml`, manual only for now
+  (`workflow_dispatch`, to save Actions minutes; a pull request changing the
+  load test runs it report-only): the production stack and k6 on a GitHub
+  runner, failing only on a 2× regression against the previous run or the
+  anchor. A schedule comes back with one line under `on:`, e.g.
+  `schedule: [{ cron: '37 2 * * 1' }]` (development.md, "Load tests").
 - **Commit messages:** `.github/workflows/commit-messages.yml` fails a pull
   request whose title, or whose only commit's subject, isn't a Conventional
   Commit (development.md, "Git hooks").
@@ -773,7 +779,8 @@ merged migration fails it already):
   versions: raise it together with `devEngines.runtime`, apps/api/Dockerfile's
   `node` image and CI's `runtime`. Trivy's own version (`version:` in the
   workflow), oasdiff's (`OASDIFF_IMAGE`) and squawk's (`SQUAWK_IMAGE` in
-  `tools/migration-lint/lint.mjs`; its tests run in the job) are raised by hand.
+  `tools/migration-lint/lint.mjs`; its tests run in the job) and k6's
+  (`K6_IMAGE` in `loadtest/run.sh`) are raised by hand.
 
 ## The image
 

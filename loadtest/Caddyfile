@@ -1,0 +1,24 @@
+# The load test's Caddy (compose.loadtest.yaml): caddy/Caddyfile's routing and
+# load balancing, on plain HTTP inside the Compose network (k6 reaches it as
+# http://caddy). No TLS: no certificate for a throwaway stack.
+{
+	persist_config off
+	auto_https off
+}
+
+:80 {
+	respond /metrics* 404
+
+	reverse_proxy {
+		dynamic a {
+			name api
+			port 3000
+			refresh 5s
+		}
+		lb_policy cookie lb_replica
+		lb_retries 2
+		fail_duration 10s
+		health_uri /health
+		health_interval 5s
+	}
+}
