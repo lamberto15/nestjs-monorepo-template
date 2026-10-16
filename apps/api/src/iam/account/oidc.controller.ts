@@ -32,7 +32,6 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { z } from 'zod';
@@ -49,6 +48,46 @@ const identitySchema = z.object({
   provider: z.string(),
   email: z.string().nullable(),
   createdAt: z.iso.datetime(),
+});
+
+/**
+ * The login route's query. A query parameter sent twice
+ * (`?redirectTo=/a&redirectTo=//evil`) reaches the handler as an array, and
+ * a string method on it throws (a 500, CodeQL
+ * js/type-confusion-through-parameter-tampering): the schema makes each one a
+ * string or, when it isn't one, absent (`catch`), since the browser is
+ * navigating here and a problem response would be its landing page.
+ */
+const loginQuerySchema = z.object({
+  redirectTo: z
+    .string()
+    .optional()
+    .catch(undefined)
+    .describe('A path of the web app to land on.'),
+  link: z
+    .string()
+    .optional()
+    .catch(undefined)
+    .describe('`true`: connect the provider to the signed-in account.'),
+  reauthenticate: z
+    .string()
+    .optional()
+    .catch(undefined)
+    .describe(
+      '`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.',
+    ),
+});
+
+/**
+ * What the provider sends back, and all that `OidcService.finish` reads
+ * (`state`; `code`, `error` and `iss` in its client): each a string, so a
+ * repeated parameter is a 400, not a 500. Anything else is dropped.
+ */
+const callbackQuerySchema = z.object({
+  code: z.string().optional(),
+  state: z.string().optional(),
+  error: z.string().optional(),
+  iss: z.string().optional(),
 });
 
 /**
@@ -90,22 +129,6 @@ export class OidcController {
     description:
       'With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first. With `reauthenticate=true`, a signed-in user steps up through the provider: it is asked to authenticate them again (`prompt=login`, `max_age=0`), and the callback accepts only that user, authenticated at the provider after the start (`auth_time`, when the ID token has one); otherwise the browser lands on the web app with `?error=reauthentication_failed`, signed in as before.',
   })
-  @ApiQuery({
-    name: 'redirectTo',
-    required: false,
-    description: 'A path of the web app to land on.',
-  })
-  @ApiQuery({
-    name: 'link',
-    required: false,
-    description: '`true`: connect the provider to the signed-in account.',
-  })
-  @ApiQuery({
-    name: 'reauthenticate',
-    required: false,
-    description:
-      '`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.',
-  })
   @ApiFoundResponse({
     description:
       'To the provider; or, linking from a stale session, to the web app with `?error=reauthentication_required`.',
@@ -114,9 +137,8 @@ export class OidcController {
     @CurrentUser() user: UserPrincipal | null,
     @CurrentSession() session: unknown,
     @Param('provider') provider: string,
-    @Query('redirectTo') redirectTo?: string,
-    @Query('link') link?: string,
-    @Query('reauthenticate') reauthenticate?: string,
+    @Query({ schema: loginQuerySchema })
+    { redirectTo, link, reauthenticate }: z.infer<typeof loginQuerySchema>,
   ) {
     if (reauthenticate === 'true') {
       if (link === 'true') {
@@ -162,7 +184,7 @@ export class OidcController {
   private backToWebApp(redirectTo: string | undefined, error: string) {
     const web = new URL(`${webUrl(this.config)}/`);
     const safe =
-      redirectTo !== undefined &&
+      typeof redirectTo === 'string' &&
       redirectTo.startsWith('/') &&
       !redirectTo.startsWith('//') &&
       !redirectTo.includes('\\') &&
@@ -186,7 +208,8 @@ export class OidcController {
   })
   async callback(
     @Param('provider') provider: string,
-    @Query() query: Record<string, string>,
+    @Query({ schema: callbackQuerySchema })
+    query: z.infer<typeof callbackQuerySchema>,
     @Ip() ip: string,
   ) {
     this.configured(provider);

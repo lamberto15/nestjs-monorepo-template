@@ -1973,7 +1973,7 @@
                                 "maximum": 9007199254740991
                               },
                               "pattern": {
-                                "description": "A regular expression the whole value must match (text types).",
+                                "description": "A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences.",
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 200
@@ -2170,7 +2170,7 @@
                         "maximum": 9007199254740991
                       },
                       "pattern": {
-                        "description": "A regular expression the whole value must match (text types).",
+                        "description": "A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences.",
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 200
@@ -2295,7 +2295,7 @@
                           "maximum": 9007199254740991
                         },
                         "pattern": {
-                          "description": "A regular expression the whole value must match (text types).",
+                          "description": "A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences.",
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 200
@@ -2514,7 +2514,7 @@
                                 "maximum": 9007199254740991
                               },
                               "pattern": {
-                                "description": "A regular expression the whole value must match (text types).",
+                                "description": "A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences.",
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 200
@@ -2698,7 +2698,7 @@
                         "maximum": 9007199254740991
                       },
                       "pattern": {
-                        "description": "A regular expression the whole value must match (text types).",
+                        "description": "A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences.",
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 200
@@ -2815,7 +2815,7 @@
                           "maximum": 9007199254740991
                         },
                         "pattern": {
-                          "description": "A regular expression the whole value must match (text types).",
+                          "description": "A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences.",
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 200
@@ -16945,6 +16945,7 @@
             "in": "query",
             "description": "A path of the web app to land on.",
             "schema": {
+              "description": "A path of the web app to land on.",
               "type": "string"
             }
           },
@@ -16954,6 +16955,7 @@
             "in": "query",
             "description": "`true`: connect the provider to the signed-in account.",
             "schema": {
+              "description": "`true`: connect the provider to the signed-in account.",
               "type": "string"
             }
           },
@@ -16963,6 +16965,7 @@
             "in": "query",
             "description": "`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.",
             "schema": {
+              "description": "`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.",
               "type": "string"
             }
           }
@@ -16986,6 +16989,38 @@
             "name": "provider",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "iss",
+            "required": false,
+            "in": "query",
             "schema": {
               "type": "string"
             }
