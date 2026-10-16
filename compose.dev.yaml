@@ -1,9 +1,9 @@
 # Development: the backing services on localhost (PostgreSQL, Redis, Mailpit,
-# Floci); the app runs on your machine (`pnpm start:dev`: instant reloads, the
-# debugger). `pnpm services:up` runs them as the project `<name>-dev`, apart
-# from a production stack on the same machine, with dev/compose.env as its
-# variables (never .env: production's secrets). `cp env.development.example
-# .env.development` points the app at them.
+# Floci, Gotenberg); the app runs on your machine (`pnpm start:dev`: instant
+# reloads, the debugger). `pnpm services:up` runs them as the project
+# `<name>-dev`, apart from a production stack on the same machine, with
+# dev/compose.env as its variables (never .env: production's secrets).
+# `cp env.development.example .env.development` points the app at them.
 
 # Bounded logs, as in compose.yaml (which covers postgres and redis).
 x-logging: &logging
@@ -54,6 +54,30 @@ services:
     depends_on:
       - mailpit
 
+  # PDF documents (docs/documents.md) on http://localhost:3100: the official
+  # image as compose.prod.yaml builds on, with its flags (Chromium loads the
+  # page it is given and nothing else). Unlike production it has a way out
+  # (the default network, for the published port): the flags hold alone here.
+  gotenberg:
+    image: gotenberg/gotenberg:8.38.1-chromium@sha256:5da4ab7b8fe7326537369e17b661be765d9a2887f77722faacdbe6d55812fb96
+    restart: unless-stopped
+    logging: *logging
+    command:
+      - gotenberg
+      - --chromium-allow-list=^file:///tmp/
+      - --chromium-deny-private-ips
+      - --chromium-deny-public-ips
+      - --chromium-disable-javascript
+      # Renders waiting beyond this answer 429 (the job retries later): a
+      # burst never piles up in Gotenberg's memory.
+      - --chromium-max-queue-size=20
+      - --api-disable-download-from
+      - --webhook-disable
+      # Longer than the app's GOTENBERG_TIMEOUT_MS: the app gives up first, and retries.
+      - --api-timeout=60s
+      - --log-format=json
+    ports:
+      - '127.0.0.1:3100:3000'
+
 volumes:
   floci_data:
-

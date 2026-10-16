@@ -1,0 +1,14 @@
+{
+  "note": {
+    "document": "ملاحظة",
+    "number": "الرقم",
+    "status": "الحالة",
+    "created": "تاريخ الإنشاء",
+    "published": "تاريخ النشر",
+    "issued": "صدرت في {date}",
+    "statuses": {
+      "draft": "مسودة",
+      "published": "منشورة"
+    }
+  }
+}

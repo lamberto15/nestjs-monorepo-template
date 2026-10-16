@@ -50,6 +50,13 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   with an `attachments.swept` audit entry (the ids) by the system principal
   `system:attachment-sweep`. A subject no target registers any more is
   left alone.
+- **Issued documents** (a generated PDF, [documents.md](documents.md)) are
+  attachments too, added by the app with `locked: true`: they never change,
+  and `DELETE` answers 409 `attachment_locked`; they go only with their
+  record (the sweep). They also carry the record's `fields` they show:
+  downloading one takes the right to read every one of them (the target's
+  `canReadFields`), else 404. `AttachmentsService.attachStored()` adds a
+  file the app wrote itself, in the caller's transaction.
 - **Personal data:** a user's uploads are in their data export
   (`kind: attachments`: the rows, not the files). When their account is
   deleted the files stay with their records; `uploadedBy` becomes

@@ -21,10 +21,13 @@ updates:
       # in 7.1. Remove this once 7.1 is out and they build with it.
       - dependency-name: typescript
         versions: ['7.0.x']
-  # apps/api/Dockerfile, caddy/Dockerfile and backup/Dockerfile. Not seen: backup's
-  # SUPERCRONIC_VERSION build argument (a release tag, raised by hand).
+  # apps/api/Dockerfile, caddy/Dockerfile, backup/Dockerfile and
+  # gotenberg/Dockerfile. Not seen: backup's SUPERCRONIC_VERSION and
+  # gotenberg's GOTENBERG_VERSION and PDFCPU_VERSION build arguments, and the
+  # golang.org/x versions it builds with (raised by hand; CI's gotenberg-image
+  # job fails while GOTENBERG_VERSION isn't the FROM line's release).
   - package-ecosystem: docker
-    directories: [/apps/api, /caddy, /backup]
+    directories: [/apps/api, /caddy, /backup, /gotenberg]
     schedule:
       interval: weekly
   - package-ecosystem: docker-compose

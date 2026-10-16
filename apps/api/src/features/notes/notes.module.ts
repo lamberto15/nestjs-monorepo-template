@@ -17,13 +17,15 @@ import { NoteTagsController } from './note-tags.controller.js';
 import { NoteRevisions } from './note-revisions.js';
 import { NoteRevisionsController } from './note-revisions.controller.js';
 import { NotePublishApproval } from './note-approvals.js';
+import { NoteDocuments } from './note-documents.js';
+import { NoteDocumentsController } from './note-documents.controller.js';
 
 /**
  * The example feature, showing every tool in use: a policy with conditions
  * (note.policy.ts), lists filtered in SQL, an idempotent create, a durable
  * workflow, outgoing webhooks through the outbox, a verified incoming webhook,
  * the audit log, exports and imports (note.transfer.ts), bulk actions
- * (note.bulk.ts), and
+ * (note.bulk.ts), a PDF of a note (note-documents.ts), and
  * notifications to the owner (note-notifications.ts). Its permissions, event types and incoming sender are
  * handed to IamModule and PlatformModule in AppModule.
  *
@@ -38,6 +40,7 @@ import { NotePublishApproval } from './note-approvals.js';
     NoteAttachmentsController,
     NoteTagsController,
     NoteRevisionsController,
+    NoteDocumentsController,
   ],
   providers: [
     NotesService,
@@ -52,6 +55,7 @@ import { NotePublishApproval } from './note-approvals.js';
     NoteTags,
     NoteRevisions,
     NotePublishApproval,
+    NoteDocuments,
   ],
 })
 export class NotesModule {}

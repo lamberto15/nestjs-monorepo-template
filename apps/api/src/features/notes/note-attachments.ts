@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { inArray } from 'drizzle-orm';
+import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   type AttachmentTarget,
@@ -23,6 +24,7 @@ export class NoteAttachments implements AttachmentTarget {
   constructor(
     private readonly notes: NotesService,
     private readonly policy: NotePolicy,
+    private readonly access: AccessService,
     registry: AttachmentsRegistry,
   ) {
     registry.register(this);
@@ -36,6 +38,18 @@ export class NoteAttachments implements AttachmentTarget {
   async canWrite(principal: Principal, id: string) {
     const note = await this.find(id);
     return note !== null && this.policy.update(principal, note);
+  }
+
+  /** Every one of these fields, as reading the note would show them (an issued PDF's). */
+  async canReadFields(
+    principal: Principal,
+    id: string,
+    fields: readonly string[],
+  ) {
+    const note = await this.find(id);
+    if (!note || !(await this.policy.read(principal, note))) return false;
+    const shown = await this.access.redact(principal, 'read', 'Note', note);
+    return fields.every((field) => field in shown);
   }
 
   async exists(ids: readonly string[]) {

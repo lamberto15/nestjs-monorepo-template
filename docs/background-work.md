@@ -10,6 +10,7 @@ when the client should wait for a result), a **worker** does the work
 | A process over days (wait, then publish) | **workflow** (`@nestjs/workflows`) | durable steps, timers and signals that survive restarts and deploys |
 | "This action needs approval": stages, approvers, reminders, escalation | **approvals** (`approvals.request()`, [approvals.md](approvals.md)) | declared once; one durable workflow per request, decisions under a row lock |
 | Heavy or slow work on demand (exports, imports, images, reports) | **queue** (`@nestjs/bullmq`) | retries with backoff, on any worker, never in the request |
+| A PDF of a record (an invoice, a note) | **documents** (`DocumentsService.request()`, [documents.md](documents.md)) | a queue job renders it in Gotenberg; issued as a locked attachment of the record |
 | Email | **mail queue** (`MailQueue.send()`) | rendered in the request, sent by a worker, retried for hours |
 | Every night at 03:00 | **cron** (`@Cron` + `@OnOneInstance`) | runs on one instance, never overlapping (`@WithoutOverlapping`) |
 | An export every Monday at 08:00, mailed to a team | **scheduled reports** ([reports.md](reports.md)) | the hourly `ReportRunnerJob` starts it as its owner; the mail follows the file |

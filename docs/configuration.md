@@ -47,6 +47,7 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Background | `SCHEDULER`, `OUTBOX_RELAY`, `WEBHOOKS_WORKER`, `BULK_SYNC_LIMIT` (100: bulk runs of up to this many ids answer in the request, larger ones are queued) |
 | Notifications | `NOTIFICATIONS_DIGEST_HOUR` (8: daily digests, in each user's time zone), `NOTIFICATIONS_RETENTION_DAYS` (90: read ones), `NOTIFICATIONS_MAX_AGE_DAYS` (365: any) |
 | Attachments | `ATTACHMENT_MAX_MB` (25), `ATTACHMENT_ALLOWED_TYPES` (comma-separated MIME types, detected from the bytes; default: JPEG, PNG, GIF, WebP, PDF, docx, xlsx, pptx, plain text, CSV, zip) |
+| Documents | `GOTENBERG_URL` (unset: PDF documents are off, 503 `documents_unavailable`; Compose: `http://gotenberg:3000`), `GOTENBERG_TIMEOUT_MS` (30000: one render's limit), `DOCUMENTS_RENDER_ATTEMPTS` (3: tries per document) ([documents](documents.md)) |
 | Breached passwords | `PASSWORD_BREACH_CHECK` (`on`), `PASSWORD_BREACH_API_URL` (`https://api.pwnedpasswords.com`, or a mirror), `PASSWORD_BREACH_TIMEOUT_MS` (2000), `PASSWORD_BREACH_ON_ERROR` (`allow`: fail-open; `reject`: 503), `PASSWORD_BREACH_MIN_COUNT` (1); [auth.md](auth.md#passwords) |
 | Accounts (self-service) | `ACCOUNT_DELETION_GRACE_DAYS` (14: until a requested deletion is carried out) |
 | API usage | `USAGE_RETENTION_DAYS` (400: API clients' daily usage, [usage.md](usage.md)) |

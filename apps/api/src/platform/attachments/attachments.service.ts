@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -76,13 +77,22 @@ export class AttachmentsService implements PersonalDataSource {
     personalData.register(this);
   }
 
-  /** A 404 unless the principal may read the record. */
-  async assertCanRead(principal: Principal, record: RecordRef) {
+  /**
+   * A 404 unless the principal may read the record, and every one of
+   * `fields` of it (a generated file's: field-level permissions).
+   */
+  async assertCanRead(
+    principal: Principal,
+    record: RecordRef,
+    fields?: readonly string[] | null,
+  ) {
     const target = this.registry.get(record.subject);
     if (
       !target ||
       !z.uuid().safeParse(record.recordId).success ||
-      !(await target.canRead(principal, record.recordId))
+      !(await target.canRead(principal, record.recordId)) ||
+      (fields?.length &&
+        !(await target.canReadFields?.(principal, record.recordId, fields)))
     ) {
       throw new NotFoundException(
         `${record.subject} ${record.recordId} not found.`,
@@ -170,6 +180,51 @@ export class AttachmentsService implements PersonalDataSource {
     }
   }
 
+  /**
+   * Records a file the app wrote to the disk itself (`key`) as the record's
+   * attachment, audited `attachment.added`, in the caller's transaction: a
+   * generated document is linked to its record in the transaction that
+   * completes its job, or the file has no row (and the caller deletes it).
+   * `locked`: an issued document, which nobody removes.
+   */
+  async attachStored(
+    principal: Principal,
+    record: RecordRef,
+    file: { key: string; name: string; size: number; contentType: string },
+    {
+      locked = false,
+      fields = null,
+    }: { locked?: boolean; fields?: string[] | null } = {},
+  ): Promise<AttachmentView> {
+    return inTransaction(this.txHost, async (tx) => {
+      const [row] = await tx
+        .insert(attachments)
+        .values({
+          subject: record.subject,
+          recordId: record.recordId,
+          key: file.key,
+          name: fileName(file.name),
+          size: file.size,
+          contentType: file.contentType,
+          uploadedBy: principalKey(principal),
+          locked,
+          fields,
+        })
+        .returning();
+      await this.audit.record(
+        principal,
+        {
+          action: 'attachment.added',
+          targetType: 'attachment',
+          targetId: row!.id,
+          details: { ...details(row!), locked, fields },
+        },
+        tx,
+      );
+      return view(row!);
+    });
+  }
+
   /** A signed link to the file (DOWNLOAD_LINK_TTL), downloading under its name. */
   async download(principal: Principal, id: string) {
     const row = await this.findReadable(principal, id);
@@ -182,10 +237,18 @@ export class AttachmentsService implements PersonalDataSource {
 
   /**
    * Removes an attachment, row and file, audited `attachment.removed`: the
-   * uploader's own, or any with `canWrite` on the record.
+   * uploader's own, or any with `canWrite` on the record. Never an issued
+   * document (`locked`): 409 `attachment_locked`.
    */
   async remove(principal: Principal, id: string, ip?: string) {
     const row = await this.findReadable(principal, id);
+    if (row.locked) {
+      throw new ConflictException({
+        code: 'attachment_locked',
+        message:
+          'An issued document cannot be removed: it stays with its record.',
+      });
+    }
     if (
       row.uploadedBy !== principalKey(principal) &&
       !(await this.registry.get(row.subject)!.canWrite(principal, row.recordId))
@@ -195,7 +258,7 @@ export class AttachmentsService implements PersonalDataSource {
     await inTransaction(this.txHost, async (tx) => {
       const [gone] = await tx
         .delete(attachments)
-        .where(eq(attachments.id, row.id))
+        .where(and(eq(attachments.id, row.id), eq(attachments.locked, false)))
         .returning({ id: attachments.id });
       if (!gone) {
         // Removed meanwhile: nothing to audit.
@@ -261,7 +324,9 @@ export class AttachmentsService implements PersonalDataSource {
       throw new NotFoundException(`Attachment ${id} not found.`);
     }
     try {
-      await this.assertCanRead(principal, row);
+      // A generated file showing fields this principal may not read is
+      // theirs to see no more than those fields: 404, as for the record.
+      await this.assertCanRead(principal, row, row.fields);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new NotFoundException(`Attachment ${id} not found.`);
@@ -273,7 +338,11 @@ export class AttachmentsService implements PersonalDataSource {
 }
 
 /** An attachment as the API shows it: without its storage key. */
-const view = ({ key: _key, ...row }: Attachment): AttachmentView => ({
+const view = ({
+  key: _key,
+  fields: _fields,
+  ...row
+}: Attachment): AttachmentView => ({
   ...row,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),

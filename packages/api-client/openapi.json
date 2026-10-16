@@ -5594,7 +5594,7 @@
     },
     "/v1/attachments/{id}": {
       "delete": {
-        "description": "Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed).",
+        "description": "Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).",
         "operationId": "AttachmentsController_remove_v1",
         "parameters": [
           {
@@ -5618,6 +5618,9 @@
           },
           "404": {
             "description": ""
+          },
+          "409": {
+            "description": "An issued document (attachment_locked): it stays with its record."
           }
         },
         "security": [
@@ -5634,6 +5637,133 @@
         "summary": "Remove an attachment",
         "tags": [
           "attachments"
+        ]
+      }
+    },
+    "/v1/documents/{id}": {
+      "get": {
+        "description": "Whoever may read its record. `completed`: `attachmentId` is the PDF (GET /v1/attachments/{id}/download). The requester's realtime connection hears `document.ready { id, subject, recordId, attachmentId }` or `document.failed { id, subject, recordId, error }`.",
+        "operationId": "DocumentsController_status_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "source": {
+                      "type": "string",
+                      "example": "note",
+                      "description": "What kind of document."
+                    },
+                    "subject": {
+                      "type": "string",
+                      "example": "Note"
+                    },
+                    "recordId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "locale": {
+                      "type": "string",
+                      "example": "en",
+                      "description": "The language it is written in."
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "rendering",
+                        "completed",
+                        "failed"
+                      ],
+                      "description": "queued → rendering → completed, or failed (then `error`)."
+                    },
+                    "attachmentId": {
+                      "nullable": true,
+                      "description": "Once completed: the PDF, an attachment of the record (GET /v1/attachments/{id}/download).",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "error": {
+                      "nullable": true,
+                      "description": "Why it failed, written for people.",
+                      "type": "string"
+                    },
+                    "issuedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "source",
+                    "subject",
+                    "recordId",
+                    "locale",
+                    "status",
+                    "attachmentId",
+                    "error",
+                    "issuedAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A document asked for: its state, then the issued PDF",
+        "tags": [
+          "documents"
         ]
       }
     },
@@ -21059,6 +21189,10 @@
                       "example": "user:0199a3f2-…",
                       "description": "`user:<id>`, `client:<id>`, or `anonymized`."
                     },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record."
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -21078,6 +21212,7 @@
                     "size",
                     "contentType",
                     "uploadedBy",
+                    "locked",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -21358,9 +21493,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -21412,6 +21547,10 @@
                             "example": "user:0199a3f2-…",
                             "description": "`user:<id>`, `client:<id>`, or `anonymized`."
                           },
+                          "locked": {
+                            "type": "boolean",
+                            "description": "An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record."
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -21431,6 +21570,7 @@
                           "size",
                           "contentType",
                           "uploadedBy",
+                          "locked",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -22374,6 +22514,98 @@
           }
         ],
         "summary": "Set a note back to a revision",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/pdf": {
+      "post": {
+        "description": "Whoever may read the note. Answers at once with the document id; a worker renders the PDF in the request's language (`?lang=`, `X-Lang`, your saved language; right to left in Arabic) and your time zone, and adds it to the note's attachments (`locked`: it never changes and cannot be removed; asking again issues a new one). The text is in it only if you may read it.\n\nFollow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).",
+        "operationId": "NoteDocumentsController_pdf_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.\n\nIn Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "generate"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The Idempotency-Key is missing."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not issue it."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "Your document of this note, in this language, is still being rendered (document_pending: its `id` is in the problem), or a request with this Idempotency-Key is still running."
+          },
+          "422": {
+            "description": "This Idempotency-Key was used for a different request."
+          },
+          "429": {
+            "description": "More than 10 a minute from one user (rate_limited)."
+          },
+          "503": {
+            "description": "PDF documents are not set up on this server (documents_unavailable: GOTENBERG_URL is unset)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Issue a PDF of a note",
         "tags": [
           "notes"
         ]

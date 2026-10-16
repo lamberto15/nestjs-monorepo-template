@@ -166,6 +166,8 @@ function that removes it.
 | `data.export-ready` | `{ id, name, rows, url }` |
 | `data.import-finished` | `{ id, name, rows, imported, failed }` |
 | `bulk.finished` | `{ id, name, action, done, failed }` (results: `GET /v1/bulk/{id}`) |
+| `document.ready` | `{ id, subject, recordId, attachmentId }`: a PDF you asked for, issued (download: `GET /v1/attachments/{attachmentId}/download`) |
+| `document.failed` | `{ id, subject, recordId, error }` |
 | `approval.assigned` | `{ id, subject, recordId, action, stage }`: a request waits for you (or someone you stand in for) |
 | `approval.decided` | `{ id, status, round, stage, decision }`: a decision on a request you made or decide, or its end |
 

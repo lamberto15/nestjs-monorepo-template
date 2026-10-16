@@ -1,9 +1,10 @@
 # Production on one host: Caddy (HTTPS) in front of API_REPLICAS api
-# instances, WORKER_REPLICAS workers for the background work, PostgreSQL and
-# Redis from compose.yaml, migrations once per deploy. Every service has CPU
-# and memory limits, so none starves the others (they don't add capacity:
-# keep their sum within the host's). .env (copied from env.example) sets COMPOSE_FILE,
-# so `docker compose up -d --build` deploys, and `docker compose ps` shows it.
+# instances, WORKER_REPLICAS workers for the background work (Gotenberg
+# renders their PDFs), PostgreSQL and Redis from compose.yaml, migrations
+# once per deploy. Every service has CPU and memory limits, so none starves
+# the others (they don't add capacity: keep their sum within the host's).
+# .env (copied from env.example) sets COMPOSE_FILE, so
+# `docker compose up -d --build` deploys, and `docker compose ps` shows it.
 #
 # Every part of the app is safe with several instances: sessions, locks,
 # rate limits, queues, workflows, the outbox and WebSocket fan-out are shared
@@ -116,6 +117,10 @@ x-app: &app
     # Keys at rest
     IDEMPOTENCY_KEYS: ${IDEMPOTENCY_KEYS:-}
     WEBHOOKS_ENCRYPTION_KEYS: ${WEBHOOKS_ENCRYPTION_KEYS:-}
+    # PDF documents (docs/documents.md): the gotenberg service below. Empty: documents off.
+    GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
+    GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}
+    DOCUMENTS_RENDER_ATTEMPTS: ${DOCUMENTS_RENDER_ATTEMPTS:-3}
     # Observability (NestJS Observe, when both are set)
     OBSERVE_APP_KEY: ${OBSERVE_APP_KEY:-}
     OBSERVE_APP_SECRET: ${OBSERVE_APP_SECRET:-}
@@ -242,6 +247,10 @@ services:
     stop_grace_period: 60s
     volumes:
       - app_storage:/app/.data/storage
+    # `documents`: Gotenberg's network, which only the workers join.
+    networks:
+      - default
+      - documents
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -304,6 +313,59 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+
+  # HTML to PDF for the workers (docs/documents.md): Chromium in its own
+  # container, never in the worker's (a browser out of memory or attacked
+  # doesn't take the queues and the database credentials with it). The
+  # official image, pinned, made thin on top of (gotenberg/Dockerfile: no
+  # fixable high or critical vulnerability, CI scans it, then publishes it:
+  # GOTENBERG_IMAGE, as APP_IMAGE for the app; unset, built here). Only the workers
+  # reach it, on `documents`, a network with no way out (internal: no
+  # gateway, no published port); Chromium may load the page it is given
+  # (its own /tmp) and nothing else, whatever the page asks for, and runs
+  # no JavaScript. Gotenberg's other outgoing calls (downloadFrom, webhooks)
+  # are off. Read-only, no capabilities: only /tmp and its home are written.
+  gotenberg:
+    build: ./gotenberg
+    # Unset: the image `docker compose up -d --build` builds here. CI's:
+    # GOTENBERG_IMAGE=ghcr.io/<owner>/<repo>/gotenberg:<commit SHA> (docs/deployment.md).
+    image: ${GOTENBERG_IMAGE:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-gotenberg}
+    restart: unless-stopped
+    logging: *logging
+    # The same flags as compose.dev.yaml's (CI's gotenberg-image job compares them).
+    command:
+      - gotenberg
+      - --chromium-allow-list=^file:///tmp/
+      - --chromium-deny-private-ips
+      - --chromium-deny-public-ips
+      - --chromium-disable-javascript
+      # Renders waiting beyond this answer 429 (the job retries later): a
+      # burst never piles up in Gotenberg's memory.
+      - --chromium-max-queue-size=20
+      - --api-disable-download-from
+      - --webhook-disable
+      # Longer than the app's GOTENBERG_TIMEOUT_MS: the app gives up first, and retries.
+      - --api-timeout=60s
+      - --log-format=json
+    networks:
+      - documents
+    read_only: true
+    tmpfs:
+      - /tmp:size=${GOTENBERG_TMP_SIZE:-512m}
+      - /home/gotenberg:size=64m,uid=1001,gid=1001
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    deploy:
+      resources:
+        limits:
+          cpus: '${GOTENBERG_CPUS:-1}'
+          memory: ${GOTENBERG_MEMORY:-1G}
+    healthcheck:
+      test: ['CMD', 'curl', '-fs', 'http://127.0.0.1:3000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   # Backups (docs/deployment.md, "Backups and restore"): pg_dump on
   # BACKUP_SCHEDULE (cron, UTC) plus the uploaded files (STORAGE_DRIVER=local),
@@ -409,6 +471,12 @@ secrets:
     file: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:-./secret.empty}
   cloudflare_api_token:
     file: ${CLOUDFLARE_API_TOKEN_FILE:-./secret.empty}
+
+# Gotenberg's: no gateway, so nothing on it reaches the internet or the
+# host's other networks; the workers join it besides the default one.
+networks:
+  documents:
+    internal: true
 
 volumes:
   app_storage:

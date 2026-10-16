@@ -13,6 +13,7 @@ import { CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCookieAuth,
   ApiForbiddenResponse,
   ApiFoundResponse,
@@ -63,9 +64,13 @@ export class AttachmentsController {
   @ApiOperation({
     summary: 'Remove an attachment',
     description:
-      'Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed).',
+      'Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).',
   })
   @ApiNoContentResponse()
+  @ApiConflictResponse({
+    description:
+      'An issued document (attachment_locked): it stays with its record.',
+  })
   @ApiForbiddenResponse({
     description: 'Not yours, and you may not change its record.',
   })

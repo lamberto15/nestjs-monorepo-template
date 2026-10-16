@@ -13,6 +13,7 @@ export * from './platform/account/account.tables.js';
 export * from './platform/subscriptions/subscriptions.tables.js';
 export * from './platform/sequences/sequences.tables.js';
 export * from './platform/attachments/attachments.tables.js';
+export * from './platform/documents/documents.tables.js';
 export * from './platform/comments/comments.tables.js';
 export * from './platform/tags/tags.tables.js';
 export * from './platform/reports/reports.tables.js';

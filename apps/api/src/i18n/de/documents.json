@@ -1,0 +1,14 @@
+{
+  "note": {
+    "document": "Notiz",
+    "number": "Nummer",
+    "status": "Status",
+    "created": "Erstellt",
+    "published": "Veröffentlicht",
+    "issued": "Ausgestellt am {date}",
+    "statuses": {
+      "draft": "Entwurf",
+      "published": "Veröffentlicht"
+    }
+  }
+}

@@ -109,6 +109,12 @@ import { ApprovalWorkflow } from './approvals/approval.workflow.js';
 import { ApprovalsRegistry } from './approvals/approvals.registry.js';
 import { ApprovalsService } from './approvals/approvals.service.js';
 import { ApprovalMetrics } from './approvals/approval-metrics.js';
+import { DocumentTemplates } from './documents/document-templates.js';
+import { DocumentsController } from './documents/documents.controller.js';
+import { DocumentsProcessor } from './documents/documents.processor.js';
+import { DocumentsRegistry } from './documents/documents.registry.js';
+import { DOCUMENTS, DocumentsService } from './documents/documents.service.js';
+import { gotenbergClient, PdfRenderer } from './documents/pdf-renderer.js';
 import { MoneyModule } from './money/money.module.js';
 
 /**
@@ -202,7 +208,9 @@ export class PlatformModule {
         // After IdempotencyModule, whose interceptor must come first.
         // Private file storage (local or S3) behind signed URLs.
         storage(),
-        ...queues([DATA_TRANSFERS, BULK, ...(options.queues ?? [])]),
+        ...queues([DATA_TRANSFERS, BULK, DOCUMENTS, ...(options.queues ?? [])]),
+        // Gotenberg, which renders the PDF documents (GOTENBERG_URL).
+        gotenbergClient(),
         ...integrations(options.resiliencePresets ?? {}),
         WorkflowsModule.forRoot({
           worker: {
@@ -246,6 +254,7 @@ export class PlatformModule {
         SubscriptionsController,
         SearchController,
         AttachmentsController,
+        DocumentsController,
         TagsController,
         ReportsController,
         UsageController,
@@ -352,6 +361,12 @@ export class PlatformModule {
         AttachmentsRegistry,
         AttachmentsService,
         AttachmentSweepJob,
+        // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
+        DocumentsRegistry,
+        DocumentTemplates,
+        PdfRenderer,
+        DocumentsService,
+        DocumentsProcessor,
         // Comments and mentions: features register a CommentTarget and call CommentsService.
         CommentsRegistry,
         CommentsService,
@@ -401,6 +416,8 @@ export class PlatformModule {
         SequencesService,
         AttachmentsRegistry,
         AttachmentsService,
+        DocumentsRegistry,
+        DocumentsService,
         CommentsRegistry,
         CommentsService,
         TagsRegistry,

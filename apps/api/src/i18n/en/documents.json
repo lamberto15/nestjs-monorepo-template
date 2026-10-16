@@ -1,0 +1,14 @@
+{
+  "note": {
+    "document": "Note",
+    "number": "Number",
+    "status": "Status",
+    "created": "Created",
+    "published": "Published",
+    "issued": "Issued {date}",
+    "statuses": {
+      "draft": "Draft",
+      "published": "Published"
+    }
+  }
+}

@@ -355,6 +355,21 @@ describe('attachments (e2e)', () => {
     expect(await disk.exists(row!.key)).toBe(false);
   });
 
+  it('answers 503 documents_unavailable for a PDF while GOTENBERG_URL is unset', async () => {
+    const { editor, note } = await noteOfEditor();
+    const refused = await editor.agent
+      .post(`/v1/notes/${note.id}/pdf`)
+      .set('Idempotency-Key', crypto.randomUUID())
+      .expect(503);
+    expect(refused.body.code).toBe('documents_unavailable');
+    expect(
+      await db
+        .select()
+        .from(attachments)
+        .where(eq(attachments.recordId, note.id)),
+    ).toEqual([]);
+  });
+
   it("lists a user's uploads in their data export (the rows, not the files)", async () => {
     const { editor, note } = await noteOfEditor();
     const added = (

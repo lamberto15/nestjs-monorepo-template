@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Nothing is fetched: inline styles, and images or fonts only as data
+      URLs. Gotenberg's Chromium may also load nothing but this page (its
+      own temporary file), on a network without egress (docs/documents.md).
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
+    />
+    <title>{{ title }}</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+      /* The fonts in Gotenberg's image: Latin, Arabic, Chinese, Japanese, Korean. */
+      html {
+        font-family:
+          'Noto Sans', 'Noto Sans Arabic', 'Noto Sans CJK SC',
+          'Noto Sans CJK JP', 'Noto Sans CJK KR', 'DejaVu Sans', sans-serif;
+        font-size: 11pt;
+        line-height: 1.5;
+        color: #1f2328;
+      }
+      :lang(ar) {
+        font-family:
+          'Noto Sans Arabic', 'Noto Naskh Arabic', 'Noto Sans', sans-serif;
+      }
+      :lang(zh) {
+        font-family: 'Noto Sans CJK SC', 'Noto Sans', sans-serif;
+      }
+      body {
+        margin: 0;
+      }
+      header {
+        border-bottom: 2px solid #1f2328;
+        padding-bottom: 8pt;
+        margin-bottom: 16pt;
+      }
+      .eyebrow {
+        margin: 0;
+        font-size: 9pt;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #59636e;
+      }
+      h1 {
+        margin: 4pt 0 0;
+        font-size: 20pt;
+        line-height: 1.25;
+      }
+      table.facts {
+        border-collapse: collapse;
+        margin-bottom: 16pt;
+      }
+      table.facts th,
+      table.facts td {
+        padding: 2pt 0;
+        text-align: start;
+        vertical-align: top;
+      }
+      table.facts th {
+        padding-inline-end: 16pt;
+        font-weight: 600;
+        color: #59636e;
+      }
+      .text {
+        white-space: pre-wrap;
+        /* Each paragraph takes the direction of its own text (an English
+           paragraph in an Arabic document stays left to right). */
+        unicode-bidi: plaintext;
+      }
+      footer {
+        margin-top: 24pt;
+        padding-top: 8pt;
+        border-top: 1px solid #d1d9e0;
+        font-size: 9pt;
+        color: #59636e;
+      }
+    </style>
+  </head>
+  <body>
+    {{{ body }}}
+  </body>
+</html>

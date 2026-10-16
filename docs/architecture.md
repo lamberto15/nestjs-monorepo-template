@@ -19,6 +19,7 @@ apps/
 packages/
   api-client/          the typed client (@nestjs-monorepo-template/api-client)
 caddy/  dev/           the HTTPS proxy's image; the development services' files
+gotenberg/             the PDF renderer's image (Gotenberg, thin on the official one)
 compose*.yaml          Docker Compose: shared, development, production
 env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
@@ -45,6 +46,7 @@ src/
   schema.ts        every table, for Drizzle and drizzle-kit
   i18n/            translation catalogs, one folder per language
   mail/templates/  email templates (HTML, one per language)
+  documents/templates/  PDF document templates (HTML; layout.html wraps them)
 
   core/       what everything stands on
   iam/        identity and access
@@ -56,7 +58,7 @@ src/
 | --- | --- |
 | `core/` | config (Zod), database (Drizzle on PostgreSQL 18), Redis, HTTP (security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
 | `iam/` | sessions, tokens, API clients and keys, accounts (passwords, two-factor, OAuth, magic links, invitations, impersonation), roles and permissions (CASL, field-level, expiring grants), org units, resource declarations, the audit log, the system principal (`SystemContext.run()`: work without a user) |
-| `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, custom fields, notifications, record subscriptions, global search, sequences, scheduled reports, record revisions, settings and feature flags, approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API |
+| `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, notifications, record subscriptions, global search, sequences, scheduled reports, record revisions, settings and feature flags, approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API |
 | `features/` | one folder and module per feature |
 
 ## Rules
