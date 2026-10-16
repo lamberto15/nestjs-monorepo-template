@@ -31,7 +31,7 @@ RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm \
       --store-dir /var/cache/pnpm /deploy/api
 
 # glibc like the pnpm image, so native modules installed above run here.
-FROM node:24-trixie-slim
+FROM node:25-trixie-slim
 # The app runs on node alone: drop the npm CLI the base image bundles. Nothing
 # uses it, and its own dependencies are what the image scan (CI) flags first.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
