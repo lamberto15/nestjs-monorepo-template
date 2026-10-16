@@ -20,6 +20,8 @@ export const coreEnv = z.object({
    * Which deployment this is (`production`, `staging`, `preview-42`…), for
    * logs and traces only. Behaviour follows NODE_ENV, which stays
    * `production` on staging, so staging runs what production runs.
+   * `loadtest` names the load test's throwaway stack (compose.loadtest.yaml),
+   * the only production deployment allowed RATE_LIMIT_MULTIPLIER above 1.
    */
   APP_ENV: optional(),
   /**
@@ -123,6 +125,15 @@ export const coreEnv = z.object({
   REDIS_PREFIX: withDefault('app'),
   /** `memory` keeps rate limits per instance (one instance, or tests). */
   RATE_LIMIT_STORE: z.enum(['redis', 'memory']).default('redis'),
+  /**
+   * Multiplies every rate limit (the global 600 a minute, each route's
+   * `@Throttle()` and `@UserThrottle()`). For the load test's stack only
+   * (compose.loadtest.yaml), whose requests all come from one address: limits
+   * are raised there, never turned off. Keep it 1 everywhere else: with
+   * NODE_ENV=production, above 1 stops the app unless APP_ENV=loadtest
+   * (checkRateLimitMultiplier).
+   */
+  RATE_LIMIT_MULTIPLIER: z.coerce.number().int().min(1).max(100_000).default(1),
 
   /**
    * The app's IANA time zone: cron jobs run on it, and mail shows times in
@@ -198,6 +209,26 @@ export const coreEnv = z.object({
 });
 
 export type CoreEnv = z.output<typeof coreEnv>;
+
+/**
+ * A production app never runs with raised rate limits by accident (the load
+ * test's overlay added to a deployment's COMPOSE_FILE, a stray variable):
+ * RATE_LIMIT_MULTIPLIER above 1 under NODE_ENV=production needs
+ * APP_ENV=loadtest, which only compose.loadtest.yaml sets. Checked on the
+ * whole environment (env.ts), after each variable parsed.
+ */
+export const rateLimitMultiplierAllowed = (
+  env: Pick<CoreEnv, 'NODE_ENV' | 'APP_ENV' | 'RATE_LIMIT_MULTIPLIER'>,
+) =>
+  env.RATE_LIMIT_MULTIPLIER === 1 ||
+  env.NODE_ENV !== 'production' ||
+  env.APP_ENV === 'loadtest';
+
+export const RATE_LIMIT_MULTIPLIER_REFUSED = {
+  path: ['RATE_LIMIT_MULTIPLIER'],
+  message:
+    'above 1 only for the load test: with NODE_ENV=production it needs APP_ENV=loadtest (compose.loadtest.yaml)',
+};
 
 /** `ConfigService`, typed by a group's environment: `config.get('PORT', { infer: true })`. */
 export type Config<Env> = ConfigService<Env, true>;

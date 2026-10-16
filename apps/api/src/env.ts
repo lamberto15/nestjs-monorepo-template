@@ -1,4 +1,8 @@
-import { coreEnv } from './core/config/core.env.js';
+import {
+  coreEnv,
+  RATE_LIMIT_MULTIPLIER_REFUSED,
+  rateLimitMultiplierAllowed,
+} from './core/config/core.env.js';
 import { secretNames, withSecretFiles } from './core/config/secret-files.js';
 import { notesEnv } from './features/notes/notes.env.js';
 import { iamEnv } from './iam/iam.env.js';
@@ -12,7 +16,9 @@ const variables = coreEnv
   .extend(iamEnv.shape)
   .extend(platformEnv.shape)
   // Features
-  .extend(notesEnv.shape);
+  .extend(notesEnv.shape)
+  // Rules across variables, once every group is in.
+  .refine(rateLimitMultiplierAllowed, RATE_LIMIT_MULTIPLIER_REFUSED);
 
 /**
  * The variables that hold secrets (declared with `secret()`): each can come
