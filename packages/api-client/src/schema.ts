@@ -1863,9 +1863,151 @@ export interface paths {
         put?: never;
         /**
          * Prove again who you are, for the sensitive routes
-         * @description Your password, with a code when two-factor is on (a code alone when the account has no password). A session gets a new id (the cookie changes: a request sent meanwhile with the old one gets 401; reconnect realtime); a token client gets new tokens, and the family of the refreshToken it sent is revoked. Audited. Never while acting as another user.
+         * @description Your password, with a code when two-factor is on (a code alone when the account has no password); or a passkey (with a code from a token client when two-factor is on). A session gets a new id (the cookie changes: a request sent meanwhile with the old one gets 401; reconnect realtime); a token client gets new tokens, and the family of the refreshToken it sent is revoked. Audited. Never while acting as another user.
          */
         post: operations["ReauthenticationController_reauthenticate_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/passkeys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your passkeys */
+        get: operations["PasskeysController_list_v1"];
+        put?: never;
+        /**
+         * Register a passkey: the credential the browser made
+         * @description The answer of the options from POST /auth/passkeys/registration/options, with a name. Audited; you get an email.
+         */
+        post: operations["PasskeysController_register_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/passkeys/registration/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start registering a passkey: the options for the browser
+         * @description Give them to `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`), then POST the credential to /auth/passkeys. The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS, from this session (and this origin). User verification is required.
+         */
+        post: operations["PasskeysController_registrationOptions_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/passkeys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a passkey
+         * @description Not the last way to sign in (409 `last_sign_in_method`: set a password first). Audited; you get an email.
+         */
+        delete: operations["PasskeysController_remove_v1"];
+        options?: never;
+        head?: never;
+        /** Rename a passkey */
+        patch: operations["PasskeysController_rename_v1"];
+        trace?: never;
+    };
+    "/v1/auth/passkeys/sign-in/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start signing in with a passkey: the options for the browser
+         * @description With an `email`, the account’s passkeys are offered (`allowCredentials`); without one, the browser offers the passkeys it holds for this site (usernameless, or a sign-in field with `useBrowserAutofill`). The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS. Then POST the assertion to /auth/passkeys/sign-in (a browser) or /auth/passkeys/token (an app).
+         */
+        post: operations["PasskeysController_signInOptions_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/passkeys/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in with a passkey: sets the session cookie
+         * @description The assertion the browser made from the options. A passkey that verified its user (Touch ID, a PIN…) counts for both factors: with two-factor on, the session is verified at once. One that did not counts as the first factor: mfaRequired, finish with POST /auth/mfa/verify. A refused assertion is a 401 saying no more.
+         */
+        post: operations["PasskeysController_signIn_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/passkeys/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in a token client with a passkey (native apps)
+         * @description The assertion the app made from the options (an app listed in PASSKEY_ANDROID_APPS or PASSKEY_APPLE_APPS). With two-factor on, a code (or a recoveryCode) goes with it: the token service takes no passkey as the second factor.
+         */
+        post: operations["PasskeysController_issueTokens_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/passkeys/reauthentication/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start re-authenticating with a passkey: the options
+         * @description Your passkeys, user verification required. Then POST the assertion as `passkey` to /auth/reauthenticate. The challenge is bound to this session.
+         */
+        post: operations["PasskeysController_reauthenticationOptions_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9245,6 +9387,8 @@ export interface operations {
                         password: true;
                         signUp: boolean;
                         magicLink: boolean;
+                        /** @description Sign in with a passkey: POST /auth/passkeys/sign-in/options, then /auth/passkeys/sign-in. */
+                        passkeys: boolean;
                         /** @description Start with GET /auth/oidc/{provider}/login. */
                         providers: string[];
                         /** @description Bot protection on sign-in, sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off. */
@@ -10164,7 +10308,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description It is your only way to sign in: set a password first. */
+            /** @description `last_sign_in_method`: it is your only way to sign in (no password, passkey or other provider): set a password or register a passkey first. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10304,9 +10448,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login). */
+                        /** @description How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login). */
                         methods: string[];
-                        /** @description In place, a code (or a recoveryCode) goes with the password. */
+                        /** @description In place, a code (or a recoveryCode) goes with the password (and with a passkey from a token client). */
                         mfaRequired: boolean;
                         /**
                          * Format: date-time
@@ -10335,11 +10479,33 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description Required when the account has a password. */
+                    /** @description Required when the account has a password, unless a passkey is sent. */
                     password?: string;
-                    /** @description With two-factor on: a code from the app (or a recoveryCode). */
+                    /** @description With two-factor on: a code from the app (or a recoveryCode). Not with a passkey from a session (it verified you); a token client sends one with its passkey too. */
                     code?: string;
                     recoveryCode?: string;
+                    /** @description Instead of the password: the assertion of one of your passkeys, made from the options of POST /auth/passkeys/reauthentication/options (user verification required). */
+                    passkey?: {
+                        id: string;
+                        rawId: string;
+                        /** @enum {string} */
+                        type: "public-key";
+                        response: {
+                            clientDataJSON: string;
+                            authenticatorData: string;
+                            signature: string;
+                            userHandle?: string;
+                        };
+                        /**
+                         * @description `clientExtensionResults` of the credential, usually `{}`.
+                         * @default {}
+                         */
+                        clientExtensionResults?: {
+                            [key: string]: unknown;
+                        };
+                        /** @enum {string} */
+                        authenticatorAttachment?: "platform" | "cross-platform";
+                    };
                     /** @description A token client: your current refresh token, revoked (its whole family) once the new tokens are issued. Unknown: ignored. */
                     refreshToken?: string;
                 };
@@ -10388,6 +10554,541 @@ export interface operations {
             };
             /** @description More than 5 attempts from this address, or 10 for this account, in 15 minutes. */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            name: string;
+                            /**
+                             * @description `multiDevice`: a synced passkey (iCloud Keychain, Google Password Manager…); `singleDevice`: bound to one authenticator (a security key).
+                             * @enum {string}
+                             */
+                            deviceType: "singleDevice" | "multiDevice";
+                            /** @description Synced to the user's other devices now. */
+                            backedUp: boolean;
+                            /** @description How the browser reaches it: `internal`, `hybrid`, `usb`, `nfc`, `ble`. */
+                            transports: string[];
+                            /** Format: date-time */
+                            lastUsedAt: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    PasskeysController_register_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description What you call it: "MacBook", "YubiKey". */
+                    name: string;
+                    response: {
+                        id: string;
+                        rawId: string;
+                        /** @enum {string} */
+                        type: "public-key";
+                        response: {
+                            clientDataJSON: string;
+                            attestationObject: string;
+                            transports?: string[];
+                            authenticatorData?: string;
+                            publicKey?: string;
+                            publicKeyAlgorithm?: number;
+                        };
+                        /**
+                         * @description `clientExtensionResults` of the credential, usually `{}`.
+                         * @default {}
+                         */
+                        clientExtensionResults?: {
+                            [key: string]: unknown;
+                        };
+                        /** @enum {string} */
+                        authenticatorAttachment?: "platform" | "cross-platform";
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        name: string;
+                        /**
+                         * @description `multiDevice`: a synced passkey (iCloud Keychain, Google Password Manager…); `singleDevice`: bound to one authenticator (a security key).
+                         * @enum {string}
+                         */
+                        deviceType: "singleDevice" | "multiDevice";
+                        /** @description Synced to the user's other devices now. */
+                        backedUp: boolean;
+                        /** @description How the browser reaches it: `internal`, `hybrid`, `usb`, `nfc`, `ble`. */
+                        transports: string[];
+                        /** Format: date-time */
+                        lastUsedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description `passkey_invalid` with `reason`: the challenge is unknown, used or expired (`challenge`), was made for another session or origin, the response is not for this site, or the authenticator did not verify its user (`user-verification`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `passkey_registered`: this credential is registered already. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_registrationOptions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rp: {
+                            id?: string;
+                            name: string;
+                        };
+                        user: {
+                            id: string;
+                            name: string;
+                            displayName: string;
+                        };
+                        challenge: string;
+                        pubKeyCredParams: {
+                            /** @enum {string} */
+                            type: "public-key";
+                            alg: number;
+                        }[];
+                        timeout?: number;
+                        excludeCredentials?: {
+                            id: string;
+                            /** @enum {string} */
+                            type: "public-key";
+                            transports?: string[];
+                        }[];
+                        authenticatorSelection?: {
+                            authenticatorAttachment?: string;
+                            residentKey?: string;
+                            requireResidentKey?: boolean;
+                            userVerification?: string;
+                        };
+                        attestation?: string;
+                        extensions?: {
+                            [key: string]: unknown;
+                        };
+                        hints?: string[];
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Passkeys are off (PASSKEYS=off). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `last_sign_in_method`: it is your only way to sign in. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_rename_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        name: string;
+                        /**
+                         * @description `multiDevice`: a synced passkey (iCloud Keychain, Google Password Manager…); `singleDevice`: bound to one authenticator (a security key).
+                         * @enum {string}
+                         */
+                        deviceType: "singleDevice" | "multiDevice";
+                        /** @description Synced to the user's other devices now. */
+                        backedUp: boolean;
+                        /** @description How the browser reaches it: `internal`, `hybrid`, `usb`, `nfc`, `ble`. */
+                        transports: string[];
+                        /** Format: date-time */
+                        lastUsedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_signInOptions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The account whose passkeys to offer. Without it, the browser offers the passkeys it has for this site (usernameless; `useBrowserAutofill`).
+                     * @example ada@example.com
+                     */
+                    email?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        challenge: string;
+                        timeout?: number;
+                        rpId?: string;
+                        allowCredentials?: {
+                            id: string;
+                            /** @enum {string} */
+                            type: "public-key";
+                            transports?: string[];
+                        }[];
+                        userVerification?: string;
+                        extensions?: {
+                            [key: string]: unknown;
+                        };
+                        hints?: string[];
+                    };
+                };
+            };
+            /** @description Passkeys are off (PASSKEYS=off). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 30 passkey sign-in requests (options and answers) from this address in 15 minutes. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_signIn_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
+                "X-Captcha-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    response: {
+                        id: string;
+                        rawId: string;
+                        /** @enum {string} */
+                        type: "public-key";
+                        response: {
+                            clientDataJSON: string;
+                            authenticatorData: string;
+                            signature: string;
+                            userHandle?: string;
+                        };
+                        /**
+                         * @description `clientExtensionResults` of the credential, usually `{}`.
+                         * @default {}
+                         */
+                        clientExtensionResults?: {
+                            [key: string]: unknown;
+                        };
+                        /** @enum {string} */
+                        authenticatorAttachment?: "platform" | "cross-platform";
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        signedIn: boolean;
+                        /** @description true: send a code to POST /auth/mfa/verify to finish signing in. */
+                        mfaRequired: boolean;
+                        redirectTo?: string;
+                    };
+                };
+            };
+            /** @description The challenge is unknown, used or expired; the credential is unknown; or the assertion does not verify. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 10 attempts from this address in 15 minutes, or 30 passkey sign-in requests. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_issueTokens_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
+                "X-Captcha-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    response: {
+                        id: string;
+                        rawId: string;
+                        /** @enum {string} */
+                        type: "public-key";
+                        response: {
+                            clientDataJSON: string;
+                            authenticatorData: string;
+                            signature: string;
+                            userHandle?: string;
+                        };
+                        /**
+                         * @description `clientExtensionResults` of the credential, usually `{}`.
+                         * @default {}
+                         */
+                        clientExtensionResults?: {
+                            [key: string]: unknown;
+                        };
+                        /** @enum {string} */
+                        authenticatorAttachment?: "platform" | "cross-platform";
+                    };
+                    /** @description With two-factor on: a code from the app (or a recoveryCode). */
+                    code?: string;
+                    recoveryCode?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description A JWT: `Authorization: Bearer …`. */
+                        accessToken: string;
+                        /** @description Single use: POST /auth/token/refresh. */
+                        refreshToken: string;
+                        expiresIn: number;
+                    };
+                };
+            };
+            /** @description The assertion was refused, or a second factor is required or wrong (`mfa_required`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 10 attempts from this address in 15 minutes, or 30 passkey sign-in requests. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PasskeysController_reauthenticationOptions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        challenge: string;
+                        timeout?: number;
+                        rpId?: string;
+                        allowCredentials?: {
+                            id: string;
+                            /** @enum {string} */
+                            type: "public-key";
+                            transports?: string[];
+                        }[];
+                        userVerification?: string;
+                        extensions?: {
+                            [key: string]: unknown;
+                        };
+                        hints?: string[];
+                    };
+                };
+            };
+            /** @description Passkeys are off (PASSKEYS=off). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
