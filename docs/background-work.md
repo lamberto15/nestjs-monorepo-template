@@ -48,6 +48,11 @@ A mail class implements `Mailable` (subject from the i18n catalog, template
 `apps/api/src/mail/templates/<name>[.<locale>].html`, wrapped in `layout.html`).
 `MAIL_TRANSPORT`: `file` and `log` in development (or Mailpit through
 `smtp`), `smtp`, `resend`, `postmark`, `sendgrid`, `ses` in production.
+The worker asks the **suppression list** before sending
+([deliverability.md](deliverability.md)): addresses that bounced or
+complained are left out (`@EssentialMail()` on a class the person asked
+for, such as the password reset, still reaches one that complained), and
+the job's result says who was skipped and why.
 
 ## Cron jobs and locks
 

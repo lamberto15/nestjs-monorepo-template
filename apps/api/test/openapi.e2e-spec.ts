@@ -103,6 +103,8 @@ describe('OpenAPI document (e2e)', () => {
       '/v1/data/imports',
       '/v1/data/imports/{name}/template',
       '/v1/data/transfers/{id}',
+      '/v1/mail/suppressions',
+      '/v1/mail/suppressions/{id}',
       '/v1/money/convert',
       '/v1/money/rates',
       '/v1/notes',
@@ -152,6 +154,7 @@ describe('OpenAPI document (e2e)', () => {
       '/v1/webhook-endpoints/{id}',
       '/v1/webhook-endpoints/{id}/rotate-secret',
       '/v1/webhooks/example-sender',
+      '/v1/webhooks/mail/{provider}',
     ]);
   });
 

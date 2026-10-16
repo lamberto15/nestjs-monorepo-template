@@ -71,6 +71,29 @@ export const platformEnv = z.object({
   /** Where the ECB's eurofxref documents are (eurofxref-daily.xml, eurofxref-hist-90d.xml): a mirror, or a stub in tests. */
   EXCHANGE_RATES_ECB_URL: baseUrl('https://www.ecb.europa.eu/stats/eurofxref'),
 
+  // Email deliverability (platform/deliverability, docs/deliverability.md).
+  /**
+   * The SNS topics whose notifications `POST /webhooks/mail/ses` accepts
+   * (comma-separated ARNs): the ones SES publishes bounces and complaints
+   * to. Empty: every notification is refused (403), so the route is inert
+   * until the topic is configured.
+   */
+  SES_SNS_TOPIC_ARNS: list(),
+  /** Transient (soft) bounces within MAIL_SOFT_BOUNCE_WINDOW_HOURS before an address is suppressed. */
+  MAIL_SOFT_BOUNCE_THRESHOLD: z.coerce.number().int().min(1).max(50).default(3),
+  /** Soft bounces count when the previous one is at most this many hours old; older, the count starts over. */
+  MAIL_SOFT_BOUNCE_WINDOW_HOURS: z.coerce.number().int().min(1).default(24),
+  /** How long a soft-bounce suppression lasts; then the address is only watched again (a full mailbox empties). */
+  MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(72),
+  /** Refuse SNS messages signed with SignatureVersion 1 (SHA1): set the topic's attribute to 2 first. */
+  SES_SNS_REQUIRE_SIGNATURE_V2: flag('off'),
+  /** Bounce, complaint and delivery events (the trail behind the suppression list) older than this many days are deleted every night. */
+  MAIL_EVENTS_RETENTION_DAYS: z.coerce.number().int().min(1).default(90),
+
   /** Files attached to records (platform/attachments): the largest, in MB. */
   ATTACHMENT_MAX_MB: z.coerce.number().int().min(1).max(5000).default(25),
   /** The types attachments may have, detected from their bytes: comma-separated MIME types. */

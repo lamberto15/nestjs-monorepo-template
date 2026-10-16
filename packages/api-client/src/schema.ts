@@ -961,6 +961,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhooks/mail/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A mail provider reports bounces and complaints
+         * @description `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.
+         */
+        post: operations["MailEventsController_handle_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mail/suppressions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The suppression list, newest first
+         * @description Addresses mail is not sent to (`suppressedAt` set) and addresses being watched for soft bounces (`suppressedAt.isNull=true`). `?address=ada@example.com` (any case), `?address.endsWith=@example.com`, `?reason=complaint`, `?source=ses`; `?sort=-lastSeenAt`. Cursor pages.
+         */
+        get: operations["SuppressionsController_list_v1"];
+        put?: never;
+        /**
+         * Stop mail to an address
+         * @description A manual entry (`reason: manual`): nothing is sent to the address, essential mail included, until it is removed. Audited (`mailSuppression.created`).
+         */
+        post: operations["SuppressionsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mail/suppressions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One entry */
+        get: operations["SuppressionsController_findOne_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Send mail to the address again
+         * @description Removes the entry. For a bounced address, once the mailbox is known to work; for a complaint, only when the person asked for mail again. A new bounce or complaint lists it again. Audited (`mailSuppression.deleted`).
+         */
+        delete: operations["SuppressionsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/approvals/delegations": {
         parameters: {
             query?: never;
@@ -6140,6 +6205,431 @@ export interface operations {
             };
             /** @description Only API clients have usage: a user gets a 403. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MailEventsController_handle_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        /** @description The provider’s notification, as it sends it. */
+        requestBody: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        received: true;
+                        /** @enum {string} */
+                        kind: "events" | "handshake" | "ignored";
+                        events: number;
+                    };
+                };
+            };
+            /** @description Not the provider’s format (sns_malformed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signature does not verify (sns_signature_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such provider. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signing certificate could not be fetched (sns_certificate_unavailable): the provider retries. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SuppressionsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: address = */
+                address?: string;
+                /** @description Filter: address contains */
+                "address.contains"?: string;
+                /** @description Filter: address endsWith */
+                "address.endsWith"?: string;
+                /** @description Filter: reason = */
+                reason?: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                /** @description Filter: reason in */
+                "reason.in"?: string;
+                /** @description Filter: reason notIn */
+                "reason.notIn"?: string;
+                /** @description Filter: source = */
+                source?: string;
+                /** @description Filter: source in */
+                "source.in"?: string;
+                /** @description Filter: suppressedAt gte */
+                "suppressedAt.gte"?: string;
+                /** @description Filter: suppressedAt lt */
+                "suppressedAt.lt"?: string;
+                /** @description Filter: suppressedAt between */
+                "suppressedAt.between"?: string;
+                /** @description Filter: suppressedAt isNull */
+                "suppressedAt.isNull"?: "true" | "false";
+                /** @description Filter: lastSeenAt gte */
+                "lastSeenAt.gte"?: string;
+                /** @description Filter: lastSeenAt lt */
+                "lastSeenAt.lt"?: string;
+                /** @description Filter: lastSeenAt between */
+                "lastSeenAt.between"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Filter: updatedAt gt */
+                "updatedAt.gt"?: string;
+                /** @description Filter: updatedAt gte */
+                "updatedAt.gte"?: string;
+                /** @description Filter: updatedAt lt */
+                "updatedAt.lt"?: string;
+                /** @description Filter: updatedAt lte */
+                "updatedAt.lte"?: string;
+                /** @description Filter: updatedAt between */
+                "updatedAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"address","op":"eq","value":…},{…}]}. Fields and operators: address (eq, contains, endsWith); reason (eq, in, notIn); source (eq, in); suppressedAt (gte, lt, between, isNull); lastSeenAt (gte, lt, between); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -address. Sortable: address, suppressedAt, lastSeenAt, createdAt, updatedAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: address,reason. Fields: id, address, reason, source, note, lastDetail, events, softBounces, firstSeenAt, lastSeenAt, suppressedAt, skipped, lastSkippedAt, createdBy, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @example ada@example.com */
+                            address: string;
+                            /**
+                             * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
+                             * @enum {string}
+                             */
+                            reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                            /** @description The provider that reported it (`ses`), or `manual`. */
+                            source: string;
+                            note: string | null;
+                            /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
+                            lastDetail: string | null;
+                            /** @description Bounces and complaints reported for it. */
+                            events: number;
+                            /** @description Transient bounces in a row. */
+                            softBounces: number;
+                            /** Format: date-time */
+                            firstSeenAt: string;
+                            /** Format: date-time */
+                            lastSeenAt: string;
+                            /**
+                             * Format: date-time
+                             * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
+                             */
+                            suppressedAt: string | null;
+                            /** @description Mails not sent to it since. */
+                            skipped: number;
+                            /** Format: date-time */
+                            lastSkippedAt: string | null;
+                            createdBy: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid session or token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SuppressionsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: email
+                     * @example ada@example.com
+                     */
+                    address: string;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @example ada@example.com */
+                        address: string;
+                        /**
+                         * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
+                         * @enum {string}
+                         */
+                        reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                        /** @description The provider that reported it (`ses`), or `manual`. */
+                        source: string;
+                        note: string | null;
+                        /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
+                        lastDetail: string | null;
+                        /** @description Bounces and complaints reported for it. */
+                        events: number;
+                        /** @description Transient bounces in a row. */
+                        softBounces: number;
+                        /** Format: date-time */
+                        firstSeenAt: string;
+                        /** Format: date-time */
+                        lastSeenAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
+                         */
+                        suppressedAt: string | null;
+                        /** @description Mails not sent to it since. */
+                        skipped: number;
+                        /** Format: date-time */
+                        lastSkippedAt: string | null;
+                        createdBy: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description Not an email address. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The address is listed already. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SuppressionsController_findOne_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @example ada@example.com */
+                        address: string;
+                        /**
+                         * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
+                         * @enum {string}
+                         */
+                        reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                        /** @description The provider that reported it (`ses`), or `manual`. */
+                        source: string;
+                        note: string | null;
+                        /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
+                        lastDetail: string | null;
+                        /** @description Bounces and complaints reported for it. */
+                        events: number;
+                        /** @description Transient bounces in a row. */
+                        softBounces: number;
+                        /** Format: date-time */
+                        firstSeenAt: string;
+                        /** Format: date-time */
+                        lastSeenAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
+                         */
+                        suppressedAt: string | null;
+                        /** @description Mails not sent to it since. */
+                        skipped: number;
+                        /** Format: date-time */
+                        lastSkippedAt: string | null;
+                        createdBy: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid session or token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SuppressionsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -122,8 +122,8 @@ template's: `seed`, `audit-retention`, `soft-delete-purge` (IAM,
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
 `attachment-sweep`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
-`approvals`, `exchange-rates` (platform, `platform/platform.jobs.ts`); `note-publication`
-(notes).
+`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention` (platform,
+`platform/platform.jobs.ts`); `note-publication` (notes).
 
 **Run it** with `SystemContext.run()`, the one way in:
 

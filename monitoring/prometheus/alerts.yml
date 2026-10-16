@@ -229,6 +229,34 @@ groups:
           summary: '{{ $labels.job }} cannot reach the captcha provider'
           description: 'Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: {{ $value | humanize }} per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare''s status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too).'
 
+      # Email deliverability (docs/deliverability.md). Hard bounces against
+      # the mails sent over an hour: addresses that don't exist, from stale
+      # data or a bad import, and the sender reputation with them (SES puts an
+      # account under review near 5%). Events are counted on the api
+      # (the intake), sends on the workers: summed across jobs.
+      - alert: MailBounceRateHigh
+        expr: >
+          sum(increase(mail_events_total{type="hard_bounce"}[1h]))
+          / sum(increase(mail_sent_total[1h])) > 0.05
+          and sum(increase(mail_sent_total[1h])) >= 20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value | humanizePercentage }} of the mail sent in the last hour bounced hard'
+          description: 'Over 5% of the mails sent in the last hour went to addresses that don''t exist, for 15 minutes (at least 20 sent). They are being suppressed (GET /v1/mail/suppressions?reason=hard_bounce); find where the addresses came from (an import, a sign-up form without verification). SES suspends sending near 5%.'
+
+      # One complaint is worth a look: providers rate limits near 0.1%, and
+      # a person marking a transactional mail as spam means it looked like
+      # one (unexpected, too frequent, or sent to an address that isn't theirs).
+      - alert: MailComplaints
+        expr: sum(increase(mail_events_total{type="complaint"}[1h])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value | humanize }} spam complaints in the last hour'
+          description: 'Recipients reported mail from the app as spam (GET /v1/mail/suppressions?reason=complaint shows who, with the provider''s feedback type). They are suppressed; look at what was sent to them and why. Providers throttle a sender above 0.1% complaints.'
+
       # From the exporters in compose.monitoring.yaml.
       - alert: PostgresDown
         expr: pg_up == 0

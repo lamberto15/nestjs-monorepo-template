@@ -25,6 +25,25 @@ import { WebhookEndpointsController } from './webhooks/webhook-endpoints.control
 // Maps the webhooks package's errors to problem details.
 import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
+import { HttpClientModule } from '@nestjs/http-client';
+import { MAIL_SUPPRESSION } from '../core/mail/mail-suppression.js';
+import { MAIL_EVENTS } from './deliverability/mail-event.types.js';
+import { MailEventsController } from './deliverability/mail-events.controller.js';
+import { MailEventsProcessor } from './deliverability/mail-events.processor.js';
+import { MailEventsRetentionJob } from './deliverability/mail-events-retention.job.js';
+import {
+  MailEventIntakeRegistry,
+  MailEventsService,
+} from './deliverability/mail-events.service.js';
+import { SesIntake } from './deliverability/sns/ses-intake.js';
+import {
+  HttpSnsGateway,
+  SNS_HTTP,
+  SnsGateway,
+} from './deliverability/sns/sns-gateway.js';
+import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
+import { SuppressionsController } from './deliverability/suppressions.controller.js';
+import { SuppressionsService } from './deliverability/suppressions.service.js';
 import { Realtime } from './realtime/realtime.service.js';
 import { FilesController } from './storage/files.controller.js';
 import { storage } from './storage/storage.config.js';
@@ -202,8 +221,22 @@ export class PlatformModule {
         // After IdempotencyModule, whose interceptor must come first.
         // Private file storage (local or S3) behind signed URLs.
         storage(),
-        ...queues([DATA_TRANSFERS, BULK, ...(options.queues ?? [])]),
+        ...queues([
+          DATA_TRANSFERS,
+          BULK,
+          MAIL_EVENTS,
+          ...(options.queues ?? []),
+        ]),
         ...integrations(options.resiliencePresets ?? {}),
+        // SNS (the mail intake): signing certificates and subscription
+        // confirmations, at URLs the intake has checked are SNS's own. No
+        // base URL (the region is the message's); one short attempt, SNS retries.
+        HttpClientModule.register({
+          name: SNS_HTTP,
+          timeout: '5s',
+          retry: false,
+          redirect: 'error',
+        }),
         WorkflowsModule.forRoot({
           worker: {
             // Workflow steps run where the role runs workers.
@@ -249,6 +282,9 @@ export class PlatformModule {
         TagsController,
         ReportsController,
         UsageController,
+        // Email deliverability: the providers' bounces and complaints, the suppression list.
+        MailEventsController,
+        SuppressionsController,
         // Before ApprovalsController: its /approvals/{id} would read `delegations` as an id.
         ApprovalDelegationsController,
         ApprovalPoliciesController,
@@ -383,6 +419,19 @@ export class PlatformModule {
         ApprovalAccessPolicy,
         // Open and overdue requests on /metrics.
         ApprovalMetrics,
+        // Email deliverability (docs/deliverability.md): intakes register
+        // themselves (SES through SNS); the queue applies their events to
+        // the suppression list, which the core's mail queue asks through
+        // MAIL_SUPPRESSION before every send.
+        MailEventIntakeRegistry,
+        MailEventsService,
+        MailEventsProcessor,
+        MailEventsRetentionJob,
+        { provide: SnsGateway, useClass: HttpSnsGateway },
+        SesIntake,
+        SuppressionsService,
+        { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
+        MailSuppressionPolicy,
       ],
       exports: [
         Realtime,
@@ -411,6 +460,8 @@ export class PlatformModule {
         ApprovalsService,
         // ExchangeRatesService, to the features.
         MoneyModule,
+        MAIL_SUPPRESSION,
+        MailEventIntakeRegistry,
       ],
     };
   }
