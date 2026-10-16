@@ -359,7 +359,8 @@ export class PasskeysService {
           credentialId: credential.id,
           publicKey: toBase64url(credential.publicKey),
           counter: credential.counter,
-          transports: credential.transports ?? [],
+          // Sorted, as browsers report them (and as the decoys are).
+          transports: [...(credential.transports ?? [])].sort(),
           deviceType: credentialDeviceType,
           backedUp: credentialBackedUp,
           aaguid,
@@ -457,9 +458,10 @@ export class PasskeysService {
    * is bound to nobody until the credential says whose it is. With one,
    * the account's credentials are listed (`allowCredentials`) and the
    * challenge is bound to the account; an address without an account or
-   * without passkeys gets a decoy credential instead (its id derived from
-   * the address, so it is the same every time): the answer looks alike
-   * whether or not the address has an account, as the password sign-in's.
+   * without passkeys gets decoy credentials instead (`decoys()`: derived
+   * from the address, so the same every time, and shaped like real ones),
+   * after the same queries: the answer looks alike whether or not the
+   * address has an account or passkeys, as the password sign-in's does.
    */
   async signInOptions(
     email: string | undefined,
@@ -470,11 +472,12 @@ export class PasskeysService {
     let allowCredentials: { id: string; transports?: string[] }[] = [];
     if (email !== undefined) {
       const found = await this.users.findActiveByEmail(email);
-      allowCredentials = found ? await this.descriptors(found.user.id) : [];
+      // The same queries either way (no account: an id nobody has), so the time tells nothing.
+      allowCredentials = await this.descriptors(found?.user.id ?? NOBODY);
       if (found && allowCredentials.length > 0) {
         userId = found.user.id;
       } else {
-        allowCredentials = [this.decoy(email)];
+        allowCredentials = this.decoys(email);
       }
     }
     return this.requestOptions(
@@ -878,23 +881,43 @@ export class PasskeysService {
     }));
   }
 
-  /** A credential nobody has, the same for an address every time (HMAC of it). */
-  private decoy(email: string) {
-    const id = createHmac('sha256', this.decoyKey)
-      .update(email.trim().normalize('NFC').toLowerCase())
-      .digest()
-      .subarray(0, 16)
-      .toString('base64url');
-    return {
-      id,
-      transports: ['internal', 'hybrid'] as AuthenticatorTransportFuture[],
-    };
+  /**
+   * Credentials nobody has, the same for an address every time (HMACs of
+   * it): one or two, each with an id length and transports that real
+   * authenticators have (16 bytes: Google Password Manager, 20: iCloud
+   * Keychain, 32: Windows Hello, many security keys), transports in the
+   * sorted order browsers report them. What still shows: an account with
+   * three passkeys or more, or with unusual ids, is a real one.
+   */
+  private decoys(email: string) {
+    const address = email.trim().normalize('NFC').toLowerCase();
+    const mac = (label: string) =>
+      createHmac('sha256', this.decoyKey)
+        .update(`${label}:${address}`)
+        .digest();
+    const shape = mac('shape');
+    return Array.from({ length: 1 + (shape[0] % 2) }, (_, i) => ({
+      id: mac(`id${i}`)
+        .subarray(0, DECOY_ID_LENGTHS[shape[1 + i] % DECOY_ID_LENGTHS.length])
+        .toString('base64url'),
+      transports: DECOY_TRANSPORTS[shape[3 + i] % DECOY_TRANSPORTS.length],
+    }));
   }
 }
 
 type AuthenticatorTransportFuture = NonNullable<
   RegistrationResponseJSON['response']['transports']
 >[number];
+
+/** A user id nobody has: the descriptors' query for an address without an account. */
+const NOBODY = '00000000-0000-0000-0000-000000000000';
+const DECOY_ID_LENGTHS = [16, 20, 32];
+const DECOY_TRANSPORTS: AuthenticatorTransportFuture[][] = [
+  ['hybrid', 'internal'],
+  ['internal'],
+  ['hybrid', 'internal'],
+  ['nfc', 'usb'],
+];
 
 const tooMany = () =>
   new ConflictException({

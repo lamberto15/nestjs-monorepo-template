@@ -402,10 +402,13 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   user handle (the user id's 16 bytes, no personal data) must match the
   credential's owner. With an email, the account's credentials are listed
   and the challenge is bound to the account. An address without an account,
-  or without passkeys, gets one decoy credential (an HMAC of the address
-  under a key derived from `JWT_SECRET`, the same every time), so the
-  answer doesn't say whether the address has an account. The number of
-  credentials of a real account still shows (1 for a decoy).
+  or without passkeys, gets one or two decoy credentials (HMACs of the
+  address under a key derived from `JWT_SECRET`, the same every time, with
+  the id lengths and sorted transports real authenticators have), after the
+  same queries, so the answer doesn't say whether the address has an
+  account or passkeys. What still shows: an account with three passkeys or
+  more, or ids of unusual lengths, is a real one; with `AUTH_SIGN_UP=on`,
+  sign-up's 409 says whether an account exists anyway.
 - **The counter.** A device-bound authenticator counts its uses; an
   assertion whose counter isn't above the one stored is refused (a cloned
   authenticator, or one restored from a backup), logged as a warning when

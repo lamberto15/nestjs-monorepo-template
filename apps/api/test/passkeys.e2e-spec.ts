@@ -362,7 +362,7 @@ describe('passkeys (e2e)', () => {
       {
         id: me.device.credentials[0].id,
         type: 'public-key',
-        transports: ['internal', 'hybrid'],
+        transports: ['hybrid', 'internal'],
       },
     ]);
     await passkeySignIn(me.device.get(byEmail)).expect(200);
@@ -405,8 +405,14 @@ describe('passkeys (e2e)', () => {
       expect(Object.keys(options).sort()).toEqual(
         Object.keys(shapes[0]).sort(),
       );
-      expect(options.allowCredentials).toHaveLength(1);
-      expect(options.allowCredentials[0].id).toMatch(/^[\w-]{22}$/);
+      expect([1, 2]).toContain(options.allowCredentials.length);
+      for (const credential of options.allowCredentials) {
+        // 16, 20 or 32 bytes, as real authenticators make them.
+        expect(credential.id).toMatch(/^([\w-]{22}|[\w-]{27}|[\w-]{43})$/);
+        expect(credential.transports).toEqual(
+          [...(credential.transports as string[])].sort(),
+        );
+      }
     }
     // The decoy is the same every time: a second look tells nothing either.
     const again = await signInOptions({ email: ` ${unknown.toUpperCase()} ` });
