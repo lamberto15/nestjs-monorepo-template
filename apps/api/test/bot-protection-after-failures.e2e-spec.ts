@@ -1,7 +1,8 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { Redis } from 'ioredis';
+import request from 'supertest';
 import { REDIS } from '../src/core/redis/redis.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, newPassword, totp, type TestApp } from './support.js';
 
 // CAPTCHA_MODE=after-failures (read once, when AppModule loads): a token is
 // wanted once an address, or an email and address, had CAPTCHA_FAILURES
@@ -236,5 +237,165 @@ describe('bot protection, after failures (e2e)', () => {
     );
     expect(bad.body.code).toBe('captcha_invalid');
     await signIn(address, target).expect(403);
+  });
+  /** An account with two-factor on: its address, password and recovery codes. */
+  async function withMfa() {
+    const target = email();
+    const password = newPassword();
+    await node
+      .admin()
+      .post('/v1/access/users')
+      .send({ email: target, name: target, password, roleIds: [] })
+      .expect(201);
+    const agent = await node.signIn(target, password);
+    const { secret } = (await agent.post('/v1/auth/mfa/enroll').expect(200))
+      .body as { secret: string };
+    const { recoveryCodes } = (
+      await agent
+        .post('/v1/auth/mfa/confirm')
+        .send({ code: totp(secret) })
+        .expect(200)
+    ).body as { recoveryCodes: string[] };
+    return { email: target, password, recoveryCodes };
+  }
+
+  /** The failure counter of a tracker (an address, or `email|address`), as CaptchaService keys it. */
+  async function failures(tracker: string) {
+    const hash = createHash('sha256').update(tracker).digest('base64url');
+    const value = await node.app
+      .get<Redis>(REDIS)
+      .get(`captcha:failures:${hash}`);
+    return Number(value ?? 0);
+  }
+
+  it("counts a wrong two-factor code at the browser's second step as a failed sign-in, and challenges it there", async () => {
+    const account = await withMfa();
+    const address = ip();
+    const browser = request.agent(node.app.getHttpServer());
+    const verify = (body: object, token?: string) => {
+      const req = browser
+        .post('/v1/auth/mfa/verify')
+        .set('X-Forwarded-For', address);
+      if (token) {
+        req.set('X-Captcha-Token', token);
+      }
+      return req.send(body);
+    };
+    // The right password is no failure: given back.
+    const first = await browser
+      .post('/v1/auth/sign-in')
+      .set('X-Forwarded-For', address)
+      .send({ email: account.email, password: account.password })
+      .expect(200);
+    expect(first.body).toEqual({ signedIn: false, mfaRequired: true });
+    expect(await failures(address)).toBe(0);
+    // Two wrong codes: counted on the address and on the account's email and
+    // address, the keys a wrong password counts on.
+    await verify({ code: '000000' }).expect(401);
+    await verify({ code: '000001' }).expect(401);
+    expect(await failures(address)).toBe(2);
+    expect(await failures(`${account.email}|${address}`)).toBe(2);
+    // The third attempt wants a token, as a third wrong password would.
+    const asked = await verify({ recoveryCode: account.recoveryCodes[0] });
+    expect(asked.status).toBe(403);
+    expect(asked.body).toMatchObject({
+      code: 'captcha_required',
+      action: 'sign-in',
+    });
+    // With one, the right code signs in, and gives its attempt back.
+    await verify(
+      { recoveryCode: account.recoveryCodes[0] },
+      siteverify.token(),
+    ).expect(200, { signedIn: true, mfaRequired: false });
+    expect(await failures(address)).toBe(3);
+    // The password step shares the counters: it asks too.
+    const signIn = await browser
+      .post('/v1/auth/sign-in')
+      .set('X-Forwarded-For', address)
+      .send({ email: account.email, password: account.password });
+    expect(signIn.status).toBe(403);
+    expect(signIn.body.code).toBe('captcha_required');
+  });
+
+  it('counts wrong codes like wrong passwords: the same answers as for an account that does not exist', async () => {
+    const account = await withMfa();
+    const sequence = async (
+      target: string,
+      attempt: (address: string) => Promise<request.Response>,
+    ) => {
+      const address = ip();
+      const statuses = [
+        (await attempt(address)).status,
+        (await attempt(address)).status,
+      ];
+      // The third is a password sign-in for the same email, from the same address.
+      statuses.push((await signIn(address, target)).status);
+      return statuses;
+    };
+    const wrongCodes = await sequence(account.email, (address) =>
+      node.http().post('/v1/auth/token').set('X-Forwarded-For', address).send({
+        email: account.email,
+        password: account.password,
+        code: '000000',
+      }),
+    );
+    const nobody = email();
+    const wrongPasswords = await sequence(nobody, (address) =>
+      signIn(address, nobody),
+    );
+    expect(wrongCodes).toEqual([401, 401, 403]);
+    expect(wrongPasswords).toEqual(wrongCodes);
+  });
+
+  it('on the token route: the right password without a code counts nothing; a wrong code counts, and is challenged', async () => {
+    const account = await withMfa();
+    const address = ip();
+    const token = (body: object, captcha?: string) => {
+      const req = node
+        .http()
+        .post('/v1/auth/token')
+        .set('X-Forwarded-For', address);
+      if (captcha) {
+        req.set('X-Captcha-Token', captcha);
+      }
+      return req.send({
+        email: account.email,
+        password: account.password,
+        ...body,
+      });
+    };
+    // Asked for the second factor: no failure (the browser's sign-in
+    // answers it with a 200). Within the route's own limit of 5 requests.
+    const asked = await token({}).expect(401);
+    expect(JSON.stringify(asked.body)).toContain('mfa_required');
+    expect(await failures(address)).toBe(0);
+    expect(await failures(`${account.email}|${address}`)).toBe(0);
+    // Wrong codes are failures, on both keys.
+    await token({ code: '000000' }).expect(401);
+    await token({ recoveryCode: 'not-a-recovery-code' }).expect(401);
+    expect(await failures(`${account.email}|${address}`)).toBe(2);
+    const refused = await token({ recoveryCode: account.recoveryCodes[1] });
+    expect(refused.status).toBe(403);
+    expect(refused.body.code).toBe('captcha_required');
+    const issued = await token(
+      { recoveryCode: account.recoveryCodes[1] },
+      siteverify.token(),
+    ).expect(200);
+    expect(issued.body.accessToken).toEqual(expect.any(String));
+  });
+
+  it('counts the second step without a pending sign-in on the address alone', async () => {
+    const address = ip();
+    const verify = () =>
+      node
+        .http()
+        .post('/v1/auth/mfa/verify')
+        .set('X-Forwarded-For', address)
+        .send({ code: '000000' });
+    await verify().expect(401);
+    await verify().expect(401);
+    const asked = await verify().expect(403);
+    expect(asked.body.code).toBe('captcha_required');
+    expect(await failures(address)).toBe(3);
   });
 });

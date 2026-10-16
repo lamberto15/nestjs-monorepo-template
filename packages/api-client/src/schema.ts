@@ -9247,7 +9247,7 @@ export interface operations {
                         magicLink: boolean;
                         /** @description Start with GET /auth/oidc/{provider}/login. */
                         providers: string[];
-                        /** @description Bot protection on sign-in, sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off. */
+                        /** @description Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off. */
                         captcha: {
                             /** @description `turnstile`; `stub` outside production. */
                             provider: string;
@@ -9390,7 +9390,10 @@ export interface operations {
     AuthController_completeMfa_v1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
+                "X-Captcha-Token"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9418,6 +9421,13 @@ export interface operations {
             };
             /** @description No pending sign-in, or a wrong code. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

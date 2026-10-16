@@ -339,8 +339,9 @@ daily, never off.
 
 ## Bot protection
 
-The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, `/sign-up`,
-`/magic-link`, `/password/forgot`) can ask for a challenge token, verified
+The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, the
+second step `/mfa/verify`, `/sign-up`, `/magic-link`, `/password/forgot`)
+can ask for a challenge token, verified
 server-side with Cloudflare Turnstile. **Off by default**: without
 `CAPTCHA_MODE` and the keys, nothing changes for an existing deployment.
 
@@ -356,7 +357,15 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   `CAPTCHA_FAILURES` (3) attempts in `CAPTCHA_FAILURES_WINDOW_MINUTES` (15)
   failed from the address, **or** for the email and address; `off`. The
   two sign-ins (`/sign-in`, `/token`) count their 4xx answers (a wrong
-  password, an unknown account: the same 401); sign-up, the magic-link
+  password, an unknown account: the same 401), and so does **the second
+  factor**: a wrong code (or recovery code) at `/mfa/verify`, or sent to
+  `/token`, is a failed sign-in, counted on the same address and
+  `email|address` keys (on `/mfa/verify` the email is the pending
+  session's account; without a session, the address alone) and challenged
+  the same way, in either mode (the code page renders the widget, action
+  `sign-in`, when a 403 asks, or always with `always`). The right password
+  is no failure: the browser's 200 `mfaRequired` and the token route's 401
+  `mfa_required` (no code sent) give the attempt back. Sign-up, the magic-link
   request and forgot password count every request, since their answers
   reveal nothing. The counts live in Redis, keyed by a hash of the address
   or of `email|address` (**the same keys on every guarded route**: a bot
@@ -426,9 +435,9 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   app attestation (App Attest, Play Integrity) exists, this is what keeps a
   bot from taking the token route around the challenge. API clients never
   sign in on these routes (keys go in `Authorization`), so nothing changes
-  for them. `/mfa/verify`, `/password/reset`, `/magic-link/verify` and
-  `/email/verify` take single-use tokens the attacker doesn't have, and
-  keep their rate limits.
+  for them. `/password/reset`, `/magic-link/verify` and `/email/verify`
+  take single-use tokens the attacker doesn't have, and keep their rate
+  limits.
 - **Configuration:** `TURNSTILE_SITE_KEY` (public) and
   `TURNSTILE_SECRET_KEY` (a secret: `TURNSTILE_SECRET_KEY_FILE` works, and
   `compose.prod.yaml` mounts it; [configuration.md](configuration.md),
@@ -444,7 +453,9 @@ server-side with Cloudflare Turnstile. **Off by default**: without
 - **Tests:** `apps/api/test/bot-protection*.e2e-spec.ts` run the real
   verifier against a siteverify stand-in on loopback
   (`test/captcha-stand-in.ts`; never Cloudflare), one file per mode: each
-  mode, the existence-independent counting (on both sign-ins), a bot
+  mode, the existence-independent counting (on both sign-ins), wrong
+  two-factor codes on `/mfa/verify` and `/token` (counted and challenged
+  like wrong passwords, `mfa_required` not counted), a bot
   alternating `/sign-in` and `/token`, a parallel burst, the replay
   refusal, hostname and action, provider-side error codes, the timeout and
   fail-open / fail-closed behaviour. The unit

@@ -15414,7 +15414,7 @@
                     },
                     "captcha": {
                       "nullable": true,
-                      "description": "Bot protection on sign-in, sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
+                      "description": "Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
                       "type": "object",
                       "properties": {
                         "provider": {
@@ -15687,7 +15687,17 @@
     "/v1/auth/mfa/verify": {
       "post": {
         "operationId": "AuthController_completeMfa_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Captcha-Token",
+            "in": "header",
+            "description": "The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -15739,6 +15749,9 @@
           },
           "401": {
             "description": "No pending sign-in, or a wrong code."
+          },
+          "403": {
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           }
         },
         "summary": "Finish signing in with a two-factor code",
