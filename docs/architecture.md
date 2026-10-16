@@ -25,6 +25,8 @@ env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
 pnpm-workspace.yaml    the workspace: apps/*, packages/*
 turbo.json             the tasks (build, lint, test, test:e2e) and their cache
+tools/                 CI's scripts: the migration lint, the release notes
+.changeset/            the typed client's pending changes (pnpm changeset)
 ```
 
 Commands run from the root: its scripts hand each one to the package it
