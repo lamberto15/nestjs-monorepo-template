@@ -97,7 +97,7 @@ sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
 | --- | --- |
 | A pending deletion, what you agreed to | `GET /v1/account` |
 | A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`) |
-| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels |
+| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below) |
 | Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }`, `GET /v1/account/consents` (the latest of each kind; kept as proof) |
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
@@ -107,6 +107,28 @@ its audit entries keep the actor key, labelled "Deleted user". Records
 the person created stay, owned by an account that is nobody's. A feature
 holding personal data registers a `PersonalDataSource` (`rows()` for the
 export, `erase()` for what must go with the person; `note.transfer.ts`).
+**The cancel link** in the deletion mail (`WEB_URL/cancel-deletion?token=…`;
+the web app's page POSTs the token to the public
+`POST /v1/account/deletion/cancel { token }`, 204; a GET would let a mail
+scanner that follows links cancel it) needs no sign-in: the person may have
+lost their password, or never asked and wants it stopped at once. The
+token (`platform/account/deletion-cancel-links.ts`) is a JWT signed with
+@nestjs/authentication's `JwtSigner`, with a key derived from `JWT_SECRET`
+(HKDF, a label of its own: an access token's key never verifies it, nor
+it an access token), its own audience and `typ`; it names the user and
+the request, and expires a day after the scheduled date (the job runs
+nightly). It works **once**: the route cancels only a request still
+pending, in one conditional `UPDATE`, so a second use, the link of an
+earlier request, or one after the deletion ran finds nothing (and the job
+re-checks and locks the request before carrying it out, so a cancel that
+won the race wins). Every refusal is the same 400 (`auth.invalidLink`),
+saying neither why nor whether the account exists; 10 attempts per
+address in 15 minutes. Audited as the user's `account.deletion-cancelled`
+with `details.via: link`. The token travels in the mail job's `token`
+field, which the log redaction masks. Proof:
+`account-lifecycle.e2e-spec.ts`, `security.e2e-spec.ts` ("the deletion
+mail's cancel link"), `deletion-cancel-links.spec.ts`.
+
 All of it is audited (`account.deletion-requested`, `-cancelled`,
 `account.deleted`, `account.consented`); `account.deleted` is the job's,
 the system principal `system:account-deletion`. Never while impersonating.

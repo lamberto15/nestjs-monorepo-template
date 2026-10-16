@@ -5,6 +5,7 @@ import type { Database } from '../src/core/database/drizzle.js';
 import { AccountService } from '../src/iam/account/account.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import { userIdentities, users } from '../src/iam/iam.tables.js';
+import { accountDeletions } from '../src/platform/account/account.tables.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
 
 /**
@@ -216,5 +217,139 @@ describe('security (e2e)', () => {
       .from(userIdentities)
       .where(eq(userIdentities.userId, id));
     expect(left).toHaveLength(1);
+  });
+  describe("the deletion mail's cancel link (no sign-in)", () => {
+    /** Someone who asked for their account's deletion, and the token of the mail's link. */
+    async function pendingDeletion() {
+      const email = `${randomUUID().slice(0, 8)}@example.com`;
+      const password = newPassword();
+      const created = await node
+        .admin()
+        .post('/v1/access/users')
+        .send({ email, name: email, password, roleIds: [] })
+        .expect(201);
+      const agent = await node.signIn(email, password);
+      await agent.post('/v1/account/deletion').send({ password }).expect(200);
+      const mail = await node.waitForMail({ to: email, subject: /deleted/ });
+      const token = mail.link('/cancel-deletion').searchParams.get('token')!;
+      return { id: created.body.id as string, email, password, agent, token };
+    }
+    const address = () =>
+      `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250) + 1}`;
+    const cancel = (token: string, from = address()) =>
+      node
+        .http()
+        .post('/v1/account/deletion/cancel')
+        .set('X-Forwarded-For', from)
+        .send({ token });
+    const stillPending = async (
+      agent: Awaited<ReturnType<typeof pendingDeletion>>['agent'],
+    ) => (await agent.get('/v1/account').expect(200)).body.deletion !== null;
+
+    it('is no credential: never accepted as a bearer token, and an access token cancels nothing', async () => {
+      const ada = await pendingDeletion();
+      await node
+        .http()
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${ada.token}`)
+        .expect(401);
+      const { accessToken } = (
+        await node
+          .http()
+          .post('/v1/auth/token')
+          .send({ email: ada.email, password: ada.password })
+          .expect(200)
+      ).body as { accessToken: string };
+      await cancel(accessToken).expect(400);
+      expect(await stillPending(ada.agent)).toBe(true);
+    });
+
+    it("can't be altered to cancel another person's deletion", async () => {
+      const ada = await pendingDeletion();
+      const bob = await pendingDeletion();
+      const [header, payload, signature] = ada.token.split('.');
+      const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
+      const bobDeletion = await node.app
+        .get<Database>(getDrizzleToken())
+        .select({ id: accountDeletions.id })
+        .from(accountDeletions)
+        .where(eq(accountDeletions.userId, bob.id));
+      for (const forged of [
+        { ...claims, sub: bob.id },
+        { ...claims, sub: bob.id, did: bobDeletion[0].id },
+      ]) {
+        const body = Buffer.from(JSON.stringify(forged)).toString('base64url');
+        await cancel(`${header}.${body}.${signature}`).expect(400);
+      }
+      // Unsigned (alg none), with Bob's ids.
+      const none = Buffer.from(
+        JSON.stringify({ alg: 'none', typ: 'JWT' }),
+      ).toString('base64url');
+      const bobClaims = Buffer.from(
+        JSON.stringify({ ...claims, sub: bob.id, did: bobDeletion[0].id }),
+      ).toString('base64url');
+      await cancel(`${none}.${bobClaims}.`).expect(400);
+      expect(await stillPending(bob.agent)).toBe(true);
+      expect(await stillPending(ada.agent)).toBe(true);
+    });
+
+    it('says nothing: one answer for a forged, a used and an outdated link, and no replay', async () => {
+      const ada = await pendingDeletion();
+      const bodies: Record<string, unknown>[] = [];
+      const strip = ({ requestId: _r, ...rest }: Record<string, unknown>) =>
+        rest;
+      bodies.push(strip((await cancel('x'.repeat(40)).expect(400)).body));
+      await cancel(ada.token).expect(204);
+      bodies.push(strip((await cancel(ada.token).expect(400)).body));
+      // Asked again: the first link stays dead, it names the earlier request.
+      await ada.agent
+        .post('/v1/account/deletion')
+        .send({ password: ada.password })
+        .expect(200);
+      bodies.push(strip((await cancel(ada.token).expect(400)).body));
+      expect(bodies[1]).toEqual(bodies[0]);
+      expect(bodies[2]).toEqual(bodies[0]);
+      expect(await stillPending(ada.agent)).toBe(true);
+      // Two uses at once: one cancels, the other is refused.
+      await ada.agent.delete('/v1/account/deletion').expect(204);
+      await ada.agent
+        .post('/v1/account/deletion')
+        .send({ password: ada.password })
+        .expect(200);
+      const mails = node.mailbox.filter({ to: ada.email, subject: /deleted/ });
+      for (let tries = 0; mails.length < 3 && tries < 100; tries++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        mails.splice(
+          0,
+          mails.length,
+          ...node.mailbox.filter({ to: ada.email, subject: /deleted/ }),
+        );
+      }
+      const latest = mails[2]
+        .link('/cancel-deletion')
+        .searchParams.get('token')!;
+      const both = await Promise.all([cancel(latest), cancel(latest)]);
+      expect(both.map((res) => res.status).sort((a, b) => a - b)).toEqual([
+        204, 400,
+      ]);
+      const cancelled = await node
+        .admin()
+        .get('/v1/access/audit?action=account.deletion-cancelled')
+        .expect(200);
+      // The first link, the signed-in cancel, and one of the two at once.
+      expect(
+        cancelled.body.items.filter(
+          (entry: { targetId: string }) => entry.targetId === ada.id,
+        ),
+      ).toHaveLength(3);
+    });
+
+    it('is limited per address', async () => {
+      const from = address();
+      for (let i = 0; i < 10; i++) {
+        await cancel(`guess-${i}`, from).expect(400);
+      }
+      await cancel('guess-10', from).expect(429);
+    });
   });
 });

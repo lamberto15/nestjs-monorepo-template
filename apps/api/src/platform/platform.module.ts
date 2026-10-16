@@ -80,10 +80,14 @@ import { RealtimeChannel } from './notifications/channels/realtime.channel.js';
 import { WebhookChannel } from './notifications/channels/webhook.channel.js';
 import { SettingsController } from './settings/settings.controller.js';
 import { SettingsService } from './settings/settings.service.js';
-import { AccountController } from './account/account.controller.js';
+import {
+  AccountController,
+  AccountDeletionLinkController,
+} from './account/account.controller.js';
 import { AccountDeletionJob } from './account/account-deletion.job.js';
 import { AccountDeletionMail } from './account/account.mails.js';
 import { AccountLifecycleService } from './account/account.service.js';
+import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
 import { AccountTransfer } from './account/account.transfer.js';
 import { PersonalDataRegistry } from './account/personal-data.registry.js';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
@@ -285,6 +289,7 @@ export class PlatformModule {
         NotificationsController,
         SettingsController,
         AccountController,
+        AccountDeletionLinkController,
         SubscriptionsController,
         SearchController,
         AttachmentsController,
@@ -385,6 +390,7 @@ export class PlatformModule {
         // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
         PersonalDataRegistry,
         AccountLifecycleService,
+        deletionCancelLinksProvider,
         AccountTransfer,
         AccountDeletionJob,
         AccountDeletionMail,

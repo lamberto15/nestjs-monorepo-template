@@ -707,6 +707,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/deletion/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keep your account: cancel the deletion with the mail's link
+         * @description No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).
+         */
+        post: operations["AccountDeletionLinkController_cancel_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -4977,6 +4997,44 @@ export interface operations {
             };
             /** @description Not signed in as a user. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountDeletionLinkController_cancel_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The `token` of the deletion mail's cancel link. */
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link is invalid, expired or used, or the deletion was cancelled or carried out already: one answer for all. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 10 attempts from this address in 15 minutes. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

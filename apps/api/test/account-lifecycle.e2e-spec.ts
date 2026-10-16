@@ -271,4 +271,94 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
       actorLabel: 'System: Account deletion',
     });
   });
+  /** The cancel link's token of the `n`th deletion mail to `to` (1: the first), once it was sent. */
+  async function cancelToken(to: string, n: number) {
+    for (let tries = 0; tries < 100; tries++) {
+      const mails = node.mailbox.filter({ to, subject: /will be deleted/ });
+      if (mails.length >= n) {
+        const link = mails[n - 1].link('/cancel-deletion');
+        expect(link.origin).toBe('https://web.example.com');
+        return link.searchParams.get('token')!;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`No deletion mail #${n} to ${to}`);
+  }
+
+  it("cancels with the mail's link, without a sign-in: once, for its own request, until the deletion ran", async () => {
+    const ada = await person();
+    const cancel = (token: string) =>
+      node.http().post('/v1/account/deletion/cancel').send({ token });
+    const request = () =>
+      ada.agent
+        .post('/v1/account/deletion')
+        .send({ password: ada.password })
+        .expect(200);
+
+    await request();
+    const first = await cancelToken(ada.email, 1);
+    // Nobody signed in: the link is the proof.
+    await cancel(first).expect(204);
+    expect(
+      (await ada.agent.get('/v1/account').expect(200)).body.deletion,
+    ).toBeNull();
+    const audit = await node
+      .admin()
+      .get('/v1/access/audit?action=account.deletion-cancelled')
+      .expect(200);
+    expect(audit.body.items[0]).toMatchObject({
+      actor: `user:${ada.id}`,
+      targetId: ada.id,
+      details: { via: 'link' },
+    });
+    // Once: used, it is refused, as anything else is.
+    const replayed = await cancel(first).expect(400);
+
+    // A new request: the old link doesn't cancel it, its own does.
+    await request();
+    const second = await cancelToken(ada.email, 2);
+    expect(second).not.toBe(first);
+    expect((await cancel(first).expect(400)).body).toMatchObject({
+      status: 400,
+      code: replayed.body.code,
+    });
+    await cancel(second).expect(204);
+    await cancel(second).expect(400);
+
+    // Carried out: the link of the request it carried out is dead.
+    await request();
+    const third = await cancelToken(ada.email, 3);
+    expect(
+      await node.app
+        .get(AccountDeletionJob)
+        .run(new Date(Date.now() + 15 * 86_400_000)),
+    ).toBe(1);
+    await cancel(third).expect(400);
+    const users = await node
+      .admin()
+      .get('/v1/access/users?limit=100')
+      .expect(200);
+    expect(
+      users.body.items.find((u: { id: string }) => u.id === ada.id),
+    ).toMatchObject({ name: 'Deleted user' });
+  });
+
+  it('keeps a request cancelled by its link from being carried out', async () => {
+    const ada = await person();
+    await ada.agent
+      .post('/v1/account/deletion')
+      .send({ password: ada.password })
+      .expect(200);
+    await node
+      .http()
+      .post('/v1/account/deletion/cancel')
+      .send({ token: await cancelToken(ada.email, 1) })
+      .expect(204);
+    expect(
+      await node.app
+        .get(AccountDeletionJob)
+        .run(new Date(Date.now() + 15 * 86_400_000)),
+    ).toBe(0);
+    await ada.agent.get('/v1/auth/me').expect(200);
+  });
 });

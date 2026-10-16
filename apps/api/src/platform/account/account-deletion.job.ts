@@ -86,7 +86,24 @@ export class AccountDeletionJob {
         continue; // gone already (cascade)
       }
       const key = principalKey(user);
-      await inTransaction(this.txHost, async (tx) => {
+      const done = await inTransaction(this.txHost, async (tx) => {
+        // Still pending, and locked: a cancel (signed in, or the mail's
+        // link) that committed since the list was read wins, and one
+        // arriving now waits for this transaction, then finds it done.
+        const [pending] = await tx
+          .select({ id: accountDeletions.id })
+          .from(accountDeletions)
+          .where(
+            and(
+              eq(accountDeletions.id, request.id),
+              isNull(accountDeletions.cancelledAt),
+              isNull(accountDeletions.completedAt),
+            ),
+          )
+          .for('update');
+        if (!pending) {
+          return false;
+        }
         for (const source of this.personalData.all()) {
           await source.erase?.(tx, user);
         }
@@ -118,8 +135,11 @@ export class AccountDeletionJob {
           },
           tx,
         );
+        return true;
       });
-      deleted++;
+      if (done) {
+        deleted++;
+      }
     }
     this.logger.log('Accounts deleted', { deleted });
     return deleted;

@@ -5089,6 +5089,50 @@
         ]
       }
     },
+    "/v1/account/deletion/cancel": {
+      "post": {
+        "description": "No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).",
+        "operationId": "AccountDeletionLinkController_cancel_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "description": "The `token` of the deletion mail's cancel link."
+                  }
+                },
+                "required": [
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "The link is invalid, expired or used, or the deletion was cancelled or carried out already: one answer for all."
+          },
+          "429": {
+            "description": "More than 10 attempts from this address in 15 minutes."
+          }
+        },
+        "summary": "Keep your account: cancel the deletion with the mail's link",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/v1/subscriptions": {
       "get": {
         "description": "Filter with `?subject=Note`; newest first; cursor pages.",
