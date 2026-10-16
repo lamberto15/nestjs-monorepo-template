@@ -1,0 +1,108 @@
+{
+  "note": {
+    "published": {
+      "label": "笔记已发布",
+      "title": "笔记已发布",
+      "body": {
+        "other": "您有 {count} 条笔记已发布，最新的是“{title}”。"
+      }
+    },
+    "deleted": {
+      "label": "笔记被他人删除",
+      "title": "笔记已删除",
+      "body": {
+        "other": "您有 {count} 条笔记被删除，最新的是“{title}”，由 {by} 删除。"
+      }
+    },
+    "changed": {
+      "label": "笔记已更改",
+      "title": "笔记已更改",
+      "body": {
+        "other": "“{title}”有 {count} 处更改，最新的由 {by} 作出。"
+      }
+    },
+    "commented": {
+      "label": "您关注的笔记有新评论",
+      "title": "新评论",
+      "body": {
+        "other": "“{title}”有 {count} 条新评论，最新的来自 {by}：{excerpt}"
+      }
+    }
+  },
+  "comment": {
+    "mentioned": {
+      "label": "在评论中被提及",
+      "title": "有人提及了您",
+      "body": "{by} 在“{title}”中提及了您：{excerpt}"
+    }
+  },
+  "security": {
+    "newSignIn": {
+      "label": "新的登录",
+      "title": "您的账户有新的登录",
+      "body": "您的账户已从 {device}（{ip}）登录。如果不是您本人，请修改密码并退出所有设备。"
+    },
+    "passwordChanged": {
+      "label": "密码已更改",
+      "title": "您的密码已更改",
+      "body": "您账户的密码已更改（来自 {ip}）。如果不是您本人，请立即重置密码。"
+    },
+    "mfaChanged": {
+      "label": "双重验证已更改",
+      "title": "双重验证已更改",
+      "body": "您账户的双重验证已开启或关闭（来自 {ip}）。如果不是您本人，请立即修改密码。"
+    },
+    "apiKeyRotated": {
+      "label": "API 密钥已轮换",
+      "title": "新的 API 密钥",
+      "body": "已为此客户端生成新密钥（{keyId}）；之前的密钥将于 {previousKeysEnd} 失效。"
+    }
+  },
+  "approval": {
+    "requested": {
+      "label": "审批请求",
+      "title": "请求审批",
+      "body": "{by} 请您审批“{title}”（{stage}）。"
+    },
+    "reminder": {
+      "label": "审批提醒",
+      "title": "等待您的审批",
+      "body": "{by} 提交的“{title}”仍在等待您的决定。"
+    },
+    "escalated": {
+      "label": "升级给您的审批",
+      "title": "一项审批已升级给您",
+      "body": "{by} 提交的“{title}”已逾期，现在等待您的决定。"
+    },
+    "approved": {
+      "label": "您的请求已获批准",
+      "title": "请求已批准",
+      "body": "“{title}”已由 {by} 批准。"
+    },
+    "rejected": {
+      "label": "您的请求被拒绝",
+      "title": "请求被拒绝",
+      "body": "“{title}”被 {by} 拒绝：{comment}"
+    },
+    "changesRequested": {
+      "label": "您的请求需要修改",
+      "title": "需要修改",
+      "body": "{by} 要求修改“{title}”：{comment}"
+    },
+    "expired": {
+      "label": "您的请求已过期",
+      "title": "请求已过期",
+      "body": "无人及时对“{title}”做出决定：请求已过期。"
+    },
+    "failed": {
+      "label": "您的请求已结束，没有结果",
+      "title": "请求已结束",
+      "body": "“{title}”无法继续（已没有审批人，或记录在此期间已更改），因此请求已结束。"
+    },
+    "cancelled": {
+      "label": "审批请求已撤回",
+      "title": "请求已撤回",
+      "body": "{by} 撤回了“{title}”：不再需要决定。"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+# The newest versions as reviewed pull requests, instead of floating tags.
+version: 2
+updates:
+  - package-ecosystem: npm # the whole pnpm workspace (apps/*, packages/*) and its lockfile
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nestjs:
+        patterns: ['@nestjs/*']
+      # vitest and its plugins share one version: one pull request moves them together.
+      vitest:
+        patterns: ['vitest', '@vitest/*']
+    ignore:
+      # @types/node follows the Node.js major the app runs on (devEngines.runtime,
+      # the Dockerfile's node image, CI's runtime): raise it with them, by hand.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # TypeScript 7.0 ships the `tsc` executable only: `nest build` and
+      # openapi-typescript (the typed client) need its compiler API, due back
+      # in 7.1. Remove this once 7.1 is out and they build with it.
+      - dependency-name: typescript
+        versions: ['7.0.x']
+  # apps/api/Dockerfile, caddy/Dockerfile and backup/Dockerfile. Not seen: backup's
+  # SUPERCRONIC_VERSION build argument (a release tag, raised by hand).
+  - package-ecosystem: docker
+    directories: [/apps/api, /caddy, /backup]
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -1,0 +1,65 @@
+# What development and production share: PostgreSQL and Redis.
+#
+#   Development:  pnpm services:up   (compose.yaml + compose.dev.yaml), then pnpm start:dev
+#   Production:   docker compose up -d --build   (.env sets COMPOSE_FILE=compose.yaml:compose.prod.yaml)
+#
+# For a larger production, point DATABASE_URL and REDIS_URL at managed
+# services (or REDIS_SENTINELS) and leave these two out of the production stack.
+
+# Bounded container logs, the same in every Compose file (an anchor can't
+# cross files): DOCKER_LOG_MAX_FILE files of DOCKER_LOG_MAX_SIZE per
+# container, the oldest dropped. `local` is the driver Docker recommends
+# (rotated, compressed, compact); `docker compose logs` reads it like
+# json-file. Pick json-file only for a log shipper that reads the files under
+# /var/lib/docker/containers (those reading Docker's API work with either).
+x-logging: &logging
+  driver: ${DOCKER_LOG_DRIVER:-local}
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-20m}
+    max-file: '${DOCKER_LOG_MAX_FILE:-5}'
+    compress: 'true'
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      # PostgreSQL 18's image keeps its data under /var/lib/postgresql/18: mount the parent.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.10-alpine
+    restart: unless-stopped
+    logging: *logging
+    # Append-only file: queued jobs survive a restart. noeviction: BullMQ must
+    # never lose keys, so writes fail (loudly) at maxmemory instead. The
+    # password: REDIS_PASSWORD, or the file REDIS_PASSWORD_FILE names (a
+    # Docker secret, compose.prod.yaml), never both; redis/redis.sh hands it
+    # over on stdin, never on the command line.
+    command: ['sh', '/etc/redis-scripts/redis.sh', 'server']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # Below the container's memory limit (compose.prod.yaml: REDIS_MEMORY).
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY:-400mb}
+    volumes:
+      - redis_data:/data
+      - ./redis:/etc/redis-scripts:ro
+    healthcheck:
+      test: ['CMD', 'sh', '/etc/redis-scripts/redis.sh', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:

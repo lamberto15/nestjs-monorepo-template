@@ -1,0 +1,325 @@
+import { ConfigService } from '@nestjs/config';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import {
+  database,
+  type DrizzleTransactions,
+} from '../../core/database/transactions.js';
+import { Injectable, Logger } from '@nestjs/common';
+import {
+  AuthenticationRegistry,
+  EmailVerificationHandler,
+  type EmailVerificationLink,
+  MagicLinkHandler,
+  type MagicLink,
+  type OAuthTokens,
+  OidcAccountResolver,
+  type OidcProfile,
+  type OidcResolveContext,
+  PasswordResetHandler,
+  type PasswordResetLink,
+} from '@nestjs/authentication';
+import { MailQueue } from '../../core/mail/mail-queue.js';
+import { and, eq } from 'drizzle-orm';
+import type { Database } from '../../core/database/drizzle.js';
+import { AuditService } from '../audit/audit.service.js';
+import type { UserPrincipal } from '../auth/principal.js';
+import { authTimeOf, SignInContext } from '../auth/sign-in-context.js';
+import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
+import type { IamEnv } from '../iam.env.js';
+import { userIdentities, users } from '../iam.tables.js';
+import { oidcProviders } from './oidc.providers.js';
+import {
+  InvitationMail,
+  MagicLinkMail,
+  ResetPasswordMail,
+  VerifyEmailMail,
+} from './account.mails.js';
+
+/** The recipient of an account email: their stored address, name, language and time zone. */
+async function recipient(db: Database, userId: string) {
+  const [row] = await db.select().from(users).where(eq(users.id, userId));
+  return row;
+}
+
+/**
+ * "Forgot your password?" and invitations: @nestjs/authentication creates
+ * and checks the links (PasswordResetService); this sends them. An account
+ * without a password gets the invitation email instead of the reset one.
+ */
+@Injectable()
+export class PasswordResetMailer extends PasswordResetHandler {
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly mailQueue: MailQueue,
+    private readonly accounts: UsersRepository,
+    registry: AuthenticationRegistry,
+  ) {
+    super();
+    registry.registerHandler('passwordReset', this);
+  }
+
+  async findUser(email: string) {
+    const [row] = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.active, true)));
+    return row
+      ? { id: row.id, email: row.email, passwordHash: row.passwordHash }
+      : null;
+  }
+
+  async send(link: PasswordResetLink) {
+    const user = await recipient(this.db, link.userId);
+    if (!user) {
+      return;
+    }
+    const options = {
+      to: { name: user.name, address: link.email },
+      data: {
+        name: user.name,
+        url: link.url,
+        expiresAt: link.expiresAt,
+        timezone: user.timezone,
+      },
+      locale: user.locale ?? undefined,
+    };
+    if (user.passwordHash) {
+      await this.mailQueue.send(ResetPasswordMail, options);
+    } else {
+      await this.mailQueue.send(InvitationMail, options);
+    }
+  }
+
+  async updatePassword(userId: string, passwordHash: string) {
+    await this.accounts.updatePasswordHash(userId, passwordHash);
+  }
+}
+
+/** Email verification links: sent here, recorded in `users.email_verified`. */
+@Injectable()
+export class EmailVerificationMailer extends EmailVerificationHandler {
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly mailQueue: MailQueue,
+    private readonly accounts: UsersRepository,
+    registry: AuthenticationRegistry,
+  ) {
+    super();
+    registry.registerHandler('emailVerification', this);
+  }
+
+  async send(link: EmailVerificationLink) {
+    const user = await recipient(this.db, link.userId);
+    if (!user) {
+      return;
+    }
+    await this.mailQueue.send(VerifyEmailMail, {
+      to: { name: user.name, address: link.email },
+      data: {
+        name: user.name,
+        url: link.url,
+        expiresAt: link.expiresAt,
+        timezone: user.timezone,
+      },
+      locale: user.locale ?? undefined,
+    });
+  }
+
+  markVerified(userId: string, email: string) {
+    return this.accounts.markEmailVerified(userId, email);
+  }
+
+  isVerified(user: unknown) {
+    return (user as UserPrincipal).emailVerified === true;
+  }
+}
+
+/**
+ * Passwordless sign-in links, for existing accounts only. Links to an
+ * address nobody verified are refused: whoever registered it first must not
+ * keep access once its owner signs in (account pre-hijacking).
+ */
+@Injectable()
+export class MagicLinkMailer extends MagicLinkHandler {
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly mailQueue: MailQueue,
+    config: ConfigService<IamEnv, true>,
+    registry: AuthenticationRegistry,
+  ) {
+    super();
+    // The option and the handler go together (iam.module.ts reads the same flag).
+    if (config.get('AUTH_MAGIC_LINK', { infer: true })) {
+      registry.registerHandler('magicLink', this);
+    }
+  }
+
+  async send(link: MagicLink) {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizeEmail(link.email)));
+    if (!user) {
+      return;
+    }
+    await this.mailQueue.send(MagicLinkMail, {
+      to: { name: user.name, address: user.email },
+      data: {
+        name: user.name,
+        url: link.url,
+        expiresAt: link.expiresAt,
+        timezone: user.timezone,
+      },
+      locale: user.locale ?? undefined,
+    });
+  }
+
+  async resolveUser(email: string) {
+    const [row] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
+    return row?.active && row.emailVerified
+      ? { id: row.id, email: row.email }
+      : null;
+  }
+}
+
+/**
+ * Sign in with Google, Microsoft or GitHub. An identity is found by
+ * (provider, subject). A new one is linked:
+ * - to the signed-in user who asked to connect it (`linkTo`);
+ * - to the account with the same address, only when the provider verified
+ *   the address and so did the account (never by an unverified email);
+ * - to a new account, when sign-up is open (AUTH_SIGN_UP=on).
+ * Anything else is refused.
+ */
+@Injectable()
+export class OidcAccounts extends OidcAccountResolver {
+  private readonly logger = new Logger('OAuth');
+
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly accounts: UsersRepository,
+    private readonly audit: AuditService,
+    private readonly config: ConfigService<IamEnv, true>,
+    private readonly signInContext: SignInContext,
+    registry: AuthenticationRegistry,
+  ) {
+    super();
+    // The option and the resolver go together: only with a provider configured.
+    if (Object.keys(oidcProviders(config)).length > 0) {
+      registry.registerHandler('oidc', this);
+    }
+  }
+
+  async resolveUser(
+    profile: OidcProfile,
+    _tokens: OAuthTokens,
+    { linkTo }: OidcResolveContext,
+  ) {
+    if (!linkTo) {
+      this.recordAuthTime(profile);
+    }
+    const [known] = await this.db
+      .select({ userId: userIdentities.userId, active: users.active })
+      .from(userIdentities)
+      .innerJoin(users, eq(users.id, userIdentities.userId))
+      .where(
+        and(
+          eq(userIdentities.provider, profile.provider),
+          eq(userIdentities.subject, profile.subject),
+        ),
+      );
+    if (known) {
+      // Already someone's: connecting it to another account is refused.
+      if (linkTo && linkTo.id !== known.userId) {
+        return null;
+      }
+      return known.active ? { id: known.userId } : null;
+    }
+    if (linkTo) {
+      return this.link(linkTo.id, profile);
+    }
+    if (!profile.email || !profile.emailVerified) {
+      return null;
+    }
+    const existing = await this.accounts.findActiveByEmail(profile.email);
+    if (existing) {
+      return existing.user.emailVerified
+        ? this.link(existing.user.id, profile)
+        : null;
+    }
+    if (!this.config.get('AUTH_SIGN_UP', { infer: true })) {
+      return null;
+    }
+    const created = await this.accounts.create(this.db, {
+      email: profile.email,
+      name: profile.name ?? profile.email,
+      passwordHash: null,
+      emailVerified: true,
+    });
+    await this.audit.record(created, {
+      action: 'user.signed-up',
+      targetType: 'user',
+      targetId: created.id,
+      details: { provider: profile.provider },
+    });
+    this.logger.log('Account created from a provider', {
+      userId: created.id,
+      provider: profile.provider,
+    });
+    return this.link(created.id, profile);
+  }
+
+  /**
+   * When the provider authenticated the user: the ID token's `auth_time`
+   * (OpenID Connect), when it sends one. A provider may sign the user in
+   * from its own session without asking again, so the sign-in here is no
+   * proof of a recent one (step-up: ReauthenticationService); the claim
+   * says when it was. Without it (GitHub: OAuth 2.0, no ID token; providers
+   * that omit it), the sign-in counts as now, a weaker guarantee.
+   */
+  private recordAuthTime(profile: OidcProfile) {
+    const at = authTimeOf(profile.claims);
+    if (at) {
+      this.signInContext.authenticatedAt(at);
+    }
+  }
+
+  private async link(userId: string, profile: OidcProfile) {
+    await this.db.insert(userIdentities).values({
+      provider: profile.provider,
+      subject: profile.subject,
+      userId,
+      email: profile.email ?? null,
+    });
+    await this.audit.record(null, {
+      action: 'user.identity-linked',
+      targetType: 'user',
+      targetId: userId,
+      details: { provider: profile.provider },
+    });
+    return { id: userId };
+  }
+}

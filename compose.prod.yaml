@@ -1,0 +1,417 @@
+# Production on one host: Caddy (HTTPS) in front of API_REPLICAS api
+# instances, WORKER_REPLICAS workers for the background work, PostgreSQL and
+# Redis from compose.yaml, migrations once per deploy. Every service has CPU
+# and memory limits, so none starves the others (they don't add capacity:
+# keep their sum within the host's). .env (copied from env.example) sets COMPOSE_FILE,
+# so `docker compose up -d --build` deploys, and `docker compose ps` shows it.
+#
+# Every part of the app is safe with several instances: sessions, locks,
+# rate limits, queues, workflows, the outbox and WebSocket fan-out are shared
+# through PostgreSQL and Redis. More than one host takes an orchestrator
+# (Swarm, Kubernetes, a managed platform) and managed PostgreSQL and Redis.
+
+# Bounded container logs: the same settings as compose.yaml's (postgres,
+# redis), which explains the driver.
+x-logging: &logging
+  driver: ${DOCKER_LOG_DRIVER:-local}
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-20m}
+    max-file: '${DOCKER_LOG_MAX_FILE:-5}'
+    compress: 'true'
+
+x-app: &app
+  # The repository root is the context: the API's image takes the workspace
+  # (the lockfile, packages/) with it.
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  # Unset: the image `docker compose up -d --build` builds here. A published
+  # one (CI): APP_IMAGE=ghcr.io/<owner>/<repo>:<commit SHA> (docs/deployment.md).
+  image: ${APP_IMAGE:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-app}
+  restart: unless-stopped
+  environment: &app-env
+    # Staging too: behaviour follows NODE_ENV; APP_ENV names the deployment.
+    NODE_ENV: production
+    APP_ENV: ${APP_ENV:-production}
+    APP_URL: https://${APP_DOMAIN:?set APP_DOMAIN in .env}
+    WEB_URL: ${WEB_URL:-}
+    CORS_ORIGINS: ${CORS_ORIGINS:-}
+    SERVICE_NAME: ${SERVICE_NAME:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}
+    APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+    LOCALES: ${LOCALES:-en,de,ar,zh,ms}
+    LOG_FORMAT: ${LOG_FORMAT:-}
+    LOG_LEVEL: ${LOG_LEVEL:-log}
+    OPENAPI: ${OPENAPI:-on}
+    # The app's role (docs/deployment.md, "Database roles"): owns nothing, can't
+    # change the schema or bypass row-level security. `migrate` creates it from
+    # this URL; only `migrate` also gets the owner's (below). Built from
+    # POSTGRES_APP_PASSWORD; with the password in a file, the whole URL comes
+    # from DATABASE_URL_FILE instead (below). Neither set: `migrate` exits 1.
+    DATABASE_URL: ${DATABASE_URL:-${POSTGRES_APP_PASSWORD:+postgres://${POSTGRES_APP_USER:-app_runtime}:${POSTGRES_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}}}
+    # Fail fast instead of hanging when the pool is exhausted; limits on slow
+    # statements and forgotten transactions. Pool sizes: per service below.
+    DATABASE_POOL_TIMEOUT_MS: ${DATABASE_POOL_TIMEOUT_MS:-5000}
+    DATABASE_STATEMENT_TIMEOUT_MS: ${DATABASE_STATEMENT_TIMEOUT_MS:-30000}
+    DATABASE_IDLE_TX_TIMEOUT_MS: ${DATABASE_IDLE_TX_TIMEOUT_MS:-60000}
+    REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-}@redis:6379/0}
+    REDIS_SENTINELS: ${REDIS_SENTINELS:-}
+    REDIS_SENTINEL_NAME: ${REDIS_SENTINEL_NAME:-}
+    REDIS_PREFIX: ${REDIS_PREFIX:-app}
+    RATE_LIMIT_STORE: ${RATE_LIMIT_STORE:-redis}
+    MIGRATE_ON_START: 'off'
+    # Accounts
+    ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    AUTH_SIGN_UP: ${AUTH_SIGN_UP:-off}
+    AUTH_MAGIC_LINK: ${AUTH_MAGIC_LINK:-on}
+    JWT_SECRET: ${JWT_SECRET:-}
+    MFA_ENCRYPTION_KEYS: ${MFA_ENCRYPTION_KEYS:-}
+    MFA_ISSUER: ${MFA_ISSUER:-}
+    IMPERSONATION_TTL_MINUTES: ${IMPERSONATION_TTL_MINUTES:-60}
+    REAUTHENTICATION_MAX_AGE_MINUTES: ${REAUTHENTICATION_MAX_AGE_MINUTES:-10}
+    AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-400}
+    SOFT_DELETE_RETENTION_DAYS: ${SOFT_DELETE_RETENTION_DAYS:-30}
+    # New passwords against Pwned Passwords (docs/auth.md, "Passwords")
+    PASSWORD_BREACH_CHECK: ${PASSWORD_BREACH_CHECK:-on}
+    PASSWORD_BREACH_API_URL: ${PASSWORD_BREACH_API_URL:-https://api.pwnedpasswords.com}
+    PASSWORD_BREACH_TIMEOUT_MS: ${PASSWORD_BREACH_TIMEOUT_MS:-2000}
+    PASSWORD_BREACH_ON_ERROR: ${PASSWORD_BREACH_ON_ERROR:-allow}
+    PASSWORD_BREACH_MIN_COUNT: ${PASSWORD_BREACH_MIN_COUNT:-1}
+    # Bot protection on the public account routes (docs/auth.md, "Bot
+    # protection"): off until the Turnstile keys are set. Never the stub here.
+    CAPTCHA_MODE: ${CAPTCHA_MODE:-off}
+    CAPTCHA_PROVIDER: turnstile
+    TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+    TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+    CAPTCHA_HOSTNAMES: ${CAPTCHA_HOSTNAMES:-}
+    CAPTCHA_TIMEOUT_MS: ${CAPTCHA_TIMEOUT_MS:-2000}
+    CAPTCHA_ON_ERROR: ${CAPTCHA_ON_ERROR:-allow}
+    CAPTCHA_FAILURES: ${CAPTCHA_FAILURES:-3}
+    CAPTCHA_FAILURES_WINDOW_MINUTES: ${CAPTCHA_FAILURES_WINDOW_MINUTES:-15}
+    CAPTCHA_DEGRADED_LIMIT: ${CAPTCHA_DEGRADED_LIMIT:-2}
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
+    MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+    MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+    GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+    GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+    # Mail: `log` until a provider is configured
+    MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
+    MAIL_FROM: ${MAIL_FROM:-}
+    SMTP_URL: ${SMTP_URL:-}
+    SES_ENDPOINT: ${SES_ENDPOINT:-}
+    MAIL_API_KEY: ${MAIL_API_KEY:-}
+    # Files: the shared volume below, or S3
+    STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+    STORAGE_SIGNING_KEYS: ${STORAGE_SIGNING_KEYS:-}
+    S3_BUCKET: ${S3_BUCKET:-}
+    S3_REGION: ${S3_REGION:-}
+    S3_ENDPOINT: ${S3_ENDPOINT:-}
+    S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
+    AWS_REGION: ${AWS_REGION:-}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    # Keys at rest
+    IDEMPOTENCY_KEYS: ${IDEMPOTENCY_KEYS:-}
+    WEBHOOKS_ENCRYPTION_KEYS: ${WEBHOOKS_ENCRYPTION_KEYS:-}
+    # Observability (NestJS Observe, when both are set)
+    OBSERVE_APP_KEY: ${OBSERVE_APP_KEY:-}
+    OBSERVE_APP_SECRET: ${OBSERVE_APP_SECRET:-}
+    # Prometheus' bearer token for GET /metrics (unset: 404); scraped inside the network only.
+    METRICS_TOKEN: ${METRICS_TOKEN:-}
+    # The example feature
+    EXAMPLE_SENDER_WEBHOOK_SECRET: ${EXAMPLE_SENDER_WEBHOOK_SECRET:-}
+    NOTE_PUBLISH_DELAY: ${NOTE_PUBLISH_DELAY:-10s}
+    # Secrets from files (docs/configuration.md, "Secrets"): X_FILE in .env
+    # names a file on the host, mounted as a Docker secret; the app then reads
+    # /run/secrets/x. Unset, the app gets no X_FILE and X stays the source.
+    DATABASE_URL_FILE: ${DATABASE_URL_FILE:+/run/secrets/database_url}
+    REDIS_PASSWORD_FILE: ${REDIS_PASSWORD_FILE:+/run/secrets/redis_password}
+    ADMIN_PASSWORD_FILE: ${ADMIN_PASSWORD_FILE:+/run/secrets/admin_password}
+    JWT_SECRET_FILE: ${JWT_SECRET_FILE:+/run/secrets/jwt_secret}
+    MFA_ENCRYPTION_KEYS_FILE: ${MFA_ENCRYPTION_KEYS_FILE:+/run/secrets/mfa_encryption_keys}
+    GOOGLE_CLIENT_SECRET_FILE: ${GOOGLE_CLIENT_SECRET_FILE:+/run/secrets/google_client_secret}
+    MICROSOFT_CLIENT_SECRET_FILE: ${MICROSOFT_CLIENT_SECRET_FILE:+/run/secrets/microsoft_client_secret}
+    GITHUB_CLIENT_SECRET_FILE: ${GITHUB_CLIENT_SECRET_FILE:+/run/secrets/github_client_secret}
+    TURNSTILE_SECRET_KEY_FILE: ${TURNSTILE_SECRET_KEY_FILE:+/run/secrets/turnstile_secret_key}
+    SMTP_URL_FILE: ${SMTP_URL_FILE:+/run/secrets/smtp_url}
+    MAIL_API_KEY_FILE: ${MAIL_API_KEY_FILE:+/run/secrets/mail_api_key}
+    STORAGE_SIGNING_KEYS_FILE: ${STORAGE_SIGNING_KEYS_FILE:+/run/secrets/storage_signing_keys}
+    AWS_SECRET_ACCESS_KEY_FILE: ${AWS_SECRET_ACCESS_KEY_FILE:+/run/secrets/aws_secret_access_key}
+    IDEMPOTENCY_KEYS_FILE: ${IDEMPOTENCY_KEYS_FILE:+/run/secrets/idempotency_keys}
+    WEBHOOKS_ENCRYPTION_KEYS_FILE: ${WEBHOOKS_ENCRYPTION_KEYS_FILE:+/run/secrets/webhooks_encryption_keys}
+    OBSERVE_APP_SECRET_FILE: ${OBSERVE_APP_SECRET_FILE:+/run/secrets/observe_app_secret}
+    EXAMPLE_SENDER_WEBHOOK_SECRET_FILE: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:+/run/secrets/example_sender_webhook_secret}
+  # Every secret is mounted; those without X_FILE in .env are the empty secret.empty.
+  secrets:
+    - database_url
+    - redis_password
+    - admin_password
+    - jwt_secret
+    - mfa_encryption_keys
+    - google_client_secret
+    - microsoft_client_secret
+    - github_client_secret
+    - turnstile_secret_key
+    - smtp_url
+    - mail_api_key
+    - storage_signing_keys
+    - aws_secret_access_key
+    - idempotency_keys
+    - webhooks_encryption_keys
+    - observe_app_secret
+    - example_sender_webhook_secret
+  logging: *logging
+
+services:
+  # Once per deploy, before the app: the app's and the stores' migrations, as
+  # the owner of the tables (POSTGRES_USER, the server's superuser here), then
+  # the app's role and its grants.
+  migrate:
+    <<: *app
+    restart: 'no'
+    command: ['node', 'dist/migrate']
+    environment:
+      <<: *app-env
+      # Built from POSTGRES_PASSWORD; with the password in a file, the whole
+      # URL comes from DATABASE_OWNER_URL_FILE instead. Neither set: exits 1.
+      DATABASE_OWNER_URL: ${DATABASE_OWNER_URL:-${POSTGRES_PASSWORD:+postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}}}
+      DATABASE_OWNER_URL_FILE: ${DATABASE_OWNER_URL_FILE:+/run/secrets/database_owner_url}
+    # Only the two URLs it reads (not x-app's list): the owner's credential is
+    # mounted here and nowhere else; api and worker never see it.
+    secrets:
+      - database_url
+      - database_owner_url
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # HTTP only (APP_ROLE=api): Caddy balances across the replicas.
+  api:
+    <<: *app
+    environment:
+      <<: *app-env
+      APP_ROLE: api
+      # Connections per replica: API_REPLICAS × this + the workers' < POSTGRES_MAX_CONNECTIONS.
+      DATABASE_POOL_MAX: ${API_DATABASE_POOL_MAX:-10}
+      # The V8 heap under the container's memory limit, leaving room for buffers.
+      NODE_OPTIONS: --max-old-space-size=${API_HEAP_MB:-384}
+    deploy:
+      replicas: ${API_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '${API_CPUS:-1}'
+          memory: ${API_MEMORY:-512M}
+    # /health turns 503 on SIGTERM, then requests in flight finish.
+    stop_grace_period: 30s
+    volumes:
+      # Shared by every replica: the local disk's files.
+      - app_storage:/app/.data/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # Background work (APP_ROLE=worker): queue jobs (mail, exports, imports),
+  # the outbox relay, webhook deliveries, workflow steps, cron jobs. Not
+  # routed: it serves only its health checks.
+  worker:
+    <<: *app
+    command: ['node', 'dist/worker']
+    environment:
+      <<: *app-env
+      APP_ROLE: worker
+      # Workflow steps (10), exports (2), mail (5), the relay and deliveries run at once.
+      DATABASE_POOL_MAX: ${WORKER_DATABASE_POOL_MAX:-20}
+      NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-768}
+    deploy:
+      replicas: ${WORKER_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: '${WORKER_CPUS:-1}'
+          memory: ${WORKER_MEMORY:-1G}
+    # Running jobs and workflow steps finish (or are handed back) before it stops.
+    stop_grace_period: 60s
+    volumes:
+      - app_storage:/app/.data/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  postgres:
+    # The password, or POSTGRES_PASSWORD_FILE: the image reads the file itself
+    # (on the first start only: it sets the password of a new database).
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:+/run/secrets/postgres_password}
+    secrets:
+      - postgres_password
+    # Explicit, so the pools' sum can be checked against it (docs/deployment.md).
+    command: ['postgres', '-c', 'max_connections=${POSTGRES_MAX_CONNECTIONS:-100}']
+    deploy:
+      resources:
+        limits:
+          cpus: '${POSTGRES_CPUS:-2}'
+          memory: ${POSTGRES_MEMORY:-2G}
+
+  redis:
+    # Or REDIS_PASSWORD_FILE, read by the server (compose.yaml) and the app alike.
+    environment:
+      REDIS_PASSWORD_FILE: ${REDIS_PASSWORD_FILE:+/run/secrets/redis_password}
+    secrets:
+      - redis_password
+    deploy:
+      resources:
+        limits:
+          cpus: '${REDIS_CPUS:-1}'
+          memory: ${REDIS_MEMORY:-512M}
+
+  caddy:
+    build: ./caddy
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    secrets:
+      - cloudflare_api_token
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env}
+      # Or CLOUDFLARE_API_TOKEN_FILE (caddy/entrypoint.sh reads it; it stops
+      # when neither is set).
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_API_TOKEN_FILE: ${CLOUDFLARE_API_TOKEN_FILE:+/run/secrets/cloudflare_api_token}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Backups (docs/deployment.md, "Backups and restore"): pg_dump on
+  # BACKUP_SCHEDULE (cron, UTC) plus the uploaded files (STORAGE_DRIVER=local),
+  # kept BACKUP_RETENTION_DAYS in the backups volume, copied to
+  # BACKUP_S3_BUCKET when it is set. An hourly check catches up a missed or
+  # failed run; unhealthy when the last run failed. One now:
+  # `docker compose exec backup backup`.
+  backup:
+    build: ./backup
+    image: ${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-backup
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # libpq's variables (the stack's database), as the owner of the tables:
+      # pg_dump reads everything it owns, and a restore creates and renames
+      # databases. The password stays in the environment, never on a command line.
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGUSER: ${POSTGRES_USER:-app}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-}
+      # Or from the file (lib.sh reads it), the one PostgreSQL itself reads.
+      PGPASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:+/run/secrets/postgres_password}
+      PGDATABASE: ${POSTGRES_DB:-app}
+      PGAPPNAME: ${SERVICE_NAME:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}:backup
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 3 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-25}
+      # local: the files volume is archived with each dump; s3: the bucket keeps them.
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      # Off the host (empty bucket: local copies only). Its own bucket and
+      # keys, not the app's S3_*: the app's keys can't delete the backups.
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-}
+      BACKUP_S3_PROVIDER: ${BACKUP_S3_PROVIDER:-}
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_ACCESS_KEY_FILE: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:+/run/secrets/backup_s3_secret_access_key}
+    secrets:
+      - postgres_password
+      - backup_s3_secret_access_key
+    deploy:
+      resources:
+        limits:
+          cpus: '${BACKUP_CPUS:-0.5}'
+          memory: ${BACKUP_MEMORY:-512M}
+    # A running backup finishes first (supercronic waits for it on SIGTERM).
+    stop_grace_period: 2m
+    volumes:
+      - backups:/backups
+      # Read only: the backup never changes the files.
+      - app_storage:/storage:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+# The files behind the secrets: X_FILE in .env (an absolute path outside the
+# repository, readable by the containers: chmod 644 in a chmod 700
+# directory), else the empty secret.empty. A changed file alone doesn't
+# recreate a container: `docker compose up -d --force-recreate`.
+secrets:
+  database_url:
+    file: ${DATABASE_URL_FILE:-./secret.empty}
+  # The owner's URL: mounted on `migrate` only.
+  database_owner_url:
+    file: ${DATABASE_OWNER_URL_FILE:-./secret.empty}
+  redis_password:
+    file: ${REDIS_PASSWORD_FILE:-./secret.empty}
+  admin_password:
+    file: ${ADMIN_PASSWORD_FILE:-./secret.empty}
+  jwt_secret:
+    file: ${JWT_SECRET_FILE:-./secret.empty}
+  mfa_encryption_keys:
+    file: ${MFA_ENCRYPTION_KEYS_FILE:-./secret.empty}
+  google_client_secret:
+    file: ${GOOGLE_CLIENT_SECRET_FILE:-./secret.empty}
+  microsoft_client_secret:
+    file: ${MICROSOFT_CLIENT_SECRET_FILE:-./secret.empty}
+  github_client_secret:
+    file: ${GITHUB_CLIENT_SECRET_FILE:-./secret.empty}
+  turnstile_secret_key:
+    file: ${TURNSTILE_SECRET_KEY_FILE:-./secret.empty}
+  smtp_url:
+    file: ${SMTP_URL_FILE:-./secret.empty}
+  mail_api_key:
+    file: ${MAIL_API_KEY_FILE:-./secret.empty}
+  storage_signing_keys:
+    file: ${STORAGE_SIGNING_KEYS_FILE:-./secret.empty}
+  aws_secret_access_key:
+    file: ${AWS_SECRET_ACCESS_KEY_FILE:-./secret.empty}
+  idempotency_keys:
+    file: ${IDEMPOTENCY_KEYS_FILE:-./secret.empty}
+  webhooks_encryption_keys:
+    file: ${WEBHOOKS_ENCRYPTION_KEYS_FILE:-./secret.empty}
+  observe_app_secret:
+    file: ${OBSERVE_APP_SECRET_FILE:-./secret.empty}
+  example_sender_webhook_secret:
+    file: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:-./secret.empty}
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:-./secret.empty}
+  backup_s3_secret_access_key:
+    file: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:-./secret.empty}
+  cloudflare_api_token:
+    file: ${CLOUDFLARE_API_TOKEN_FILE:-./secret.empty}
+
+volumes:
+  app_storage:
+  caddy_data:
+  caddy_config:
+  backups:

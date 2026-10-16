@@ -1,0 +1,42 @@
+{
+  "template": {
+    "sheets": {
+      "data": "Data",
+      "columns": "Columns"
+    },
+    "note": "Row 2 of the Data sheet is an example: replace it with your rows. Keep the headers as they are.",
+    "headers": {
+      "column": "Column",
+      "required": "Required",
+      "type": "Type",
+      "format": "Format",
+      "example": "Example",
+      "description": "Description"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "types": {
+      "text": "Text",
+      "number": "Number",
+      "boolean": "Yes/no",
+      "date": "Date",
+      "datetime": "Date and time",
+      "list": "List"
+    },
+    "format": {
+      "textRange": "{min} to {max} characters",
+      "textMax": "Up to {max} characters",
+      "textMin": "At least {min} characters",
+      "options": "One of: {options}",
+      "listOptions": "Any of: {options}, separated by commas",
+      "list": "Values separated by commas",
+      "numberRange": "A number from {min} to {max}",
+      "numberMin": "A number, at least {min}",
+      "numberMax": "A number, at most {max}",
+      "number": "A number (a point for decimals)",
+      "boolean": "true or false",
+      "date": "YYYY-MM-DD",
+      "datetime": "YYYY-MM-DD HH:MM:SS, in {zone}"
+    }
+  }
+}

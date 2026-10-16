@@ -1,0 +1,161 @@
+# Custom fields
+
+Administrators add fields ("columns") to an entity at runtime, without a
+migration, and they behave like real fields: validated on every write,
+returned with the record, audited per key, exported and imported, and
+filtered, sorted and selected in lists. Any feature opts in with a
+declaration; notes is the example. The code is in `apps/api/src/platform/custom-fields/`.
+
+## How it's stored
+
+- **Definitions**: `custom_field_definitions`, one row per field of a
+  subject (`Note`): `key` (a slug, unique per subject, never changed),
+  `label`, `description`, `type`, `options`, `required`, `default`,
+  `validation`, `position`, `filterable`, `sortable`, `active`.
+- **Values**: on the feature's own table, in one JSONB column
+  (`notes.custom jsonb not null default '{}'`), keyed by the field's key,
+  with a GIN index. `custom ? 'region'` (has a value) and
+  `custom @> '{"region":"eu"}'` (equals, holds a choice) use the index.
+
+| Type | Stored as | Validation it takes |
+| --- | --- | --- |
+| `text` (1,000 max), `longText` (10,000), `email` (254), `url` (2,048, http/https only) | string | `minLength`, `maxLength`, `pattern` (whole value) |
+| `number` | JSON number | `min`, `max` |
+| `boolean` | `true` / `false` | |
+| `date` | `YYYY-MM-DD` | |
+| `select` | one option's `value` | |
+| `multiSelect` | array of distinct option values | `min`, `max` (how many) |
+
+## For administrators
+
+`Access.manageCustomFields` (a user permission; never while impersonating):
+
+```
+POST   /v1/custom-fields          { subject, key, label, type, options?, required?, default?, validation?, filterable?, sortable? }
+PATCH  /v1/custom-fields/{id}     label, description, type, options, required, default, validation, filterable, sortable, active
+PUT    /v1/custom-fields/order    { subject, ids }   these first, in this order; the others follow
+DELETE /v1/custom-fields/{id}     deactivates: no longer accepted or exported, values kept
+GET    /v1/custom-fields?subject=Note[&includeInactive=true]
+```
+
+Reading the definitions needs only `read` on the subject (clients build
+forms and tables from them). Every change is audited
+(`customField.created`, `customField.updated` with from → to,
+`customField.reordered`).
+
+Rules that keep stored values meaningful:
+
+- **Keys are never reused**, even after a field is deactivated: its old
+  values still sit under the key. `PATCH { active: true }` brings it back.
+- **Type changes**: refused (409 `custom_field_in_use`) while any record
+  holds a value, except changes every value survives (`text` → `longText`,
+  `email`/`url` → `text` or `longText`). Otherwise add a new field.
+- **Choices**: removing an option that records hold is refused (409). A
+  `multiSelect` option's value takes no comma: import files list the
+  choices separated by commas.
+- New limits (`required`, `maxLength`…) apply to the next write of each
+  record; values already stored are not checked again.
+- At most 100 active fields per subject (409 `custom_field_limit`).
+
+## For clients
+
+Create and update bodies take `custom: { key: value }`; responses carry it.
+
+- Checked against the subject's **active** fields at request time: an
+  unknown key (or one of an inactive field), a wrong type, a value that is
+  not an option, are a 400 `validation_failed` naming the field
+  (`custom.region`).
+- On create, required fields need a value unless they have a default;
+  defaults fill what is left out.
+- On update, only the keys sent change (`custom || patch`); `null` removes
+  a key (not a required one).
+- Field-level permissions: `custom` is one restrictable field of the
+  subject (like `body`): without it, responses leave `custom` out and writes
+  that set it are a 403 `field_forbidden`.
+
+## For features: opting in
+
+1. A JSONB column with a GIN index on the table, then `pnpm db:generate`:
+
+   ```ts
+   custom: jsonb('custom').$type<Record<string, unknown>>().notNull().default({}),
+   // (table) => [index('notes_custom_idx').using('gin', table.custom)]
+   ```
+
+2. The declaration, handed to the platform in `app.module.ts`:
+
+   ```ts
+   export const NOTE_CUSTOM_FIELDS = defineCustomFields({ subject: 'Note', table: notes, column: notes.custom });
+   PlatformModule.forRoot({ …, customFields: [NOTE_CUSTOM_FIELDS] })
+   ```
+
+3. The schemas: `custom: customValuesInputSchema.optional()` on the body,
+   `custom: customValuesSchema.optional()` on the response; `custom` in the
+   subject's permission `fields`; `audit: { expand: ['custom'] }` on the
+   resource, so the audit diff names `custom.<key>`.
+4. The service (`CustomFieldsService`), **before** the write's transaction
+   (a validation error then costs no transaction):
+   - create: `custom = await customFields.parseValues('Note', dto.custom, 'create')`;
+   - update: `patch = await customFields.parseValues('Note', dto.custom, 'update')`,
+     then `.set({ custom: customFields.mergeValues(notes.custom, patch) })`.
+5. Exports and imports: `columnsFor()` returns the feature's columns plus
+   `customFields.transferColumns('Note')`; `templateColumns()` adds
+   `customFields.importColumns('Note')`; `schemaFor()` returns
+   `customFields.importSchema('Note', rowSchema)`; `refusedColumns()`
+   returns `customFields.unknownColumns('Note', headers)`. Each takes the
+   values column's name as a last argument when it isn't `custom`. Custom
+   columns are named `custom.<key>` both ways: keys are stable (labels get
+   renamed and translated) and can't collide with the feature's own
+   columns. Exports write the values (`eu`, `2026-01-05` as an Excel date
+   cell); the template's dropdowns and guide show the options' labels, and
+   an import takes a label (whatever its case) or a value. Import cells are
+   converted to the type (`12.5`, `true`/`no`, `["a","b"]` or `a,b`, a
+   spreadsheet date) and checked as on create; a JSON file may nest them
+   instead, `custom: { key: value }`, as a POST body does. The row carries
+   the values the file set and the service fills the defaults, as on POST:
+   a file without custom columns needs no permission on `custom`. A column
+   of a field that doesn't exist or was deactivated fails the import before
+   any row (`Unknown columns: custom.old`): values are never dropped silently.
+
+## Lists
+
+A custom field is a list field named `custom.<key>`, in the same query
+syntax as declared fields (docs/api-conventions.md):
+
+```
+GET /v1/notes?custom.region=eu&custom.amount.gte=10
+GET /v1/notes?filter={"or":[{"field":"custom.region","op":"eq","value":"us"},{"field":"custom.due","op":"lt","value":"2026-02-01"}]}
+GET /v1/notes?sort=-custom.amount,title&fields=title,custom.region
+```
+
+- Filters only on fields marked `filterable`, sorting only on `sortable`
+  ones; every active field can be picked with `fields` (inside `custom`).
+- Operators per type: text types the text ones (`contains`, `startsWith`…),
+  number and date the ordered ones (`gt`, `between`…; dates as
+  `YYYY-MM-DD`), select `eq`/`in`/`notIn`, multiSelect `in` (holds any of,
+  on the GIN index); all take `isNull`.
+- A new or changed field applies on the next request: the route validates
+  its query with `customFields.extendList(NOTE_LIST, 'Note')` (built once
+  per definitions version), `list.parse(raw)`, and selects sort values with
+  `list.sortSelect(query)` (see `NotesController.list`).
+- A deactivated field's values are hidden in responses (kept in the
+  database, shown again when it's reactivated) and can't be filtered.
+
+## Caching across instances
+
+Definitions are cached per subject with the Zod schemas built from them.
+Each change increments `custom-fields:version` in Redis after its commit;
+every read compares that version with the cached one (one GET), so a
+change applies on the next request on every instance. If Redis can't be
+reached, cached definitions are used for 5 seconds at most.
+
+## Limits
+
+- One permission for all of a record's custom values (`custom`); one per
+  field would need each key declared as a field of the subject at runtime.
+- Sorting or range filters on a field read `custom->>'key'` per row (the
+  GIN index serves `@>` and `?`, not `<` or ORDER BY). For a large table
+  sorted often by one field, add an expression index in the table file
+  (`index().on(sql\`((custom->>'amount')::numeric)\`)`) and generate the migration.
+- `pattern` is a regular expression an administrator writes, run on
+  values of at most 10,000 characters; keep patterns simple.

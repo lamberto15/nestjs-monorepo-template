@@ -1,0 +1,42 @@
+{
+  "template": {
+    "sheets": {
+      "data": "数据",
+      "columns": "列说明"
+    },
+    "note": "“数据”表的第 2 行是示例：请替换为您的数据行。请勿修改表头。",
+    "headers": {
+      "column": "列",
+      "required": "必填",
+      "type": "类型",
+      "format": "格式",
+      "example": "示例",
+      "description": "说明"
+    },
+    "yes": "是",
+    "no": "否",
+    "types": {
+      "text": "文本",
+      "number": "数字",
+      "boolean": "是/否",
+      "date": "日期",
+      "datetime": "日期和时间",
+      "list": "列表"
+    },
+    "format": {
+      "textRange": "{min} 至 {max} 个字符",
+      "textMax": "最多 {max} 个字符",
+      "textMin": "至少 {min} 个字符",
+      "options": "以下之一：{options}",
+      "listOptions": "以下任意项：{options}，用逗号分隔",
+      "list": "多个值，用逗号分隔",
+      "numberRange": "{min} 至 {max} 之间的数字",
+      "numberMin": "数字，至少 {min}",
+      "numberMax": "数字，最多 {max}",
+      "number": "数字（小数用小数点）",
+      "boolean": "true 或 false",
+      "date": "YYYY-MM-DD",
+      "datetime": "YYYY-MM-DD HH:MM:SS，{zone} 时间"
+    }
+  }
+}

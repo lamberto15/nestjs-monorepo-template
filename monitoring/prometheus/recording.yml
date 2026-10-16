@@ -1,0 +1,24 @@
+# Recording rules: the aggregates the alerts (alerts.yml) and dashboards
+# read, computed once per evaluation. Names follow level:metric:operations.
+groups:
+  - name: app-recording
+    rules:
+      # Requests per second, all of them and the 5xx, per job (api; the
+      # worker serves only /health and /metrics, which aren't measured).
+      - record: job:http_requests:rate5m
+        expr: sum by (job) (rate(http_request_duration_seconds_count[5m]))
+      - record: job:http_requests_5xx:rate5m
+        expr: sum by (job) (rate(http_request_duration_seconds_count{status=~"5.."}[5m]))
+      # The 95th percentile across every replica. The live event stream (SSE)
+      # stays open for minutes and unmatched requests are noise: left out.
+      - record: job:http_request_duration_seconds:p95_5m
+        expr: >
+          histogram_quantile(0.95,
+            sum by (job, le) (rate(http_request_duration_seconds_bucket{route!~"GET /v1/ops/events|unmatched"}[5m])))
+
+      # Shared state: every replica reports the same queue and webhook
+      # numbers, so take the max across them, never the sum.
+      - record: queue:queue_jobs:max
+        expr: max by (queue, state) (queue_jobs)
+      - record: state:webhook_deliveries:max
+        expr: max by (state) (webhook_deliveries)

@@ -1,0 +1,112 @@
+{
+  "note": {
+    "published": {
+      "label": "Notiz veröffentlicht",
+      "title": "Notiz veröffentlicht",
+      "body": {
+        "one": "„{title}“ ist jetzt veröffentlicht.",
+        "other": "{count} Ihrer Notizen wurden veröffentlicht; die neueste ist „{title}“."
+      }
+    },
+    "deleted": {
+      "label": "Notiz von jemand anderem gelöscht",
+      "title": "Notiz gelöscht",
+      "body": {
+        "one": "„{title}“ wurde von {by} gelöscht.",
+        "other": "{count} Ihrer Notizen wurden gelöscht; die neueste, „{title}“, von {by}."
+      }
+    },
+    "changed": {
+      "label": "Notiz geändert",
+      "title": "Notiz geändert",
+      "body": {
+        "one": "{by} hat „{title}“ geändert.",
+        "other": "{count} Änderungen an „{title}“; die neueste von {by}."
+      }
+    },
+    "commented": {
+      "label": "Kommentar zu einer beobachteten Notiz",
+      "title": "Neuer Kommentar",
+      "body": {
+        "one": "{by} hat „{title}“ kommentiert: {excerpt}",
+        "other": "{count} neue Kommentare zu „{title}“; der neueste von {by}: {excerpt}"
+      }
+    }
+  },
+  "comment": {
+    "mentioned": {
+      "label": "In einem Kommentar erwähnt",
+      "title": "Sie wurden erwähnt",
+      "body": "{by} hat Sie bei „{title}“ erwähnt: {excerpt}"
+    }
+  },
+  "security": {
+    "newSignIn": {
+      "label": "Neue Anmeldung",
+      "title": "Neue Anmeldung bei Ihrem Konto",
+      "body": "Ihr Konto wurde von {device} ({ip}) aus angemeldet. Waren Sie das nicht, ändern Sie Ihr Passwort und melden Sie sich überall ab."
+    },
+    "passwordChanged": {
+      "label": "Passwort geändert",
+      "title": "Ihr Passwort wurde geändert",
+      "body": "Das Passwort Ihres Kontos wurde geändert (von {ip}). Waren Sie das nicht, setzen Sie es sofort zurück."
+    },
+    "mfaChanged": {
+      "label": "Zwei-Faktor-Anmeldung geändert",
+      "title": "Zwei-Faktor-Anmeldung geändert",
+      "body": "Die Zwei-Faktor-Anmeldung Ihres Kontos wurde ein- oder ausgeschaltet (von {ip}). Waren Sie das nicht, ändern Sie sofort Ihr Passwort."
+    },
+    "apiKeyRotated": {
+      "label": "API-Schlüssel erneuert",
+      "title": "Neuer API-Schlüssel",
+      "body": "Für diesen Client wurde ein neuer Schlüssel ({keyId}) erstellt; die bisherigen Schlüssel gelten bis {previousKeysEnd}."
+    }
+  },
+  "approval": {
+    "requested": {
+      "label": "Genehmigung angefragt",
+      "title": "Genehmigung angefragt",
+      "body": "{by} bittet Sie, „{title}“ zu genehmigen ({stage})."
+    },
+    "reminder": {
+      "label": "Erinnerung an eine Genehmigung",
+      "title": "Wartet auf Ihre Genehmigung",
+      "body": "„{title}“ von {by} wartet noch auf Ihre Entscheidung."
+    },
+    "escalated": {
+      "label": "An Sie eskalierte Genehmigung",
+      "title": "Eine Genehmigung wurde an Sie eskaliert",
+      "body": "„{title}“ von {by} ist überfällig und wartet jetzt auf Ihre Entscheidung."
+    },
+    "approved": {
+      "label": "Ihre Anfrage wurde genehmigt",
+      "title": "Anfrage genehmigt",
+      "body": "„{title}“ wurde von {by} genehmigt."
+    },
+    "rejected": {
+      "label": "Ihre Anfrage wurde abgelehnt",
+      "title": "Anfrage abgelehnt",
+      "body": "„{title}“ wurde von {by} abgelehnt: {comment}"
+    },
+    "changesRequested": {
+      "label": "Änderungen an Ihrer Anfrage erbeten",
+      "title": "Änderungen erbeten",
+      "body": "{by} bittet um Änderungen an „{title}“: {comment}"
+    },
+    "expired": {
+      "label": "Ihre Anfrage ist abgelaufen",
+      "title": "Anfrage abgelaufen",
+      "body": "Niemand hat rechtzeitig über „{title}“ entschieden: Die Anfrage ist abgelaufen."
+    },
+    "failed": {
+      "label": "Ihre Anfrage endete ohne Ergebnis",
+      "title": "Anfrage beendet",
+      "body": "„{title}“ konnte nicht fortgesetzt werden (kein Genehmiger mehr, oder der Datensatz wurde inzwischen geändert), daher wurde die Anfrage beendet."
+    },
+    "cancelled": {
+      "label": "Genehmigungsanfrage zurückgezogen",
+      "title": "Anfrage zurückgezogen",
+      "body": "{by} hat „{title}“ zurückgezogen: Es ist keine Entscheidung mehr nötig."
+    }
+  }
+}

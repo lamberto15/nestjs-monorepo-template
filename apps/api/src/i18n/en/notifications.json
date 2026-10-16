@@ -1,0 +1,112 @@
+{
+  "note": {
+    "published": {
+      "label": "Note published",
+      "title": "Note published",
+      "body": {
+        "one": "\"{title}\" is now published.",
+        "other": "{count} of your notes were published; the latest is \"{title}\"."
+      }
+    },
+    "deleted": {
+      "label": "Note deleted by someone else",
+      "title": "Note deleted",
+      "body": {
+        "one": "\"{title}\" was deleted by {by}.",
+        "other": "{count} of your notes were deleted; the latest, \"{title}\", by {by}."
+      }
+    },
+    "changed": {
+      "label": "Note changed",
+      "title": "Note changed",
+      "body": {
+        "one": "{by} changed \"{title}\".",
+        "other": "{count} changes to \"{title}\"; the latest by {by}."
+      }
+    },
+    "commented": {
+      "label": "Comment on a note you watch",
+      "title": "New comment",
+      "body": {
+        "one": "{by} commented on \"{title}\": {excerpt}",
+        "other": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}"
+      }
+    }
+  },
+  "comment": {
+    "mentioned": {
+      "label": "Mentioned in a comment",
+      "title": "You were mentioned",
+      "body": "{by} mentioned you on \"{title}\": {excerpt}"
+    }
+  },
+  "security": {
+    "newSignIn": {
+      "label": "New sign-in",
+      "title": "New sign-in to your account",
+      "body": "Your account was signed in from {device} ({ip}). If this wasn't you, change your password and sign out everywhere."
+    },
+    "passwordChanged": {
+      "label": "Password changed",
+      "title": "Your password was changed",
+      "body": "The password of your account was changed (from {ip}). If this wasn't you, reset it right away."
+    },
+    "mfaChanged": {
+      "label": "Two-factor sign-in changed",
+      "title": "Two-factor sign-in changed",
+      "body": "Two-factor sign-in for your account was turned on or off (from {ip}). If this wasn't you, change your password right away."
+    },
+    "apiKeyRotated": {
+      "label": "API key rotated",
+      "title": "New API key",
+      "body": "A new key ({keyId}) was made for this client; its previous keys stop working at {previousKeysEnd}."
+    }
+  },
+  "approval": {
+    "requested": {
+      "label": "Approval requested",
+      "title": "Approval requested",
+      "body": "{by} asks you to approve \"{title}\" ({stage})."
+    },
+    "reminder": {
+      "label": "Approval reminder",
+      "title": "Waiting for your approval",
+      "body": "\"{title}\" from {by} still waits for your decision."
+    },
+    "escalated": {
+      "label": "Approval escalated to you",
+      "title": "An approval was escalated to you",
+      "body": "\"{title}\" from {by} is overdue and now waits for your decision."
+    },
+    "approved": {
+      "label": "Your request was approved",
+      "title": "Request approved",
+      "body": "\"{title}\" was approved by {by}."
+    },
+    "rejected": {
+      "label": "Your request was rejected",
+      "title": "Request rejected",
+      "body": "\"{title}\" was rejected by {by}: {comment}"
+    },
+    "changesRequested": {
+      "label": "Changes requested on your request",
+      "title": "Changes requested",
+      "body": "{by} asks for changes to \"{title}\": {comment}"
+    },
+    "expired": {
+      "label": "Your request expired",
+      "title": "Request expired",
+      "body": "Nobody decided on \"{title}\" in time: the request expired."
+    },
+    "failed": {
+      "label": "Your request ended without an outcome",
+      "title": "Request ended",
+      "body": "\"{title}\" couldn't go ahead (no approver was left, or the record changed meanwhile), so the request ended."
+    },
+    "cancelled": {
+      "label": "Approval request withdrawn",
+      "title": "Request withdrawn",
+      "body": "{by} withdrew \"{title}\": no decision is needed any more."
+    }
+  }
+}

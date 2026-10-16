@@ -1,0 +1,10 @@
+# Findings Trivy may skip (CI's image and repository scans: --ignorefile).
+# Each entry says why. Prefer fixing; add one only when a finding doesn't apply.
+misconfigurations:
+  - id: DS-0002
+    paths:
+      - caddy/Dockerfile
+    statement: >-
+      Caddy runs as root, as the official caddy image does: it binds ports 80
+      and 443, and existing deployments' caddy_data and caddy_config volumes
+      are owned by root. Running it as another user is a change of its own.

@@ -1,0 +1,221 @@
+# Optional monitoring for the production stack: Prometheus (scrapes every api
+# and worker replica, evaluates monitoring/prometheus/alerts.yml), Alertmanager
+# (mail, a webhook or Slack; the Watchdog to a dead man's switch), exporters
+# for PostgreSQL and Redis, an HTTPS and certificate probe through Caddy, and
+# the backup service's state as metrics. Nothing
+# in the default stack needs it. Add it to COMPOSE_FILE in .env:
+#
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
+#   docker compose up -d
+#
+# METRICS_TOKEN must be set (the app's /metrics answers 404 without it). The
+# UIs listen on the host's loopback only (127.0.0.1:9090 and :9093): reach
+# them through an SSH tunnel (ssh -L 9090:127.0.0.1:9090 -L 9093:127.0.0.1:9093
+# <host>). docs/deployment.md, "Alerting".
+
+# Bounded logs, as in compose.yaml (an anchor can't cross files).
+x-logging: &logging
+  driver: ${DOCKER_LOG_DRIVER:-local}
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-20m}
+    max-file: '${DOCKER_LOG_MAX_FILE:-5}'
+    compress: 'true'
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Links in alerts point at the SSH tunnel's end.
+      - --web.external-url=http://localhost:${PROMETHEUS_PORT:-9090}
+    environment:
+      # External labels on every alert (prometheus.yml).
+      APP_ENV: ${APP_ENV:-production}
+      SERVICE_NAME: ${SERVICE_NAME:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}
+    secrets:
+      # The bearer token for the app's /metrics, as a file (credentials_file).
+      - metrics_token
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      # The time series; retention (30 days, at most 4 GB) is in prometheus.yml.
+      - prometheus_data:/prometheus
+    ports:
+      - 127.0.0.1:${PROMETHEUS_PORT:-9090}:9090
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9090/-/ready']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '${PROMETHEUS_CPUS:-0.5}'
+          memory: ${PROMETHEUS_MEMORY:-1G}
+    logging: *logging
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    restart: unless-stopped
+    # Writes the configuration from the variables below, then starts Alertmanager.
+    entrypoint: ['sh', '/etc/alertmanager/scripts/render-config.sh']
+    command:
+      - --storage.path=/alertmanager
+      - --web.external-url=http://localhost:${ALERTMANAGER_PORT:-9093}
+      # A single instance: no cluster gossip.
+      - --cluster.listen-address=
+    environment:
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_SMTP_URL: ${ALERT_SMTP_URL:-}
+      ALERT_SMTP_REQUIRE_TLS: ${ALERT_SMTP_REQUIRE_TLS:-true}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERT_SLACK_WEBHOOK_URL: ${ALERT_SLACK_WEBHOOK_URL:-}
+      # The dead man's switch's URL as a variable, used when the secret
+      # below is empty (the secret wins).
+      ALERT_WATCHDOG_URL: ${ALERT_WATCHDOG_URL:-}
+      # The app's mail settings: the defaults of ALERT_SMTP_URL and ALERT_EMAIL_FROM.
+      SMTP_URL: ${SMTP_URL:-}
+      # Or the app's SMTP_URL from its file (compose.prod.yaml's smtp_url secret).
+      SMTP_URL_FILE: ${SMTP_URL_FILE:+/run/secrets/smtp_url}
+      MAIL_FROM: ${MAIL_FROM:-}
+    secrets:
+      # The Watchdog's ping URL (healthchecks.io), read by Alertmanager itself
+      # (url_file). By default an empty file: no dead man's switch.
+      - alert_watchdog_url
+      - smtp_url
+    # The rendered configuration (it holds the SMTP password) stays in memory.
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager/scripts:ro
+      # Silences and notification state survive a restart.
+      - alertmanager_data:/alertmanager
+    ports:
+      - 127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9093/-/ready']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '${ALERTMANAGER_CPUS:-0.25}'
+          memory: ${ALERTMANAGER_MEMORY:-128M}
+    logging: *logging
+
+  # pg_up, connections against max_connections, as the owner (the app's role
+  # has no pg_monitor). Managed PostgreSQL: it follows DATABASE_OWNER_URL (a
+  # role with pg_monitor is enough).
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    restart: unless-stopped
+    environment:
+      # As the owner (docs/deployment.md, "Database roles"): pg_stat_* needs
+      # more than the app role gets. Built from POSTGRES_PASSWORD; with the
+      # password in POSTGRES_PASSWORD_FILE (DATA_SOURCE_NAME empty), the
+      # stack's database, the password from the same secret PostgreSQL reads.
+      DATA_SOURCE_NAME: ${DATABASE_OWNER_URL:-${POSTGRES_PASSWORD:+postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}?sslmode=disable}}
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-app}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:-app}
+      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    logging: *logging
+
+  # redis_up, memory against maxmemory (noeviction), persistence. Managed
+  # Redis: it follows REDIS_URL (Sentinel isn't supported: drop it then).
+  redis-exporter:
+    # The Alpine build: redis/redis.sh reads REDIS_PASSWORD_FILE (the scratch
+    # one has no shell, and its --redis.password-file wants a JSON map).
+    image: oliver006/redis_exporter:v1.94.0-alpine
+    restart: unless-stopped
+    entrypoint: ['sh', '/etc/redis-scripts/redis.sh', 'exporter']
+    environment:
+      REDIS_ADDR: ${REDIS_URL:-redis://redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD_FILE: ${REDIS_PASSWORD_FILE:+/run/secrets/redis_password}
+    secrets:
+      - redis_password
+    volumes:
+      - ./redis:/etc/redis-scripts:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    logging: *logging
+
+  # The backup service's markers (last success, last failure) as metrics:
+  # Prometheus can't see Docker's healthcheck. Reads the backups volume only.
+  backup-metrics:
+    image: busybox:1.38.0
+    restart: unless-stopped
+    # The backup service's user (postgres, uid 70 in its Alpine image): its
+    # markers are readable by it only. The volume is mounted read only.
+    user: '70:70'
+    command: ['sh', '/etc/backup-metrics/serve.sh']
+    environment:
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-25}
+    tmpfs:
+      - /www
+    volumes:
+      - ./monitoring/backup-metrics:/etc/backup-metrics:ro
+      - backups:/backups:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 32M
+    logging: *logging
+
+  # HTTPS through Caddy, the way users reach the API: probes
+  # https://caddy:443/health/live by its Compose name (the public name may
+  # have no DNS record the containers can resolve) with PROBE_HOST as the
+  # TLS server name and Host header, so Caddy serves the real site and its
+  # certificate. probe_success and the certificate's expiry, for the alerts.
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.29.0
+    restart: unless-stopped
+    # An HTTP probe needs no root (ICMP would).
+    user: '65534:65534'
+    # Writes the module from PROBE_HOST, then starts the exporter.
+    entrypoint: ['sh', '/etc/blackbox/render-config.sh']
+    environment:
+      PROBE_HOST: ${PROBE_HOST:-${APP_DOMAIN:-}}
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./monitoring/blackbox:/etc/blackbox:ro
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9115/-/healthy']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+    logging: *logging
+
+secrets:
+  metrics_token:
+    environment: METRICS_TOKEN
+  # A file, not a variable: a variable that is unset stops Compose. Point
+  # ALERT_WATCHDOG_URL_FILE at a file outside the repository holding the URL.
+  alert_watchdog_url:
+    file: ${ALERT_WATCHDOG_URL_FILE:-./monitoring/alertmanager/watchdog-url.empty}
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  # compose.prod.yaml's, where the backup service writes.
+  backups:

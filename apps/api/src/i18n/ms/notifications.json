@@ -1,0 +1,108 @@
+{
+  "note": {
+    "published": {
+      "label": "Nota diterbitkan",
+      "title": "Nota diterbitkan",
+      "body": {
+        "other": "{count} nota anda telah diterbitkan; yang terbaru ialah \"{title}\"."
+      }
+    },
+    "deleted": {
+      "label": "Nota dipadam oleh orang lain",
+      "title": "Nota dipadam",
+      "body": {
+        "other": "{count} nota anda telah dipadam; yang terbaru, \"{title}\", oleh {by}."
+      }
+    },
+    "changed": {
+      "label": "Nota diubah",
+      "title": "Nota diubah",
+      "body": {
+        "other": "{count} perubahan pada \"{title}\"; yang terbaru oleh {by}."
+      }
+    },
+    "commented": {
+      "label": "Komen pada nota yang anda ikuti",
+      "title": "Komen baharu",
+      "body": {
+        "other": "{count} komen baharu pada \"{title}\"; yang terbaru oleh {by}: {excerpt}"
+      }
+    }
+  },
+  "comment": {
+    "mentioned": {
+      "label": "Disebut dalam komen",
+      "title": "Anda telah disebut",
+      "body": "{by} menyebut anda pada \"{title}\": {excerpt}"
+    }
+  },
+  "security": {
+    "newSignIn": {
+      "label": "Log masuk baharu",
+      "title": "Log masuk baharu ke akaun anda",
+      "body": "Akaun anda telah dilog masuk dari {device} ({ip}). Jika ini bukan anda, tukar kata laluan anda dan log keluar di semua tempat."
+    },
+    "passwordChanged": {
+      "label": "Kata laluan ditukar",
+      "title": "Kata laluan anda telah ditukar",
+      "body": "Kata laluan akaun anda telah ditukar (dari {ip}). Jika ini bukan anda, tetapkan semula dengan segera."
+    },
+    "mfaChanged": {
+      "label": "Log masuk dua faktor diubah",
+      "title": "Log masuk dua faktor diubah",
+      "body": "Log masuk dua faktor untuk akaun anda telah dihidupkan atau dimatikan (dari {ip}). Jika ini bukan anda, tukar kata laluan anda dengan segera."
+    },
+    "apiKeyRotated": {
+      "label": "Kunci API diputar",
+      "title": "Kunci API baharu",
+      "body": "Kunci baharu ({keyId}) telah dibuat untuk klien ini; kunci sebelumnya berhenti berfungsi pada {previousKeysEnd}."
+    }
+  },
+  "approval": {
+    "requested": {
+      "label": "Kelulusan diminta",
+      "title": "Kelulusan diminta",
+      "body": "{by} meminta anda meluluskan \"{title}\" ({stage})."
+    },
+    "reminder": {
+      "label": "Peringatan kelulusan",
+      "title": "Menunggu kelulusan anda",
+      "body": "\"{title}\" daripada {by} masih menunggu keputusan anda."
+    },
+    "escalated": {
+      "label": "Kelulusan dinaikkan kepada anda",
+      "title": "Satu kelulusan dinaikkan kepada anda",
+      "body": "\"{title}\" daripada {by} telah lewat dan kini menunggu keputusan anda."
+    },
+    "approved": {
+      "label": "Permintaan anda diluluskan",
+      "title": "Permintaan diluluskan",
+      "body": "\"{title}\" telah diluluskan oleh {by}."
+    },
+    "rejected": {
+      "label": "Permintaan anda ditolak",
+      "title": "Permintaan ditolak",
+      "body": "\"{title}\" telah ditolak oleh {by}: {comment}"
+    },
+    "changesRequested": {
+      "label": "Perubahan diminta pada permintaan anda",
+      "title": "Perubahan diminta",
+      "body": "{by} meminta perubahan pada \"{title}\": {comment}"
+    },
+    "expired": {
+      "label": "Permintaan anda telah tamat tempoh",
+      "title": "Permintaan tamat tempoh",
+      "body": "Tiada sesiapa membuat keputusan tentang \"{title}\" tepat pada masanya: permintaan telah tamat tempoh."
+    },
+    "failed": {
+      "label": "Permintaan anda tamat tanpa keputusan",
+      "title": "Permintaan tamat",
+      "body": "\"{title}\" tidak dapat diteruskan (tiada pelulus lagi, atau rekod berubah sementara itu), jadi permintaan itu ditamatkan."
+    },
+    "cancelled": {
+      "label": "Permintaan kelulusan ditarik balik",
+      "title": "Permintaan ditarik balik",
+      "body": "{by} telah menarik balik \"{title}\": keputusan tidak diperlukan lagi."
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "unknownType": "Unknown type \"{type}\" (registered: {known})",
+  "unknownAction": "No approvable action is called \"{key}\".",
+  "pending": "This record has an approval pending: wait for the decision, or cancel the request.",
+  "closed": "This approval request has ended.",
+  "alreadyDecided": "This stage was already decided.",
+  "decidedOtherwise": "You already decided differently on this stage.",
+  "notAssignee": "You are not an approver of this request's current stage.",
+  "selfApproval": "You can't decide on your own request.",
+  "noApprovers": "Nobody can approve this: stage \"{stage}\" found no approver.",
+  "notRequester": "Only the requester can do this.",
+  "notChangesRequested": "Only a request sent back for changes can be resubmitted.",
+  "delegateToSelf": "You can't delegate to yourself.",
+  "unknownUser": "No active user has this id.",
+  "delegationTooLong": "A delegation lasts {days} days at most.",
+  "payloadFromRecord": "This action's proposed change is read from the record: don't send one.",
+  "notStuck": "Only an approved request whose outcome wasn't applied can be abandoned.",
+  "notManager": "Only someone who may manage approvals can do this."
+}

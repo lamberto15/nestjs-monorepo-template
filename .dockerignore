@@ -1,0 +1,22 @@
+# The build context is the repository root (apps/api/Dockerfile): only what
+# the API's image is built from goes in.
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/*.tsbuildinfo
+.git
+.gitignore
+**/.env*
+**/.data
+.claude
+**/*.md
+.github
+backup
+caddy
+compose*.yaml
+dev
+docs
+monitoring
+tools
+apps/*/test

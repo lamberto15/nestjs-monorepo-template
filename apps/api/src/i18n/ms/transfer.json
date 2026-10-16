@@ -1,0 +1,42 @@
+{
+  "template": {
+    "sheets": {
+      "data": "Data",
+      "columns": "Lajur"
+    },
+    "note": "Baris 2 dalam helaian Data ialah contoh: gantikan dengan baris anda. Kekalkan pengepala seperti sedia ada.",
+    "headers": {
+      "column": "Lajur",
+      "required": "Wajib",
+      "type": "Jenis",
+      "format": "Format",
+      "example": "Contoh",
+      "description": "Keterangan"
+    },
+    "yes": "Ya",
+    "no": "Tidak",
+    "types": {
+      "text": "Teks",
+      "number": "Nombor",
+      "boolean": "Ya/tidak",
+      "date": "Tarikh",
+      "datetime": "Tarikh dan masa",
+      "list": "Senarai"
+    },
+    "format": {
+      "textRange": "{min} hingga {max} aksara",
+      "textMax": "Sehingga {max} aksara",
+      "textMin": "Sekurang-kurangnya {min} aksara",
+      "options": "Salah satu daripada: {options}",
+      "listOptions": "Mana-mana daripada: {options}, dipisahkan dengan koma",
+      "list": "Nilai dipisahkan dengan koma",
+      "numberRange": "Nombor dari {min} hingga {max}",
+      "numberMin": "Nombor, sekurang-kurangnya {min}",
+      "numberMax": "Nombor, paling banyak {max}",
+      "number": "Nombor (titik untuk perpuluhan)",
+      "boolean": "true atau false",
+      "date": "YYYY-MM-DD",
+      "datetime": "YYYY-MM-DD HH:MM:SS, waktu {zone}"
+    }
+  }
+}

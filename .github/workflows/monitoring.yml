@@ -1,0 +1,170 @@
+# The monitoring configuration's checks (docs/deployment.md, "Alerting"):
+# Prometheus' configuration and rules (promtool check, then the rules' unit
+# tests in monitoring/prometheus/tests), the Alertmanager configuration that
+# render-config.sh writes (amtool, with the Watchdog's route; its inhibition
+# rules against a running Alertmanager), the blackbox
+# exporter's module, and the Compose file. The images are the
+# ones compose.monitoring.yaml pins, so a version bump is checked here too.
+name: Monitoring
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - monitoring/**
+      - compose.monitoring.yaml
+      - .github/workflows/monitoring.yml
+  pull_request:
+    paths:
+      - monitoring/**
+      - compose.monitoring.yaml
+      - .github/workflows/monitoring.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitoring-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: The images compose.monitoring.yaml pins
+        run: |
+          prometheus=$(grep -oE 'prom/prometheus:v[0-9][^[:space:]]*' compose.monitoring.yaml)
+          alertmanager=$(grep -oE 'prom/alertmanager:v[0-9][^[:space:]]*' compose.monitoring.yaml)
+          blackbox=$(grep -oE 'prom/blackbox-exporter:v[0-9][^[:space:]]*' compose.monitoring.yaml)
+          {
+            echo "PROMETHEUS_IMAGE=$prometheus"
+            echo "ALERTMANAGER_IMAGE=$alertmanager"
+            echo "BLACKBOX_IMAGE=$blackbox"
+          } >> "$GITHUB_ENV"
+          echo "$prometheus, $alertmanager, $blackbox"
+
+      - name: Prometheus configuration (promtool check config)
+        run: |
+          # credentials_file must exist; Compose mounts the real one as a secret.
+          openssl rand -hex 24 > "$RUNNER_TEMP/metrics_token"
+          docker run --rm -e APP_ENV=ci -e SERVICE_NAME=ci \
+            -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            -v "$RUNNER_TEMP/metrics_token:/run/secrets/metrics_token:ro" \
+            --entrypoint promtool "$PROMETHEUS_IMAGE" \
+            check config /etc/prometheus/prometheus.yml
+
+      - name: Rules (promtool check rules, with the linter)
+        run: |
+          docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool "$PROMETHEUS_IMAGE" \
+            check rules --lint=all --lint-fatal /etc/prometheus/recording.yml /etc/prometheus/alerts.yml
+
+      - name: Rules' unit tests (promtool test rules)
+        run: |
+          docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool "$PROMETHEUS_IMAGE" \
+            test rules /etc/prometheus/tests/alerts.test.yml
+
+      - name: Alertmanager configuration, no receiver (amtool check-config)
+        run: |
+          # The Watchdog still has its own (silent) receiver: never the default one.
+          docker run --rm -v "$PWD/monitoring/alertmanager:/etc/alertmanager/scripts:ro" \
+            -v "$PWD/monitoring/alertmanager/watchdog-url.empty:/run/secrets/alert_watchdog_url:ro" \
+            --entrypoint sh "$ALERTMANAGER_IMAGE" -c \
+            '/etc/alertmanager/scripts/render-config.sh --check \
+              && ! grep -q webhook_configs /tmp/alertmanager.yml \
+              && amtool config routes test --config.file=/tmp/alertmanager.yml --verify.receivers=watchdog alertname=Watchdog severity=none'
+
+      - name: Alertmanager configuration, the Watchdog's URL from a secret file (url_file)
+        run: |
+          printf '%s\n' 'https://hc-ping.com/00000000-0000-0000-0000-000000000000' > "$RUNNER_TEMP/alert_watchdog_url"
+          docker run --rm \
+            -e ALERT_WEBHOOK_URL='https://hooks.example.com/alerts' \
+            -v "$PWD/monitoring/alertmanager:/etc/alertmanager/scripts:ro" \
+            -v "$RUNNER_TEMP/alert_watchdog_url:/run/secrets/alert_watchdog_url:ro" \
+            --entrypoint sh "$ALERTMANAGER_IMAGE" -c \
+            '/etc/alertmanager/scripts/render-config.sh --check \
+              && grep -q "url_file: ./run/secrets/alert_watchdog_url." /tmp/alertmanager.yml \
+              && ! grep -q "hc-ping" /tmp/alertmanager.yml \
+              && amtool config routes test --config.file=/tmp/alertmanager.yml --verify.receivers=watchdog alertname=Watchdog severity=none \
+              && amtool config routes test --config.file=/tmp/alertmanager.yml --verify.receivers=default alertname=ApiDown severity=critical'
+
+      - name: Alertmanager configuration, a Watchdog URL that is no URL fails
+        run: |
+          # It must fail for this reason (its message), not because a path moved.
+          if docker run --rm -e ALERT_WATCHDOG_URL=hc-ping.com/x \
+            -v "$PWD/monitoring/alertmanager:/etc/alertmanager/scripts:ro" \
+            --entrypoint sh "$ALERTMANAGER_IMAGE" /etc/alertmanager/scripts/render-config.sh --check \
+            2> "$RUNNER_TEMP/watchdog-url.err"; then
+            echo "render-config.sh accepted a Watchdog URL without a scheme" >&2
+            exit 1
+          fi
+          grep -F "the Watchdog URL (ALERT_WATCHDOG_URL) must start with https:// or http://" "$RUNNER_TEMP/watchdog-url.err"
+
+      - name: Alertmanager inhibition (a real Alertmanager, alerts posted with amtool)
+        run: |
+          # Per-replica alerts don't mute HttpsProbeFailing; ApiDown does; a
+          # critical CertificateExpiring mutes the warning.
+          docker run --rm -v "$PWD/monitoring/alertmanager:/etc/alertmanager/scripts:ro" \
+            --entrypoint sh "$ALERTMANAGER_IMAGE" /etc/alertmanager/scripts/tests/inhibition.sh
+
+      - name: Alertmanager configuration, every receiver (amtool check-config)
+        run: |
+          # A percent-encoded user and a generated password, as SMTP_URL carries them.
+          userinfo="alerts%40example.com:$(openssl rand -hex 12)"
+          docker run --rm \
+            -e ALERT_EMAIL_TO='ops@example.com, oncall@example.com' \
+            -e ALERT_SMTP_URL="smtp://${userinfo}@mail.example.com" \
+            -e ALERT_EMAIL_FROM="Alerts <alerts@example.com>" \
+            -e ALERT_WEBHOOK_URL='https://hooks.example.com/alerts?source=ci' \
+            -e ALERT_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/T000/B000/XXXX' \
+            -e ALERT_WATCHDOG_URL='https://hc-ping.com/00000000-0000-0000-0000-000000000000' \
+            -v "$PWD/monitoring/alertmanager:/etc/alertmanager/scripts:ro" \
+            --entrypoint sh "$ALERTMANAGER_IMAGE" -c \
+            '/etc/alertmanager/scripts/render-config.sh --check && grep -q "smarthost: .mail.example.com:587." /tmp/alertmanager.yml && grep -q "auth_username: .alerts@example.com." /tmp/alertmanager.yml \
+              && grep -q "url: .https://hc-ping.com/" /tmp/alertmanager.yml \
+              && amtool config routes test --config.file=/tmp/alertmanager.yml --verify.receivers=watchdog alertname=Watchdog severity=none'
+
+      - name: Blackbox exporter configuration (blackbox_exporter --config.check)
+        run: |
+          docker run --rm --user 65534:65534 --tmpfs /tmp -e PROBE_HOST=api.example.com \
+            -v "$PWD/monitoring/blackbox:/etc/blackbox:ro" \
+            --entrypoint sh "$BLACKBOX_IMAGE" /etc/blackbox/render-config.sh --check
+          # No host name (PROBE_HOST and APP_DOMAIN empty) must fail, not probe
+          # "caddy", and for this reason (its message), not because a path moved.
+          if docker run --rm --user 65534:65534 --tmpfs /tmp \
+            -v "$PWD/monitoring/blackbox:/etc/blackbox:ro" \
+            --entrypoint sh "$BLACKBOX_IMAGE" /etc/blackbox/render-config.sh --check \
+            2> "$RUNNER_TEMP/probe-host.err"; then
+            echo "render-config.sh started without PROBE_HOST" >&2
+            exit 1
+          fi
+          grep -F "PROBE_HOST (or APP_DOMAIN) must be a host name" "$RUNNER_TEMP/probe-host.err"
+
+      - name: Alertmanager configuration, SMTPS from the app's settings (amtool check-config)
+        run: |
+          docker run --rm \
+            -e ALERT_EMAIL_TO=ops@example.com \
+            -e SMTP_URL=smtps://mail.example.com \
+            -e MAIL_FROM=noreply@example.com \
+            -v "$PWD/monitoring/alertmanager:/etc/alertmanager/scripts:ro" \
+            --entrypoint sh "$ALERTMANAGER_IMAGE" -c \
+            '/etc/alertmanager/scripts/render-config.sh --check && grep -q "force_implicit_tls: true" /tmp/alertmanager.yml'
+
+      - name: The Compose file, on top of the production stack
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export CLOUDFLARE_API_TOKEN=ci
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)
+          METRICS_TOKEN=$(openssl rand -hex 24)
+          export POSTGRES_PASSWORD POSTGRES_APP_PASSWORD METRICS_TOKEN
+          docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml config --quiet
+          # The Watchdog's secret from a file outside the repository.
+          printf '%s\n' 'https://hc-ping.com/00000000-0000-0000-0000-000000000000' > "$RUNNER_TEMP/alert_watchdog_url"
+          ALERT_WATCHDOG_URL_FILE="$RUNNER_TEMP/alert_watchdog_url" \
+            docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml config --format json \
+            | jq -e --arg f "$RUNNER_TEMP/alert_watchdog_url" '.secrets.alert_watchdog_url.file == $f'

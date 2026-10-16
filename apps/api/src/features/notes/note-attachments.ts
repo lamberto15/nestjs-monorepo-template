@@ -1,0 +1,60 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { inArray } from 'drizzle-orm';
+import type { Principal } from '../../iam/auth/principal.js';
+import {
+  type AttachmentTarget,
+  AttachmentsRegistry,
+} from '../../platform/attachments/attachments.registry.js';
+import { NotePolicy } from './note.policy.js';
+import type { Note } from './note.schemas.js';
+import { NotesService } from './notes.service.js';
+import { notes } from './notes.tables.js';
+
+/**
+ * Notes take attachments: whoever may read a note sees and downloads
+ * them, whoever may change it (Note.update) adds them and removes anyone's.
+ * A note in the recycle bin keeps them (hidden with it); purged, the
+ * nightly sweep deletes them.
+ */
+@Injectable()
+export class NoteAttachments implements AttachmentTarget {
+  readonly subject = 'Note';
+
+  constructor(
+    private readonly notes: NotesService,
+    private readonly policy: NotePolicy,
+    registry: AttachmentsRegistry,
+  ) {
+    registry.register(this);
+  }
+
+  async canRead(principal: Principal, id: string) {
+    const note = await this.find(id);
+    return note !== null && this.policy.read(principal, note);
+  }
+
+  async canWrite(principal: Principal, id: string) {
+    const note = await this.find(id);
+    return note !== null && this.policy.update(principal, note);
+  }
+
+  async exists(ids: readonly string[]) {
+    // Deleted ones too: they may be restored.
+    const rows = await this.notes.query((db) =>
+      db
+        .select({ id: notes.id })
+        .from(notes)
+        .where(inArray(notes.id, [...ids])),
+    );
+    return rows.map((row) => row.id);
+  }
+
+  private async find(id: string): Promise<Note | null> {
+    try {
+      return await this.notes.findOne(id);
+    } catch (error) {
+      if (error instanceof NotFoundException) return null;
+      throw error;
+    }
+  }
+}

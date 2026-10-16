@@ -1,0 +1,8 @@
+{
+  "currencyMismatch": "{left} dan {right} tidak boleh digabungkan: tukarkan salah satu jumlah dahulu.",
+  "rateUnavailable": "Tiada kadar pertukaran untuk {currencies} pada atau sebelum {day}.",
+  "ratesUnavailable": "Tiada kadar pertukaran pada atau sebelum hari itu.",
+  "unknownCurrency": "{currency} bukan kod mata wang ISO 4217.",
+  "amountPrecision": "Jumlah mempunyai lebih banyak tempat perpuluhan daripada {currency} ({exponent}).",
+  "invalidDecimal": "Jumlah mestilah nombor perpuluhan dalam bentuk teks, seperti 12.34."
+}

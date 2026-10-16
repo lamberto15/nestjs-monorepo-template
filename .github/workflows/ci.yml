@@ -1,0 +1,497 @@
+# The check before every merge, as the pnpm CI guide sets it up
+# (https://pnpm.io/continuous-integration#github-actions): pnpm/setup installs
+# pnpm (devEngines.packageManager), Node (devEngines.runtime) and the
+# dependencies from the lockfile. The checks are the root's scripts: Turborepo
+# (turbo.json) runs each workspace package's task, its local cache kept
+# between runs with actions/cache, as Turborepo's GitHub Actions guide does.
+# Then the security scans, and on main and v* tags the image is published to
+# GHCR (docs/deployment.md, "CI").
+#
+# Third-party actions are pinned by commit SHA (the comment names the
+# release); Dependabot proposes newer ones.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A newer push to a pull request replaces its run; on main and tags a run
+  # finishes, so a publish is never stopped halfway.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # CI's PostgreSQL and Redis are compose.yaml's images, read from it: they
+  # can't drift apart, and Dependabot's compose.yaml updates reach CI too.
+  compose-images:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      postgres: ${{ steps.images.outputs.postgres }}
+      redis: ${{ steps.images.outputs.redis }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the images compose.yaml runs
+        id: images
+        run: |
+          for service in postgres redis; do
+            image=$(yq ".services.$service.image" compose.yaml)
+            if [ -z "$image" ] || [ "$image" = null ]; then
+              echo "::error file=compose.yaml::services.$service.image is missing"
+              exit 1
+            fi
+            echo "$service: $image"
+            echo "$service=$image" >> "$GITHUB_OUTPUT"
+          done
+
+  # The production stack's secrets (docs/deployment.md, "Secrets in files"):
+  # with the values in .env as before, and with every one in a file, as
+  # Compose renders them (the monitoring stack too); then the shell readers
+  # in their images. The app booting on files: secret-files.e2e-spec.ts.
+  compose-secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      COMPOSE_FILE: compose.yaml:compose.prod.yaml:compose.monitoring.yaml
+      METRICS_TOKEN: metrics-token-for-ci-only
+    steps:
+      - uses: actions/checkout@v7
+      - name: Secrets as variables, as an existing .env has them
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci REDIS_PASSWORD=redis-ci
+          docker compose config --format json > env.json
+          # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
+          test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
+          test "$(jq -r .services.worker.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
+          test "$(jq -r .services.migrate.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
+          test "$(jq -r .services.migrate.environment.DATABASE_OWNER_URL env.json)" = 'postgres://app:pg-ci@postgres:5432/app'
+          test "$(jq -r .services.api.environment.DATABASE_URL_FILE env.json)" = ''
+          test "$(jq -r .services.migrate.environment.DATABASE_OWNER_URL_FILE env.json)" = ''
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment | has(\"DATABASE_OWNER_URL\")" env.json)" = false
+            test "$(jq -r ".services.$service.environment | has(\"DATABASE_OWNER_URL_FILE\")" env.json)" = false
+            test "$(jq -r ".services.$service.secrets | map(.source) | index(\"database_owner_url\")" env.json)" = null
+          done
+          test "$(jq -r '.services.migrate.secrets | map(.source) | sort | join(",")' env.json)" = 'database_owner_url,database_url'
+          test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
+          test "$(jq -r .services.backup.environment.PGPASSWORD env.json)" = pg-ci
+          test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN env.json)" = ci
+          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app:pg-ci@postgres:5432/app?sslmode=disable'
+          test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
+      - name: Secrets in files
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          dir=$(mktemp -d)
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL; do
+            echo ci > "$dir/$name"
+            export "${name}_FILE=$dir/$name"
+          done
+          docker compose config --format json > files.json
+          api() { jq -r ".services.api.environment.$1" files.json; }
+          test "$(api DATABASE_URL)" = ''
+          test "$(api DATABASE_URL_FILE)" = /run/secrets/database_url
+          test "$(jq -r .services.migrate.environment.DATABASE_URL files.json)" = ''
+          test "$(jq -r .services.migrate.environment.DATABASE_URL_FILE files.json)" = /run/secrets/database_url
+          test "$(jq -r .services.migrate.environment.DATABASE_OWNER_URL files.json)" = ''
+          test "$(jq -r .services.migrate.environment.DATABASE_OWNER_URL_FILE files.json)" = /run/secrets/database_owner_url
+          test "$(jq -r .secrets.database_owner_url.file files.json)" = "$dir/DATABASE_OWNER_URL"
+          # The owner's secret reaches migrate only, never api or worker.
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment | has(\"DATABASE_OWNER_URL_FILE\")" files.json)" = false
+            test "$(jq -r ".services.$service.secrets | map(.source) | index(\"database_owner_url\")" files.json)" = null
+          done
+          test "$(api JWT_SECRET_FILE)" = /run/secrets/jwt_secret
+          test "$(api REDIS_PASSWORD_FILE)" = /run/secrets/redis_password
+          test "$(api SMTP_URL_FILE)" = /run/secrets/smtp_url
+          test "$(api MAIL_API_KEY_FILE)" = ''
+          test "$(jq -r .secrets.jwt_secret.file files.json)" = "$dir/JWT_SECRET"
+          test "$(jq -r .secrets.mail_api_key.file files.json)" = "$PWD/secret.empty"
+          test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD files.json)" = ''
+          test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD_FILE files.json)" = /run/secrets/postgres_password
+          test "$(jq -r .services.backup.environment.PGPASSWORD_FILE files.json)" = /run/secrets/postgres_password
+          test "$(jq -r .services.redis.environment.REDIS_PASSWORD_FILE files.json)" = /run/secrets/redis_password
+          test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN_FILE files.json)" = /run/secrets/cloudflare_api_token
+          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' files.json)" = ''
+          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_PASS_FILE' files.json)" = /run/secrets/postgres_password
+          test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
+          test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
+      - name: The shell readers of the files, in their images
+        run: scripts/test-secret-readers.sh
+
+  # Lint, build, the typed client, migrations and unit tests. The e2e tests
+  # run beside it (the e2e job), not after it.
+  check:
+    needs: compose-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      # PostgreSQL: the migrations applied as a deploy does.
+      postgres:
+        image: ${{ needs.compose-images.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo's cache (tasks whose inputs didn't change are replayed)
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm lint
+      - run: pnpm build
+      # The typed client's OpenAPI document and types must match the routes.
+      - run: pnpm client:check
+      - name: Migrations match the schema
+        run: pnpm db:check
+      # The owner (CI's superuser, as the Compose stack's) migrates, then
+      # creates the app role from DATABASE_URL and checks it: no superuser, no
+      # RLS bypass, owns nothing, can use every table. Twice: the second run
+      # must find nothing to do. The e2e jobs prove the same from an owner
+      # that is no superuser (test/global-setup.ts) and run every test as the
+      # app role.
+      - name: Migrations apply to PostgreSQL and the app role is made (as `node dist/migrate` does on deploy)
+        run: pnpm migrate && pnpm migrate
+        env:
+          DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
+          DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
+      - run: pnpm test
+
+  # The e2e tests in shards, each on its own runner with its own Redis and
+  # PostgreSQL: the slowest step of CI, split (Vitest's --shard). They run
+  # the sources (no build needed). Raise `shard`'s list and --shard's total
+  # together.
+  e2e:
+    needs: compose-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    name: e2e (${{ matrix.shard }}/2)
+    services:
+      # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
+      redis:
+        image: ${{ needs.compose-images.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      # PostgreSQL: the tests' databases. max_connections is the default 100:
+      # raise it before the e2e maxWorkers or the test pool size (docs/pitfalls.md).
+      postgres:
+        image: ${{ needs.compose-images.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
+        env:
+          REDIS_URL: redis://localhost:6379
+          # The tests create their databases here (a template, then a copy per app).
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+
+  # Pull requests: the typed client's contract (packages/api-client/openapi.json,
+  # kept in sync with the routes by `client:check`) compared with the base
+  # branch's by oasdiff. Breaking changes (removed endpoints, fields, enum
+  # values, tightened requests...) and the full changelog go to the job
+  # summary. Report-only while the template has no adopters: set
+  # OASDIFF_FAIL_ON to ERR (or WARN) to fail the pull request on them
+  # (docs/development.md, "Typed client").
+  openapi-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      # '' reports only; ERR fails on breaking changes, WARN also on warnings.
+      OASDIFF_FAIL_ON: ''
+      # oasdiff's own release (github.com/oasdiff/oasdiff), tag and digest:
+      # Dependabot doesn't raise it.
+      OASDIFF_IMAGE: tufin/oasdiff:v1.33.0@sha256:6263a96dd2ef0726c54e21fea9b8e1607eac4841add0079324b424c1f52b819c
+    steps:
+      # A pull request checks out its merge commit: HEAD^1 is the base
+      # branch it was merged onto, so the diff is this pull request's alone.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Breaking changes in the OpenAPI document
+        run: |
+          set -o pipefail
+          spec=packages/api-client/openapi.json
+          dir="$RUNNER_TEMP/oasdiff"
+          mkdir -p "$dir/$(dirname "$spec")"
+          summary() { cat >> "$GITHUB_STEP_SUMMARY"; }
+          # The summary takes 1 MiB per step: a longer report is left out.
+          section() {
+            if [ "$(wc -c < "$2")" -gt 400000 ]; then
+              printf '%s: too long for the summary.\n\n' "$1" | summary
+            else
+              { printf '<details><summary>%s</summary>\n\n' "$1"; sed '/^# API Changelog/d' "$2" | cat -s; printf '\n</details>\n\n'; } | summary
+            fi
+          }
+          printf '## OpenAPI changes\n\n' | summary
+          if [ -z "$(git rev-parse --verify --quiet HEAD^2)" ]; then
+            echo '::error::HEAD is not a merge commit: the job expects the one a pull request checks out'
+            exit 1
+          fi
+          base=$(git rev-parse HEAD^1)
+          if [ -z "$(git ls-tree --name-only "$base" -- "$spec")" ]; then
+            echo "No \`$spec\` on the base branch: nothing to compare." | summary
+            exit 0
+          fi
+          if [ ! -f "$spec" ]; then
+            echo "::warning file=$spec::The pull request removes the OpenAPI document"
+            echo "The pull request removes \`$spec\`." | summary
+            [ -z "$OASDIFF_FAIL_ON" ] || exit 1
+            exit 0
+          fi
+          if git diff --quiet "$base" HEAD -- "$spec"; then
+            echo "\`$spec\` is unchanged." | summary
+            exit 0
+          fi
+          git show "$base:$spec" > "$dir/base.json"
+          # The revision keeps its path, so annotations name the real file.
+          cp "$spec" "$dir/$spec"
+          # Only the two documents are mounted (no .oasdiff.* config), with no
+          # network, and external $refs are refused: the document is untrusted.
+          oasdiff() {
+            docker run --rm --network none -v "$dir:/specs:ro" -w /specs "$OASDIFF_IMAGE" \
+              "$1" base.json "$spec" --allow-external-refs=false "${@:2}"
+          }
+          # The reports hold the pull request's text (paths, names): they go to
+          # files and the summary, never to the log, where a line starting
+          # with :: would run as a workflow command. An error message from
+          # oasdiff can quote the document too, so commands are off meanwhile.
+          token=$(openssl rand -hex 16)
+          echo "::stop-commands::$token"
+          oasdiff breaking --format json > "$dir/breaking.json"
+          oasdiff breaking --format markdown > "$dir/breaking.md"
+          oasdiff changelog --format markdown > "$dir/changelog.md"
+          echo "::$token::"
+          errors=$(jq '[.[] | select(.level == 3)] | length' "$dir/breaking.json")
+          warnings=$(jq '[.[] | select(.level == 2)] | length' "$dir/breaking.json")
+          if [ "$errors" -eq 0 ] && [ "$warnings" -eq 0 ]; then
+            printf 'No breaking changes.\n\n' | summary
+          else
+            mode=${OASDIFF_FAIL_ON:+blocking at $OASDIFF_FAIL_ON}
+            printf '**Breaking changes: %s errors, %s warnings** (%s).\n\n' \
+              "$errors" "$warnings" "${mode:-report-only}" | summary
+            section 'Breaking changes' "$dir/breaking.md"
+            echo "::warning file=$spec,title=OpenAPI breaking changes::$errors errors, $warnings warnings (see the job summary)"
+          fi
+          section 'Full changelog' "$dir/changelog.md"
+          # Blocking: oasdiff's annotations (it escapes the text) and its exit
+          # code. A removal is reported against the base document: same file.
+          if [ -n "$OASDIFF_FAIL_ON" ]; then
+            oasdiff breaking --format githubactions --fail-on "$OASDIFF_FAIL_ON" |
+              sed "s|,file=base\.json::|,file=$spec::|"
+          fi
+
+  # Fails on: a high or critical advisory in a production dependency, any
+  # secret in the repository, a high or critical misconfiguration in a
+  # Dockerfile. GitHub code scanning (CodeQL, SARIF) isn't available to a
+  # private repository on the free plan, so the results are the job's log.
+  security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm (the audit reads the lockfile only)
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+      - name: No high or critical advisories in production dependencies
+        run: pnpm audit --prod --audit-level high
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          # Trivy's own release (github.com/aquasecurity/trivy): Dependabot doesn't raise it.
+          version: v0.76.0
+          cache: true
+      - name: No secrets in the repository
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+      - name: No high or critical misconfigurations (Dockerfiles)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          scan-type: fs
+          scan-ref: .
+          scanners: misconfig
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+
+  # The production image builds and has no fixable high or critical
+  # vulnerability (OS packages and node_modules).
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the production image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          # The repository root: the image takes the workspace (lockfile, packages/).
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: app:ci
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: app:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+
+  # The backup service's image (backup/) builds and passes the same scan.
+  # Its own cache scope, so it never evicts the app image's. Not published:
+  # every deploy builds it (`docker compose up -d --build`).
+  backup-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the backup image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backup
+          load: true
+          tags: backup:ci
+          cache-from: type=gha,scope=backup
+          cache-to: type=gha,scope=backup,mode=max
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: backup:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+
+  # main and v* tags, once check, security and image passed (backup-image
+  # gates pull requests; its image isn't published): the image is built again
+  # (from the cache the image job left), scanned, then pushed to
+  # ghcr.io/<owner>/<repo> as the full commit SHA, `main` or the version.
+  # Never `latest`: a deploy names the image it runs.
+  publish:
+    if: github.event_name == 'push'
+    needs: [check, e2e, security, image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Tags and OCI labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          flavor: latest=false
+          tags: |
+            type=sha,format=long,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Build the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            app:publish
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: app:publish
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The same build: every step comes from the builder's cache.
+      - name: Push the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha

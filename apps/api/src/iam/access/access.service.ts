@@ -1,0 +1,413 @@
+import { randomUUID } from 'node:crypto';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import {
+  database,
+  type DrizzleTransactions,
+} from '../../core/database/transactions.js';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationShutdown,
+  type OnModuleInit,
+} from '@nestjs/common';
+import type { Redis } from 'ioredis';
+import { IAM_OPTIONS, type IamOptions } from '../iam.options.js';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import { REDIS, closeRedis } from '../../core/redis/redis.js';
+import {
+  AbilityBuilder,
+  createMongoAbility,
+  subject as asSubject,
+  type MongoAbility,
+} from '@casl/ability';
+import { permittedFieldsOf } from '@casl/ability/extra';
+import { and, eq, gt, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
+import {
+  isSystemPrincipal,
+  principalKey,
+  type Principal,
+} from '../auth/principal.js';
+import {
+  apiClientRoles,
+  orgUnitTree,
+  rolePermissions,
+  userOrgUnits,
+  userRoles,
+} from '../iam.tables.js';
+import { PermissionCatalog } from './permission-catalog.js';
+import {
+  type AccessContext,
+  isAll,
+  type PermissionInput,
+} from './permissions.js';
+
+type AppAbility = MongoAbility;
+
+interface Cached {
+  version: number;
+  permissions: PermissionInput[];
+  ability: AppAbility;
+}
+
+/**
+ * Answers "may this principal do this?" with CASL. A user's
+ * permissions come from their roles in the database; an API client's are
+ * fixed in code (`clientPermissions` of the declarations); the system
+ * principal's are its job's (`systemJobs`), nothing more. User abilities
+ * are cached, and the whole cache is dropped whenever roles, permissions or
+ * assignments change, so a change applies on the next request, on every
+ * instance: the invalidation is published through Redis. A cached ability
+ * is rebuilt after a minute anyway.
+ */
+/** The field a permission with `fields: []` grants: none that exists. */
+const NO_FIELDS = '$none';
+
+@Injectable()
+export class AccessService implements OnModuleInit, OnApplicationShutdown {
+  private version = 0;
+  /** This instance, so it ignores its own invalidations coming back. */
+  private readonly instanceId = randomUUID();
+  private subscriber?: Redis;
+  private readonly cache = new Map<string, Cached>();
+  private static readonly MAX_AGE_MS = 60_000;
+  /** Until when each cached ability holds: a minute at most, never past a grant's expiry. */
+  private readonly validUntil = new Map<string, number>();
+
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly catalog: PermissionCatalog,
+    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(IAM_OPTIONS) options: IamOptions,
+  ) {
+    this.softDeleted = new Map(
+      (options.resources ?? []).flatMap((resource) =>
+        resource.softDelete
+          ? [[resource.subject, resource.softDelete.table]]
+          : [],
+      ),
+    );
+  }
+
+  /** The soft-deletable subjects' tables (their resource's `softDelete`). */
+  private readonly softDeleted: Map<string, { deletedAt: AnyPgColumn }>;
+
+  /** Pub/sub channels ignore ioredis' key prefix: the prefix goes into the name. */
+  private get channel() {
+    return `${this.redis.options.keyPrefix ?? ''}access:invalidate`;
+  }
+
+  async onModuleInit() {
+    this.subscriber = this.redis.duplicate();
+    this.subscriber.on('message', (_channel: string, from: string) => {
+      if (from !== this.instanceId) {
+        this.clear();
+      }
+    });
+    await this.subscriber.subscribe(this.channel);
+  }
+
+  async onApplicationShutdown() {
+    if (this.subscriber) {
+      await closeRedis(this.subscriber);
+    }
+  }
+
+  /**
+   * Drops every cached ability, here and on every other instance: call after
+   * any change to roles, permissions or assignments.
+   */
+  invalidate() {
+    this.clear();
+    void this.redis
+      .publish(this.channel, this.instanceId)
+      .catch(() => undefined);
+  }
+
+  private clear() {
+    this.version++;
+    this.cache.clear();
+    this.validUntil.clear();
+  }
+
+  /** Whether the principal may do `action` on `subject`: on this record, or on any when there is none. */
+  async can(
+    principal: Principal | null,
+    action: string,
+    subject: string,
+    record?: Record<string, unknown>,
+  ): Promise<boolean> {
+    if (!principal) {
+      return false;
+    }
+    // A deleted record (soft delete) can only be restored.
+    if (
+      record &&
+      action !== 'restore' &&
+      this.softDeleted.has(subject) &&
+      record.deletedAt != null
+    ) {
+      return false;
+    }
+    const { ability } = await this.load(principal);
+    return record
+      ? ability.can(action, asSubject(subject, { ...record }))
+      : ability.can(action, subject);
+  }
+
+  /**
+   * The record without the declared fields the principal may not `action`
+   * (field-level permissions): what a response may show. Undeclared fields
+   * are always kept.
+   */
+  async redact<T extends Record<string, unknown>>(
+    principal: Principal,
+    action: string,
+    subject: string,
+    record: T,
+  ): Promise<Partial<T>> {
+    const declared = this.catalog.declaredFields(subject);
+    if (declared.length === 0) {
+      return record;
+    }
+    const { ability } = await this.load(principal);
+    const allowed = new Set(
+      permittedFieldsOf(ability, action, asSubject(subject, { ...record }), {
+        fieldsFrom: (rule) => rule.fields ?? declared,
+      }),
+    );
+    return Object.fromEntries(
+      Object.entries(record).filter(
+        ([field]) => !declared.includes(field) || allowed.has(field),
+      ),
+    ) as Partial<T>;
+  }
+
+  /** `redact()` for each record of a list. */
+  redactAll<T extends Record<string, unknown>>(
+    principal: Principal,
+    action: string,
+    subject: string,
+    records: T[],
+  ) {
+    return Promise.all(
+      records.map((record) => this.redact(principal, action, subject, record)),
+    );
+  }
+
+  /**
+   * The declared fields among `changes` the principal may not `action` on
+   * this record: a write route answers 403 when there is any.
+   */
+  async forbiddenFields(
+    principal: Principal,
+    action: string,
+    subject: string,
+    changes: Record<string, unknown>,
+    record?: Record<string, unknown>,
+  ): Promise<string[]> {
+    const declared = this.catalog.declaredFields(subject);
+    const touched = Object.keys(changes).filter(
+      (field) => declared.includes(field) && changes[field] !== undefined,
+    );
+    if (touched.length === 0) {
+      return [];
+    }
+    const { ability } = await this.load(principal);
+    const target = record ? asSubject(subject, { ...record }) : subject;
+    return touched.filter((field) => !ability.can(action, target, field));
+  }
+
+  /** The principal's permissions, as stored (an administrator's is ALL). */
+  async permissions(principal: Principal): Promise<PermissionInput[]> {
+    return (await this.load(principal)).permissions;
+  }
+
+  /**
+   * The SQL filter for the records of `subject` this principal may `action`:
+   * `undefined` for all of them, or a condition (`false` for none). Lists
+   * filter in the query; record checks use `can()`. Every condition used on
+   * that action needs its `sql()` form.
+   */
+  async sqlFilter(
+    principal: Principal,
+    subject: string,
+    action: string,
+    /** The recycle bin (soft-deletable subjects): deleted rows only, instead of live ones. */
+    { deleted = false }: { deleted?: boolean } = {},
+  ): Promise<SQL | undefined> {
+    const table = this.softDeleted.get(subject);
+    const permitted = await this.permittedFilter(principal, subject, action);
+    if (!table) {
+      return permitted;
+    }
+    // Deleted rows never reach a list, a count or an export, whatever the filter says.
+    const state = deleted
+      ? isNotNull(table.deletedAt)
+      : isNull(table.deletedAt);
+    return permitted ? and(permitted, state) : state;
+  }
+
+  private async permittedFilter(
+    principal: Principal,
+    subject: string,
+    action: string,
+  ): Promise<SQL | undefined> {
+    const permissions = (await this.load(principal)).permissions.filter(
+      (permission) =>
+        isAll(permission) ||
+        (permission.subject === subject && permission.action === action),
+    );
+    if (permissions.some((permission) => !permission.conditions.length)) {
+      return undefined;
+    }
+    const filters = permissions.map((permission) =>
+      and(...this.catalog.sqlConditions(principal, permission)),
+    );
+    return filters.length ? or(...filters) : sql`false`;
+  }
+
+  private async load(principal: Principal): Promise<Cached> {
+    if (principal.kind === 'system' && !isSystemPrincipal(principal)) {
+      // `kind: 'system'` read from data: nothing, and never the cached
+      // ability of the real one (the cache is keyed by principalKey).
+      return {
+        version: this.version,
+        permissions: [],
+        ability: this.build(principal, [], { orgUnitIds: [] }),
+      };
+    }
+    const key = principalKey(principal);
+    const cached = this.cache.get(key);
+    if (
+      cached &&
+      cached.version === this.version &&
+      Date.now() < (this.validUntil.get(key) ?? 0)
+    ) {
+      return cached;
+    }
+    const version = this.version;
+    const [{ permissions, nextExpiry }, context] = await Promise.all([
+      this.loadPermissions(principal),
+      this.loadContext(principal),
+    ]);
+    const built: Cached = {
+      version,
+      permissions,
+      ability: this.build(principal, permissions, context),
+    };
+    // Only cache what was built against the current version, and never past
+    // the next grant that expires (nor a minute).
+    if (version === this.version) {
+      this.cache.set(key, built);
+      this.validUntil.set(
+        key,
+        Math.min(Date.now() + AccessService.MAX_AGE_MS, nextExpiry ?? Infinity),
+      );
+    }
+    return built;
+  }
+
+  /**
+   * A user's permissions: from their unexpired role grants. An API client's:
+   * what every client may do (`clientPermissions`), and its own unexpired
+   * role grants. With when the first of those grants expires. The system's:
+   * what its job declares.
+   */
+  private async loadPermissions(principal: Principal): Promise<{
+    permissions: PermissionInput[];
+    nextExpiry?: number;
+  }> {
+    if (principal.kind === 'system') {
+      // Made in code (load() turned away any other), for a declared job.
+      return {
+        permissions: this.catalog.systemJob(principal.id)?.permissions ?? [],
+      };
+    }
+    const now = new Date();
+    const grants = principal.kind === 'user' ? userRoles : apiClientRoles;
+    const holder =
+      principal.kind === 'user' ? userRoles.userId : apiClientRoles.clientId;
+    const rows = await this.db
+      .select({
+        subject: rolePermissions.subject,
+        action: rolePermissions.action,
+        conditions: rolePermissions.conditions,
+        fields: rolePermissions.fields,
+        expiresAt: grants.expiresAt,
+      })
+      .from(rolePermissions)
+      .innerJoin(grants, eq(grants.roleId, rolePermissions.roleId))
+      .where(
+        and(
+          eq(holder, principal.id),
+          or(isNull(grants.expiresAt), gt(grants.expiresAt, now)),
+        ),
+      );
+    const expiries = rows
+      .map((row) => row.expiresAt?.getTime())
+      .filter((time): time is number => time !== undefined);
+    const permissions: PermissionInput[] = rows.map(
+      ({ subject, action, conditions, fields }) => ({
+        subject,
+        action,
+        conditions,
+        fields,
+      }),
+    );
+    return {
+      permissions:
+        principal.kind === 'client'
+          ? [...this.catalog.clientPermissions, ...permissions]
+          : permissions,
+      nextExpiry: expiries.length ? Math.min(...expiries) : undefined,
+    };
+  }
+
+  /** The principal's org units and every unit below them (users only). */
+  private async loadContext(principal: Principal): Promise<AccessContext> {
+    if (principal.kind !== 'user') {
+      return { orgUnitIds: [] };
+    }
+    const rows = await this.db
+      .selectDistinct({ id: orgUnitTree.descendantId })
+      .from(orgUnitTree)
+      .innerJoin(
+        userOrgUnits,
+        eq(userOrgUnits.orgUnitId, orgUnitTree.ancestorId),
+      )
+      .where(eq(userOrgUnits.userId, principal.id));
+    return { orgUnitIds: rows.map((row) => row.id) };
+  }
+
+  private build(
+    principal: Principal,
+    permissions: PermissionInput[],
+    context: AccessContext,
+  ): AppAbility {
+    const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
+    for (const permission of permissions) {
+      const conditions = isAll(permission)
+        ? undefined
+        : this.catalog.caslConditions(principal, permission, context);
+      // [] (none of the restrictable fields) still has to restrict: CASL reads [] as "all".
+      const fields = permission.fields
+        ? permission.fields.length
+          ? permission.fields
+          : [NO_FIELDS]
+        : undefined;
+      if (conditions) {
+        can(permission.action, permission.subject, fields, conditions);
+      } else if (fields) {
+        can(permission.action, permission.subject, fields);
+      } else {
+        can(permission.action, permission.subject);
+      }
+    }
+    return build();
+  }
+}

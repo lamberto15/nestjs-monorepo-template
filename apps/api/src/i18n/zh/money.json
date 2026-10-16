@@ -1,0 +1,8 @@
+{
+  "currencyMismatch": "{left} 与 {right} 不能直接合并计算：请先换算其中一个金额。",
+  "rateUnavailable": "{day} 当天或之前没有 {currencies} 的汇率。",
+  "ratesUnavailable": "该日或之前没有汇率。",
+  "unknownCurrency": "{currency} 不是 ISO 4217 货币代码。",
+  "amountPrecision": "金额的小数位数超过了 {currency} 允许的位数（{exponent}）。",
+  "invalidDecimal": "金额必须是十进制数字字符串，例如 12.34。"
+}

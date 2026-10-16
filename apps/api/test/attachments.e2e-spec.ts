@@ -1,0 +1,402 @@
+import { getDrizzleToken } from '@nestjs/drizzle';
+import { StorageDisk } from '@nestjs/storage';
+import { eq, inArray } from 'drizzle-orm';
+import type { Database } from '../src/core/database/drizzle.js';
+import { notes } from '../src/features/notes/notes.tables.js';
+import { auditLog } from '../src/iam/iam.tables.js';
+import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
+import { AttachmentSweepJob } from '../src/platform/attachments/attachment-sweep.job.js';
+import { attachments } from '../src/platform/attachments/attachments.tables.js';
+import { bootApp, type TestApp } from './support.js';
+
+// A small limit, so the test of it sends 1 MB, not 25 (read when AppModule loads).
+vi.hoisted(() => {
+  process.env.ATTACHMENT_MAX_MB = '1';
+});
+
+/** The path and query of a signed URL: the tests reach the app on its own port. */
+const local = (url: string) => {
+  const { pathname, search } = new URL(url);
+  return pathname + search;
+};
+
+const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.from('0000000d49484452000000010000000108060000001f15c489', 'hex'),
+]);
+const PDF = Buffer.from(
+  '%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n',
+);
+const TEXT = Buffer.from('Minutes of the meeting\nAll agreed.\n');
+
+describe('attachments (e2e)', () => {
+  let node: TestApp;
+  let db: Database;
+
+  beforeAll(async () => {
+    node = await bootApp();
+    db = node.app.get<Database>(getDrizzleToken());
+  });
+  afterAll(async () => {
+    await node.close();
+  });
+
+  /** An editor and a draft note they own. */
+  async function noteOfEditor() {
+    const editor = await node.user(['editor']);
+    const note = (
+      await node
+        .writeNote(editor.agent, { title: 'With files', body: 'x' })
+        .expect(201)
+    ).body as { id: string };
+    return { editor, note };
+  }
+
+  it('stores what it recognizes, lists it, and serves it through a signed link', async () => {
+    const { editor, note } = await noteOfEditor();
+    const png = await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', PNG, { filename: 'dot.png', contentType: 'image/png' })
+      .expect(201);
+    expect(png.body).toMatchObject({
+      subject: 'Note',
+      recordId: note.id,
+      name: 'dot.png',
+      size: PNG.length,
+      contentType: 'image/png',
+      uploadedBy: `user:${editor.id}`,
+    });
+    expect(png.body).not.toHaveProperty('key');
+    await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', PDF, {
+        filename: 'report.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+    // Declared as nothing in particular: the bytes decide.
+    const text = await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', TEXT, {
+        // A path is cut to its name; a name keeps its accents (UTF-8, not latin1).
+        filename: '../../résumé minutes.txt',
+        contentType: 'application/octet-stream',
+      })
+      .expect(201);
+    expect(text.body.contentType).toBe('text/plain; charset=utf-8');
+    expect(text.body.name).toBe('résumé minutes.txt');
+
+    const list = await editor.agent
+      .get(`/v1/notes/${note.id}/attachments`)
+      .expect(200);
+    expect(
+      list.body.items.map(
+        (item: { name: string; size: number; contentType: string }) => [
+          item.name,
+          item.size,
+          item.contentType,
+        ],
+      ),
+    ).toEqual([
+      ['résumé minutes.txt', TEXT.length, 'text/plain; charset=utf-8'],
+      ['report.pdf', PDF.length, 'application/pdf'],
+      ['dot.png', PNG.length, 'image/png'],
+    ]);
+    const filtered = await editor.agent
+      .get(`/v1/notes/${note.id}/attachments?contentType=application/pdf`)
+      .expect(200);
+    expect(
+      filtered.body.items.map((item: { name: string }) => item.name),
+    ).toEqual(['report.pdf']);
+
+    const download = await editor.agent
+      .get(`/v1/attachments/${png.body.id}/download`)
+      .expect(302);
+    const file = await node
+      .http()
+      .get(local(download.headers.location!))
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(Buffer.compare(file.body as Buffer, PNG)).toBe(0);
+    expect(file.headers['content-type']).toBe('image/png');
+    expect(file.headers['content-disposition']).toContain('dot.png');
+
+    // Text is served as a plain-text download, never run: HTML can't script.
+    const html = await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', Buffer.from('<html><script>alert(1)</script></html>'), {
+        filename: 'page.html',
+        contentType: 'text/plain',
+      })
+      .expect(201);
+    const htmlLink = await editor.agent
+      .get(`/v1/attachments/${html.body.id}/download`)
+      .expect(302);
+    const served = await node
+      .http()
+      .get(local(htmlLink.headers.location!))
+      .expect(200);
+    expect(served.headers['content-type']).toBe('text/plain; charset=utf-8');
+    expect(served.headers['content-disposition']).toMatch(/^attachment/);
+    expect(served.headers['x-content-type-options']).toBe('nosniff');
+    await editor.agent.delete(`/v1/attachments/${html.body.id}`).expect(204);
+
+    // Audited, with what was attached.
+    const entries = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.targetId, png.body.id));
+    expect(entries.map((entry) => entry.action)).toEqual(['attachment.added']);
+    expect(entries[0]!.actor).toBe(`user:${editor.id}`);
+    expect(entries[0]!.details).toMatchObject({
+      subject: 'Note',
+      recordId: note.id,
+      name: 'dot.png',
+      size: PNG.length,
+    });
+  });
+
+  it('refuses what is too large (413), not allowed or not as declared (415), and stores nothing', async () => {
+    const { editor, note } = await noteOfEditor();
+    const disk = node.app.get(StorageDisk);
+    const filesBefore = await count(disk);
+
+    const large = await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', Buffer.alloc(1024 * 1024 + 1, 'a'), {
+        filename: 'big.txt',
+        contentType: 'text/plain',
+      })
+      .expect(413);
+    expect(large.body.code).toBe('payload_too_large');
+
+    const binary = await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach(
+        'file',
+        Buffer.from([
+          0, 1, 2, 3, 4, 5, 250, 251, 252, 0, 0, 0, 7, 8, 9, 10, 11,
+        ]),
+        {
+          filename: 'app.exe',
+          contentType: 'application/octet-stream',
+        },
+      )
+      .expect(415);
+    expect(binary.body.code).toBe('unsupported_media_type');
+
+    // Text dressed up as an image.
+    const mismatch = await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', Buffer.from('<html><script>alert(1)</script></html>'), {
+        filename: 'cat.png',
+        contentType: 'image/png',
+      })
+      .expect(415);
+    expect(mismatch.body.code).toBe('unsupported_media_type');
+
+    await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .field('other', 'x')
+      .expect(400);
+
+    const list = await editor.agent
+      .get(`/v1/notes/${note.id}/attachments`)
+      .expect(200);
+    expect(list.body.items).toEqual([]);
+    expect(await count(disk)).toBe(filesBefore);
+  });
+
+  it('hides a note the caller may not read (404), refuses an upload without Note.update (403)', async () => {
+    const { editor, note } = await noteOfEditor();
+    const added = await editor.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', TEXT, { filename: 'a.txt', contentType: 'text/plain' })
+      .expect(201);
+
+    // Another editor reads only their own notes.
+    const stranger = await node.user(['editor']);
+    await stranger.agent.get(`/v1/notes/${note.id}/attachments`).expect(404);
+    await stranger.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', TEXT, { filename: 'b.txt', contentType: 'text/plain' })
+      .expect(404);
+    await stranger.agent
+      .get(`/v1/attachments/${added.body.id}/download`)
+      .expect(404);
+    await stranger.agent.delete(`/v1/attachments/${added.body.id}`).expect(404);
+
+    // A viewer reads every note, changes none.
+    const viewer = await node.user(['viewer']);
+    const seen = await viewer.agent
+      .get(`/v1/notes/${note.id}/attachments`)
+      .expect(200);
+    expect(seen.body.items).toHaveLength(1);
+    await viewer.agent
+      .get(`/v1/attachments/${added.body.id}/download`)
+      .expect(302);
+    await viewer.agent
+      .post(`/v1/notes/${note.id}/attachments`)
+      .attach('file', TEXT, { filename: 'c.txt', contentType: 'text/plain' })
+      .expect(403);
+
+    // A client reads only its own notes.
+    const client = await node.client();
+    await node
+      .http()
+      .get(`/v1/notes/${note.id}/attachments`)
+      .set('Authorization', client.auth)
+      .expect(404);
+    await node
+      .http()
+      .get(`/v1/notes/00000000-0000-7000-8000-000000000000/attachments`)
+      .set('Authorization', client.auth)
+      .expect(404);
+  });
+
+  it('is removed by its uploader or whoever may change the note, not by another reader', async () => {
+    const { editor, note } = await noteOfEditor();
+    const disk = node.app.get(StorageDisk);
+    const mine = (
+      await editor.agent
+        .post(`/v1/notes/${note.id}/attachments`)
+        .attach('file', TEXT, {
+          filename: 'mine.txt',
+          contentType: 'text/plain',
+        })
+        .expect(201)
+    ).body as { id: string };
+    // The administrator attaches one to the editor's note.
+    const theirs = (
+      await node
+        .admin()
+        .post(`/v1/notes/${note.id}/attachments`)
+        .attach('file', PDF, {
+          filename: 'theirs.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201)
+    ).body as { id: string };
+    const [stored] = await db
+      .select()
+      .from(attachments)
+      .where(eq(attachments.id, theirs.id));
+    expect(await disk.exists(stored!.key)).toBe(true);
+
+    const viewer = await node.user(['viewer']);
+    const refused = await viewer.agent
+      .delete(`/v1/attachments/${theirs.id}`)
+      .expect(403);
+    expect(refused.body.code).toBe('forbidden');
+
+    // The editor may change the note: they remove the administrator's file.
+    await editor.agent.delete(`/v1/attachments/${theirs.id}`).expect(204);
+    expect(await disk.exists(stored!.key)).toBe(false);
+    // The uploader removes their own.
+    await editor.agent.delete(`/v1/attachments/${mine.id}`).expect(204);
+    await editor.agent.delete(`/v1/attachments/${mine.id}`).expect(404);
+
+    const left = await editor.agent
+      .get(`/v1/notes/${note.id}/attachments`)
+      .expect(200);
+    expect(left.body.items).toEqual([]);
+    const entries = await db
+      .select()
+      .from(auditLog)
+      .where(inArray(auditLog.targetId, [mine.id, theirs.id]));
+    expect(
+      entries
+        .filter((entry) => entry.action === 'attachment.removed')
+        .map((entry) => [entry.targetId, entry.actor]),
+    ).toEqual(
+      expect.arrayContaining([
+        [theirs.id, `user:${editor.id}`],
+        [mine.id, `user:${editor.id}`],
+      ]),
+    );
+  });
+
+  it("keeps a deleted note's files while it can come back; the sweep deletes them once it is purged", async () => {
+    const { editor, note } = await noteOfEditor();
+    const disk = node.app.get(StorageDisk);
+    const added = (
+      await editor.agent
+        .post(`/v1/notes/${note.id}/attachments`)
+        .attach('file', PNG, { filename: 'dot.png', contentType: 'image/png' })
+        .expect(201)
+    ).body as { id: string };
+    const [row] = await db
+      .select()
+      .from(attachments)
+      .where(eq(attachments.id, added.id));
+
+    await editor.agent.delete(`/v1/notes/${note.id}`).expect(204);
+    // In the bin: hidden with the note.
+    await editor.agent.get(`/v1/notes/${note.id}/attachments`).expect(404);
+    await editor.agent.get(`/v1/attachments/${added.id}/download`).expect(404);
+    const sweep = node.app.get(AttachmentSweepJob);
+    expect(await sweep.run()).toBe(0);
+    expect(await disk.exists(row!.key)).toBe(true);
+
+    await db
+      .update(notes)
+      .set({ deletedAt: new Date(Date.now() - 31 * 86_400_000) })
+      .where(eq(notes.id, note.id));
+    await node.app.get(SoftDeletePurgeJob).run();
+    expect(await sweep.run()).toBe(1);
+    expect(
+      await db.select().from(attachments).where(eq(attachments.id, added.id)),
+    ).toEqual([]);
+    expect(await disk.exists(row!.key)).toBe(false);
+  });
+
+  it("lists a user's uploads in their data export (the rows, not the files)", async () => {
+    const { editor, note } = await noteOfEditor();
+    const added = (
+      await editor.agent
+        .post(`/v1/notes/${note.id}/attachments`)
+        .attach('file', PDF, {
+          filename: 'report.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201)
+    ).body as { id: string };
+    const started = await editor.agent
+      .post('/v1/account/export')
+      .send({})
+      .expect(202);
+    let status;
+    for (let tries = 0; tries < 100; tries++) {
+      status = (
+        await editor.agent
+          .get(`/v1/data/transfers/${started.body.id}`)
+          .expect(200)
+      ).body;
+      if (['completed', 'failed'].includes(status.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(status.status).toBe('completed');
+    const rows = (await node.http().get(local(status.result.url)).expect(200))
+      .body as { kind: string; id: string; data: Record<string, unknown> }[];
+    const uploads = rows.filter((row) => row.kind === 'attachments');
+    expect(uploads.map((row) => row.id)).toEqual([added.id]);
+    expect(uploads[0]!.data).toMatchObject({
+      name: 'report.pdf',
+      contentType: 'application/pdf',
+      recordId: note.id,
+    });
+    expect(uploads[0]!.data).not.toHaveProperty('key');
+  });
+});
+
+/** How many files the disk holds. */
+async function count(disk: StorageDisk) {
+  let files = 0;
+  for await (const _entry of disk.listAll()) files++;
+  return files;
+}

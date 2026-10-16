@@ -1,0 +1,14 @@
+# The workspace: apps/ (the API, frontends you add) and packages/ (the typed
+# client, shared code). Tasks across it run through Turborepo (turbo.json).
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  '@scarf/scarf': false
+  # drizzle-kit's bundler: its script checks the platform binary.
+  esbuild: true
+  # Its postinstall runs `lefthook install`, the git hooks (lefthook.yml);
+  # skipped where CI=true (CI, the image build).
+  lefthook: true
+  # bullmq's msgpackr: optional native speedup with a prebuilt binary.
+  msgpackr-extract: true

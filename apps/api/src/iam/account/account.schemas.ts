@@ -1,0 +1,63 @@
+import { ForbiddenException } from '@nestjs/common';
+import { t } from '@nestjs/i18n';
+import { z } from 'zod';
+import { isTimeZone } from '../../core/config/env.helpers.js';
+import type { Principal, UserPrincipal } from '../auth/principal.js';
+
+/** Passwords: 12 to 128 characters (NIST 800-63B: length over composition rules). */
+export const newPassword = z.string().min(12).max(128);
+/** An email address; spaces around it (a paste) are dropped first. */
+export const email = z
+  .string()
+  .trim()
+  .pipe(z.email())
+  .meta({ example: 'ada@example.com' });
+export const token = z.string().min(1).max(512);
+export const timezone = z
+  .string()
+  .max(64)
+  .refine(isTimeZone, 'must be an IANA time zone, e.g. Europe/Berlin')
+  .meta({ example: 'Europe/Berlin' });
+/** A BCP 47 language tag; the route checks it against LOCALES. */
+export const locale = z.string().min(2).max(35).meta({ example: 'de' });
+/** Where to send the browser after a sign-in by link or provider: a path of the web app. */
+export const redirectTo = z
+  .string()
+  .max(512)
+  .regex(/^\/(?!\/)/, 'must be a relative path')
+  .optional();
+
+export const userSchema = z.object({
+  kind: z.literal('user'),
+  id: z.string(),
+  email: z.string(),
+  name: z.string(),
+  emailVerified: z.boolean(),
+  locale: z.string().nullable(),
+  timezone: z.string().nullable(),
+  impersonator: z
+    .object({ id: z.string(), email: z.string() })
+    .optional()
+    .describe('Set while an administrator acts as this user.'),
+});
+
+export const signedInSchema = z.object({
+  signedIn: z.boolean(),
+  mfaRequired: z
+    .boolean()
+    .describe(
+      'true: send a code to POST /auth/mfa/verify to finish signing in.',
+    ),
+  redirectTo: z.string().optional(),
+});
+
+export const acceptedSchema = z.object({ accepted: z.literal(true) });
+
+/** Credentials can't be changed by an administrator acting as the user. */
+export function notWhileImpersonating(user: Principal) {
+  if (user.kind === 'user' && user.impersonator) {
+    throw new ForbiddenException(t('auth.notWhileImpersonating'));
+  }
+}
+
+export type User = UserPrincipal;
