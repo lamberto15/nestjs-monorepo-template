@@ -40,6 +40,20 @@ export const IAM_NOTIFICATIONS = [
     data: z.object({ enabled: z.boolean(), ip: z.string() }),
   },
   {
+    // A passkey registered (PasskeysService): a new way into the account.
+    type: 'security.passkeyAdded',
+    channels: { email: 'immediate' },
+    mandatory: true,
+    data: z.object({ name: z.string(), ip: z.string() }),
+  },
+  {
+    // A passkey removed (PasskeysService).
+    type: 'security.passkeyRemoved',
+    channels: { email: 'immediate' },
+    mandatory: true,
+    data: z.object({ name: z.string(), ip: z.string() }),
+  },
+  {
     // To the API client itself: a new key, and when its previous keys stop working.
     type: 'security.apiKeyRotated',
     channels: { webhook: true },

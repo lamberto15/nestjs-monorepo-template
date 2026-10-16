@@ -278,6 +278,8 @@ describe('notifications (e2e)', () => {
         'security.newSignIn': { email: 'immediate' },
         'security.passwordChanged': { email: 'immediate' },
         'security.mfaChanged': { email: 'immediate' },
+        'security.passkeyAdded': { email: 'immediate' },
+        'security.passkeyRemoved': { email: 'immediate' },
         'security.apiKeyRotated': { email: false },
       },
     });

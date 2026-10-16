@@ -18,6 +18,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { t } from '@nestjs/i18n';
 import { TransactionHost } from '@nestjs-cls/transactional';
+import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { eq, sql } from 'drizzle-orm';
 import {
   database,
@@ -33,6 +34,7 @@ import type { Principal, UserPrincipal } from '../auth/principal.js';
 import type { IamEnv } from '../iam.env.js';
 import { sessions, userIdentities, users } from '../iam.tables.js';
 import { oidcProviders } from './oidc.providers.js';
+import { PasskeyAssertionError, PasskeysService } from './passkeys.service.js';
 
 /** What a re-authentication in place presents (POST /auth/reauthenticate). */
 export interface ReauthenticationProof {
@@ -41,17 +43,26 @@ export interface ReauthenticationProof {
   recoveryCode?: string;
   /** A token client's current refresh token: its family is revoked once the new tokens are issued. */
   refreshToken?: string;
+  /**
+   * A passkey's assertion, from POST /auth/passkeys/reauthentication/options:
+   * instead of the password, and of the code too (it verified its user).
+   */
+  passkey?: AuthenticationResponseJSON;
 }
 
 /** How a user can re-authenticate, as the 403 and GET /auth/reauthenticate list it. */
 export interface ReauthenticationOptions {
   /**
    * In place: `password`, `totp` (a code alone, for an account without a
-   * password). By signing in again: `magic-link`, `oidc:<provider>`.
-   * Passkeys (`passkey`) and SSO (`sso:<connection>`) add theirs.
+   * password), `passkey`. By signing in again: `magic-link`,
+   * `oidc:<provider>`. SSO (`sso:<connection>`) will add its own.
    */
   methods: string[];
-  /** In place, a code (or a recovery code) goes with the password: two-factor is on. */
+  /**
+   * In place, a code (or a recovery code) goes with the password: two-factor
+   * is on. A passkey needs none from a session (it verified its user); a
+   * token client sends one with it too (the token service's rule).
+   */
   mfaRequired: boolean;
 }
 
@@ -68,9 +79,9 @@ export interface ReauthenticationOptions {
  * repeat: the check doesn't apply to them. Any other principal, or none,
  * is refused.
  *
- * Signing in again (magic link, a provider, SSO) is a re-authentication
- * too: every sign-in stamps its new session. A passkey (roadmap item 3)
- * plugs in as another proof here and another entry in `options()`.
+ * Signing in again (magic link, a provider, a passkey, SSO) is a
+ * re-authentication too: every sign-in stamps its new session. A passkey's
+ * assertion is also a proof in place (`passkey`, PasskeysService).
  */
 @Injectable()
 export class ReauthenticationService {
@@ -85,6 +96,7 @@ export class ReauthenticationService {
     private readonly sessions: SessionService,
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
+    private readonly passkeys: PasskeysService,
     private readonly config: ConfigService<IamEnv, true>,
   ) {}
 
@@ -121,12 +133,13 @@ export class ReauthenticationService {
 
   /** How `user` can re-authenticate: in place, or by signing in again. */
   async options(user: UserPrincipal): Promise<ReauthenticationOptions> {
-    const [{ hasPassword, mfaOn }, identities] = await Promise.all([
+    const [{ hasPassword, mfaOn }, identities, hasPasskey] = await Promise.all([
       this.factors(user.id),
       this.db
         .select({ provider: userIdentities.provider })
         .from(userIdentities)
         .where(eq(userIdentities.userId, user.id)),
+      this.passkeys.enabled ? this.passkeys.has(user.id) : false,
     ]);
     const configured = Object.keys(oidcProviders(this.config));
     const methods: string[] = [];
@@ -134,6 +147,9 @@ export class ReauthenticationService {
       methods.push('password');
     } else if (mfaOn) {
       methods.push('totp');
+    }
+    if (hasPasskey) {
+      methods.push('passkey');
     }
     // Magic links go to verified addresses only (MagicLinkMailer).
     if (
@@ -209,16 +225,20 @@ export class ReauthenticationService {
   /**
    * Proves again who the user is, with what the account signs in with: its
    * password, and a code when two-factor is on (a code alone for an account
-   * without a password). A session gets a new id with `authenticatedAt`
-   * now (`cookie`); a token client gets new tokens with `auth_time` now,
-   * and the family of the `refreshToken` it sent, if any, is revoked.
-   * Audited, failures too; a wrong code counts towards the lockout.
+   * without a password); or one of its passkeys, whose user verification
+   * counts for both (a token client still sends a code with it when
+   * two-factor is on). A session gets a new id with `authenticatedAt` now
+   * (`cookie`); a token client gets new tokens with `auth_time` now, and
+   * the family of the `refreshToken` it sent, if any, is revoked. Audited,
+   * failures too; a wrong code counts towards the lockout. `origin`: the
+   * request's `Origin` header, which a passkey's challenge is bound to.
    */
   async reauthenticate(
     user: UserPrincipal,
     session: unknown,
     proof: ReauthenticationProof,
     ip: string,
+    origin?: string,
   ): Promise<{
     authenticatedAt: Date;
     recentUntil: Date;
@@ -246,16 +266,19 @@ export class ReauthenticationService {
       throw new UnauthorizedException();
     }
     const { passwordHash, mfaOn } = await this.factors(user.id);
-    if (!passwordHash && !mfaOn) {
+    const byPasskey = proof.passkey !== undefined;
+    if (!passwordHash && !mfaOn && !byPasskey) {
       throw new ConflictException({
         code: 'reauthentication_unavailable',
         message: t('auth.reauthenticationUnavailable'),
         ...(await this.options(user)),
       });
     }
+    // A passkey stands for the password, and, from a session, for the code.
+    const codeNeeded = mfaOn && (!byPasskey || authentication.via === 'token');
     const missing = [
-      ...(passwordHash && !proof.password ? ['password'] : []),
-      ...(mfaOn && !proof.code && !proof.recoveryCode ? ['code'] : []),
+      ...(passwordHash && !byPasskey && !proof.password ? ['password'] : []),
+      ...(codeNeeded && !proof.code && !proof.recoveryCode ? ['code'] : []),
     ];
     if (missing.length > 0) {
       throw new BadRequestException({
@@ -269,14 +292,30 @@ export class ReauthenticationService {
         code: 'reauthentication_failed',
         message: t('auth.reauthenticationFailed'),
       });
-    if (
+    if (byPasskey) {
+      try {
+        await this.passkeys.assertForUser(user, proof.passkey!, {
+          sessionId:
+            authentication.via === 'session'
+              ? (session as SessionRecord).id
+              : null,
+          origin,
+        });
+      } catch (error) {
+        if (error instanceof PasskeyAssertionError) {
+          throw await fail(`passkey:${error.reason}`, refused());
+        }
+        throw error;
+      }
+    } else if (
       passwordHash &&
       !(await this.passwordHasher.verify(proof.password!, passwordHash))
     ) {
       throw await fail('password', refused());
     }
+    const method = byPasskey ? 'passkey' : passwordHash ? 'password' : 'totp';
     const now = new Date();
-    const secondFactor = mfaOn
+    const secondFactor = codeNeeded
       ? proof.recoveryCode
         ? { recoveryCode: proof.recoveryCode }
         : { code: proof.code }
@@ -287,8 +326,15 @@ export class ReauthenticationService {
       // The second factor is checked by issue(), once (a code works once).
       try {
         tokens = await this.tokens.issue(user.id, {
-          method: passwordHash ? 'password' : 'totp',
-          claims: tokenClaims(passwordHash ? ['pwd'] : [], now),
+          method,
+          claims: tokenClaims(
+            method === 'passkey'
+              ? ['pop']
+              : method === 'password'
+                ? ['pwd']
+                : [],
+            now,
+          ),
           secondFactor,
         });
       } catch (error) {
@@ -315,7 +361,8 @@ export class ReauthenticationService {
         }
       }
       const record = session as SessionRecord;
-      // A new id for the elevated session, as for any change of privilege.
+      // A new id for the elevated session, as for any change of privilege;
+      // a passkey that verified its user is the second factor as well.
       const issued = await this.sessions.rotate(record, {
         ...(mfaOn && { mfa: 'verified' as const }),
         metadata: { ...record.metadata, authenticatedAt: now.toISOString() },
@@ -330,7 +377,7 @@ export class ReauthenticationService {
       targetType: 'user',
       targetId: user.id,
       details: {
-        method: passwordHash ? 'password' : 'totp',
+        method,
         mfa: mfaOn,
         ...(secondFactor?.recoveryCode && { recoveryCode: true }),
         ...(authentication.via === 'token' && { via: 'token' }),

@@ -1,11 +1,11 @@
 import type { JwtClaims, SessionRecord } from '@nestjs/authentication';
 
 /**
- * How a principal proved who they are. `sso` (a tenant's SAML or OIDC
- * connection, roadmap item 2) and `passkey` (WebAuthn, item 3) are named
- * here already: their sign-ins pass `sso:<connection>` or `passkey` as the
- * package's `method` and are recorded like the others. `impersonation`: a
- * session an administrator acts in (nobody signed in to it).
+ * How a principal proved who they are. `passkey`: WebAuthn (item 3). `sso`
+ * (a tenant's SAML or OIDC connection, roadmap item 2) is named here
+ * already: its sign-ins will pass `sso:<connection>` as the package's
+ * `method` and be recorded like the others. `impersonation`: a session an
+ * administrator acts in (nobody signed in to it).
  */
 export const SIGN_IN_METHODS = [
   'password',
@@ -58,7 +58,9 @@ export const signInOptions = (method: string) => ({
 
 /**
  * The claims of a token client's sign-in, fixed for its refresh family: how
- * (RFC 8176 `amr`; the package adds `mfa` itself) and when (OpenID Connect
+ * (RFC 8176 `amr`: `pwd` a password, `pop` a passkey, as proof of
+ * possession of a key, since the package drops `hwk` (it means a second
+ * factor there); the package adds `mfa` itself) and when (OpenID Connect
  * `auth_time`, epoch seconds).
  */
 export const tokenClaims = (amr: string[], at = new Date()) => ({
@@ -140,7 +142,11 @@ export function authenticationOf(
     const amr = Array.isArray(claims.amr) ? (claims.amr as unknown[]) : [];
     return {
       via: 'token',
-      method: amr.includes('pwd') ? 'password' : null,
+      method: amr.includes('pwd')
+        ? 'password'
+        : amr.includes('pop')
+          ? 'passkey'
+          : null,
       provider: null,
       mfa: amr.includes('mfa'),
       authenticatedAt: dateOf(claims.auth_time, 'seconds'),

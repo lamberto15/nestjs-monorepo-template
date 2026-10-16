@@ -13,6 +13,7 @@ import {
 import {
   auditLog,
   orgUnits,
+  passkeys,
   refreshTokens,
   roles,
   sessions,
@@ -108,6 +109,23 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
         .from(userIdentities)
         .where(eq(userIdentities.userId, user.id))
     ).map((identity) => row('identity', identity));
+    // Passkeys without their public keys: what identifies them, not the key material.
+    yield (
+      await this.db
+        .select({
+          id: passkeys.id,
+          name: passkeys.name,
+          credentialId: passkeys.credentialId,
+          deviceType: passkeys.deviceType,
+          backedUp: passkeys.backedUp,
+          transports: passkeys.transports,
+          aaguid: passkeys.aaguid,
+          lastUsedAt: passkeys.lastUsedAt,
+          createdAt: passkeys.createdAt,
+        })
+        .from(passkeys)
+        .where(eq(passkeys.userId, user.id))
+    ).map((passkey) => row('passkey', passkey));
     yield (
       await this.db
         .select({

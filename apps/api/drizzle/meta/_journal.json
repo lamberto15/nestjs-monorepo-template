@@ -176,6 +176,13 @@
       "when": 1792152625213,
       "tag": "0024_mysterious_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792155999710,
+      "tag": "0025_far_silver_fox",
+      "breakpoints": true
     }
   ]
 }

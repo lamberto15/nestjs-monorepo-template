@@ -36,9 +36,15 @@ export interface CredentialChange {
   /** The audit action (`auth.password-changed`). */
   action: string;
   ip: string;
-  type: 'security.passwordChanged' | 'security.mfaChanged';
+  type:
+    | 'security.passwordChanged'
+    | 'security.mfaChanged'
+    | 'security.passkeyAdded'
+    | 'security.passkeyRemoved';
   /** The notification's data, without `ip` (added, normalized). */
   data: Record<string, unknown>;
+  /** The audit entry's details (which passkey). */
+  details?: Record<string, unknown>;
   /** Tell the owner only if the account was used before (an invitation's first password isn't news). */
   onlyIfUsed?: boolean;
 }
@@ -96,10 +102,12 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     context: {
       userAgent: unknown;
       ip: string;
-      /** `password`, `magic-link`, `oidc:google`. */
+      /** `password`, `magic-link`, `oidc:google`, `passkey`. */
       method: string;
       /** A token client (`POST /auth/token`) rather than a browser session. */
       via?: 'token';
+      /** More for the audit entry (which passkey, whether it verified its user). */
+      details?: Record<string, unknown>;
     },
   ) {
     const device = deviceOf(context.userAgent, context.ip);
@@ -134,6 +142,7 @@ export class SecurityAlertsService implements OnApplicationShutdown {
             userAgent: device.summary,
             method: context.method,
             ...(context.via && { via: context.via }),
+            ...context.details,
           },
         },
         tx,
@@ -173,7 +182,13 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     const used = !change.onlyIfUsed || (await this.hasBeenUsed(tx, to));
     await this.audit.record(
       actor,
-      { action: change.action, targetType: 'user', targetId: userId, ip },
+      {
+        action: change.action,
+        targetType: 'user',
+        targetId: userId,
+        ...(change.details && { details: change.details }),
+        ip,
+      },
       tx,
     );
     return (
