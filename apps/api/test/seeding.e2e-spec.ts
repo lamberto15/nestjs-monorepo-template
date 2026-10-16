@@ -1,4 +1,3 @@
-import { PasswordHasher } from '@nestjs/authentication';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -9,6 +8,7 @@ import {
 import { count, eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import { AppModule } from '../src/app.module.js';
+import { PASSWORD_HASHER_PARAMS } from '../src/iam/account/password-hashing.js';
 import { createDatabase, type Database } from '../src/core/database/drizzle.js';
 import { auditLog, roles, users } from '../src/iam/iam.tables.js';
 import { testDatabase } from './support.js';
@@ -52,8 +52,8 @@ describe('first start (seeding)', () => {
         clock: new ManualWorkflowClock(),
         worker: { enabled: false, shutdownTimeout: 50 },
       })
-      .overrideProvider(PasswordHasher)
-      .useValue(new PasswordHasher({ logN: 10 }))
+      .overrideProvider(PASSWORD_HASHER_PARAMS)
+      .useValue({ logN: 10 })
       .compile();
     return moduleRef.createNestApplication({ logger: false });
   }
