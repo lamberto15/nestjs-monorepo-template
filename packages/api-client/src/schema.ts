@@ -3449,7 +3449,7 @@ export interface operations {
                                 max?: number;
                                 minLength?: number;
                                 maxLength?: number;
-                                /** @description A regular expression the whole value must match (text types). */
+                                /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
                                 pattern?: string;
                             } | null;
                             position: number;
@@ -3539,7 +3539,7 @@ export interface operations {
                         max?: number;
                         minLength?: number;
                         maxLength?: number;
-                        /** @description A regular expression the whole value must match (text types). */
+                        /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
                         pattern?: string;
                     };
                     /** @description Default: after the others. */
@@ -3577,7 +3577,7 @@ export interface operations {
                             max?: number;
                             minLength?: number;
                             maxLength?: number;
-                            /** @description A regular expression the whole value must match (text types). */
+                            /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
                             pattern?: string;
                         } | null;
                         position: number;
@@ -3666,7 +3666,7 @@ export interface operations {
                                 max?: number;
                                 minLength?: number;
                                 maxLength?: number;
-                                /** @description A regular expression the whole value must match (text types). */
+                                /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
                                 pattern?: string;
                             } | null;
                             position: number;
@@ -3770,7 +3770,7 @@ export interface operations {
                         max?: number;
                         minLength?: number;
                         maxLength?: number;
-                        /** @description A regular expression the whole value must match (text types). */
+                        /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
                         pattern?: string;
                     } | null;
                     filterable?: boolean;
@@ -3808,7 +3808,7 @@ export interface operations {
                             max?: number;
                             minLength?: number;
                             maxLength?: number;
-                            /** @description A regular expression the whole value must match (text types). */
+                            /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
                             pattern?: string;
                         } | null;
                         position: number;
@@ -10096,7 +10096,12 @@ export interface operations {
     };
     OidcController_callback_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+                iss?: string;
+            };
             header?: never;
             path: {
                 provider: string;

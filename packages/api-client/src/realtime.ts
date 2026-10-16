@@ -143,13 +143,26 @@ export interface Realtime {
 }
 
 /**
+ * `url` without its trailing slashes. A loop, not `replace(/\/+$/, '')`:
+ * that regex is quadratic on a URL made of many slashes (CodeQL
+ * js/polynomial-redos), and the URL is whatever the caller passes.
+ */
+export function trimTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') {
+    end--;
+  }
+  return url.slice(0, end);
+}
+
+/**
  * A connection to the API's realtime events (socket.io, `/realtime`), over
  * WebSocket only: no long-polling, so no sticky sessions needed.
  */
 export function createRealtime(options: RealtimeOptions): Realtime {
   const { token } = options;
   const socket: RealtimeSocket = io(
-    `${options.url.replace(/\/+$/, '')}/realtime`,
+    `${trimTrailingSlashes(options.url)}/realtime`,
     {
       transports: ['websocket'],
       ...(token === undefined
