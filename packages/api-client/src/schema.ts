@@ -557,7 +557,7 @@ export interface paths {
         };
         /**
          * Every setting and flag, with your value of each
-         * @description Your value: your own, else your org unit's, else the global one (or a rollout), else the default. Settings not marked public show only to those who manage settings.
+         * @description Your value: your own, else your org unit's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.
          */
         get: operations["SettingsController_list_v1"];
         put?: never;
@@ -579,7 +579,7 @@ export interface paths {
         get: operations["SettingsController_get_v1"];
         /**
          * Set a setting for everyone, an org unit, or one principal
-         * @description Replaces what that scope had. A flag at the global scope may take `rollout` (a percentage) instead of a value. Applies everywhere on the next request. Audited.
+         * @description Replaces what that scope had, in the caller's tenant. A flag at the tenant scope may take `rollout` (a percentage) instead of a value. Applies on the next request. Audited.
          */
         put: operations["SettingsController_set_v1"];
         post?: never;
@@ -2114,6 +2114,67 @@ export interface paths {
         patch: operations["OrgUnitsController_update_v1"];
         trace?: never;
     };
+    "/v1/auth/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenants you belong to
+         * @description The active memberships of active tenants, the last chosen first. `current` is the one this session acts in.
+         */
+        get: operations["TenantSwitchController_tenants_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/tenant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Act in another of your tenants
+         * @description Re-issues the session (a new cookie) in that tenant. Never while impersonating. Realtime connections reconnect to hear the new tenant.
+         */
+        post: operations["TenantSwitchController_switch_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every tenant (operators) */
+        get: operations["TenantsController_list_v1"];
+        put?: never;
+        /**
+         * Create a tenant and its first administrator (operators)
+         * @description The tenant gets the built-in and declared roles; the administrator is the account at `administratorEmail` (made and invited when there is none).
+         */
+        post: operations["TenantsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notes": {
         parameters: {
             query?: never;
@@ -2980,7 +3041,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3012,7 +3077,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3043,7 +3112,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3076,7 +3149,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3113,7 +3190,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3150,7 +3231,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4339,14 +4424,14 @@ export interface operations {
                             /** @description A feature flag (boolean, may roll out to a share of principals). */
                             flag: boolean;
                             /** @description Where it may be set; `user`: you may set it for yourself. */
-                            scopes: ("global" | "orgUnit" | "user")[];
+                            scopes: ("tenant" | "orgUnit" | "user")[];
                             public: boolean;
                             value: unknown;
                             /**
                              * @description Where your value comes from.
                              * @enum {string}
                              */
-                            source: "global" | "orgUnit" | "user" | "rollout" | "default";
+                            source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
                             default: unknown;
                         }[];
                     };
@@ -4392,14 +4477,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("global" | "orgUnit" | "user")[];
+                        scopes: ("tenant" | "orgUnit" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "global" | "orgUnit" | "user" | "rollout" | "default";
+                        source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
                         default: unknown;
                     };
                 };
@@ -4439,15 +4524,15 @@ export interface operations {
             content: {
                 "application/json": {
                     /**
-                     * @default global
+                     * @default tenant
                      * @enum {string}
                      */
-                    scope?: "global" | "orgUnit" | "user";
+                    scope?: "tenant" | "orgUnit" | "user";
                     /** @description For orgUnit: the unit's id; for user: the principal's key (`user:<id>`, `client:<id>`). */
                     scopeId?: string;
                     /** @description The value; left out with `rollout`: the flag's rollout alone applies. */
                     value?: unknown;
-                    /** @description Flags, global scope: the percentage of principals the flag is on for. */
+                    /** @description Flags, tenant scope: the percentage of the tenant's principals the flag is on for. */
                     rollout?: number | null;
                 };
             };
@@ -4462,8 +4547,8 @@ export interface operations {
                         /** @example notes.publishDelay */
                         key: string;
                         /** @enum {string} */
-                        scope: "global" | "orgUnit" | "user";
-                        /** @description The org unit's id, the principal's key (`user:<id>`), or '' for global. */
+                        scope: "tenant" | "orgUnit" | "user";
+                        /** @description The org unit's id, the principal's key (`user:<id>`), or '' for the tenant. */
                         scopeId: string;
                         value: unknown;
                         rollout: number | null;
@@ -4473,7 +4558,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description A scope the setting does not take, a value its schema refuses, a rollout on something that is not a global flag (validation_failed). */
+            /** @description A scope the setting does not take, a value its schema refuses, a rollout on something that is not a flag at the tenant scope (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4506,7 +4591,7 @@ export interface operations {
     SettingsController_unset_v1: {
         parameters: {
             query?: {
-                scope?: "global" | "orgUnit" | "user";
+                scope?: "tenant" | "orgUnit" | "user";
                 scopeId?: string;
             };
             header?: never;
@@ -4575,14 +4660,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("global" | "orgUnit" | "user")[];
+                        scopes: ("tenant" | "orgUnit" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "global" | "orgUnit" | "user" | "rollout" | "default";
+                        source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
                         default: unknown;
                     };
                 };
@@ -4640,14 +4725,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("global" | "orgUnit" | "user")[];
+                        scopes: ("tenant" | "orgUnit" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "global" | "orgUnit" | "user" | "rollout" | "default";
+                        source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
                         default: unknown;
                     };
                 };
@@ -4695,8 +4780,8 @@ export interface operations {
                             /** @example notes.publishDelay */
                             key: string;
                             /** @enum {string} */
-                            scope: "global" | "orgUnit" | "user";
-                            /** @description The org unit's id, the principal's key (`user:<id>`), or '' for global. */
+                            scope: "tenant" | "orgUnit" | "user";
+                            /** @description The org unit's id, the principal's key (`user:<id>`), or '' for the tenant. */
                             scopeId: string;
                             value: unknown;
                             rollout: number | null;
@@ -6536,7 +6621,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6623,7 +6712,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6701,7 +6794,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6740,7 +6837,11 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -9356,6 +9457,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
+                        tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
                         impersonator?: {
                             id: string;
@@ -9473,12 +9576,20 @@ export interface operations {
                             emailVerified: boolean;
                             locale: string | null;
                             timezone: string | null;
+                            /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
+                            tenantId: string | null;
                             /** @description Set while an administrator acts as this user. */
                             impersonator?: {
                                 id: string;
                                 email: string;
                             };
                         };
+                        /** @description The tenant this session or token acts in; null: none. */
+                        tenant: {
+                            id: string;
+                            slug: string;
+                            name: string;
+                        } | null;
                         mfaEnabled: boolean;
                         authentication: {
                             /** @enum {string} */
@@ -9554,6 +9665,8 @@ export interface operations {
                         emailVerified: boolean;
                         locale: string | null;
                         timezone: string | null;
+                        /** @description The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet). */
+                        tenantId: string | null;
                         /** @description Set while an administrator acts as this user. */
                         impersonator?: {
                             id: string;
@@ -10197,6 +10310,11 @@ export interface operations {
                     /** @description With two-factor on: a code from the app. */
                     code?: string;
                     recoveryCode?: string;
+                    /**
+                     * Format: uuid
+                     * @description The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.
+                     */
+                    tenantId?: string;
                 };
             };
         };
@@ -11509,6 +11627,164 @@ export interface operations {
             };
         };
     };
+    TenantSwitchController_tenants_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            slug: string;
+                            name: string;
+                            /** @description The tenant this session or token acts in. */
+                            current: boolean;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    TenantSwitchController_switch_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description One of GET /auth/tenants.
+                     */
+                    tenantId: string;
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of your tenants. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            slug: string;
+                            name: string;
+                            active: boolean;
+                            operator: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @description A short handle: lowercase letters, digits and dashes (`acme`). */
+                    slug: string;
+                    /**
+                     * Format: email
+                     * @description Its first administrator: an account at this address (made, and invited to choose a password, when there is none).
+                     */
+                    administratorEmail: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        active: boolean;
+                        operator: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `tenant_slug_taken`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     NotesController_list_v1: {
         parameters: {
             query?: {
@@ -12341,6 +12617,8 @@ export interface operations {
                     type: "note.publish-requested";
                     data: {
                         noteId: string;
+                        /** Format: uuid */
+                        tenantId: string;
                     };
                 };
             };
