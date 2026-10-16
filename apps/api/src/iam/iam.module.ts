@@ -40,6 +40,12 @@ import {
   PWNED_PASSWORDS,
 } from './account/breached-passwords.service.js';
 import { CredentialsService } from './account/credentials.service.js';
+import {
+  boundedPasswordHasher,
+  PASSWORD_HASHER_PARAMS,
+  PasswordHashLimiter,
+  passwordHashingProviders,
+} from './account/password-hashing.js';
 import { CAPTCHA_VERIFIER } from './captcha/captcha-verifier.js';
 import { CaptchaGuard } from './captcha/captcha.guard.js';
 import {
@@ -124,6 +130,9 @@ export class IamModule {
       UserLifecycleRegistry,
       // Work without a user runs as the system principal (seeds, cron jobs, workflows).
       SystemContext,
+      // Global, so AuthenticationModule's PasswordHasher (below) reaches them.
+      PasswordHashLimiter,
+      PASSWORD_HASHER_PARAMS,
     ];
     return {
       module: IamModule,
@@ -132,84 +141,86 @@ export class IamModule {
         // Every route needs a signed-in principal unless it's @Public(). The
         // global guard is PrincipalGuard (below): the package's, refusing the
         // system principal.
-        AuthenticationModule.forRootAsync({
-          globalGuard: false,
-          inject: [ConfigService, getDrizzleToken(), ClsService],
-          useFactory: async (
-            config: ConfigService<IamEnv & CoreEnv, true>,
-            db: Database,
-            cls: ClsService,
-          ) => {
-            const web = webUrl(config);
-            const api = config.get('APP_URL', { infer: true });
-            const providers = oidcProviders(config);
-            const origins = config.get('CORS_ORIGINS', { infer: true });
-            // Off only for tests over plain HTTP; applies to every cookie the module sets.
-            const cookie = {
-              secure: config.get('SESSION_COOKIE_SECURE', { infer: true }),
-            };
-            return {
-              session: {
-                absoluteTtl: '12h', // a user session ends after a working day
-                idleTtl: '2h', // or after two hours without a request
-                // Without Secure (tests only), the cookie is named "sid", not "__Host-sid".
-                cookie,
-                // The web app on another origin may use the cookie (same list as CSRF).
-                trustedOrigins: origins,
-                // What the session keeps of the request: a new-device check
-                // reads it from the sign-in event (SecurityAlertsService).
-                // Every sign-in (password, link, provider) passes here, so
-                // this is where its method and time are recorded (step-up:
-                // ReauthenticationService): from the sign-in under way
-                // (SignInContext), else now.
-                metadata: (request: {
-                  headers: Record<string, unknown>;
-                  ip?: string;
-                }) => ({
-                  userAgent: request.headers['user-agent'],
-                  ip: request.ip,
-                  ...signInMetadata(cls),
-                }),
-              },
-              // TOTP secrets encrypted at rest (AES-256-GCM), newest key first.
-              mfa: {
-                encryption: {
-                  keys: (
-                    await loadOrCreateSecret(
-                      db,
-                      'MFA_ENCRYPTION_KEYS',
-                      random256,
-                    )
-                  ).split(','),
-                },
-                issuer:
-                  config.get('MFA_ISSUER', { infer: true }) ??
-                  config.get('SERVICE_NAME', { infer: true }),
-              },
-              // Access tokens for mobile apps and CLIs (POST /auth/token), with refresh tokens.
-              accessToken: {
-                key: await loadOrCreateSecret(db, 'JWT_SECRET', random256),
-                issuer: api,
-                audience: config.get('SERVICE_NAME', { infer: true }),
-                ttl: '15m',
-              },
-              // The pages of the web app the emails link to; each POSTs the token back.
-              passwordReset: { url: `${web}/reset-password` },
-              emailVerification: { url: `${web}/verify-email` },
-              ...(config.get('AUTH_MAGIC_LINK', { infer: true }) && {
-                magicLink: { url: `${web}/magic-link`, cookie },
-              }),
-              ...(Object.keys(providers).length > 0 && {
-                oidc: {
-                  callbackUrl: `${api}/v1/auth/oidc/:provider/callback`,
-                  providers,
-                  redirectAfterLogin: `${web}/`,
+        withBoundedPasswordHasher(
+          AuthenticationModule.forRootAsync({
+            globalGuard: false,
+            inject: [ConfigService, getDrizzleToken(), ClsService],
+            useFactory: async (
+              config: ConfigService<IamEnv & CoreEnv, true>,
+              db: Database,
+              cls: ClsService,
+            ) => {
+              const web = webUrl(config);
+              const api = config.get('APP_URL', { infer: true });
+              const providers = oidcProviders(config);
+              const origins = config.get('CORS_ORIGINS', { infer: true });
+              // Off only for tests over plain HTTP; applies to every cookie the module sets.
+              const cookie = {
+                secure: config.get('SESSION_COOKIE_SECURE', { infer: true }),
+              };
+              return {
+                session: {
+                  absoluteTtl: '12h', // a user session ends after a working day
+                  idleTtl: '2h', // or after two hours without a request
+                  // Without Secure (tests only), the cookie is named "sid", not "__Host-sid".
                   cookie,
+                  // The web app on another origin may use the cookie (same list as CSRF).
+                  trustedOrigins: origins,
+                  // What the session keeps of the request: a new-device check
+                  // reads it from the sign-in event (SecurityAlertsService).
+                  // Every sign-in (password, link, provider) passes here, so
+                  // this is where its method and time are recorded (step-up:
+                  // ReauthenticationService): from the sign-in under way
+                  // (SignInContext), else now.
+                  metadata: (request: {
+                    headers: Record<string, unknown>;
+                    ip?: string;
+                  }) => ({
+                    userAgent: request.headers['user-agent'],
+                    ip: request.ip,
+                    ...signInMetadata(cls),
+                  }),
                 },
-              }),
-            };
-          },
-        }),
+                // TOTP secrets encrypted at rest (AES-256-GCM), newest key first.
+                mfa: {
+                  encryption: {
+                    keys: (
+                      await loadOrCreateSecret(
+                        db,
+                        'MFA_ENCRYPTION_KEYS',
+                        random256,
+                      )
+                    ).split(','),
+                  },
+                  issuer:
+                    config.get('MFA_ISSUER', { infer: true }) ??
+                    config.get('SERVICE_NAME', { infer: true }),
+                },
+                // Access tokens for mobile apps and CLIs (POST /auth/token), with refresh tokens.
+                accessToken: {
+                  key: await loadOrCreateSecret(db, 'JWT_SECRET', random256),
+                  issuer: api,
+                  audience: config.get('SERVICE_NAME', { infer: true }),
+                  ttl: '15m',
+                },
+                // The pages of the web app the emails link to; each POSTs the token back.
+                passwordReset: { url: `${web}/reset-password` },
+                emailVerification: { url: `${web}/verify-email` },
+                ...(config.get('AUTH_MAGIC_LINK', { infer: true }) && {
+                  magicLink: { url: `${web}/magic-link`, cookie },
+                }),
+                ...(Object.keys(providers).length > 0 && {
+                  oidc: {
+                    callbackUrl: `${api}/v1/auth/oidc/:provider/callback`,
+                    providers,
+                    redirectAfterLogin: `${web}/`,
+                    cookie,
+                  },
+                }),
+              };
+            },
+          }),
+        ),
         // Denies by default: a route runs only with @Can(), @Can.Anyone() or @Public().
         AuthorizationModule.forRoot(),
         // Pwned Passwords (BreachedPasswordsService): the app-wide defaults
@@ -265,6 +276,8 @@ export class IamModule {
         UsersRepository,
         CredentialsService,
         BreachedPasswordsService,
+        // At most PASSWORD_HASH_CONCURRENCY password hashes at once (password-hashing.ts).
+        ...passwordHashingProviders,
         // Bot protection on the public routes (@Captcha()): the verifier
         // CAPTCHA_PROVIDER names, checked at startup (keys, never the stub in production).
         {
@@ -326,4 +339,18 @@ export class IamModule {
       exports: exported,
     };
   }
+}
+
+/**
+ * AuthenticationModule with its PasswordHasher replaced by the bounded one
+ * (password-hashing.ts), so the package's own services (sign-in, password
+ * reset) share the app's hashing limit. The package has no hasher option;
+ * a dynamic module's providers register after the module's own, so this
+ * one takes the token. The e2e tests check the instance (password-hashing.e2e-spec.ts).
+ */
+function withBoundedPasswordHasher(module: DynamicModule): DynamicModule {
+  return {
+    ...module,
+    providers: [...(module.providers ?? []), boundedPasswordHasher],
+  };
 }

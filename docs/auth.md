@@ -75,6 +75,18 @@ sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
 - **`ADMIN_PASSWORD`** is only warned about (an error in the log on the
   first start): refusing it would leave the deployment without an
   administrator. A generated one isn't checked.
+- **Hashing:** scrypt from @nestjs/authentication's `PasswordHasher`
+  (N = 2^17, r = 8, p = 1: 128 MiB and ~0.4 s of CPU per hash; stored as
+  `$scrypt$ln=17,r=8,p=1$…`, so a hash keeps verifying when the parameters
+  change, and sign-in rehashes it). At most `PASSWORD_HASH_CONCURRENCY` run
+  at once per process (`iam/account/password-hashing.ts`, every sign-in,
+  token, re-authentication, change, reset and seed); the next wait, and past
+  `PASSWORD_HASH_MAX_QUEUE` or `PASSWORD_HASH_QUEUE_TIMEOUT_MS` they answer
+  503 `server_busy` (`Retry-After: 1`). An unknown email waits and hashes
+  like a known one. A reset or invitation link takes its slot before the
+  package consumes the token (`limiter.run()` around `reset()`, re-entrant),
+  so a busy answer leaves the link working; any new flow that spends
+  something and then hashes must do the same. Sizing: [deployment.md](deployment.md#resource-limits).
 - **Not checked: sign-in** with an existing password. A possible follow-up:
   check it at sign-in (the plaintext is there) and ask the user to change
   it, or flag the account, without blocking the sign-in.

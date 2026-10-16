@@ -19,6 +19,19 @@
   (undefined providers): keep the steps' service apart (`NotePublisher`).
 - **Workflow durations** come from the environment and must not change while
   an instance runs; cast with `as Duration`.
+- **Memory-hard hashing × the threadpool vs the container's limit:** scrypt
+  takes 128 MiB per password hash outside the V8 heap, and Node runs 4 at
+  once (libuv's threadpool), so four concurrent sign-ins added 512 MiB to a
+  512 MiB api container and the kernel killed it (exit 137, OOM) under 5
+  sign-ins/s; the heap limit says nothing about it. Every hash goes through
+  `PasswordHashLimiter` (`PASSWORD_HASH_CONCURRENCY`, 503 `server_busy` past
+  its queue), and the limit holds `heap + 128 MiB + concurrency × 128 MiB`
+  ([deployment.md](deployment.md#resource-limits)). Raise one, size the
+  others; never hash with `node:crypto` directly, and never lower the scrypt
+  parameters to save memory. The package's hasher is replaced, not wrapped
+  at call sites: its own services (sign-in, password reset) hash too. A
+  flow that consumes something (a reset link) and then hashes takes the
+  slot first (`limiter.run()`), or a 503 there would spend the link.
 - **Abstract base classes of injectables need `@Injectable()`**: without it,
   TypeScript emits no constructor metadata and Nest injects `undefined`.
 - **`ConfigService` in constructors:** type it `ConfigService<Env, true>`

@@ -3,7 +3,6 @@ import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
-import { PasswordHasher } from '@nestjs/authentication';
 import {
   type InMemoryMailTransport,
   MailTransport,
@@ -27,6 +26,7 @@ import { inject } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { createDatabase } from '../src/core/database/drizzle.js';
 import { configureApp } from '../src/configure-app.js';
+import { PASSWORD_HASHER_PARAMS } from '../src/iam/account/password-hashing.js';
 import { databaseUrl } from './global-setup.js';
 
 /** A TOTP code for a base32 secret, as an authenticator app computes it (RFC 6238). */
@@ -153,9 +153,6 @@ export async function testDatabase() {
   };
 }
 
-/** One for every app of the file: scrypt with N = 2^10 instead of 2^17. */
-const testPasswordHasher = new PasswordHasher({ logN: 10 });
-
 /**
  * Boots the app as main.ts does, on a free port, with a manual workflow
  * clock, on a database of its own. `override` replaces more providers
@@ -182,9 +179,10 @@ export async function bootApp(
     // scrypt as production runs it (N = 2^17, 128 MiB) costs every hash and
     // sign-in a few hundred milliseconds, and every test boots an app that
     // seeds and signs in users: the package's cheaper parameters for tests
-    // (its PasswordHasher docs). Same code path, a hash 128 times cheaper.
-    .overrideProvider(PasswordHasher)
-    .useValue(testPasswordHasher);
+    // (its PasswordHasher docs). Same code path (the app's bounded hasher,
+    // under PASSWORD_HASH_CONCURRENCY), a hash 128 times cheaper.
+    .overrideProvider(PASSWORD_HASHER_PARAMS)
+    .useValue({ logN: 10 });
   const moduleRef = await override(builder).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     // TEST_LOGS=1 shows the application's errors while debugging a test.

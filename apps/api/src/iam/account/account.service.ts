@@ -34,6 +34,7 @@ import { signInOptions, tokenClaims } from '../auth/authentication-method.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
 import { CredentialsService } from './credentials.service.js';
+import { PasswordHashLimiter } from './password-hashing.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
 
@@ -74,6 +75,7 @@ export class AccountService {
     private readonly signInContext: SignInContext,
     private readonly oidc: OidcService,
     private readonly reauthentication: ReauthenticationService,
+    private readonly hashLimiter: PasswordHashLimiter,
   ) {}
 
   /** A new account with a password (not one found in data breaches), audited. */
@@ -114,10 +116,17 @@ export class AccountService {
    * A password set with a reset or invitation link (PasswordResetService):
    * refused before the link is spent when it's found in data breaches, then
    * a 400 for an unknown, used or expired link.
+   *
+   * The hashing slot is taken before the link: the package consumes the
+   * token, then hashes the new password, so a 503 server_busy from a full
+   * hashing queue there would spend the link (and a flood of sign-ins could
+   * deny resets). Busy now, the link is untouched and the retry works.
    */
   async resetPassword(token: string, password: string, ip: string) {
     await this.breachedPasswords.assertNotBreached(password, 'password');
-    const result = await this.passwordReset.reset(token, password);
+    const result = await this.hashLimiter.run(() =>
+      this.passwordReset.reset(token, password),
+    );
     if (!result) {
       throw new BadRequestException(t('auth.invalidLink'));
     }

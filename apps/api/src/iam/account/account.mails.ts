@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { I18nService } from '@nestjs/i18n';
 import type { Mailable, MailRenderContext } from '@nestjs/mail';
 import type { CoreEnv } from '../../core/config/core.env.js';
+import { EssentialMail } from '../../core/mail/mail-suppression.js';
 
 /** Who an account email goes to, and how they read it. */
 export interface AccountMail {
@@ -63,6 +64,8 @@ abstract class AccountMailable implements Mailable<AccountMail> {
   }
 }
 
+/** Asked for by the person: still sent to an address that complained (@EssentialMail). */
+@EssentialMail()
 @Injectable()
 export class ResetPasswordMail extends AccountMailable {
   protected readonly template = 'reset-password';
@@ -76,12 +79,16 @@ export class InvitationMail extends AccountMailable {
   protected readonly subjectKey = 'mail.invitation.subject';
 }
 
+/** Asked for by the person (their own address): essential. */
+@EssentialMail()
 @Injectable()
 export class VerifyEmailMail extends AccountMailable {
   protected readonly template = 'verify-email';
   protected readonly subjectKey = 'mail.verifyEmail.subject';
 }
 
+/** Asked for by the person: essential. */
+@EssentialMail()
 @Injectable()
 export class MagicLinkMail extends AccountMailable {
   protected readonly template = 'magic-link';

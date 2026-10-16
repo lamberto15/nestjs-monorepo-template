@@ -78,6 +78,11 @@ x-app: &app
     PASSWORD_BREACH_TIMEOUT_MS: ${PASSWORD_BREACH_TIMEOUT_MS:-2000}
     PASSWORD_BREACH_ON_ERROR: ${PASSWORD_BREACH_ON_ERROR:-allow}
     PASSWORD_BREACH_MIN_COUNT: ${PASSWORD_BREACH_MIN_COUNT:-1}
+    # Password hashes (scrypt, 128 MiB each outside the heap) at once per
+    # process, the rest queued then 503 server_busy: the memory limits below
+    # hold the heap plus these (docs/deployment.md, "Resource limits").
+    PASSWORD_HASH_MAX_QUEUE: ${PASSWORD_HASH_MAX_QUEUE:-20}
+    PASSWORD_HASH_QUEUE_TIMEOUT_MS: ${PASSWORD_HASH_QUEUE_TIMEOUT_MS:-5000}
     # Bot protection on the public account routes (docs/auth.md, "Bot
     # protection"): off until the Turnstile keys are set. Never the stub here.
     CAPTCHA_MODE: ${CAPTCHA_MODE:-off}
@@ -206,14 +211,18 @@ services:
       APP_ROLE: api
       # Connections per replica: API_REPLICAS × this + the workers' < POSTGRES_MAX_CONNECTIONS.
       DATABASE_POOL_MAX: ${API_DATABASE_POOL_MAX:-10}
-      # The V8 heap under the container's memory limit, leaving room for buffers.
+      # The V8 heap under the container's memory limit, leaving room for
+      # buffers and the password hashes: API_MEMORY ≥ API_HEAP_MB + 128 MiB
+      # (native, MFA codes) + API_PASSWORD_HASH_CONCURRENCY × 128 MiB
+      # (docs/deployment.md, "Resource limits"): 384 + 128 + 2 × 128 = 768.
       NODE_OPTIONS: --max-old-space-size=${API_HEAP_MB:-384}
+      PASSWORD_HASH_CONCURRENCY: ${API_PASSWORD_HASH_CONCURRENCY:-2}
     deploy:
       replicas: ${API_REPLICAS:-2}
       resources:
         limits:
           cpus: '${API_CPUS:-1}'
-          memory: ${API_MEMORY:-512M}
+          memory: ${API_MEMORY:-768M}
     # /health turns 503 on SIGTERM, then requests in flight finish.
     stop_grace_period: 30s
     volumes:
@@ -237,6 +246,11 @@ services:
       # Workflow steps (10), exports (2), mail (5), the relay and deliveries run at once.
       DATABASE_POOL_MAX: ${WORKER_DATABASE_POOL_MAX:-20}
       NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-768}
+      # It serves no sign-ins: it hashes only at the first start of a
+      # deployment, when every process (api and worker alike) runs the seeder
+      # and hashes the first administrator's password. One at a time:
+      # 768 + 128 + 1 × 128 = 1024, within WORKER_MEMORY (1G).
+      PASSWORD_HASH_CONCURRENCY: ${WORKER_PASSWORD_HASH_CONCURRENCY:-1}
     deploy:
       replicas: ${WORKER_REPLICAS:-1}
       resources:

@@ -51,6 +51,11 @@ await this.webhooks.dispatch(tx, { type: 'note.published', tenant: clientId, dat
 A redelivered event id is answered 200 by the package before the handler
 runs. Model: `features/notes/example-sender-webhook.controller.ts`.
 
+A sender that doesn't sign with an HMAC scheme keeps a route of its own:
+SES's bounces and complaints arrive as SNS notifications, RSA-signed with
+a certificate the message names, at `POST /v1/webhooks/mail/ses`
+([deliverability.md](deliverability.md)).
+
 ## Ops
 
 For users with the `Ops` permissions (a session or a user token):
