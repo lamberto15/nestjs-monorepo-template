@@ -163,15 +163,18 @@ describe('passkeys (e2e)', () => {
       .where(eq(sessions.id, id));
   }
 
-  /** Two-factor on; returns the secret. */
+  /**
+   * Two-factor on; returns the recovery codes (the confirming code's
+   * window is spent: a code works once).
+   */
   async function enableMfa(who: Person) {
     const { secret } = (await who.agent.post('/v1/auth/mfa/enroll').expect(200))
       .body;
-    await who.agent
+    const confirmed = await who.agent
       .post('/v1/auth/mfa/confirm')
       .send({ code: totp(secret) })
       .expect(200);
-    return secret as string;
+    return confirmed.body.recoveryCodes as string[];
   }
 
   /** The failed passkey sign-ins' reasons, oldest first. */
@@ -470,16 +473,15 @@ describe('passkeys (e2e)', () => {
       undefined,
       'https://app.web.example.com',
     ).expect(401);
-    // An Origin header no one configured narrows nothing: clientDataJSON
-    // must still name a configured origin.
-    await passkeySignIn(
-      me.device.get(
-        await signInOptions({}, ip(), 'https://web-example.evil.test'),
-        { origin: 'https://web-example.evil.test' },
-      ),
-      undefined,
-      'https://web-example.evil.test',
-    ).expect((res) => expect([401, 403]).toContain(res.status));
+    // A page on an origin nobody configured can't even start a ceremony:
+    // the app's CSRF check refuses its state-changing request.
+    await node
+      .http()
+      .post('/v1/auth/passkeys/sign-in/options')
+      .set('X-Forwarded-For', ip())
+      .set('Origin', 'https://web-example.evil.test')
+      .send({})
+      .expect(403);
     // The second configured origin works on its own.
     const APP = 'https://app.web.example.com';
     const app = new SoftwareAuthenticator({ origin: APP });
@@ -492,7 +494,7 @@ describe('passkeys (e2e)', () => {
   it('completes two-factor only with user verification', async () => {
     const me = await person();
     await register(me);
-    const secret = await enableMfa(me);
+    const recoveryCodes = await enableMfa(me);
 
     const verified = request.agent(node.app.getHttpServer());
     const both = await passkeySignIn(
@@ -518,7 +520,7 @@ describe('passkeys (e2e)', () => {
     await present
       .post('/v1/auth/mfa/verify')
       .set('Origin', WEB)
-      .send({ code: totp(secret) })
+      .send({ recoveryCode: recoveryCodes.pop() })
       .expect(200);
     expect(await current(present)).toMatchObject({
       method: 'passkey',
@@ -658,7 +660,7 @@ describe('passkeys (e2e)', () => {
       method: 'passkey',
     });
 
-    const secret = await enableMfa(me);
+    const recoveryCodes = await enableMfa(me);
     const missing = await node
       .http()
       .post('/v1/auth/passkeys/token')
@@ -672,7 +674,7 @@ describe('passkeys (e2e)', () => {
       .set('X-Forwarded-For', ip())
       .send({
         response: me.device.get(await signInOptions({}, ip(), null)),
-        code: totp(secret),
+        recoveryCode: recoveryCodes.pop(),
       })
       .expect(200);
   });

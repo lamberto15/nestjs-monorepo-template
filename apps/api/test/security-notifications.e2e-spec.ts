@@ -392,6 +392,18 @@ describe('security notifications (e2e)', () => {
         channels: { email: 'immediate' },
       },
       {
+        type: 'security.passkeyAdded',
+        label: 'Passkey added',
+        mandatory: true,
+        channels: { email: 'immediate' },
+      },
+      {
+        type: 'security.passkeyRemoved',
+        label: 'Passkey removed',
+        mandatory: true,
+        channels: { email: 'immediate' },
+      },
+      {
         type: 'security.apiKeyRotated',
         label: 'API key rotated',
         mandatory: true,
