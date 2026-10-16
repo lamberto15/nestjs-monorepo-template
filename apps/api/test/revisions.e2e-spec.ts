@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { notes } from '../src/features/notes/notes.tables.js';
@@ -382,10 +381,11 @@ describe('record revisions of notes (e2e)', () => {
 
   it('keeps the first state of a note written before revisions were kept', async () => {
     const editor = await node.user(['editor']);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const [old] = await db
       .insert(notes)
       .values({
+        tenantId: node.tenantId,
         ownerId: `user:${editor.id}`,
         title: 'Old',
         body: 'b',
@@ -414,7 +414,7 @@ describe('record revisions of notes (e2e)', () => {
 
   it('purging a note removes its revisions, comments, tags and watchers', async () => {
     const editor = await node.user(['editor']);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const tag = await node
       .admin()
       .post('/v1/tags')

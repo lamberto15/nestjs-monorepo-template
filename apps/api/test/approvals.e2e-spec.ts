@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
@@ -486,7 +485,7 @@ describe('approvals (e2e)', () => {
       });
       const id = (purged as { request: { id: string } }).request.id;
       await node.worker.drain();
-      const db = node.app.get<Database>(getDrizzleToken());
+      const db = node.db;
       const listener = node.app
         .get(RecordPurgeRegistry)
         .of('Note')
@@ -1185,7 +1184,7 @@ describe('approvals (e2e)', () => {
       expect(await scrape()).toMatch(/^approvals_open\{status="pending"\} 1$/m);
       expect(await scrape()).toMatch(/^approvals_overdue_seconds 0$/m);
       // Its deadline 20 minutes gone, and no workflow ran it (as with no worker).
-      const db = node.app.get<Database>(getDrizzleToken());
+      const db = node.db;
       await db
         .update(approvalRequests)
         // PostgreSQL's clock, as the gauge reads it: Node's may differ by a
@@ -1608,7 +1607,7 @@ describe('approvals (e2e)', () => {
       // A change that went around the lock: not published as approved.
       const second = await publishing();
       await approve(editor, second.approval).expect(200);
-      const db = node.app.get<Database>(getDrizzleToken());
+      const db = node.db;
       await db
         .update(notes)
         .set({ body: 'changed behind the approvers' })
@@ -1783,7 +1782,7 @@ describe('approvals (e2e)', () => {
       const owner = await node.user(['editor']);
       const editor = await node.user(['editor']);
       const { approval } = await publication(owner, editor);
-      const db = node.app.get<Database>(getDrizzleToken());
+      const db = node.db;
       vi.spyOn(
         node.app.get(NotePublishApproval),
         'onApproved',
@@ -1838,7 +1837,7 @@ describe('approvals (e2e)', () => {
       const { note, approval } = await publication(owner, editor);
       await approve(editor, approval).expect(200); // not drained: not applied
       // The gauge: how long the oldest approved request has waited.
-      const db = node.app.get<Database>(getDrizzleToken());
+      const db = node.db;
       await db
         .update(approvalRequests)
         .set({ endedAt: sql`now() - interval '2 hours'` })
@@ -1942,7 +1941,7 @@ describe('approvals (e2e)', () => {
         outcomeReason: 'no_approvers',
       });
       // Several requests are locked in one order (by id) by every deactivation and deletion.
-      const db = node.app.get<Database>(getDrizzleToken());
+      const db = node.db;
       const query = node.app
         .get(ApprovalEngine)
         .pendingRequestsOf(db, a.id)

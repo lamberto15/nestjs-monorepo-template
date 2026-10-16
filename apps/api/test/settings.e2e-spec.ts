@@ -49,14 +49,14 @@ describe('settings and feature flags (e2e)', () => {
       value: '10s',
       source: 'default',
       default: '10s',
-      scopes: ['global'],
+      scopes: ['tenant'],
       flag: false,
       public: true,
     });
     expect(settingOf(list.body, 'notes.richText')).toMatchObject({
       value: false,
       source: 'default',
-      scopes: ['global', 'orgUnit', 'user'],
+      scopes: ['tenant', 'orgUnit', 'user'],
       flag: true,
     });
 
@@ -92,7 +92,7 @@ describe('settings and feature flags (e2e)', () => {
       .expect(200);
     expect(set.body).toMatchObject({
       key: 'notes.publishDelay',
-      scope: 'global',
+      scope: 'tenant',
       scopeId: '',
       value: '2m',
       rollout: null,
@@ -101,7 +101,7 @@ describe('settings and feature flags (e2e)', () => {
     expect(
       (await editor.agent.get('/v1/settings/notes.publishDelay').expect(200))
         .body,
-    ).toMatchObject({ value: '2m', source: 'global' });
+    ).toMatchObject({ value: '2m', source: 'tenant' });
 
     // The workflow reads it: a note written now waits two minutes, not ten seconds.
     const note = (

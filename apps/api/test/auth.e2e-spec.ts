@@ -131,12 +131,16 @@ describe('authentication (e2e)', () => {
     const unknown = await attempt('nobody@example.com').expect(401);
     expect(wrong.body.detail).toBe(unknown.body.detail);
 
-    const audit = await node.admin().get('/v1/access/audit').expect(200);
+    // An account's own entries, in no tenant's log (docs/tenancy.md).
     expect(
-      audit.body.items.filter(
+      await node.auditEntries({ action: 'auth.sign-in-failed' }),
+    ).toHaveLength(2);
+    const tenantLog = await node.admin().get('/v1/access/audit').expect(200);
+    expect(
+      tenantLog.body.items.filter(
         (entry: { action: string }) => entry.action === 'auth.sign-in-failed',
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(0);
   });
 
   it('limits sign-in to 5 attempts per email and IP every 15 minutes', async () => {

@@ -1,6 +1,11 @@
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { Tenancy } from '../src/core/tenancy/tenancy.service.js';
-import { BYPASS } from '../src/core/tenancy/tenant-scope.js';
+import { BYPASS, TENANT_SCOPE } from '../src/core/tenancy/tenant-scope.js';
+import { ClsServiceManager } from 'nestjs-cls';
+import { inTenantOf } from '../src/core/tenancy/tenant-job.js';
+import { tenants } from '../src/core/tenancy/tenancy.tables.js';
+import { auditLog } from '../src/iam/iam.tables.js';
+import { and, desc, eq } from 'drizzle-orm';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -23,7 +28,10 @@ import { Redis } from 'ioredis';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { getDrizzleToken } from '@nestjs/drizzle';
-import { Client, type Pool } from 'pg';
+import { Client, Pool } from 'pg';
+import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
+import * as schema from '../src/schema.js';
+import type { Database } from '../src/core/database/drizzle.js';
 import { inject } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { createDatabase } from '../src/core/database/drizzle.js';
@@ -151,6 +159,40 @@ export async function testDatabase() {
     close: async () => {
       await pool.end().catch(() => undefined);
       await onServer(`drop database "${name}" with (force)`);
+    },
+  };
+}
+
+/** Runs `work` across every tenant (the maintenance jobs' bypass), with no app booted. */
+export function bypassingTenants<T>(work: () => Promise<T>): Promise<T> {
+  const cls = ClsServiceManager.getClsService();
+  return cls.run({ ifNested: 'inherit' }, () => {
+    cls.set(TENANT_SCOPE, BYPASS);
+    return work();
+  });
+}
+
+/** Runs a test's body in one tenant's scope: `it('…', scoped(async () => …))`. */
+export type Scoped = <T>(work: () => Promise<T>) => () => Promise<T>;
+
+/**
+ * A tenant on a database of its own (`testDatabase()`, no app), for tests of
+ * core helpers on tenant tables (the tree, countPage): `scoped()` runs work
+ * in its scope (CLS), as a request of the tenant would; the tenant is made
+ * by `create(db)` (in `beforeAll`), and read when a test runs.
+ */
+export function testTenant() {
+  let tenantId: string | undefined;
+  const scoped: Scoped = (work) => () =>
+    inTenantOf({ tenantId: tenantId! }, work);
+  return {
+    scoped,
+    async create(db: Database) {
+      const [tenant] = await db
+        .insert(tenants)
+        .values({ slug: `t-${randomUUID().slice(0, 8)}`, name: 'Test' })
+        .returning({ id: tenants.id });
+      tenantId = tenant!.id;
     },
   };
 }
@@ -314,6 +356,42 @@ export async function bootApp(
     };
   };
 
+  /**
+   * A test's own view of the database, past row-level security: the app
+   * role on a pool of its own whose connections set `app.bypass_rls` (the
+   * maintenance jobs' bypass) for the session. Fixtures read and age rows
+   * of any tenant through it; an insert into a tenant table names its
+   * `tenantId`. Never the app's pool, which stays as production runs it.
+   */
+  const testPool = new Pool({
+    connectionString: database.url,
+    max: 3,
+    options: '-c app.bypass_rls=on',
+  });
+  const db = drizzleNodePg({ client: testPool, schema }) as unknown as Database;
+
+  /**
+   * Audit entries of every tenant and of none (an account's own, which no
+   * tenant's `GET /v1/access/audit` shows: sign-ins, sign-ups, password
+   * resets, account deletion), newest first.
+   */
+  const auditEntries = (filter: {
+    action?: string;
+    actor?: string;
+    targetId?: string;
+  }) =>
+    db
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          filter.action ? eq(auditLog.action, filter.action) : undefined,
+          filter.actor ? eq(auditLog.actor, filter.actor) : undefined,
+          filter.targetId ? eq(auditLog.targetId, filter.targetId) : undefined,
+        ),
+      )
+      .orderBy(desc(auditLog.at), desc(auditLog.id));
+
   /** The seeded tenant: the operators', the administrator's (docs/tenancy.md). */
   const tenantId = (await admin.get('/v1/auth/me').expect(200)).body.user
     .tenantId as string;
@@ -341,6 +419,8 @@ export async function bootApp(
     tenantId,
     inTenant,
     acrossTenants,
+    db,
+    auditEntries,
     /** This app's database: its URL as the app role, and as the owner (raw connections). */
     database: { url: database.url, ownerUrl: database.ownerUrl },
     /** The seeded administrator, signed in. */
@@ -422,6 +502,7 @@ export async function bootApp(
     waitForMail,
 
     close: async () => {
+      await testPool.end().catch(() => undefined);
       await app.close();
       await database.close();
     },

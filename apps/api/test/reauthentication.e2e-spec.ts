@@ -1,6 +1,5 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { TokenService } from '@nestjs/authentication';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { and, eq, sql } from 'drizzle-orm';
 import { ClsService } from 'nestjs-cls';
 import request from 'supertest';
@@ -44,7 +43,7 @@ interface Context {
 
 describe('step-up: session auth method and re-authentication (e2e)', () => {
   let node: TestApp;
-  const db = () => node.app.get<Database>(getDrizzleToken());
+  const db = () => node.db;
 
   beforeEach(async () => {
     node = await bootApp();
@@ -133,13 +132,11 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
         ...(who.recoveryCodes && { recoveryCode: who.recoveryCodes.pop() }),
       });
 
+  // Every tenant's entries and the account's own (a sign-in's, in no tenant).
   const audit = async (action: string, actor: string) =>
-    (
-      await node
-        .admin()
-        .get(`/v1/access/audit?action=${action}&actor=user:${actor}`)
-        .expect(200)
-    ).body.items as { details: Record<string, unknown> | null }[];
+    (await node.auditEntries({ action, actor: `user:${actor}` })) as {
+      details: Record<string, unknown> | null;
+    }[];
 
   interface Case {
     name: string;

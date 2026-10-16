@@ -59,10 +59,13 @@ export class UsersRepository {
 
   /**
    * The signed-in principal in `tenantId` (a session's, a token's), or
-   * `null` when the account is gone or deactivated. The tenant holds only
-   * while the user's membership in it and the tenant are active; otherwise
-   * the principal has no tenant (it can list its tenants and switch, and
-   * every tenant route answers 403 tenant_required).
+   * `null` when the account is gone or deactivated, or when it acts in a
+   * tenant it no longer may (the membership or the tenant deactivated):
+   * that session or token stops, as a deactivated account's did, and a new
+   * sign-in starts in a tenant the user still belongs to. Without a tenant
+   * (an account with no membership yet), the principal has none: it can
+   * list its tenants and switch, and every tenant route answers 403
+   * tenant_required.
    */
   async inTenant(
     id: string,
@@ -72,10 +75,7 @@ export class UsersRepository {
     if (!user || !tenantId) {
       return user;
     }
-    return {
-      ...user,
-      tenantId: (await this.isMember(id, tenantId)) ? tenantId : null,
-    };
+    return (await this.isMember(id, tenantId)) ? { ...user, tenantId } : null;
   }
 
   /** Whether the user's membership in the tenant, and the tenant, are active. */

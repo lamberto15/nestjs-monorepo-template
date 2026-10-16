@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { OutboxRelay } from '@nestjs/outbox';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
@@ -108,11 +107,8 @@ describe('security notifications (e2e)', () => {
     ).toHaveLength(1);
 
     // The audit entry carries the device.
-    const audit = await node
-      .admin()
-      .get('/v1/access/audit?action=auth.signed-in&sort=-at')
-      .expect(200);
-    expect(audit.body.items[0].details).toMatchObject({
+    const audit = await node.auditEntries({ action: 'auth.signed-in' });
+    expect(audit[0]!.details).toMatchObject({
       device: expect.stringMatching(/^[0-9a-f]{32}$/),
       userAgent: 'curl',
     });
@@ -123,13 +119,11 @@ describe('security notifications (e2e)', () => {
     const agent = await signInFrom('curl/8.7.1', user);
     const signIns = async () =>
       (
-        await node
-          .admin()
-          .get(
-            `/v1/access/audit?action=auth.signed-in&actor=user:${await idOf(agent)}`,
-          )
-          .expect(200)
-      ).body.items.length as number;
+        await node.auditEntries({
+          action: 'auth.signed-in',
+          actor: `user:${await idOf(agent)}`,
+        })
+      ).length;
     expect(await signIns()).toBe(1);
     await request(node.app.getHttpServer())
       .post('/v1/auth/sign-in')
@@ -168,18 +162,15 @@ describe('security notifications (e2e)', () => {
     const first = await signInFrom(CHROME_MAC(130), user);
     const userId = await idOf(first);
     // Email links go to verified addresses only (as an accepted invitation leaves one).
-    await node.app
-      .get<Database>(getDrizzleToken())
+    await node.db
       .update(users)
       .set({ emailVerified: true })
       .where(eq(users.id, userId));
     const signIns = async () =>
-      (
-        await node
-          .admin()
-          .get(`/v1/access/audit?action=auth.signed-in&actor=user:${userId}`)
-          .expect(200)
-      ).body.items as { details: Record<string, unknown> }[];
+      (await node.auditEntries({
+        action: 'auth.signed-in',
+        actor: `user:${userId}`,
+      })) as { details: Record<string, unknown> }[];
 
     // An email link, opened in the browser that asked for it: another device.
     const phone = request.agent(node.app.getHttpServer());

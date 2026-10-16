@@ -4,7 +4,7 @@
  * (filters and pagination, down to the SQL they make) and the problem
  * details filter. No application is booted here.
  */
-import { testDatabase } from './support.js';
+import { testDatabase, testTenant } from './support.js';
 import {
   BadRequestException,
   ConflictException,
@@ -42,15 +42,20 @@ describe('Tree: a closure table (PostgreSQL)', () => {
   /** The parent of each node, as the test moved them: the truth to compare the closure with. */
   const parents = new Map<string, string | null>();
 
+  const { scoped, create } = testTenant();
+
   beforeAll(async () => {
     database = await testDatabase();
     db = database.db;
+    await create(db);
   });
   afterAll(() => database.close());
-  beforeEach(async () => {
-    parents.clear();
-    await db.delete(orgUnits);
-  });
+  beforeEach(
+    scoped(async () => {
+      parents.clear();
+      await db.delete(orgUnits);
+    }),
+  );
 
   async function node(name: string, parentId: string | null = null) {
     return db.transaction(async (tx) => {
@@ -109,153 +114,174 @@ describe('Tree: a closure table (PostgreSQL)', () => {
       .map((row) => `${row.ancestorId}>${row.descendantId}@${row.depth}`)
       .sort();
 
-  it('keeps every path of a deep chain, at the right depth', async () => {
-    const chain: string[] = [];
-    for (let i = 0; i < 12; i++) {
-      chain.push(await node(`level ${i}`, chain.at(-1) ?? null));
-    }
-    expect(await actualClosure()).toEqual(expectedClosure());
-    expect(await under(chain[0])).toEqual([...chain].sort());
-    expect(await above(chain[11])).toEqual([...chain].sort());
-    expect(await under(chain[11])).toEqual([chain[11]]);
-    const [deepest] = await db
-      .select({ depth: orgUnitTree.depth })
-      .from(orgUnitTree)
-      .where(eq(orgUnitTree.descendantId, chain[11]))
-      .orderBy(asc(orgUnitTree.depth))
-      .offset(11);
-    expect(deepest.depth).toBe(11);
-    expect(await tree.isUnder(db, chain[11], chain[0])).toBe(true);
-    expect(await tree.isUnder(db, chain[0], chain[11])).toBe(false);
-    // A node is "under" itself (depth 0).
-    expect(await tree.isUnder(db, chain[5], chain[5])).toBe(true);
-  });
-
-  it('moves a subtree to the root, keeping its inner paths', async () => {
-    const root = await node('root');
-    const a = await node('a', root);
-    const b = await node('b', a);
-    const c = await node('c', b);
-    await move(a, null);
-    expect(await actualClosure()).toEqual(expectedClosure());
-    expect(await under(root)).toEqual([root]);
-    expect(await under(a)).toEqual([a, b, c].sort());
-    expect(await above(c)).toEqual([a, b, c].sort());
-    // Moving a root to the root changes nothing.
-    await move(a, null);
-    expect(await actualClosure()).toEqual(expectedClosure());
-  });
-
-  it("moves a subtree under a sibling's descendant", async () => {
-    const root = await node('root');
-    const left = await node('left', root);
-    const leftChild = await node('left child', left);
-    const right = await node('right', root);
-    const rightChild = await node('right child', right);
-    const rightGrandchild = await node('right grandchild', rightChild);
-    await move(left, rightGrandchild);
-    expect(await actualClosure()).toEqual(expectedClosure());
-    expect(await above(leftChild)).toEqual(
-      [root, right, rightChild, rightGrandchild, left, leftChild].sort(),
-    );
-    expect(await under(right)).toEqual(
-      [right, rightChild, rightGrandchild, left, leftChild].sort(),
-    );
-    const [path] = await db
-      .select({ depth: orgUnitTree.depth })
-      .from(orgUnitTree)
-      .where(
-        and(
-          eq(orgUnitTree.ancestorId, root),
-          eq(orgUnitTree.descendantId, leftChild),
-        ),
-      );
-    expect(path.depth).toBe(5);
-  });
-
-  it('moves a node under the parent it already has without changing a path', async () => {
-    const root = await node('root');
-    const a = await node('a', root);
-    const b = await node('b', a);
-    const before = await actualClosure();
-    await move(a, root);
-    expect(await actualClosure()).toEqual(before);
-    expect(await under(root)).toEqual([root, a, b].sort());
-  });
-
-  it('refuses a cycle: under itself or under one of its descendants, and changes nothing', async () => {
-    const root = await node('root');
-    const a = await node('a', root);
-    const b = await node('b', a);
-    const c = await node('c', b);
-    const before = await actualClosure();
-    await expect(move(a, a)).rejects.toBeInstanceOf(TreeCycleError);
-    await expect(move(a, c)).rejects.toBeInstanceOf(TreeCycleError);
-    await expect(move(root, b)).rejects.toBeInstanceOf(TreeCycleError);
-    expect(await actualClosure()).toEqual(before);
-    // The refused moves left the bookkeeping as it was.
-    parents.set(a, root);
-    parents.set(root, null);
-    expect(await actualClosure()).toEqual(expectedClosure());
-  });
-
-  it('stays consistent after many moves, and lookups follow each move', async () => {
-    const ids: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      // A small forest: each node under one of the earlier ones, or a root.
-      const parent = i === 0 || i % 4 === 0 ? null : ids[(i * 7) % i];
-      ids.push(await node(`n${i}`, parent));
-    }
-    // A fixed pseudo-random sequence of moves: same run every time.
-    let seed = 42;
-    const next = (n: number) => {
-      seed = (seed * 1103515245 + 12345) % 2 ** 31;
-      return seed % n;
-    };
-    let moved = 0;
-    let refused = 0;
-    for (let step = 0; step < 40; step++) {
-      const id = ids[next(ids.length)];
-      const target = next(ids.length + 2);
-      const parent = target >= ids.length ? null : ids[target];
-      // A cycle exactly when the new parent is the node or below it.
-      let cycle = false;
-      for (let p: string | null = parent; p; p = parents.get(p) ?? null) {
-        if (p === id) {
-          cycle = true;
-        }
-      }
-      if (cycle) {
-        await expect(move(id, parent)).rejects.toBeInstanceOf(TreeCycleError);
-        refused++;
-      } else {
-        await move(id, parent);
-        moved++;
+  it(
+    'keeps every path of a deep chain, at the right depth',
+    scoped(async () => {
+      const chain: string[] = [];
+      for (let i = 0; i < 12; i++) {
+        chain.push(await node(`level ${i}`, chain.at(-1) ?? null));
       }
       expect(await actualClosure()).toEqual(expectedClosure());
-    }
-    expect(moved).toBeGreaterThan(10);
-    expect(refused).toBeGreaterThan(0);
-    // descendants() of several roots at once, and of an SQL subquery.
-    const roots = ids.filter((id) => !parents.get(id));
-    expect(
-      (
-        await db
-          .select({ id: orgUnits.id })
-          .from(orgUnits)
-          .where(inArray(orgUnits.id, tree.descendants(roots)))
-      ).length,
-    ).toBe(ids.length);
-  });
+      expect(await under(chain[0])).toEqual([...chain].sort());
+      expect(await above(chain[11])).toEqual([...chain].sort());
+      expect(await under(chain[11])).toEqual([chain[11]]);
+      const [deepest] = await db
+        .select({ depth: orgUnitTree.depth })
+        .from(orgUnitTree)
+        .where(eq(orgUnitTree.descendantId, chain[11]))
+        .orderBy(asc(orgUnitTree.depth))
+        .offset(11);
+      expect(deepest.depth).toBe(11);
+      expect(await tree.isUnder(db, chain[11], chain[0])).toBe(true);
+      expect(await tree.isUnder(db, chain[0], chain[11])).toBe(false);
+      // A node is "under" itself (depth 0).
+      expect(await tree.isUnder(db, chain[5], chain[5])).toBe(true);
+    }),
+  );
 
-  it('forgets the paths of a deleted leaf (cascade)', async () => {
-    const root = await node('root');
-    const leaf = await node('leaf', root);
-    await db.delete(orgUnits).where(eq(orgUnits.id, leaf));
-    parents.delete(leaf);
-    expect(await actualClosure()).toEqual(expectedClosure());
-    expect(await under(root)).toEqual([root]);
-  });
+  it(
+    'moves a subtree to the root, keeping its inner paths',
+    scoped(async () => {
+      const root = await node('root');
+      const a = await node('a', root);
+      const b = await node('b', a);
+      const c = await node('c', b);
+      await move(a, null);
+      expect(await actualClosure()).toEqual(expectedClosure());
+      expect(await under(root)).toEqual([root]);
+      expect(await under(a)).toEqual([a, b, c].sort());
+      expect(await above(c)).toEqual([a, b, c].sort());
+      // Moving a root to the root changes nothing.
+      await move(a, null);
+      expect(await actualClosure()).toEqual(expectedClosure());
+    }),
+  );
+
+  it(
+    "moves a subtree under a sibling's descendant",
+    scoped(async () => {
+      const root = await node('root');
+      const left = await node('left', root);
+      const leftChild = await node('left child', left);
+      const right = await node('right', root);
+      const rightChild = await node('right child', right);
+      const rightGrandchild = await node('right grandchild', rightChild);
+      await move(left, rightGrandchild);
+      expect(await actualClosure()).toEqual(expectedClosure());
+      expect(await above(leftChild)).toEqual(
+        [root, right, rightChild, rightGrandchild, left, leftChild].sort(),
+      );
+      expect(await under(right)).toEqual(
+        [right, rightChild, rightGrandchild, left, leftChild].sort(),
+      );
+      const [path] = await db
+        .select({ depth: orgUnitTree.depth })
+        .from(orgUnitTree)
+        .where(
+          and(
+            eq(orgUnitTree.ancestorId, root),
+            eq(orgUnitTree.descendantId, leftChild),
+          ),
+        );
+      expect(path.depth).toBe(5);
+    }),
+  );
+
+  it(
+    'moves a node under the parent it already has without changing a path',
+    scoped(async () => {
+      const root = await node('root');
+      const a = await node('a', root);
+      const b = await node('b', a);
+      const before = await actualClosure();
+      await move(a, root);
+      expect(await actualClosure()).toEqual(before);
+      expect(await under(root)).toEqual([root, a, b].sort());
+    }),
+  );
+
+  it(
+    'refuses a cycle: under itself or under one of its descendants, and changes nothing',
+    scoped(async () => {
+      const root = await node('root');
+      const a = await node('a', root);
+      const b = await node('b', a);
+      const c = await node('c', b);
+      const before = await actualClosure();
+      await expect(move(a, a)).rejects.toBeInstanceOf(TreeCycleError);
+      await expect(move(a, c)).rejects.toBeInstanceOf(TreeCycleError);
+      await expect(move(root, b)).rejects.toBeInstanceOf(TreeCycleError);
+      expect(await actualClosure()).toEqual(before);
+      // The refused moves left the bookkeeping as it was.
+      parents.set(a, root);
+      parents.set(root, null);
+      expect(await actualClosure()).toEqual(expectedClosure());
+    }),
+  );
+
+  it(
+    'stays consistent after many moves, and lookups follow each move',
+    scoped(async () => {
+      const ids: string[] = [];
+      for (let i = 0; i < 10; i++) {
+        // A small forest: each node under one of the earlier ones, or a root.
+        const parent = i === 0 || i % 4 === 0 ? null : ids[(i * 7) % i];
+        ids.push(await node(`n${i}`, parent));
+      }
+      // A fixed pseudo-random sequence of moves: same run every time.
+      let seed = 42;
+      const next = (n: number) => {
+        seed = (seed * 1103515245 + 12345) % 2 ** 31;
+        return seed % n;
+      };
+      let moved = 0;
+      let refused = 0;
+      for (let step = 0; step < 40; step++) {
+        const id = ids[next(ids.length)];
+        const target = next(ids.length + 2);
+        const parent = target >= ids.length ? null : ids[target];
+        // A cycle exactly when the new parent is the node or below it.
+        let cycle = false;
+        for (let p: string | null = parent; p; p = parents.get(p) ?? null) {
+          if (p === id) {
+            cycle = true;
+          }
+        }
+        if (cycle) {
+          await expect(move(id, parent)).rejects.toBeInstanceOf(TreeCycleError);
+          refused++;
+        } else {
+          await move(id, parent);
+          moved++;
+        }
+        expect(await actualClosure()).toEqual(expectedClosure());
+      }
+      expect(moved).toBeGreaterThan(10);
+      expect(refused).toBeGreaterThan(0);
+      // descendants() of several roots at once, and of an SQL subquery.
+      const roots = ids.filter((id) => !parents.get(id));
+      expect(
+        (
+          await db
+            .select({ id: orgUnits.id })
+            .from(orgUnits)
+            .where(inArray(orgUnits.id, tree.descendants(roots)))
+        ).length,
+      ).toBe(ids.length);
+    }),
+  );
+
+  it(
+    'forgets the paths of a deleted leaf (cascade)',
+    scoped(async () => {
+      const root = await node('root');
+      const leaf = await node('leaf', root);
+      await db.delete(orgUnits).where(eq(orgUnits.id, leaf));
+      parents.delete(leaf);
+      expect(await actualClosure()).toEqual(expectedClosure());
+      expect(await under(root)).toEqual([root]);
+    }),
+  );
 });
 
 describe('listQuery: filters and pagination', () => {
@@ -636,42 +662,57 @@ describe('ProblemDetailsFilter', () => {
 describe('countPage (PostgreSQL)', () => {
   let database: Awaited<ReturnType<typeof testDatabase>>;
   let db: Database;
+  const { scoped, create } = testTenant();
 
   beforeAll(async () => {
     database = await testDatabase();
     db = database.db;
-    await db
-      .insert(orgUnits)
-      .values(['A', 'B', 'C', 'D', 'E'].map((name) => ({ name })));
+    await create(db);
+    await scoped(() =>
+      db
+        .insert(orgUnits)
+        .values(['A', 'B', 'C', 'D', 'E'].map((name) => ({ name }))),
+    )();
   });
   afterAll(() => database.close());
 
-  it('counts only when asked', async () => {
-    expect(
-      await countPage(db, orgUnits, undefined, { limit: 10 }),
-    ).toBeUndefined();
-    expect(
-      await countPage(db, orgUnits, undefined, { limit: 10, count: false }),
-    ).toBeUndefined();
-  });
+  it(
+    'counts only when asked',
+    scoped(async () => {
+      expect(
+        await countPage(db, orgUnits, undefined, { limit: 10 }),
+      ).toBeUndefined();
+      expect(
+        await countPage(db, orgUnits, undefined, { limit: 10, count: false }),
+      ).toBeUndefined();
+    }),
+  );
 
-  it('counts what matches, up to the cap', async () => {
-    const query = { limit: 10, count: true };
-    expect(await countPage(db, orgUnits, undefined, query)).toEqual({
-      total: 5,
-      totalCapped: false,
-    });
-    expect(
-      await countPage(db, orgUnits, inArray(orgUnits.name, ['A', 'B']), query),
-    ).toEqual({ total: 2, totalCapped: false });
-    // Exactly the cap: still exact. One more: capped.
-    expect(await countPage(db, orgUnits, undefined, query, 5)).toEqual({
-      total: 5,
-      totalCapped: false,
-    });
-    expect(await countPage(db, orgUnits, undefined, query, 3)).toEqual({
-      total: 3,
-      totalCapped: true,
-    });
-  });
+  it(
+    'counts what matches, up to the cap',
+    scoped(async () => {
+      const query = { limit: 10, count: true };
+      expect(await countPage(db, orgUnits, undefined, query)).toEqual({
+        total: 5,
+        totalCapped: false,
+      });
+      expect(
+        await countPage(
+          db,
+          orgUnits,
+          inArray(orgUnits.name, ['A', 'B']),
+          query,
+        ),
+      ).toEqual({ total: 2, totalCapped: false });
+      // Exactly the cap: still exact. One more: capped.
+      expect(await countPage(db, orgUnits, undefined, query, 5)).toEqual({
+        total: 5,
+        totalCapped: false,
+      });
+      expect(await countPage(db, orgUnits, undefined, query, 3)).toEqual({
+        total: 3,
+        totalCapped: true,
+      });
+    }),
+  );
 });

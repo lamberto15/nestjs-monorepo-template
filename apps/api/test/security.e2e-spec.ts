@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { AccountService } from '../src/iam/account/account.service.js';
@@ -191,7 +190,7 @@ describe('security (e2e)', () => {
 
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {
     const { id } = await node.user([]);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db.update(users).set({ passwordHash: null }).where(eq(users.id, id));
     await db.insert(userIdentities).values([
       { provider: 'google', subject: `g-${id}`, userId: id },
@@ -225,7 +224,7 @@ describe('security (e2e)', () => {
     // js/type-confusion-through-parameter-tampering). Linking from a stale
     // session is the flow that reads `redirectTo`, to send the browser back.
     const me = await node.user(['editor']);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const current = (
       (await me.agent.get('/v1/auth/sessions').expect(200)).body.items as {
         id: string;

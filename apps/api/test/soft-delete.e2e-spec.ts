@@ -1,4 +1,3 @@
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { notes } from '../src/features/notes/notes.tables.js';
@@ -134,7 +133,7 @@ describe('soft delete (e2e)', () => {
         .set('Authorization', me.auth)
         .expect(204);
     }
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db
       .update(notes)
       .set({ deletedAt: new Date(Date.now() - 31 * 86_400_000) })

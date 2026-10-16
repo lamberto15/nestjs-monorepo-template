@@ -1,3 +1,5 @@
+import { eq } from 'drizzle-orm';
+import { users as usersTable } from '../src/iam/iam.tables.js';
 import { randomUUID } from 'node:crypto';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
@@ -179,12 +181,7 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
       .expect(403);
     expect(wrong.body.code).toBe('forbidden');
     expect(
-      (
-        await node
-          .admin()
-          .get(`/v1/access/audit?action=account.deletion-refused`)
-          .expect(200)
-      ).body.items,
+      await node.auditEntries({ action: 'account.deletion-refused' }),
     ).toMatchObject([{ actor: `user:${ada.id}` }]);
     const requested = await ada.agent
       .post('/v1/account/deletion')
@@ -237,15 +234,20 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
       .admin()
       .get('/v1/access/users?limit=100')
       .expect(200);
-    const user = {
-      body: users.body.items.find((u: { id: string }) => u.id === ada.id),
-    };
-    expect(user.body).toMatchObject({
+    // No longer a member of any tenant; the account row stays, anonymized.
+    expect(
+      users.body.items.find((u: { id: string }) => u.id === ada.id),
+    ).toBeUndefined();
+    const [account] = await node.db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, ada.id));
+    expect(account).toMatchObject({
       name: 'Deleted user',
       active: false,
-      hasPassword: false,
+      passwordHash: null,
     });
-    expect(user.body.email).toMatch(/^deleted-.*@anonymized\.invalid$/);
+    expect(account!.email).toMatch(/^deleted-.*@anonymized\.invalid$/);
     // The note stays, owned by nobody in particular.
     const kept = await node.admin().get(`/v1/notes/${note.id}`).expect(200);
     expect(kept.body.ownerId).toBe(`user:${ada.id}`);
@@ -260,12 +262,10 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
         (e: { actorLabel: string }) => e.actorLabel === 'Deleted user',
       ),
     ).toBe(true);
-    const done = await node
-      .admin()
-      .get(`/v1/access/audit?action=account.deleted`)
-      .expect(200);
-    // The job did it: the system principal, named after the job.
-    expect(done.body.items[0]).toMatchObject({
+    // The job did it: the system principal, named after the job (the
+    // account's own entry, in no tenant).
+    const done = await node.auditEntries({ action: 'account.deleted' });
+    expect(done[0]).toMatchObject({
       targetId: ada.id,
       actor: 'system:account-deletion',
       actorLabel: 'System: Account deletion',

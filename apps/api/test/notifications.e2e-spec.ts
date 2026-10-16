@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { OutboxRelay } from '@nestjs/outbox';
 import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
@@ -34,7 +33,7 @@ describe('notifications (e2e)', () => {
     await node.close();
   });
 
-  const db = () => node.app.get(getDrizzleToken()) as Database;
+  const db = () => node.db;
   /** Hands committed outbox messages to the delivery handler (the worker's job). */
   const deliver = () => node.app.get(OutboxRelay).runOnce();
   /** The `errors` paths of a problem response. */
@@ -488,6 +487,7 @@ describe('notifications (e2e)', () => {
       .insert(notifications)
       .values([
         {
+          tenantId: node.tenantId,
           recipient: to,
           type: 'note.published',
           data: {},
@@ -495,12 +495,14 @@ describe('notifications (e2e)', () => {
           readAt: days(95),
         },
         {
+          tenantId: node.tenantId,
           recipient: to,
           type: 'note.published',
           data: {},
           createdAt: days(400),
         },
         {
+          tenantId: node.tenantId,
           recipient: to,
           type: 'note.published',
           data: {},

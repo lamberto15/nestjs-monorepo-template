@@ -150,7 +150,6 @@ describe('access control (e2e)', () => {
           'user.created',
           'client.created',
           'client.key-rotated',
-          'auth.signed-in',
           'user.seeded',
         ]),
       );

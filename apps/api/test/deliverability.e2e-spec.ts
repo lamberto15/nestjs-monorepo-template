@@ -4,7 +4,6 @@ import {
   type KeyObject,
   randomUUID,
 } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { MailQueue } from '../src/core/mail/mail-queue.js';
@@ -432,7 +431,7 @@ describe('email deliverability (e2e)', () => {
 
     // 73 hours later (the row backdated): the suppression has expired; the
     // next mail goes out and the entry is watched-only again.
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db
       .update(mailSuppressions)
       .set({ suppressedAt: new Date(Date.now() - 73 * 3_600_000) })
