@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import {
   ConsoleLogger,
+  type ConsoleLoggerOptions,
   Injectable,
   Logger,
   type LogLevel,
   type NestMiddleware,
 } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
+import { type LogRedaction, logRedaction } from './redaction.js';
 
 const LEVELS: LogLevel[] = [
   'verbose',
@@ -18,20 +20,84 @@ const LEVELS: LogLevel[] = [
 ];
 
 /**
- * The application's logger: Nest's ConsoleLogger, one JSON object per line
- * in production (`LOG_FORMAT=json`), readable text in development. Structured
- * params (`logger.log('Paid', { orderId })`) stay fields of the entry. Logs
- * go to stdout: Docker collects them.
+ * Nest's ConsoleLogger with the secrets kept out (redaction.ts). The
+ * logger's own `redact` option masks the declared keys in structured params
+ * and logged objects; what it leaves as is (its docs: string messages, the
+ * error message, the stack trace) goes through the registry's text
+ * patterns here, on the whole line it is about to write, so a credential
+ * interpolated into a message, an error's message or a stack never reaches
+ * stdout. The hooks are the ones ConsoleLogger exposes for subclasses:
+ * `formatMessage` is the text line, `stringifyJsonLogObject` the JSON one,
+ * `printStackTrace` the stack text mode writes after an error.
  */
-export function createLogger(env: NodeJS.ProcessEnv = process.env) {
+export class RedactingConsoleLogger extends ConsoleLogger {
+  constructor(
+    options: ConsoleLoggerOptions,
+    private readonly redaction: LogRedaction,
+  ) {
+    super({ ...options, redact: redaction.paths() });
+  }
+
+  protected override formatMessage(
+    logLevel: LogLevel,
+    message: unknown,
+    pidMessage: string,
+    formattedLogLevel: string,
+    contextMessage: string,
+    timestampDiff: string,
+    params?: Record<string, unknown>,
+  ): string {
+    return this.redaction.redactText(
+      super.formatMessage(
+        logLevel,
+        message,
+        pidMessage,
+        formattedLogLevel,
+        contextMessage,
+        timestampDiff,
+        params,
+      ),
+    );
+  }
+
+  protected override stringifyJsonLogObject(
+    logObject: Record<string, unknown>,
+  ): string {
+    return this.redaction.redactText(super.stringifyJsonLogObject(logObject));
+  }
+
+  protected override printStackTrace(stack: string) {
+    super.printStackTrace(stack && this.redaction.redactText(stack));
+  }
+}
+
+/**
+ * The application's logger: Nest's ConsoleLogger, one JSON object per line
+ * in production (`LOG_FORMAT=json`), readable text in development, with
+ * secrets redacted (redaction.ts). Structured params (`logger.log('Paid',
+ * { orderId })`) stay fields of the entry. Logs go to stdout: Docker
+ * collects them. Building it closes the redaction registry: everything
+ * must be declared by then (at import time).
+ */
+export function createLogger(
+  env: NodeJS.ProcessEnv = process.env,
+  overrides: Partial<ConsoleLoggerOptions> = {},
+  redaction: LogRedaction = logRedaction,
+) {
   const json =
     (env.LOG_FORMAT || (env.NODE_ENV === 'production' ? 'json' : 'text')) ===
     'json';
   const lowest = LEVELS.indexOf((env.LOG_LEVEL || 'log') as LogLevel);
-  return new ConsoleLogger({
-    json,
-    logLevels: LEVELS.slice(Math.max(lowest, 0)),
-  });
+  const logger = new RedactingConsoleLogger(
+    {
+      json,
+      logLevels: LEVELS.slice(Math.max(lowest, 0)),
+      ...overrides,
+    },
+    redaction,
+  );
+  redaction.freeze('createLogger()');
+  return logger;
 }
 
 /** A request id we accept from the proxy or the client; anything else is replaced. */

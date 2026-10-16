@@ -70,6 +70,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Languages, time zones | [docs/i18n-and-time.md](docs/i18n-and-time.md) |
 | Environment variables | [docs/configuration.md](docs/configuration.md) |
 | Compose, staging, scaling, CI and its scans, published images (GHCR, `APP_IMAGE`, rollback) | [docs/deployment.md](docs/deployment.md) |
+| Log redaction (secret headers and fields, text patterns; `logRedaction.declare*()` at import time, the registry item 5 extends) | [docs/deployment.md](docs/deployment.md), "Log redaction" |
 | Prometheus metrics (`GET /metrics`, METRICS_TOKEN; platform gauges via `MetricsService.collect()`) | [docs/deployment.md](docs/deployment.md), "Metrics" |
 | Alerts (`monitoring/`: rules, their promtool tests; optional `compose.monitoring.yaml` with Prometheus + Alertmanager) | [docs/deployment.md](docs/deployment.md), "Alerting" |
 | Mistakes already made | [docs/pitfalls.md](docs/pitfalls.md) |
