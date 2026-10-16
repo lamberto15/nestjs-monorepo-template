@@ -58,6 +58,18 @@ Caddy (HTTPS) → `api` replicas; `worker` replicas for the background work;
 PostgreSQL and Redis; migrations once per deploy. See
 [deployment](docs/deployment.md) for staging, scaling and managed services.
 
+## Template updates
+
+The template keeps shipping fixes and modules as releases (`v*` tags, with
+notes on their migrations and how to roll back). Start your project with
+`git clone` (keeping the history), keep the template as a remote, and merge
+each release tag: [upgrading](docs/upgrading.md).
+
+```bash
+git remote add template https://github.com/lamberto15/nestjs-monorepo-template
+git fetch template --tags && git merge v1.3.0
+```
+
 ## Documentation
 
 - [Architecture](docs/architecture.md): the repository, the groups, the processes, how features plug in
@@ -76,3 +88,5 @@ PostgreSQL and Redis; migrations once per deploy. See
 - [Configuration](docs/configuration.md): every variable
 - [Deployment](docs/deployment.md)
 - [Pitfalls](docs/pitfalls.md)
+- [Upgrading](docs/upgrading.md): pulling template updates into your project (the merge, conflicts, migrations)
+- [Releases](docs/releases.md): template releases and their notes, the typed client's versions (Changesets)

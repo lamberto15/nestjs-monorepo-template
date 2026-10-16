@@ -367,6 +367,11 @@ pages, ETags. Usage, the bell-icon recipe included:
   git show origin/main:packages/api-client/openapi.json > old.json
   docker run --rm --network none -v "$PWD:/specs:ro" -w /specs tufin/oasdiff:v1.33.0 breaking old.json packages/api-client/openapi.json
   ```
+- **Its version:** a change to the client (a route change too: it changes
+  `openapi.json`) comes with a changeset, `pnpm changeset`; a version pull
+  request on `main` turns them into its version and `CHANGELOG.md`. CI
+  reports a client change without one ([releases](releases.md), "The typed
+  client").
 - A new realtime event (`Realtime.toPrincipal()`) goes into `RealtimeEvents`
   (`packages/api-client/src/realtime.ts`).
 - `pnpm --filter @nestjs-monorepo-template/api-client build` compiles it on
