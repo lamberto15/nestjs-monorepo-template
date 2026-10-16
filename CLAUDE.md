@@ -82,10 +82,11 @@ pnpm db:check                                           # after table changes
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 
-Current state: 341 unit (333 API, 8 client) and 482 e2e tests pass (edge cases in
-`apps/api/test/edge-*.e2e-spec.ts`, security regressions in `apps/api/test/security.e2e-spec.ts`),
-lint is clean, the image builds, and the production stack (api + worker +
-PostgreSQL 18 + Redis 8) was run and verified.
+Current state: CI on `main` is green (unit and e2e tests, lint, the image, the
+scans). Edge cases live in `apps/api/test/edge-*.e2e-spec.ts`, security
+regressions in `apps/api/test/security.e2e-spec.ts`. Test counts are not kept
+here: every pull request changed them, so every pair of open pull requests
+conflicted on this line.
 
 ## The pitfalls that bite most
 
