@@ -1,0 +1,51 @@
+# The load test's stack (docs/development.md, "Load tests"): the production
+# stack (compose.yaml + compose.prod.yaml: api ×API_REPLICAS, worker,
+# migrate, PostgreSQL, Redis, the same image and limits) with only what a
+# throwaway run on a GitHub runner or a laptop can't have changed here.
+# loadtest/run.sh starts it under its own project name (never the deployed
+# one) with its own env file, then runs k6 inside its network.
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml
+#
+# Not for a real deployment: it raises every rate limit, and the app accepts
+# that only with APP_ENV=loadtest, set here.
+
+services:
+  api:
+    environment:
+      # Names this stack in logs, and lets it raise the rate limits: under
+      # NODE_ENV=production the app refuses RATE_LIMIT_MULTIPLIER above 1
+      # without it.
+      APP_ENV: loadtest
+      # Every request comes from k6's one address, and the same accounts sign
+      # in many times a minute: the limits are raised (×1000), never turned
+      # off, so the throttler still runs (and costs) what it does in production.
+      RATE_LIMIT_MULTIPLIER: ${RATE_LIMIT_MULTIPLIER:-1000}
+      # The load test measures the app, not a captcha: the bot check (roadmap
+      # item 4) stays off whatever its default becomes. Measuring its cost
+      # would take its stub provider, which production refuses: allowing it
+      # with APP_ENV=loadtest is a follow-up.
+      CAPTCHA_MODE: 'off'
+  worker:
+    environment:
+      APP_ENV: loadtest
+  migrate:
+    environment:
+      APP_ENV: loadtest
+
+  # Plain HTTP inside the network, no published port: the production Caddy
+  # needs a Cloudflare token and a public name for its certificate. The same
+  # Caddy release (caddy/Dockerfile) and the same load balancing
+  # (loadtest/Caddyfile), without TLS.
+  caddy:
+    image: caddy:2.11
+    build: !reset null
+    ports: !reset []
+    secrets: !reset []
+    environment: !reset {}
+    volumes: !override
+      - ./loadtest/Caddyfile:/etc/caddy/Caddyfile:ro
+
+  # Not in the request path; its image would only lengthen the run.
+  backup:
+    profiles: [backup]

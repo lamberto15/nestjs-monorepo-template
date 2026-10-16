@@ -68,3 +68,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Local runtime data (STORAGE_DRIVER=local files, mail written to disk):
 # apps/api/.data in development (the root's is from before the monorepo)
 .data
+
+# Load test runs (loadtest/run.sh): the baseline and the stack's env file
+/loadtest/results

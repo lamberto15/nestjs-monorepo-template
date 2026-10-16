@@ -1,0 +1,143 @@
+# The load-test baseline (docs/development.md, "Load tests"): on demand
+# (manual only for now, to save Actions minutes), the production stack on a GitHub runner (its own Compose project,
+# compose.loadtest.yaml on top), the k6 scenarios (sign-in, a filtered list,
+# create) at fixed rates, and the numbers kept as the `load-test-baseline`
+# artifact. The run fails only on a 2× regression (median or p95, failed
+# share, dropped iterations) against the previous successful run or the
+# anchor, the last accepted baseline (loadtest/compare.mjs); the first run
+# records only.
+#
+# - workflow_dispatch: a run now; `record_only` accepts a change in the
+#   numbers (a slower route by design, e.g. row-level security), so that run
+#   becomes the new anchor instead of failing (only when dispatched on main).
+# - pull_request (load-test files only): the same run, compared with main's
+#   latest baseline but report-only; never a baseline.
+# - No schedule for now. To run it weekly again, add under `on:`
+#     schedule: [{ cron: '37 2 * * 1' }]   # Mondays 02:37 UTC
+#   (scheduled runs on main count as references like dispatched ones).
+# - No self-hosted runner: one (the owner's Mac) would only ever run behind
+#   workflow_dispatch, never on a schedule or a pull request.
+name: Load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      record_only:
+        description: Record this run as the new baseline without comparing (accepts a change in the numbers)
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - loadtest/**
+      - compose.loadtest.yaml
+      - .github/workflows/load-test.yml
+
+permissions:
+  contents: read
+  # The previous run's and the anchor's artifacts (gh run list, gh api, download).
+  actions: read
+
+concurrency:
+  group: load-test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  load-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      LOADTEST_PROJECT: loadtest-ci
+      # run.sh's default; ignored by git.
+      LOADTEST_OUT: loadtest/results
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Node.js (the comparison has no dependencies)
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+
+      - name: The comparison's and run.sh's tests
+        run: node --test loadtest/compare.test.mjs loadtest/run.test.mjs
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The image CI builds (its cache, read only), loaded for Compose.
+      - name: Build the production image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: app:loadtest
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+
+      - name: Run the scenarios against the production stack
+        env:
+          APP_IMAGE: app:loadtest
+          GIT_SHA: ${{ github.sha }}
+        run: loadtest/run.sh
+
+      - name: Keep the baseline
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: load-test-baseline
+          path: ${{ env.LOADTEST_OUT }}/baseline.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      # Two references, from runs on main only (a pull request's never
+      # counts): the latest successful manual (or scheduled) run, and the anchor
+      # (the `load-test-anchor` artifact: the last run accepted with
+      # record_only, or the first baseline). Either missing: nothing compared
+      # against it.
+      - name: The references (the previous run, the anchor)
+        id: references
+        if: ${{ !inputs.record_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow load-test.yml \
+            --branch main --status success --limit 50 --json databaseId,event \
+            --jq '[.[] | select(.event == "schedule" or .event == "workflow_dispatch")][0].databaseId // empty')
+          if [ -n "$run_id" ]; then
+            echo "Previous run: $run_id"
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name load-test-baseline \
+              --dir "$RUNNER_TEMP/previous" || echo "Its baseline is gone."
+          else
+            echo "No previous successful run."
+          fi
+          anchor_run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=load-test-anchor&per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")][0].workflow_run.id // empty')
+          if [ -n "$anchor_run" ] && gh run download "$anchor_run" --repo "$GITHUB_REPOSITORY" \
+            --name load-test-anchor --dir "$RUNNER_TEMP/anchor"; then
+            echo "Anchor: run $anchor_run"
+            echo "anchor=found" >> "$GITHUB_OUTPUT"
+          else
+            echo "No anchor: this run becomes it if it passes (on main)."
+          fi
+
+      - name: Compare (fails at twice the previous run or the anchor)
+        env:
+          REPORT_ONLY: ${{ (github.event_name == 'pull_request' || inputs.record_only) && '--report-only' || '' }}
+        run: |
+          # shellcheck disable=SC2086 # REPORT_ONLY is one flag or nothing
+          node loadtest/compare.mjs --current "$LOADTEST_OUT/baseline.json" \
+            --previous "$RUNNER_TEMP/previous/baseline.json" \
+            --anchor "$RUNNER_TEMP/anchor/baseline.json" \
+            --summary "$GITHUB_STEP_SUMMARY" $REPORT_ONLY
+
+      # The new anchor: a passing run on main dispatched with record_only, or
+      # the first one when there is none (or it expired after 90 days).
+      - name: Keep it as the anchor
+        if: >-
+          github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+          && (inputs.record_only || steps.references.outputs.anchor != 'found')
+        uses: actions/upload-artifact@v7
+        with:
+          name: load-test-anchor
+          path: ${{ env.LOADTEST_OUT }}/baseline.json
+          retention-days: 90
