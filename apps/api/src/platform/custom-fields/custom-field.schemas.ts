@@ -1,0 +1,167 @@
+import { z } from 'zod';
+import { CUSTOM_FIELD_TYPES } from './custom-field.types.js';
+import { CUSTOM_KEY_PATTERN } from './custom-field.values.js';
+
+/** A pattern that compiles as the values are checked (unicode mode). */
+const compiles = (pattern: string) => {
+  try {
+    new RegExp(pattern, 'u');
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * What makes a regex backtrack catastrophically on crafted input (ReDoS):
+ * a quantified group that itself holds a quantifier, `(a+)+`, `(\w*)*`,
+ * `(a|b+){2,}`; and backreferences. JavaScript can't interrupt a running
+ * regex, so such patterns are refused when an administrator saves them.
+ */
+const BACKTRACKING = /\([^)]*[+*}][^)]*\)\s*[+*{]|\\[1-9]/;
+
+/**
+ * The definitions API's bodies and responses. What depends on the type
+ * (options, validation keys, the default) is checked by the service
+ * (`definitionIssues`), on the definition as it would be saved.
+ */
+
+const optionSchema = z.object({
+  value: z.string().trim().min(1).max(100),
+  label: z.string().trim().min(1).max(200),
+});
+
+const validationSchema = z
+  .object({
+    min: z
+      .number()
+      .optional()
+      .describe('number: lowest value; multiSelect: fewest choices.'),
+    max: z
+      .number()
+      .optional()
+      .describe('number: highest value; multiSelect: most choices.'),
+    minLength: z.int().min(0).optional(),
+    maxLength: z.int().min(1).optional(),
+    pattern: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine(compiles, 'Not a valid regular expression.')
+      .refine(
+        (pattern) => !BACKTRACKING.test(pattern),
+        'Nested quantifiers like (a+)+ and backreferences can take exponential time: rewrite the pattern.',
+      )
+      .optional()
+      .describe(
+        'A regular expression the whole value must match (text types).',
+      ),
+  })
+  .strict();
+
+export const customFieldListQuerySchema = z
+  .object({
+    subject: z.string().min(1).max(100).meta({ example: 'Note' }),
+    includeInactive: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    lang: z.string().max(35).optional(),
+  })
+  .strict();
+
+export const createCustomFieldSchema = z
+  .object({
+    subject: z.string().min(1).max(100).meta({ example: 'Note' }),
+    key: z
+      .string()
+      .regex(CUSTOM_KEY_PATTERN, {
+        message:
+          'A key starts with a lowercase letter, then lowercase letters, digits or _ (50 at most).',
+      })
+      .meta({ example: 'region' })
+      .describe('The JSON key of the value; never changes.'),
+    label: z.string().trim().min(1).max(120).meta({ example: 'Region' }),
+    description: z.string().max(500).nullable().optional(),
+    type: z.enum(CUSTOM_FIELD_TYPES).meta({ example: 'select' }),
+    options: z
+      .array(optionSchema)
+      .max(200)
+      .optional()
+      .meta({
+        example: [
+          { value: 'eu', label: 'Europe' },
+          { value: 'us', label: 'Americas' },
+        ],
+      })
+      .describe('The choices of select and multiSelect.'),
+    required: z.boolean().optional(),
+    default: z
+      .unknown()
+      .optional()
+      .describe('Filled in on create when the value is left out.'),
+    validation: validationSchema.optional(),
+    position: z.int().min(0).optional().describe('Default: after the others.'),
+    filterable: z.boolean().optional(),
+    sortable: z.boolean().optional(),
+  })
+  .strict();
+export type CreateCustomFieldDto = z.infer<typeof createCustomFieldSchema>;
+
+export const updateCustomFieldSchema = createCustomFieldSchema
+  .omit({ subject: true, key: true, position: true })
+  .partial()
+  .extend({
+    options: z.array(optionSchema).max(200).nullable().optional(),
+    validation: validationSchema.nullable().optional(),
+    default: z.unknown().optional().describe('null: no default.'),
+    active: z
+      .boolean()
+      .optional()
+      .describe('false deactivates (values kept), true brings it back.'),
+  })
+  .strict();
+export type UpdateCustomFieldDto = z.infer<typeof updateCustomFieldSchema>;
+
+export const reorderCustomFieldsSchema = z
+  .object({
+    subject: z.string().min(1).max(100),
+    ids: z
+      .array(z.uuid())
+      .min(1)
+      .max(500)
+      .describe('These fields first, in this order; the others follow.'),
+  })
+  .strict();
+
+export const customFieldSchema = z.object({
+  id: z.uuid(),
+  subject: z.string(),
+  key: z.string(),
+  label: z.string(),
+  description: z.string().nullable(),
+  type: z.enum(CUSTOM_FIELD_TYPES),
+  options: z.array(optionSchema).nullable(),
+  required: z.boolean(),
+  default: z.unknown().nullable(),
+  validation: validationSchema.nullable(),
+  position: z.int(),
+  filterable: z.boolean(),
+  sortable: z.boolean(),
+  active: z.boolean(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+/** `custom` on a feature's bodies: checked against the subject's fields by the service. */
+export const customValuesInputSchema = z
+  .record(z.string().max(64), z.unknown())
+  .meta({ example: { region: 'eu' } })
+  .describe(
+    'Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one.',
+  );
+
+/** `custom` in a feature's responses. */
+export const customValuesSchema = z
+  .record(z.string(), z.unknown())
+  .describe('Custom field values by key.');

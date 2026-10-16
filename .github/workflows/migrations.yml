@@ -1,0 +1,86 @@
+# Pull requests: the expand/contract lint (docs/pitfalls.md, "Migrations:
+# expand/contract"; tools/migration-lint/lint.mjs). The migrations a pull
+# request adds under apps/api/drizzle/ are read by squawk, and what breaks
+# the release before them (drops, renames, retypes, SET NOT NULL, a NOT NULL
+# column without a default, dropped defaults and constraints, TRUNCATE,
+# DELETE and UPDATE without WHERE) goes to the job summary, with file and
+# line. Report-only while the template has no adopters: set
+# MIGRATION_LINT_FAIL to on to fail the pull request on them; a reviewed
+# contract step then takes the destructive-migration label. A change to a
+# migration that was already merged (edited, deleted, its journal entry
+# changed or out of order) and a squawk-ignore comment fail either way,
+# unless the label accepts them. The label is read when the job runs (a
+# re-run sees it as it is now) and counts only when it was added after the
+# head commit was pushed: every push needs it again.
+#
+# Its own workflow, so that adding or removing the label runs this check
+# again, not the whole CI.
+name: Migrations
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  # The label: the pull request's events, and the runs of its head commit
+  # (when it was pushed).
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: migrations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration-lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # '' reports only; on fails on destructive statements.
+      MIGRATION_LINT_FAIL: ''
+    steps:
+      # A pull request checks out its merge commit: HEAD^1 is the base
+      # branch it was merged onto, so the comparison is this pull request's alone.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Install Node.js (the lint has no dependencies)
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+      # squawk's image (pinned in lint.mjs) is pulled here; its containers
+      # run without network. The fixtures and the migrations are the pull
+      # request's text: workflow commands are off while they are read, and
+      # the lint writes them to the summary only, never to the log.
+      - name: The lint's tests (every rule on its fixtures)
+        run: |
+          token=$(openssl rand -hex 16)
+          echo "::stop-commands::$token"
+          status=0
+          node --test tools/migration-lint/lint.test.mjs || status=$?
+          echo "::$token::"
+          exit "$status"
+      - name: Destructive statements in the new migrations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -z "$(git rev-parse --verify --quiet HEAD^2)" ]; then
+            echo '::error::HEAD is not a merge commit: the job expects the one a pull request checks out'
+            exit 1
+          fi
+          annotations="$RUNNER_TEMP/migration-lint-annotations.txt"
+          token=$(openssl rand -hex 16)
+          echo "::stop-commands::$token"
+          status=0
+          node tools/migration-lint/lint.mjs --base "$(git rev-parse HEAD^1)" \
+            --summary "$GITHUB_STEP_SUMMARY" --annotations "$annotations" \
+            --pr "$PR_NUMBER" --head "$HEAD_SHA" || status=$?
+          echo "::$token::"
+          # The annotations: file, line and the rule's text, escaped by the
+          # lint (none of the SQL).
+          if [ -f "$annotations" ]; then cat "$annotations"; fi
+          exit "$status"

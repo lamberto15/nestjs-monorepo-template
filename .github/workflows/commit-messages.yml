@@ -1,0 +1,63 @@
+# Pull requests: what the squash merge puts on main follows Conventional
+# Commits, by the rules the commit-msg hook applies (commitlint.config.js,
+# docs/development.md "Git hooks"). The squash takes the commit's subject
+# when a pull request has one commit (GitHub counts merge commits too) and
+# the title otherwise (the repository's COMMIT_OR_PR_TITLE setting). So the
+# title is always checked (it can become main's subject with the next
+# push), and the commit's subject while it's the only one. `edited` runs it
+# again when the title changes.
+#
+# The title and the subject are the pull request's text: they're read from
+# the event's JSON and git, never expanded into the script, and printed only
+# while workflow commands are off.
+name: Commit messages
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commit-messages-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  conventional:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # The pull request's last commit (not the merge commit GitHub makes).
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Install pnpm and Node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+      # The root's tooling alone (commitlint), from the lockfile.
+      - run: pnpm install --frozen-lockfile --filter nestjs-monorepo-template
+      - name: The title, and a single commit's subject, are conventional
+        run: |
+          commits=$(jq -r .pull_request.commits "$GITHUB_EVENT_PATH")
+          title=0
+          subject=0
+          token=$(openssl rand -hex 16)
+          echo "::stop-commands::$token"
+          echo '--- The pull request title'
+          jq -j .pull_request.title "$GITHUB_EVENT_PATH" | pnpm exec commitlint || title=1
+          if [ "$commits" = 1 ]; then
+            echo "--- The only commit's subject (the squash merge takes it)"
+            git log -1 --format=%s HEAD | pnpm exec commitlint || subject=1
+          fi
+          echo "::$token::"
+          if [ "$title" -ne 0 ]; then
+            echo '::error::The title is not a Conventional Commit (see the log): "type(scope): subject", e.g. "fix(iam): …". Edit it in place.'
+          fi
+          if [ "$subject" -ne 0 ]; then
+            echo "::error::The only commit's subject is not a Conventional Commit (see the log), and the squash merge would take it. Push a second commit (git commit --allow-empty -m 'chore: …'): the squash then takes the title."
+          fi
+          [ "$title" -eq 0 ] && [ "$subject" -eq 0 ]

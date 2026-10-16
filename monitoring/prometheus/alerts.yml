@@ -1,0 +1,381 @@
+# Alerting rules for the stack. Every rule reads a metric the app or an
+# exporter really serves (docs/deployment.md, "Metrics" and "Alerting").
+# Severities: critical (someone should look now: users are affected or work
+# has stopped) and warning (look today). Each one has a `for:` long enough
+# to ride out a deploy or a short blip.
+#
+# Unit tests: monitoring/prometheus/tests/ (promtool test rules).
+groups:
+  - name: app
+    rules:
+      - alert: ApiDown
+        expr: absent(up{job="api"} == 1)
+        for: 2m
+        labels:
+          severity: critical
+          job: api
+        annotations:
+          summary: No api replica answers
+          description: Prometheus has not scraped a healthy api replica for 2 minutes. The API is down or unreachable inside the Compose network.
+
+      - alert: WorkerDown
+        expr: absent(up{job="worker"} == 1)
+        for: 5m
+        labels:
+          severity: critical
+          job: worker
+        annotations:
+          summary: No worker answers
+          description: No worker replica has answered its scrape for 5 minutes. Queue jobs, mail, the outbox relay, webhook deliveries, workflows and cron jobs have stopped.
+
+      # Never 10 minutes up within half an hour, at an address scraped for
+      # most of it. Not changes(process_start_time_seconds): a redeploy can
+      # hand a new container a replica's old address, which looked like a restart.
+      - alert: AppRestarting
+        expr: >
+          max_over_time((time() - process_start_time_seconds{job=~"api|worker"})[30m:1m]) < 600
+          and count_over_time(process_start_time_seconds{job=~"api|worker"}[30m:1m]) > 25
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} keeps restarting'
+          description: 'The process has not stayed up for 10 minutes in the last 30 (a crash loop, or killed at its memory limit). Check `docker compose logs {{ $labels.job }}` and `docker compose ps`.'
+
+      - alert: HighErrorRate
+        expr: >
+          job:http_requests_5xx:rate5m / job:http_requests:rate5m > 0.05
+          and job:http_requests:rate5m > 0.1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $value | humanizePercentage }} of {{ $labels.job }} requests fail with 5xx'
+          description: More than 5% of requests answered 5xx for 10 minutes. 503 database_busy and database_timeout come from the database pool and slow statements; other 5xx are errors in the logs.
+
+      - alert: HighLatency
+        expr: >
+          job:http_request_duration_seconds:p95_5m{job="api"} > 1
+          and job:http_requests:rate5m > 0.1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'api p95 latency is {{ $value | humanizeDuration }}'
+          description: The 95th percentile of request durations has been above 1 s for 15 minutes. Look for slow routes (`http_request_duration_seconds` by route), the database pool and the event loop.
+
+      - alert: DatabasePoolSaturated
+        expr: min_over_time(db_pool_connections{state="waiting"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} waits for database connections'
+          description: 'Queries have been waiting for a pool connection at every scrape for 10 minutes ({{ $value }} now). Requests that wait longer than DATABASE_POOL_TIMEOUT_MS answer 503 database_busy. See docs/deployment.md, "Database connections".'
+
+      - alert: HeapNearLimit
+        expr: nodejs_heap_size_used_bytes / nodejs_heap_size_limit_bytes > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} uses {{ $value | humanizePercentage }} of its heap'
+          description: The V8 heap has been above 85% of its limit (API_HEAP_MB / WORKER_HEAP_MB) for 10 minutes. Near the limit, garbage collection eats the CPU, then the process dies. A leak, or the limit is too small.
+
+      - alert: EventLoopLag
+        expr: nodejs_eventloop_lag_p99_seconds{job=~"api|worker"} > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} event loop lags {{ $value | humanizeDuration }}'
+          description: The event loop's p99 delay has been above 500 ms for 10 minutes. Something blocks the process (synchronous work, a CPU limit too low); every request and job on it waits.
+
+  - name: background
+    rules:
+      - alert: QueueStalled
+        expr: >
+          queue:queue_jobs:max{state="waiting"} > 0
+          and on (queue) queue:queue_jobs:max{state="active"} == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Queue {{ $labels.queue }} is not processed'
+          description: '{{ $value }} jobs have waited for 10 minutes while none ran. No worker takes them: workers down, stuck, or the queue is paused (GET /v1/ops/queues).'
+
+      - alert: QueueBacklogGrowing
+        expr: >
+          queue:queue_jobs:max{state="waiting"} > 100
+          and delta(queue:queue_jobs:max{state="waiting"}[30m]) > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Queue {{ $labels.queue }} backlog keeps growing'
+          description: '{{ $value }} jobs wait, more than 30 minutes ago. The workers don''t keep up: add workers (WORKER_REPLICAS) or find the slow jobs.'
+
+      - alert: JobsFailing
+        expr: delta(queue:queue_jobs:max{state="failed"}[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Jobs fail for good in queue {{ $labels.queue }}'
+          description: 'About {{ $value | humanize }} more jobs failed after all their attempts in the last 15 minutes. GET /v1/ops/queues shows the errors; POST /v1/ops/queues/{{ $labels.queue }}/retry-failed runs them again.'
+
+      - alert: OutboxStuck
+        expr: max(outbox_lag_seconds) > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'The outbox is {{ $value | humanizeDuration }} behind'
+          description: An outbox message that is due has waited more than 5 minutes for 5 minutes. The relay (on the workers) is not publishing; events, notifications and webhooks are delayed. GET /v1/ops/outbox.
+
+      - alert: OutboxDeadLetters
+        expr: max(outbox_dead_letters) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value }} outbox messages were given up on'
+          description: Dead letters stay until someone requeues or purges them in /v1/ops (docs/background-work.md).
+
+      - alert: WebhookDeliveriesLagging
+        expr: max(webhook_delivery_lag_seconds) > 600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Webhook deliveries are {{ $value | humanizeDuration }} overdue'
+          description: A delivery that is due has waited more than 10 minutes. The webhook worker (on the workers, WEBHOOKS_WORKER) isn't claiming deliveries.
+
+      # A stage past its deadline is escalated or expired by its workflow
+      # within a poll: one overdue for longer means the workflows' timers
+      # aren't running (no worker, or the instances failed: GET /v1/ops/events).
+      - alert: ApprovalsOverdue
+        expr: max(approvals_overdue_seconds) > 900
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'An approval stage is {{ $value | humanizeDuration }} past its deadline'
+          description: A pending approval request's stage passed its deadline more than 15 minutes ago and its workflow hasn't escalated or expired it. The workflow workers (APP_ROLE worker) aren't running its timers (docs/approvals.md).
+
+      # Approved, its outcome not applied: the workflow applies it within
+      # minutes, or ends it as failed (apply_failed) after about twenty.
+      # One still waiting after an hour: the workflows aren't running it.
+      - alert: ApprovalsNotApplied
+        expr: max(approvals_unapplied_seconds) > 3600
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'An approved request has waited {{ $value | humanizeDuration }} for its outcome'
+          description: An approval was granted more than an hour ago and its outcome handler hasn't run or ended it; its record stays locked. Check the workflow workers, then POST /v1/approvals/{id}/abandon if it can't apply (docs/approvals.md).
+
+      # The ECB publishes every working day: the newest stored day is at
+      # most about four days old (a Monday morning), five over Easter. Six
+      # means ExchangeRatesJob hasn't fetched for days: the ECB unreachable
+      # from the workers, or no worker runs the cron jobs. Conversions keep
+      # using the last rates (and say which day they are). +Inf: never fetched.
+      - alert: ExchangeRatesStale
+        expr: max(exchange_rates_age_seconds) > 6 * 86400
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: The exchange rates are stale
+          description: 'The newest stored ECB reference rates are {{ $value | humanizeDuration }} old (+Inf: none was ever fetched). The worker''s ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md).'
+
+      - alert: WebhookDeliveriesFailing
+        expr: delta(state:webhook_deliveries:max{state="failed"}[1h]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Webhook deliveries fail for good
+          description: 'About {{ $value | humanize }} deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver''s endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried.'
+
+  - name: dependencies
+    rules:
+      # From the app's own gauges: they go absent when their read fails, so
+      # these work with managed PostgreSQL and Redis too (no exporter needed).
+      - alert: DatabaseUnreachableFromApp
+        expr: up{job=~"api|worker"} == 1 unless on (job, instance) outbox_undelivered
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} cannot read PostgreSQL'
+          description: The process answers, but its database gauges have failed (or taken more than 2 s) for 2 minutes. /health answers 503 there.
+
+      - alert: RedisUnreachableFromApp
+        expr: up{job=~"api|worker"} == 1 unless on (job, instance) queue_jobs
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} cannot read Redis'
+          description: The process answers, but its queue gauges have failed (or taken more than 2 s) for 2 minutes. Queues, rate limits and realtime need Redis.
+
+      # The challenge provider (Cloudflare Turnstile) can't be asked: with
+      # CAPTCHA_ON_ERROR=allow the guarded routes run fail-open under the
+      # strict tier, with reject they answer 503 (docs/auth.md, "Bot protection").
+      - alert: CaptchaProviderUnavailable
+        expr: sum by (job) (rate(captcha_verifications_total{outcome="unavailable"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} cannot reach the captcha provider'
+          description: 'Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: {{ $value | humanize }} per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare''s status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too).'
+
+      # From the exporters in compose.monitoring.yaml.
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: PostgreSQL is down
+          description: The exporter has not been able to connect to PostgreSQL for a minute.
+
+      - alert: PostgresConnectionsHigh
+        expr: sum(pg_stat_database_numbackends) / max(pg_settings_max_connections) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'PostgreSQL uses {{ $value | humanizePercentage }} of max_connections'
+          description: 'The pools'' sum must stay under POSTGRES_MAX_CONNECTIONS (docs/deployment.md, "Database connections"). New connections fail at the limit.'
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis is down
+          description: The exporter has not been able to reach Redis for a minute.
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85 and redis_memory_max_bytes > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Redis uses {{ $value | humanizePercentage }} of maxmemory'
+          description: Redis runs with noeviction, so at maxmemory (REDIS_MAXMEMORY) every write fails, queued jobs included. Raise REDIS_MAXMEMORY and REDIS_MEMORY, or find what fills it.
+
+      - alert: RedisPersistenceFailing
+        expr: redis_aof_last_write_status == 0 or redis_rdb_last_bgsave_status == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis cannot write to disk
+          description: The append-only file or the last snapshot failed (a full disk?). Redis refuses writes until it can persist them.
+
+  - name: edge
+    rules:
+      # From the blackbox exporter: https://caddy:443/health/live with the
+      # public host as the TLS server name, the way a user's request goes.
+      - alert: HttpsProbeFailing
+        expr: probe_success{job="probe"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: The API does not answer over HTTPS
+          description: 'Caddy has not answered /health/live with 200 for 3 minutes: Caddy down, a certificate that is expired, missing or for another name, or no api replica healthy behind it. `docker compose logs caddy`; probe_http_status_code and the exporter''s /probe?debug=true say which.'
+
+      # Caddy renews when about a third of the lifetime is left (30 days of
+      # Let's Encrypt's 90): two weeks left means renewals have been failing.
+      - alert: CertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry{job="probe"} - time() < 14 * 86400
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'The HTTPS certificate expires in {{ $value | humanizeDuration }}'
+          description: Caddy should have renewed it long ago. `docker compose logs caddy` for the ACME errors (the Cloudflare DNS challenge, CLOUDFLARE_API_TOKEN, rate limits).
+
+      - alert: CertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry{job="probe"} - time() < 7 * 86400
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'The HTTPS certificate expires in {{ $value | humanizeDuration }}'
+          description: Caddy should have renewed it long ago; at expiry every client refuses the API. `docker compose logs caddy` for the ACME errors (the Cloudflare DNS challenge, CLOUDFLARE_API_TOKEN, rate limits).
+
+  - name: backups
+    rules:
+      # From backup-metrics (the markers the backup service writes): the
+      # same conditions as its Docker healthcheck, which Prometheus can't see.
+      - alert: BackupFailed
+        expr: backup_last_failure_timestamp_seconds > backup_last_success_timestamp_seconds
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: The last backup failed
+          description: 'The hourly catch-up retries it; until one succeeds the newest backup is older than planned. `docker compose logs backup` (docs/deployment.md, "Backups and restore").'
+
+      - alert: BackupTooOld
+        expr: >
+          time() - backup_last_success_timestamp_seconds > backup_max_age_seconds + 3600
+          and backup_last_success_timestamp_seconds > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'The newest backup is {{ $value | humanizeDuration }} old'
+          description: No backup has succeeded for longer than BACKUP_MAX_AGE_HOURS plus the hourly catch-up. `docker compose logs backup`; one now with `docker compose exec backup backup`.
+
+      - alert: BackupNeverSucceeded
+        expr: backup_last_success_timestamp_seconds == 0
+        for: 26h
+        labels:
+          severity: warning
+        annotations:
+          summary: No backup has succeeded yet
+          description: The backups volume has held no successful backup for over a day. `docker compose logs backup`; one now with `docker compose exec backup backup`.
+
+  - name: monitoring
+    rules:
+      # The dead man's switch: always firing. Alertmanager sends it about once
+      # a minute to an outside check (healthchecks.io), and only there; that
+      # check alarms when the pings stop, which is how a dead Prometheus,
+      # Alertmanager or host gets noticed at all.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: The alerting pipeline works (always firing)
+          description: Not a problem. It goes to the dead man's switch only (ALERT_WATCHDOG_URL_FILE or ALERT_WATCHDOG_URL); when its pings stop, the outside check alarms.
+
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} target {{ $labels.instance }} is down'
+          description: Prometheus has failed to scrape it for 5 minutes. For api and worker, check METRICS_TOKEN too (401).
+
+      - alert: PrometheusRuleFailures
+        expr: increase(prometheus_rule_evaluation_failures_total[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Prometheus fails to evaluate rules
+          description: 'Rule group {{ $labels.rule_group }} failed in the last 10 minutes: alerts from it may be missing. See `docker compose logs prometheus`.'
+
+      - alert: AlertmanagerNotificationsFailing
+        expr: increase(alertmanager_notifications_failed_total[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Alertmanager fails to send through {{ $labels.integration }}'
+          description: Notifications are failing (SMTP settings, a webhook URL). See `docker compose logs alertmanager`.

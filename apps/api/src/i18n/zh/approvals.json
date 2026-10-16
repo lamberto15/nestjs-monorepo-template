@@ -1,0 +1,19 @@
+{
+  "unknownType": "未知类型“{type}”（已注册：{known}）",
+  "unknownAction": "没有名为“{key}”的需审批操作。",
+  "pending": "此记录有待处理的审批：请等待决定，或撤回请求。",
+  "closed": "此审批请求已结束。",
+  "alreadyDecided": "此阶段已有决定。",
+  "decidedOtherwise": "您已对此阶段做出了不同的决定。",
+  "notAssignee": "您不是此请求当前阶段的审批人。",
+  "selfApproval": "您不能对自己的请求做出决定。",
+  "noApprovers": "无人可以审批：阶段“{stage}”找不到审批人。",
+  "notRequester": "只有请求人可以执行此操作。",
+  "notChangesRequested": "只有被退回修改的请求才能重新提交。",
+  "delegateToSelf": "您不能委托给自己。",
+  "unknownUser": "没有使用此 ID 的活跃用户。",
+  "delegationTooLong": "委托最长持续 {days} 天。",
+  "payloadFromRecord": "此操作的拟议更改从记录中读取：请不要发送。",
+  "notStuck": "只有已批准但结果尚未应用的请求才能被放弃。",
+  "notManager": "只有可以管理审批的人才能执行此操作。"
+}

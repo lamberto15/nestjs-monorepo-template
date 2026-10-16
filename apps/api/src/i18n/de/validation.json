@@ -1,0 +1,34 @@
+{
+  "invalid_type": "{path} muss vom Typ {expected} sein",
+  "too_small": {
+    "string": {
+      "one": "{path} muss mindestens {count} Zeichen lang sein",
+      "other": "{path} muss mindestens {count} Zeichen lang sein"
+    },
+    "number": "{path} muss mindestens {minimum} sein",
+    "array": {
+      "one": "{path} muss mindestens {count} Eintrag haben",
+      "other": "{path} muss mindestens {count} Einträge haben"
+    }
+  },
+  "too_big": {
+    "string": {
+      "one": "{path} darf höchstens {count} Zeichen lang sein",
+      "other": "{path} darf höchstens {count} Zeichen lang sein"
+    },
+    "number": "{path} darf höchstens {maximum} sein",
+    "array": {
+      "one": "{path} darf höchstens {count} Eintrag haben",
+      "other": "{path} darf höchstens {count} Einträge haben"
+    }
+  },
+  "invalid_format": {
+    "email": "{path} muss eine E-Mail-Adresse sein",
+    "url": "{path} muss eine URL sein",
+    "uuid": "{path} muss eine UUID sein",
+    "datetime": "{path} muss ein Datum mit Uhrzeit nach ISO 8601 sein",
+    "regex": "{path} hat ein ungültiges Format"
+  },
+  "invalid_value": "{path} muss einer der erlaubten Werte sein",
+  "unrecognized_keys": "{path} enthält unbekannte Felder"
+}

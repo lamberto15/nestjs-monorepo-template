@@ -1,0 +1,49 @@
+# Git hooks (https://lefthook.dev). `pnpm install` sets them up: lefthook's
+# postinstall runs `lefthook install` (allowed in pnpm-workspace.yaml's
+# allowBuilds; skipped where CI=true). `pnpm exec lefthook install` redoes it.
+# Every worktree shares them (.git/hooks).
+#
+# Fast checks on the staged files only. CI owns the slow ones (build, tests,
+# db:check, client:check). Skip them once with `git commit --no-verify`, or
+# `LEFTHOOK=0 git commit …` (docs/development.md, "Git hooks").
+
+# Hooks change only through `lefthook install`, never as a side effect of a
+# commit: the hooks are shared, and a commit in one worktree would point them
+# at its own binary.
+no_auto_install: true
+
+# Bash-like globs: `**/` also matches no directory, `{a,b}` either.
+glob_matcher: doublestar
+
+# Each job skips when its tool isn't installed in this checkout (`pnpm
+# install` not run yet, or node_modules from before the hooks): a `git merge
+# origin/main` that brings this file in then commits instead of failing.
+pre-commit:
+  # One after the other: oxlint reads what Prettier has written.
+  piped: true
+  jobs:
+    # The globs of the root `format` script: TypeScript only, never docs/ or
+    # other Markdown (Prettier reflows its tables). Fixed files are restaged.
+    - name: prettier
+      glob:
+        - 'apps/*/{src,test}/**/*.ts'
+        - 'packages/*/src/**/*.ts'
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true
+      skip:
+        - run: test ! -x node_modules/.bin/prettier
+    # The API's `lint` (type-aware oxlint, the root .oxlintrc.json), on the
+    # staged files alone.
+    - name: oxlint
+      glob: 'apps/api/{src,test}/**/*.ts'
+      run: pnpm exec oxlint --type-aware {staged_files}
+      skip:
+        - run: test ! -x node_modules/.bin/oxlint
+
+# Conventional Commits (commitlint.config.js). Merge commits pass as they are.
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}
+      skip:
+        - run: test ! -x node_modules/.bin/commitlint

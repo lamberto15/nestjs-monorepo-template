@@ -1,0 +1,59 @@
+# Development: the backing services on localhost (PostgreSQL, Redis, Mailpit,
+# Floci); the app runs on your machine (`pnpm start:dev`: instant reloads, the
+# debugger). `pnpm services:up` runs them as the project `<name>-dev`, apart
+# from a production stack on the same machine, with dev/compose.env as its
+# variables (never .env: production's secrets). `cp env.development.example
+# .env.development` points the app at them.
+
+# Bounded logs, as in compose.yaml (which covers postgres and redis).
+x-logging: &logging
+  driver: local
+  options:
+    max-size: 20m
+    max-file: '3'
+
+services:
+  postgres:
+    ports:
+      - '127.0.0.1:5432:5432'
+
+  redis:
+    ports:
+      - '127.0.0.1:6379:6379'
+
+  # Catches every mail the app sends (SMTP on 1025): read them at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.30
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
+  # AWS on http://localhost:4566 (S3 for files, SES for mail), so development
+  # runs the production paths without an account. SES mail is relayed to Mailpit.
+  floci:
+    image: floci/floci:2.2.0-compat # compat: the AWS CLI for the init hook
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # No Docker socket here: no web console, and no Docker-backed services (Lambda, RDS…).
+      FLOCI_SERVICES_UI_ENABLED: 'false'
+      FLOCI_SERVICES_ECS_ENABLED: 'false' # else it waits ~15 s for Docker at start
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+      FLOCI_SERVICES_SES_SMTP_HOST: mailpit
+      FLOCI_SERVICES_SES_SMTP_PORT: '1025'
+      S3_BUCKET: ${S3_BUCKET:-app-files}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-no-reply@example.com}
+    ports:
+      - '127.0.0.1:4566:4566'
+    volumes:
+      - floci_data:/app/data
+      # Creates the bucket and verifies the sender once Floci is ready.
+      - ./dev/floci:/etc/floci/init/ready.d:ro
+    depends_on:
+      - mailpit
+
+volumes:
+  floci_data:
+

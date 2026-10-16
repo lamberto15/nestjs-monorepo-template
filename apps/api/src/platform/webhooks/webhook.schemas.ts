@@ -1,0 +1,140 @@
+import { z } from 'zod';
+
+const eventTypes = z
+  .array(z.string())
+  .describe(
+    'Event types to receive (see the API description), or "*" for all.',
+  );
+
+/** Body of `POST /webhook-endpoints`. The package checks the URL and the types themselves. */
+export const createEndpointSchema = z.object({
+  url: z
+    .string()
+    .describe(
+      'A public https:// URL. Private and cloud-metadata addresses are refused.',
+    ),
+  eventTypes,
+  description: z.string().optional(),
+});
+export type CreateEndpointDto = z.infer<typeof createEndpointSchema>;
+
+/** Body of `PATCH /webhook-endpoints/:id`: only what is sent changes. */
+export const updateEndpointSchema = z.object({
+  url: z.string().optional(),
+  eventTypes: eventTypes.optional(),
+  description: z.string().nullable().optional(),
+  enabled: z.boolean().optional(),
+});
+export type UpdateEndpointDto = z.infer<typeof updateEndpointSchema>;
+
+/** Body of `POST /webhook-deliveries/retry`: every failed delivery since an outage began. */
+export const retryDeliveriesSchema = z.object({
+  endpointId: z
+    .string()
+    .optional()
+    .describe("One endpoint's failed deliveries; every endpoint's without it."),
+  since: z.iso
+    .datetime()
+    .optional()
+    .describe(
+      'Deliveries created at or after this time: the start of the outage.',
+    ),
+});
+export type RetryDeliveriesDto = z.infer<typeof retryDeliveriesSchema>;
+
+const DELIVERY_STATUSES = ['pending', 'succeeded', 'failed'] as const;
+
+/** Query of `GET /webhook-deliveries`. */
+export const listDeliveriesQuerySchema = z.object({
+  endpointId: z.string().optional(),
+  status: z.enum(DELIVERY_STATUSES).optional(),
+  type: z
+    .string()
+    .optional()
+    .describe('An event type, such as note.published.'),
+});
+export type ListDeliveriesQuery = z.infer<typeof listDeliveriesQuerySchema>;
+
+const epochMs = z.number().describe('Epoch milliseconds.');
+
+/** A webhook endpoint, as the API returns it (never with its secret). */
+export const webhookEndpointSchema = z.object({
+  id: z.string(),
+  tenant: z.string().nullable(),
+  url: z.string(),
+  eventTypes: z.array(z.string()),
+  description: z.string().nullable(),
+  enabled: z.boolean(),
+  disabledReason: z.enum(['manual', 'failing', 'gone']).nullable(),
+  failingSince: epochMs.nullable(),
+  createdAt: epochMs,
+  updatedAt: epochMs,
+});
+
+/** `POST /webhook-endpoints`: the endpoint and its secret, shown this once. */
+export const createdWebhookEndpointSchema = webhookEndpointSchema.extend({
+  secret: z
+    .string()
+    .describe(
+      'Standard Webhooks whsec_…: verify the signatures with it. Shown this once.',
+    ),
+});
+
+export const rotatedSecretSchema = z.object({
+  secret: z
+    .string()
+    .describe(
+      'The new whsec_…. The old one keeps signing next to it for 24 hours.',
+    ),
+});
+
+/** One delivery of a message to an endpoint. */
+export const webhookDeliverySchema = z.object({
+  id: z.string(),
+  messageId: z
+    .string()
+    .describe('The webhook-id header: the same on every attempt and replay.'),
+  endpointId: z.string(),
+  tenant: z.string().nullable(),
+  type: z.string(),
+  status: z.enum(DELIVERY_STATUSES),
+  attempts: z.int(),
+  nextAttemptAt: epochMs.nullable(),
+  lastAttemptAt: epochMs.nullable(),
+  lastStatusCode: z.int().nullable(),
+  lastError: z.string().nullable(),
+  failureReason: z
+    .enum(['exhausted', 'rejected', 'endpoint-disabled', 'endpoint-deleted'])
+    .nullable(),
+  createdAt: epochMs,
+  completedAt: epochMs.nullable(),
+});
+
+/** A delivery with the message that was sent and every attempt. */
+export const webhookDeliveryDetailsSchema = webhookDeliverySchema.extend({
+  message: z.object({
+    id: z.string(),
+    type: z.string(),
+    tenant: z.string().nullable(),
+    body: z.string().describe('The exact JSON that was signed and sent.'),
+    createdAt: epochMs,
+  }),
+  history: z.array(
+    z.object({
+      deliveryId: z.string(),
+      attempt: z.int(),
+      at: epochMs,
+      durationMs: z.number(),
+      statusCode: z.int().nullable(),
+      response: z
+        .string()
+        .nullable()
+        .describe('The first 4 KB of the response body.'),
+      error: z.string().nullable(),
+    }),
+  ),
+});
+
+export const retriedSchema = z.object({
+  retried: z.int().describe('How many deliveries were sent again.'),
+});

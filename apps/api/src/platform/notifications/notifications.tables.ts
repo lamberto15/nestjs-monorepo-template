@@ -1,0 +1,89 @@
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
+import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import type { DigestMode, PreferenceOverrides } from './notification.types.js';
+
+/**
+ * What a recipient was told: the in-app notification, kept until the
+ * retention job removes it. The texts are not stored: `type` and `data`
+ * render them in the reader's language when they are read.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuidPk(),
+    /** Who it's for: `user:<id>` or `client:<id>`. */
+    recipient: text('recipient').notNull(),
+    /** A declared type: `note.published`. */
+    type: text('type').notNull(),
+    /** The placeholders of the title and body (`{title}`), and what a client needs to act. */
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+    /** The collapse key: a new notification with the same key replaces this one, counted up. */
+    key: text('key'),
+    /** How many notifications this one stands for (collapsed). */
+    count: integer('count').notNull().default(1),
+    /** Where to go about it: a path of the web app. */
+    link: text('link'),
+    readAt: at('read_at'),
+    /** The channels were served (or the recipient was gone). */
+    deliveredAt: at('delivered_at'),
+    /** Awaiting a digest mail, and when it is due. */
+    digest: text('digest').$type<DigestMode>(),
+    digestDueAt: at('digest_due_at'),
+    emailedAt: at('emailed_at'),
+    ...timestamps(),
+  },
+  (table) => [
+    // The list (newest first) and its cursor.
+    index('notifications_recipient_id_idx').on(table.recipient, table.id),
+    index('notifications_recipient_type_idx').on(table.recipient, table.type),
+    index('notifications_recipient_created_at_idx').on(
+      table.recipient,
+      table.createdAt,
+    ),
+    // The unread count, read-all.
+    index('notifications_recipient_unread_idx')
+      .on(table.recipient)
+      .where(sql`read_at is null`),
+    uniqueIndex('notifications_recipient_key_idx')
+      .on(table.recipient, table.key)
+      .where(sql`key is not null`),
+    // The digest job.
+    index('notifications_digest_due_at_idx')
+      .on(table.digestDueAt)
+      .where(sql`digest_due_at is not null`),
+    // Retention.
+    index('notifications_created_at_idx').on(table.createdAt),
+    index('notifications_read_at_idx')
+      .on(table.readAt)
+      .where(sql`read_at is not null`),
+  ],
+);
+
+/**
+ * A recipient's notification preferences: only what differs from the
+ * types' defaults, `{ [type]: { [channel]: value } }`, so a change to a
+ * type's defaults in code applies to everyone who didn't override it.
+ */
+export const notificationPreferences = pgTable(
+  'notification_preferences',
+  {
+    id: uuidPk(),
+    recipient: text('recipient').notNull(),
+    settings: jsonb('settings')
+      .$type<PreferenceOverrides>()
+      .notNull()
+      .default({}),
+    ...timestamps(),
+  },
+  (table) => [
+    uniqueIndex('notification_preferences_recipient_idx').on(table.recipient),
+  ],
+);

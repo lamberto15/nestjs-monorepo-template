@@ -1,0 +1,34 @@
+{
+	email {env.ACME_EMAIL}
+	# No autosave.json in the caddy_config volume: the configuration (the
+	# Cloudflare token's placeholder with it) is this file, read at each start.
+	persist_config off
+}
+
+{$APP_DOMAIN} {
+	# Prometheus scrapes /metrics inside the Compose network (api:3000): never from outside.
+	# Path matchers ignore case (/METRICS too) and /metrics* covers /metrics/ as well.
+	respond /metrics* 404
+
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		# check TXT propagation via public DNS, not the private network resolver
+		resolvers 1.1.1.1 1.0.0.1
+	}
+
+	# Every api replica (API_REPLICAS): Docker's DNS lists them under "api".
+	reverse_proxy {
+		dynamic a {
+			name api
+			port 3000
+			refresh 5s
+		}
+		# socket.io's long-polling needs one replica per client: a cookie keeps it there.
+		lb_policy cookie lb_replica
+		lb_retries 2
+		# A replica that stops answering (or shuts down) is skipped for a while.
+		fail_duration 10s
+		health_uri /health
+		health_interval 5s
+	}
+}

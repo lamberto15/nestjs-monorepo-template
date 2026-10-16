@@ -1,0 +1,11 @@
+<p>مرحباً {{ name }}،</p>
+<p>{{ count }} إشعارات جديدة في {{ app }}:</p>
+{{#each items}}
+<div style="margin:16px 0;padding:12px 16px;border-right:3px solid #d0d7de;">
+  <strong>{{ title }}</strong><br>
+  {{ body }}<br>
+  <span style="color:#59636e;font-size:13px;">{{ at }}</span>{{#if url}} · <a href="{{ url }}">فتح</a>{{/if}}
+</div>
+{{/each}}
+{{#if more}}<p>…و{{ more }} أخرى.</p>{{/if}}
+<p style="color:#59636e;font-size:13px;">تصلك هذه الخلاصة بسبب إعدادات الإشعارات الخاصة بك في {{ app }}.</p>

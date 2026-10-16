@@ -1,0 +1,22 @@
+{
+  "invalid_type": "{path} mestilah jenis {expected}",
+  "too_small": {
+    "string": { "other": "{path} mestilah sekurang-kurangnya {count} aksara" },
+    "number": "{path} mestilah sekurang-kurangnya {minimum}",
+    "array": { "other": "{path} mestilah mempunyai sekurang-kurangnya {count} item" }
+  },
+  "too_big": {
+    "string": { "other": "{path} mestilah tidak melebihi {count} aksara" },
+    "number": "{path} mestilah tidak melebihi {maximum}",
+    "array": { "other": "{path} mestilah tidak melebihi {count} item" }
+  },
+  "invalid_format": {
+    "email": "{path} mestilah alamat e-mel",
+    "url": "{path} mestilah URL",
+    "uuid": "{path} mestilah UUID",
+    "datetime": "{path} mestilah tarikh dan masa dalam format ISO 8601",
+    "regex": "Format {path} tidak sah"
+  },
+  "invalid_value": "{path} mestilah salah satu nilai yang dibenarkan",
+  "unrecognized_keys": "{path} mengandungi medan yang tidak dikenali"
+}

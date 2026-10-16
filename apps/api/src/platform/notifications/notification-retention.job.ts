@@ -1,0 +1,76 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import { ConfigService } from '@nestjs/config';
+import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
+import { Cron } from '@nestjs/schedule';
+import { and, isNotNull, lt, or } from 'drizzle-orm';
+import {
+  database,
+  type DrizzleTransactions,
+} from '../../core/database/transactions.js';
+import type { PlatformEnv } from '../platform.env.js';
+import { notifications } from './notifications.tables.js';
+import { SystemContext } from '../../iam/access/system-context.js';
+import { NOTIFICATION_RETENTION_JOB } from '../platform.jobs.js';
+
+/**
+ * Deletes read notifications older than NOTIFICATIONS_RETENTION_DAYS and
+ * any older than NOTIFICATIONS_MAX_AGE_DAYS, every night at 03:30 in
+ * APP_TIMEZONE, on one instance.
+ */
+@Injectable()
+export class NotificationRetentionJob {
+  private readonly logger = new Logger('Notifications');
+
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly config: ConfigService<PlatformEnv, true>,
+    private readonly system: SystemContext,
+  ) {}
+
+  @Cron('30 3 * * *', {
+    name: 'notification-retention',
+    timeZone: process.env.APP_TIMEZONE || 'UTC',
+  })
+  @OnOneInstance({ key: 'notifications:retention' })
+  @WithoutOverlapping()
+  run(now = new Date()) {
+    return this.system.run(
+      NOTIFICATION_RETENTION_JOB,
+      async () => {
+        const readDays = this.config.get('NOTIFICATIONS_RETENTION_DAYS', {
+          infer: true,
+        });
+        const maxDays = this.config.get('NOTIFICATIONS_MAX_AGE_DAYS', {
+          infer: true,
+        });
+        const before = (days: number) =>
+          new Date(now.getTime() - days * 86_400_000);
+        const deleted = await this.db
+          .delete(notifications)
+          .where(
+            or(
+              and(
+                isNotNull(notifications.readAt),
+                lt(notifications.readAt, before(readDays)),
+              ),
+              lt(notifications.createdAt, before(maxDays)),
+            ),
+          )
+          .returning({ id: notifications.id });
+        this.logger.log('Old notifications deleted', {
+          deleted: deleted.length,
+          readDays,
+          maxDays,
+        });
+        return deleted.length;
+      },
+      { transaction: false },
+    );
+  }
+}

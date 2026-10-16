@@ -1,0 +1,22 @@
+{
+  "invalid_type": "{path} 必须是 {expected} 类型",
+  "too_small": {
+    "string": { "other": "{path} 至少需要 {count} 个字符" },
+    "number": "{path} 不能小于 {minimum}",
+    "array": { "other": "{path} 至少需要 {count} 项" }
+  },
+  "too_big": {
+    "string": { "other": "{path} 最多 {count} 个字符" },
+    "number": "{path} 不能大于 {maximum}",
+    "array": { "other": "{path} 最多 {count} 项" }
+  },
+  "invalid_format": {
+    "email": "{path} 必须是电子邮件地址",
+    "url": "{path} 必须是网址",
+    "uuid": "{path} 必须是 UUID",
+    "datetime": "{path} 必须是 ISO 8601 格式的日期时间",
+    "regex": "{path} 格式不正确"
+  },
+  "invalid_value": "{path} 必须是允许的值之一",
+  "unrecognized_keys": "{path} 包含未知字段"
+}

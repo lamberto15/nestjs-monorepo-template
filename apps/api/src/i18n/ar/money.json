@@ -1,0 +1,8 @@
+{
+  "currencyMismatch": "لا يمكن الجمع بين {left} و{right}: حوّل أحد المبلغين أولًا.",
+  "rateUnavailable": "لا يوجد سعر صرف لـ {currencies} في {day} أو قبله.",
+  "ratesUnavailable": "لا توجد أسعار صرف في ذلك اليوم أو قبله.",
+  "unknownCurrency": "{currency} ليس رمز عملة وفق ISO 4217.",
+  "amountPrecision": "يحتوي المبلغ على منازل عشرية أكثر مما تسمح به {currency} ({exponent}).",
+  "invalidDecimal": "يجب أن يكون المبلغ عددًا عشريًا نصيًا، مثل 12.34."
+}

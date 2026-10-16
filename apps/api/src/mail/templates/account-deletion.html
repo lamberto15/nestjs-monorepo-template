@@ -1,0 +1,4 @@
+<p>Hi {{ name }},</p>
+<p>You asked us to delete your {{ app }} account. It will be deleted on <strong>{{ scheduledFor }}</strong>: your profile, sign-in methods, sessions and notifications go with it; records you created stay, without your name.</p>
+{{#if url}}<p>Changed your mind, or didn't ask for this? Cancel the deletion before then: <a href="{{ url }}">{{ url }}</a></p>{{/if}}
+<p>You can also download a copy of your data from the same page until then.</p>

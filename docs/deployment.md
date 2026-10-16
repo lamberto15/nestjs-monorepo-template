@@ -1,0 +1,782 @@
+# Deployment
+
+## Production with Docker Compose
+
+```bash
+cp env.example .env && chmod 600 .env   # then fill it (below)
+docker compose up -d --build      # .env sets COMPOSE_FILE=compose.yaml:compose.prod.yaml
+docker compose ps
+```
+
+Filling `.env` (each step is commented in `env.example`):
+
+- **Required:** `APP_DOMAIN` and `ACME_EMAIL` (Compose stops without them),
+  `CLOUDFLARE_API_TOKEN` (Caddy stops without it), `POSTGRES_PASSWORD` and
+  `POSTGRES_APP_PASSWORD` (`openssl rand -hex 24` each: hex, since they go
+  into `DATABASE_OWNER_URL` and `DATABASE_URL`; without them, `migrate` stops
+  on the missing URL; the two roles: [Database roles](#database-roles)). The
+  secrets can be files instead: [Secrets in files](#secrets-in-files).
+- **Recommended:** `REDIS_PASSWORD` (`openssl rand -hex 24`) and
+  `WEBHOOKS_ENCRYPTION_KEYS` (`openssl rand -base64 32`; unset, webhook
+  endpoint secrets are stored unencrypted), and `BACKUP_S3_*` (unset, the
+  backups stay on this host: [Backups and restore](#backups-and-restore)).
+- **Optional:** `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `STORAGE_SIGNING_KEYS`,
+  `IDEMPOTENCY_KEYS` and `EXAMPLE_SENDER_WEBHOOK_SECRET`: unset, the app
+  creates each on the first start and keeps it in the database
+  ([configuration](configuration.md)). `ADMIN_PASSWORD`: unset, the first
+  administrator's password is logged once.
+- **Replacing an earlier deployment's Caddy?** Its token and email:
+  `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
+
+| Service | What | Scale |
+| --- | --- | --- |
+| `caddy` | HTTPS (Let's Encrypt via Cloudflare DNS), load-balances the API | 1 |
+| `api` | `node dist/main`, `APP_ROLE=api` | `API_REPLICAS` (2) |
+| `worker` | `node dist/worker`, `APP_ROLE=worker` | `WORKER_REPLICAS` (1) |
+| `migrate` | `node dist/migrate`, once per deploy, before api and worker: the migrations as the owner, then the app role | one-off |
+| `postgres` | PostgreSQL 18 | 1 |
+| `redis` | Redis 8 (append-only, `noeviction`) | 1 |
+| `backup` | `pg_dump` and the uploaded files on a schedule, copied off the host ([below](#backups-and-restore)) | 1 |
+
+- **Resource limits** on every service (`API_CPUS`, `API_MEMORY`,
+  `WORKER_CPUS`, `WORKER_MEMORY`, `POSTGRES_*`, `REDIS_*`, `BACKUP_*`): none can starve the
+  others. The Node heap (`API_HEAP_MB`, `WORKER_HEAP_MB`) and Redis'
+  `maxmemory` stay below their limits. Limits don't add capacity: keep their
+  sum within the host's.
+- The API is reachable only through Caddy (port 3000 isn't published): the
+  Secure cookie and `trust proxy` rely on that.
+- Local file storage is a volume shared by the replicas of one host. More hosts:
+  `STORAGE_DRIVER=s3`.
+- Logs are JSON on stdout (`docker compose logs`). `X-Request-Id` follows a
+  request through Caddy, the logs and NestJS Observe.
+- **Bounded logs:** each container keeps at most `DOCKER_LOG_MAX_FILE` (5)
+  files of `DOCKER_LOG_MAX_SIZE` (20m), the older ones compressed, the
+  oldest dropped. The driver is `local` (`DOCKER_LOG_DRIVER`), the one Docker
+  recommends: compact, and `docker compose logs` reads it. Use `json-file`
+  only for a log shipper that reads the files under
+  `/var/lib/docker/containers`; shippers reading Docker's API work with
+  both. A change applies when `up -d` recreates the containers (the first
+  deploy with these settings recreates all of them, PostgreSQL and Redis
+  included: a few seconds' pause). Older logs are not kept: ship them
+  somewhere if you need them for longer.
+
+### Secrets in files
+
+The secrets below can live in files instead of `.env`. Compose mounts each
+one as a Docker secret: a read-only file at `/run/secrets/<name>`, in no
+variable and not in `docker inspect`. The container reads it. Each one is
+optional: an `.env` holding the values themselves keeps working. A secret
+without its `_FILE` is mounted from the empty `secret.empty`, which nothing
+reads.
+
+| `.env` | Read by | Instead of |
+| --- | --- | --- |
+| `POSTGRES_PASSWORD_FILE` | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`), the PostgreSQL exporter (`compose.monitoring.yaml`) | `POSTGRES_PASSWORD` |
+| `DATABASE_OWNER_URL_FILE` | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service | the URL Compose builds from `POSTGRES_PASSWORD` |
+| `DATABASE_URL_FILE` | the app (api, worker) and `migrate` (the app role's URL: `postgres://app_runtime:<password>@postgres:5432/app`, with `POSTGRES_APP_PASSWORD`'s value) | the URL Compose builds from `POSTGRES_APP_PASSWORD` |
+| `REDIS_PASSWORD_FILE` | Redis, its healthcheck and the Redis exporter (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file | `REDIS_PASSWORD` |
+| `CLOUDFLARE_API_TOKEN_FILE` | Caddy (`caddy/entrypoint.sh`) | `CLOUDFLARE_API_TOKEN` |
+| `BACKUP_S3_SECRET_ACCESS_KEY_FILE` | the backup | `BACKUP_S3_SECRET_ACCESS_KEY` |
+| `SMTP_URL_FILE` | the app, and Alertmanager (its default `ALERT_SMTP_URL`) | `SMTP_URL` |
+| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate) | the variable without `_FILE` |
+
+Not in this list, so they stay variables in Compose:
+- `METRICS_TOKEN`: `compose.monitoring.yaml` gives Prometheus its secret from the variable.
+- `AWS_SESSION_TOKEN`: a temporary credential, which a file mounted at deploy time can't renew.
+- `OBSERVE_APP_KEY`.
+- `POSTGRES_APP_PASSWORD`: it only builds `DATABASE_URL`, and the whole URL
+  is the secret (`DATABASE_URL_FILE`); a file for the password alone would
+  still have to be read into a URL by Compose, in a variable.
+- The alerting stack's own `ALERT_*` URLs.
+
+The app reads a `_FILE` for every secret (configuration.md, "Secrets"), so
+outside Compose all of these work as files too.
+
+In `.env`, `X_FILE` is the file's absolute path on the host. Compose hands
+the containers `X_FILE=/run/secrets/x`.
+
+- **The file or the variable, never both.** The app, Redis, Caddy, the
+  backup, Alertmanager and PostgreSQL's image each refuse to start when both
+  are set.
+- **Trailing line breaks are dropped**, a CRLF too. The exception is
+  `POSTGRES_PASSWORD_FILE`: write it with LF only, because PostgreSQL's image
+  keeps a trailing `\r` as part of the password.
+- **The Redis password never appears on a command line**, where `ps` and
+  `docker top` would show it, whether it comes from a file or from the
+  variable. The server reads it from stdin and `redis-cli` from
+  `REDISCLI_AUTH`.
+- **Caddy doesn't save its configuration** (`persist_config off`), so no copy
+  of it ends up in the `caddy_config` volume.
+
+**Moving a secret from `.env` to a file**, e.g. `JWT_SECRET`. Copy the value
+the containers use now, never a new one: for the `*_KEYS` a new value locks
+users out of their authenticator and makes stored data unreadable.
+
+```bash
+install -d -m 700 ~/secrets
+umask 077
+# What the app uses now: .env's value, else the one it created in app_secrets.
+value=$(docker compose exec -T api printenv JWT_SECRET)
+[ -n "$value" ] || value=$(docker compose exec -T postgres psql -U app -d app -Atc \
+  "select value from app_secrets where name = 'JWT_SECRET'")
+[ -n "$value" ] && printf '%s\n' "$value" > ~/secrets/jwt_secret
+unset value
+# Readable by the containers, which run as other users (node, postgres,
+# nobody). Docker Desktop shows a 600 file as root's. The 700 directory keeps
+# other users out.
+chmod 644 ~/secrets/jwt_secret
+# .env: empty the variable (JWT_SECRET=) and add JWT_SECRET_FILE=/home/<you>/secrets/jwt_secret
+# A changed secret alone doesn't recreate a container: force it.
+docker compose up -d --force-recreate api worker
+```
+
+The same applies to `DATABASE_URL` (`printenv DATABASE_URL` gives the URL
+Compose builds now; `docker compose run --rm migrate printenv
+DATABASE_OWNER_URL` the owner's) and to the other secrets.
+
+- **The owner's password takes two files** holding the same password:
+  `POSTGRES_PASSWORD_FILE` (PostgreSQL, the backup, the exporter) and
+  `DATABASE_OWNER_URL_FILE` (`migrate`). Then set `POSTGRES_PASSWORD=` empty
+  and recreate `migrate backup` (and `postgres-exporter`). PostgreSQL reads
+  its file only when it creates a database: a running one already has its
+  password.
+- **The app role's password** moves to `DATABASE_URL_FILE` (the whole URL,
+  `postgres://app_runtime:<password>@postgres:5432/app`). Then set
+  `POSTGRES_APP_PASSWORD=` empty and recreate `migrate api worker`.
+- **Redis' password** moves to `REDIS_PASSWORD_FILE`. Set `REDIS_PASSWORD=`
+  empty, then recreate `redis api worker` (and `redis-exporter`).
+- Rotation, per secret: [configuration](configuration.md#secrets).
+
+**When something doesn't start.** Without `CLOUDFLARE_API_TOKEN`,
+`POSTGRES_PASSWORD` and `POSTGRES_APP_PASSWORD`, Compose itself no longer
+stops, since each can be a file. What fails instead:
+
+| `docker compose ps` / `logs` | Cause |
+| --- | --- |
+| `migrate` exited 1: `DATABASE_OWNER_URL … and DATABASE_URL …, or their _FILE variants, are both required.` | neither `POSTGRES_PASSWORD`, `DATABASE_OWNER_URL` nor `DATABASE_OWNER_URL_FILE` in `.env`, or neither `POSTGRES_APP_PASSWORD`, `DATABASE_URL` nor `DATABASE_URL_FILE` |
+| `migrate` or the app: `DATABASE_URL and DATABASE_URL_FILE are both set` | `DATABASE_URL_FILE` while `POSTGRES_APP_PASSWORD` is still set: Compose builds `DATABASE_URL` from it. Empty `POSTGRES_APP_PASSWORD=`. |
+| `migrate`: `DATABASE_OWNER_URL and DATABASE_OWNER_URL_FILE are both set` | `DATABASE_OWNER_URL_FILE` while `POSTGRES_PASSWORD` is still set. Empty `POSTGRES_PASSWORD=` (and give PostgreSQL `POSTGRES_PASSWORD_FILE`). |
+| `postgres` restarting: `superuser password is not specified` | a new (empty) volume without either password |
+| `caddy` restarting: `Set CLOUDFLARE_API_TOKEN (or CLOUDFLARE_API_TOKEN_FILE)` | neither in `.env` |
+| `X_FILE: can't read /run/secrets/x (EACCES)` | the host file isn't readable by the container's user: `chmod 644` |
+| a warning `X_FILE is set, but X is not a secret read from a file` | a misspelt `_FILE` variable: it is ignored |
+
+**Deploying this change** recreates `postgres`, `redis` and `caddy` once,
+even with no secret moved: their environment, secrets, command or image
+change. That is a few seconds without the database, Redis and HTTPS, so
+deploy in a quiet moment.
+
+## Staging
+
+The same stack and image, with its own `.env`: its domain, secrets, database,
+`APP_ENV=staging` (names it in logs and traces), maybe `API_REPLICAS=1`.
+**Keep `NODE_ENV=production`**: behaviour follows NODE_ENV, and staging must
+run what production runs. Two stacks on one host can't both bind 80/443:
+give staging its own host.
+
+## Scaling further
+
+Compose scales on one host. Beyond it:
+
+- **Database:** a managed PostgreSQL 18 (`DATABASE_URL` for the app role,
+  `DATABASE_OWNER_URL` for the admin account that owns the database:
+  [Database roles](#database-roles)), with backups and point-in-time
+  recovery; drop `postgres` and `backup` from the stack.
+- **Redis:** managed, or Sentinel (`REDIS_SENTINELS=host:26379,…`,
+  `REDIS_SENTINEL_NAME`); drop `redis` from the stack.
+- **Files:** S3 or R2 (`STORAGE_DRIVER=s3`, `S3_*`).
+- **Hosts:** an orchestrator (Swarm, Kubernetes, a managed platform) runs the
+  same image with the same three commands. socket.io across hosts needs
+  `transports: ['websocket']` on clients, or sticky sessions.
+
+## Database roles
+
+Two roles share the database ([roadmap](roadmap.md), 1a), so that row-level
+security can mean something: PostgreSQL skips it for superusers and for a
+table's owner, and the postgres image's `POSTGRES_USER` is both.
+
+| Role | Who | Connects as | Gets |
+| --- | --- | --- | --- |
+| **owner** | `migrate`, `backup`, the postgres-exporter; the app itself when `MIGRATE_ON_START` is on (development) | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser) | owns every schema, table and sequence; runs the migrations |
+| **app** | `api`, `worker` | `DATABASE_URL` (Compose: `POSTGRES_APP_USER`, default `app_runtime`, with `POSTGRES_APP_PASSWORD`) | `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`; a member of no other role; owns nothing; `USAGE` on the schemas, `SELECT, INSERT, UPDATE, DELETE` on every table, `USAGE` on every sequence; never `CREATE` |
+
+`node dist/migrate` (`apps/api/src/core/database/roles.ts`) makes it so on
+every deploy, after the migrations, as the owner: it creates the app role
+from `DATABASE_URL`'s name and password when it is missing (a SCRAM verifier,
+so the password never reaches the server's log), checks its attributes when
+it exists (a role someone made a superuser is refused with the `ALTER ROLE`
+that fixes it, never demoted silently), grants what the schema has, sets
+`ALTER DEFAULT PRIVILEGES` so tables the owner creates later are covered,
+verifies the result (a member of no other role, since `GRANT owner TO app`
+would hand it the owner's rights with none of the flags set; owns nothing;
+can create nothing, naming `REVOKE CREATE ON SCHEMA public FROM PUBLIC`
+when a database made on PostgreSQL 14 or older still grants that; holds
+all four DML privileges on every table and `USAGE` on every sequence)
+before committing, and connects as the app once; a password that fails is
+set from the URL (that is how `POSTGRES_APP_PASSWORD` rotates: change it,
+redeploy). A second run finds nothing to do. It is code, not a migration
+file: drizzle-kit can declare a role (`pgRole`) but emits no `GRANT` or
+`ALTER DEFAULT PRIVILEGES`, and the role's name and password belong to the
+deployment, not to the schema.
+
+- **In Compose** the owner is the server's bootstrap superuser: the image
+  creates exactly one role, a third would need its credentials somewhere
+  anyway, and the owner never serves a request. Only `migrate` gets
+  `DATABASE_OWNER_URL`; api and worker can't reach it.
+- **The exception: the postgres-exporter** (`compose.monitoring.yaml`) and
+  `backup` also connect as the owner, so with the monitoring stack a
+  superuser's credentials sit in two more containers. The backup needs them
+  (it reads every table and creates databases); the exporter needs only
+  `pg_monitor`, and a role of its own for it is a follow-up (roadmap 1a). Both
+  run inside the Compose network and serve no request.
+- **The schemas it is granted** are an explicit list: `public` (and any
+  schema a table in `schema.ts` declares) plus the stores' `nest_outbox`,
+  `nest_workflows` and `nest_webhooks`. Nothing else on the database: a
+  managed PostgreSQL has schemas of the provider's or an extension's (`auth`,
+  `storage`, PostGIS's `tiger`), which the app never touches and whose
+  objects the ownership warning must not ask to reassign.
+- **Managed PostgreSQL** gives no superuser: `DATABASE_OWNER_URL` is the
+  admin account the provider made (it owns the database and has `CREATEROLE`,
+  which since PostgreSQL 16 lets it alter the roles it creates), and
+  `DATABASE_URL` names the app role you want, which `migrate` creates. If the
+  owner may not grant `CONNECT` on the database (it isn't the database's
+  owner), the app connects through `PUBLIC`'s default `CONNECT`; the log says
+  so. Tables another role owns are reported with the `REASSIGN OWNED BY` that
+  transfers them. The test suite runs this path on every CI run: its owner is
+  a plain `CREATEROLE` role, not a superuser (`apps/api/test/global-setup.ts`).
+- **Nothing creates or alters objects under the app's connection.** The
+  outbox, workflow and webhook stores only check their schema version at
+  startup (`migrate: false` in `platform.module.ts`); their migrations run
+  through their CLIs in `node dist/migrate`. Secrets the app creates on first
+  start (`app_secrets`) are plain rows. Advisory locks (`pg_advisory_xact_lock`)
+  and `set_config(..., true)` need no privilege.
+- **Proof, every CI run:** `apps/api/test/database-roles.e2e-spec.ts` connects
+  as the app role and checks `pg_roles` (no superuser, no RLS bypass, no
+  CREATEDB, no CREATEROLE), that it owns no relation, schema or database,
+  that `CREATE TABLE`, `ALTER TABLE`, `DROP`, `CREATE INDEX`, `TRUNCATE`,
+  `ALTER TABLE … DISABLE ROW LEVEL SECURITY`, `CREATE ROLE`, `ALTER ROLE`,
+  `CREATE DATABASE`, `CREATE EXTENSION` all fail with `42501`, and that rows,
+  sequences, advisory locks and transaction-scoped settings work; and every
+  other e2e test boots the app on that role. The `check` job runs `pnpm migrate`
+  twice as a deploy does (a superuser owner, as in Compose).
+- **Upgrading a deployment made before the roles** (app10): add
+  `POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)` to `.env` and redeploy
+  (`docker compose up -d --build --remove-orphans`). `migrate` creates
+  `app_runtime` and grants it everything; api and worker start on it. The
+  tables stay the superuser's (`POSTGRES_USER`), which is the owner role here,
+  so nothing is transferred. **Does your `.env` set `DATABASE_URL`
+  itself?** Then Compose keeps using that value as the app's URL
+  (`${DATABASE_URL:-…}`), and `migrate` refuses it: the same role in both
+  URLs, or a role that "owns N relations". Move the value to
+  `DATABASE_OWNER_URL` (that role keeps owning the tables) and remove
+  `DATABASE_URL` from `.env`, so Compose builds the app role's URL from
+  `POSTGRES_APP_PASSWORD`, or point `DATABASE_URL` at a new role of your own
+  for the app.
+- **Rolling back past this release** is not an image change alone
+  ([Publishing and rolling back images](#publishing-and-rolling-back-images)):
+  the previous image's `migrate` expects `DATABASE_URL` to be the owner's
+  and creates the `drizzle` schema with it, which the app role may not, so
+  it exits 1 and api and worker never start. Check out the previous
+  release's Compose files with its image (`git checkout <previous SHA> --
+  compose.yaml compose.prod.yaml`, `APP_IMAGE` at that SHA), or run that one
+  deploy with `DATABASE_URL` set to the owner's URL in `.env`. The new role
+  itself is harmless to the old release.
+
+## Database connections
+
+Each process has its own pool. Their sum must stay under PostgreSQL's
+`max_connections`, with a few left for administration and migrations:
+
+```
+API_REPLICAS × API_DATABASE_POOL_MAX + WORKER_REPLICAS × WORKER_DATABASE_POOL_MAX  <  POSTGRES_MAX_CONNECTIONS − 10
+          2 × 10                     +           1 × 20                            =  40  <  90
+```
+
+When a process's pool runs short:
+
+- **No hang:** a query waits at most `DATABASE_POOL_TIMEOUT_MS` for a
+  connection, then the request answers `503 database_busy` with
+  `Retry-After: 1` (a warning in the logs, not an error).
+- **No connection held for ever:** PostgreSQL cancels statements past
+  `DATABASE_STATEMENT_TIMEOUT_MS` (`503 database_timeout`) and ends sessions
+  idle in a transaction past `DATABASE_IDLE_TX_TIMEOUT_MS`. Migrations run
+  without the statement timeout.
+- **Seen early:** `GET /health` shows `databasePool` (max, in use, idle,
+  waiting); the `DatabasePool` logger warns every 5 s while queries wait or
+  requests are refused; `pg_stat_activity.application_name` names the process
+  (`<SERVICE_NAME>:api`, `:worker`).
+
+Raising the pools: more API replicas need a smaller pool each, or PgBouncer
+(transaction mode) in front of PostgreSQL, or a larger `max_connections`
+(each connection costs PostgreSQL memory). Workers need a pool at least as
+large as what they run at once (workflow steps, job concurrency).
+
+## Metrics
+
+`GET /metrics` serves Prometheus metrics (prom-client, `apps/api/src/core/metrics/`)
+on every process, api and worker alike (port 3000): HTTP request durations
+(`http_request_duration_seconds{method,route,status}`, `route` the matched
+pattern such as `GET /v1/notes/{id}`, unmatched requests `unmatched`; the
+scrape and `/health` are not measured), `http_requests_in_flight`, the
+process's pool (`db_pool_connections{state="total|idle|waiting"}`), jobs
+per queue and state (`queue_jobs{queue,state}`), the outbox
+(`outbox_undelivered`, `outbox_dead_letters`, `outbox_lag_seconds`), the
+outgoing webhooks (`webhook_deliveries{state="pending|due|failed"}`,
+`webhook_delivery_lag_seconds`), approvals (`approvals_open{status="pending|changes_requested"}`,
+`approvals_overdue_seconds`: how far the most overdue pending stage is past
+its deadline, which its workflow should have escalated or expired;
+`approvals_unapplied_seconds`: how long the oldest approved request has
+waited for its outcome), the bot protection's verifications
+(`captcha_verifications_total{outcome="passed|rejected|replayed|unavailable"}`,
+a counter per process: `rate()` and sum it), Node's defaults (`process_cpu_seconds_total`,
+heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).
+Queue, outbox, webhook and approval gauges are shared state: every process reports the
+same values, so aggregate them with `max()`, not `sum()`. A gauge whose read
+fails (PostgreSQL or Redis away) is left out of that scrape, not set to 0.
+
+- **Off by default:** without `METRICS_TOKEN`, `/metrics` answers 404. Set it
+  (`openssl rand -hex 24`, at least 16 characters); Prometheus then sends
+  `Authorization: Bearer <token>` (`authorization: { credentials: ... }` in
+  its scrape config), anything else gets 401.
+- **Inside the Compose network only:** run Prometheus as a service of the
+  stack (or on its network) and scrape every replica through Docker's DNS:
+
+  ```yaml
+  scrape_configs:
+    - job_name: api
+      authorization: { credentials_file: /etc/prometheus/metrics-token }
+      dns_sd_configs: [{ names: [api, worker], type: A, port: 3000 }]
+  ```
+
+  `compose.monitoring.yaml` does this for you (below).
+
+- **Not rate limited**, like `/health`: the limiter counts in Redis, and the
+  scrape must keep working while Redis is away (its gauges then go absent).
+- **Never through Caddy:** `caddy/Caddyfile` answers `/metrics` with 404
+  before the proxy (`respond /metrics* 404`), so the token is never the only
+  thing between the internet and the metrics. Keep that line when editing
+  the Caddyfile.
+
+### Alerting
+
+`monitoring/` holds Prometheus alert rules and an optional stack that runs
+them (`compose.monitoring.yaml`): Prometheus, Alertmanager, exporters for
+PostgreSQL and Redis, `blackbox-exporter` (HTTPS and the certificate,
+through Caddy) and `backup-metrics` (the backup service's state). The
+default stack doesn't need it, and nothing in it becomes required.
+
+**Turn it on:** set `METRICS_TOKEN` and a receiver (below) in `.env`, add
+the file to `COMPOSE_FILE`, deploy:
+
+```bash
+# .env: COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
+docker compose up -d
+```
+
+Prometheus scrapes every api and worker replica through Docker's DNS (the
+token is a Compose secret, `/run/secrets/metrics_token`), the two exporters,
+the HTTPS probe, `backup-metrics`, itself and Alertmanager, every 15 s. Its data lives in the `prometheus_data`
+volume: 30 days, at most 4 GB (`monitoring/prometheus/prometheus.yml`).
+Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
+`ALERTMANAGER_MEMORY`; the exporters get 0.25 CPU and 128 MB each (the
+blackbox exporter 0.1 CPU and 64 MB). Logs are
+bounded like the rest of the stack (`DOCKER_LOG_*`).
+
+**The alerts** (35 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
+warning: look today):
+
+| Alert | Fires when | Severity |
+| --- | --- | --- |
+| `ApiDown`, `WorkerDown` | no healthy api for 2 min; no worker for 5 min | critical |
+| `TargetDown` | one scrape target fails for 5 min (a replica, an exporter; a wrong `METRICS_TOKEN`) | warning |
+| `AppRestarting` | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit) | warning |
+| `HighErrorRate` | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s) | critical |
+| `HighLatency` | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out) | warning |
+| `DatabasePoolSaturated` | queries wait for a pool connection at every scrape for 10 min (`503 database_busy` next) | warning |
+| `HeapNearLimit` | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min | warning |
+| `EventLoopLag` | event loop p99 above 500 ms for 10 min | warning |
+| `QueueStalled` | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused) | critical |
+| `QueueBacklogGrowing` | over 100 jobs wait and more than 30 min ago, for 30 min | warning |
+| `JobsFailing` | jobs failed after all their attempts in the last 15 min | warning |
+| `OutboxStuck` | a due outbox message has waited over 5 min, for 5 min | critical |
+| `OutboxDeadLetters` | outbox dead letters wait for someone (requeue or purge in `/v1/ops`) | warning |
+| `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing` | a due delivery waits over 10 min; deliveries failed for good in the last hour | warning |
+| `ApprovalsOverdue` | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it) | warning |
+| `ApprovalsNotApplied` | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked | warning |
+| `ExchangeRatesStale` | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md)) | warning |
+| `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp` | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too) | critical |
+| `CaptchaProviderUnavailable` | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection") | warning |
+| `PostgresDown`, `RedisDown` | the exporter can't reach it for 1 min | critical |
+| `PostgresConnectionsHigh` | connections above 80% of `max_connections` for 5 min | warning |
+| `RedisMemoryHigh`, `RedisPersistenceFailing` | above 85% of `maxmemory` (noeviction: writes fail at 100%); the AOF or a snapshot fails | critical |
+| `HttpsProbeFailing` | Caddy hasn't answered the HTTPS probe with 200 for 3 min (Caddy down, a bad certificate, no healthy api behind it) | critical |
+| `CertificateExpiring` | the certificate expires within 14 days (warning) or 7 days (critical): Caddy's renewals fail | warning, critical |
+| `BackupFailed`, `BackupTooOld`, `BackupNeverSucceeded` | the last backup run failed; none succeeded for `BACKUP_MAX_AGE_HOURS` + 1 h; none at all for a day | warning |
+| `PrometheusRuleFailures`, `AlertmanagerNotificationsFailing` | the monitoring itself is broken (a rule, the SMTP settings, the Watchdog's URL) | warning |
+| `Watchdog` | always: the dead man's switch (below), sent to its ping URL only | none |
+
+The rules read `monitoring/prometheus/recording.yml` (rates, p95, queue
+numbers across replicas). Prometheus can't see Docker's healthchecks, so
+`backup-metrics` (busybox, `monitoring/backup-metrics/serve.sh`) turns the
+markers the backup service leaves in the `backups` volume (read only) into
+`backup_last_success_timestamp_seconds` and
+`backup_last_failure_timestamp_seconds`: the backup's own healthcheck, as
+alerts. Not covered: the host (disk, CPU: add node_exporter), and reaching
+the API from outside (public DNS, the firewall): the probe runs inside the
+Compose network.
+
+**The HTTPS probe:** `blackbox-exporter` fetches
+`https://caddy:443/health/live` every 15 s, by Caddy's Compose name, and
+sends `PROBE_HOST` (default: `APP_DOMAIN`) as the TLS server name and the
+`Host` header (`monitoring/blackbox/render-config.sh`). Caddy then serves
+the real site with its real certificate, which is checked against that
+name, and the answer must be the api's (`"status":"ok"`: Caddy answers an
+empty 200 for a host it doesn't serve). Going by Caddy's name, not the
+public one, works without public DNS (a host name that only `/etc/hosts` knows, and
+containers don't read the host's `/etc/hosts`). `probe_success` feeds
+`HttpsProbeFailing` (muted while `ApiDown`, `PostgresDown` or `RedisDown`
+fires: Caddy checks `/health`, so it has no healthy replica then; never by
+an alert about one replica, which would hide a Caddy or certificate outage); `probe_ssl_earliest_cert_expiry` feeds
+`CertificateExpiring`. Why a probe fails:
+
+```bash
+docker compose exec blackbox-exporter wget -qO- \
+  'http://127.0.0.1:9115/probe?module=https_caddy&target=https://caddy:443/health/live&debug=true'
+```
+
+**The dead man's switch:** every alert above needs Prometheus, Alertmanager
+and the host to be up to be sent at all. `Watchdog` (`vector(1)`) always
+fires; Alertmanager sends it about once a minute to an outside check, on
+its own route and receiver, never to the receivers below and with no
+resolved message. When the pings stop, the outside check alarms. Off by
+default: without a URL, the Watchdog goes to a receiver that sends nothing
+(it still shows in the UIs), and the stack starts as before.
+
+1. At [healthchecks.io](https://healthchecks.io) (the free tier is enough):
+   add a check, schedule "Simple", **period 1 minute, grace 5 minutes**
+   (a restart of Prometheus or Alertmanager stays quiet), and set its
+   notifications (mail, Slack, a phone) there: they are what tells you the
+   monitoring is gone. Copy its ping URL (`https://hc-ping.com/<uuid>`).
+2. Put the URL in a file outside the repository, readable by the container
+   (Alertmanager runs as `nobody`; the directory around it keeps others out),
+   and point `.env` at it. Compose mounts it as the `alert_watchdog_url`
+   secret, which Alertmanager reads itself (`url_file`): the URL is in no
+   variable and no rendered file.
+
+   ```bash
+   install -d -m 700 ~/secrets
+   printf '%s\n' 'https://hc-ping.com/<uuid>' > ~/secrets/alert_watchdog_url
+   chmod 644 ~/secrets/alert_watchdog_url
+   # .env: ALERT_WATCHDOG_URL_FILE=/Users/<you>/secrets/alert_watchdog_url (absolute; Linux: /home/<you>/...)
+   # A changed secret file alone doesn't recreate the container: force it.
+   docker compose up -d --force-recreate alertmanager
+   ```
+
+   Or set `ALERT_WATCHDOG_URL` in `.env` instead (the secret file wins when
+   both are set). Without `ALERT_WATCHDOG_URL_FILE`, Compose mounts the empty
+   `monitoring/alertmanager/watchdog-url.empty`.
+3. The check turns green within a minute or two. To test it, stop
+   Alertmanager (`docker compose stop alertmanager`): healthchecks.io alarms
+   after the period plus the grace time.
+
+When Prometheus itself dies, Alertmanager keeps the Watchdog until its
+`endsAt` (about 4 minutes after the last evaluation) and pings until then:
+the alarm comes after about 4 minutes plus the period plus the grace.
+
+A URL that stops working (the check deleted) fires
+`AlertmanagerNotificationsFailing` (integration `webhook`).
+
+**Where they go:** Alertmanager writes its configuration from `.env` at
+start (`monitoring/alertmanager/render-config.sh`), so no secret is in git:
+
+- `ALERT_EMAIL_TO`: mail, through `ALERT_SMTP_URL` (default: the app's
+  `SMTP_URL`), from `ALERT_EMAIL_FROM` (default: `MAIL_FROM`). Mail through
+  Resend, Postmark or SendGrid's API isn't SMTP: set `ALERT_SMTP_URL` to
+  their SMTP relay.
+- `ALERT_WEBHOOK_URL`: Alertmanager's JSON, to anything that takes it.
+- `ALERT_SLACK_WEBHOOK_URL`: a Slack incoming webhook.
+
+Any of them, or several. None: alerts only show in the UIs. Alerts are
+grouped by name, sent after 30 s, repeated every 12 h while they fire
+(critical: every 2 h), and once more when resolved. A critical alert mutes
+the warning of the same name; `PostgresDown` and `RedisDown` mute the app's
+view of the same outage.
+
+**Looking at it:** the UIs listen on the host's loopback only
+(`PROMETHEUS_PORT` 9090, `ALERTMANAGER_PORT` 9093). From your machine:
+
+```bash
+ssh -L 9090:127.0.0.1:9090 -L 9093:127.0.0.1:9093 <host>
+# then http://localhost:9090/alerts (and /targets), http://localhost:9093
+```
+
+On the host itself, without a browser:
+`docker compose exec prometheus wget -qO- localhost:9090/api/v1/alerts`.
+
+**Silencing** (planned work, a known issue): "New Silence" in the
+Alertmanager UI, or amtool in its container. Silences survive restarts.
+
+```bash
+docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093 \
+  silence add alertname=HighLatency --duration=2h --comment="load test"
+docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093 silence query
+```
+
+**Changing the rules:** edit `monitoring/prometheus/alerts.yml`, add or
+adjust its test in `monitoring/prometheus/tests/`, then reload with
+`docker compose kill -s HUP prometheus`. `.github/workflows/monitoring.yml`
+runs `promtool check config`, `promtool check rules`, `promtool test rules`
+and `amtool check-config` on every change. Locally:
+
+```bash
+docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+  --entrypoint promtool prom/prometheus:v3.15.0 test rules /etc/prometheus/tests/alerts.test.yml
+```
+
+**Managed PostgreSQL or Redis:** the exporters follow `DATABASE_OWNER_URL`
+and `REDIS_URL` (PostgreSQL's needs a role with `pg_monitor`; the app role
+has none). With Redis
+Sentinel, remove `redis-exporter` and its scrape job; the app's own
+`RedisUnreachableFromApp` still covers Redis.
+
+**Hosted instead:** NestJS Observe (`OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`)
+is the hosted alternative: traces, metrics and errors go to the service, and
+alerting is set up there, with nothing to run on the host. The two can run
+side by side.
+
+## Migrations
+
+`node dist/migrate` connects as the owner (`DATABASE_OWNER_URL`), applies
+the app's migrations (under an advisory lock), then `nest-outbox`,
+`nest-workflows` and `nest-webhooks` migrate their own schemas, then creates
+or checks the app role of `DATABASE_URL` and its grants ([Database
+roles](#database-roles)). The containers run with `MIGRATE_ON_START=off`. In
+development, the app does the same at startup, as `DATABASE_OWNER_URL`, before
+opening its own pool as the app role.
+
+`migrate` runs while the previous release still serves, and a rollback runs
+the previous image on the new schema (migrations don't roll back). So a
+release's migrations must leave the release before it working: drop, rename
+or retype only a release after the code stopped using it
+([pitfalls](pitfalls.md), "Migrations: expand/contract"). CI's
+`migration-lint` flags what breaks that.
+
+## Backups and restore
+
+The `backup` service (`backup/`) dumps the database on a schedule, keeps the
+dumps in the `backups` volume, and copies each one off the host when
+`BACKUP_S3_BUCKET` is set. Without it, a deploy works the same, with local
+copies only: a lost disk loses them too, so set it.
+
+- **What:** `pg_dump --format=custom` of `POSTGRES_DB`, one consistent
+  snapshot taken while the app runs, checked by reading its contents back
+  (`db-<time>.dump`). With `STORAGE_DRIVER=local`, the uploaded files too
+  (`files-<time>.tar.gz` of the `app_storage` volume, mounted read only),
+  taken after the dump, so every file a row points to is in it. With
+  `STORAGE_DRIVER=s3` the files stay in their bucket: turn on its
+  versioning. Each backup has a `.sha256` beside it.
+- **When:** `BACKUP_SCHEDULE` (cron, UTC; `0 3 * * *`). An hourly check
+  runs one when the last run failed or the newest backup is older than
+  `BACKUP_MAX_AGE_HOURS` (25): a host that was off or asleep catches up,
+  and a failed run is retried every hour. With a less frequent schedule,
+  raise `BACKUP_MAX_AGE_HOURS` to match.
+- **The image** (`backup/Dockerfile`): `postgres:18-alpine` without `gosu`
+  (never used: it runs as `postgres`), rclone, and supercronic built from
+  its release tag with a current Go, so Go's fixes reach it. CI scans it
+  like the app image. Dependabot raises the base images;
+  `SUPERCRONIC_VERSION` is raised by hand.
+- **Kept:** `BACKUP_RETENTION_DAYS` (14) in the volume, older ones removed
+  after each complete run (never after a failed one). Off the host, nothing
+  is deleted: give the bucket a lifecycle rule (delete after 90 days, say).
+- **Off the host:** `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT` (R2:
+  `https://<account id>.r2.cloudflarestorage.com`; empty: AWS),
+  `BACKUP_S3_REGION` (R2: `auto`), `BACKUP_S3_ACCESS_KEY_ID`,
+  `BACKUP_S3_SECRET_ACCESS_KEY` (empty: the host's IAM role),
+  `BACKUP_S3_PREFIX` (`COMPOSE_PROJECT_NAME`), `BACKUP_S3_PROVIDER` (rclone's
+  name; it guesses from the endpoint). The bucket must exist.
+- **Its own bucket and keys**, not the app's `S3_*`: someone with the app's
+  keys must not be able to delete the backups. The backup needs only to
+  write and read back objects (S3: `s3:PutObject` and `s3:GetObject` on the
+  prefix; R2: an Object Read & Write token for that bucket alone). Versioning
+  or a lock (S3 Object Lock, R2 bucket locks) keeps them safe even from those
+  keys.
+- **Watching it:** each run logs one JSON line, `backup done` (file, bytes,
+  objects, files, offsite, seconds) or `backup failed` (the step: dump,
+  files, upload…); a failed run exits non-zero. `docker compose ps` shows
+  `unhealthy` after a failed run, or when no backup succeeded for
+  `BACKUP_MAX_AGE_HOURS` plus an hour.
+- **Cost:** one database connection while it runs (`<SERVICE_NAME>:backup`
+  in `pg_stat_activity`), within the margin above; `BACKUP_CPUS` (0.5) and
+  `BACKUP_MEMORY` (512M). It connects as the owner (`POSTGRES_USER`): the
+  role that owns every table reads every table, and a restore creates,
+  renames and drops databases. The password is the `PGPASSWORD` of its
+  environment, never in a command line. The dump carries no role, but its
+  tables carry the app role's grants and the owner's default privileges;
+  the script restores with `--no-owner` (everything becomes the owner's) and
+  `--no-privileges` (the grants are skipped, since a new cluster has no
+  `app_runtime` yet), and the `migrate` run of the next `docker compose up
+  -d` grants the app role everything again. A restore by hand (`pg_restore`
+  yourself) needs the same two flags, or the app role created first.
+- **Why pg_dump** (not pgBackRest or WAL-G): one host, one database. A dump is
+  one file that restores into any PostgreSQL 18 or newer, and the server
+  needs no change (no WAL archiving, no restart). The price: no
+  point-in-time recovery; a restore loses what happened since the last
+  dump. To lose less, back up more often (`0 */6 * * *`), or move to a
+  managed PostgreSQL with point-in-time recovery (Scaling further).
+- **Managed database** (`DATABASE_URL` elsewhere): use its backups and drop
+  `backup` from the stack (with `STORAGE_DRIVER=s3`, nothing else is on the
+  host).
+
+```bash
+docker compose exec backup backup             # a backup now (exit code 0: done)
+docker compose exec backup ls -l /backups     # the local ones
+docker compose exec backup backup-fetch       # the off-host ones, newest first
+docker compose logs backup                    # what each run did
+```
+
+### Restoring
+
+The dump is loaded into a new database first; only once that worked are the
+two swapped. The current database is kept, renamed
+`<POSTGRES_DB>_before_restore_<time>`, until you drop it.
+
+1. **Pick the backup:** `docker compose exec backup ls -l /backups`. On a new
+   host, deploy the stack with the old `.env` first (same
+   `COMPOSE_PROJECT_NAME`, so the same prefix), then list the off-host
+   copies with `docker compose exec backup backup-fetch` and copy one (with its
+   `.sha256`) into the volume with `docker compose exec backup backup-fetch
+   db-<time>.dump` (and its `files-<time>.tar.gz`). Listing and reading the
+   bucket may need keys with more rights than the backup's own (`-e
+   BACKUP_S3_ACCESS_KEY_ID=… -e BACKUP_S3_SECRET_ACCESS_KEY=…`).
+2. **Stop the app:** `docker compose stop api worker`.
+3. **The database:** `docker compose exec backup restore db-<time>.dump`.
+   It checks the checksum and asks you to type the database name (`--yes`
+   skips that); it ends sessions still connected.
+4. **The files** (`STORAGE_DRIVER=local`), from the same time: the service
+   mounts them read only, so mount the volume again, writable, as root (the
+   files keep the app's owner):
+
+   ```bash
+   docker compose run --rm --user root -v app_storage:/restore \
+     -e BACKUP_STORAGE_DIR=/restore backup restore files-<time>.tar.gz
+   ```
+
+   They are extracted over what the volume holds; files no row points to
+   are removed later by the orphan sweep.
+5. **Start the app:** `docker compose up -d` (`migrate` runs first: it
+   brings an older dump up to this version and grants the app role what the
+   restore skipped, `--no-privileges`; until then api and worker can't read
+   the restored tables).
+6. **Check, then drop the previous database:**
+   `docker compose exec backup dropdb <POSTGRES_DB>_before_restore_<time>`.
+
+**Try a restore now and then**, without touching the app: `docker compose
+exec backup sh -c 'PGDATABASE=restore_check restore db-<time>.dump --yes'`
+loads it into a database `restore_check` beside the app's. Look at it
+(`docker compose exec backup psql -d restore_check -c '\dt'`), then
+`docker compose exec backup dropdb restore_check`.
+
+## CI
+
+`.github/workflows/ci.yml` (per the pnpm CI guide) runs on every pull
+request, on `main` and on `v*` tags. The checks are the root's scripts;
+Turborepo's cache (`.turbo/cache`) is kept between runs. Each job fails the run,
+except `openapi-diff`, which only reports until `OASDIFF_FAIL_ON` is set, and
+`migration-lint` (`.github/workflows/migrations.yml`), whose destructive
+statements are reported only until `MIGRATION_LINT_FAIL` is set (a changed
+merged migration fails it already):
+
+| Job | What |
+| --- | --- |
+| `check` | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests |
+| `e2e` | the e2e tests in 2 shards (`--shard=1/2`, `2/2`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
+| `security` | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles |
+| `image` | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`) |
+| `backup-image` | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it |
+| `openapi-diff` | pull requests only: oasdiff compares the typed client's `openapi.json` with the base branch's and lists breaking changes and the changelog in the job summary. Report-only until `OASDIFF_FAIL_ON` is set (development.md, "Typed client") |
+| `migration-lint` | pull requests only, in `migrations.yml` (a label change runs it again): squawk reads the migrations the pull request adds under `apps/api/drizzle/` and lists destructive statements (drops, renames, retypes, `SET NOT NULL`, NOT NULL without a default, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, `MERGE`'s deletes and updates) in the job summary, with file and line. Report-only until `MIGRATION_LINT_FAIL` is `on` (pitfalls.md, "Migrations: expand/contract"). Always failing: an edited or deleted merged migration or journal entry, a `squawk-ignore` comment. The `destructive-migration` label accepts both when added after the latest push |
+| `publish` | `main` and `v*` tags only, after `check`, `e2e`, `security` and `image`: pushes the app image to GHCR (below) |
+
+- **The same PostgreSQL and Redis as Compose:** CI reads their images from
+  `compose.yaml` (job `compose-images`). Change them there only.
+- **Commit messages:** `.github/workflows/commit-messages.yml` fails a pull
+  request whose title, or whose only commit's subject, isn't a Conventional
+  Commit (development.md, "Git hooks").
+- **No GitHub code scanning:** CodeQL and SARIF uploads need it, and a
+  private repository on the free plan doesn't have it. The scans print
+  their findings in the job's log instead.
+- **A finding that doesn't apply:** add it to `.trivyignore.yaml` with a
+  `statement` saying why (as for Caddy running as root). For an npm
+  advisory, `pnpm audit --ignore <GHSA id>` in the workflow, with a comment.
+  Prefer a fix: a newer package or base image.
+- **Run the scans locally:**
+  `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.0 image --severity HIGH,CRITICAL --ignore-unfixed <image>`.
+- **Versions:** Dependabot proposes newer packages, images and actions as
+  pull requests (pinned versions, never `:latest`). `@types/node` follows
+  the Node.js major the app runs on, so Dependabot skips its major
+  versions: raise it together with `devEngines.runtime`, apps/api/Dockerfile's
+  `node` image and CI's `runtime`. Trivy's own version (`version:` in the
+  workflow), oasdiff's (`OASDIFF_IMAGE`) and squawk's (`SQUAWK_IMAGE` in
+  `tools/migration-lint/lint.mjs`; its tests run in the job) are raised by hand.
+
+## The image
+
+`apps/api/Dockerfile`, built from the repository root (the workspace's
+lockfile and packages are part of it; the root's `.dockerignore` keeps the
+rest out). `pnpm deploy` gives the image the API's production dependencies
+only: `/app` holds `package.json`, `dist/`, `drizzle/` and `node_modules/`,
+as before the monorepo, so `node dist/main`, `dist/worker` and
+`dist/migrate` are unchanged. By hand: `docker build -f apps/api/Dockerfile .`
+Compose sets `NODE_ENV=production` for the containers; a bare `node
+dist/main` outside it must set it too, since what refuses development-only
+settings in production (the captcha stub, text logs) reads it.
+
+## Publishing and rolling back images
+
+On every push to `main` and every `v*` tag, CI pushes the production image
+to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamberto15/nestjs-monorepo-template`).
+It builds it once, scans it, and pushes it only when every check passed.
+
+- **Tags:** the full commit SHA, always; `main` for a push to main; `1.2.3`
+  and `1.2` for a `v1.2.3` tag. Never `latest`: a deploy names the image
+  it runs.
+- **Inside:** `GIT_SHA` is the commit (NestJS Observe reports it as the
+  version), and the OCI labels name the repository, commit and build time.
+- **Private:** the package belongs to the repository and follows its
+  access. Pulling needs a login (below).
+
+Logging in once on the host, with a classic personal access token that has
+`read:packages` (GitHub Packages doesn't take fine-grained tokens):
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <github user> --password-stdin
+```
+
+Deploying a published image: set `APP_IMAGE` in `.env`, then pull and
+start. Without `--build`: a build would replace the pulled image with a
+local one.
+
+```bash
+# .env
+APP_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template:<full commit SHA>
+
+docker compose pull migrate api worker
+docker compose up -d --remove-orphans
+```
+
+Rolling back: set `APP_IMAGE` to the previous commit's SHA, then the same
+two commands. `git log --format=%H main` lists the SHAs; the package's page
+on GitHub lists the published ones. The Compose files must fit the image:
+when a release changed them, check them out at that SHA too (`git checkout
+<SHA> -- compose.yaml compose.prod.yaml`), and read the release's notes for
+what else it needs. The database roles release (roadmap 1a) is one: its
+previous image needs `DATABASE_URL` to be the owner's ([Database
+roles](#database-roles), "Rolling back past this release").
+
+- **Migrations don't roll back.** The older image runs on the newer schema,
+  so a release's migrations only add (columns, tables) and leave dropping,
+  renaming and retyping to a later release: expand/contract
+  ([pitfalls](pitfalls.md), "Migrations: expand/contract"), which CI's
+  `migration-lint` checks.
+- **Unset `APP_IMAGE`** (or leave it out): `docker compose up -d --build`
+  builds from the checkout, as before.

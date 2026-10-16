@@ -1,0 +1,42 @@
+{
+  "template": {
+    "sheets": {
+      "data": "Daten",
+      "columns": "Spalten"
+    },
+    "note": "Zeile 2 im Blatt Daten ist ein Beispiel: Ersetzen Sie sie durch Ihre Zeilen. Lassen Sie die Überschriften unverändert.",
+    "headers": {
+      "column": "Spalte",
+      "required": "Pflicht",
+      "type": "Typ",
+      "format": "Format",
+      "example": "Beispiel",
+      "description": "Beschreibung"
+    },
+    "yes": "Ja",
+    "no": "Nein",
+    "types": {
+      "text": "Text",
+      "number": "Zahl",
+      "boolean": "Ja/Nein",
+      "date": "Datum",
+      "datetime": "Datum und Uhrzeit",
+      "list": "Liste"
+    },
+    "format": {
+      "textRange": "{min} bis {max} Zeichen",
+      "textMax": "Höchstens {max} Zeichen",
+      "textMin": "Mindestens {min} Zeichen",
+      "options": "Eines von: {options}",
+      "listOptions": "Beliebige von: {options}, durch Kommas getrennt",
+      "list": "Werte, durch Kommas getrennt",
+      "numberRange": "Eine Zahl von {min} bis {max}",
+      "numberMin": "Eine Zahl, mindestens {min}",
+      "numberMax": "Eine Zahl, höchstens {max}",
+      "number": "Eine Zahl (Punkt für Dezimalstellen)",
+      "boolean": "true oder false",
+      "date": "JJJJ-MM-TT",
+      "datetime": "JJJJ-MM-TT HH:MM:SS, in {zone}"
+    }
+  }
+}

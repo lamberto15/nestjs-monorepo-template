@@ -1,0 +1,19 @@
+{
+  "unknownType": "Jenis tidak diketahui \"{type}\" (berdaftar: {known})",
+  "unknownAction": "Tiada tindakan yang memerlukan kelulusan bernama \"{key}\".",
+  "pending": "Rekod ini mempunyai kelulusan yang belum selesai: tunggu keputusan, atau batalkan permintaan.",
+  "closed": "Permintaan kelulusan ini telah tamat.",
+  "alreadyDecided": "Peringkat ini telah pun diputuskan.",
+  "decidedOtherwise": "Anda telah membuat keputusan yang berbeza bagi peringkat ini.",
+  "notAssignee": "Anda bukan pelulus bagi peringkat semasa permintaan ini.",
+  "selfApproval": "Anda tidak boleh membuat keputusan atas permintaan anda sendiri.",
+  "noApprovers": "Tiada sesiapa boleh meluluskan ini: peringkat \"{stage}\" tidak menemui pelulus.",
+  "notRequester": "Hanya peminta boleh melakukan ini.",
+  "notChangesRequested": "Hanya permintaan yang dikembalikan untuk perubahan boleh dihantar semula.",
+  "delegateToSelf": "Anda tidak boleh mewakilkan kepada diri sendiri.",
+  "unknownUser": "Tiada pengguna aktif dengan id ini.",
+  "delegationTooLong": "Perwakilan berlangsung paling lama {days} hari.",
+  "payloadFromRecord": "Perubahan yang dicadangkan bagi tindakan ini dibaca daripada rekod: jangan hantar satu.",
+  "notStuck": "Hanya permintaan yang diluluskan tetapi keputusannya tidak diguna pakai boleh ditinggalkan.",
+  "notManager": "Hanya mereka yang boleh mengurus kelulusan boleh melakukan ini."
+}

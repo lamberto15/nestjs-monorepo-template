@@ -1,0 +1,8 @@
+{
+  "currencyMismatch": "{left} und {right} lassen sich nicht verrechnen: Rechnen Sie zuerst einen der Beträge um.",
+  "rateUnavailable": "Kein Wechselkurs für {currencies} am oder vor dem {day}.",
+  "ratesUnavailable": "Keine Wechselkurse an oder vor diesem Tag.",
+  "unknownCurrency": "{currency} ist kein Währungscode nach ISO 4217.",
+  "amountPrecision": "Der Betrag hat mehr Nachkommastellen als {currency} ({exponent}).",
+  "invalidDecimal": "Der Betrag muss eine Dezimalzahl als Text sein, etwa 12.34."
+}

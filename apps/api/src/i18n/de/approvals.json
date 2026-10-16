@@ -1,0 +1,19 @@
+{
+  "unknownType": "Unbekannter Typ „{type}“ (registriert: {known})",
+  "unknownAction": "Keine genehmigungspflichtige Aktion heißt „{key}“.",
+  "pending": "Für diesen Datensatz steht eine Genehmigung aus: Warten Sie die Entscheidung ab oder ziehen Sie die Anfrage zurück.",
+  "closed": "Diese Genehmigungsanfrage ist beendet.",
+  "alreadyDecided": "Über diese Stufe wurde bereits entschieden.",
+  "decidedOtherwise": "Sie haben über diese Stufe bereits anders entschieden.",
+  "notAssignee": "Sie sind kein Genehmiger der aktuellen Stufe dieser Anfrage.",
+  "selfApproval": "Sie können nicht über Ihre eigene Anfrage entscheiden.",
+  "noApprovers": "Niemand kann dies genehmigen: Für die Stufe „{stage}“ wurde kein Genehmiger gefunden.",
+  "notRequester": "Nur der Antragsteller kann dies tun.",
+  "notChangesRequested": "Nur eine zur Änderung zurückgegebene Anfrage kann erneut eingereicht werden.",
+  "delegateToSelf": "Sie können nicht an sich selbst delegieren.",
+  "unknownUser": "Kein aktiver Benutzer hat diese ID.",
+  "delegationTooLong": "Eine Delegation dauert höchstens {days} Tage.",
+  "payloadFromRecord": "Die vorgeschlagene Änderung dieser Aktion wird aus dem Datensatz gelesen: Senden Sie keine.",
+  "notStuck": "Nur eine genehmigte Anfrage, deren Ergebnis nicht angewendet wurde, kann aufgegeben werden.",
+  "notManager": "Nur wer Genehmigungen verwalten darf, kann dies tun."
+}

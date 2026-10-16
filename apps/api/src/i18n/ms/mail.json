@@ -1,0 +1,15 @@
+{
+  "resetPassword": { "subject": "Tetapkan semula kata laluan anda" },
+  "invitation": { "subject": "Anda dijemput ke {app}" },
+  "verifyEmail": { "subject": "Sahkan alamat e-mel anda" },
+  "magicLink": { "subject": "Pautan log masuk anda" },
+  "notification": { "subject": "{title}" },
+  "notificationDigest": {
+    "subject": {
+      "other": "{count} pemberitahuan baharu dalam {app}"
+    }
+  },
+  "accountDeletion": { "subject": "Akaun {app} anda akan dipadam" },
+  "reportReady": { "subject": "Laporan sedia: {report}" },
+  "reportFailed": { "subject": "Laporan gagal: {report}" }
+}

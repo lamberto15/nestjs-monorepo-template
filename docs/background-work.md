@@ -1,0 +1,95 @@
+# Background work
+
+Anything slow or heavy leaves the request: the request answers at once (202
+when the client should wait for a result), a **worker** does the work
+(`APP_ROLE=worker`, or `all` in development). Pick the tool by what the work is:
+
+| Work | Tool | Why |
+| --- | --- | --- |
+| A change must trigger something reliably (a webhook, an event) | **outbox** (`@nestjs/outbox`) | written in the change's transaction: it happens if and only if the change commits |
+| A process over days (wait, then publish) | **workflow** (`@nestjs/workflows`) | durable steps, timers and signals that survive restarts and deploys |
+| "This action needs approval": stages, approvers, reminders, escalation | **approvals** (`approvals.request()`, [approvals.md](approvals.md)) | declared once; one durable workflow per request, decisions under a row lock |
+| Heavy or slow work on demand (exports, imports, images, reports) | **queue** (`@nestjs/bullmq`) | retries with backoff, on any worker, never in the request |
+| Email | **mail queue** (`MailQueue.send()`) | rendered in the request, sent by a worker, retried for hours |
+| Every night at 03:00 | **cron** (`@Cron` + `@OnOneInstance`) | runs on one instance, never overlapping (`@WithoutOverlapping`) |
+| An export every Monday at 08:00, mailed to a team | **scheduled reports** ([reports.md](reports.md)) | the hourly `ReportRunnerJob` starts it as its owner; the mail follows the file |
+| Tell a connected client | **realtime** (`Realtime.toPrincipal()`) | socket.io, fanned out through Redis to every instance |
+| Tell a person (or a client system) something they can read later | **notifications** (`NotificationsService.notify()`, [notifications.md](notifications.md)) | stored, then realtime, mail or webhook as they prefer, through the outbox |
+
+## Queues
+
+```ts
+// Declare it: PlatformModule.forRoot({ queues: ['thumbnails'] })
+constructor(@InjectQueue('thumbnails') private readonly queue: Queue) {}
+await this.queue.add('make', { fileKey }, { jobId: randomUUID() });
+
+@Processor('thumbnails', { concurrency: 4 })
+export class ThumbnailProcessor extends WorkerHost {
+  async process(job: Job<{ fileKey: string }>) { … }
+}
+```
+
+Producers work in every process; processors only run on workers (BullMQ's
+manual registration). Defaults: 3 attempts with exponential backoff; finished
+jobs kept a day, failed ones a week. `GET /v1/ops/queues` shows counts and
+failures; `POST /v1/ops/queues/{name}/retry-failed` runs them again.
+
+## Mail
+
+```ts
+await this.mailQueue.send(WelcomeMail, {
+  to: { name: user.name, address: user.email },
+  data: { … },
+  locale: user.locale ?? undefined,
+});
+```
+
+A mail class implements `Mailable` (subject from the i18n catalog, template
+`apps/api/src/mail/templates/<name>[.<locale>].html`, wrapped in `layout.html`).
+`MAIL_TRANSPORT`: `file` and `log` in development (or Mailpit through
+`smtp`), `smtp`, `resend`, `postmark`, `sendgrid`, `ses` in production.
+
+## Cron jobs and locks
+
+```ts
+@Cron('15 3 * * *', { timeZone: process.env.APP_TIMEZONE || 'UTC' })
+@OnOneInstance({ key: 'iam:audit-retention' })
+@WithoutOverlapping()
+run() {
+  return this.system.run(AUDIT_RETENTION_JOB, async (system, tx) => { … });
+}
+```
+
+Every job without a user runs as **the system principal** of a declared
+job (`defineSystemJob()`, [permissions](permissions.md#the-system-principal)):
+cron jobs, the outbox relay's notification delivery
+(`system:notification-delivery`), and workflow steps (the approvals
+workflow as `system:approvals`, the notes' publication as
+`system:note-publication`). `SystemContext.run()` gives the work a CLS
+context and a transaction (`{ transaction: false }` for a batch job that
+commits its own); its audit entries name the job (`system:audit-retention`),
+and it may do what the job declares, nothing more. Queue jobs (exports,
+imports, bulk) are different: they act for the user or client that asked
+(their payload carries it), never the system.
+
+Locks live in PostgreSQL (`DrizzleLockStore`: fencing tokens, the database's
+clock). `Locks.withLock(key, fn)` for your own critical sections.
+`SCHEDULER=off` leaves cron jobs out of a process. A Redis lock store (in
+the NestJS locks docs) is one provider away, for locks on hot request paths.
+
+## Calling other services
+
+`HttpClientModule.register({ name, baseUrl })` in a feature (defaults: a
+user-agent, 10 s timeout, retries of idempotent requests), and a resilience
+preset per dependency (`PlatformModule.forRoot({ resiliencePresets })`):
+`@Resilience('carrier')` on a route, `resilience.preset('carrier')` in a
+service: timeouts, retries, circuit breakers, bulkheads.
+
+## Observing
+
+`GET /v1/ops/events` streams the engines' events (workflows, webhooks, the
+outbox, idempotency, locks, mail, resilience) as Server-Sent Events;
+`GET /v1/ops/outbox` shows lag and dead letters; `GET /metrics` gives
+Prometheus the queue depths, outbox lag and HTTP timings
+(`apps/api/src/core/metrics/`, [deployment](deployment.md#metrics)). With `OBSERVE_APP_KEY` and
+`OBSERVE_APP_SECRET`, NestJS Observe traces requests, jobs and outgoing calls.

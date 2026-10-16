@@ -1,0 +1,70 @@
+# compiled output and installs, in every workspace package (apps/*, packages/*)
+dist
+node_modules
+/build
+
+# Turborepo's local cache (turbo.json cacheDir)
+.turbo
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# dotenv environment variable files
+.env
+# The app's development settings (cp env.development.example .env.development)
+.env.development
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+# Backups of an earlier .env (they hold its secrets)
+.env.bak*
+
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Local runtime data (STORAGE_DRIVER=local files, mail written to disk):
+# apps/api/.data in development (the root's is from before the monorepo)
+.data

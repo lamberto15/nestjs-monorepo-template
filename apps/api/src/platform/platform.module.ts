@@ -1,0 +1,417 @@
+import { randomBytes } from 'node:crypto';
+import { type DynamicModule, Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { getDrizzleToken } from '@nestjs/drizzle';
+import { IdempotencyModule } from '@nestjs/idempotency';
+import { OutboxModule, OutboxStorage } from '@nestjs/outbox';
+import { PostgresOutboxStore } from '@nestjs/outbox/postgres';
+import { WebhooksModule, WebhooksStorage } from '@nestjs/webhooks';
+import { PostgresWebhookStore } from '@nestjs/webhooks/postgres';
+import { WorkflowsModule, WorkflowStorage } from '@nestjs/workflows';
+import { fromDrizzle, PostgresWorkflowStore } from '@nestjs/workflows/postgres';
+import { runsWorkers } from '../core/config/core.env.js';
+import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
+import { DrizzleIdempotencyStore } from './idempotency/drizzle-idempotency.store.js';
+import { principalScope } from './idempotency/idempotency.scopes.js';
+import { OpsController } from './ops/ops.controller.js';
+import { OpsPolicy } from './ops/ops.policy.js';
+import { OpsQueues } from './ops/ops-queues.service.js';
+import { OpsMetrics } from './ops/ops-metrics.js';
+import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
+import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
+import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
+import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
+// Maps the webhooks package's errors to problem details.
+import './webhooks/webhooks-error.filter.js';
+import { webhooksOptions } from './webhooks/webhooks.config.js';
+import { Realtime } from './realtime/realtime.service.js';
+import { FilesController } from './storage/files.controller.js';
+import { storage } from './storage/storage.config.js';
+import { queues } from './queues/queues.js';
+import { DataTransferController } from './data-transfer/data-transfer.controller.js';
+import { DataTransferProcessor } from './data-transfer/data-transfer.processor.js';
+import { DataTransferRegistry } from './data-transfer/data-transfer.registry.js';
+import {
+  DATA_TRANSFERS,
+  DataTransferService,
+} from './data-transfer/data-transfer.service.js';
+import { integrations } from './integrations/integrations.js';
+import { BulkController } from './bulk/bulk.controller.js';
+import { BulkProcessor } from './bulk/bulk.processor.js';
+import { BulkRegistry } from './bulk/bulk.registry.js';
+import { BULK, BulkService } from './bulk/bulk.service.js';
+import { CustomFieldPolicy } from './custom-fields/custom-field.policy.js';
+import { CustomFieldsController } from './custom-fields/custom-fields.controller.js';
+import { CustomFieldsService } from './custom-fields/custom-fields.service.js';
+import { NotificationCatalog } from './notifications/notification-catalog.js';
+import { NotificationChannelRegistry } from './notifications/notification-channel.registry.js';
+import {
+  NotificationDigestMail,
+  NotificationMail,
+} from './notifications/notification.mails.js';
+import { NotificationsController } from './notifications/notifications.controller.js';
+import { NotificationsService } from './notifications/notifications.service.js';
+import { NotificationDeliveryHandler } from './notifications/notification-delivery.handler.js';
+import { NotificationDigestJob } from './notifications/notification-digest.job.js';
+import { NotificationRetentionJob } from './notifications/notification-retention.job.js';
+import { NotificationTransfer } from './notifications/notification.transfer.js';
+import { EmailChannel } from './notifications/channels/email.channel.js';
+import { RealtimeChannel } from './notifications/channels/realtime.channel.js';
+import { WebhookChannel } from './notifications/channels/webhook.channel.js';
+import { SettingsController } from './settings/settings.controller.js';
+import { SettingsService } from './settings/settings.service.js';
+import { AccountController } from './account/account.controller.js';
+import { AccountDeletionJob } from './account/account-deletion.job.js';
+import { AccountDeletionMail } from './account/account.mails.js';
+import { AccountLifecycleService } from './account/account.service.js';
+import { AccountTransfer } from './account/account.transfer.js';
+import { PersonalDataRegistry } from './account/personal-data.registry.js';
+import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
+import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
+import { SearchController } from './search/search.controller.js';
+import { SearchRegistry } from './search/search.registry.js';
+import { SequencesService } from './sequences/sequences.service.js';
+import { AttachmentsController } from './attachments/attachments.controller.js';
+import { AttachmentsRegistry } from './attachments/attachments.registry.js';
+import { AttachmentsService } from './attachments/attachments.service.js';
+import { AttachmentSweepJob } from './attachments/attachment-sweep.job.js';
+import { COMMENT_NOTIFICATIONS } from './comments/comment-notifications.js';
+import { CommentsRegistry } from './comments/comments.registry.js';
+import { CommentsService } from './comments/comments.service.js';
+import { TagsController } from './tags/tags.controller.js';
+import { TagsRegistry } from './tags/tags.registry.js';
+import { TagsService } from './tags/tags.service.js';
+import { ReportRunnerJob } from './reports/report-runner.job.js';
+import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
+import { ReportsController } from './reports/reports.controller.js';
+import { ReportsService } from './reports/reports.service.js';
+import { UsageController } from './usage/usage.controller.js';
+import { UsageInterceptor } from './usage/usage.interceptor.js';
+import { UsageRollupJob } from './usage/usage-rollup.job.js';
+import { UsageService } from './usage/usage.service.js';
+import { RevisionRetentionJob } from './revisions/revision-retention.job.js';
+import { RevisionsRegistry } from './revisions/revisions.registry.js';
+import { RevisionsService } from './revisions/revisions.service.js';
+import { ApprovalsController } from './approvals/approvals.controller.js';
+import {
+  ApprovalDelegationsController,
+  ApprovalPoliciesController,
+} from './approvals/approval-admin.controllers.js';
+import { ApprovalDelegationsService } from './approvals/approval-delegations.service.js';
+import { ApprovalEngine } from './approvals/approval-engine.service.js';
+import { APPROVAL_NOTIFICATIONS } from './approvals/approval-events.js';
+import { APPROVAL_SETTINGS } from './approvals/approval-settings.js';
+import { ApprovalPoliciesService } from './approvals/approval-policies.service.js';
+import { ApprovalAccessPolicy } from './approvals/approval.policy.js';
+import { BUILT_IN_RULES } from './approvals/approval-rules.js';
+import { ApprovalWorkflow } from './approvals/approval.workflow.js';
+import { ApprovalsRegistry } from './approvals/approvals.registry.js';
+import { ApprovalsService } from './approvals/approvals.service.js';
+import { ApprovalMetrics } from './approvals/approval-metrics.js';
+import { MoneyModule } from './money/money.module.js';
+
+/**
+ * The outbox, workflow and webhook stores only check their schemas at
+ * startup, never create or upgrade them: the app connects as a role that
+ * may not change the schema (docs/deployment.md, "Database roles"). Their
+ * migrations run as the owner, through their CLIs, in `node dist/migrate`
+ * and in the app's startup migration (MIGRATE_ON_START, development).
+ */
+const migrate = false;
+
+/** The platform's secrets: from the environment, or created once and kept in the database. */
+const PLATFORM_SECRETS = Symbol('PLATFORM_SECRETS');
+interface PlatformSecrets {
+  /** Seal stored idempotent responses (AES-256-GCM), newest first. */
+  idempotency: string[];
+  /** Each incoming sender's shared secret, by name. */
+  senders: Record<string, string>;
+}
+
+/**
+ * Reliable work around your features: Idempotency-Key on writes, the
+ * transactional outbox, outgoing webhooks for API clients (and verified
+ * incoming ones), durable workflows, and the operations API.
+ *
+ * Features declare their event types and incoming senders and hand them over
+ * here, so the platform never imports them:
+ *
+ * ```ts
+ * PlatformModule.forRoot({ eventTypes: [...NOTE_EVENT_TYPES], incomingWebhooks: [EXAMPLE_SENDER], customFields: [NOTE_CUSTOM_FIELDS], notifications: [...NOTE_NOTIFICATIONS] })
+ * ```
+ *
+ * The packages' modules are global: features inject WorkflowClient,
+ * Webhooks, Outbox and use @Idempotent(), @Workflow(), @VerifyWebhook().
+ */
+@Module({})
+export class PlatformModule {
+  static forRoot(options: PlatformOptions): DynamicModule {
+    const secrets = {
+      provide: PLATFORM_SECRETS,
+      inject: [getDrizzleToken()],
+      useFactory: async (db: Database): Promise<PlatformSecrets> => {
+        const senders: Record<string, string> = {};
+        for (const sender of options.incomingWebhooks ?? []) {
+          senders[sender.name] = await loadOrCreateSecret(
+            db,
+            sender.secretEnv,
+            () => `whsec_${randomBytes(32).toString('base64')}`,
+          );
+        }
+        const idempotency = await loadOrCreateSecret(
+          db,
+          'IDEMPOTENCY_KEYS',
+          () => randomBytes(32).toString('base64'),
+        );
+        return {
+          idempotency: idempotency.split(',').map((key) => key.trim()),
+          senders,
+        };
+      },
+    };
+    // The packages' async factories run in their own modules: this one gives them the secrets.
+    const secretsModule: DynamicModule = {
+      module: class PlatformSecretsModule {},
+      providers: [secrets],
+      exports: [PLATFORM_SECRETS],
+    };
+    return {
+      module: PlatformModule,
+      // Features inject Realtime and their queues (@InjectQueue) without importing it.
+      global: true,
+      imports: [
+        // Idempotency-Key on the routes marked @Idempotent(): a retry gets the
+        // first response instead of running the handler again. Its interceptor
+        // is global, outermost but for UsageInterceptor (this module's own
+        // providers register before its imports'): a 403 is stored and
+        // replayed like any other 4xx, a client past its quota gets the 429
+        // before any replay, and a replay is metered. Guards run before every interceptor, so the scope sees the caller.
+        IdempotencyModule.forRootAsync({
+          imports: [secretsModule],
+          inject: [PLATFORM_SECRETS],
+          useFactory: (platform: PlatformSecrets) => ({
+            scope: principalScope,
+            ttl: '24h', // longer than any client keeps retrying
+            lockTtl: '60s', // how long a crashed instance blocks a key
+            retryAfter: '1s',
+            // Stored responses can hold an endpoint's secret: seal them at rest.
+            encryption: { keys: platform.idempotency },
+          }),
+        }),
+        // After IdempotencyModule, whose interceptor must come first.
+        // Private file storage (local or S3) behind signed URLs.
+        storage(),
+        ...queues([DATA_TRANSFERS, BULK, ...(options.queues ?? [])]),
+        ...integrations(options.resiliencePresets ?? {}),
+        WorkflowsModule.forRoot({
+          worker: {
+            // Workflow steps run where the role runs workers.
+            enabled: runsWorkers(),
+            concurrency: 10, // instances this process executes at once
+            leaseDuration: '30s', // how long a crashed process keeps its instances
+            shutdownTimeout: '10s', // how long a deploy waits for running steps
+          },
+        }),
+        // Outgoing webhooks travel through the outbox: dispatched in the change's
+        // transaction, handed to the webhooks worker after the commit.
+        OutboxModule.forRootAsync({
+          useFactory: () => ({
+            relay: {
+              enabled: process.env.OUTBOX_RELAY !== 'off' && runsWorkers(),
+              pollInterval: '1s',
+            },
+          }),
+        }),
+        WebhooksModule.forRootAsync({
+          imports: [secretsModule],
+          inject: [PLATFORM_SECRETS],
+          useFactory: (platform: PlatformSecrets) =>
+            webhooksOptions(options, platform.senders),
+        }),
+        // Money: exchange rates (the ECB's), conversion, /v1/money.
+        MoneyModule,
+      ],
+      controllers: [
+        WebhookEndpointsController,
+        WebhookDeliveriesController,
+        OpsController,
+        FilesController,
+        DataTransferController,
+        BulkController,
+        CustomFieldsController,
+        NotificationsController,
+        SettingsController,
+        AccountController,
+        SubscriptionsController,
+        SearchController,
+        AttachmentsController,
+        TagsController,
+        ReportsController,
+        UsageController,
+        // Before ApprovalsController: its /approvals/{id} would read `delegations` as an id.
+        ApprovalDelegationsController,
+        ApprovalPoliciesController,
+        ApprovalsController,
+      ],
+      providers: [
+        {
+          provide: PLATFORM_OPTIONS,
+          // The platform's own notification types first (comments' mentions, approvals).
+          useValue: {
+            ...options,
+            notifications: [
+              ...COMMENT_NOTIFICATIONS,
+              ...APPROVAL_NOTIFICATIONS,
+              ...(options.notifications ?? []),
+            ],
+            // And its own settings (approvals' delegation limit).
+            settings: [...APPROVAL_SETTINGS, ...(options.settings ?? [])],
+          },
+        },
+        OpsQueues,
+        // Queue depths and the outbox on core's /metrics.
+        OpsMetrics,
+        {
+          // Instances and journals in your database, in a schema of their own (nest_workflows)
+          provide: PostgresWorkflowStore,
+          inject: [getDrizzleToken(), WorkflowStorage],
+          useFactory: (db: Database, workflowStorage: WorkflowStorage) =>
+            new PostgresWorkflowStore(
+              { executor: fromDrizzle(db), migrate },
+              workflowStorage,
+            ),
+        },
+        {
+          // Outbox messages and the inbox, in your database, in a schema of their own (nest_outbox)
+          provide: PostgresOutboxStore,
+          inject: [getDrizzleToken(), OutboxStorage],
+          useFactory: (db: Database, outboxStorage: OutboxStorage) =>
+            new PostgresOutboxStore(
+              { executor: fromDrizzle(db), migrate },
+              outboxStorage,
+            ),
+        },
+        {
+          // Endpoints, deliveries and their log, in your database, in a schema of their own (nest_webhooks)
+          provide: PostgresWebhookStore,
+          inject: [getDrizzleToken(), WebhooksStorage],
+          useFactory: (db: Database, webhooksStorage: WebhooksStorage) =>
+            new PostgresWebhookStore(
+              { executor: fromDrizzle(db), migrate },
+              webhooksStorage,
+            ),
+        },
+        // Idempotency records in idempotency_keys; registers itself with IdempotencyStorage.
+        DrizzleIdempotencyStore,
+        OpsPolicy,
+        // socket.io gateway at /realtime; features inject it to push events.
+        Realtime,
+        // Exports and imports: features register their DataExporter / DataImporter.
+        DataTransferRegistry,
+        DataTransferService,
+        DataTransferProcessor,
+        // Bulk operations: features register a BulkOperation and call BulkService.run().
+        BulkRegistry,
+        BulkService,
+        BulkProcessor,
+        // Custom fields: features declare their subjects (options.customFields) and inject the service.
+        CustomFieldsService,
+        CustomFieldPolicy,
+        // Notifications: features declare their types (options.notifications) and
+        // call NotificationsService.notify(); the channels register themselves.
+        NotificationChannelRegistry,
+        NotificationCatalog,
+        NotificationsService,
+        // IAM's security notifications go through it (iam can't import the platform).
+        { provide: IAM_NOTIFIER, useExisting: NotificationsService },
+        NotificationMail,
+        NotificationDigestMail,
+        NotificationDeliveryHandler,
+        RealtimeChannel,
+        EmailChannel,
+        WebhookChannel,
+        NotificationDigestJob,
+        NotificationRetentionJob,
+        NotificationTransfer,
+        // Settings and flags: features declare them (options.settings) and read them through the service.
+        SettingsService,
+        // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
+        PersonalDataRegistry,
+        AccountLifecycleService,
+        AccountTransfer,
+        AccountDeletionJob,
+        AccountDeletionMail,
+        // Watching records: features subscribe creators and notify the watchers of a change.
+        SubscriptionsService,
+        // Global search: features register a SearchSource.
+        SearchRegistry,
+        // Gapless human-readable numbers, taken in a write's transaction.
+        SequencesService,
+        // Files attached to records: features register an AttachmentTarget.
+        AttachmentsRegistry,
+        AttachmentsService,
+        AttachmentSweepJob,
+        // Comments and mentions: features register a CommentTarget and call CommentsService.
+        CommentsRegistry,
+        CommentsService,
+        // Tags: features register a TagTarget and call TagsService.
+        TagsRegistry,
+        TagsService,
+        // Scheduled reports: exports run on a schedule, mailed to their recipients.
+        ReportsService,
+        ReportRunnerJob,
+        ReportReadyMail,
+        ReportFailedMail,
+        // API clients' usage: counted per day and route, daily quotas, the nightly roll-up.
+        UsageService,
+        UsageRollupJob,
+        { provide: APP_INTERCEPTOR, useClass: UsageInterceptor },
+        // Record revisions: features register a RevisionTarget and call RevisionsService.record().
+        RevisionsRegistry,
+        RevisionsService,
+        RevisionRetentionJob,
+        // Approvals: features declare actions (options.approvals) and register their
+        // handlers, rules, modes, conditions and listeners into ApprovalsRegistry.
+        ApprovalsRegistry,
+        ...BUILT_IN_RULES,
+        ApprovalPoliciesService,
+        ApprovalEngine,
+        ApprovalWorkflow,
+        ApprovalsService,
+        ApprovalDelegationsService,
+        ApprovalAccessPolicy,
+        // Open and overdue requests on /metrics.
+        ApprovalMetrics,
+      ],
+      exports: [
+        Realtime,
+        BullModule,
+        DataTransferRegistry,
+        BulkRegistry,
+        BulkService,
+        CustomFieldsService,
+        NotificationsService,
+        IAM_NOTIFIER,
+        NotificationChannelRegistry,
+        SettingsService,
+        PersonalDataRegistry,
+        SubscriptionsService,
+        SearchRegistry,
+        SequencesService,
+        AttachmentsRegistry,
+        AttachmentsService,
+        CommentsRegistry,
+        CommentsService,
+        TagsRegistry,
+        TagsService,
+        RevisionsRegistry,
+        RevisionsService,
+        ApprovalsRegistry,
+        ApprovalsService,
+        // ExchangeRatesService, to the features.
+        MoneyModule,
+      ],
+    };
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "nestjs-monorepo-template",
+  "version": "0.0.1",
+  "description": "NestJS 12 REST backend template: accounts (passwords, two-factor, OAuth, magic links, tokens, impersonation), roles with CASL, API keys, audit log, idempotency, outbox, webhooks, workflows, queues, mail, storage, realtime, i18n, Docker Compose for dev and production.",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "format": "prettier --write \"apps/*/{src,test}/**/*.ts\" \"packages/*/src/**/*.ts\" \"tools/**/*.mjs\"",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e --",
+    "start:dev": "pnpm --filter @nestjs-monorepo-template/api start:dev",
+    "start:debug": "pnpm --filter @nestjs-monorepo-template/api start:debug",
+    "db:generate": "pnpm --filter @nestjs-monorepo-template/api db:generate",
+    "db:check": "pnpm --filter @nestjs-monorepo-template/api db:check",
+    "db:studio": "pnpm --filter @nestjs-monorepo-template/api db:studio",
+    "migrate": "pnpm --filter @nestjs-monorepo-template/api migrate",
+    "services:up": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml up -d",
+    "services:down": "docker compose -p ${npm_package_name}-dev --env-file dev/compose.env -f compose.yaml -f compose.dev.yaml down",
+    "openapi:dump": "pnpm --filter @nestjs-monorepo-template/api openapi:dump",
+    "client:generate": "pnpm openapi:dump && pnpm --filter @nestjs-monorepo-template/api-client generate",
+    "client:check": "turbo run build --filter=@nestjs-monorepo-template/api && pnpm --filter @nestjs-monorepo-template/api-client generate --check"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "lefthook": "2.2.2",
+    "oxlint": "^1.58.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "prettier": "^3.4.2",
+    "turbo": "2.11.8"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "^24.0.0",
+      "onFail": "download"
+    }
+  }
+}

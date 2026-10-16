@@ -1,0 +1,695 @@
+# Unit tests for the rules (promtool test rules): each group feeds series
+# shaped like the app's /metrics and checks which alerts fire, when, and
+# with what text. Run: see .github/workflows/monitoring.yml.
+rule_files:
+  - ../recording.yml
+  - ../alerts.yml
+
+evaluation_interval: 1m
+
+# The recording rules first, so the alerts read this evaluation's values
+# (without it, the order between files is not fixed and values shift a step).
+group_eval_order:
+  - app-recording
+  - app
+  - background
+  - dependencies
+  - edge
+  - backups
+  - monitoring
+
+tests:
+  - name: api replicas stop answering
+    interval: 1m
+    input_series:
+      - series: 'up{job="api",instance="10.0.0.2:3000"}'
+        values: '1 1 0x10'
+      - series: 'up{job="api",instance="10.0.0.3:3000"}'
+        values: '1 1 0x10'
+      - series: 'up{job="worker",instance="10.0.0.4:3000"}'
+        values: '1x12'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="waiting"}'
+        values: '0x12'
+      - series: 'outbox_undelivered{job="worker",instance="10.0.0.4:3000"}'
+        values: '0x12'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ApiDown
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: ApiDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: api
+            exp_annotations:
+              summary: No api replica answers
+              description: Prometheus has not scraped a healthy api replica for 2 minutes. The API is down or unreachable inside the Compose network.
+      - eval_time: 8m
+        alertname: TargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: api
+              instance: 10.0.0.2:3000
+            exp_annotations:
+              summary: api target 10.0.0.2:3000 is down
+              description: Prometheus has failed to scrape it for 5 minutes. For api and worker, check METRICS_TOKEN too (401).
+          - exp_labels:
+              severity: warning
+              job: api
+              instance: 10.0.0.3:3000
+            exp_annotations:
+              summary: api target 10.0.0.3:3000 is down
+              description: Prometheus has failed to scrape it for 5 minutes. For api and worker, check METRICS_TOKEN too (401).
+      # Healthy, and its gauges are there: nothing about the worker or the stores.
+      - eval_time: 8m
+        alertname: WorkerDown
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: DatabaseUnreachableFromApp
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: RedisUnreachableFromApp
+        exp_alerts: []
+
+  - name: no worker at all (Docker's DNS returns none)
+    interval: 1m
+    input_series:
+      - series: 'up{job="api",instance="10.0.0.2:3000"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: WorkerDown
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: WorkerDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: worker
+            exp_annotations:
+              summary: No worker answers
+              description: No worker replica has answered its scrape for 5 minutes. Queue jobs, mail, the outbox relay, webhook deliveries, workflows and cron jobs have stopped.
+
+  - name: 5xx errors
+    interval: 1m
+    input_series:
+      # 10 requests per second, 1 per second of them 500: 1/11 fail.
+      - series: 'http_request_duration_seconds_count{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="200"}'
+        values: '0+600x30'
+      - series: 'http_request_duration_seconds_count{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="500"}'
+        values: '0+60x30'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HighErrorRate
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: api
+            exp_annotations:
+              summary: 9.091% of api requests fail with 5xx
+              description: More than 5% of requests answered 5xx for 10 minutes. 503 database_busy and database_timeout come from the database pool and slow statements; other 5xx are errors in the logs.
+
+  - name: 5xx errors on almost no traffic stay quiet
+    interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_count{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="200"}'
+        values: '0+2x30'
+      - series: 'http_request_duration_seconds_count{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="503"}'
+        values: '0+2x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HighErrorRate
+        exp_alerts: []
+
+  - name: slow requests, the live event stream left out
+    interval: 1m
+    input_series:
+      # Every request between 1 s and 2.5 s: p95 = 1 + 1.5 × 0.95 = 2.425 s.
+      - series: 'http_request_duration_seconds_bucket{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="200",le="1"}'
+        values: '0x30'
+      - series: 'http_request_duration_seconds_bucket{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="200",le="2.5"}'
+        values: '0+600x30'
+      - series: 'http_request_duration_seconds_bucket{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="200",le="+Inf"}'
+        values: '0+600x30'
+      - series: 'http_request_duration_seconds_count{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/notes",status="200"}'
+        values: '0+600x30'
+      # Streams open for minutes: counted in, they would move p95 to 2.5 s.
+      - series: 'http_request_duration_seconds_bucket{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/ops/events",status="200",le="1"}'
+        values: '0x30'
+      - series: 'http_request_duration_seconds_bucket{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/ops/events",status="200",le="2.5"}'
+        values: '0x30'
+      - series: 'http_request_duration_seconds_bucket{job="api",instance="10.0.0.2:3000",method="GET",route="GET /v1/ops/events",status="200",le="+Inf"}'
+        values: '0+600x30'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HighLatency
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: HighLatency
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: api
+            exp_annotations:
+              summary: api p95 latency is 2.425s
+              description: The 95th percentile of request durations has been above 1 s for 15 minutes. Look for slow routes (`http_request_duration_seconds` by route), the database pool and the event loop.
+      - eval_time: 20m
+        alertname: HighErrorRate
+        exp_alerts: []
+
+  - name: one process in trouble (pool, heap, event loop)
+    interval: 1m
+    input_series:
+      - series: 'db_pool_connections{job="api",instance="10.0.0.2:3000",state="waiting"}'
+        values: '0 0 3x15'
+      - series: 'db_pool_connections{job="api",instance="10.0.0.3:3000",state="waiting"}'
+        values: '0 2 0 2 0 2 0 2 0 2 0 2 0 2 0 2 0'
+      - series: 'nodejs_heap_size_used_bytes{job="worker",instance="10.0.0.4:3000"}'
+        values: '450000000x15'
+      - series: 'nodejs_heap_size_limit_bytes{job="worker",instance="10.0.0.4:3000"}'
+        values: '500000000x15'
+      - series: 'nodejs_eventloop_lag_p99_seconds{job="worker",instance="10.0.0.4:3000"}'
+        values: '0.8x15'
+    alert_rule_test:
+      # Waiting at every scrape for 5 minutes, then 5 more: only the first replica.
+      - eval_time: 13m
+        alertname: DatabasePoolSaturated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: api
+              instance: 10.0.0.2:3000
+              state: waiting
+            exp_annotations:
+              summary: api 10.0.0.2:3000 waits for database connections
+              description: 'Queries have been waiting for a pool connection at every scrape for 10 minutes (3 now). Requests that wait longer than DATABASE_POOL_TIMEOUT_MS answer 503 database_busy. See docs/deployment.md, "Database connections".'
+      - eval_time: 11m
+        alertname: HeapNearLimit
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: worker
+              instance: 10.0.0.4:3000
+            exp_annotations:
+              summary: worker 10.0.0.4:3000 uses 90% of its heap
+              description: The V8 heap has been above 85% of its limit (API_HEAP_MB / WORKER_HEAP_MB) for 10 minutes. Near the limit, garbage collection eats the CPU, then the process dies. A leak, or the limit is too small.
+      - eval_time: 11m
+        alertname: EventLoopLag
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: worker
+              instance: 10.0.0.4:3000
+            exp_annotations:
+              summary: worker 10.0.0.4:3000 event loop lags 800ms
+              description: The event loop's p99 delay has been above 500 ms for 10 minutes. Something blocks the process (synchronous work, a CPU limit too low); every request and job on it waits.
+
+  - name: restarts, and a redeploy that only looks like one
+    interval: 1m
+    input_series:
+      # Restarts every 5 minutes (its start time, in seconds since the test began).
+      - series: 'process_start_time_seconds{job="worker",instance="10.0.0.4:3000"}'
+        values: '0x4 300x4 600x4 900x4 1200x4 1500x4 1800x4 2100x4'
+      # Up for 40 minutes, then a new container at the same address (a deploy).
+      - series: 'process_start_time_seconds{job="api",instance="10.0.0.2:3000"}'
+        values: '0x39 2400x15'
+    alert_rule_test:
+      # Not scraped for long enough yet.
+      - eval_time: 20m
+        alertname: AppRestarting
+        exp_alerts: []
+      - eval_time: 31m
+        alertname: AppRestarting
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: worker
+              instance: 10.0.0.4:3000
+            exp_annotations:
+              summary: worker 10.0.0.4:3000 keeps restarting
+              description: 'The process has not stayed up for 10 minutes in the last 30 (a crash loop, or killed at its memory limit). Check `docker compose logs worker` and `docker compose ps`.'
+      - eval_time: 45m
+        alertname: AppRestarting
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: worker
+              instance: 10.0.0.4:3000
+            exp_annotations:
+              summary: worker 10.0.0.4:3000 keeps restarting
+              description: 'The process has not stayed up for 10 minutes in the last 30 (a crash loop, or killed at its memory limit). Check `docker compose logs worker` and `docker compose ps`.'
+
+  - name: queues
+    interval: 1m
+    input_series:
+      # Every replica reports the same shared numbers: one alert per queue, not per replica.
+      - series: 'queue_jobs{job="api",instance="10.0.0.2:3000",queue="mail",state="waiting"}'
+        values: '5x40'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="waiting"}'
+        values: '5x40'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="active"}'
+        values: '0x40'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="data-transfers",state="waiting"}'
+        values: '200+10x40'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="data-transfers",state="active"}'
+        values: '2x40'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="bulk",state="failed"}'
+        values: '0 0 0 1x37'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: QueueStalled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              queue: mail
+              state: waiting
+            exp_annotations:
+              summary: Queue mail is not processed
+              description: '5 jobs have waited for 10 minutes while none ran. No worker takes them: workers down, stuck, or the queue is paused (GET /v1/ops/queues).'
+      - eval_time: 20m
+        alertname: QueueBacklogGrowing
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: QueueBacklogGrowing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              queue: data-transfers
+              state: waiting
+            exp_annotations:
+              summary: Queue data-transfers backlog keeps growing
+              description: '550 jobs wait, more than 30 minutes ago. The workers don''t keep up: add workers (WORKER_REPLICAS) or find the slow jobs.'
+      - eval_time: 5m
+        alertname: JobsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              queue: bulk
+              state: failed
+            exp_annotations:
+              summary: Jobs fail for good in queue bulk
+              description: 'About 1.1 more jobs failed after all their attempts in the last 15 minutes. GET /v1/ops/queues shows the errors; POST /v1/ops/queues/bulk/retry-failed runs them again.'
+      # Nothing new failed in the last 15 minutes: quiet again.
+      - eval_time: 25m
+        alertname: JobsFailing
+        exp_alerts: []
+
+  - name: exchange rates
+    interval: 1m
+    input_series:
+      # Every instance reports the same: five days old (a long weekend) for
+      # two hours, then past six days (seven) from the 121st minute.
+      - series: 'exchange_rates_age_seconds{job="api",instance="10.0.0.2:3000"}'
+        values: '432000+60x120 604800+60x200'
+      - series: 'exchange_rates_age_seconds{job="worker",instance="10.0.0.4:3000"}'
+        values: '432000+60x120 604800+60x200'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: ExchangeRatesStale
+        exp_alerts: []
+      - eval_time: 4h
+        alertname: ExchangeRatesStale
+        exp_alerts: []
+      - eval_time: 245m
+        alertname: ExchangeRatesStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: The exchange rates are stale
+              description: 'The newest stored ECB reference rates are 7d 2h 4m 0s old (+Inf: none was ever fetched). The worker''s ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md).'
+
+  - name: exchange rates never fetched
+    interval: 1m
+    input_series:
+      - series: 'exchange_rates_age_seconds{job="api",instance="10.0.0.2:3000"}'
+        values: '+Inf+0x200'
+    alert_rule_test:
+      - eval_time: 119m
+        alertname: ExchangeRatesStale
+        exp_alerts: []
+      - eval_time: 121m
+        alertname: ExchangeRatesStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: The exchange rates are stale
+              description: 'The newest stored ECB reference rates are +Inf old (+Inf: none was ever fetched). The worker''s ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md).'
+
+  - name: outbox and webhooks
+    interval: 1m
+    input_series:
+      - series: 'outbox_lag_seconds{job="api",instance="10.0.0.2:3000"}'
+        values: '0 0 400x20'
+      - series: 'outbox_lag_seconds{job="worker",instance="10.0.0.4:3000"}'
+        values: '0 0 400x20'
+      - series: 'outbox_dead_letters{job="worker",instance="10.0.0.4:3000"}'
+        values: '0 0 2x20'
+      - series: 'webhook_delivery_lag_seconds{job="worker",instance="10.0.0.4:3000"}'
+        values: '700x20'
+      - series: 'webhook_deliveries{job="worker",instance="10.0.0.4:3000",state="failed"}'
+        values: '0x5 3x15'
+      # Every instance reports the same: one overdue stage, 20 minutes past due from the 2nd minute.
+      - series: 'approvals_overdue_seconds{job="api",instance="10.0.0.2:3000"}'
+        values: '0 0 1200x20'
+      - series: 'approvals_overdue_seconds{job="worker",instance="10.0.0.4:3000"}'
+        values: '0 0 1200x20'
+      # One approved request, its outcome waiting for two hours from the 2nd minute.
+      - series: 'approvals_unapplied_seconds{job="api",instance="10.0.0.2:3000"}'
+        values: '0 0 7200x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ApprovalsNotApplied
+        exp_alerts: []
+      - eval_time: 18m
+        alertname: ApprovalsNotApplied
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: An approved request has waited 2h 0m 0s for its outcome
+              description: An approval was granted more than an hour ago and its outcome handler hasn't run or ended it; its record stays locked. Check the workflow workers, then POST /v1/approvals/{id}/abandon if it can't apply (docs/approvals.md).
+      - eval_time: 8m
+        alertname: ApprovalsOverdue
+        exp_alerts: []
+      - eval_time: 13m
+        alertname: ApprovalsOverdue
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: An approval stage is 20m 0s past its deadline
+              description: A pending approval request's stage passed its deadline more than 15 minutes ago and its workflow hasn't escalated or expired it. The workflow workers (APP_ROLE worker) aren't running its timers (docs/approvals.md).
+      - eval_time: 8m
+        alertname: OutboxStuck
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: The outbox is 6m 40s behind
+              description: An outbox message that is due has waited more than 5 minutes for 5 minutes. The relay (on the workers) is not publishing; events, notifications and webhooks are delayed. GET /v1/ops/outbox.
+      - eval_time: 8m
+        alertname: OutboxDeadLetters
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 2 outbox messages were given up on
+              description: Dead letters stay until someone requeues or purges them in /v1/ops (docs/background-work.md).
+      - eval_time: 11m
+        alertname: WebhookDeliveriesLagging
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: Webhook deliveries are 11m 40s overdue
+              description: A delivery that is due has waited more than 10 minutes. The webhook worker (on the workers, WEBHOOKS_WORKER) isn't claiming deliveries.
+      - eval_time: 10m
+        alertname: WebhookDeliveriesFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              state: failed
+            exp_annotations:
+              summary: Webhook deliveries fail for good
+              description: 'About 3.15 deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver''s endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried.'
+
+  - name: backups
+    interval: 1m
+    # A day and a bit in: time() is about 26 hours here.
+    start_timestamp: 1700000000
+    input_series:
+      # Succeeded 27 h before the start, then a run failed 10 min in.
+      - series: 'backup_last_success_timestamp_seconds{job="backup",instance="backup-metrics:9102"}'
+        values: '1699902800x20'
+      - series: 'backup_last_failure_timestamp_seconds{job="backup",instance="backup-metrics:9102"}'
+        values: '0x9 1700000600x10'
+      - series: 'backup_max_age_seconds{job="backup",instance="backup-metrics:9102"}'
+        values: '90000x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: BackupFailed
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: BackupFailed
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: backup
+              instance: backup-metrics:9102
+            exp_annotations:
+              summary: The last backup failed
+              description: 'The hourly catch-up retries it; until one succeeds the newest backup is older than planned. `docker compose logs backup` (docs/deployment.md, "Backups and restore").'
+      # 27 h 10 min old, over 25 h + 1 h.
+      - eval_time: 10m
+        alertname: BackupTooOld
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: backup
+              instance: backup-metrics:9102
+            exp_annotations:
+              summary: The newest backup is 1d 3h 10m 0s old
+              description: No backup has succeeded for longer than BACKUP_MAX_AGE_HOURS plus the hourly catch-up. `docker compose logs backup`; one now with `docker compose exec backup backup`.
+      - eval_time: 10m
+        alertname: BackupNeverSucceeded
+        exp_alerts: []
+
+  - name: a fresh stack without a backup yet
+    interval: 1m
+    input_series:
+      - series: 'backup_last_success_timestamp_seconds{job="backup",instance="backup-metrics:9102"}'
+        values: '0x1700'
+      - series: 'backup_max_age_seconds{job="backup",instance="backup-metrics:9102"}'
+        values: '90000x1700'
+    alert_rule_test:
+      - eval_time: 20h
+        alertname: BackupNeverSucceeded
+        exp_alerts: []
+      - eval_time: 20h
+        alertname: BackupTooOld
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupNeverSucceeded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: backup
+              instance: backup-metrics:9102
+            exp_annotations:
+              summary: No backup has succeeded yet
+              description: The backups volume has held no successful backup for over a day. `docker compose logs backup`; one now with `docker compose exec backup backup`.
+
+  - name: stores unreachable
+    interval: 1m
+    input_series:
+      # The api answers and reads PostgreSQL, but its queue gauges are gone: Redis.
+      - series: 'up{job="api",instance="10.0.0.2:3000"}'
+        values: '1x10'
+      - series: 'outbox_undelivered{job="api",instance="10.0.0.2:3000"}'
+        values: '0x10'
+      - series: 'pg_up{job="postgres",instance="postgres-exporter:9187"}'
+        values: '1 0x10'
+      - series: 'pg_stat_database_numbackends{job="postgres",instance="postgres-exporter:9187",datname="app"}'
+        values: '85x10'
+      - series: 'pg_settings_max_connections{job="postgres",instance="postgres-exporter:9187"}'
+        values: '100x10'
+      - series: 'redis_memory_used_bytes{job="redis",instance="redis-exporter:9121"}'
+        values: '360000000x10'
+      - series: 'redis_memory_max_bytes{job="redis",instance="redis-exporter:9121"}'
+        values: '400000000x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RedisUnreachableFromApp
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: api
+              instance: 10.0.0.2:3000
+            exp_annotations:
+              summary: api 10.0.0.2:3000 cannot read Redis
+              description: The process answers, but its queue gauges have failed (or taken more than 2 s) for 2 minutes. Queues, rate limits and realtime need Redis.
+      - eval_time: 3m
+        alertname: DatabaseUnreachableFromApp
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: PostgresDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: postgres
+              instance: postgres-exporter:9187
+            exp_annotations:
+              summary: PostgreSQL is down
+              description: The exporter has not been able to connect to PostgreSQL for a minute.
+      - eval_time: 6m
+        alertname: PostgresConnectionsHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: PostgreSQL uses 85% of max_connections
+              description: 'The pools'' sum must stay under POSTGRES_MAX_CONNECTIONS (docs/deployment.md, "Database connections"). New connections fail at the limit.'
+      - eval_time: 6m
+        alertname: RedisMemoryHigh
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: redis
+              instance: redis-exporter:9121
+            exp_annotations:
+              summary: Redis uses 90% of maxmemory
+              description: Redis runs with noeviction, so at maxmemory (REDIS_MAXMEMORY) every write fails, queued jobs included. Raise REDIS_MAXMEMORY and REDIS_MEMORY, or find what fills it.
+
+  - name: the Watchdog always fires, from the first evaluation
+    interval: 1m
+    input_series:
+      - series: 'up{job="prometheus",instance="localhost:9090"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels:
+              severity: none
+            exp_annotations:
+              summary: The alerting pipeline works (always firing)
+              description: Not a problem. It goes to the dead man's switch only (ALERT_WATCHDOG_URL_FILE or ALERT_WATCHDOG_URL); when its pings stop, the outside check alarms.
+      - eval_time: 10m
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels:
+              severity: none
+            exp_annotations:
+              summary: The alerting pipeline works (always firing)
+              description: Not a problem. It goes to the dead man's switch only (ALERT_WATCHDOG_URL_FILE or ALERT_WATCHDOG_URL); when its pings stop, the outside check alarms.
+
+  - name: HTTPS probe through Caddy fails, certificate far from expiry
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="probe",instance="https://caddy:443/health/live"}'
+        values: '1 1 0x10'
+      # 60 days from the start (Prometheus' tests start at time 0).
+      - series: 'probe_ssl_earliest_cert_expiry{job="probe",instance="https://caddy:443/health/live"}'
+        values: '5184000x12'
+    alert_rule_test:
+      # Failing since 2m: pending for 3 minutes first.
+      - eval_time: 4m
+        alertname: HttpsProbeFailing
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: HttpsProbeFailing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: probe
+              instance: https://caddy:443/health/live
+            exp_annotations:
+              summary: The API does not answer over HTTPS
+              description: 'Caddy has not answered /health/live with 200 for 3 minutes: Caddy down, a certificate that is expired, missing or for another name, or no api replica healthy behind it. `docker compose logs caddy`; probe_http_status_code and the exporter''s /probe?debug=true say which.'
+      - eval_time: 12m
+        alertname: CertificateExpiring
+        exp_alerts: []
+
+  - name: a healthy probe stays quiet
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="probe",instance="https://caddy:443/health/live"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HttpsProbeFailing
+        exp_alerts: []
+
+  - name: certificate expires within two weeks (warning only)
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="probe",instance="https://caddy:443/health/live"}'
+        values: '1x12'
+      # 13 days from the start.
+      - series: 'probe_ssl_earliest_cert_expiry{job="probe",instance="https://caddy:443/health/live"}'
+        values: '1123200x12'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: CertificateExpiring
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: CertificateExpiring
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: probe
+              instance: https://caddy:443/health/live
+            exp_annotations:
+              summary: The HTTPS certificate expires in 12d 23h 49m 0s
+              description: Caddy should have renewed it long ago. `docker compose logs caddy` for the ACME errors (the Cloudflare DNS challenge, CLOUDFLARE_API_TOKEN, rate limits).
+
+  - name: certificate expires within a week (warning and critical; Alertmanager mutes the warning)
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="probe",instance="https://caddy:443/health/live"}'
+        values: '1x12'
+      # 6 days from the start.
+      - series: 'probe_ssl_earliest_cert_expiry{job="probe",instance="https://caddy:443/health/live"}'
+        values: '518400x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: CertificateExpiring
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: probe
+              instance: https://caddy:443/health/live
+            exp_annotations:
+              summary: The HTTPS certificate expires in 5d 23h 49m 0s
+              description: Caddy should have renewed it long ago. `docker compose logs caddy` for the ACME errors (the Cloudflare DNS challenge, CLOUDFLARE_API_TOKEN, rate limits).
+          - exp_labels:
+              severity: critical
+              job: probe
+              instance: https://caddy:443/health/live
+            exp_annotations:
+              summary: The HTTPS certificate expires in 5d 23h 49m 0s
+              description: Caddy should have renewed it long ago; at expiry every client refuses the API. `docker compose logs caddy` for the ACME errors (the Cloudflare DNS challenge, CLOUDFLARE_API_TOKEN, rate limits).
+
+  - name: the captcha provider is unreachable, then one failed check is noise
+    interval: 1m
+    input_series:
+      # One failure a minute on one replica, a steady 0 on the other.
+      - series: 'captcha_verifications_total{job="api",instance="10.0.0.2:3000",outcome="unavailable"}'
+        values: '0+1x12'
+      - series: 'captcha_verifications_total{job="api",instance="10.0.0.3:3000",outcome="unavailable"}'
+        values: '0x12'
+      - series: 'captcha_verifications_total{job="api",instance="10.0.0.2:3000",outcome="passed"}'
+        values: '0+5x12'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: CaptchaProviderUnavailable
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: CaptchaProviderUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: api
+            exp_annotations:
+              summary: api cannot reach the captcha provider
+              description: 'Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: 16.67m per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare''s status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too).'
+
+  - name: a single failed captcha check stays quiet
+    interval: 1m
+    input_series:
+      - series: 'captcha_verifications_total{job="api",instance="10.0.0.2:3000",outcome="unavailable"}'
+        values: '0 0 1 1 1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: CaptchaProviderUnavailable
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: CaptchaProviderUnavailable
+        exp_alerts: []

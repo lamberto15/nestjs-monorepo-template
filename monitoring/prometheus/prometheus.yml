@@ -1,0 +1,89 @@
+# Prometheus for the Compose stack (compose.monitoring.yaml). It scrapes
+# every api and worker replica through Docker's DNS, the PostgreSQL and Redis
+# exporters, the HTTPS probe (blackbox exporter), itself and Alertmanager,
+# evaluates the rules next to this file,
+# and sends what fires to Alertmanager. Docs: docs/deployment.md, "Alerting".
+#
+# Check it: docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+#   --entrypoint promtool prom/prometheus:<tag> check config --syntax-only /etc/prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  # On every alert: which deployment it comes from (Prometheus 3 expands
+  # environment variables in external labels; compose.monitoring.yaml sets them).
+  external_labels:
+    environment: ${APP_ENV}
+    service: ${SERVICE_NAME}
+
+storage:
+  tsdb:
+    # Whichever is reached first. The data lives in the prometheus_data volume.
+    retention:
+      time: 30d
+      size: 4GB
+
+rule_files:
+  - /etc/prometheus/recording.yml
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
+
+scrape_configs:
+  # The app: GET /metrics on every replica (port 3000, not published), with
+  # METRICS_TOKEN as the bearer token (a Compose secret, never in this file).
+  # Docker's DNS answers a service's name with every replica's address.
+  - job_name: api
+    authorization:
+      credentials_file: /run/secrets/metrics_token
+    dns_sd_configs:
+      - names: [api]
+        type: A
+        port: 3000
+        refresh_interval: 15s
+  - job_name: worker
+    authorization:
+      credentials_file: /run/secrets/metrics_token
+    dns_sd_configs:
+      - names: [worker]
+        type: A
+        port: 3000
+        refresh_interval: 15s
+
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+  - job_name: redis
+    static_configs:
+      - targets: [redis-exporter:9121]
+  # The backup service's markers, as metrics (monitoring/backup-metrics).
+  - job_name: backup
+    metrics_path: /metrics.txt
+    static_configs:
+      - targets: [backup-metrics:9102]
+
+  # HTTPS through Caddy, by its Compose name, as the public host
+  # (monitoring/blackbox/render-config.sh sets the server name): probe_success
+  # and probe_ssl_earliest_cert_expiry. up is the exporter's own state.
+  - job_name: probe
+    metrics_path: /probe
+    params:
+      module: [https_caddy]
+    static_configs:
+      - targets: ['https://caddy:443/health/live']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+  - job_name: alertmanager
+    static_configs:
+      - targets: [alertmanager:9093]

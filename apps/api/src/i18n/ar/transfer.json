@@ -1,0 +1,42 @@
+{
+  "template": {
+    "sheets": {
+      "data": "البيانات",
+      "columns": "الأعمدة"
+    },
+    "note": "الصف 2 في ورقة البيانات مثال: استبدله بصفوفك. اترك العناوين كما هي.",
+    "headers": {
+      "column": "العمود",
+      "required": "إلزامي",
+      "type": "النوع",
+      "format": "الصيغة",
+      "example": "مثال",
+      "description": "الوصف"
+    },
+    "yes": "نعم",
+    "no": "لا",
+    "types": {
+      "text": "نص",
+      "number": "رقم",
+      "boolean": "نعم/لا",
+      "date": "تاريخ",
+      "datetime": "تاريخ ووقت",
+      "list": "قائمة"
+    },
+    "format": {
+      "textRange": "من {min} إلى {max} حرفًا",
+      "textMax": "حتى {max} حرفًا",
+      "textMin": "{min} حرفًا على الأقل",
+      "options": "واحد من: {options}",
+      "listOptions": "أي من: {options}، مفصولة بفواصل",
+      "list": "قيم مفصولة بفواصل",
+      "numberRange": "رقم من {min} إلى {max}",
+      "numberMin": "رقم، {min} على الأقل",
+      "numberMax": "رقم، {max} على الأكثر",
+      "number": "رقم (نقطة للكسور العشرية)",
+      "boolean": "true أو false",
+      "date": "YYYY-MM-DD",
+      "datetime": "YYYY-MM-DD HH:MM:SS، بتوقيت {zone}"
+    }
+  }
+}
