@@ -1,6 +1,7 @@
 import { ConditionalModule, ConfigService } from '@nestjs/config';
 import { createObserveModule } from '@nestjs/observe';
 import { appEnv, type Config, type CoreEnv } from '../config/core.env.js';
+import { logRedaction } from '../logging/redaction.js';
 
 /**
  * NestJS Observe (@nestjs/observe): traces of every request, job, workflow
@@ -36,8 +37,17 @@ export const observability = () =>
             req.user ? `${req.user.kind}:${req.user.id}` : 'anonymous',
           ignore: ['/health', '/health/live'],
         },
-        // Passwords, tokens and keys never leave the process.
-        redaction: { enabled: true, useDefaultPatterns: true },
+        // Passwords, tokens and keys never leave the process: the SDK's own
+        // rules, plus the app's registry (core/logging/redaction.ts), so the
+        // captured errors and requests mask the same names and shapes as
+        // the logs (Observe replaces a pattern's whole match, so there a
+        // `name=value` loses its name too).
+        redaction: {
+          enabled: true,
+          useDefaultPatterns: true,
+          keys: logRedaction.keys(),
+          patterns: logRedaction.patterns(),
+        },
       }),
     }),
     observeEnabled,

@@ -51,7 +51,8 @@ Filling `.env` (each step is commented in `env.example`):
 - Local file storage is a volume shared by the replicas of one host. More hosts:
   `STORAGE_DRIVER=s3`.
 - Logs are JSON on stdout (`docker compose logs`). `X-Request-Id` follows a
-  request through Caddy, the logs and NestJS Observe.
+  request through Caddy, the logs and NestJS Observe. Credentials are
+  masked before a line is written ([Log redaction](#log-redaction)).
 - **Bounded logs:** each container keeps at most `DOCKER_LOG_MAX_FILE` (5)
   files of `DOCKER_LOG_MAX_SIZE` (20m), the older ones compressed, the
   oldest dropped. The driver is `local` (`DOCKER_LOG_DRIVER`), the one Docker
@@ -406,6 +407,60 @@ Raising the pools: more API replicas need a smaller pool each, or PgBouncer
 (transaction mode) in front of PostgreSQL, or a larger `max_connections`
 (each connection costs PostgreSQL memory). Workers need a pool at least as
 large as what they run at once (workflow steps, job concurrency).
+
+## Log redaction
+
+Credentials never reach a log line or an error report. One declared list,
+`apps/api/src/core/logging/redaction.ts` (`logRedaction`), feeds everything
+that masks:
+
+- **Keys, masked by name at any depth.** `createLogger()` (main.ts) hands the
+  list to Nest's own `ConsoleLogger` `redact` option, which masks a property
+  of that name (case-insensitive) in structured params and logged objects,
+  errors' `cause` included, in text and JSON mode. The list:
+  - headers: `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`,
+    `X-Api-Key`, `X-Captcha-Token`, `X-CSRF-Token`, `X-XSRF-Token`,
+    `Webhook-Signature`, `X-Signature`, `X-Hub-Signature(-256)`;
+  - fields: passwords (`password`, `currentPassword`, `newPassword`…),
+    tokens (`token`, `accessToken`, `refreshToken`, `idToken`, `jwt`),
+    secrets and keys (`secret`, `clientSecret`, `pendingSecret`, `apiKey`,
+    `privateKey`…), two-factor (`totp`, `otp`, `recoveryCode(s)`), sessions
+    (`sessionId`, `sid`, `cookie(s)`), signatures, SNS's `Token` and
+    `SubscribeURL`, and `body.code` / `query.code` (a two-factor or OIDC
+    code there; every error's own `code` stays readable);
+  - every environment variable declared with `secret()`
+    ([configuration.md](configuration.md)), added by `env.ts`.
+- **Text patterns, over every line written.** The `redact` option leaves
+  string messages, error messages and stack traces as they are, so the
+  logger (`RedactingConsoleLogger`) runs the patterns over the whole line:
+  `Bearer`/`Basic` credentials, JWTs, PEM private keys, a URL's password
+  (`postgres://app:[REDACTED]@db`), `name=value` / `name: value` for every
+  declared name (`refreshToken=[REDACTED]`, a cookie pair), and the API keys'
+  shape (`sk_<id>_[REDACTED]`: the id still finds the client). The name stays
+  in the line, so it says what was removed.
+- **NestJS Observe** (when configured) gets the same keys and patterns as
+  `redaction.keys` / `redaction.patterns`, on top of its own defaults, for
+  the errors and requests it captures and the log lines it forwards.
+
+Where that applies: the request log (method, path, status, never headers or
+bodies), the problem-details filter's 5xx report (message and stack), every
+`Logger` call (handlers, queue processors' failures, outgoing HTTP calls'
+errors), and the failure reasons `GET /v1/ops/queues` shows. Validation
+errors name the field and never echo its value, so neither the problem
+details nor the logs carry a rejected password.
+
+**Adding to it.** Declare at import time, from module scope next to what
+makes the secret: `logRedaction.declareFields('ssn')`, `declareHeaders('X-Partner-Token')`,
+`declarePatterns(/acct_[a-z0-9]{16}/)` (use a lookbehind to keep an
+identifying prefix). `createLogger()` snapshots the list and closes it; a
+later declaration throws (see [pitfalls.md](pitfalls.md)). Only names that
+always hold a secret belong in it: a key masks that name everywhere. The
+encrypted-column registry (roadmap item 5) is meant to plug in here: its
+column helper declares each encrypted or sensitive column with
+`declareFields()`.
+
+What it is not: a guarantee. A secret logged under an innocent name, in a
+shape no pattern knows, is written as is. Log ids, not payloads.
 
 ## Metrics
 
@@ -798,6 +853,7 @@ merged migration fails it already):
 | `migration-lint` | pull requests only, in `migrations.yml` (a label change runs it again): squawk reads the migrations the pull request adds under `apps/api/drizzle/` and lists destructive statements (drops, renames, retypes, `SET NOT NULL`, NOT NULL without a default, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, `MERGE`'s deletes and updates) in the job summary, with file and line. Report-only until `MIGRATION_LINT_FAIL` is `on` (pitfalls.md, "Migrations: expand/contract"). Always failing: an edited or deleted merged migration or journal entry, a `squawk-ignore` comment. The `destructive-migration` label accepts both when added after the latest push |
 | `publish` | `main` and `v*` tags only, after `check`, `e2e`, `security` and `image`: pushes the app image to GHCR (below) |
 | `publish-gotenberg` | the same for Gotenberg's image, after `gotenberg-image` too: `ghcr.io/<owner>/<repo>/gotenberg`, the build `gotenberg-image` scanned in the same run, scanned again, then pushed |
+| `release` | `v*` tags only, after both publish jobs: the tag's GitHub release, its notes generated by `tools/release/notes.mjs` (the images by version and digest, the migrations since the previous release and the expand/contract lint's findings, rolling back; [releases](releases.md)). Its tests run in `check` |
 
 - **The same PostgreSQL and Redis as Compose:** CI reads their images from
   `compose.yaml` (job `compose-images`). Change them there only.
@@ -810,6 +866,10 @@ merged migration fails it already):
 - **Commit messages:** `.github/workflows/commit-messages.yml` fails a pull
   request whose title, or whose only commit's subject, isn't a Conventional
   Commit (development.md, "Git hooks").
+- **Typed client:** `.github/workflows/api-client.yml` reports a pull
+  request that changes `packages/api-client` without a changeset, and on
+  `main` opens the client's version pull request; its npm publish is off
+  until the owner turns it on ([releases](releases.md), "The typed client").
 - **No GitHub code scanning:** CodeQL and SARIF uploads need it, and a
   private repository on the free plan doesn't have it. The scans print
   their findings in the job's log instead.
@@ -848,7 +908,9 @@ It builds it once, scans it, and pushes it only when every check passed.
 
 - **Tags:** the full commit SHA, always; `main` for a push to main; `1.2.3`
   and `1.2` for a `v1.2.3` tag. Never `latest`: a deploy names the image
-  it runs.
+  it runs. A `v1.2.3` tag also gets a GitHub release whose notes name both
+  images by version and digest, list the migrations since the previous
+  release, and say how to roll back to it ([releases](releases.md)).
 - **Inside:** `GIT_SHA` is the commit (NestJS Observe reports it as the
   version), and the OCI labels name the repository, commit and build time.
 - **Private:** the package belongs to the repository and follows its

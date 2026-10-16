@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  type CompiledPattern,
+  compilePattern,
+  patternProblem,
+} from './custom-field.pattern.js';
 import type {
   CustomFieldDefinition,
   CustomFieldType,
@@ -49,9 +54,6 @@ type FieldShape = Pick<
   'type' | 'options' | 'validation'
 >;
 
-/** An administrator's pattern, anchored: it must match the whole value. */
-const compilePattern = (pattern: string) => new RegExp(`^(?:${pattern})$`, 'u');
-
 /** The schema of one field's value (never null: null means "no value" and is handled by the caller). */
 export function valueSchema(field: FieldShape): z.ZodType {
   const rules = field.validation ?? {};
@@ -92,8 +94,21 @@ export function valueSchema(field: FieldShape): z.ZodType {
         schema = schema.min(rules.minLength);
       }
       if (rules.pattern !== undefined) {
-        schema = schema.regex(compilePattern(rules.pattern), {
-          message: 'Does not match the expected format.',
+        // RE2, not RegExp (custom-field.pattern.ts): linear time on any value.
+        // A pattern saved before RE2 that it can't run (a lookahead, a
+        // backreference) refuses every value rather than throwing (a 500 on
+        // every write of the subject) or letting values through unchecked.
+        let pattern: CompiledPattern | null = null;
+        try {
+          pattern = compilePattern(rules.pattern);
+        } catch {
+          // Refused below, with the message that says why.
+        }
+        schema = schema.refine((value) => pattern?.test(value) === true, {
+          message:
+            pattern === null
+              ? 'The format this field expects is no longer supported: an administrator must update its pattern.'
+              : 'Does not match the expected format.',
         });
       }
       if (field.type === 'email') {
@@ -266,13 +281,9 @@ export function definitionIssues(
     });
   }
   if (rules.pattern !== undefined) {
-    try {
-      compilePattern(rules.pattern);
-    } catch {
-      issues.push({
-        path: 'validation.pattern',
-        message: 'Not a valid regular expression.',
-      });
+    const problem = patternProblem(rules.pattern);
+    if (problem !== null) {
+      issues.push({ path: 'validation.pattern', message: problem });
     }
   }
   if (issues.length === 0 && field.defaultValue != null) {

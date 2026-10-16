@@ -21,13 +21,17 @@ const local = (url: string) => {
   return pathname + search;
 };
 
-/** A link of a mail's HTML, its entities decoded. */
+/**
+ * A link of a mail's HTML, its entities decoded. `&amp;` last: decoded
+ * first, it would turn `&amp;#x2F;` (a literal `&#x2F;` in the link) into a
+ * `/` on the next replace (CodeQL js/double-escaping).
+ */
 const linkOf = (html: string) =>
   /href="([^"]+)"/
     .exec(html)![1]!
-    .replace(/&amp;/g, '&')
     .replace(/&#x3D;/g, '=')
-    .replace(/&#x2F;/g, '/');
+    .replace(/&#x2F;/g, '/')
+    .replace(/&amp;/g, '&');
 
 const paths = (body: { errors?: { path: string }[] }) =>
   (body.errors ?? []).map((error) => error.path);

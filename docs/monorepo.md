@@ -20,6 +20,7 @@ its work to the packages:
 | `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e` | `turbo run <task>`: the task in every package that has it, dependencies first |
 | `pnpm start:dev`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump` | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api` |
 | `pnpm client:generate`, `pnpm client:check` | the API's dump, then the client's generator |
+| `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes` | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md)) |
 | `pnpm services:up` / `services:down`, `pnpm format` | at the root |
 
 - **One package:** `pnpm --filter <name> <script>`, e.g. `pnpm --filter

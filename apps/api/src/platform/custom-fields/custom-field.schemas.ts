@@ -1,24 +1,7 @@
 import { z } from 'zod';
+import { patternProblem } from './custom-field.pattern.js';
 import { CUSTOM_FIELD_TYPES } from './custom-field.types.js';
 import { CUSTOM_KEY_PATTERN } from './custom-field.values.js';
-
-/** A pattern that compiles as the values are checked (unicode mode). */
-const compiles = (pattern: string) => {
-  try {
-    new RegExp(pattern, 'u');
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-/**
- * What makes a regex backtrack catastrophically on crafted input (ReDoS):
- * a quantified group that itself holds a quantifier, `(a+)+`, `(\w*)*`,
- * `(a|b+){2,}`; and backreferences. JavaScript can't interrupt a running
- * regex, so such patterns are refused when an administrator saves them.
- */
-const BACKTRACKING = /\([^)]*[+*}][^)]*\)\s*[+*{]|\\[1-9]/;
 
 /**
  * The definitions API's bodies and responses. What depends on the type
@@ -47,14 +30,17 @@ const validationSchema = z
       .string()
       .min(1)
       .max(200)
-      .refine(compiles, 'Not a valid regular expression.')
-      .refine(
-        (pattern) => !BACKTRACKING.test(pattern),
-        'Nested quantifiers like (a+)+ and backreferences can take exponential time: rewrite the pattern.',
-      )
+      // The compile that runs on the values (RE2, custom-field.pattern.ts):
+      // what it refuses here, it would refuse there.
+      .superRefine((pattern, ctx) => {
+        const problem = patternProblem(pattern);
+        if (problem !== null) {
+          ctx.addIssue({ code: 'custom', message: problem });
+        }
+      })
       .optional()
       .describe(
-        'A regular expression the whole value must match (text types).',
+        'A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences.',
       ),
   })
   .strict();

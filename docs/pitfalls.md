@@ -258,3 +258,13 @@ matters.)
   app (e2e: "Nest was not able to resolve the config variables within 5000
   milliseconds", an unhandled error that fails the run with every test green).
   Pass `{ timeout: 60_000 }` like the existing calls.
+- **Log redaction is declared at import time.** `createLogger()` (main.ts)
+  snapshots the registry (`core/logging/redaction.ts`) into the logger's
+  `redact` option and closes it: a `declareFields()` from a provider's
+  constructor or a lifecycle hook throws instead of silently masking
+  nothing. Declare from module scope, next to what makes the secret (as
+  `env.ts` and `iam/auth/api-keys.ts` do). The key option masks by name at
+  any depth, so only names that always hold a secret belong in it: `code`
+  (every error's) is masked under `body` and `query` only; a credential
+  interpolated into a message is caught by the text patterns, which match
+  shapes (`Bearer …`, a JWT, `name=value`), never a bare value.

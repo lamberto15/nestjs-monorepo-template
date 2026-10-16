@@ -1011,15 +1011,18 @@ describe('custom fields (e2e)', () => {
       expect(back.body.custom).toEqual({ color: 'red' });
     });
 
-    it('refuses patterns that could backtrack for ever', async () => {
-      for (const pattern of [
-        '(a+)+$',
-        '(\\w*)*',
-        '(a|b+){2,}',
-        '(x)\\1',
-        '[',
-      ]) {
-        await node
+    it('runs patterns on RE2: linear time on any value, no lookaround or backreferences', async () => {
+      // What RE2 can't run (it would need backtracking) is refused when
+      // saved, naming the pattern and the reason.
+      for (const [pattern, reason] of [
+        ['(?=a)b', /^Lookahead and lookbehind/],
+        ['(?<!a)b', /^Lookahead and lookbehind/],
+        ['(x)\\1', /^Backreferences/],
+        ['(?<n>x)\\k<n>', /^Backreferences/],
+        ['a{1001}', /^A repetition count/],
+        ['[', /^Not a valid regular expression/],
+      ] as const) {
+        const refused = await node
           .admin()
           .post('/v1/custom-fields')
           .send({
@@ -1032,7 +1035,46 @@ describe('custom fields (e2e)', () => {
             validation: { pattern },
           })
           .expect(400);
+        expect(refused.body.code).toBe('validation_failed');
+        expect(refused.body.errors, pattern).toEqual([
+          {
+            path: 'validation.pattern',
+            message: expect.stringMatching(reason),
+          },
+        ]);
       }
+      // Patterns that make a backtracking engine take exponential time on a
+      // crafted value save, since RE2 runs them in linear time: the crafted
+      // value is checked (and refused) in the request, quickly.
+      await field({
+        key: 'evil',
+        type: 'longText',
+        validation: { pattern: '(a|aa)+$' },
+      });
+      await field({
+        key: 'slow',
+        type: 'longText',
+        validation: { pattern: '.*.*.*.*x' },
+      });
+      const { auth } = await node.client();
+      const started = performance.now();
+      const refused = await node
+        .writeNote(auth, {
+          title: 'Crafted',
+          body: 'x',
+          // 10,000 characters: longText's limit, so the pattern is the only issue.
+          custom: { evil: `${'a'.repeat(9_999)}!`, slow: 'a'.repeat(10_000) },
+        })
+        .expect(400);
+      expect(performance.now() - started).toBeLessThan(5_000);
+      expect(paths(refused.body)).toEqual(['custom.evil', 'custom.slow']);
+      await node
+        .writeNote(auth, {
+          title: 'Fine',
+          body: 'x',
+          custom: { evil: 'aaa', slow: 'aax' },
+        })
+        .expect(201);
       await field({
         key: 'code',
         type: 'text',
