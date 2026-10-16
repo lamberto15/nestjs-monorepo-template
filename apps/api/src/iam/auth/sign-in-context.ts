@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
+import type { ProviderReauthentication } from '../account/oidc-reauthentication.js';
 import {
   type AuthenticationMetadata,
   methodMetadata,
@@ -11,6 +12,8 @@ interface SignInState {
   method?: string;
   /** When the user proved who they are, when it wasn't now (an ID token's `auth_time`). */
   authenticatedAt?: Date;
+  /** A step-up through a provider: the sign-in must be this user's, and fresh. */
+  reauthenticating?: ProviderReauthentication;
 }
 
 const SIGN_IN = Symbol('sign-in');
@@ -33,12 +36,31 @@ const SIGN_IN = Symbol('sign-in');
 export class SignInContext {
   constructor(private readonly cls: ClsService) {}
 
-  /** Runs `fn` as a sign-in by `method`: the session it creates records it. */
-  run<T>(method: string, fn: () => Promise<T>): Promise<T> {
+  /**
+   * Runs `fn` as a sign-in by `method`: the session it creates records it.
+   * `reauthenticating`: the sign-in is a step-up through a provider
+   * (OidcAccounts checks it is that user's, and fresh).
+   */
+  run<T>(
+    method: string,
+    fn: () => Promise<T>,
+    { reauthenticating }: { reauthenticating?: ProviderReauthentication } = {},
+  ): Promise<T> {
     return this.cls.run({ ifNested: 'inherit' }, () => {
-      this.cls.set(SIGN_IN, { method } satisfies SignInState);
+      this.cls.set(SIGN_IN, {
+        method,
+        ...(reauthenticating && { reauthenticating }),
+      } satisfies SignInState);
       return fn();
     });
+  }
+
+  /** The step-up through a provider the sign-in under way finishes, if it is one. */
+  reauthenticating(): ProviderReauthentication | undefined {
+    if (!this.cls.isActive()) {
+      return undefined;
+    }
+    return this.cls.get<SignInState | undefined>(SIGN_IN)?.reauthenticating;
   }
 
   /**

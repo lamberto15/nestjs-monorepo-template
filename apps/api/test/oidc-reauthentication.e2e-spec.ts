@@ -1,0 +1,227 @@
+import { randomBytes, randomUUID } from 'node:crypto';
+import { OidcService } from '@nestjs/authentication';
+import { getDrizzleToken } from '@nestjs/drizzle';
+import type { Redis } from 'ioredis';
+import type request from 'supertest';
+import type { Database } from '../src/core/database/drizzle.js';
+import { REDIS } from '../src/core/redis/redis.js';
+import { OidcAccounts } from '../src/iam/account/account.handlers.js';
+import { userIdentities } from '../src/iam/iam.tables.js';
+import { bootApp, newPassword, type TestApp } from './support.js';
+
+// A configured GitHub (read once, when AppModule loads): an OAuth 2.0
+// provider with fixed endpoints, so the login builds its URL without
+// discovery, and the tests reach no provider.
+vi.hoisted(() => {
+  Object.assign(process.env, {
+    GITHUB_CLIENT_ID: 'reauthentication-test',
+    // Made at runtime (a local hook refuses key-like literals).
+    GITHUB_CLIENT_SECRET: Math.random().toString(36).slice(2),
+  });
+});
+
+const MINUTE = 60_000;
+
+describe('step-up through a provider: prompt=login and auth_time (e2e)', () => {
+  let node: TestApp;
+
+  beforeEach(async () => {
+    node = await bootApp();
+  });
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await node.close();
+  });
+
+  /** A user with GitHub connected, signed in with their password. */
+  async function person() {
+    const email = `${randomUUID().slice(0, 8)}@example.com`;
+    const password = newPassword();
+    const created = await node
+      .admin()
+      .post('/v1/access/users')
+      .send({ email, name: email, password, roleIds: [] })
+      .expect(201);
+    const id = created.body.id as string;
+    await node.app
+      .get<Database>(getDrizzleToken())
+      .insert(userIdentities)
+      .values({ provider: 'github', subject: `gh-${id}`, userId: id });
+    return { id, email, agent: await node.signIn(email, password) };
+  }
+
+  /** Starts a step-up; the provider's URL it answers. */
+  async function start(agent: request.Agent, query = '') {
+    const res = await agent
+      .get(`/v1/auth/oidc/github/login?reauthenticate=true${query}`)
+      .expect(302);
+    return new URL(res.headers.location!);
+  }
+
+  /**
+   * The provider's answer, simulated: the package's `finish()` (state
+   * cookie, code exchange) can't run without GitHub, so it is replaced by
+   * one that hands the real resolver this profile, as `finish()` does.
+   */
+  function providerAnswers(subject: string, claims: Record<string, unknown>) {
+    const resolver = node.app.get(OidcAccounts);
+    return vi
+      .spyOn(node.app.get(OidcService), 'finish')
+      .mockImplementation(async () => {
+        const user = await resolver.resolveUser(
+          { provider: 'github', subject, emailVerified: true, claims },
+          { accessToken: 'at' },
+          {},
+        );
+        if (!user) {
+          throw new Error('account not allowed');
+        }
+        return { url: 'https://web.example.com/settings', cookies: [] };
+      });
+  }
+
+  const audit = async (action: string, userId: string) =>
+    (
+      await node
+        .admin()
+        .get(`/v1/access/audit?action=${action}&actor=user:${userId}`)
+        .expect(200)
+    ).body.items as { details: Record<string, unknown> }[];
+
+  it('asks the provider for a fresh login, and remembers whose step-up it is', async () => {
+    const me = await person();
+    const url = await start(me.agent, '&redirectTo=/settings');
+    expect(url.origin + url.pathname).toBe(
+      'https://github.com/login/oauth/authorize',
+    );
+    expect(url.searchParams.get('prompt')).toBe('login');
+    expect(url.searchParams.get('max_age')).toBe('0');
+    const state = url.searchParams.get('state')!;
+    expect(state).toBeTruthy();
+    const remembered = JSON.parse(
+      (await node.app.get<Redis>(REDIS).get(`oidc:reauthentication:${state}`))!,
+    ) as { userId: string; startedAt: number; redirectTo: string };
+    expect(remembered).toMatchObject({
+      userId: me.id,
+      redirectTo: '/settings',
+    });
+    expect(Date.now() - remembered.startedAt).toBeLessThan(MINUTE);
+
+    // A plain sign-in doesn't ask the provider again.
+    const plain = await node
+      .http()
+      .get('/v1/auth/oidc/github/login')
+      .expect(302);
+    const plainUrl = new URL(plain.headers.location!);
+    expect(plainUrl.searchParams.has('prompt')).toBe(false);
+    expect(plainUrl.searchParams.has('max_age')).toBe(false);
+  });
+
+  it('is for a signed-in user, one flow at a time, never while impersonating', async () => {
+    await node
+      .http()
+      .get('/v1/auth/oidc/github/login?reauthenticate=true')
+      .expect(401);
+    const me = await person();
+    await me.agent
+      .get('/v1/auth/oidc/github/login?reauthenticate=true&link=true')
+      .expect(400);
+    await me.agent
+      .get('/v1/auth/oidc/nobody/login?reauthenticate=true')
+      .expect(404);
+    const admin = await node.signIn(
+      process.env.ADMIN_EMAIL!,
+      process.env.ADMIN_PASSWORD!,
+    );
+    await admin.post(`/v1/access/users/${me.id}/impersonate`).expect(204);
+    await admin
+      .get('/v1/auth/oidc/github/login?reauthenticate=true')
+      .expect(403);
+  });
+
+  it('accepts the same user, authenticated after the start, once; audited', async () => {
+    const me = await person();
+    const state = (await start(me.agent)).searchParams.get('state')!;
+    const finish = providerAnswers(`gh-${me.id}`, {
+      auth_time: Math.floor(Date.now() / 1000),
+    });
+    const done = await me.agent
+      .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+      .expect(302);
+    expect(done.headers.location).toBe('https://web.example.com/settings');
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(await audit('auth.reauthenticated', me.id)).toMatchObject([
+      { details: { method: 'oidc', provider: 'github' } },
+    ]);
+    // Taken: the same state again is a plain sign-in, not a second step-up.
+    expect(
+      await node.app.get<Redis>(REDIS).get(`oidc:reauthentication:${state}`),
+    ).toBeNull();
+    await me.agent
+      .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+      .expect(302);
+    expect(await audit('auth.reauthenticated', me.id)).toHaveLength(1);
+  });
+
+  it("refuses a provider that didn't ask again (an auth_time before the start), and sends the browser back", async () => {
+    const me = await person();
+    const state = (
+      await start(me.agent, '&redirectTo=/settings/security')
+    ).searchParams.get('state')!;
+    providerAnswers(`gh-${me.id}`, {
+      auth_time: Math.floor((Date.now() - 20 * MINUTE) / 1000),
+    });
+    const refused = await me.agent
+      .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+      .expect(302);
+    expect(refused.headers.location).toBe(
+      'https://web.example.com/settings/security?error=reauthentication_failed',
+    );
+    expect(await audit('auth.reauthentication-failed', me.id)).toMatchObject([
+      { details: { method: 'oidc', provider: 'github', reason: 'stale' } },
+    ]);
+    // No sign-in happened: the browser keeps its session.
+    await me.agent.get('/v1/auth/me').expect(200);
+  });
+
+  it("refuses another account's identity, or one connected to nobody, and creates nothing", async () => {
+    const me = await person();
+    const other = await person();
+    for (const subject of [
+      `gh-${other.id}`,
+      `gh-new-${randomBytes(4).toString('hex')}`,
+    ]) {
+      const state = (await start(me.agent)).searchParams.get('state')!;
+      providerAnswers(subject, {});
+      const refused = await me.agent
+        .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+        .expect(302);
+      expect(refused.headers.location).toBe(
+        'https://web.example.com/?error=reauthentication_failed',
+      );
+      vi.restoreAllMocks();
+    }
+    const failures = await audit('auth.reauthentication-failed', me.id);
+    expect(failures.map((entry) => entry.details.reason)).toEqual([
+      'account',
+      'account',
+    ]);
+    const identities = await node.app
+      .get<Database>(getDrizzleToken())
+      .select()
+      .from(userIdentities);
+    expect(
+      identities.filter((row) => row.subject.startsWith('gh-new-')),
+    ).toHaveLength(0);
+  });
+
+  it('accepts a provider without auth_time (OAuth 2.0) as now', async () => {
+    const me = await person();
+    const state = (await start(me.agent)).searchParams.get('state')!;
+    providerAnswers(`gh-${me.id}`, { id: 1 });
+    const done = await me.agent
+      .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+      .expect(302);
+    expect(done.headers.location).toBe('https://web.example.com/settings');
+  });
+});

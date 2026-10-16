@@ -29,6 +29,11 @@ import type { IamEnv } from '../iam.env.js';
 import { userIdentities, users } from '../iam.tables.js';
 import { oidcProviders } from './oidc.providers.js';
 import {
+  isFreshAuthentication,
+  type ProviderReauthentication,
+  ReauthenticationRefused,
+} from './oidc-reauthentication.js';
+import {
   InvitationMail,
   MagicLinkMail,
   ResetPasswordMail,
@@ -238,6 +243,12 @@ export class OidcAccounts extends OidcAccountResolver {
     _tokens: OAuthTokens,
     { linkTo }: OidcResolveContext,
   ) {
+    const reauthenticating = linkTo
+      ? undefined
+      : this.signInContext.reauthenticating();
+    if (reauthenticating) {
+      return this.reauthenticated(profile, reauthenticating);
+    }
     if (!linkTo) {
       this.recordAuthTime(profile);
     }
@@ -305,6 +316,39 @@ export class OidcAccounts extends OidcAccountResolver {
     if (at) {
       this.signInContext.authenticatedAt(at);
     }
+  }
+
+  /**
+   * A step-up through the provider (`?reauthenticate=true`): the identity
+   * must be one already connected to the user who started it (never a new
+   * account, a link by address, or someone else's), and the ID token's
+   * `auth_time`, when it has one, after the step-up started: a provider
+   * that ignored `prompt=login` and signed in from its own old session is
+   * refused, not quietly accepted as a stale sign-in.
+   */
+  private async reauthenticated(
+    profile: OidcProfile,
+    expected: ProviderReauthentication,
+  ) {
+    const [known] = await this.db
+      .select({ userId: userIdentities.userId, active: users.active })
+      .from(userIdentities)
+      .innerJoin(users, eq(users.id, userIdentities.userId))
+      .where(
+        and(
+          eq(userIdentities.provider, profile.provider),
+          eq(userIdentities.subject, profile.subject),
+        ),
+      );
+    if (!known?.active || known.userId !== expected.userId) {
+      throw new ReauthenticationRefused('account', expected.redirectTo);
+    }
+    const authTime = authTimeOf(profile.claims);
+    if (!isFreshAuthentication(authTime, expected.startedAt)) {
+      throw new ReauthenticationRefused('stale', expected.redirectTo);
+    }
+    this.recordAuthTime(profile);
+    return { id: known.userId };
   }
 
   private async link(userId: string, profile: OidcProfile) {

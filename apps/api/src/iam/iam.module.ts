@@ -60,6 +60,7 @@ import { SoftDeletePurgeJob } from './resources/soft-delete-purge.job.js';
 import { RecordPurgeRegistry } from './resources/record-purge.registry.js';
 import { UserLifecycleRegistry } from './auth/user-lifecycle.registry.js';
 import { SignInContext, signInMetadata } from './auth/sign-in-context.js';
+import { ProviderReauthentications } from './account/oidc-reauthentication.js';
 import { AccountService } from './account/account.service.js';
 import { ImpersonationService } from './account/impersonation.service.js';
 import { SecurityAlertsService } from './account/security-alerts.service.js';
@@ -318,6 +319,8 @@ export class IamModule {
         AccountService,
         // How each session was created, and step-up.
         SignInContext,
+        // Step-ups through a provider under way (prompt=login, auth_time).
+        ProviderReauthentications,
         ReauthenticationService,
         // Security notifications (IAM_NOTIFICATIONS), sent through the platform's IAM_NOTIFIER.
         SecurityAlertsService,

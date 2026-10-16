@@ -22,12 +22,9 @@ import { migrateAll } from './core/database/migrate-all.js';
  */
 const owner = secretValue(process.env, 'DATABASE_OWNER_URL');
 const app = secretValue(process.env, 'DATABASE_URL');
-const monitorPassword = secretValue(process.env, 'POSTGRES_MONITOR_PASSWORD');
-const problems = [
-  ...owner.problems,
-  ...app.problems,
-  ...monitorPassword.problems,
-];
+// Named for the role, not its secret: only `problems` (never a value) are printed.
+const monitor = secretValue(process.env, 'POSTGRES_MONITOR_PASSWORD');
+const problems = [...owner.problems, ...app.problems, ...monitor.problems];
 for (const { variable, message } of problems) {
   console.error(`${variable}: ${message}`);
 }
@@ -44,16 +41,16 @@ await migrateAll(
   {
     ownerUrl: owner.value,
     appUrl: app.value,
-    ...(monitorPassword.value && {
+    ...(monitor.value && {
       monitor: {
         role: process.env.POSTGRES_MONITOR_USER?.trim() || 'app_monitor',
-        password: monitorPassword.value,
+        password: monitor.value,
       },
     }),
   },
   (line) => console.log(line),
 );
-if (!monitorPassword.value) {
+if (!monitor.value) {
   console.log(
     'No monitoring role: POSTGRES_MONITOR_PASSWORD is unset (needed with compose.monitoring.yaml only).',
   );

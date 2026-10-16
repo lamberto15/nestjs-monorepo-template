@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Controller,
   Delete,
+  Ip,
   Get,
   HttpCode,
   NotFoundException,
@@ -40,6 +42,7 @@ import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { notWhileImpersonating } from './account.schemas.js';
+import { ReauthenticationRefused } from './oidc-reauthentication.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 
 const identitySchema = z.object({
@@ -85,7 +88,7 @@ export class OidcController {
   @ApiOperation({
     summary: 'Start signing in with a provider (navigate the browser here)',
     description:
-      'With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first.',
+      'With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first. With `reauthenticate=true`, a signed-in user steps up through the provider: it is asked to authenticate them again (`prompt=login`, `max_age=0`), and the callback accepts only that user, authenticated at the provider after the start (`auth_time`, when the ID token has one); otherwise the browser lands on the web app with `?error=reauthentication_failed`, signed in as before.',
   })
   @ApiQuery({
     name: 'redirectTo',
@@ -97,6 +100,12 @@ export class OidcController {
     required: false,
     description: '`true`: connect the provider to the signed-in account.',
   })
+  @ApiQuery({
+    name: 'reauthenticate',
+    required: false,
+    description:
+      '`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.',
+  })
   @ApiFoundResponse({
     description:
       'To the provider; or, linking from a stale session, to the web app with `?error=reauthentication_required`.',
@@ -107,7 +116,25 @@ export class OidcController {
     @Param('provider') provider: string,
     @Query('redirectTo') redirectTo?: string,
     @Query('link') link?: string,
+    @Query('reauthenticate') reauthenticate?: string,
   ) {
+    if (reauthenticate === 'true') {
+      if (link === 'true') {
+        throw new BadRequestException(
+          '`link` and `reauthenticate` are two flows: one at a time.',
+        );
+      }
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+      notWhileImpersonating(user);
+      this.configured(provider);
+      return this.account.startReauthenticationWithProvider(
+        user,
+        provider,
+        redirectTo,
+      );
+    }
     if (link === 'true') {
       if (!user) {
         throw new UnauthorizedException();
@@ -153,13 +180,26 @@ export class OidcController {
   @Get('oidc/:provider/callback')
   @Redirect()
   @ApiOperation({ summary: 'Where the provider sends the browser back' })
-  @ApiFoundResponse({ description: 'To the web app.' })
+  @ApiFoundResponse({
+    description:
+      'To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`.',
+  })
   async callback(
     @Param('provider') provider: string,
     @Query() query: Record<string, string>,
+    @Ip() ip: string,
   ) {
     this.configured(provider);
-    return this.account.signInWithProvider(provider, query);
+    try {
+      return await this.account.signInWithProvider(provider, query, ip);
+    } catch (error) {
+      if (error instanceof ReauthenticationRefused) {
+        return {
+          url: this.backToWebApp(error.redirectTo, 'reauthentication_failed'),
+        };
+      }
+      throw error;
+    }
   }
 
   @UserOnly()

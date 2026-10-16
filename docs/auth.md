@@ -173,9 +173,8 @@ signInOptions('passkey'))` (or `sso:<id>`), or runs the package's call in
   (the resolver) takes the ID token's `auth_time` (OpenID Connect; Google
   and Microsoft send it) as `authenticatedAt`, through
   `SignInContext.authenticatedAt()`. A provider without it (GitHub: OAuth
-  2.0, no ID token) records now: a weaker guarantee, documented here so a
-  project that needs better asks the provider for `prompt=login` /
-  `max_age` (the package's `authorizationParams` are per provider).
+  2.0, no ID token) records now: a weaker guarantee. A step-up through
+  a provider asks it for a fresh login (`?reauthenticate=true`, below).
 - **An impersonation** session never counts as recent, whatever its
   metadata says (`isRecent()`, `authentication-method.ts`): nobody signed
   in to it.
@@ -226,7 +225,9 @@ The problem tells the client what to do:
 
 `methods`: `password` and `totp` re-authenticate in place
 (`POST /v1/auth/reauthenticate`); `magic-link` and `oidc:<provider>` by
-signing in again (the new session is recent). `mfaRequired`: a code goes
+signing in again (the new session is recent): for a provider, the browser
+navigates to `GET /v1/auth/oidc/{provider}/login?reauthenticate=true`
+([below](#re-authenticating-through-a-provider)). `mfaRequired`: a code goes
 with the password.
 
 ### The protected routes
@@ -293,17 +294,44 @@ from a session or a token client (`GET` says how and until when):
 
 Signing in again by email link or with a provider re-authenticates too:
 a link proves the mailbox now; a provider's sign-in counts from its ID
-token's `auth_time` (above), so one the provider did silently from its own
-old session stays stale, and the user re-authenticates in place or signs
-out of the provider first. Mind the other side of it: an account that
-signs in only with a provider that always sends `auth_time` (Keycloak,
-Okta, Microsoft) can't become recent by signing in again while the
-provider's own session lives: the user signs out of the provider (or ends
-its session there) first. The package's `OidcService.start()` takes no
-per-request `prompt=login` or `max_age`; `authorizationParams` are per
-provider, so a project can set `prompt=login` for such a provider, at the
-cost of every sign-in asking (a per-request `prompt` for the link and
-re-authentication flows is a follow-up).
+token's `auth_time` (above), so a plain one the provider did silently from
+its own old session stays stale. Hence the step-up below.
+
+#### Re-authenticating through a provider
+
+`GET /v1/auth/oidc/{provider}/login?reauthenticate=true` (`redirectTo`
+optional), navigated to from a signed-in session (none: 401; while
+impersonating: 403; with `link=true` too: 400):
+
+- **The provider is asked for a fresh login**: the package's
+  authorization URL (`OidcService.start()`: PKCE, `state`, `nonce`) gets
+  `prompt=login` and `max_age=0` (`reauthenticationUrl()`,
+  `iam/account/oidc-reauthentication.ts`). Custom: `start()` takes no
+  per-request parameters and its `authorizationParams` are per provider,
+  so setting them there would make every sign-in ask. Which of the two a
+  provider honours is its own (Microsoft Entra ID, Keycloak and Okta take
+  both; GitHub, OAuth 2.0, neither): the check below doesn't rely on it.
+- **The callback checks it, since the parameters travel through the
+  browser and are hints**: the login's `state` is remembered in Redis as a
+  step-up of this user, from now (10 minutes, taken once). On the callback
+  `OidcAccounts` accepts only an identity already connected to that user
+  (no new account, no link by address, nobody else's), and an ID token
+  `auth_time` from after the start (30 s of clock tolerance, the package's
+  own for ID tokens). Without `auth_time` (GitHub: OAuth 2.0, no ID token;
+  a provider that omits it despite `max_age`) the login is accepted as now,
+  the weaker guarantee above.
+- **Accepted**: the browser gets a new session, recent from `auth_time`
+  (with two-factor on, pending its code as any sign-in), audited
+  `auth.reauthenticated` (`method: oidc`, `provider`). **Refused**: no
+  sign-in happens (the browser keeps its session) and it lands on the web
+  app (`redirectTo`, else its root) with
+  `?error=reauthentication_failed`, audited
+  `auth.reauthentication-failed` (`reason`: `account` or `stale`).
+- `?link=true` keeps the plain login: a link needs a recent session
+  already.
+- Proof: `oidc-reauthentication.e2e-spec.ts` (a configured GitHub, whose
+  login URL needs no discovery; the callback's `finish()` replaced by one
+  running the real resolver), `oidc-reauthentication.spec.ts`.
 
 **Passkeys (item 3)** plug in as another proof of
 `ReauthenticationService.reauthenticate()` (an assertion with user

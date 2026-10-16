@@ -34,6 +34,11 @@ import { signInOptions, tokenClaims } from '../auth/authentication-method.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
 import { CredentialsService } from './credentials.service.js';
+import {
+  ProviderReauthentications,
+  ReauthenticationRefused,
+  reauthenticationUrl,
+} from './oidc-reauthentication.js';
 import { PasswordHashLimiter } from './password-hashing.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
@@ -76,6 +81,7 @@ export class AccountService {
     private readonly oidc: OidcService,
     private readonly reauthentication: ReauthenticationService,
     private readonly hashLimiter: PasswordHashLimiter,
+    private readonly providerReauthentications: ProviderReauthentications,
   ) {}
 
   /** A new account with a password (not one found in data breaches), audited. */
@@ -242,11 +248,80 @@ export class AccountService {
    * The OIDC callback: the package checks the state, exchanges the code,
    * resolves the account (OidcAccounts) and signs in, all inside `finish()`;
    * the context names the method for the session. Where to send the browser.
+   *
+   * A step-up's callback (its `state` was remembered by
+   * `startReauthenticationWithProvider()`) runs as one: OidcAccounts
+   * accepts only the user who started it, freshly authenticated, else
+   * throws ReauthenticationRefused (no sign-in happens; the route sends the
+   * browser back with an error). Audited either way, as the user's
+   * `auth.reauthenticated` or `auth.reauthentication-failed`
+   * (`method: oidc`), as a re-authentication in place is.
    */
-  signInWithProvider(provider: string, query: Record<string, string>) {
-    return this.signInContext.run(`oidc:${provider}`, () =>
-      this.oidc.finish(provider, query),
+  async signInWithProvider(
+    provider: string,
+    query: Record<string, string>,
+    ip?: string,
+  ) {
+    const reauthenticating = await this.providerReauthentications.take(
+      query.state,
     );
+    const finish = () =>
+      this.signInContext.run(
+        `oidc:${provider}`,
+        () => this.oidc.finish(provider, query),
+        { reauthenticating },
+      );
+    if (!reauthenticating) {
+      return finish();
+    }
+    const user = await this.users.findActive(reauthenticating.userId);
+    try {
+      const redirect = await finish();
+      await this.audit.record(user, {
+        action: 'auth.reauthenticated',
+        targetType: 'user',
+        targetId: reauthenticating.userId,
+        details: { method: 'oidc', provider },
+        ip,
+      });
+      return redirect;
+    } catch (error) {
+      if (error instanceof ReauthenticationRefused) {
+        await this.audit.record(user, {
+          action: 'auth.reauthentication-failed',
+          targetType: 'user',
+          targetId: reauthenticating.userId,
+          details: { method: 'oidc', provider, reason: error.reason },
+          ip,
+        });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * A step-up through a provider, for the signed-in `user`: the package's
+   * login, its authorization URL asking the provider to authenticate the
+   * user again (`prompt=login`, `max_age=0`: `reauthenticationUrl()`), and
+   * the login's `state` remembered as a step-up of this user, from now.
+   */
+  async startReauthenticationWithProvider(
+    user: UserPrincipal,
+    provider: string,
+    redirectTo: string | undefined,
+  ) {
+    const redirect = await this.oidc.start(provider, { redirectTo });
+    const url = reauthenticationUrl(redirect.url);
+    const state = url.searchParams.get('state');
+    if (!state) {
+      throw new Error(`OidcService.start(${provider}) answered no state`);
+    }
+    await this.providerReauthentications.remember(state, {
+      userId: user.id,
+      startedAt: Date.now(),
+      ...(redirectTo !== undefined && { redirectTo }),
+    });
+    return { ...redirect, url: url.toString() };
   }
 
   /**

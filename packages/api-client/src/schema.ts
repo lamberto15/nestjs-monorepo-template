@@ -1758,7 +1758,7 @@ export interface paths {
         };
         /**
          * Start signing in with a provider (navigate the browser here)
-         * @description With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first.
+         * @description With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first. With `reauthenticate=true`, a signed-in user steps up through the provider: it is asked to authenticate them again (`prompt=login`, `max_age=0`), and the callback accepts only that user, authenticated at the provider after the start (`auth_time`, when the ID token has one); otherwise the browser lands on the web app with `?error=reauthentication_failed`, signed in as before.
          */
         get: operations["OidcController_login_v1"];
         put?: never;
@@ -10144,6 +10144,8 @@ export interface operations {
                 redirectTo?: string;
                 /** @description `true`: connect the provider to the signed-in account. */
                 link?: string;
+                /** @description `true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there. */
+                reauthenticate?: string;
             };
             header?: never;
             path: {
@@ -10173,7 +10175,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description To the web app. */
+            /** @description To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`. */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -10372,7 +10374,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login). */
+                        /** @description How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login?reauthenticate=true: the provider is asked to authenticate you again). */
                         methods: string[];
                         /** @description In place, a code (or a recoveryCode) goes with the password. */
                         mfaRequired: boolean;
