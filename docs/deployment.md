@@ -35,7 +35,7 @@ Filling `.env` (each step is commented in `env.example`):
 | `worker` | `node dist/worker`, `APP_ROLE=worker` | `WORKER_REPLICAS` (1) |
 | `migrate` | `node dist/migrate`, once per deploy, before api and worker: the migrations as the owner, then the app role | one-off |
 | `postgres` | PostgreSQL 18 | 1 |
-| `redis` | Redis 8 (append-only, `noeviction`) | 1 |
+| `redis` | Redis 8 (append-only, `noeviction`); the app needs 7.0 or newer ([below](#redis)) | 1 |
 | `backup` | `pg_dump` and the uploaded files on a schedule, copied off the host ([below](#backups-and-restore)) | 1 |
 | `gotenberg` | HTML to PDF (Chromium) for the workers' documents, on a network of its own with no way out ([below](#gotenberg-pdf-documents)) | 1 |
 
@@ -656,6 +656,22 @@ docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
 and `REDIS_URL`. With Redis
 Sentinel, remove `redis-exporter` and its scrape job; the app's own
 `RedisUnreachableFromApp` still covers Redis.
+
+## Redis
+
+**Redis 7.0 or newer** (Compose runs 8). The bot-protection counters
+(`EXPIRE … NX`: a fixed window that starts with the first attempt,
+[auth.md](auth.md), "Bot protection") and the API usage counters use
+`EXPIRE` with its `NX` option, which Redis 7.0 added; on an older server
+the command fails with a syntax error, and so does every sign-in the
+challenge guards. The app reads `INFO server` at start
+(`RedisLifecycle`, `core/redis/redis.ts`) and refuses to start on an
+older version with a message naming both: `Redis 6.2.14 is too old: the
+app needs Redis 7.0.0 or newer`. A server that doesn't answer within two
+seconds, or names no version (a proxy), is left alone with a warning. A
+managed Redis (or Valkey, which reports a `redis_version` of 7 or 8) is
+fine on a current tier; check the version its console shows before
+pointing `REDIS_URL` at it.
 
 **Hosted instead:** NestJS Observe (`OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`)
 is the hosted alternative: traces, metrics and errors go to the service, and

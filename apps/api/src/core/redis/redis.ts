@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -86,14 +87,85 @@ export async function redisResponds(client: Redis, timeoutMs = 2000) {
   ]);
 }
 
-/** Closes the shared connection after everything that uses it has stopped. */
+/**
+ * The oldest Redis the app runs on. `EXPIRE … NX` (the bot-protection
+ * counters' fixed window, captcha.service.ts; the usage counters,
+ * usage.service.ts) exists since Redis 7.0: on an older server the command
+ * fails with a syntax error, and every guarded sign-in with it.
+ */
+export const MIN_REDIS_VERSION = '7.0.0';
+
+/** The `redis_version` an `INFO server` answer names, or undefined (a proxy, a server that hides it). */
+export function redisVersionOf(info: string) {
+  return /^redis_version:(\S+)/m.exec(info)?.[1];
+}
+
+/** Whether a `redis_version` (`7.2.4`, `8.0-rc1`) is MIN_REDIS_VERSION or newer. */
+export function redisVersionSupported(version: string) {
+  const parts = (value: string) =>
+    value.split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const actual = parts(version);
+  const minimum = parts(MIN_REDIS_VERSION);
+  for (let i = 0; i < minimum.length; i++) {
+    if ((actual[i] ?? 0) !== minimum[i]) {
+      return (actual[i] ?? 0) > minimum[i];
+    }
+  }
+  return true;
+}
+
+/**
+ * Stops the start when the server is older than MIN_REDIS_VERSION: a clear
+ * message now, instead of a syntax error on the first guarded sign-in. A
+ * server that doesn't answer within `timeoutMs` (down, reconnecting: the
+ * commands wait for it) or names no version is left alone, with a warning:
+ * the check is a convenience, not a gate on availability.
+ */
+export async function assertRedisVersion(
+  client: Pick<Redis, 'info'>,
+  warn: (message: string) => void,
+  timeoutMs = 2000,
+) {
+  const info = await Promise.race([
+    client.info('server').catch((error: Error) => error),
+    setTimeout(timeoutMs, undefined, { ref: false }),
+  ]);
+  if (info === undefined) {
+    warn(`Redis version not checked: no answer within ${timeoutMs} ms`);
+    return;
+  }
+  if (info instanceof Error) {
+    warn(`Redis version not checked: ${info.message}`);
+    return;
+  }
+  const version = redisVersionOf(info);
+  if (!version) {
+    warn('Redis version not checked: INFO server names none');
+    return;
+  }
+  if (!redisVersionSupported(version)) {
+    throw new Error(
+      `Redis ${version} is too old: the app needs Redis ${MIN_REDIS_VERSION} or newer (EXPIRE NX; docs/deployment.md, "Redis"). Upgrade the server REDIS_URL points at.`,
+    );
+  }
+}
+
+/** Checks the server's version at start, and closes the shared connection after everything that uses it has stopped. */
 @Injectable()
-export class RedisLifecycle implements OnApplicationShutdown {
+export class RedisLifecycle
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
   private readonly logger = new Logger('Redis');
 
   constructor(@Inject(REDIS) private readonly redis: Redis) {
     redis.on('error', (error: Error) =>
       this.logger.warn(`Redis: ${error.message}`),
+    );
+  }
+
+  async onApplicationBootstrap() {
+    await assertRedisVersion(this.redis, (message) =>
+      this.logger.warn(message),
     );
   }
 

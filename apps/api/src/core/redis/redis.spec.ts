@@ -6,7 +6,14 @@ import {
 } from 'node:net';
 import { once } from 'node:events';
 import { Redis } from 'ioredis';
-import { closeRedis, redisResponds } from './redis.js';
+import {
+  assertRedisVersion,
+  closeRedis,
+  MIN_REDIS_VERSION,
+  redisResponds,
+  redisVersionOf,
+  redisVersionSupported,
+} from './redis.js';
 
 /**
  * Shutdown with Redis gone must not hang: closeRedis() and redisResponds()
@@ -89,5 +96,63 @@ describe('closing Redis clients at shutdown', () => {
     if (client.status !== 'end') {
       await once(client, 'end');
     }
+  });
+});
+
+/**
+ * The server must be Redis 7.0 or newer (EXPIRE NX): too old stops the
+ * start with a message naming the versions; no answer, or no version in
+ * the answer, only warns, since the commands wait for Redis anyway.
+ */
+describe('the Redis version check at start', () => {
+  const info = (body: string) =>
+    ({ info: async () => body }) as unknown as Pick<Redis, 'info'>;
+  const server = (version: string) =>
+    info(`# Server\r\nredis_version:${version}\r\nredis_mode:standalone\r\n`);
+
+  it('reads redis_version out of INFO server', () => {
+    expect(
+      redisVersionOf('# Server\r\nredis_version:7.2.4\r\nos:Linux\r\n'),
+    ).toBe('7.2.4');
+    expect(redisVersionOf('# Server\r\nos:Linux\r\n')).toBeUndefined();
+  });
+
+  it('accepts 7.0 and newer, refuses older', () => {
+    for (const version of ['7.0.0', '7.0.15', '7.2.4', '8.0-rc1', '8.10.0']) {
+      expect(redisVersionSupported(version), version).toBe(true);
+    }
+    for (const version of ['6.2.14', '6.0.0', '5.0.7', '2.8.4']) {
+      expect(redisVersionSupported(version), version).toBe(false);
+    }
+    expect(MIN_REDIS_VERSION).toBe('7.0.0');
+  });
+
+  it('stops the start on an old server, naming both versions', async () => {
+    const warnings: string[] = [];
+    await expect(
+      assertRedisVersion(server('6.2.14'), (m) => warnings.push(m)),
+    ).rejects.toThrow(/Redis 6\.2\.14 is too old.*7\.0\.0 or newer/);
+    await assertRedisVersion(server('8.10.0'), (m) => warnings.push(m));
+    expect(warnings).toEqual([]);
+  });
+
+  it('warns and goes on when the server does not answer, or names no version', async () => {
+    const warnings: string[] = [];
+    const silent = {
+      info: () => new Promise<string>(() => undefined),
+    } as unknown as Pick<Redis, 'info'>;
+    await assertRedisVersion(silent, (m) => warnings.push(m), 50);
+    await assertRedisVersion(info('# Server\r\n'), (m) => warnings.push(m));
+    const failing = {
+      info: async () => {
+        throw new Error('NOAUTH Authentication required');
+      },
+    } as unknown as Pick<Redis, 'info'>;
+    await assertRedisVersion(failing, (m) => warnings.push(m));
+    expect(warnings).toEqual([
+      'Redis version not checked: no answer within 50 ms',
+      'Redis version not checked: INFO server names none',
+      'Redis version not checked: NOAUTH Authentication required',
+    ]);
   });
 });
