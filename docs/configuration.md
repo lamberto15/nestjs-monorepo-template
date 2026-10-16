@@ -72,8 +72,9 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 
 The variables that hold secrets are declared with `secret()` in their group's
 `*.env.ts` (`secret(optional())`). `SECRET_VARIABLES` (`apps/api/src/env.ts`)
-lists them. Nothing redacts logs with it yet; that is roadmap item 23. A new
-secret gets everything below by being declared with `secret()`.
+lists them, and the logs mask a value under any of these names
+([deployment.md](deployment.md), "Log redaction"). A new secret gets
+everything below by being declared with `secret()`.
 
 **From a file.** For each secret `X`, `X_FILE` names a file holding its value
 (a Docker secret at `/run/secrets/x`, a mounted Kubernetes secret, a file a

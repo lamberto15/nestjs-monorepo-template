@@ -51,7 +51,8 @@ Filling `.env` (each step is commented in `env.example`):
 - Local file storage is a volume shared by the replicas of one host. More hosts:
   `STORAGE_DRIVER=s3`.
 - Logs are JSON on stdout (`docker compose logs`). `X-Request-Id` follows a
-  request through Caddy, the logs and NestJS Observe.
+  request through Caddy, the logs and NestJS Observe. Credentials are
+  masked before a line is written ([Log redaction](#log-redaction)).
 - **Bounded logs:** each container keeps at most `DOCKER_LOG_MAX_FILE` (5)
   files of `DOCKER_LOG_MAX_SIZE` (20m), the older ones compressed, the
   oldest dropped. The driver is `local` (`DOCKER_LOG_DRIVER`), the one Docker
@@ -406,6 +407,60 @@ Raising the pools: more API replicas need a smaller pool each, or PgBouncer
 (transaction mode) in front of PostgreSQL, or a larger `max_connections`
 (each connection costs PostgreSQL memory). Workers need a pool at least as
 large as what they run at once (workflow steps, job concurrency).
+
+## Log redaction
+
+Credentials never reach a log line or an error report. One declared list,
+`apps/api/src/core/logging/redaction.ts` (`logRedaction`), feeds everything
+that masks:
+
+- **Keys, masked by name at any depth.** `createLogger()` (main.ts) hands the
+  list to Nest's own `ConsoleLogger` `redact` option, which masks a property
+  of that name (case-insensitive) in structured params and logged objects,
+  errors' `cause` included, in text and JSON mode. The list:
+  - headers: `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`,
+    `X-Api-Key`, `X-Captcha-Token`, `X-CSRF-Token`, `X-XSRF-Token`,
+    `Webhook-Signature`, `X-Signature`, `X-Hub-Signature(-256)`;
+  - fields: passwords (`password`, `currentPassword`, `newPassword`…),
+    tokens (`token`, `accessToken`, `refreshToken`, `idToken`, `jwt`),
+    secrets and keys (`secret`, `clientSecret`, `pendingSecret`, `apiKey`,
+    `privateKey`…), two-factor (`totp`, `otp`, `recoveryCode(s)`), sessions
+    (`sessionId`, `sid`, `cookie(s)`), signatures, SNS's `Token` and
+    `SubscribeURL`, and `body.code` / `query.code` (a two-factor or OIDC
+    code there; every error's own `code` stays readable);
+  - every environment variable declared with `secret()`
+    ([configuration.md](configuration.md)), added by `env.ts`.
+- **Text patterns, over every line written.** The `redact` option leaves
+  string messages, error messages and stack traces as they are, so the
+  logger (`RedactingConsoleLogger`) runs the patterns over the whole line:
+  `Bearer`/`Basic` credentials, JWTs, PEM private keys, a URL's password
+  (`postgres://app:[REDACTED]@db`), `name=value` / `name: value` for every
+  declared name (`refreshToken=[REDACTED]`, a cookie pair), and the API keys'
+  shape (`sk_<id>_[REDACTED]`: the id still finds the client). The name stays
+  in the line, so it says what was removed.
+- **NestJS Observe** (when configured) gets the same keys and patterns as
+  `redaction.keys` / `redaction.patterns`, on top of its own defaults, for
+  the errors and requests it captures and the log lines it forwards.
+
+Where that applies: the request log (method, path, status, never headers or
+bodies), the problem-details filter's 5xx report (message and stack), every
+`Logger` call (handlers, queue processors' failures, outgoing HTTP calls'
+errors), and the failure reasons `GET /v1/ops/queues` shows. Validation
+errors name the field and never echo its value, so neither the problem
+details nor the logs carry a rejected password.
+
+**Adding to it.** Declare at import time, from module scope next to what
+makes the secret: `logRedaction.declareFields('ssn')`, `declareHeaders('X-Partner-Token')`,
+`declarePatterns(/acct_[a-z0-9]{16}/)` (use a lookbehind to keep an
+identifying prefix). `createLogger()` snapshots the list and closes it; a
+later declaration throws (see [pitfalls.md](pitfalls.md)). Only names that
+always hold a secret belong in it: a key masks that name everywhere. The
+encrypted-column registry (roadmap item 5) is meant to plug in here: its
+column helper declares each encrypted or sensitive column with
+`declareFields()`.
+
+What it is not: a guarantee. A secret logged under an innocent name, in a
+shape no pattern knows, is written as is. Log ids, not payloads.
 
 ## Metrics
 
