@@ -1,0 +1,160 @@
+# The typed client's releases, with Changesets (https://changesets.dev;
+# docs/releases.md, "The typed client"). `packages/api-client` has consumers
+# of its own (frontends, mobile apps, scripts), so it carries a version and a
+# CHANGELOG.md of its own, apart from the template's v* releases.
+#
+# - Pull requests: a change to the client (its src/, openapi.json or
+#   package.json: .changeset/config.json's changedFilePatterns) should come
+#   with a changeset (`pnpm changeset`), a markdown file naming the bump and
+#   the change. Report-only, like the other checks while the template has no
+#   adopters: set CHANGESET_REQUIRED to on to fail the pull request without one.
+# - main: changesets/action gathers the changesets into one pull request,
+#   "chore(api-client): release", that bumps the version and writes the
+#   changelog; merging it is the release. It needs the repository setting
+#   "Allow GitHub Actions to create and approve pull requests", or a token in
+#   the API_CLIENT_RELEASE_TOKEN secret (then CI runs on that pull request too).
+# - Publishing to npm is off: the package is private (its package.json) and
+#   the publish job runs only when the repository variable API_CLIENT_PUBLISH
+#   is `on`, through npm's trusted publishing (OIDC: no npm token to keep).
+#
+# Third-party actions are pinned by commit SHA (the comment names the
+# release); Dependabot proposes newer ones.
+name: Typed client
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-client-${{ github.ref }}
+  # A newer push to a pull request replaces its run; on main a run finishes,
+  # so a version pull request or a publish is never stopped halfway.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changeset:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      # '' reports only; on fails a client change without a changeset.
+      CHANGESET_REQUIRED: ''
+    steps:
+      # The history down to the base branch: `changeset status --since`
+      # compares with it.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install pnpm and Node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+      # The root's tooling alone (the Changesets CLI), from the lockfile.
+      - run: pnpm install --frozen-lockfile --filter nestjs-monorepo-template
+      # The status names the pull request's changesets: workflow commands are
+      # off while it prints.
+      - name: The client's changes carry a changeset
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -o pipefail
+          out="$RUNNER_TEMP/changeset-status.txt"
+          token=$(openssl rand -hex 16)
+          echo "::stop-commands::$token"
+          status=0
+          pnpm exec changeset status --since="origin/$BASE_REF" 2>&1 | tee "$out" || status=$?
+          echo "::$token::"
+          summary() { cat >> "$GITHUB_STEP_SUMMARY"; }
+          printf '## Typed client: changeset\n\n' | summary
+          if [ "$status" -eq 0 ]; then
+            echo "Every change to \`packages/api-client\` comes with a changeset, or there is none." | summary
+          elif grep -q 'no changesets were found' "$out"; then
+            mode=${CHANGESET_REQUIRED:+blocking}
+            printf '**The typed client changed without a changeset** (%s). Add one: %s (or %s when the change needs no release), then commit %s (docs/releases.md, "The typed client").\n' \
+              "${mode:-report-only}" '<code>pnpm changeset</code>' '<code>pnpm changeset --empty</code>' '<code>.changeset/</code>' | summary
+            echo '::warning title=No changeset::packages/api-client changed without a changeset: run pnpm changeset (docs/releases.md).'
+            if [ "$CHANGESET_REQUIRED" = on ]; then exit 1; fi
+          else
+            echo '::error::changeset status failed (see the log)'
+            exit 1
+          fi
+
+  # main: the version pull request, opened or brought up to date while
+  # changesets are pending. With none, it does nothing.
+  version:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      has-changesets: ${{ steps.changesets.outputs.has-changesets }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install pnpm and Node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+      - run: pnpm install --frozen-lockfile --filter nestjs-monorepo-template
+      # `changeset version` (the default) bumps packages/api-client's
+      # version and writes its CHANGELOG.md; the action commits that to the
+      # changeset-release/main branch through the GitHub API and opens the
+      # pull request. Its title and commit are Conventional Commits.
+      - name: The version pull request
+        id: changesets
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          github-token: ${{ secrets.API_CLIENT_RELEASE_TOKEN || github.token }}
+          commit-message: 'chore(api-client): release'
+          pr-title: 'chore(api-client): release'
+      - name: Why the pull request could not be opened
+        if: failure() && steps.changesets.outcome == 'failure'
+        run: |
+          echo '::error::The version pull request needs "Allow GitHub Actions to create and approve pull requests" (Settings, Actions, General) or an API_CLIENT_RELEASE_TOKEN secret (docs/releases.md, "The typed client").'
+
+  # main, once no changeset is pending (the version pull request was merged):
+  # publishes the client's new version to npm and tags it
+  # (@nestjs-monorepo-template/api-client@x.y.z). Off until the owner turns
+  # it on (docs/releases.md, "Publishing the client"): API_CLIENT_PUBLISH=on,
+  # the package made public, and this workflow registered as its trusted
+  # publisher on npmjs.com. A version already on npm is skipped.
+  publish:
+    needs: version
+    if: needs.version.outputs.has-changesets == 'false' && vars.API_CLIENT_PUBLISH == 'on'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      # The package's git tag.
+      contents: write
+      # npm's trusted publishing (OIDC) and provenance.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install pnpm and Node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+      # The root's tooling and the client's build dependencies.
+      - run: pnpm install --frozen-lockfile --filter nestjs-monorepo-template --filter @nestjs-monorepo-template/api-client
+      # `pnpm client:publish`: build the client, then `changeset publish`.
+      # No GitHub release per package: the Releases page stays the
+      # template's (the client's notes are its CHANGELOG.md).
+      - name: Publish the client
+        uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          script: pnpm client:publish
+          create-github-releases: false
+          push-git-tags: true

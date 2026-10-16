@@ -32,6 +32,14 @@ The document is made without a server or database (NestJS's preview mode,
 machine. `apps/api/test/api-client.e2e-spec.ts` checks it equals what `/api-json`
 serves.
 
+## Versions
+
+The client has its own version and `CHANGELOG.md`, apart from the
+template's releases: a change to it comes with a changeset (`pnpm
+changeset` at the root), and a version pull request on `main` turns them
+into the next version ([releases](../../docs/releases.md), "The typed
+client"). It isn't published to npm yet.
+
 ## What the client does for you
 
 | Convention ([api-conventions](../../docs/api-conventions.md)) | The client |
