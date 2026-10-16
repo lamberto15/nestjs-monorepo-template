@@ -45,6 +45,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | The monorepo: root scripts, Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
 | Setup, commands, tests, migrations, the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
 | A new feature | [docs/adding-a-feature.md](docs/adding-a-feature.md) |
+| Load tests: k6 on the production stack, the baseline (manual runs), a 2× regression, accepting a change (`loadtest/run.sh`) | [docs/development.md](docs/development.md), "Load tests" |
 | Routes' rules: versions, errors, pagination, filters, credentials | [docs/api-conventions.md](docs/api-conventions.md) |
 | The typed client for frontends (`packages/api-client`, `pnpm client:generate` after route changes) | [docs/development.md](docs/development.md), "Typed client" |
 | Sign-in, accounts, tokens, API clients, impersonation, bot protection (Turnstile); data export, account deletion, consents | [docs/auth.md](docs/auth.md) |
@@ -80,7 +81,7 @@ pnpm db:check                                           # after table changes
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 
-Current state: 328 unit (320 API, 8 client) and 479 e2e tests pass (edge cases in
+Current state: 333 unit (325 API, 8 client) and 479 e2e tests pass (edge cases in
 `apps/api/test/edge-*.e2e-spec.ts`, security regressions in `apps/api/test/security.e2e-spec.ts`),
 lint is clean, the image builds, and the production stack (api + worker +
 PostgreSQL 18 + Redis 8) was run and verified.
