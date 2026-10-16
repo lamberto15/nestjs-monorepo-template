@@ -69,8 +69,9 @@ const gotenberg = await vi.hoisted(async () => {
   const { port } = server.address() as { port: number };
   Object.assign(process.env, {
     GOTENBERG_URL: `http://127.0.0.1:${port}`,
-    // Short, so the timeout test waits a moment, not 30 s.
-    GOTENBERG_TIMEOUT_MS: '400',
+    // Short, so the timeout tests wait a moment, not 30 s; long enough for
+    // a `slow` answer on a busy machine.
+    GOTENBERG_TIMEOUT_MS: '1500',
     DOCUMENTS_RENDER_ATTEMPTS: '2',
   });
   return {
@@ -514,11 +515,12 @@ describe('documents (e2e)', () => {
     }
     const service = node.app.get(DocumentsService);
     const principal = { kind: 'client' as const, id: client.id, name: 'x' };
-    const second = service.issue({ id: asked.body.id, principal }, principal, {
-      final: false,
-    });
+    // Its rejection (it may lose the claim) is the test's to read, not unhandled.
+    const second = service
+      .issue({ id: asked.body.id, principal }, principal, { final: false })
+      .catch((error: unknown) => error);
     await ready;
-    await second.catch(() => undefined);
+    await second;
     // Let the losing run finish and clean up after itself.
     for (
       let tries = 0;
@@ -567,13 +569,16 @@ describe('documents (e2e)', () => {
     expect(await audited()).toBe(1);
     let heard = 0;
     socket.on('document.failed', () => heard++);
-    await node.app.get(DocumentsService).fail(
-      {
-        id: asked.body.id,
-        principal: { kind: 'client', id: client.id, name: 'x' },
-      },
-      'again',
-    );
+    await node.app
+      .get(DocumentsService)
+      .fail(
+        {
+          id: asked.body.id,
+          principal: { kind: 'client', id: client.id, name: 'x' },
+        },
+        'again',
+      )
+      .catch((error: unknown) => error);
     await new Promise((r) => setTimeout(r, 100));
     expect(await audited()).toBe(1);
     expect(heard).toBe(0);

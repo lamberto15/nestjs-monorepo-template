@@ -81,7 +81,7 @@ pnpm db:check                                           # after table changes
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 
-Current state: 318 unit (310 API, 8 client) and 473 e2e tests pass (edge cases in
+Current state: 364 unit (356 API, 8 client) and 487 e2e tests pass (edge cases in
 `apps/api/test/edge-*.e2e-spec.ts`, security regressions in `apps/api/test/security.e2e-spec.ts`),
 lint is clean, the image builds, and the production stack (api + worker +
 PostgreSQL 18 + Redis 8) was run and verified.

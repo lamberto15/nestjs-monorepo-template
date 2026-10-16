@@ -384,7 +384,7 @@ export class DocumentsService implements PersonalDataSource {
             id: row.id,
           },
         );
-        throw new UnrecoverableError(error.message);
+        throw new DocumentClaimLost(error.message);
       }
       const final =
         attempt.final ||
@@ -499,6 +499,13 @@ const OPEN: DocumentStatus[] = ['queued', 'rendering'];
 
 /** A document that can't be issued, for a reason people can act on: not retried. */
 class DocumentFailure extends Error {}
+
+/**
+ * This run lost its claim to another one, which goes on: the job stops
+ * without retries, and its failure must not fail the document (the
+ * processor's `failed` handler skips it).
+ */
+export class DocumentClaimLost extends UnrecoverableError {}
 
 /** Another run claimed the document since this one did. */
 class ClaimLost extends Error {

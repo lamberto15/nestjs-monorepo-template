@@ -138,7 +138,9 @@ event follows the commit.
   completes the document only while it still holds the claim. BullMQ can
   run a job twice at once (a stalled job, its worker alive but late, picked
   up again): the later claim wins, the earlier run finds its claim gone at
-  the commit, deletes its own file and stops. A run never overwrites or
+  the commit, deletes its own file and stops (`DocumentClaimLost`: its job
+  fails without retries, and that failure leaves the document to the run
+  that holds it). A run never overwrites or
   deletes another run's file, and an issued PDF never changes.
 - **Failing is idempotent:** `fail()` marks a queued or rendering document
   failed and audits it in one transaction, then tells the requester; called

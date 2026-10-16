@@ -10,6 +10,7 @@ import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { STALLED_REASON } from '../data-transfer/data-transfer.processor.js';
 import { stillActive } from '../queues/still-active.js';
 import {
+  DocumentClaimLost,
   DOCUMENT_ERRORS,
   DOCUMENTS,
   type DocumentJob,
@@ -61,8 +62,8 @@ export class DocumentsProcessor extends WorkerHost {
    */
   @OnWorkerEvent('failed')
   async onFailed(job: Job<DocumentJob> | undefined, error: Error) {
-    if (!job) {
-      return;
+    if (!job || error instanceof DocumentClaimLost) {
+      return; // another run holds the document: its outcome is that run's
     }
     const final =
       error instanceof UnrecoverableError ||
