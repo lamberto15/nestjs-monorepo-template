@@ -4,6 +4,7 @@ import {
   rateLimitMultiplierAllowed,
 } from './core/config/core.env.js';
 import { secretNames, withSecretFiles } from './core/config/secret-files.js';
+import { logRedaction } from './core/logging/redaction.js';
 import { notesEnv } from './features/notes/notes.env.js';
 import { passkeyEnvIssues } from './iam/account/passkeys.config.js';
 import { iamEnv } from './iam/iam.env.js';
@@ -30,10 +31,11 @@ const variables = coreEnv
 
 /**
  * The variables that hold secrets (declared with `secret()`): each can come
- * from a file (`X_FILE`), and validation errors never show their values.
- * For whatever must treat them apart later (log redaction: roadmap item 23).
+ * from a file (`X_FILE`), validation errors never show their values, and
+ * the logs mask them by name (core/logging/redaction.ts).
  */
 export const SECRET_VARIABLES = secretNames(variables);
+logRedaction.declareFields(...SECRET_VARIABLES);
 
 /**
  * The whole environment, validated at startup (ConfigModule): the secrets'
