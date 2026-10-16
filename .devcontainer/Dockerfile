@@ -10,3 +10,6 @@ RUN npm install --global --force pnpm@${PNPM_VERSION} \
   && apt-get update \
   && apt-get install --yes --no-install-recommends postgresql-client redis-tools \
   && rm -rf /var/lib/apt/lists/*
+
+# The base image's non-root user, as devcontainer.json's remoteUser.
+USER node
