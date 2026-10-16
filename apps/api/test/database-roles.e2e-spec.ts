@@ -1,7 +1,10 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { inject } from 'vitest';
-import { ensureAppRole } from '../src/core/database/roles.js';
+import {
+  ensureAppRole,
+  ensureMonitorRole,
+} from '../src/core/database/roles.js';
 import { databaseUrl } from './global-setup.js';
 import { testDatabase } from './support.js';
 
@@ -334,5 +337,149 @@ describe('the app role', () => {
       // DROP OWNED revokes what this database granted it (default privileges too).
       await asAdmin(`drop owned by "${rotated}"; drop role "${rotated}"`);
     }
+  });
+
+  /**
+   * The PostgreSQL exporter's role (compose.monitoring.yaml): pg_monitor and
+   * nothing else, made by the same bootstrap as the app role, from an owner
+   * that is no superuser (it holds pg_monitor WITH ADMIN OPTION, as a managed
+   * admin would: global-setup.ts).
+   */
+  describe('the monitoring role', () => {
+    const monitor = `monitor_${randomUUID().slice(0, 8)}`;
+    const password = randomBytes(12).toString('hex');
+    const monitorUrl = (secret = password) => {
+      const url = new URL(database.ownerUrl);
+      url.username = monitor;
+      url.password = secret;
+      return url.toString();
+    };
+    const asMonitor = async <T>(fn: (client: Client) => Promise<T>) => {
+      const client = new Client({ connectionString: monitorUrl() });
+      await client.connect();
+      try {
+        return await fn(client);
+      } finally {
+        await client.end();
+      }
+    };
+    const lines: string[] = [];
+    const bootstrap = (role = monitor, secret = password) =>
+      ensureMonitorRole(database.ownerUrl, { role, password: secret }, (line) =>
+        lines.push(line),
+      );
+    afterAll(async () => {
+      await asAdmin(
+        `drop owned by "${monitor}"; drop role if exists "${monitor}"`,
+      );
+    });
+
+    it('is created with pg_monitor only, owning nothing, reading statistics and never a row', async () => {
+      await bootstrap();
+      expect(lines.at(-1)).toMatch(
+        new RegExp(`^Monitor role "${monitor}" created: pg_monitor only`),
+      );
+      const memberships = await database.db.execute<{ rolname: string }>(
+        `select r.rolname from pg_auth_members m join pg_roles r on r.oid = m.roleid
+         where m.member = '${monitor}'::regrole order by 1`,
+      );
+      expect(memberships.rows).toEqual([{ rolname: 'pg_monitor' }]);
+      await asMonitor(async (client) => {
+        const { rows } = await client.query(
+          `select rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication, rolcanlogin
+           from pg_roles where rolname = current_user`,
+        );
+        expect(rows).toEqual([
+          {
+            rolsuper: false,
+            rolbypassrls: false,
+            rolcreatedb: false,
+            rolcreaterole: false,
+            rolreplication: false,
+            rolcanlogin: true,
+          },
+        ]);
+        // What the exporter reads: pg_stat_* and the settings, of every database.
+        const stats = await client.query(
+          `select numbackends from pg_stat_database where datname = current_database()`,
+        );
+        expect(stats.rows).toHaveLength(1);
+        const settings = await client.query(
+          `select setting from pg_settings where name = 'max_connections'`,
+        );
+        expect(Number(settings.rows[0].setting)).toBeGreaterThan(0);
+        // Never a row, nor the schema.
+        const refused = async (statement: string) => {
+          await client.query('begin');
+          try {
+            await client.query(statement);
+            return 'allowed';
+          } catch (error) {
+            return (error as { code?: string }).code;
+          } finally {
+            await client.query('rollback');
+          }
+        };
+        expect(await refused('select 1 from users')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await refused('select 1 from app_secrets')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await refused('select 1 from nest_outbox.migrations')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await refused('create table smuggled (id int)')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await refused(`alter role current_user bypassrls`)).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+      });
+    });
+
+    it('is bootstrapped again without changes, and a rotated password is set', async () => {
+      lines.length = 0;
+      await bootstrap();
+      expect(lines.at(-1)).toMatch(/checked: pg_monitor only/);
+      expect(lines.at(-1)).not.toContain('password set');
+      const rotated = randomBytes(12).toString('hex');
+      lines.length = 0;
+      await bootstrap(monitor, rotated);
+      expect(lines.at(-1)).toMatch(/checked, password set: pg_monitor only/);
+      const client = new Client({ connectionString: monitorUrl(rotated) });
+      await client.connect();
+      await client.end();
+      // Back to the suite's password for the tests that follow.
+      await bootstrap();
+    });
+
+    it('refuses a role that is a member of more than pg_monitor, or that may read the tables', async () => {
+      const other = `member_${randomUUID().slice(0, 8)}`;
+      await database.asOwner(`create role "${other}"`);
+      try {
+        await database.asOwner(`grant "${other}" to "${monitor}"`);
+        await expect(bootstrap()).rejects.toThrow(
+          new RegExp(
+            `is a member of "${other}" besides pg_monitor: run REVOKE "${other}" FROM "${monitor}"`,
+          ),
+        );
+        await database.asOwner(`revoke "${other}" from "${monitor}"`);
+      } finally {
+        await database.asOwner(`drop role if exists "${other}"`);
+      }
+      await database.asOwner(`grant select on users to "${monitor}"`);
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /can read or write public\.users/,
+        );
+      } finally {
+        await database.asOwner(`revoke select on users from "${monitor}"`);
+      }
+      await bootstrap();
+      // Never the owner itself.
+      const owner = decodeURIComponent(new URL(database.ownerUrl).username);
+      await expect(bootstrap(owner)).rejects.toThrow(/names the owner/);
+    });
   });
 });

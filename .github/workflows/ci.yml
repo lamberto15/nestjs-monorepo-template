@@ -65,7 +65,7 @@ jobs:
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci REDIS_PASSWORD=redis-ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci
           docker compose config --format json > env.json
           # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
           test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
@@ -79,17 +79,25 @@ jobs:
             test "$(jq -r ".services.$service.environment | has(\"DATABASE_OWNER_URL_FILE\")" env.json)" = false
             test "$(jq -r ".services.$service.secrets | map(.source) | index(\"database_owner_url\")" env.json)" = null
           done
-          test "$(jq -r '.services.migrate.secrets | map(.source) | sort | join(",")' env.json)" = 'database_owner_url,database_url'
+          test "$(jq -r '.services.migrate.secrets | map(.source) | sort | join(",")' env.json)" = 'database_owner_url,database_url,postgres_monitor_password'
+          # The monitoring role: migrate makes it, the exporter connects as it; nobody else sees its password.
+          test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD env.json)" = mon-ci
+          test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_USER env.json)" = app_monitor
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment | has(\"POSTGRES_MONITOR_PASSWORD\")" env.json)" = false
+            test "$(jq -r ".services.$service.secrets | map(.source) | index(\"postgres_monitor_password\")" env.json)" = null
+          done
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
           test "$(jq -r .services.backup.environment.PGPASSWORD env.json)" = pg-ci
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN env.json)" = ci
-          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app:pg-ci@postgres:5432/app?sslmode=disable'
+          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
+          test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
       - name: Secrets in files
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           dir=$(mktemp -d)
-          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL; do
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL; do
             echo ci > "$dir/$name"
             export "${name}_FILE=$dir/$name"
           done
@@ -119,7 +127,10 @@ jobs:
           test "$(jq -r .services.redis.environment.REDIS_PASSWORD_FILE files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN_FILE files.json)" = /run/secrets/cloudflare_api_token
           test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' files.json)" = ''
-          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_PASS_FILE' files.json)" = /run/secrets/postgres_password
+          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_PASS_FILE' files.json)" = /run/secrets/postgres_monitor_password
+          test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD files.json)" = ''
+          test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD_FILE files.json)" = /run/secrets/postgres_monitor_password
+          test "$(jq -r .secrets.postgres_monitor_password.file files.json)" = "$dir/POSTGRES_MONITOR_PASSWORD"
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
       - name: The shell readers of the files, in their images

@@ -276,6 +276,9 @@ export default async function setup(project: TestProject) {
     await onServer(
       `create role "${owner}" login createrole nosuperuser nocreatedb nobypassrls password '${ownerSecret}'`,
     );
+    // What the monitoring role's bootstrap needs of the owner (roles.ts
+    // ensureMonitorRole): a superuser has it; a managed admin gets it once.
+    await onServer(`grant pg_monitor to "${owner}" with admin option`);
     await onServer(`create database "${template}" owner "${owner}"`);
     await migrateAll({
       ownerUrl: databaseUrl(ownerUrl, template),

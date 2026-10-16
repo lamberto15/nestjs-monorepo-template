@@ -74,7 +74,8 @@ reads.
 
 | `.env` | Read by | Instead of |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD_FILE` | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`), the PostgreSQL exporter (`compose.monitoring.yaml`) | `POSTGRES_PASSWORD` |
+| `POSTGRES_PASSWORD_FILE` | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`) | `POSTGRES_PASSWORD` |
+| `POSTGRES_MONITOR_PASSWORD_FILE` | `migrate` (creates the monitoring role with it) and the PostgreSQL exporter (`compose.monitoring.yaml`): one file | `POSTGRES_MONITOR_PASSWORD` |
 | `DATABASE_OWNER_URL_FILE` | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service | the URL Compose builds from `POSTGRES_PASSWORD` |
 | `DATABASE_URL_FILE` | the app (api, worker) and `migrate` (the app role's URL: `postgres://app_runtime:<password>@postgres:5432/app`, with `POSTGRES_APP_PASSWORD`'s value) | the URL Compose builds from `POSTGRES_APP_PASSWORD` |
 | `REDIS_PASSWORD_FILE` | Redis, its healthcheck and the Redis exporter (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file | `REDIS_PASSWORD` |
@@ -138,9 +139,12 @@ Compose builds now; `docker compose run --rm migrate printenv
 DATABASE_OWNER_URL` the owner's) and to the other secrets.
 
 - **The owner's password takes two files** holding the same password:
-  `POSTGRES_PASSWORD_FILE` (PostgreSQL, the backup, the exporter) and
+  `POSTGRES_PASSWORD_FILE` (PostgreSQL, the backup) and
   `DATABASE_OWNER_URL_FILE` (`migrate`). Then set `POSTGRES_PASSWORD=` empty
-  and recreate `migrate backup` (and `postgres-exporter`). PostgreSQL reads
+  and recreate `migrate backup`. **The monitoring role's** moves to
+  `POSTGRES_MONITOR_PASSWORD_FILE` (`migrate` and `postgres-exporter`
+  read the one file); set `POSTGRES_MONITOR_PASSWORD=` empty, recreate
+  `migrate postgres-exporter`. PostgreSQL reads
   its file only when it creates a database: a running one already has its
   password.
 - **The app role's password** moves to `DATABASE_URL_FILE` (the whole URL,
@@ -293,8 +297,9 @@ table's owner, and the postgres image's `POSTGRES_USER` is both.
 
 | Role | Who | Connects as | Gets |
 | --- | --- | --- | --- |
-| **owner** | `migrate`, `backup`, the postgres-exporter; the app itself when `MIGRATE_ON_START` is on (development) | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser) | owns every schema, table and sequence; runs the migrations |
+| **owner** | `migrate`, `backup`; the app itself when `MIGRATE_ON_START` is on (development) | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser) | owns every schema, table and sequence; runs the migrations |
 | **app** | `api`, `worker` | `DATABASE_URL` (Compose: `POSTGRES_APP_USER`, default `app_runtime`, with `POSTGRES_APP_PASSWORD`) | `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`; a member of no other role; owns nothing; `USAGE` on the schemas, `SELECT, INSERT, UPDATE, DELETE` on every table, `USAGE` on every sequence; never `CREATE` |
+| **monitor** | the postgres-exporter (`compose.monitoring.yaml`) | `POSTGRES_MONITOR_USER` (default `app_monitor`) with `POSTGRES_MONITOR_PASSWORD`; managed PostgreSQL: `DATABASE_MONITOR_URL` | the same flags as the app role; a member of `pg_monitor` and of nothing else (`pg_stat_*`, the settings, sizes); owns nothing; no privilege on any table: statistics, never rows |
 
 `node dist/migrate` (`apps/api/src/core/database/roles.ts`) makes it so on
 every deploy, after the migrations, as the owner: it creates the app role
@@ -319,12 +324,24 @@ deployment, not to the schema.
   creates exactly one role, a third would need its credentials somewhere
   anyway, and the owner never serves a request. Only `migrate` gets
   `DATABASE_OWNER_URL`; api and worker can't reach it.
-- **The exception: the postgres-exporter** (`compose.monitoring.yaml`) and
-  `backup` also connect as the owner, so with the monitoring stack a
-  superuser's credentials sit in two more containers. The backup needs them
-  (it reads every table and creates databases); the exporter needs only
-  `pg_monitor`, and a role of its own for it is a follow-up (roadmap 1a). Both
-  run inside the Compose network and serve no request.
+- **The exception: `backup`** also connects as the owner: it reads every
+  table and creates databases. It runs inside the Compose network and
+  serves no request.
+- **The monitoring role** (`ensureMonitorRole()`, the same file) exists
+  only with the monitoring stack: `compose.monitoring.yaml` hands `migrate`
+  `POSTGRES_MONITOR_PASSWORD` (or its `_FILE`, the same file the exporter
+  reads) and `migrate` creates `POSTGRES_MONITOR_USER` with it, grants it
+  `pg_monitor`, and verifies before committing that it is a member of
+  nothing else (`pg_read_all_data`, the owner or the app role would hand it
+  the rows), owns nothing, creates nothing and holds no privilege on any
+  application table; a password that fails is set, as for the app role.
+  Without the password, `migrate` says so and skips it (the exporter then
+  can't connect: `PostgresDown`). `GRANT pg_monitor` needs the owner to
+  hold `pg_monitor` with `ADMIN OPTION`: a superuser does; a managed
+  admin may need `GRANT pg_monitor TO <owner> WITH ADMIN OPTION` once (or
+  run the `GRANT pg_monitor TO app_monitor` the error names), and then
+  sets `DATABASE_MONITOR_URL` for the exporter. Proof:
+  `database-roles.e2e-spec.ts`, "the monitoring role".
 - **The schemas it is granted** are an explicit list: `public` (and any
   schema a table in `schema.ts` declares) plus the stores' `nest_outbox`,
   `nest_workflows` and `nest_webhooks`. Nothing else on the database: a
@@ -463,8 +480,9 @@ PostgreSQL and Redis, `blackbox-exporter` (HTTPS and the certificate,
 through Caddy) and `backup-metrics` (the backup service's state). The
 default stack doesn't need it, and nothing in it becomes required.
 
-**Turn it on:** set `METRICS_TOKEN` and a receiver (below) in `.env`, add
-the file to `COMPOSE_FILE`, deploy:
+**Turn it on:** set `METRICS_TOKEN`, `POSTGRES_MONITOR_PASSWORD` (the
+exporter's role, made by `migrate`: [Database roles](#database-roles)) and a
+receiver (below) in `.env`, add the file to `COMPOSE_FILE`, deploy:
 
 ```bash
 # .env: COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
@@ -633,9 +651,9 @@ docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
   --entrypoint promtool prom/prometheus:v3.15.0 test rules /etc/prometheus/tests/alerts.test.yml
 ```
 
-**Managed PostgreSQL or Redis:** the exporters follow `DATABASE_OWNER_URL`
-and `REDIS_URL` (PostgreSQL's needs a role with `pg_monitor`; the app role
-has none). With Redis
+**Managed PostgreSQL or Redis:** the exporters follow `DATABASE_MONITOR_URL`
+(the monitoring role `migrate` made there, [Database roles](#database-roles))
+and `REDIS_URL`. With Redis
 Sentinel, remove `redis-exporter` and its scrape job; the app's own
 `RedisUnreachableFromApp` still covers Redis.
 
