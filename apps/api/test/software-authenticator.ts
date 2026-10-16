@@ -99,9 +99,9 @@ export class SoftwareAuthenticator {
       Buffer.from(coseKey),
     ]);
     const attestationObject = isoCBOR.encode(
-      new Map<string, string | Uint8Array | Map<string, never>>([
+      new Map<string, string | Uint8Array | Map<string, string>>([
         ['fmt', 'none'],
-        ['attStmt', new Map()],
+        ['attStmt', new Map<string, string>()],
         ['authData', Uint8Array.from(authData)],
       ]),
     );
