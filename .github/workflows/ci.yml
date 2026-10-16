@@ -5,7 +5,8 @@
 # (turbo.json) runs each workspace package's task, its local cache kept
 # between runs with actions/cache, as Turborepo's GitHub Actions guide does.
 # Then the security scans, and on main and v* tags the image is published to
-# GHCR (docs/deployment.md, "CI").
+# GHCR (docs/deployment.md, "CI"); a v* tag then gets its GitHub release
+# (docs/releases.md).
 #
 # Third-party actions are pinned by commit SHA (the comment names the
 # release); Dependabot proposes newer ones.
@@ -183,6 +184,9 @@ jobs:
           DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
           DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
       - run: pnpm test
+      # The release notes' generator (tools/release/, docs/releases.md): git only.
+      - name: The release notes' tests
+        run: node --test tools/release/notes.test.mjs
 
   # The e2e tests in shards, each on its own runner with its own Redis and
   # PostgreSQL: the slowest step of CI, split (Vitest's --shard). They run
@@ -506,6 +510,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # For the release job: the version tag (1.2.3 for v1.2.3) and the digest.
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -555,6 +563,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # The same build: every step comes from the builder's cache.
       - name: Push the image
+        id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -581,6 +590,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -629,6 +640,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # The same build: every step comes from the builder's cache.
       - name: Push the image
+        id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: gotenberg
@@ -638,3 +650,60 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: APT_REFRESH=${{ github.run_id }}
           cache-from: type=gha,scope=gotenberg
+
+  # v* tags, once both images are published: the tag's GitHub release
+  # (docs/releases.md). Its notes come from tools/release/notes.mjs: breaking
+  # changes, the images by version and digest, the migrations since the
+  # previous release with the expand/contract lint's findings (squawk, in
+  # Docker), how to roll back (the previous release's images, valid only
+  # under the expand/contract policy), changed variables and the typed
+  # client's version; then GitHub's generated list of pull requests. A
+  # pre-release tag (v1.2.0-rc.1) makes a pre-release. Run again, it
+  # rewrites the notes of the existing release.
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [publish, publish-gotenberg]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      # Every commit and tag: the previous release and the changes since it.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install Node.js (the notes have no dependencies)
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          install: false
+      # The notes hold commit subjects and pull request titles: they go to
+      # files and the release, never to the log.
+      - name: The release and its notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          IMAGE_VERSION: ${{ needs.publish.outputs.version }}
+          APP_DIGEST: ${{ needs.publish.outputs.digest }}
+          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/release"
+          mkdir -p "$dir"
+          previous=$(node tools/release/notes.mjs --tag "$TAG" --print-previous)
+          echo "Release $TAG, after ${previous:-no earlier release}"
+          fields=(-f "tag_name=$TAG")
+          if [ -n "$previous" ]; then fields+=(-f "previous_tag_name=$previous"); fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${fields[@]}" --jq .body > "$dir/changes.md"
+          node tools/release/notes.mjs --tag "$TAG" --previous "${previous:-none}" \
+            --image-version "$IMAGE_VERSION" --app-digest "$APP_DIGEST" --gotenberg-digest "$GOTENBERG_DIGEST" \
+            --changes "$dir/changes.md" --out "$dir/notes.md"
+          if gh release view "$TAG" --json tagName --jq .tagName > "$dir/existing" 2>&1; then
+            gh release edit "$TAG" --notes-file "$dir/notes.md"
+          else
+            flags=()
+            case "$TAG" in *-*) flags+=(--prerelease) ;; esac
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$dir/notes.md" "${flags[@]}"
+          fi
