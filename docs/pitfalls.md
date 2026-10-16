@@ -171,6 +171,12 @@
   `collect()` now resets it. Both found by stopping Redis under the
   monitoring stack.
 
+- **A Dependabot bump of Gotenberg is half a bump.** It raises the `FROM`
+  line of `gotenberg/Dockerfile` (and, separately, `compose.dev.yaml`'s
+  image), but not `GOTENBERG_VERSION` (the release its Go programs are built
+  from) nor the other file: raise those by hand in the same pull request.
+  CI's `gotenberg-image` job fails until the three agree.
+
 ## Migrations: expand/contract
 
 A release's migrations must leave the release before it working, because

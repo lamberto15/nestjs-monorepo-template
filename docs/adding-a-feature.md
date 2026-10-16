@@ -159,6 +159,10 @@ the controller (`notes.*`); singular for what describes one record
     Files attached to its records: an `AttachmentTarget` (`<item>-attachments.ts`)
     registered into `AttachmentsRegistry`, and `/<x>/{id}/attachments` routes
     (`AttachmentUpload('<Subject>')`) calling `AttachmentsService` ([attachments.md](attachments.md)).
+    A PDF of its records: a `DocumentSource` (`<item>-documents.ts`) registered
+    into `DocumentsRegistry`, a template in `apps/api/src/documents/templates/`,
+    its labels in `i18n/<locale>/documents.json`, and `POST /<x>/{id}/pdf`
+    calling `DocumentsService.request()` ([documents.md](documents.md)).
     Tags on its records: a `TagTarget` (`<item>-tags.ts`) registered into
     `TagsRegistry`, `PUT /<x>/{id}/tags` calling `TagsService.setTags`,
     `...tagFilter('<Subject>', <x>.id)` in the list, `tagsOf()` for the

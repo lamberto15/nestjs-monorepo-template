@@ -1,4 +1,11 @@
-import { bigint, index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  index,
+  pgTable,
+  text,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { timestamps, uuidPk } from '../../core/database/columns.js';
 
 /**
@@ -23,6 +30,17 @@ export const attachments = pgTable(
     contentType: text('content_type').notNull(),
     /** `user:<id>` or `client:<id>`; `anonymized` after the uploader's account was deleted. */
     uploadedBy: text('uploaded_by').notNull(),
+    /**
+     * An issued document (platform/documents): its file never changes and
+     * nobody removes it; it goes only with its record (the nightly sweep).
+     */
+    locked: boolean('locked').notNull().default(false),
+    /**
+     * The record's fields a generated file shows (an issued document's):
+     * downloading it takes the right to read every one of them, as reading
+     * the record would (field-level permissions). Null for uploads.
+     */
+    fields: text('fields').array(),
     ...timestamps(),
   },
   (table) => [

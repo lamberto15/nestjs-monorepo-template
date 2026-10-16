@@ -1,0 +1,14 @@
+{
+  "note": {
+    "document": "Nota",
+    "number": "Nombor",
+    "status": "Status",
+    "created": "Dicipta",
+    "published": "Diterbitkan",
+    "issued": "Dikeluarkan pada {date}",
+    "statuses": {
+      "draft": "Draf",
+      "published": "Diterbitkan"
+    }
+  }
+}

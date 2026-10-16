@@ -169,6 +169,13 @@
       "when": 1792149399528,
       "tag": "0023_right_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792152625213,
+      "tag": "0024_mysterious_the_call",
+      "breakpoints": true
     }
   ]
 }

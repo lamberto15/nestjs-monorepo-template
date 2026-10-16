@@ -796,9 +796,29 @@ export interface paths {
         post?: never;
         /**
          * Remove an attachment
-         * @description Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed).
+         * @description Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).
          */
         delete: operations["AttachmentsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A document asked for: its state, then the issued PDF
+         * @description Whoever may read its record. `completed`: `attachmentId` is the PDF (GET /v1/attachments/{id}/download). The requester's realtime connection hears `document.ready { id, subject, recordId, attachmentId }` or `document.failed { id, subject, recordId, error }`.
+         */
+        get: operations["DocumentsController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2395,6 +2415,28 @@ export interface paths {
          * @description Its title, text and custom values become the revision's, as a PATCH would set them (the same permissions, field-level ones too): audited `note.updated`, and a new revision with `restoredFrom`. With If-Match (the note's ETag), refused (412) if the note changed since you read it. Answers the note.
          */
         post: operations["NoteRevisionsController_restore_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a PDF of a note
+         * @description Whoever may read the note. Answers at once with the document id; a worker renders the PDF in the request's language (`?lang=`, `X-Lang`, your saved language; right to left in Arabic) and your time zone, and adds it to the note's attachments (`locked`: it never changes and cannot be removed; asking again issues a new one). The text is in it only if you may read it.
+         *
+         *     Follow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).
+         */
+        post: operations["NoteDocumentsController_pdf_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5154,6 +5196,82 @@ export interface operations {
             };
             /** @description Not yours, and you may not change its record. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An issued document (attachment_locked): it stays with its record. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DocumentsController_status_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /**
+                         * @description What kind of document.
+                         * @example note
+                         */
+                        source: string;
+                        /** @example Note */
+                        subject: string;
+                        /** Format: uuid */
+                        recordId: string;
+                        /**
+                         * @description The language it is written in.
+                         * @example en
+                         */
+                        locale: string;
+                        /**
+                         * @description queued → rendering → completed, or failed (then `error`).
+                         * @enum {string}
+                         */
+                        status: "queued" | "rendering" | "completed" | "failed";
+                        /**
+                         * Format: uuid
+                         * @description Once completed: the PDF, an attachment of the record (GET /v1/attachments/{id}/download).
+                         */
+                        attachmentId: string | null;
+                        /** @description Why it failed, written for people. */
+                        error: string | null;
+                        /** Format: date-time */
+                        issuedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12590,7 +12708,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, size, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -12628,6 +12746,8 @@ export interface operations {
                              * @example user:0199a3f2-…
                              */
                             uploadedBy: string;
+                            /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
+                            locked: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -12710,6 +12830,8 @@ export interface operations {
                          * @example user:0199a3f2-…
                          */
                         uploadedBy: string;
+                        /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
+                        locked: boolean;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -13152,6 +13274,94 @@ export interface operations {
             };
             /** @description The note changed since you read it (precondition_failed). */
             412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteDocumentsController_pdf_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
+                 *
+                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description The Idempotency-Key is missing. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not issue it. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your document of this note, in this language, is still being rendered (document_pending: its `id` is in the problem), or a request with this Idempotency-Key is still running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This Idempotency-Key was used for a different request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 10 a minute from one user (rate_limited). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PDF documents are not set up on this server (documents_unavailable: GOTENBERG_URL is unset). */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

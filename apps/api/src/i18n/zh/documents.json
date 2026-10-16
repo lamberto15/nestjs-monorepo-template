@@ -1,0 +1,14 @@
+{
+  "note": {
+    "document": "笔记",
+    "number": "编号",
+    "status": "状态",
+    "created": "创建时间",
+    "published": "发布时间",
+    "issued": "签发于 {date}",
+    "statuses": {
+      "draft": "草稿",
+      "published": "已发布"
+    }
+  }
+}

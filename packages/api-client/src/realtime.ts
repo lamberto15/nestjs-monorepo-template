@@ -79,6 +79,23 @@ export interface RealtimeEvents {
     done: number;
     failed: number;
   }) => void;
+  /**
+   * A document you asked for (`POST /v1/notes/{id}/pdf`) was issued: the PDF
+   * is the record's attachment `attachmentId` (docs/documents.md).
+   */
+  'document.ready': (event: {
+    id: string;
+    subject: string;
+    recordId: string;
+    attachmentId: string;
+  }) => void;
+  /** A document you asked for failed for good; `error` says why, for people. */
+  'document.failed': (event: {
+    id: string;
+    subject: string;
+    recordId: string;
+    error: string;
+  }) => void;
 }
 
 /** What a connection may ask the API. */

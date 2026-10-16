@@ -101,6 +101,17 @@ export const platformEnv = z.object({
     types.length > 0 ? types : DEFAULT_ATTACHMENT_TYPES,
   ),
 
+  /**
+   * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`
+   * in Compose. Unset: documents are off, and asking for one answers 503
+   * `documents_unavailable`; nothing else needs it.
+   */
+  GOTENBERG_URL: baseUrl(),
+  /** One render's limit, in milliseconds; a render that takes longer is tried again. */
+  GOTENBERG_TIMEOUT_MS: z.coerce.number().int().min(100).default(30_000),
+  /** Tries per document, the first included (exponential backoff from 1 s), before it fails. */
+  DOCUMENTS_RENDER_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+
   /** Where files go: `local` (STORAGE_ROOT), `s3` (any S3-compatible store), `memory` (tests). */
   STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).default('local'),
   STORAGE_ROOT: pathWithDefault('.data/storage'),

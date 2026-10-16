@@ -423,10 +423,69 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
+  # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
+  # top of), which renders the PDF documents: its pins agree with each other
+  # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
+  # run) and passes the same scan. Its own cache scope. Published by
+  # publish-gotenberg, as the app image is.
+  gotenberg-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: One Gotenberg release everywhere, with the same flags
+        run: |
+          # The FROM line (Dependabot raises it) and the release the Go programs are built from.
+          base=$(grep -oE '^FROM gotenberg/gotenberg:[^ ]+' gotenberg/Dockerfile | cut -d' ' -f2)
+          source=$(grep -oE '^ARG GOTENBERG_VERSION=v[0-9.]+' gotenberg/Dockerfile | cut -d= -f2)
+          dev=$(yq '.services.gotenberg.image' compose.dev.yaml)
+          echo "base: $base, source: $source, development: $dev"
+          case "$base" in
+            "gotenberg/gotenberg:${source#v}-chromium@sha256:"*) ;;
+            *) echo "::error file=gotenberg/Dockerfile::FROM $base is not GOTENBERG_VERSION $source's Chromium image, pinned by digest"; exit 1 ;;
+          esac
+          if [ "$dev" != "$base" ]; then
+            echo "::error file=compose.dev.yaml::services.gotenberg.image is $dev, gotenberg/Dockerfile builds on $base"
+            exit 1
+          fi
+          if [ "$(yq -o json '.services.gotenberg.command' compose.prod.yaml)" != "$(yq -o json '.services.gotenberg.command' compose.dev.yaml)" ]; then
+            echo "::error file=compose.dev.yaml::services.gotenberg.command differs from compose.prod.yaml's"
+            exit 1
+          fi
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the Gotenberg image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: gotenberg
+          load: true
+          tags: gotenberg:ci
+          # A new value per workflow run: the Debian upgrade runs again (the
+          # cache would keep the first one's packages for ever), and the
+          # publish job of the same run reuses this very build.
+          build-args: APT_REFRESH=${{ github.run_id }}
+          cache-from: type=gha,scope=gotenberg
+          cache-to: type=gha,scope=gotenberg,mode=max
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: gotenberg:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+
   # main and v* tags, once check, security and image passed (backup-image
-  # gates pull requests; its image isn't published): the image is built again
-  # (from the cache the image job left), scanned, then pushed to
-  # ghcr.io/<owner>/<repo> as the full commit SHA, `main` or the version.
+  # and gotenberg-image gate pull requests; their images aren't published):
+  # the image is built again (from the cache the image job left), scanned,
+  # then pushed to ghcr.io/<owner>/<repo> as the full commit SHA, `main` or
+  # the version.
   # Never `latest`: a deploy names the image it runs.
   publish:
     if: github.event_name == 'push'
@@ -495,3 +554,76 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: GIT_SHA=${{ github.sha }}
           cache-from: type=gha
+
+  # Gotenberg's image, as publish does the app's: on main and v* tags, once
+  # the checks and gotenberg-image passed, built again (from the cache
+  # gotenberg-image left in this run: the image it scanned), scanned, then
+  # pushed to ghcr.io/<owner>/<repo>/gotenberg as the full commit SHA, `main`
+  # or the version. Production runs it (GOTENBERG_IMAGE, docs/deployment.md):
+  # what CI scanned, not a build on the host whose Debian upgrade a cache
+  # would freeze.
+  publish-gotenberg:
+    if: github.event_name == 'push'
+    needs: [check, e2e, security, image, gotenberg-image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Tags and OCI labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}/gotenberg
+          flavor: latest=false
+          tags: |
+            type=sha,format=long,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Build the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: gotenberg
+          load: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            gotenberg:publish
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: APT_REFRESH=${{ github.run_id }}
+          cache-from: type=gha,scope=gotenberg
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: gotenberg:publish
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The same build: every step comes from the builder's cache.
+      - name: Push the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: gotenberg
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          build-args: APT_REFRESH=${{ github.run_id }}
+          cache-from: type=gha,scope=gotenberg

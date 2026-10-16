@@ -15,6 +15,11 @@ export const attachmentSchema = z.object({
     .string()
     .meta({ example: 'user:0199a3f2-…' })
     .describe('`user:<id>`, `client:<id>`, or `anonymized`.'),
+  locked: z
+    .boolean()
+    .describe(
+      'An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record.',
+    ),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

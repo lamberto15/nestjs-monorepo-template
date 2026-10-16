@@ -12,6 +12,10 @@
       {
         "include": "**/mail/templates/**/*.html",
         "watchAssets": true
+      },
+      {
+        "include": "documents/templates/**/*.html",
+        "watchAssets": true
       }
     ]
   }

@@ -1,5 +1,6 @@
 import type approvals from './en/approvals.json';
 import type auth from './en/auth.json';
+import type documents from './en/documents.json';
 import type mail from './en/mail.json';
 import type money from './en/money.json';
 import type notifications from './en/notifications.json';
@@ -14,6 +15,7 @@ import type validation from './en/validation.json';
 export interface Translations {
   approvals: typeof approvals;
   auth: typeof auth;
+  documents: typeof documents;
   mail: typeof mail;
   money: typeof money;
   notifications: typeof notifications;

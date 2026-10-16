@@ -37,9 +37,11 @@ Filling `.env` (each step is commented in `env.example`):
 | `postgres` | PostgreSQL 18 | 1 |
 | `redis` | Redis 8 (append-only, `noeviction`) | 1 |
 | `backup` | `pg_dump` and the uploaded files on a schedule, copied off the host ([below](#backups-and-restore)) | 1 |
+| `gotenberg` | HTML to PDF (Chromium) for the workers' documents, on a network of its own with no way out ([below](#gotenberg-pdf-documents)) | 1 |
 
 - **Resource limits** on every service (`API_CPUS`, `API_MEMORY`,
-  `WORKER_CPUS`, `WORKER_MEMORY`, `POSTGRES_*`, `REDIS_*`, `BACKUP_*`): none can starve the
+  `WORKER_CPUS`, `WORKER_MEMORY`, `POSTGRES_*`, `REDIS_*`, `BACKUP_*`,
+  `GOTENBERG_*`): none can starve the
   others. The Node heap (`API_HEAP_MB`, `WORKER_HEAP_MB`) and Redis'
   `maxmemory` stay below their limits. Limits don't add capacity: keep their
   sum within the host's. See [Resource limits](#resource-limits) for how
@@ -166,6 +168,58 @@ stops, since each can be a file. What fails instead:
 even with no secret moved: their environment, secrets, command or image
 change. That is a few seconds without the database, Redis and HTTPS, so
 deploy in a quiet moment.
+
+### Gotenberg (PDF documents)
+
+The workers render [documents](documents.md) with
+[Gotenberg](https://gotenberg.dev) (its Chromium-only image): a container of
+its own, never Chromium in the worker's image, so a browser that runs out of
+memory, or is attacked through a page, doesn't take the queues, workflows and
+database credentials with it.
+
+- **The image** (`gotenberg/Dockerfile`): the official
+  `gotenberg/gotenberg:<version>-chromium`, pinned by version and digest,
+  with its Debian packages upgraded and its two Go programs (gotenberg,
+  pdfcpu) built again from the same release with a current Go and fixed
+  `golang.org/x` modules, so CI's scan finds nothing fixable (job
+  `gotenberg-image`). Fonts are the official image's: Noto for Latin, Arabic,
+  Chinese, Japanese, Korean, and emoji.
+- **Which image runs:** CI publishes the image it scanned, as it does the
+  app's ([below](#publishing-and-rolling-back-images), job
+  `publish-gotenberg`): `ghcr.io/<owner>/<repo>/gotenberg:<commit SHA>`,
+  set as `GOTENBERG_IMAGE` next to `APP_IMAGE`. Each CI run upgrades the
+  Debian packages afresh (`APT_REFRESH`), so a newer commit's image carries
+  newer Chromium fixes. Unset, `docker compose up -d --build` builds it on
+  the host, as a fallback: its Debian step is then cached after the first
+  build, so rebuild it with `docker compose build --no-cache gotenberg` to
+  pick up fixes.
+- **The network:** `documents`, `internal: true`: no gateway, so nothing on
+  it reaches the internet, the host or the other networks; no port is
+  published. Only `worker` joins it (besides `default`); `api` never talks
+  to Gotenberg (it only checks that `GOTENBERG_URL` is set).
+- **What Chromium may load:** `--chromium-allow-list=^file:///tmp/` (the
+  page Gotenberg writes; nothing else matches, the default deny list stays),
+  `--chromium-deny-private-ips` and `--chromium-deny-public-ips` (every
+  http(s) host refused, if the list ever allowed one),
+  `--chromium-disable-javascript`, and at most 20 renders waiting
+  (`--chromium-max-queue-size`: more answer 429, and the job retries
+  later). Gotenberg's own outgoing calls are off:
+  `--api-disable-download-from`, `--webhook-disable`. The templates add a
+  Content-Security-Policy that allows inline styles and `data:` images and
+  fonts only.
+- **The container:** read-only, its `/tmp` (`GOTENBERG_TMP_SIZE`, 512m) and
+  home in memory, no capabilities, `no-new-privileges`, healthy when
+  `/health` answers. Limits: `GOTENBERG_CPUS` (1), `GOTENBERG_MEMORY` (1G,
+  `/tmp` included). `--api-timeout=60s`, longer than the app's
+  `GOTENBERG_TIMEOUT_MS` (30 s), after which the job tries again.
+- **Off:** `GOTENBERG_URL=` (empty) in `.env` turns documents off (503
+  `documents_unavailable`); leave the service out with it if you like
+  (`docker compose up -d --scale gotenberg=0`). The app starts either way:
+  nothing calls Gotenberg until a document is asked for.
+- **Raising its version:** Dependabot proposes the `FROM` line;
+  `GOTENBERG_VERSION` in the Dockerfile and `compose.dev.yaml`'s image
+  follow it in the same pull request (`gotenberg-image` fails until they
+  match, and while the two Compose files' flags differ).
 
 ### Resource limits
 
@@ -739,9 +793,11 @@ merged migration fails it already):
 | `security` | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles |
 | `image` | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`) |
 | `backup-image` | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it |
+| `gotenberg-image` | checks that `gotenberg/Dockerfile`'s `FROM`, its `GOTENBERG_VERSION` and `compose.dev.yaml`'s image are one release, and that both Compose files give Gotenberg the same flags; builds the image (`gotenberg/`, its Debian upgrade fresh each run) and runs the same Trivy scan |
 | `openapi-diff` | pull requests only: oasdiff compares the typed client's `openapi.json` with the base branch's and lists breaking changes and the changelog in the job summary. Report-only until `OASDIFF_FAIL_ON` is set (development.md, "Typed client") |
 | `migration-lint` | pull requests only, in `migrations.yml` (a label change runs it again): squawk reads the migrations the pull request adds under `apps/api/drizzle/` and lists destructive statements (drops, renames, retypes, `SET NOT NULL`, NOT NULL without a default, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, `MERGE`'s deletes and updates) in the job summary, with file and line. Report-only until `MIGRATION_LINT_FAIL` is `on` (pitfalls.md, "Migrations: expand/contract"). Always failing: an edited or deleted merged migration or journal entry, a `squawk-ignore` comment. The `destructive-migration` label accepts both when added after the latest push |
 | `publish` | `main` and `v*` tags only, after `check`, `e2e`, `security` and `image`: pushes the app image to GHCR (below) |
+| `publish-gotenberg` | the same for Gotenberg's image, after `gotenberg-image` too: `ghcr.io/<owner>/<repo>/gotenberg`, the build `gotenberg-image` scanned in the same run, scanned again, then pushed |
 
 - **The same PostgreSQL and Redis as Compose:** CI reads their images from
   `compose.yaml` (job `compose-images`). Change them there only.
@@ -805,19 +861,20 @@ Logging in once on the host, with a classic personal access token that has
 echo "$GHCR_TOKEN" | docker login ghcr.io -u <github user> --password-stdin
 ```
 
-Deploying a published image: set `APP_IMAGE` in `.env`, then pull and
-start. Without `--build`: a build would replace the pulled image with a
-local one.
+Deploying a published image: set `APP_IMAGE` (and `GOTENBERG_IMAGE`,
+Gotenberg's from the same commit) in `.env`, then pull and start. Without
+`--build`: a build would replace the pulled images with local ones.
 
 ```bash
 # .env
 APP_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template:<full commit SHA>
+GOTENBERG_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template/gotenberg:<full commit SHA>
 
-docker compose pull migrate api worker
+docker compose pull migrate api worker gotenberg
 docker compose up -d --remove-orphans
 ```
 
-Rolling back: set `APP_IMAGE` to the previous commit's SHA, then the same
+Rolling back: set `APP_IMAGE` (and `GOTENBERG_IMAGE`) to the previous commit's SHA, then the same
 two commands. `git log --format=%H main` lists the SHAs; the package's page
 on GitHub lists the published ones. The Compose files must fit the image:
 when a release changed them, check them out at that SHA too (`git checkout

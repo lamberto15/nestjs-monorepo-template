@@ -60,6 +60,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |
 | Comments and @mentions on records | [docs/comments.md](docs/comments.md) |
 | Files attached to records (uploads, downloads, the orphan sweep) | [docs/attachments.md](docs/attachments.md) |
+| PDF documents of records (templates, RTL, Gotenberg, the queue job, issued attachments) | [docs/documents.md](docs/documents.md) |
 | Tags (labels) on records: managing them, filtering lists by them | [docs/tags.md](docs/tags.md) |
 | Scheduled reports (an export run on a schedule, mailed with a link) | [docs/reports.md](docs/reports.md) |
 | Email deliverability (SPF, DKIM, DMARC for SES; bounces and complaints through SNS; the suppression list the sender respects) | [docs/deliverability.md](docs/deliverability.md) |

@@ -1,0 +1,30 @@
+<header>
+  <p class="eyebrow">{{ labels.document }}</p>
+  <h1>{{ note.title }}</h1>
+</header>
+<table class="facts">
+  {{#if note.number}}
+  <tr>
+    <th>{{ labels.number }}</th>
+    <td>{{ note.number }}</td>
+  </tr>
+  {{/if}}
+  <tr>
+    <th>{{ labels.status }}</th>
+    <td>{{ note.status }}</td>
+  </tr>
+  <tr>
+    <th>{{ labels.created }}</th>
+    <td>{{ note.createdAt }}</td>
+  </tr>
+  {{#if note.publishedAt}}
+  <tr>
+    <th>{{ labels.published }}</th>
+    <td>{{ note.publishedAt }}</td>
+  </tr>
+  {{/if}}
+</table>
+{{#if note.body}}
+<div class="text">{{ note.body }}</div>
+{{/if}}
+<footer>{{ labels.issued }}</footer>
