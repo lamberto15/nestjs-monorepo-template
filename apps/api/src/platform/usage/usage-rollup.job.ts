@@ -13,10 +13,25 @@ import {
 import { REDIS } from '../../core/redis/redis.js';
 import { apiClients } from '../../iam/iam.tables.js';
 import type { PlatformEnv } from '../platform.env.js';
-import { addDays, parseUsageKey, TOTAL_FIELD, utcDay } from './usage-keys.js';
+import {
+  addDays,
+  parseUsageKey,
+  TOTAL_FIELD,
+  usagePattern,
+  utcDay,
+} from './usage-keys.js';
 import { apiUsage } from './usage.tables.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { USAGE_ROLLUP_JOB } from '../platform.jobs.js';
+
+/** A live counter: its key (without REDIS_PREFIX), tenant, client and day. */
+type UsageKey = {
+  key: string;
+  tenantId: string;
+  clientId: string;
+  day: string;
+};
 
 /**
  * Copies API clients' daily counters from Redis into `api_usage`, every
@@ -24,6 +39,11 @@ import { USAGE_ROLLUP_JOB } from '../platform.jobs.js';
  * the rows older than USAGE_RETENTION_DAYS. Copying sets each row to its
  * counter's value, so a run interrupted before the delete can run again,
  * and a day rolled up early (today) is overwritten by the next run.
+ *
+ * Each counter's key names its tenant (`tenant:<id>:usage:…`): its rows are
+ * written in that tenant's scope (docs/tenancy.md), one tenant at a time,
+ * logged; the retention delete sweeps the whole table by age under the
+ * worker's row-level security bypass.
  */
 @Injectable()
 export class UsageRollupJob {
@@ -39,6 +59,7 @@ export class UsageRollupJob {
     @Inject(REDIS) private readonly redis: Redis,
     private readonly config: ConfigService<CoreEnv & PlatformEnv, true>,
     private readonly system: SystemContext,
+    private readonly tenancy: Tenancy,
   ) {}
 
   /**
@@ -54,7 +75,7 @@ export class UsageRollupJob {
       USAGE_ROLLUP_JOB,
       async () => {
         const today = utcDay(now);
-        const keys = await this.liveKeys(day ? `usage:*:${day}` : 'usage:*');
+        const keys = await this.liveKeys(usagePattern(day));
         const days = day
           ? [day]
           : [...new Set(keys.map((key) => key.day))].filter((d) => d < today);
@@ -69,10 +90,12 @@ export class UsageRollupJob {
         const retentionDays = this.config.get('USAGE_RETENTION_DAYS', {
           infer: true,
         });
-        const deleted = await this.db
-          .delete(apiUsage)
-          .where(lt(apiUsage.day, addDays(today, -retentionDays)))
-          .returning({ id: apiUsage.id });
+        const deleted = await this.tenancy.bypass(USAGE_ROLLUP_JOB.key, () =>
+          this.db
+            .delete(apiUsage)
+            .where(lt(apiUsage.day, addDays(today, -retentionDays)))
+            .returning({ id: apiUsage.id }),
+        );
         this.logger.log('Usage rolled up', {
           days,
           written,
@@ -87,16 +110,29 @@ export class UsageRollupJob {
 
   /**
    * Copies one day's counters into the table, then deletes them (not
-   * today's, which keep counting). Returns the rows written.
+   * today's, which keep counting), tenant by tenant. Returns the rows written.
    */
-  async rollUp(
-    day: string,
-    keys?: { key: string; clientId: string; day: string }[],
-    now = new Date(),
-  ) {
-    const found = (keys ?? (await this.liveKeys(`usage:*:${day}`))).filter(
+  async rollUp(day: string, keys?: UsageKey[], now = new Date()) {
+    const found = (keys ?? (await this.liveKeys(usagePattern(day)))).filter(
       (key) => key.day === day,
     );
+    let written = 0;
+    for (const tenantId of new Set(found.map((key) => key.tenantId))) {
+      const ofTenant = found.filter((key) => key.tenantId === tenantId);
+      written += await this.tenancy.run(tenantId, () =>
+        this.rollUpTenant(day, ofTenant, now),
+      );
+      this.logger.debug('Usage rolled up for a tenant', {
+        tenant: tenantId,
+        day,
+        clients: ofTenant.length,
+      });
+    }
+    return written;
+  }
+
+  /** One tenant's counters of a day, in its scope: its clients only. */
+  private async rollUpTenant(day: string, found: UsageKey[], now: Date) {
     if (found.length === 0) {
       return 0;
     }
@@ -142,7 +178,12 @@ export class UsageRollupJob {
         .insert(apiUsage)
         .values(rows.slice(start, start + 1000))
         .onConflictDoUpdate({
-          target: [apiUsage.clientId, apiUsage.day, apiUsage.route],
+          target: [
+            apiUsage.tenantId,
+            apiUsage.clientId,
+            apiUsage.day,
+            apiUsage.route,
+          ],
           set: { count: sql`excluded.count`, updatedAt: new Date() },
         });
     }
@@ -159,7 +200,7 @@ export class UsageRollupJob {
    */
   private async liveKeys(pattern: string) {
     const prefix = `${this.config.get('REDIS_PREFIX', { infer: true })}:`;
-    const keys: { key: string; clientId: string; day: string }[] = [];
+    const keys: UsageKey[] = [];
     let cursor = '0';
     do {
       const [next, batch] = await this.redis.scan(

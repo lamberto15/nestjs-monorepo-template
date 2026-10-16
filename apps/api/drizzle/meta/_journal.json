@@ -176,6 +176,20 @@
       "when": 1792152625213,
       "tag": "0024_mysterious_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792156434665,
+      "tag": "0025_tenancy",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792156435244,
+      "tag": "0026_tenancy_keys",
+      "breakpoints": true
     }
   ]
 }

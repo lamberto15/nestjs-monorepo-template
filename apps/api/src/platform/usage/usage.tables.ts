@@ -8,6 +8,11 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { timestamps, uuidPk } from '../../core/database/columns.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
 import { apiClients } from '../../iam/iam.tables.js';
 
 /**
@@ -20,9 +25,8 @@ export const apiUsage = pgTable(
   'api_usage',
   {
     id: uuidPk(),
-    clientId: uuid('client_id')
-      .notNull()
-      .references(() => apiClients.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    clientId: uuid('client_id').notNull(),
     day: date('day').notNull(),
     route: text('route').notNull(),
     count: integer('count').notNull(),
@@ -30,10 +34,17 @@ export const apiUsage = pgTable(
   },
   (table) => [
     uniqueIndex('api_usage_client_day_route_idx').on(
+      table.tenantId,
       table.clientId,
       table.day,
       table.route,
     ),
     index('api_usage_day_idx').on(table.day),
+    ...tenantTable('api_usage', table),
+    tenantReference(
+      'api_usage_client_fk',
+      [table.tenantId, table.clientId],
+      [apiClients.tenantId, apiClients.id],
+    ),
   ],
-);
+).enableRLS();

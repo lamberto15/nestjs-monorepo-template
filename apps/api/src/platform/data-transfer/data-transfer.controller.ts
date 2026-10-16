@@ -35,6 +35,8 @@ import { timezone } from '../../iam/account/account.schemas.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import {
   DataTransferService,
+  principalTenant,
+  transferKey,
   TRANSFER_LINK_TTL,
 } from './data-transfer.service.js';
 import { TRANSFER_FORMATS } from './data-transfer.types.js';
@@ -148,7 +150,13 @@ export class DataTransferController {
     FileInterceptor('file', {
       // Streamed onto the private disk, never into memory; recognized by its bytes, not its name.
       storage: uploadToDisk({
-        key: () => `uploads/transfers/${randomUUID()}`,
+        // Under the caller's tenant (docs/tenancy.md): the request's user,
+        // authenticated before any interceptor runs.
+        key: (_file, req) =>
+          transferKey(
+            principalTenant((req as { user: RequestPrincipal }).user),
+            `uploads/${randomUUID()}`,
+          ),
         contentTypes: [
           'text/csv',
           'application/json',

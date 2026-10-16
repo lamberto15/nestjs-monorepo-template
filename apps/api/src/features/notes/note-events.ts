@@ -1,4 +1,5 @@
 import { WorkflowSignal } from '@nestjs/workflows';
+import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 
 /** The webhooks API clients may subscribe to for their notes. */
 export const NOTE_EVENT_TYPES = [
@@ -15,7 +16,17 @@ export interface NoteEvent {
   title: string;
 }
 
-/** Sent by the example sender's webhook: publish now instead of waiting. The note id is its key. */
-export const publishNow = new WorkflowSignal<{ eventId: string }>(
-  'note.publish-now',
-);
+/**
+ * Sent by the example sender's webhook: publish now instead of waiting. The
+ * note id is its key; it names its tenant, as every signal does
+ * (docs/tenancy.md), and the workflow ignores one of another tenant.
+ */
+export const publishNow = new WorkflowSignal<
+  { eventId: string } & TenantEnvelope
+>('note.publish-now');
+
+/** What a note's publication starts with: the note, and its tenant (docs/tenancy.md). */
+export interface NotePublicationInput extends TenantEnvelope {
+  noteId: string;
+  tenantId: string;
+}

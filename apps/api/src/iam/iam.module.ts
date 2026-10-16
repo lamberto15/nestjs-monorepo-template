@@ -24,6 +24,12 @@ import { PermissionCatalog } from './access/permission-catalog.js';
 import { AccessPolicy } from './access/policies.js';
 import { SystemContext } from './access/system-context.js';
 import {
+  TenantsController,
+  TenantSwitchController,
+} from './access/tenants.controller.js';
+import { TenantsService } from './access/tenants.service.js';
+import { OperatorGuard } from './auth/operator-only.js';
+import {
   EmailVerificationMailer,
   MagicLinkMailer,
   OidcAccounts,
@@ -130,6 +136,9 @@ export class IamModule {
       UserLifecycleRegistry,
       // Work without a user runs as the system principal (seeds, cron jobs, workflows).
       SystemContext,
+      // Tenants (docs/tenancy.md): the operators' routes and the tests make them.
+      TenantsService,
+      OperatorGuard,
       // Global, so AuthenticationModule's PasswordHasher (below) reaches them.
       PasswordHashLimiter,
       PASSWORD_HASHER_PARAMS,
@@ -262,6 +271,8 @@ export class IamModule {
         ReauthenticationController,
         AccessController,
         OrgUnitsController,
+        TenantSwitchController,
+        TenantsController,
       ],
       providers: [
         { provide: IAM_OPTIONS, useValue: options },
@@ -328,6 +339,8 @@ export class IamModule {
         OrgUnitsService,
         ApiClientsService,
         AccessSeeder,
+        TenantsService,
+        OperatorGuard,
         AuditService,
         SystemContext,
         AuditRetentionJob,

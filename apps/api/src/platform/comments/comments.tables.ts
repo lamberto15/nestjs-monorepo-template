@@ -1,5 +1,6 @@
 import { index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 
 /**
  * Comments on records of any feature (the record by its permission subject
@@ -11,6 +12,7 @@ export const comments = pgTable(
   'comments',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The record's permission subject: `Note`. */
     subject: text('subject').notNull(),
     recordId: uuid('record_id').notNull(),
@@ -27,5 +29,6 @@ export const comments = pgTable(
     index('comments_author_idx').on(table.author),
     // An account's deletion finds the comments mentioning it.
     index('comments_mentions_idx').using('gin', table.mentions),
+    ...tenantTable('comments', table),
   ],
-);
+).enableRLS();

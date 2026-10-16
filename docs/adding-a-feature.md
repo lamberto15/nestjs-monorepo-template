@@ -37,14 +37,29 @@ the controller (`notes.*`); singular for what describes one record
    ```ts
    export const invoices = pgTable('invoices', {
      id: uuidPk(),                     // UUIDv7, time-ordered: also the default sort and cursor
+     tenantId: tenantColumn(),         // the tenant (docs/tenancy.md): filled from the scope
      ownerId: text('owner_id').notNull(),
      ...moneyColumns('total'),         // money: total_minor (bigint) + total_currency (ISO 4217), money.md
      unitPrice: numeric('unit_price').notNull(), // unit prices and rates: numeric, read as strings
      dueOn: date('due_on'),            // a calendar date: date(); a moment: at('…')
      custom: jsonb('custom').$type<Record<string, unknown>>().notNull().default({}), // only with custom fields
      ...timestamps(),                  // created_at, updated_at (set on every update)
-   }, (t) => [index('invoices_owner_id_idx').on(t.ownerId)]);
+   }, (t) => [
+     ...tenantTable('invoices', t),    // row-level security policies, unique (tenant_id, id)
+     index('invoices_owner_id_idx').on(t.ownerId),
+   ]).enableRLS();
    ```
+   - **Every feature table is a tenant table** ([tenancy](tenancy.md)):
+     `tenantId: tenantColumn()`, `...tenantTable('<x>', t)` and `.enableRLS()`;
+     the role bootstrap refuses a table with a `tenant_id` and no wall.
+     Inserts leave `tenantId` out (it comes from the request's tenant);
+     queries need nothing: row-level security keeps them in the tenant.
+   - Uniques are per tenant (`uniqueIndex(…).on(t.tenantId, t.number)`), and a
+     key to another tenant table is composite: `tenantReference('<x>_<y>_fk',
+     [t.tenantId, t.yId], [y.tenantId, y.id])`, never a plain `references()`.
+   - Work that leaves the request carries the tenant by type: queue jobs
+     (`withTenant()`, a `TenantWorkerHost` processor), workflow inputs and
+     signals (`tenantId`), cron jobs (`Tenancy.forEachTenant()`).
    - Every entity table: `id: uuidPk()` and `...timestamps()`. Link and log
      tables (rows added and removed, never edited) don't need `updated_at`.
    - Snake_case column names, camelCase properties; moments are `at()`

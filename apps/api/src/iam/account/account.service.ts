@@ -190,12 +190,26 @@ export class AccountService {
     password: string,
     secondFactor: { code?: string; recoveryCode?: string },
     context: { ip: string; userAgent: string | undefined },
+    tenantId?: string,
   ) {
     const user = await this.credentials.verify(email, password, context.ip);
+    // The tenant asked for, when the user is a member (else the same 401 as
+    // a wrong password: nothing about tenants is told before a sign-in);
+    // else the last chosen (docs/tenancy.md).
+    const tenant =
+      tenantId === undefined
+        ? await this.users.defaultTenant(user.id)
+        : (await this.users.isMember(user.id, tenantId))
+          ? tenantId
+          : null;
+    if (tenantId !== undefined && !tenant) {
+      throw new UnauthorizedException(t('auth.invalidCredentials'));
+    }
     const tokens = await this.tokens.issue(user.id, {
       method: 'password',
-      // How and when, for every token of the family (step-up reads auth_time).
-      claims: tokenClaims(['pwd']),
+      // How, when and where, for every token of the family (step-up reads
+      // auth_time, JwtAuth the tenant).
+      claims: tokenClaims(['pwd'], new Date(), tenant),
       secondFactor,
     });
     await this.securityAlerts.signedIn(user, {

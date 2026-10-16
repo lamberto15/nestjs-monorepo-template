@@ -15,6 +15,11 @@ export const iamEnv = z.object({
   ADMIN_EMAIL: withDefault('admin@example.com'),
   /** Unset: a password is generated and logged once. */
   ADMIN_PASSWORD: secret(optional()),
+  /**
+   * The first tenant, made with the first administrator: the deployment's
+   * operator tenant (docs/tenancy.md). Its handle (`slug`) comes from the name.
+   */
+  ADMIN_TENANT_NAME: withDefault('Default'),
   /** Off only for tests over plain HTTP; the cookie is then named "sid". */
   SESSION_COOKIE_SECURE: flag('on'),
 

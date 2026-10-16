@@ -96,13 +96,14 @@ sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
 | Need | Route |
 | --- | --- |
 | A pending deletion, what you agreed to | `GET /v1/account` |
-| A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`) |
+| A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's) |
 | Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels |
 | Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }`, `GET /v1/account/consents` (the latest of each kind; kept as proof) |
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
 placeholder address and name, no password, sign-in methods, sessions,
-tokens, roles or units; its notifications, preferences and settings go;
+tokens, memberships (with their roles and units); its notifications,
+preferences and settings go;
 its audit entries keep the actor key, labelled "Deleted user". Records
 the person created stay, owned by an account that is nobody's. A feature
 holding personal data registers a `PersonalDataSource` (`rows()` for the
@@ -110,6 +111,15 @@ export, `erase()` for what must go with the person; `note.transfer.ts`).
 All of it is audited (`account.deletion-requested`, `-cancelled`,
 `account.deleted`, `account.consented`); `account.deleted` is the job's,
 the system principal `system:account-deletion`. Never while impersonating.
+
+**Across tenants** ([tenancy](tenancy.md)): the account is the person's,
+not a tenant's. Its entries above are account-level (no tenant: no
+tenant's administrator reads them), whichever tenant the session is in.
+The export reads each tenant the person belongs to in that tenant's
+scope, every membership, active or not; the deletion erases their data in
+each of those tenants (`PersonalDataSource.erase` per tenant, one
+transaction each), then anonymizes the account outside any tenant. A run
+cut short leaves the request open, and the next night finishes it.
 
 ## Step-up (recent authentication)
 

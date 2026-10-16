@@ -35,6 +35,12 @@ export const userSchema = z.object({
   emailVerified: z.boolean(),
   locale: z.string().nullable(),
   timezone: z.string().nullable(),
+  tenantId: z
+    .string()
+    .nullable()
+    .describe(
+      'The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet).',
+    ),
   impersonator: z
     .object({ id: z.string(), email: z.string() })
     .optional()

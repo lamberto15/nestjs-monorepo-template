@@ -1,4 +1,6 @@
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { Tenancy } from '../src/core/tenancy/tenancy.service.js';
+import { BYPASS } from '../src/core/tenancy/tenant-scope.js';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -227,11 +229,120 @@ export async function bootApp(
     });
   };
 
+  /** The first mail matching `query`, once the app sent it (mail leaves after the response). */
+  const waitForMail = async (query: SentMailQuery) => {
+    const mailbox = app.get(MailTransport) as InMemoryMailTransport;
+    for (let tries = 0; tries < 100; tries++) {
+      const found = mailbox.find(query);
+      if (found) {
+        return found;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return mailbox.assertSent(query);
+  };
+
+  /** Sets the password of an invited account with its invitation's link. */
+  const acceptInvitation = async (email: string) => {
+    const mail = await waitForMail({ to: email, subject: /invited/ });
+    const password = newPassword();
+    await http()
+      .post('/v1/auth/password/reset')
+      .send({
+        token: mail.link('/reset-password').searchParams.get('token'),
+        password,
+      })
+      .expect(204);
+    return password;
+  };
+
+  /**
+   * Another tenant (docs/tenancy.md), made by the operators (the seeded
+   * administrator, in the operator tenant) with its own administrator,
+   * who accepted the invitation and is signed in (the session acts in it,
+   * their only tenant). Its `user()` and `client()` are that tenant's.
+   */
+  const otherTenant = async (slug = `t-${randomUUID().slice(0, 8)}`) => {
+    const email = `${slug}-admin@example.com`;
+    const created = await admin
+      .post('/v1/tenants')
+      .send({ name: slug, slug, administratorEmail: email })
+      .expect(201);
+    const password = await acceptInvitation(email);
+    const tenantAdmin = await signIn(email, password);
+    const roles = (await tenantAdmin.get('/v1/access/roles').expect(200)).body
+      .items as { id: string; key: string | null }[];
+    return {
+      id: created.body.id as string,
+      slug,
+      email,
+      password,
+      admin: tenantAdmin,
+      /** A user of this tenant with these roles (by key), signed in. */
+      async user(roleKeys: string[]) {
+        const address = `${randomUUID().slice(0, 8)}@example.com`;
+        const userPassword = newPassword();
+        const user = await tenantAdmin
+          .post('/v1/access/users')
+          .send({
+            email: address,
+            name: address,
+            password: userPassword,
+            roleIds: roleKeys.map(
+              (key) => roles.find((role) => role.key === key)!.id,
+            ),
+          })
+          .expect(201);
+        return {
+          id: user.body.id as string,
+          email: address,
+          agent: await signIn(address, userPassword),
+        };
+      },
+      /** A new API client of this tenant: its id and `Authorization` header. */
+      async client(name = `client-${randomUUID().slice(0, 8)}`) {
+        const client = await tenantAdmin
+          .post('/v1/access/clients')
+          .send({ name })
+          .expect(201);
+        return {
+          id: client.body.id as string,
+          key: client.body.key as string,
+          auth: `Bearer ${client.body.key}`,
+        };
+      },
+    };
+  };
+
+  /** The seeded tenant: the operators', the administrator's (docs/tenancy.md). */
+  const tenantId = (await admin.get('/v1/auth/me').expect(200)).body.user
+    .tenantId as string;
+
+  /**
+   * Runs `work` in a tenant's scope (the seeded one by default), as a
+   * request of that tenant would: what a test's own queries on tenant
+   * tables need (`database.db` is the app's pool, row-level security and
+   * all: no tenant, no rows).
+   */
+  const inTenant = <T>(work: () => Promise<T>, tenant = tenantId) =>
+    app.get(Tenancy).run(tenant, work);
+
+  /** Runs `work` across every tenant (the bypass the maintenance jobs use): fixtures that age rows. */
+  const acrossTenants = <T>(work: () => Promise<T>) =>
+    app.get(Tenancy).run(BYPASS, work);
+
   return {
     app,
     clock,
     http,
     signIn,
+    acceptInvitation,
+    otherTenant,
+    tenantId,
+    inTenant,
+    acrossTenants,
+    /** This app's database: its URL as the app role, and as the owner (raw connections). */
+    database: { url: database.url, ownerUrl: database.ownerUrl },
     /** The seeded administrator, signed in. */
     admin: () => admin,
     workflows: app.get(WorkflowClient),
@@ -308,18 +419,7 @@ export async function bootApp(
     /** The mail the app sent (MAIL_TRANSPORT=memory). */
     mailbox: app.get(MailTransport) as InMemoryMailTransport,
 
-    /** The first mail matching `query`, once the app sent it (mail leaves after the response). */
-    async waitForMail(query: SentMailQuery) {
-      const mailbox = app.get(MailTransport) as InMemoryMailTransport;
-      for (let tries = 0; tries < 100; tries++) {
-        const found = mailbox.find(query);
-        if (found) {
-          return found;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      return mailbox.assertSent(query);
-    },
+    waitForMail,
 
     close: async () => {
       await app.close();

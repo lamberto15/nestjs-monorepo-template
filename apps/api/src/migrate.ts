@@ -33,7 +33,6 @@ if (problems.length > 0 || !owner.value || !app.value) {
   process.exit(1);
 }
 
-await migrateAll(
-  { ownerUrl: owner.value, appUrl: app.value },
-  (line) => console.log(line),
+await migrateAll({ ownerUrl: owner.value, appUrl: app.value }, (line) =>
+  console.log(line),
 );

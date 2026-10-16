@@ -54,6 +54,8 @@ import {
   userSchema,
 } from '../account/account.schemas.js';
 import { ImpersonationService } from '../account/impersonation.service.js';
+import { notWhileImpersonating } from '../account/account.schemas.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { Captcha } from '../captcha/captcha.guard.js';
 import { CaptchaService } from '../captcha/captcha.service.js';
 import { oidcProviders } from '../account/oidc.providers.js';
@@ -104,6 +106,10 @@ const profileSchema = z.object({
 
 const meSchema = z.object({
   user: userSchema,
+  tenant: z
+    .object({ id: z.string(), slug: z.string(), name: z.string() })
+    .nullable()
+    .describe('The tenant this session or token acts in; null: none.'),
   mfaEnabled: z.boolean(),
   authentication: z
     .object({
@@ -175,6 +181,7 @@ export class AuthController {
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
     private readonly reauthentication: ReauthenticationService,
     private readonly captcha: CaptchaService,
+    private readonly tenancy: Tenancy,
   ) {}
 
   @Public()
@@ -317,8 +324,14 @@ export class AuthController {
   ) {
     const { authentication, recentUntil } =
       this.reauthentication.status(session);
+    const tenant = user.tenantId
+      ? await this.tenancy.find(user.tenantId)
+      : undefined;
     return {
       user,
+      tenant: tenant
+        ? { id: tenant.id, slug: tenant.slug, name: tenant.name }
+        : null,
       mfaEnabled: await this.mfa.isEnrolled(user.id),
       authentication: authentication && {
         ...authentication,
@@ -363,6 +376,9 @@ export class AuthController {
     @CurrentUser() user: UserPrincipal,
     @Body({ schema: profileSchema }) body: z.infer<typeof profileSchema>,
   ) {
+    // The account is the person's, in every tenant: an administrator acting
+    // as them in one tenant doesn't change it (docs/tenancy.md).
+    notWhileImpersonating(user);
     const changes = {
       ...(body.name !== undefined && { name: body.name }),
       ...(body.timezone !== undefined && { timezone: body.timezone }),
@@ -383,10 +399,7 @@ export class AuthController {
       updatedAt: _u,
       ...principal
     } = updated!;
-    return {
-      ...principal,
-      ...(user.impersonator && { impersonator: user.impersonator }),
-    };
+    return { ...principal, tenantId: user.tenantId };
   }
 
   /** Back to the administrator's own session, from an impersonation. */

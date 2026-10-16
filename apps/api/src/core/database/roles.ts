@@ -1,6 +1,7 @@
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
 import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
+import { GLOBAL_TABLES_WITH_TENANT } from '../tenancy/global-tables.js';
 import { Client, type ClientBase, escapeIdentifier, escapeLiteral } from 'pg';
 import * as schema from '../../schema.js';
 
@@ -75,7 +76,9 @@ export async function ensureAppRole(
     for (const schema of schemas) {
       await grantSchema(client, owner.role, app.role, schema);
     }
+    await forceRowLevelSecurity(client, log);
     await assertFit(client, app.role, schemas);
+    await assertTenantWall(client);
     await client.query('commit');
   } catch (error) {
     await client.query('rollback').catch(() => undefined);
@@ -447,4 +450,86 @@ export function scramSha256Verifier(password: string, salt = randomBytes(16)) {
   const storedKey = createHash('sha256').update(clientKey).digest();
   const serverKey = createHmac('sha256', salted).update('Server Key').digest();
   return `SCRAM-SHA-256$${iterations}:${salt.toString('base64')}$${storedKey.toString('base64')}:${serverKey.toString('base64')}`;
+}
+
+/** The tables of the schema that declare row-level security (`.enableRLS()`): the tenant tables. */
+function rowSecuredTables() {
+  return Object.values(schema)
+    .filter((value) => is(value, PgTable))
+    .map((table) => getTableConfig(table))
+    .filter((config) => config.enableRLS)
+    .map((config) => ({
+      schema: config.schema ?? 'public',
+      name: config.name,
+    }));
+}
+
+/**
+ * `FORCE ROW LEVEL SECURITY` on every tenant table, so the policies bind
+ * the tables' owner too (a migration, a fixture run as the owner): what
+ * drizzle-kit can't emit (it writes `ENABLE`, from `.enableRLS()` and the
+ * policies), done here as code, idempotently: only a table not forced yet
+ * is altered (an ALTER TABLE takes its strongest lock).
+ */
+async function forceRowLevelSecurity(
+  client: ClientBase,
+  log: (line: string) => void,
+) {
+  for (const table of rowSecuredTables()) {
+    const { rows } = await client.query<{ forced: boolean }>(
+      `select c.relforcerowsecurity as forced
+       from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = $1 and c.relname = $2`,
+      [table.schema, table.name],
+    );
+    if (rows[0] && !rows[0].forced) {
+      await client.query(
+        `alter table ${escapeIdentifier(table.schema)}.${escapeIdentifier(table.name)} force row level security`,
+      );
+      log(`Row-level security forced on ${table.name}.`);
+    }
+  }
+}
+
+/**
+ * The tenant wall holds before anything commits: every table with a
+ * `tenant_id` column has row-level security enabled and forced, and its
+ * four policies (docs/tenancy.md), except the few global tables that only
+ * record which tenant a row belongs to (GLOBAL_TABLES_WITH_TENANT:
+ * memberships, API keys). A table someone added without `tenantTable()`
+ * and `.enableRLS()` stops the deploy here.
+ */
+async function assertTenantWall(client: ClientBase) {
+  const { rows } = await client.query<{
+    name: string;
+    enabled: boolean;
+    forced: boolean;
+    policies: string;
+  }>(
+    `select c.relname as name, c.relrowsecurity as enabled, c.relforcerowsecurity as forced,
+            (select count(*) from pg_policy p where p.polrelid = c.oid)::text as policies
+     from pg_class c
+     join pg_namespace n on n.oid = c.relnamespace
+     join pg_attribute a on a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped
+     where n.nspname = 'public' and c.relkind in ('r', 'p')
+     order by 1`,
+  );
+  const problems = rows
+    .filter((row) => !GLOBAL_TABLES_WITH_TENANT.includes(row.name))
+    .filter((row) => !row.enabled || !row.forced || Number(row.policies) < 4)
+    .map(
+      (row) =>
+        `${row.name} (${[
+          !row.enabled && 'row-level security off',
+          !row.forced && 'not forced',
+          Number(row.policies) < 4 && `${row.policies} policies`,
+        ]
+          .filter(Boolean)
+          .join(', ')})`,
+    );
+  if (problems.length > 0) {
+    throw new Error(
+      `Tenant tables without their wall: ${problems.join('; ')}. Declare them with tenantTable() and .enableRLS() (docs/tenancy.md).`,
+    );
+  }
 }

@@ -217,7 +217,11 @@ describe('settings and feature flags (e2e)', () => {
       .put('/v1/settings/notes.richText')
       .send({ rollout: 50 })
       .expect(200);
-    const bucket = rolloutBucket('notes.richText', `user:${editor.id}`);
+    const bucket = rolloutBucket(
+      'notes.richText',
+      node.tenantId,
+      `user:${editor.id}`,
+    );
     expect((await mine()).body).toMatchObject({
       value: bucket < 50,
       source: 'rollout',
@@ -270,7 +274,9 @@ describe('settings and feature flags (e2e)', () => {
       .set('Authorization', client.auth)
       .expect(200);
     expect(settingOf(forClient.body, 'notes.richText')).toMatchObject({
-      value: rolloutBucket('notes.richText', `client:${client.id}`) < 50,
+      value:
+        rolloutBucket('notes.richText', node.tenantId, `client:${client.id}`) <
+        50,
       source: 'rollout',
     });
   });

@@ -9,6 +9,13 @@ export interface UserPrincipal {
   locale: string | null;
   /** Their IANA time zone, or null (APP_TIMEZONE). */
   timezone: string | null;
+  /**
+   * The tenant this user acts in (docs/tenancy.md): the session's (or the
+   * token's) tenant, while the membership in it is active; null when there
+   * is none (no membership, or the one the session was in ended). Every
+   * query of the request runs in it.
+   */
+  tenantId: string | null;
   /** Set while an administrator acts as this user (POST /access/users/{id}/impersonate). */
   impersonator?: { id: string; email: string };
 }
@@ -20,6 +27,8 @@ export interface ClientPrincipal {
   name: string;
   /** Its requests a UTC day (platform/usage), read with the key on every request; null: none. */
   dailyQuota?: number | null;
+  /** The one tenant the client belongs to and acts in. */
+  tenantId: string;
 }
 
 /** Marks a system principal made in code (`systemPrincipal()`): data (JSON, a token, a job payload) can't carry it. */

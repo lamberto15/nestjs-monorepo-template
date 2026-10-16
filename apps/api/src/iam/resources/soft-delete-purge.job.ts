@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { inArray, lt } from 'drizzle-orm';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../access/system-context.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { IamEnv } from '../iam.env.js';
@@ -28,8 +29,9 @@ const BATCH = 1000;
  * goes with them (cascade, set null) as for any delete; the platform's
  * data about them (comments, tags, watchers, revisions: RecordPurgeRegistry)
  * goes in the same transaction, just before. It runs as the system
- * principal (`system:soft-delete-purge`): each batch's audit entry
- * (`records.purged`, the ids) commits with it.
+ * principal (`system:soft-delete-purge`), once per tenant in that tenant's
+ * scope (`Tenancy.forEachTenant()`, docs/tenancy.md): each batch's audit
+ * entry (`records.purged`, the ids) commits with it, in that tenant's log.
  */
 @Injectable()
 export class SoftDeletePurgeJob {
@@ -47,6 +49,7 @@ export class SoftDeletePurgeJob {
     private readonly purges: RecordPurgeRegistry,
     private readonly system: SystemContext,
     private readonly audit: AuditService,
+    private readonly tenancy: Tenancy,
   ) {}
 
   @Cron('45 3 * * *', {
@@ -58,13 +61,27 @@ export class SoftDeletePurgeJob {
   run() {
     return this.system.run(
       SOFT_DELETE_PURGE_JOB,
-      (system) => this.purge(system),
+      async (system) => {
+        const purged: Record<string, number> = {};
+        const perTenant = await this.tenancy.forEachTenant(
+          SOFT_DELETE_PURGE_JOB.key,
+          (tenant) => this.purge(system, tenant.id),
+        );
+        for (const counts of perTenant.values()) {
+          for (const [subject, count] of Object.entries(counts)) {
+            purged[subject] = (purged[subject] ?? 0) + count;
+          }
+        }
+        this.logger.log('Recycle bins emptied', { purged });
+        return purged;
+      },
       // Short transactions, one per batch.
       { transaction: false },
     );
   }
 
-  private async purge(system: SystemPrincipal) {
+  /** The current tenant's recycle bins. */
+  private async purge(system: SystemPrincipal, tenantId: string) {
     const purged: Record<string, number> = {};
     for (const resource of this.options.resources ?? []) {
       if (!resource.softDelete) {
@@ -108,7 +125,9 @@ export class SoftDeletePurgeJob {
       }
       purged[resource.subject] = total;
     }
-    this.logger.log('Recycle bins emptied', { purged });
+    if (Object.values(purged).some((count) => count > 0)) {
+      this.logger.log('Recycle bins emptied', { tenant: tenantId, purged });
+    }
     return purged;
   }
 }

@@ -39,7 +39,7 @@ export const settingOverrideSchema = z.object({
   scopeId: z
     .string()
     .describe(
-      "The org unit's id, the principal's key (`user:<id>`), or '' for global.",
+      "The org unit's id, the principal's key (`user:<id>`), or '' for the tenant.",
     ),
   value: z.unknown(),
   rollout: z.int().min(0).max(100).nullable(),
@@ -49,7 +49,7 @@ export const settingOverrideSchema = z.object({
 
 export const setSettingSchema = z
   .object({
-    scope: z.enum(SETTING_SCOPES).default('global'),
+    scope: z.enum(SETTING_SCOPES).default('tenant'),
     scopeId: z
       .string()
       .max(100)
@@ -70,7 +70,7 @@ export const setSettingSchema = z
       .nullable()
       .optional()
       .describe(
-        'Flags, global scope: the percentage of principals the flag is on for.',
+        "Flags, tenant scope: the percentage of the tenant's principals the flag is on for.",
       ),
   })
   .strict();
@@ -78,7 +78,7 @@ export type SetSettingDto = z.infer<typeof setSettingSchema>;
 
 export const unsetSettingQuerySchema = z
   .object({
-    scope: z.enum(SETTING_SCOPES).default('global'),
+    scope: z.enum(SETTING_SCOPES).default('tenant'),
     scopeId: z.string().max(100).optional(),
   })
   .strict();

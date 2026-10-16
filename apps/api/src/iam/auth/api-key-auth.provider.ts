@@ -3,6 +3,8 @@ import { ApiKeyProvider, AuthenticationRegistry } from '@nestjs/authentication';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import type { Database } from '../../core/database/drizzle.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
+import { tenants } from '../../core/tenancy/tenancy.tables.js';
 import { apiClients, apiKeys } from '../iam.tables.js';
 import { API_KEY_PREFIX } from './api-keys.js';
 import type { Principal } from './principal.js';
@@ -22,33 +24,47 @@ export class ApiKeyAuth extends ApiKeyProvider<Principal> {
 
   constructor(
     @InjectDrizzle() private readonly db: Database,
+    private readonly tenancy: Tenancy,
     registry: AuthenticationRegistry,
   ) {
     super({ prefix: API_KEY_PREFIX, realm: 'api' });
     registry.registerProvider(this, { order: 1 });
   }
 
+  // The key (a global table) names its tenant; the client, a tenant table,
+  // is read in that tenant's scope (docs/tenancy.md). A key of an inactive
+  // tenant stops.
   async findKey(id: string) {
-    const [found] = await this.db
-      .select({ key: apiKeys, client: apiClients })
+    const [key] = await this.db
+      .select({ key: apiKeys, tenantActive: tenants.active })
       .from(apiKeys)
-      .innerJoin(apiClients, eq(apiClients.id, apiKeys.clientId))
+      .innerJoin(tenants, eq(tenants.id, apiKeys.tenantId))
       .where(eq(apiKeys.keyId, id));
     const now = new Date();
     if (
-      !found?.client.active ||
-      found.key.revokedAt ||
-      (found.key.expiresAt && found.key.expiresAt <= now)
+      !key?.tenantActive ||
+      key.key.revokedAt ||
+      (key.key.expiresAt && key.key.expiresAt <= now)
     ) {
       return null;
     }
+    const [client] = await this.tenancy.run(key.key.tenantId, () =>
+      this.db
+        .select()
+        .from(apiClients)
+        .where(eq(apiClients.id, key.key.clientId)),
+    );
+    if (!client?.active) {
+      return null;
+    }
     return {
-      hash: found.key.keyHash,
+      hash: key.key.keyHash,
       user: {
         kind: 'client' as const,
-        id: found.client.id,
-        name: found.client.name,
-        dailyQuota: found.client.dailyQuota,
+        id: client.id,
+        name: client.name,
+        dailyQuota: client.dailyQuota,
+        tenantId: client.tenantId,
       },
     };
   }

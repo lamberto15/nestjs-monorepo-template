@@ -7,6 +7,7 @@ import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { REPORT_RUNNER_JOB } from '../platform.jobs.js';
 import { isRefusal, ReportsService } from './reports.service.js';
@@ -22,8 +23,10 @@ const BATCH = 500;
  * computed from this run's moment, so an hour missed (downtime) runs once,
  * not twice. The runner is the system principal (`system:report-runner`):
  * the actor of what it does itself (skipping, deactivating); each export
- * still runs as, and is audited as, its owner. `run(now)` lets a test choose the moment; it returns how many
- * started.
+ * still runs as, and is audited as, its owner. One tenant at a time
+ * (docs/tenancy.md, `Tenancy.forEachTenant()`, which logs each): a report,
+ * its owner (a member of that tenant) and its export are that tenant's.
+ * `run(now)` lets a test choose the moment; it returns how many started.
  */
 @Injectable()
 export class ReportRunnerJob {
@@ -38,6 +41,7 @@ export class ReportRunnerJob {
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly reports: ReportsService,
     private readonly system: SystemContext,
+    private readonly tenancy: Tenancy,
   ) {}
 
   @Cron('10 * * * *', {
@@ -46,7 +50,16 @@ export class ReportRunnerJob {
   })
   @OnOneInstance({ key: 'platform:report-runner' })
   @WithoutOverlapping()
-  run(now = new Date()) {
+  async run(now = new Date()) {
+    const started = await this.tenancy.forEachTenant(
+      REPORT_RUNNER_JOB.key,
+      () => this.runTenant(now),
+    );
+    return [...started.values()].reduce((sum, count) => sum + count, 0);
+  }
+
+  /** The due reports of the current tenant. */
+  private runTenant(now: Date) {
     return this.system.run(
       REPORT_RUNNER_JOB,
       async (system) => {
@@ -97,7 +110,11 @@ export class ReportRunnerJob {
             }
           }
         }
-        this.logger.log('Reports started', { due: due.length, started });
+        this.logger.log('Reports started', {
+          tenant: this.tenancy.tenantId(),
+          due: due.length,
+          started,
+        });
         return started;
       },
       { transaction: false },

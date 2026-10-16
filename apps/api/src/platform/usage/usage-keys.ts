@@ -1,3 +1,5 @@
+import { tenantKey } from '../../core/tenancy/tenant-scope.js';
+
 /** The hash field that holds a day's sum, next to one field per route. */
 export const TOTAL_FIELD = '_total';
 
@@ -30,14 +32,27 @@ export const secondsToUtcMidnight = (now: Date = new Date()) => {
   return Math.max(1, Math.ceil((midnight - now.getTime()) / 1000));
 };
 
-/** The live counters of a client's day (without REDIS_PREFIX, which ioredis adds). */
-export const usageKey = (clientId: string, day: string) =>
-  `usage:${clientId}:${day}`;
+/**
+ * The live counters of a client's day (without REDIS_PREFIX, which ioredis
+ * adds), under its tenant (`tenant:<id>:usage:<client>:<day>`,
+ * docs/tenancy.md): the roll-up knows each counter's tenant, and a
+ * tenant's counters are one prefix.
+ */
+export const usageKey = (tenantId: string, clientId: string, day: string) =>
+  tenantKey(`usage:${clientId}:${day}`, tenantId);
 
-/** A usage key's client and day, or undefined for anything else. */
+/** The SCAN pattern of the usage keys of every tenant, of one day or all. */
+export const usagePattern = (day?: string) => `tenant:*:usage:*:${day ?? '*'}`;
+
+/** A usage key's tenant, client and day, or undefined for anything else. */
 export function parseUsageKey(key: string) {
-  const match = /^usage:([0-9a-f-]{36}):(\d{4}-\d{2}-\d{2})$/.exec(key);
-  return match ? { clientId: match[1], day: match[2] } : undefined;
+  const match =
+    /^tenant:([0-9a-f-]{36}):usage:([0-9a-f-]{36}):(\d{4}-\d{2}-\d{2})$/.exec(
+      key,
+    );
+  return match
+    ? { tenantId: match[1], clientId: match[2], day: match[3] }
+    : undefined;
 }
 
 /** A request's route as counted (`GET /v1/notes/{id}`): core's, shared with the metrics. */

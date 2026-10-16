@@ -1,42 +1,64 @@
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   jsonb,
   pgTable,
   primaryKey,
   text,
+  uniqueIndex,
   uuid,
-  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../core/database/columns.js';
 import { closureTable } from '../core/database/tree.js';
+import { tenants } from '../core/tenancy/tenancy.tables.js';
+import {
+  optionalTenantColumn,
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../core/tenancy/tenant-scope.js';
 
 // Re-exported: features imported uuidPk from here before it moved to core.
 export { uuidPk };
 
-/** Systems that call the API with a key, managed through the access API. */
-export const apiClients = pgTable('api_clients', {
-  id: uuidPk(),
-  name: text('name').notNull().unique(),
-  active: boolean('active').notNull().default(true),
-  /** Requests a UTC day (platform/usage); past it, 429 quota_exceeded. Null: no quota. */
-  dailyQuota: integer('daily_quota'),
-  ...timestamps(),
-});
+/**
+ * Systems that call the API with a key, managed through the access API.
+ * Each belongs to one tenant, and acts in it alone (docs/tenancy.md).
+ */
+export const apiClients = pgTable(
+  'api_clients',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    name: text('name').notNull(),
+    active: boolean('active').notNull().default(true),
+    /** Requests a UTC day (platform/usage); past it, 429 quota_exceeded. Null: no quota. */
+    dailyQuota: integer('daily_quota'),
+    ...timestamps(),
+  },
+  (table) => [
+    ...tenantTable('api_clients', table),
+    uniqueIndex('api_clients_tenant_name_idx').on(table.tenantId, table.name),
+  ],
+).enableRLS();
 
 /**
  * An API client's keys: several at once during a rotation, each with an
  * optional expiry. A key is `<prefix>_<keyId>_<secret>`; only its SHA-256 is
- * stored.
+ * stored. Global (core/tenancy/global-tables.ts): a key is found by its id
+ * before its tenant is known; `tenant_id` says whose it is, and its client
+ * (a tenant table) is loaded in that tenant.
  */
 export const apiKeys = pgTable(
   'api_keys',
   {
     id: uuidPk(),
-    clientId: uuid('client_id')
+    tenantId: uuid('tenant_id')
       .notNull()
-      .references(() => apiClients.id, { onDelete: 'cascade' }),
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').notNull(),
     /** The key's public id: the middle of `<prefix>_<id>_<secret>`. */
     keyId: text('key_id').notNull().unique(),
     /** The SHA-256 of the whole key, in base64url, as ApiKeyProvider compares it. */
@@ -48,10 +70,23 @@ export const apiKeys = pgTable(
     /** Updated at most once a minute. */
     lastUsedAt: at('last_used_at'),
   },
-  (table) => [index('api_keys_client_id_idx').on(table.clientId)],
+  (table) => [
+    index('api_keys_client_id_idx').on(table.clientId),
+    tenantReference(
+      'api_keys_client_fk',
+      [table.tenantId, table.clientId],
+      [apiClients.tenantId, apiClients.id],
+    ),
+  ],
 );
 
-/** People who sign in: with a password, a magic link, or an OAuth provider. */
+/**
+ * People who sign in: with a password, a magic link, or an OAuth provider.
+ * Global (docs/tenancy.md): one account per address, whatever tenants it
+ * belongs to (`memberships`). Only its owner changes it (their profile,
+ * password, sign-in methods); a tenant's administrators manage the
+ * membership, never the account.
+ */
 export const users = pgTable('users', {
   id: uuidPk(),
   email: text('email').notNull().unique(),
@@ -71,6 +106,36 @@ export const users = pgTable('users', {
   active: boolean('active').notNull().default(true),
   ...timestamps(),
 });
+
+/**
+ * Which tenants a user belongs to, and whether the membership is active:
+ * what lets the user act in a tenant at all. Global (core/tenancy/global-tables.ts):
+ * a sign-in picks the session's tenant from them, `GET /v1/auth/tenants`
+ * lists them, the switch checks one; a tenant's administrators read and
+ * change only their own tenant's (`tenant_id` filtered in code). What a
+ * membership may do is in tenant tables: its roles (`user_roles`) and org
+ * units (`user_org_units`), whose keys reference it.
+ */
+export const memberships = pgTable(
+  'memberships',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Off: the user can't act in this tenant (a session in it has no tenant until they switch). */
+    active: boolean('active').notNull().default(true),
+    /** When the user last chose this tenant: a new sign-in starts in the latest. */
+    selectedAt: at('selected_at'),
+    ...timestamps(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.tenantId, table.userId] }),
+    index('memberships_user_id_idx').on(table.userId),
+  ],
+);
 
 /**
  * Accounts at OAuth / OpenID Connect providers, linked to a user: by
@@ -97,7 +162,11 @@ export const userIdentities = pgTable(
 // @nestjs/authentication (the tables of the NestJS docs). Tokens, links and
 // sessions are stored by their SHA-256; TOTP secrets arrive encrypted.
 
-/** Sessions, by the SHA-256 of their cookie token. */
+/**
+ * Sessions, by the SHA-256 of their cookie token. Global: a session is the
+ * person's; its tenant is `metadata.tenantId` (set at sign-in, changed only
+ * by re-issuing the session: POST /v1/auth/tenant).
+ */
 export const sessions = pgTable(
   'sessions',
   {
@@ -115,16 +184,25 @@ export const sessions = pgTable(
   ],
 );
 
-/** Roles managed through the access API. A system role can't be changed or deleted. */
-export const roles = pgTable('roles', {
-  id: uuidPk(),
-  /** The code's name for a built-in or seeded role (`administrator`, `editor`); null for roles made in the API. */
-  key: text('key').unique(),
-  name: text('name').notNull().unique(),
-  description: text('description').notNull().default(''),
-  system: boolean('system').notNull().default(false),
-  ...timestamps(),
-});
+/** Roles managed through the access API, per tenant. A system role can't be changed or deleted. */
+export const roles = pgTable(
+  'roles',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    /** The code's name for a built-in or seeded role (`administrator`, `editor`); null for roles made in the API. */
+    key: text('key'),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    system: boolean('system').notNull().default(false),
+    ...timestamps(),
+  },
+  (table) => [
+    ...tenantTable('roles', table),
+    uniqueIndex('roles_tenant_key_idx').on(table.tenantId, table.key),
+    uniqueIndex('roles_tenant_name_idx').on(table.tenantId, table.name),
+  ],
+).enableRLS();
 
 /** One condition of a permission: a template of the permission catalog, with its parameters. */
 export interface PermissionCondition {
@@ -137,9 +215,8 @@ export const rolePermissions = pgTable(
   'role_permissions',
   {
     id: uuidPk(),
-    roleId: uuid('role_id')
-      .notNull()
-      .references(() => roles.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    roleId: uuid('role_id').notNull(),
     subject: text('subject').notNull(),
     action: text('action').notNull(),
     conditions: jsonb('conditions')
@@ -149,44 +226,83 @@ export const rolePermissions = pgTable(
     /** Only these declared fields of the subject; null: all of them. */
     fields: jsonb('fields').$type<string[]>(),
   },
-  (table) => [index('role_permissions_role_id_idx').on(table.roleId)],
-);
+  (table) => [
+    ...tenantTable('role_permissions', table),
+    index('role_permissions_role_id_idx').on(table.roleId),
+    tenantReference(
+      'role_permissions_role_fk',
+      [table.tenantId, table.roleId],
+      [roles.tenantId, roles.id],
+    ),
+  ],
+).enableRLS();
 
-/** A user's roles. A grant with `expiresAt` stops counting then (temporary access). */
+/**
+ * A membership's roles: a user's roles in a tenant. A grant with
+ * `expiresAt` stops counting then (temporary access).
+ */
 export const userRoles = pgTable(
   'user_roles',
   {
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    roleId: uuid('role_id')
-      .notNull()
-      .references(() => roles.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    userId: uuid('user_id').notNull(),
+    roleId: uuid('role_id').notNull(),
     expiresAt: at('expires_at'),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.roleId] })],
-);
+  (table) => [
+    primaryKey({ columns: [table.tenantId, table.userId, table.roleId] }),
+    index('user_roles_role_id_idx').on(table.roleId),
+    ...tenantTable('user_roles', table),
+    foreignKey({
+      name: 'user_roles_membership_fk',
+      columns: [table.tenantId, table.userId],
+      foreignColumns: [memberships.tenantId, memberships.userId],
+    }).onDelete('cascade'),
+    tenantReference(
+      'user_roles_role_fk',
+      [table.tenantId, table.roleId],
+      [roles.tenantId, roles.id],
+    ),
+  ],
+).enableRLS();
 
 /** An API client's roles, on top of the permissions every client has; they can expire too. */
 export const apiClientRoles = pgTable(
   'api_client_roles',
   {
-    clientId: uuid('client_id')
-      .notNull()
-      .references(() => apiClients.id, { onDelete: 'cascade' }),
-    roleId: uuid('role_id')
-      .notNull()
-      .references(() => roles.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    clientId: uuid('client_id').notNull(),
+    roleId: uuid('role_id').notNull(),
     expiresAt: at('expires_at'),
   },
-  (table) => [primaryKey({ columns: [table.clientId, table.roleId] })],
-);
+  (table) => [
+    primaryKey({ columns: [table.clientId, table.roleId] }),
+    index('api_client_roles_role_id_idx').on(table.roleId),
+    ...tenantTable('api_client_roles', table),
+    tenantReference(
+      'api_client_roles_client_fk',
+      [table.tenantId, table.clientId],
+      [apiClients.tenantId, apiClients.id],
+    ),
+    tenantReference(
+      'api_client_roles_role_fk',
+      [table.tenantId, table.roleId],
+      [roles.tenantId, roles.id],
+    ),
+  ],
+).enableRLS();
 
-/** Who did what: sign-ins, access changes and sensitive actions. Append-only. */
+/**
+ * Who did what: sign-ins, access changes and sensitive actions. Append-only.
+ * Per tenant (the tenant of the work that recorded it); an account's own
+ * entries made outside any tenant (sign-ins, sign-ups, password resets)
+ * have none, and only work outside a tenant reads them (docs/tenancy.md).
+ */
 export const auditLog = pgTable(
   'audit_log',
   {
     id: uuidPk(),
+    tenantId: optionalTenantColumn(),
     at: at('at').notNull().defaultNow(),
     /** `user:<id>`, `client:<id>`, or `anonymous`. */
     actor: text('actor').notNull(),
@@ -199,14 +315,16 @@ export const auditLog = pgTable(
   },
   (table) => [
     index('audit_log_at_idx').on(table.at),
+    index('audit_log_tenant_id_id_idx').on(table.tenantId, table.id),
     // One actor's entries of one kind, recent first: a sign-in looks up the account's known devices.
     index('audit_log_actor_action_at_idx').on(
       table.actor,
       table.action,
       table.at,
     ),
+    ...tenantTable('audit_log', table, { nullRows: 'outside' }),
   ],
-);
+).enableRLS();
 
 /** Refresh tokens of the token clients (mobile apps, CLIs), by SHA-256. */
 export const refreshTokens = pgTable(
@@ -315,40 +433,56 @@ export const emailTokens = pgTable(
 );
 
 /**
- * The organization: units in a tree (company, department, team). Users
- * belong to units; records can carry the unit that owns them, and the
- * `inMyUnits` condition grants what is in a user's units and below.
+ * The organization of a tenant: units in a tree (company, department,
+ * team). Users belong to units; records can carry the unit that owns them,
+ * and the `inMyUnits` condition grants what is in a user's units and below.
  */
 export const orgUnits = pgTable(
   'org_units',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     name: text('name').notNull(),
     /** Null: a top-level unit. The closure table (org_unit_tree) holds every path. */
-    parentId: uuid('parent_id').references((): AnyPgColumn => orgUnits.id, {
-      onDelete: 'restrict',
-    }),
+    parentId: uuid('parent_id'),
     ...timestamps(),
   },
-  (table) => [index('org_units_parent_id_idx').on(table.parentId)],
-);
+  (table) => [
+    index('org_units_parent_id_idx').on(table.parentId),
+    ...tenantTable('org_units', table),
+    tenantReference(
+      'org_units_parent_fk',
+      [table.tenantId, table.parentId],
+      [table.tenantId, table.id],
+      'restrict',
+    ),
+  ],
+).enableRLS();
 
 /** Every (ancestor, descendant) pair of org units: "under X" at any depth in one lookup. */
-export const orgUnitTree = closureTable('org_unit_tree', () => orgUnits.id);
+export const orgUnitTree = closureTable('org_unit_tree', () => orgUnits);
 
-/** Which units a user belongs to. */
+/** Which units a member belongs to. */
 export const userOrgUnits = pgTable(
   'user_org_units',
   {
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    orgUnitId: uuid('org_unit_id')
-      .notNull()
-      .references(() => orgUnits.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    userId: uuid('user_id').notNull(),
+    orgUnitId: uuid('org_unit_id').notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.orgUnitId] }),
     index('user_org_units_org_unit_id_idx').on(table.orgUnitId),
+    ...tenantTable('user_org_units', table),
+    foreignKey({
+      name: 'user_org_units_membership_fk',
+      columns: [table.tenantId, table.userId],
+      foreignColumns: [memberships.tenantId, memberships.userId],
+    }).onDelete('cascade'),
+    tenantReference(
+      'user_org_units_org_unit_fk',
+      [table.tenantId, table.orgUnitId],
+      [orgUnits.tenantId, orgUnits.id],
+    ),
   ],
-);
+).enableRLS();

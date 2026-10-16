@@ -1,3 +1,4 @@
+import { tenantKey } from '../../core/tenancy/tenant-scope.js';
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -436,22 +437,38 @@ export class ReportsService implements PersonalDataSource {
   }
 
   /**
-   * The report's owner as a principal, as they are now; null when they
-   * were deactivated (or deleted) since.
+   * The report's owner as a principal acting in the report's tenant, as
+   * they are now; null when they were deactivated (or deleted) since, or
+   * are no longer a member of that tenant (docs/tenancy.md). Called in the
+   * report's tenant (the runner walks them).
    */
   async owner(report: ReportScheduleRow): Promise<RequestPrincipal | null> {
     const [kind, id] = report.owner.split(':') as [string, string];
     if (kind === 'user') {
-      return this.users.findActive(id);
+      const user = await this.users.inTenant(id, report.tenantId);
+      return user?.tenantId === report.tenantId ? user : null;
     }
     if (kind !== 'client') {
       return null; // never the system's: reports are made over HTTP
     }
     const [client] = await this.db
-      .select({ name: apiClients.name, active: apiClients.active })
+      .select({
+        name: apiClients.name,
+        active: apiClients.active,
+        dailyQuota: apiClients.dailyQuota,
+        tenantId: apiClients.tenantId,
+      })
       .from(apiClients)
       .where(eq(apiClients.id, id));
-    return client?.active ? { kind: 'client', id, name: client.name } : null;
+    return client?.active && client.tenantId === report.tenantId
+      ? {
+          kind: 'client',
+          id,
+          name: client.name,
+          dailyQuota: client.dailyQuota,
+          tenantId: client.tenantId,
+        }
+      : null;
   }
 
   /** Whether the owner may still run the report's export. */
@@ -495,7 +512,7 @@ export class ReportsService implements PersonalDataSource {
     // One count at a time per owner (in the caller's transaction): two
     // creates at once can't both take the last place.
     await this.db.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`reports:${principalKey(principal)}`}))`,
+      sql`select pg_advisory_xact_lock(hashtext(${tenantKey(`reports:${principalKey(principal)}`)}))`,
     );
     const [row] = await this.db
       .select({ active: count() })

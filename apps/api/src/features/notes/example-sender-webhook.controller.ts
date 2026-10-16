@@ -24,7 +24,9 @@ export const EXAMPLE_SENDER: IncomingWebhookSender = {
 /** What the example sender POSTs (Standard Webhooks: the event id is the `webhook-id` header). */
 export const exampleSenderEventSchema = z.object({
   type: z.literal('note.publish-requested'),
-  data: z.object({ noteId: z.string() }),
+  // The tenant the note is in: the route is public, so the event names it
+  // (docs/tenancy.md); a note of another tenant is a 404.
+  data: z.object({ noteId: z.string(), tenantId: z.uuid() }),
 });
 type ExampleSenderEvent = z.infer<typeof exampleSenderEventSchema>;
 

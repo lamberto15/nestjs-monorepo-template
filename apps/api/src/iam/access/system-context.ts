@@ -7,6 +7,8 @@ import {
   inTransaction,
 } from '../../core/database/transactions.js';
 import { systemPrincipal, type SystemPrincipal } from '../auth/principal.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
+import { NO_TENANT, tenantScope } from '../../core/tenancy/tenant-scope.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import type { SystemJobDefinition } from './permissions.js';
 
@@ -26,8 +28,16 @@ export interface SystemRunOptions {
    * each still in the context.
    */
   transaction?: boolean;
-  // Multi-tenancy (roadmap 1a) adds `tenantId` here: set in the context
-  // next to the principal, read by the transaction adapter.
+  /**
+   * The tenant the job works for (docs/tenancy.md): set in the context
+   * next to the principal, so every transaction it opens carries it
+   * (`app.tenant_id`), and its inserts and audit entries land in it. A
+   * job restored from a payload passes the payload's tenant; a cron job
+   * walks them (`Tenancy.forEachTenant()`) or sweeps a table whole
+   * (`Tenancy.bypass()`). `null`: no tenant (global tables only).
+   * Undefined: the current context's, as it is.
+   */
+  tenantId?: string | null;
 }
 
 /**
@@ -37,7 +47,7 @@ export interface SystemRunOptions {
  * same actor (`system:<job>` in the audit log), the permissions its
  * declaration gives (`defineSystemJob()`, nothing implicit), and a CLS
  * context of its own (nestjs-cls' `ClsService.run()`, its way for work
- * outside a request), which tenancy (1a) extends with the tenant.
+ * outside a request), with the tenant it works for (`{ tenantId }`).
  *
  * ```ts
  * @Cron('50 3 * * *') @OnOneInstance({ key: 'platform:account-deletion' })
@@ -55,6 +65,7 @@ export class SystemContext {
     private readonly cls: ClsService,
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly catalog: PermissionCatalog,
+    private readonly tenancy: Tenancy,
   ) {}
 
   /** The system principal of a declared job; throws for one no `definePermissions({ systemJobs })` declares. */
@@ -77,19 +88,27 @@ export class SystemContext {
   run<T>(
     job: SystemJobDefinition | string,
     work: (system: SystemPrincipal, tx: Transaction) => Promise<T>,
-    options?: { transaction?: true },
+    options?: { transaction?: true; tenantId?: string | null },
   ): Promise<T>;
   run<T>(
     job: SystemJobDefinition | string,
     work: (system: SystemPrincipal) => Promise<T>,
-    options: { transaction: false },
+    options: { transaction: false; tenantId?: string | null },
   ): Promise<T>;
   async run<T>(
     job: SystemJobDefinition | string,
     work: (system: SystemPrincipal, tx: Transaction) => Promise<T>,
-    { transaction = true }: SystemRunOptions = {},
+    { transaction = true, tenantId }: SystemRunOptions = {},
   ): Promise<T> {
     const system = this.principal(job);
+    if (tenantId !== undefined) {
+      // Tenancy.run: its own context with the tenant, refused inside an
+      // open transaction of another tenant.
+      const scope = tenantId === null ? NO_TENANT : tenantScope(tenantId);
+      return this.tenancy.run(scope, () =>
+        this.run(job, work as never, { transaction } as never),
+      );
+    }
     return this.cls.run({ ifNested: 'inherit' }, () => {
       this.cls.set(SYSTEM, system);
       return transaction

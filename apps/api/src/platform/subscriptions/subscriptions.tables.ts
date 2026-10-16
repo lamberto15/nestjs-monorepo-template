@@ -1,5 +1,6 @@
 import { index, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 import { at, uuidPk } from '../../core/database/columns.js';
+import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 
 /**
  * Who watches which record: a subscriber (a principal key) and a record
@@ -10,6 +11,7 @@ export const recordSubscriptions = pgTable(
   'record_subscriptions',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The record's permission subject: `Note`. */
     subject: text('subject').notNull(),
     recordId: text('record_id').notNull(),
@@ -19,6 +21,7 @@ export const recordSubscriptions = pgTable(
   },
   (table) => [
     uniqueIndex('record_subscriptions_record_subscriber_idx').on(
+      table.tenantId,
       table.subject,
       table.recordId,
       table.subscriber,
@@ -27,5 +30,6 @@ export const recordSubscriptions = pgTable(
       table.subscriber,
       table.createdAt,
     ),
+    ...tenantTable('record_subscriptions', table),
   ],
-);
+).enableRLS();

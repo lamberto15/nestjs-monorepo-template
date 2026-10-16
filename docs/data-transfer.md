@@ -29,6 +29,13 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
 | `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`) | 202; every row is validated, valid rows written |
 | `GET /v1/data/transfers/{id}` | progress, then the result: a signed link (30 min), counts, the error report |
 
+- **Per tenant** ([tenancy](tenancy.md)): a transfer job names the tenant
+  it was started in (`tenantId`, required by its type); the worker runs it
+  there (`TenantWorkerHost`), with its principal checked again as a member
+  of that tenant. Its files (the upload, the export, the error report) are
+  under `tenants/<id>/transfers/`. `GET /v1/data/transfers/{id}` answers 404
+  for another tenant's transfer, even the same person's.
+
 - A column marked `type: 'date'` (a day, `2026-10-15`) is a date cell in
   Excel, text in CSV and JSON; a date cell under a `date` column of the
   template (`z.iso.date()`, a `date` custom field) imports as its day.

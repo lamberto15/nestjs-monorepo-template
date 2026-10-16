@@ -56,7 +56,7 @@ src/
 
 | Group | Holds |
 | --- | --- |
-| `core/` | config (Zod), database (Drizzle on PostgreSQL 18), Redis, HTTP (security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
+| `core/` | config (Zod), database (Drizzle on PostgreSQL 18), tenancy (the tenant scope, row-level security, the pool that sets it: [tenancy](tenancy.md)), Redis, HTTP (security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
 | `iam/` | sessions, tokens, API clients and keys, accounts (passwords, two-factor, OAuth, magic links, invitations, impersonation), roles and permissions (CASL, field-level, expiring grants), org units, resource declarations, the audit log, the system principal (`SystemContext.run()`: work without a user) |
 | `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, notifications, record subscriptions, global search, sequences, scheduled reports, record revisions, settings and feature flags, approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API |
 | `features/` | one folder and module per feature |
@@ -81,6 +81,9 @@ src/
     SoftDeletePurgeJob calls them in the purge's transaction;
   - bulk operations register themselves (`BulkRegistry`), the feature's
     `POST /<x>/bulk` calls `BulkService.run()`.
+- **Tenancy** ([tenancy](tenancy.md)): every feature table is a tenant
+  table behind row-level security; a request, job, workflow step or cron
+  run acts in one tenant, and per-principal keys carry it.
 - **Module order** in `app.module.ts` matters: `PlatformModule` first (the
   idempotency interceptor must be outermost), then `CoreModule` (the rate
   limit guards before authentication), then `IamModule`.

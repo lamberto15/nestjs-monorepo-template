@@ -17,10 +17,15 @@ import { REDIS } from '../../core/redis/redis.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import {
+  currentTenantId,
+  requireTenantId,
+  tenantKey,
+} from '../../core/tenancy/tenant-scope.js';
+import {
   apiClients,
+  memberships,
   orgUnits,
   userOrgUnits,
-  users,
 } from '../../iam/iam.tables.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { resolveSetting, type SettingSource } from './setting-resolution.js';
@@ -53,20 +58,30 @@ interface Cached {
   byKey: Map<string, Row[]>;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** No tenant: nothing stored applies, every setting is its default. */
+const NOTHING: Cached = { version: undefined, loadedAt: 0, byKey: new Map() };
+
 /**
  * Settings and feature flags: the declarations are code
  * (`PlatformModule.forRoot({ settings })`), the values administrators and
- * users set are rows, read through one cache per instance. Every change
- * increments `settings:version` in Redis after its commit; each read
- * compares it with the cached one, so a change applies on the next
- * request everywhere (as custom fields do). Without Redis the cache
- * holds for FALLBACK_TTL_MS at most.
+ * users set are rows of their tenant (row-level security, docs/tenancy.md),
+ * read through one cache per tenant and instance. Every change increments
+ * the tenant's `tenant:<id>:settings:version` in Redis after its commit;
+ * each read compares it with the cached one, so a change applies on the
+ * next request everywhere (as custom fields do), and only that tenant's
+ * cache is reloaded. Without Redis the cache holds for FALLBACK_TTL_MS at
+ * most. Outside any tenant (a user without one, a job of none) settings
+ * are their defaults.
  */
 @Injectable()
 export class SettingsService {
   private readonly logger = new Logger('Settings');
   private readonly byKey = new Map<string, SettingDeclaration<any>>();
-  private cache?: Cached;
+  /** Per tenant, the least recently loaded first (dropped past MAX_CACHED_TENANTS). */
+  private readonly caches = new Map<string, Cached>();
+  private static readonly MAX_CACHED_TENANTS = 1_000;
   private static readonly VERSION_KEY = 'settings:version';
   private static readonly FALLBACK_TTL_MS = 5_000;
   private static readonly MAX_AGE_MS = 5 * 60_000;
@@ -137,7 +152,13 @@ export class SettingsService {
       overrides.some((override) => override.scope === 'orgUnit')
         ? await this.unitsOf(principal.id)
         : [];
-    return resolveSetting(declaration, overrides, principal, units);
+    return resolveSetting(
+      declaration,
+      overrides,
+      principal,
+      units,
+      currentTenantId(),
+    );
   }
 
   /** Every setting the caller may see, with their value for them. */
@@ -160,7 +181,7 @@ export class SettingsService {
       label: declaration.label,
       description: declaration.description ?? null,
       flag: declaration.flag === true,
-      scopes: declaration.scopes ?? ['global'],
+      scopes: declaration.scopes ?? ['tenant'],
       public: declaration.public !== false,
       value,
       source,
@@ -177,7 +198,7 @@ export class SettingsService {
   /**
    * Sets a setting for a scope (replacing what that scope had), checked
    * against the declaration: the scope must be one it allows, the value
-   * must pass its schema, a rollout is for flags at the global scope.
+   * must pass its schema, a rollout is for flags at the tenant scope.
    * Audited; applies everywhere on the next request.
    */
   async set(actor: Principal, key: string, dto: SetSettingDto, ip?: string) {
@@ -188,10 +209,10 @@ export class SettingsService {
     if (dto.value === undefined && dto.rollout == null) {
       issues.push({ path: 'value', message: 'A value is required.' });
     }
-    if (dto.rollout != null && !(declaration.flag && scope === 'global')) {
+    if (dto.rollout != null && !(declaration.flag && scope === 'tenant')) {
       issues.push({
         path: 'rollout',
-        message: 'Only a flag rolls out, at the global scope.',
+        message: 'Only a flag rolls out, at the tenant scope.',
       });
     }
     let value: unknown = null;
@@ -288,7 +309,12 @@ export class SettingsService {
     return this.view(declaration, principal);
   }
 
-  /** The scope's id as stored: '' for global; an existing org unit; an existing user or client. */
+  /**
+   * The scope's id as stored: '' for the tenant; one of its org units; one
+   * of its members or API clients (a user is global: a member of the
+   * tenant, by its memberships; a unit or a client of another tenant is
+   * no row, row-level security).
+   */
   private async scopeId(
     declaration: SettingDeclaration<any>,
     scope: SettingScope,
@@ -301,10 +327,10 @@ export class SettingsService {
         errors: [{ path, message }],
       });
     };
-    if (!(declaration.scopes ?? ['global']).includes(scope)) {
+    if (!(declaration.scopes ?? ['tenant']).includes(scope)) {
       refuse('scope', `"${declaration.key}" is not set per ${scope}.`);
     }
-    if (scope === 'global') {
+    if (scope === 'tenant') {
       return '';
     }
     if (!scopeId) {
@@ -320,12 +346,17 @@ export class SettingsService {
     }
     const [kind, id] = scopeId!.split(':') as [string, string | undefined];
     const found =
-      kind === 'user' && id
+      kind === 'user' && id && UUID.test(id)
         ? await this.db
-            .select({ id: users.id })
-            .from(users)
-            .where(eq(users.id, id))
-        : kind === 'client' && id
+            .select({ id: memberships.userId })
+            .from(memberships)
+            .where(
+              and(
+                eq(memberships.userId, id),
+                eq(memberships.tenantId, requireTenantId('A setting')),
+              ),
+            )
+        : kind === 'client' && id && UUID.test(id)
           ? await this.db
               .select({ id: apiClients.id })
               .from(apiClients)
@@ -369,6 +400,7 @@ export class SettingsService {
         })
         .onConflictDoUpdate({
           target: [
+            settingOverrides.tenantId,
             settingOverrides.key,
             settingOverrides.scope,
             settingOverrides.scopeId,
@@ -448,11 +480,12 @@ export class SettingsService {
     return rows.map((row) => row.id);
   }
 
-  /** After a commit: this instance forgets its cache, the others see a new version. */
+  /** After a commit: this instance forgets the tenant's cache, the others see a new version. */
   private async bump() {
-    this.cache = undefined;
+    const tenantId = requireTenantId('A setting');
+    this.caches.delete(tenantId);
     await this.redis
-      .incr(SettingsService.VERSION_KEY)
+      .incr(tenantKey(SettingsService.VERSION_KEY, tenantId))
       .catch((error: unknown) =>
         this.logger.warn(
           `Could not publish a settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
@@ -461,17 +494,26 @@ export class SettingsService {
       );
   }
 
-  private async version(): Promise<string | undefined> {
+  private async version(tenantId: string): Promise<string | undefined> {
     try {
-      return (await this.redis.get(SettingsService.VERSION_KEY)) ?? '0';
+      return (
+        (await this.redis.get(
+          tenantKey(SettingsService.VERSION_KEY, tenantId),
+        )) ?? '0'
+      );
     } catch {
       return undefined; // Redis away: fall back to a short TTL
     }
   }
 
+  /** The current tenant's overrides (none outside a tenant). */
   private async load(): Promise<Cached> {
-    const version = await this.version();
-    const cached = this.cache;
+    const tenantId = currentTenantId();
+    if (!tenantId) {
+      return NOTHING;
+    }
+    const version = await this.version(tenantId);
+    const cached = this.caches.get(tenantId);
     const age = cached ? Date.now() - cached.loadedAt : Infinity;
     if (
       cached &&
@@ -490,7 +532,11 @@ export class SettingsService {
       byKey.set(row.key, list);
     }
     const entry: Cached = { version, loadedAt: Date.now(), byKey };
-    this.cache = entry;
+    this.caches.delete(tenantId);
+    this.caches.set(tenantId, entry);
+    if (this.caches.size > SettingsService.MAX_CACHED_TENANTS) {
+      this.caches.delete(this.caches.keys().next().value!);
+    }
     return entry;
   }
 }

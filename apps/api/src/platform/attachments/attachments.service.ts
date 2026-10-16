@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { StorageDisk, type StoredUpload } from '@nestjs/storage';
 import { and, desc, eq, lt } from 'drizzle-orm';
@@ -16,6 +17,10 @@ import {
   inTransaction,
 } from '../../core/database/transactions.js';
 import type { ListQuery } from '../../core/http/list-query.js';
+import {
+  requireTenantId,
+  TenantScopeMissingError,
+} from '../../core/tenancy/tenant-scope.js';
 import {
   afterCursor,
   countPage,
@@ -33,6 +38,7 @@ import {
   PersonalDataRegistry,
   type PersonalDataSource,
 } from '../account/personal-data.registry.js';
+import { isTenantFileKey, tenantFileKey } from '../storage/storage.config.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
 import { ATTACHMENT_LIST } from './attachment.list.js';
 import type { AttachmentView } from './attachment.schemas.js';
@@ -44,6 +50,29 @@ export const DOWNLOAD_LINK_TTL = '5m';
 
 /** The uploader of an attachment whose account was deleted. */
 export const ANONYMIZED_UPLOADER = 'anonymized';
+
+/**
+ * Where an upload of `principal` goes on the private disk: under its
+ * tenant's prefix, `tenants/<id>/attachments/<random><.ext>`
+ * (docs/tenancy.md), so a tenant's files are one prefix to export or
+ * delete. Its tenant is the principal's (the request's), never the client's
+ * say; a principal without one gets 403 tenant_required.
+ */
+export function attachmentKey(principal: Principal, extension = '') {
+  const tenantId =
+    principal.kind === 'system' ? requireTenantId() : principal.tenantId;
+  if (!tenantId) {
+    throw new TenantScopeMissingError('An upload needs a tenant.');
+  }
+  return tenantFileKey(tenantId, `attachments/${randomUUID()}${extension}`);
+}
+
+/** A file of another tenant (or outside any) can't become this tenant's attachment. */
+function assertOwnFile(key: string) {
+  if (!isTenantFileKey(requireTenantId('An attachment'), key)) {
+    throw new Error(`File ${key} is not under this tenant's prefix.`);
+  }
+}
 
 /**
  * Files attached to records of the features that register an
@@ -146,6 +175,7 @@ export class AttachmentsService implements PersonalDataSource {
   ): Promise<AttachmentView> {
     try {
       await this.assertCanUpload(principal, record);
+      assertOwnFile(file.key);
       const row = await inTransaction(this.txHost, async (tx) => {
         const [row] = await tx
           .insert(attachments)
@@ -196,6 +226,7 @@ export class AttachmentsService implements PersonalDataSource {
       fields = null,
     }: { locked?: boolean; fields?: string[] | null } = {},
   ): Promise<AttachmentView> {
+    assertOwnFile(file.key);
     return inTransaction(this.txHost, async (tx) => {
       const [row] = await tx
         .insert(attachments)

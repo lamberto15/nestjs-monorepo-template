@@ -460,7 +460,7 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
     const client = await node.client();
     await expect(
       stepUp.assertRecent(
-        { kind: 'client', id: client.id, name: 'c' },
+        { kind: 'client', id: client.id, name: 'c', tenantId: node.tenantId },
         { id: client.id },
       ),
     ).resolves.toBeUndefined();

@@ -8,6 +8,10 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import {
+  optionalTenantColumn,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
 import type { DigestMode, PreferenceOverrides } from './notification.types.js';
 
 /**
@@ -19,6 +23,12 @@ export const notifications = pgTable(
   'notifications',
   {
     id: uuidPk(),
+    /**
+     * The tenant it is about; null for an account's own (security
+     * notifications, sent outside any tenant): those are the person's in
+     * every tenant (docs/tenancy.md).
+     */
+    tenantId: optionalTenantColumn(),
     /** Who it's for: `user:<id>` or `client:<id>`. */
     recipient: text('recipient').notNull(),
     /** A declared type: `note.published`. */
@@ -52,8 +62,13 @@ export const notifications = pgTable(
     index('notifications_recipient_unread_idx')
       .on(table.recipient)
       .where(sql`read_at is null`),
+    // Per tenant, an account's own (no tenant) counting as one more.
     uniqueIndex('notifications_recipient_key_idx')
-      .on(table.recipient, table.key)
+      .on(
+        sql`coalesce(${table.tenantId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+        table.recipient,
+        table.key,
+      )
       .where(sql`key is not null`),
     // The digest job.
     index('notifications_digest_due_at_idx')
@@ -64,13 +79,16 @@ export const notifications = pgTable(
     index('notifications_read_at_idx')
       .on(table.readAt)
       .where(sql`read_at is not null`),
+    ...tenantTable('notifications', table, { nullRows: 'everywhere' }),
   ],
-);
+).enableRLS();
 
 /**
  * A recipient's notification preferences: only what differs from the
  * types' defaults, `{ [type]: { [channel]: value } }`, so a change to a
  * type's defaults in code applies to everyone who didn't override it.
+ * Global: a person's preferences are theirs in every tenant (an API
+ * client's key belongs to one tenant anyway).
  */
 export const notificationPreferences = pgTable(
   'notification_preferences',

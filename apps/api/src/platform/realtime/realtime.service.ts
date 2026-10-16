@@ -1,4 +1,5 @@
-import { Logger } from '@nestjs/common';
+import { Logger, UseInterceptors } from '@nestjs/common';
+import { ClsInterceptor } from 'nestjs-cls';
 import { CurrentUser, WsAuthenticator } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
@@ -10,17 +11,29 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import type { Namespace, Socket } from 'socket.io';
+import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 
 /**
- * The room of a principal: every connection of that user or API client.
- * The system principal has none (it never connects): refused.
+ * The room of a principal in a tenant (docs/tenancy.md): every connection
+ * of that user or API client acting in that tenant. A user in two tenants
+ * has a room in each, and a connection is in its session's tenant's only,
+ * so an event of tenant A never reaches a socket opened in tenant B.
+ * `tenantId` null: the account room of a user, for what is the person's
+ * own whatever the tenant (a security notification sent outside any
+ * tenant); every connection of the user is in it. The system principal has
+ * none (it never connects): refused.
  */
-export const principalRoom = (principal: Pick<Principal, 'kind' | 'id'>) => {
+export const principalRoom = (
+  principal: Pick<Principal, 'kind' | 'id'>,
+  tenantId: string | null,
+) => {
   if (principal.kind === 'system') {
     throw new Error('The system principal has no realtime room.');
   }
-  return `principal:${principalKey(principal)}`;
+  return tenantId
+    ? `tenant:${tenantId}:principal:${principalKey(principal)}`
+    : `principal:${principalKey(principal)}`;
 };
 
 /**
@@ -30,9 +43,13 @@ export const principalRoom = (principal: Pick<Principal, 'kind' | 'id'>) => {
  * Who connects: signed-in users (the handshake's session cookie) and API
  * clients (`auth: { token: 'sk_…' }`); anyone else is refused at the
  * handshake (`connect_error` "unauthorized"; socket.io doesn't retry it).
- * Each connection is in its principal's room before the client hears it's
- * connected. The global guard authenticates every message again, so a
- * revoked session or key stops working mid-connection.
+ * Each connection is in its principal's room of its tenant (and, for a
+ * user, their account room) before the client hears it's connected; a
+ * session's tenant switch issues a new session, and a socket opened before
+ * stays in the old tenant's room: reconnect after switching. The global
+ * guard authenticates every message again, so a revoked session or key
+ * stops working mid-connection; each message runs in a CLS context with
+ * its principal's tenant (ClsInterceptor, set up in CoreModule).
  *
  * Browser: `io('/realtime', { withCredentials: true, transports: ['websocket'] })`.
  *
@@ -48,6 +65,7 @@ export const principalRoom = (principal: Pick<Principal, 'kind' | 'id'>) => {
  * docs/notifications.md.
  */
 @WebSocketGateway({ namespace: 'realtime' })
+@UseInterceptors(ClsInterceptor)
 export class Realtime implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger('Realtime');
 
@@ -56,7 +74,12 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
 
   constructor(private readonly wsAuth: WsAuthenticator) {}
 
-  /** To every connection of a user or an API client. */
+  /**
+   * To every connection of a user or an API client in the current
+   * context's tenant (a request's, a job's restored from its envelope);
+   * outside any tenant, to a user's account room (an API client always has
+   * a tenant: nothing to tell outside one).
+   */
   toPrincipal(
     principal: Pick<Principal, 'kind' | 'id'>,
     event: string,
@@ -65,7 +88,11 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     if (principal.kind === 'system') {
       return; // never connected: nobody to tell
     }
-    this.server.to(principalRoom(principal)).emit(event, data);
+    const tenantId = currentTenantId();
+    if (!tenantId && principal.kind !== 'user') {
+      return;
+    }
+    this.server.to(principalRoom(principal, tenantId)).emit(event, data);
   }
 
   /** To every connection in a room. */
@@ -119,8 +146,12 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
   /** Synchronous: the room is joined before the client can send or miss anything. */
   handleConnection(client: Socket) {
     const user = client.data.principal as Principal | undefined;
-    if (user) {
-      void client.join(principalRoom(user));
+    if (user && user.kind !== 'system') {
+      const rooms = [
+        ...(user.tenantId ? [principalRoom(user, user.tenantId)] : []),
+        ...(user.kind === 'user' ? [principalRoom(user, null)] : []),
+      ];
+      void client.join(rooms);
       this.logger.debug(`Connected: ${principalKey(user)}`);
     }
   }
@@ -132,6 +163,7 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     return {
       kind: user.kind,
       id: user.id,
+      tenantId: user.kind === 'system' ? null : user.tenantId,
       rooms: [...client.rooms].filter((room) => room !== client.id),
     };
   }

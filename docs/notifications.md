@@ -56,8 +56,10 @@ notes is the example (`features/notes/note-notifications.ts`).
    unread again, newest (a new id: the old one is gone). `link`: a path of
    the web app, made absolute with `WEB_URL` in mail.
 4. A **worker delivers** it (`notification-delivery.handler.ts`, an outbox
-   handler): the recipient as they are now (nothing for a deactivated
-   one), their preferences, the texts in their language, then each channel.
+   handler), in the tenant the outbox message names (the payload's
+   `tenantId`, [tenancy](tenancy.md)): the recipient as they are now
+   (nothing for a deactivated one, or one no longer a member of that
+   tenant), their preferences, the texts in their language, then each channel.
    Effects that must commit with the delivery (the webhook through the
    outbox, a digest flag) run in its transaction; a socket emit after it.
    Exactly once per notification; a failure retries, then dead-letters
@@ -67,7 +69,11 @@ notes is the example (`features/notes/note-notifications.ts`).
 ## For clients
 
 Every route is about the caller's own (a user's or an API client's); no
-permission is needed.
+permission is needed. In a tenant, that is the tenant's notifications and
+the account's own (stored outside any tenant, `tenant_id` null: the
+security notifications of a sign-in), which row-level security gives
+([tenancy](tenancy.md)); another tenant's never show, even the same
+person's. Preferences are the person's, the same in every tenant.
 
 | Route | Does |
 | --- | --- |
@@ -148,7 +154,12 @@ themselves; declarations set its default under `channels.sms`.
 
 - `NOTIFICATIONS_RETENTION_DAYS` (90): read notifications older than this
   are deleted nightly; `NOTIFICATIONS_MAX_AGE_DAYS` (365): any. Both jobs
-  run on one instance (`@OnOneInstance`).
+  run on one instance (`@OnOneInstance`); the retention is one sweep by age
+  of every tenant's rows under the worker's row-level security bypass.
+- **Digests** are one mail per person whatever the tenants: the hourly job
+  reads every tenant's due rows under the bypass, lists only the account's
+  own and those of tenants the person is still an active member of (the
+  others are unflagged, unsent), and logs the tenants it mailed for.
 - Texts render when read, not when stored: a language change or a reworded
   catalog applies to old notifications too. A type removed from the
   declarations shows as its name; its undelivered messages dead-letter.

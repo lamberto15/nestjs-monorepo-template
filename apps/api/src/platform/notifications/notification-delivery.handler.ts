@@ -13,6 +13,7 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
+import { inTenantOf } from '../../core/tenancy/tenant-job.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
@@ -37,8 +38,10 @@ import { NotificationsService } from './notifications.service.js';
  * transactional effects commit with the inbox record and `delivered_at`;
  * a crash before that commit repeats the whole, after it nothing. A
  * failure retries the message (then a dead letter in GET /ops/outbox).
- * As the system principal (`system:notification-delivery`): what the
- * channels do runs in its context.
+ * As the system principal (`system:notification-delivery`), in the
+ * tenant the message names (`inTenantOf`, none for an account's own): what
+ * the channels do runs in that context, so a realtime event reaches the
+ * recipient's sockets in that tenant only (or their account room).
  */
 @Injectable()
 export class NotificationDeliveryHandler {
@@ -64,6 +67,13 @@ export class NotificationDeliveryHandler {
     payload: NotificationMessage,
     ctx: OutboxHandlerContext<Transaction>,
   ) {
+    return inTenantOf(payload, () => this.deliverInTenant(payload, ctx));
+  }
+
+  private deliverInTenant(
+    payload: NotificationMessage,
+    ctx: OutboxHandlerContext<Transaction>,
+  ) {
     return this.system.run(
       NOTIFICATION_DELIVERY_JOB,
       async () => {
@@ -80,7 +90,7 @@ export class NotificationDeliveryHandler {
             `Notification type "${row.type}" is no longer declared.`,
           );
         }
-        const recipient = await this.recipient(row.recipient);
+        const recipient = await this.recipient(row.recipient, payload.tenantId);
         if (!recipient) {
           // Deactivated since: the stored notification stays, nothing is sent.
           await this.db
@@ -150,21 +160,38 @@ export class NotificationDeliveryHandler {
     );
   }
 
-  /** The recipient as they are now: null when deactivated (or revoked) since. */
-  private async recipient(key: string): Promise<Principal | null> {
+  /**
+   * The recipient as they are now: null when deactivated (or revoked) since,
+   * or no longer a member of the notification's tenant (a person who left
+   * a tenant hears nothing more of it).
+   */
+  private async recipient(
+    key: string,
+    tenantId: string | null,
+  ): Promise<Principal | null> {
     const [kind, id] = key.split(':') as [string, string];
     if (kind === 'user') {
-      return this.users.findActive(id);
+      const user = await this.users.inTenant(id, tenantId);
+      return user && (!tenantId || user.tenantId === tenantId) ? user : null;
     }
-    if (kind !== 'client') {
-      return null; // the system has no inbox (notify() never stores one for it)
+    if (kind !== 'client' || !tenantId) {
+      // The system has no inbox (notify() never stores one for it); an API
+      // client belongs to a tenant, so it has nothing outside one.
+      return null;
     }
     const [client] = await this.db
       .select()
       .from(apiClients)
       .where(eq(apiClients.id, id));
+    // The client is read in the message's tenant (row-level security): one
+    // of another tenant, or none at all outside a tenant, is nobody.
     return client?.active
-      ? { kind: 'client', id: client.id, name: client.name }
+      ? {
+          kind: 'client',
+          id: client.id,
+          name: client.name,
+          tenantId: client.tenantId,
+        }
       : null;
   }
 }

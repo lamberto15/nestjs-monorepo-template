@@ -33,7 +33,10 @@ export class ThumbnailProcessor extends WorkerHost {
 Producers work in every process; processors only run on workers (BullMQ's
 manual registration). Defaults: 3 attempts with exponential backoff; finished
 jobs kept a day, failed ones a week. `GET /v1/ops/queues` shows counts and
-failures; `POST /v1/ops/queues/{name}/retry-failed` runs them again.
+failures; `POST /v1/ops/queues/{name}/retry-failed` runs them again. The
+ops API (`/v1/ops`) sees every tenant's work: it answers only the
+deployment's operators (the operator tenant, `@OperatorOnly()`,
+[tenancy](tenancy.md)), on top of `Ops.view` / `Ops.manage`.
 
 ## Mail
 
@@ -77,6 +80,29 @@ commits its own); its audit entries name the job (`system:audit-retention`),
 and it may do what the job declares, nothing more. Queue jobs (exports,
 imports, bulk) are different: they act for the user or client that asked
 (their payload carries it), never the system.
+
+**Tenants** ([tenancy](tenancy.md)): a cron job starts in no tenant, and
+tenant tables are out of its reach until it picks one. A job that acts on
+tenants' data walks them, `Tenancy.forEachTenant(job, work)` (each tenant
+in its own scope and transactions, logged with the tenant; one tenant's
+failure doesn't stop the others), so what it records lands in that
+tenant's audit log: the recycle bin purge (`records.purged`), the audit
+retention (`audit.pruned` per tenant, then a pass outside any tenant for
+the account-level entries), the account deletion (a person's data in each
+tenant they belonged to, then the account). `Tenancy.bypass(job, work)`
+(`app.bypass_rls`) sweeps every tenant at once, for a whole-table delete
+by age that records nothing per tenant; it runs only in a worker and
+never inside a request. A job on global tables only (the mail events'
+retention, the exchange rates) says so: `system.run(job, work, { tenantId: null })`.
+
+**Workflows carry their tenant by type**: an instance's input and every
+signal sent to it have `tenantId` (`TenantEnvelope`,
+`core/tenancy/tenant-job.ts`), and each step runs in it
+(`system.run(job, work, { tenantId: input.tenantId })`, or
+`inTenantOf(input, work)` for a step without a system principal). The
+approvals workflow starts with `{ requestId, tenantId }`, the notes'
+publication with `{ noteId, tenantId }`; both are taken from the row the
+transaction that starts them wrote.
 
 Locks live in PostgreSQL (`DrizzleLockStore`: fencing tokens, the database's
 clock). `Locks.withLock(key, fn)` for your own critical sections.

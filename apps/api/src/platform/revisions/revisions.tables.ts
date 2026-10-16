@@ -8,6 +8,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 
 /**
  * Each saved state of a record of any feature (the record by its
@@ -20,6 +21,7 @@ export const revisions = pgTable(
   'revisions',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The record's permission subject: `Note`. */
     subject: text('subject').notNull(),
     recordId: uuid('record_id').notNull(),
@@ -40,6 +42,7 @@ export const revisions = pgTable(
   (table) => [
     // The invariant: one revision per number of a record.
     uniqueIndex('revisions_record_number_uq').on(
+      table.tenantId,
       table.subject,
       table.recordId,
       table.number,
@@ -52,5 +55,6 @@ export const revisions = pgTable(
     ),
     index('revisions_changed_by_idx').on(table.changedBy),
     index('revisions_changed_at_idx').on(table.changedAt),
+    ...tenantTable('revisions', table),
   ],
-);
+).enableRLS();

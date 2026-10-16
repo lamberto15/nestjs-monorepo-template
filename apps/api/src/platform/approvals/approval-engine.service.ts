@@ -4,6 +4,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import { Webhooks } from '@nestjs/webhooks';
 import { WorkflowClient } from '@nestjs/workflows';
 import {
+  type AnyColumn,
   and,
   eq,
   gt,
@@ -27,7 +28,8 @@ import {
   type Principal,
   type SystemPrincipal,
 } from '../../iam/auth/principal.js';
-import { apiClients, users } from '../../iam/iam.tables.js';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
+import { apiClients, memberships, users } from '../../iam/iam.tables.js';
 import type { NotificationType } from '../notifications/notification.types.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { APPROVALS_JOB } from '../platform.jobs.js';
@@ -246,8 +248,10 @@ export class ApprovalEngine {
   }
 
   /**
-   * The users the rules name who may decide: active, and never the
-   * requester (no self-approval), in the order the rules named them.
+   * The users the rules name who may decide: active, members of the
+   * request's tenant (docs/tenancy.md: a named user of another tenant never
+   * decides here), and never the requester (no self-approval), in the order
+   * the rules named them.
    */
   async approvers(context: ApprovalContext, rules: readonly Typed[]) {
     const named = await this.registry.resolve(rules, context);
@@ -262,7 +266,13 @@ export class ApprovalEngine {
         await this.db
           .select({ id: users.id })
           .from(users)
-          .where(and(inArray(users.id, candidates), eq(users.active, true)))
+          .where(
+            and(
+              inArray(users.id, candidates),
+              eq(users.active, true),
+              activeMember(users.id),
+            ),
+          )
       ).map((row) => row.id),
     );
     return candidates.filter((id) => active.has(id));
@@ -283,7 +293,7 @@ export class ApprovalEngine {
     return row?.name ?? `${requester.kind}:${requester.id}`;
   }
 
-  /** Who stands in for these users now (out of office), for requests of `subject`. */
+  /** Who stands in for these users now (out of office), for requests of `subject`: members of the tenant still. */
   async delegatesOf(userIds: readonly string[], subject: string) {
     const map = new Map<string, string[]>();
     if (!userIds.length) {
@@ -304,6 +314,7 @@ export class ApprovalEngine {
             isNull(approvalDelegations.subject),
             eq(approvalDelegations.subject, subject),
           ),
+          activeMember(approvalDelegations.toUserId),
         ),
       );
     for (const { from, to } of rows) {
@@ -572,7 +583,7 @@ export class ApprovalEngine {
     const key = `${row.id}:${row.round}:${stage}`;
     await this.workflows.signal(
       stageDecided,
-      { outcome: ending },
+      { outcome: ending, tenantId: row.tenantId },
       { key, id: key, transaction: tx },
     );
     const last = stage === row.policy.stages.length - 1;
@@ -1312,3 +1323,11 @@ export class ApprovalEngine {
     });
   }
 }
+
+/**
+ * The user (a column holding their id) has an active membership in the
+ * current tenant: who may decide, or stand in, here. Users are global and
+ * memberships a global table (docs/tenancy.md), so the tenant is named.
+ */
+export const activeMember = (userId: AnyColumn) =>
+  sql`exists (select 1 from ${memberships} where ${memberships.userId} = ${userId} and ${memberships.tenantId} = ${requireTenantId('An approver')} and ${memberships.active})`;

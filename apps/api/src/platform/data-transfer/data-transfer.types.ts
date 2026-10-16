@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 import type { Principal, RequestPrincipal } from '../../iam/auth/principal.js';
 
 /** The file formats exports write and imports read. */
@@ -132,30 +133,35 @@ export interface DataImporter<Row = Record<string, unknown>> {
   write(principal: Principal, row: Row): Promise<void>;
 }
 
-/** What a transfer job carries. */
-export type TransferJob =
-  | {
-      kind: 'export';
-      name: string;
-      format: TransferFormat;
-      /** The filters as the caller sent them; the worker parses them with `exporter.filters`. */
-      filters: Record<string, unknown>;
-      /** The file's time zone, when the caller chose one; else theirs, else APP_TIMEZONE. */
-      timezone?: string;
-      /** Who asked for it in code (`report:<id>`): handed back to `onFinished` listeners. */
-      tag?: string;
-      /** Never the system principal: a queued job's principal is data (docs/permissions.md). */
-      principal: RequestPrincipal;
-    }
-  | {
-      kind: 'import';
-      name: string;
-      format: TransferFormat;
-      /** The uploaded file, on the private disk; deleted once read. */
-      key: string;
-      dryRun: boolean;
-      principal: RequestPrincipal;
-    };
+/**
+ * What a transfer job carries: the tenant it was started in, by type
+ * (TenantEnvelope, docs/tenancy.md; the worker restores it before any
+ * query), and the work.
+ */
+export type TransferJob = TenantEnvelope & { readonly tenantId: string } & (
+    | {
+        kind: 'export';
+        name: string;
+        format: TransferFormat;
+        /** The filters as the caller sent them; the worker parses them with `exporter.filters`. */
+        filters: Record<string, unknown>;
+        /** The file's time zone, when the caller chose one; else theirs, else APP_TIMEZONE. */
+        timezone?: string;
+        /** Who asked for it in code (`report:<id>`): handed back to `onFinished` listeners. */
+        tag?: string;
+        /** Never the system principal: a queued job's principal is data (docs/permissions.md). */
+        principal: RequestPrincipal;
+      }
+    | {
+        kind: 'import';
+        name: string;
+        format: TransferFormat;
+        /** The uploaded file, on the private disk; deleted once read. */
+        key: string;
+        dryRun: boolean;
+        principal: RequestPrincipal;
+      }
+  );
 
 /** One row an import refused. */
 export interface ImportRowError {

@@ -17,6 +17,7 @@ import {
   type PageQuery,
   toPage,
 } from '../../core/http/pagination.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
 import { NotificationsService } from '../../platform/notifications/notifications.service.js';
@@ -59,6 +60,7 @@ export class NotesService {
     private readonly tags: TagsService,
     private readonly revisions: RevisionsService,
     private readonly approvals: ApprovalsService,
+    private readonly tenancy: Tenancy,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -107,10 +109,11 @@ export class NotesService {
         .returning();
       // Same transaction: the publication and the note.created webhook
       // exist if and only if the note does.
-      await this.workflowClient.start(NotePublicationWorkflow, row.id, {
-        id: publicationId(row.id),
-        transaction: tx,
-      });
+      await this.workflowClient.start(
+        NotePublicationWorkflow,
+        { noteId: row.id, tenantId: row.tenantId },
+        { id: publicationId(row.id), transaction: tx },
+      );
       await this.publisher.dispatch(tx, 'note.created', row);
       // The owner watches their note: told of changes others make to it.
       await this.subscriptions.subscribe(owner, {
@@ -297,20 +300,28 @@ export class NotesService {
   /**
    * An incoming webhook asks for a publication: recorded with the event, in
    * one transaction, so a redelivered event changes nothing (`duplicate`).
+   * The route is public (the sender signs it), so it has no tenant: the
+   * event names the note's tenant, and the transaction runs in it (an
+   * unknown tenant, or a note of another, is a 404 like an unknown note).
    */
-  publishFromWebhook(webhook: IncomingWebhook<{ data: { noteId: string } }>) {
-    return inTransaction(this.txHost, async (tx) =>
-      webhook.processInTransaction(tx, () =>
-        this.requestPublish(tx, webhook.payload.data.noteId, webhook.id),
+  publishFromWebhook(
+    webhook: IncomingWebhook<{ data: { noteId: string; tenantId: string } }>,
+  ) {
+    const { noteId, tenantId } = webhook.payload.data;
+    return this.tenancy.run(tenantId.toLowerCase(), () =>
+      inTransaction(this.txHost, async (tx) =>
+        webhook.processInTransaction(tx, () =>
+          this.requestPublish(tx, noteId, webhook.id),
+        ),
       ),
     );
   }
 
   async requestPublish(tx: Transaction, noteId: string, eventId: string) {
-    await this.findOne(noteId, tx); // 404 before anything is recorded
+    const note = await this.findOne(noteId, tx); // 404 before anything is recorded
     await this.workflowClient.signal(
       publishNow,
-      { eventId },
+      { eventId, tenantId: note.tenantId },
       { key: noteId, transaction: tx },
     );
   }
