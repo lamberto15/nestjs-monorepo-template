@@ -47,6 +47,21 @@ export const iamEnv = z.object({
   PASSWORD_BREACH_ON_ERROR: z.enum(['allow', 'reject']).default('allow'),
   /** Refused when seen in at least this many breaches. */
   PASSWORD_BREACH_MIN_COUNT: z.coerce.number().int().min(1).default(1),
+  /**
+   * Password hashes (scrypt, 128 MiB each outside the heap) running at once
+   * in this process; the container's memory limit must hold the heap plus
+   * this many: docs/deployment.md, "Resource limits".
+   */
+  PASSWORD_HASH_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),
+  /** Hashes waiting for a slot; beyond that, 503 `server_busy` at once. */
+  PASSWORD_HASH_MAX_QUEUE: z.coerce.number().int().min(0).default(20),
+  /** How long a hash waits for a slot, then 503 `server_busy` (Retry-After). */
+  PASSWORD_HASH_QUEUE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(60_000)
+    .default(5000),
   /** Passwordless sign-in by email link (POST /auth/magic-link). */
   AUTH_MAGIC_LINK: flag('on'),
 

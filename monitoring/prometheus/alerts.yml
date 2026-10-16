@@ -50,7 +50,7 @@ groups:
           severity: critical
         annotations:
           summary: '{{ $value | humanizePercentage }} of {{ $labels.job }} requests fail with 5xx'
-          description: More than 5% of requests answered 5xx for 10 minutes. 503 database_busy and database_timeout come from the database pool and slow statements; other 5xx are errors in the logs.
+          description: More than 5% of requests answered 5xx for 10 minutes. 503 database_busy and database_timeout come from the database pool and slow statements, 503 server_busy from password hashing at its limit; other 5xx are errors in the logs.
 
       - alert: HighLatency
         expr: >
@@ -71,6 +71,15 @@ groups:
         annotations:
           summary: '{{ $labels.job }} {{ $labels.instance }} waits for database connections'
           description: 'Queries have been waiting for a pool connection at every scrape for 10 minutes ({{ $value }} now). Requests that wait longer than DATABASE_POOL_TIMEOUT_MS answer 503 database_busy. See docs/deployment.md, "Database connections".'
+
+      - alert: PasswordHashingSaturated
+        expr: sum by (job, instance) (increase(password_hashes_rejected_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} refuses password checks (503 server_busy)'
+          description: 'Sign-ins and password changes have been refused with 503 server_busy for 10 minutes: more hashes than PASSWORD_HASH_CONCURRENCY at once, waiting past PASSWORD_HASH_MAX_QUEUE or PASSWORD_HASH_QUEUE_TIMEOUT_MS. A flood of sign-ins (the rate limits, the addresses in the logs) or too little capacity (more replicas or CPUs; memory with them). See docs/deployment.md, "Resource limits".'
 
       - alert: HeapNearLimit
         expr: nodejs_heap_size_used_bytes / nodejs_heap_size_limit_bytes > 0.85

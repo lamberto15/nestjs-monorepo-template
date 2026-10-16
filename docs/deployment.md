@@ -42,7 +42,8 @@ Filling `.env` (each step is commented in `env.example`):
   `WORKER_CPUS`, `WORKER_MEMORY`, `POSTGRES_*`, `REDIS_*`, `BACKUP_*`): none can starve the
   others. The Node heap (`API_HEAP_MB`, `WORKER_HEAP_MB`) and Redis'
   `maxmemory` stay below their limits. Limits don't add capacity: keep their
-  sum within the host's.
+  sum within the host's. See [Resource limits](#resource-limits) for how
+  the app's are sized.
 - The API is reachable only through Caddy (port 3000 isn't published): the
   Secure cookie and `trust proxy` rely on that.
 - Local file storage is a volume shared by the replicas of one host. More hosts:
@@ -165,6 +166,47 @@ stops, since each can be a file. What fails instead:
 even with no secret moved: their environment, secrets, command or image
 change. That is a few seconds without the database, Redis and HTTPS, so
 deploy in a quiet moment.
+
+### Resource limits
+
+A Node process uses more than its heap, and the biggest part outside it is
+password hashing: scrypt (N = 2^17, r = 8, p = 1, the OWASP minimum) takes
+128·N·r bytes = **128 MiB per hash**, and ~0.4 s of one CPU, on the libuv
+threadpool, which runs 4 at once. Before the limit, four concurrent sign-ins
+took 512 MiB on top of the heap and the kernel killed the replica (exit 137)
+at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
+
+- **At most `PASSWORD_HASH_CONCURRENCY` hashes per process** (api 2,
+  worker 1: `API_PASSWORD_HASH_CONCURRENCY`, `WORKER_PASSWORD_HASH_CONCURRENCY`),
+  every hash and check of the app and of @nestjs/authentication included
+  (`iam/account/password-hashing.ts`). The next ones wait in order, at most
+  `PASSWORD_HASH_MAX_QUEUE` (20) of them for at most
+  `PASSWORD_HASH_QUEUE_TIMEOUT_MS` (5000); the others get **503
+  `server_busy`** with `Retry-After: 1` at once, never a pile of requests
+  holding memory. The threadpool's other threads stay free for files and DNS.
+- **The formula**, per container:
+
+  ```text
+  memory limit ≥ heap limit + 128 MiB + PASSWORD_HASH_CONCURRENCY × 128 MiB
+  api:    768 MiB ≥ 384 (API_HEAP_MB)    + 128 + 2 × 128
+  worker: 1 GiB   ≥ 768 (WORKER_HEAP_MB) + 128 + 1 × 128
+  ```
+
+  The 128 MiB in the middle is the rest outside the heap: the code, buffers
+  and sockets (~50 MiB at idle), and MFA recovery codes (scrypt at 16 MiB
+  each, inside the package, up to 4 at once). Change one term, change the
+  others: a concurrency of 3 needs `API_MEMORY=896M`, a smaller limit a
+  smaller `API_HEAP_MB` or concurrency.
+- **Throughput**: each hash is ~0.4 s of CPU, so a replica checks about
+  `API_CPUS` / 0.4 passwords per second (2.5 with one CPU) whatever the
+  concurrency; more than `API_CPUS` hashes at once only share the CPU. More
+  sign-ins per second need more replicas or CPUs (with their memory), never
+  weaker hash parameters (`needsRehash()` would rehash every account, and
+  the stored hashes keep their own parameters).
+- **Watch it**: `password_hashes_in_flight`, `password_hashes_queued` and
+  `password_hashes_rejected_total{reason="full|queue-timeout"}` on
+  `/metrics`; the `PasswordHashingSaturated` alert fires after 10 minutes of
+  refusals. `AppRestarting` catches a process still killed at its limit.
 
 ## Staging
 
@@ -328,7 +370,9 @@ its deadline, which its workflow should have escalated or expired;
 `approvals_unapplied_seconds`: how long the oldest approved request has
 waited for its outcome), the bot protection's verifications
 (`captcha_verifications_total{outcome="passed|rejected|replayed|unavailable"}`,
-a counter per process: `rate()` and sum it), Node's defaults (`process_cpu_seconds_total`,
+a counter per process: `rate()` and sum it), password hashing (`password_hashes_in_flight`,
+`password_hashes_queued`, `password_hashes_rejected_total{reason}`: per
+process, [Resource limits](#resource-limits)), Node's defaults (`process_cpu_seconds_total`,
 heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).
 Queue, outbox, webhook and approval gauges are shared state: every process reports the
 same values, so aggregate them with `max()`, not `sum()`. A gauge whose read
@@ -393,6 +437,7 @@ warning: look today):
 | `HighErrorRate` | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s) | critical |
 | `HighLatency` | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out) | warning |
 | `DatabasePoolSaturated` | queries wait for a pool connection at every scrape for 10 min (`503 database_busy` next) | warning |
+| `PasswordHashingSaturated` | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits)) | warning |
 | `HeapNearLimit` | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min | warning |
 | `EventLoopLag` | event loop p99 above 500 ms for 10 min | warning |
 | `QueueStalled` | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused) | critical |

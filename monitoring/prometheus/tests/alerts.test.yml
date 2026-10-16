@@ -112,7 +112,7 @@ tests:
               job: api
             exp_annotations:
               summary: 9.091% of api requests fail with 5xx
-              description: More than 5% of requests answered 5xx for 10 minutes. 503 database_busy and database_timeout come from the database pool and slow statements; other 5xx are errors in the logs.
+              description: More than 5% of requests answered 5xx for 10 minutes. 503 database_busy and database_timeout come from the database pool and slow statements, 503 server_busy from password hashing at its limit; other 5xx are errors in the logs.
 
   - name: 5xx errors on almost no traffic stay quiet
     interval: 1m
@@ -208,6 +208,29 @@ tests:
             exp_annotations:
               summary: worker 10.0.0.4:3000 event loop lags 800ms
               description: The event loop's p99 delay has been above 500 ms for 10 minutes. Something blocks the process (synchronous work, a CPU limit too low); every request and job on it waits.
+
+  - name: password hashing refuses for 10 minutes on one replica
+    interval: 1m
+    input_series:
+      # Refusals every minute on the first; one burst, then none, on the second.
+      - series: 'password_hashes_rejected_total{job="api",instance="10.0.0.2:3000",reason="full"}'
+        values: '0+4x20'
+      - series: 'password_hashes_rejected_total{job="api",instance="10.0.0.3:3000",reason="queue-timeout"}'
+        values: '0 6x20'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: PasswordHashingSaturated
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: PasswordHashingSaturated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: api
+              instance: 10.0.0.2:3000
+            exp_annotations:
+              summary: api 10.0.0.2:3000 refuses password checks (503 server_busy)
+              description: 'Sign-ins and password changes have been refused with 503 server_busy for 10 minutes: more hashes than PASSWORD_HASH_CONCURRENCY at once, waiting past PASSWORD_HASH_MAX_QUEUE or PASSWORD_HASH_QUEUE_TIMEOUT_MS. A flood of sign-ins (the rate limits, the addresses in the logs) or too little capacity (more replicas or CPUs; memory with them). See docs/deployment.md, "Resource limits".'
 
   - name: restarts, and a redeploy that only looks like one
     interval: 1m
