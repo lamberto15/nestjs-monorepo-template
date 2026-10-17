@@ -19,6 +19,8 @@ export const TEST_ITEM = defineRecord({
   // Many platform tests act as an API client on test items.
   clientAccess: 'own',
   grants: 'standard',
+  // Its number, gapless per tenant: TI-2026-00001 (perYear: false drops the year).
+  number: { prefix: 'TI', perYear: true, width: 5 },
   fields: {
     title: field.string().searchable(),
     body: field.text().optional().searchable(),
@@ -34,5 +36,7 @@ export const TEST_ITEM = defineRecord({
     'search',
     'transfer',
     'custom',
+    'events',
+    'numbered',
   ],
 });

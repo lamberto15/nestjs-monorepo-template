@@ -65,6 +65,8 @@ import { ReauthenticationService } from '../account/reauthentication.service.js'
 import { SIGN_IN_METHODS } from './authentication-method.js';
 import type { UserPrincipal } from './principal.js';
 import { SessionOnly, UserOnly } from './user-only.decorator.js';
+import { DuringMfaEnrollment } from './mfa-enrollment.guard.js';
+import { AuthPolicyService } from './auth-policy.service.js';
 import { UsersRepository } from './users.repository.js';
 
 const signInSchema = z.object({
@@ -112,6 +114,11 @@ const meSchema = z.object({
     .nullable()
     .describe('The tenant this session or token acts in; null: none.'),
   mfaEnabled: z.boolean(),
+  mfaEnrollmentRequired: z
+    .boolean()
+    .describe(
+      'true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`.',
+    ),
   authentication: z
     .object({
       via: z.enum(['session', 'token']),
@@ -188,6 +195,7 @@ export class AuthController {
     private readonly reauthentication: ReauthenticationService,
     private readonly captcha: CaptchaService,
     private readonly tenancy: Tenancy,
+    private readonly authPolicy: AuthPolicyService,
   ) {}
 
   @Public()
@@ -309,6 +317,7 @@ export class AuthController {
   }
 
   @Public()
+  @DuringMfaEnrollment()
   @Post('sign-out')
   @HttpCode(204)
   @ApiOperation({ summary: "Sign out: ends this browser's session" })
@@ -326,6 +335,7 @@ export class AuthController {
    */
   @UserOnly()
   @Can.Anyone()
+  @DuringMfaEnrollment()
   @Get('me')
   @ApiCookieAuth('user-session')
   @ApiBearerAuth('user-token')
@@ -347,6 +357,7 @@ export class AuthController {
         ? { id: tenant.id, slug: tenant.slug, name: tenant.name }
         : null,
       mfaEnabled: await this.mfa.isEnrolled(user.id),
+      mfaEnrollmentRequired: await this.authPolicy.mfaEnrollmentRequired(user),
       authentication: authentication && {
         ...authentication,
         authenticatedAt: authentication.authenticatedAt?.toISOString() ?? null,

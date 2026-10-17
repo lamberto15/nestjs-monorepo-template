@@ -23,6 +23,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { format } from './format.mjs';
 import { names, singularize } from './names.mjs';
 
 const REPO = path.resolve(
@@ -110,9 +111,10 @@ function stripEnvBlocks(text, plural) {
 /**
  * Removes the feature under `root`. Returns what was (or, with `dryRun`,
  * would be) removed, relative to `root`; throws before changing anything
- * when the feature is missing or another one uses it.
+ * when the feature is missing or another one uses it. The TypeScript it
+ * edits is formatted as `pnpm format` would.
  */
-export function removeFeature(root, options) {
+export async function removeFeature(root, options) {
   const plural = options.name;
   const api = path.join(root, 'apps/api');
   const features = path.join(api, 'src/features');
@@ -150,7 +152,7 @@ export function removeFeature(root, options) {
     const text = readFileSync(file, 'utf8');
     const stripped = stripBarrel(text, plural);
     if (stripped !== text) {
-      edits.push([file, stripped]);
+      edits.push([file, await format(file, stripped)]);
       removed.push(`lines in ${path.relative(root, file)}`);
     }
   }
@@ -165,7 +167,7 @@ export function removeFeature(root, options) {
     }
     const { out, count } = stripEnvBlocks(readFileSync(file, 'utf8'), plural);
     if (count) {
-      edits.push([file, out]);
+      edits.push([file, file.endsWith('.ts') ? await format(file, out) : out]);
       removed.push(
         `${count} feature:${plural} block(s) in ${path.relative(root, file)}`,
       );
@@ -201,7 +203,7 @@ export function removeFeature(root, options) {
 
 const USAGE = 'pnpm feature:remove <plural-name> [--dry-run]';
 
-function main() {
+async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
@@ -215,7 +217,7 @@ function main() {
     process.exit(values.help ? 0 : 1);
   }
   const name = positionals[0];
-  const result = removeFeature(path.resolve(values.root ?? REPO), {
+  const result = await removeFeature(path.resolve(values.root ?? REPO), {
     name,
     dryRun: values['dry-run'],
   });
@@ -236,10 +238,8 @@ if (
   process.argv[1] &&
   fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 ) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     console.error(error.message);
     process.exit(1);
-  }
+  });
 }

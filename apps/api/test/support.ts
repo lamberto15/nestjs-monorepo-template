@@ -170,6 +170,27 @@ export async function testDatabase() {
     /** Ends the database's connections (already ended by the app, when one ran on it) and drops it. */
     close: async () => {
       await pool.end().catch(() => undefined);
+      // `pool.end()` returns before its sockets have closed (pg-pool removes
+      // the clients, then sends Terminate): drop only once the server has seen
+      // every connection go, or the force-drop's 57P01 lands on a client that
+      // is still ending. Bounded: a connection nobody closed is dropped anyway.
+      const deadline = Date.now() + 5_000;
+      while (Date.now() < deadline) {
+        const admin = new Client({ connectionString: inject('postgresUrl') });
+        await admin.connect();
+        try {
+          const { rows } = await admin.query(
+            'select count(*)::int as n from pg_stat_activity where datname = $1',
+            [name],
+          );
+          if (rows[0].n === 0) {
+            break;
+          }
+        } finally {
+          await admin.end();
+        }
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
       await onServer(`drop database "${name}" with (force)`);
     },
   };
@@ -435,6 +456,21 @@ export async function bootApp(
   const testPool = new Pool({
     connectionString: database.maintenanceUrl,
     max: 3,
+  });
+  // pg-pool leaves an idle client's listener on it while it ends, and
+  // `pool.end()` resolves before the sockets have closed: when the database
+  // is dropped (WITH FORCE) in between, the server's 57P01 (admin_shutdown)
+  // reaches this pool as an 'error' event, unhandled without a listener.
+  // Only that, only once the pool is ending, is ignored; anything else is a
+  // real failure and stays visible.
+  testPool.on('error', (error) => {
+    if (
+      (error as { code?: string }).code === '57P01' &&
+      (testPool as unknown as { ending: boolean }).ending
+    ) {
+      return;
+    }
+    console.warn(`Test pool: ${error.message}`);
   });
   const db = drizzleNodePg({ client: testPool, schema }) as unknown as Database;
 

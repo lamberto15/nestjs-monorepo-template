@@ -1,6 +1,6 @@
 ---
 name: add-feature
-description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, custom fields or export, turn its recycle bin or teams on or off, let API keys use it, change who gets access by default or its Idempotency-Key), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
+description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, custom fields, export, webhooks for its changes or human-readable numbers, turn its recycle bin or teams on or off, let API keys use it, change who gets access by default or its Idempotency-Key), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
 ---
 
 # Add a feature
@@ -51,7 +51,14 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
    (history and restore), pdf (a document of a record), bulk (act on many),
    watch (be notified of changes), search, transfer (CSV/Excel export and
    import), custom (fields administrators add at runtime, no migration).
-   Only what they need.
+   Only what they need. Ask two more, by name:
+   - **"Do API clients need webhooks for its changes?"** → `events`
+     (`<item>.created`, `.updated`, `.deleted`, `.restored` webhooks, sent to
+     the API client that owns the record).
+   - **"Human-readable numbers?"** (`INV-2026-00042`, gapless per tenant) →
+     `numbered`; ask the prefix (default: the name's first letters) and
+     whether the year restarts it, and set `number: { prefix, perYear, width }`
+     in the declaration.
 6. **Business rules.** What must be true on create and update, what happens
    after (notifications, webhooks, workflows, approvals), anything slow
    (that goes to a queue worker, never the request: CLAUDE.md).
@@ -113,7 +120,9 @@ declares its fields, capabilities, recycle bin (`softDelete`) and teams
    capability).
 2. Edit the declaration: a field line (`dueOn: field.date().optional()`), a
    name in `capabilities` (search: mark searched fields `.searchable()`; pdf
-   needs attachments), `softDelete` / `team` flipped, `clientAccess`
+   needs attachments; numbered: a `number: { prefix: 'INV' }` line, and
+   the records already there stay without a number), `softDelete` / `team`
+   flipped, `clientAccess`
    (`false` | `'own'`), `grants` (`'standard'` | `'none'`) or `idempotency`
    (`'required'` | `'optional'` | `'off'`; delete the line to follow the
    deployment). Permission changes need no migration, but the seed roles'

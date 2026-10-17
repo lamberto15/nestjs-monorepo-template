@@ -17,6 +17,8 @@ export const CAPABILITIES = [
   'search',
   'transfer',
   'custom',
+  'events',
+  'numbered',
 ];
 
 /** `--with tags,comments`: the capabilities, checked; pdf brings attachments (a PDF is one). */
@@ -78,6 +80,13 @@ const textFields = (fields) =>
 /** The field a record is called by (comments, search, PDF): its first string, if any. */
 export const titleField = (fields) =>
   fields.find((f) => f.type === 'string') ?? null;
+/** The prefix of a record's numbers: its subject's initials (`InvoiceLine` → `IL`), or its first three letters (`INV`); as platform/records/record.ts's `numberFormat`. */
+export const numberPrefix = (subject) => {
+  const words = subject.match(/[A-Z][a-z0-9]*/g) ?? [subject];
+  return (
+    words.length > 1 ? words.map((w) => w[0]).join('') : subject.slice(0, 3)
+  ).toUpperCase();
+};
 /** `invoiceLine`: notification types, i18n keys, audit actions. */
 export const lowerFirst = (word) => word[0].toLowerCase() + word.slice(1);
 
@@ -108,11 +117,14 @@ export function texts({ t, fields, has }) {
       [lc]: {
         document: pascalOf(t.noun),
         issued: 'Issued {date}',
-        fields: Object.fromEntries(
-          fields
-            .filter((f) => f.type !== 'json')
-            .map((f) => [f.name, words(f.name)]),
-        ),
+        fields: {
+          ...(has('numbered') && { number: 'Number' }),
+          ...Object.fromEntries(
+            fields
+              .filter((f) => f.type !== 'json')
+              .map((f) => [f.name, words(f.name)]),
+          ),
+        },
       },
     };
   }

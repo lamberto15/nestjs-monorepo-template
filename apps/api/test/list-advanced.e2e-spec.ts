@@ -707,7 +707,7 @@ describe('the advanced list query on GET /v1/test-items (e2e)', () => {
     expect(described('filter')).toContain('Example:');
     expect(described('filter')).toContain('title (eq, contains, startsWith');
     expect(described('sort')).toContain(
-      'Sortable: rank, title, createdAt, updatedAt',
+      'Sortable: rank, number, title, createdAt, updatedAt',
     );
     expect(described('fields')).toContain('Example: ');
     expect(described('page')).toContain('Example:');

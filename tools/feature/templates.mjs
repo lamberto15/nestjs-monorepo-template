@@ -8,7 +8,7 @@
 // flips: only record() reads those. Each function takes the context (`t` the
 // names, `fields`, `softDelete`, `team`, `capabilities`, `description`) and
 // returns a file's text; Prettier formats it after.
-import { lowerFirst } from './capabilities.mjs';
+import { lowerFirst, numberPrefix } from './capabilities.mjs';
 import { builderOf, camelOf, pascalOf } from './fields.mjs';
 
 const GENERATED = (what) =>
@@ -53,6 +53,12 @@ export function record({
     ...(idempotency ? [`  idempotency: '${idempotency}',`] : []),
     `  clientAccess: ${clientAccess === 'own' ? "'own'" : 'false'},`,
     `  grants: '${grants}',`,
+    ...(capabilities.has('numbered')
+      ? [
+          `  // Its number, gapless per tenant: ${numberPrefix(t.Singular)}-2026-00001 (perYear: false drops the year).`,
+          `  number: { prefix: '${numberPrefix(t.Singular)}', perYear: true, width: 5 },`,
+        ]
+      : []),
     `  fields: {`,
     ...fields.map((f) => `    ${f.name}: ${builderOf(f, { searchable })},`),
     `  },`,
@@ -168,7 +174,7 @@ export function service({ t, fields }) {
     '',
     `/**`,
     ` * ${pascalOf(t.nouns)}: the writes and the reads. Each write, its audit entry and what its`,
-    ` * capabilities do (RecordLifecycle: watchers, revisions) commit in one transaction;`,
+    ` * capabilities do (RecordLifecycle: number, watchers, revisions, webhooks) commit in one transaction;`,
     ` * what ${t.singular}.record.ts decides (the recycle bin, teams) RecordStore does.`,
     ` * ${GENERATED('the business logic goes where the comments say "Business logic".')}`,
     ` */`,
@@ -197,6 +203,8 @@ export function service({ t, fields }) {
     `        .values({`,
     `          // Its owner, and with teams the owner's team.`,
     `          ...(await this.records.owner(owner, tx)),`,
+    `          // Its number (numbered), when the record takes one.`,
+    `          ...(await this.lifecycle.creating(tx)),`,
     `          ...values,`,
     `        } as typeof ${table}.$inferInsert)`,
     `        .returning()${uniques.length ? '.catch(taken)' : ''};`,

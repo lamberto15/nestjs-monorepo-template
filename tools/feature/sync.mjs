@@ -24,6 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { texts } from './capabilities.mjs';
+import { format } from './format.mjs';
 import { names, snake } from './names.mjs';
 
 const REPO = path.resolve(
@@ -38,6 +39,7 @@ const BASE_COLUMNS = new Set([
   'owner_id',
   'created_at',
   'updated_at',
+  'number',
   'search',
   'custom',
 ]);
@@ -277,7 +279,7 @@ export function recordPaths(record) {
 }
 
 /** The OpenAPI test's sorted path list, with the feature's paths as its declaration has them. */
-function syncPaths(api, record, check) {
+async function syncPaths(api, record, check) {
   const file = path.join(api, 'test/openapi.e2e-spec.ts');
   const text = readFileSync(file, 'utf8');
   const start = text.indexOf(
@@ -302,10 +304,8 @@ function syncPaths(api, record, check) {
   const removed = paths.filter((p) => mine(p) && !wanted.includes(p));
   if ((added.length || removed.length) && !check) {
     const list = all.map((p) => `      '${p}',`).join('\n');
-    writeFileSync(
-      file,
-      `${text.slice(0, start)}${block.slice(0, open)}\n${list}\n    ${text.slice(end)}`,
-    );
+    const edited = `${text.slice(0, start)}${block.slice(0, open)}\n${list}\n    ${text.slice(end)}`;
+    writeFileSync(file, await format(file, edited));
   }
   return [
     ...added.map((p) => `OpenAPI test: + ${p}`),
@@ -468,6 +468,9 @@ function guard(api, record) {
   }
   if (record.capabilities.has('search') !== Boolean(columns.search))
     generate = true;
+  // Taken later: the column is empty (nullable) for the records already there.
+  if (record.capabilities.has('numbered') !== Boolean(columns.number))
+    generate = true;
   if (record.capabilities.has('custom') !== Boolean(columns.custom)) {
     generate = true;
     if (columns.custom) {
@@ -480,13 +483,13 @@ function guard(api, record) {
 }
 
 /** One feature: its texts and OpenAPI paths in line (unless `check`), its migration guarded. */
-export function syncFeature(api, plural, { check = false } = {}) {
+export async function syncFeature(api, plural, { check = false } = {}) {
   const dir = path.join(api, 'src/features', plural);
   const file = readdirSync(dir).find((name) => name.endsWith('.record.ts'));
   if (!file) return null; // a hand-written feature (notes): nothing to sync
   const record = readRecord(path.join(dir, file));
   const texts = syncTexts(api, record, check);
-  const paths = syncPaths(api, record, check);
+  const paths = await syncPaths(api, record, check);
   const { errors, warnings, generate } = guard(api, record);
   warnings.push(...permissionWarnings(path.join(dir, file), record));
   return {
@@ -529,7 +532,7 @@ async function main() {
       failed = true;
       continue;
     }
-    const result = syncFeature(api, plural, { check: values.check });
+    const result = await syncFeature(api, plural, { check: values.check });
     if (!result) continue;
     for (const change of result.changes)
       console.log(

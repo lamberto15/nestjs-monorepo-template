@@ -21,6 +21,7 @@ import type { RecordDeclaration } from './record.js';
 import {
   RECORD_DECLARATION,
   RECORD_TABLE,
+  RecordLifecycle,
   type RecordRow,
 } from './record-contract.js';
 
@@ -42,6 +43,7 @@ export class RecordStore {
     @Inject(RECORD_TABLE) private readonly table: RecordTable,
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly teams: TeamsService,
+    private readonly lifecycle: RecordLifecycle,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -125,16 +127,19 @@ export class RecordStore {
     return toPage(rows as Row[], query, total);
   }
 
-  /** Deletes one: to the recycle bin (restorable until purged) when it has one, else for good. */
+  /** Deletes one: to the recycle bin (restorable until purged) when it has one, else for good; its `events` follow. */
   async delete(tx: Transaction, by: Principal, row: RecordRow) {
     const table = this.table;
     if (this.declaration.softDelete) {
-      await tx
+      const [deleted] = await tx
         .update(table)
         .set({ deletedAt: new Date(), deletedBy: principalKey(by) })
-        .where(eq(table.id!, row.id));
+        .where(eq(table.id!, row.id))
+        .returning();
+      await this.lifecycle.deleted(tx, { row: deleted as RecordRow });
     } else {
       await tx.delete(table).where(eq(table.id!, row.id));
+      await this.lifecycle.deleted(tx, { row });
     }
   }
 
@@ -154,6 +159,7 @@ export class RecordStore {
       .set({ deletedAt: null, deletedBy: null })
       .where(eq(table.id!, row.id))
       .returning();
+    await this.lifecycle.restored(tx, { row: restored as RecordRow });
     return restored as Row;
   }
 }
