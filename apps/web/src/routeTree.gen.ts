@@ -20,7 +20,9 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppNotesRouteImport } from './routes/_app/notes'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
+import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account/preferences'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 
@@ -78,9 +80,19 @@ const AppNotesRoute = AppNotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
   id: '/account/',
   path: '/account/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountPreferencesRoute = AppAccountPreferencesRouteImport.update({
+  id: '/account/preferences',
+  path: '/account/preferences',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
@@ -105,6 +117,8 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/notes': typeof AppNotesRoute
+  '/settings': typeof AppSettingsRoute
+  '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/account/': typeof AppAccountIndexRoute
@@ -119,7 +133,9 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/notes': typeof AppNotesRoute
+  '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
+  '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/account': typeof AppAccountIndexRoute
@@ -136,7 +152,9 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/notes': typeof AppNotesRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/account/preferences': typeof AppAccountPreferencesRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/account/': typeof AppAccountIndexRoute
@@ -154,6 +172,8 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/notes'
+    | '/settings'
+    | '/account/preferences'
     | '/account/profile'
     | '/account/security'
     | '/account/'
@@ -168,7 +188,9 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/notes'
+    | '/settings'
     | '/'
+    | '/account/preferences'
     | '/account/profile'
     | '/account/security'
     | '/account'
@@ -184,7 +206,9 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/_app/notes'
+    | '/_app/settings'
     | '/_app/'
+    | '/_app/account/preferences'
     | '/_app/account/profile'
     | '/_app/account/security'
     | '/_app/account/'
@@ -281,11 +305,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/account/': {
       id: '/_app/account/'
       path: '/account'
       fullPath: '/account/'
       preLoaderRoute: typeof AppAccountIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/preferences': {
+      id: '/_app/account/preferences'
+      path: '/account/preferences'
+      fullPath: '/account/preferences'
+      preLoaderRoute: typeof AppAccountPreferencesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/account/profile': {
@@ -307,7 +345,9 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppNotesRoute: typeof AppNotesRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
@@ -315,7 +355,9 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppNotesRoute: AppNotesRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAccountPreferencesRoute: AppAccountPreferencesRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
