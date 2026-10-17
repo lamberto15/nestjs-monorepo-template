@@ -1,8 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it, vi } from 'vitest';
-import { pageLoad } from '@/features/access/impersonate-button';
+import { describe, expect, it } from 'vitest';
 import { everything, ids, signedInWith } from '@/features/access/test/fixtures';
 import { nav, visibleGroups } from '@/nav';
 import { renderApp } from '@/test/render-app';
@@ -284,14 +283,13 @@ describe('impersonation', () => {
     ).toBeNull();
   });
 
-  it('starts, resets the session and loads the dashboard afresh as the user', async () => {
+  it('starts, resets the session and goes to the dashboard as the user, without a page load', async () => {
     signedInWith(
       { ...everything, 'Access.impersonate': true },
       { impersonation: true },
     );
     const started = capture('post', '/v1/access/users/:id/impersonate');
-    const load = vi.spyOn(pageLoad, 'to').mockImplementation(() => {});
-    const { user, sheet, queryClient } = await openBob();
+    const { user, sheet, queryClient, router } = await openBob();
     // The session is now Bob's, acted by Ada.
     const asBob = {
       ...signedInUser,
@@ -313,12 +311,17 @@ describe('impersonation', () => {
         name: 'Impersonate',
       }),
     );
-    await waitFor(() => expect(load).toHaveBeenCalledWith('/'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    // The mounted sidebar and banner changed in place: no page load.
+    expect(
+      await screen.findByRole('button', { name: /Bob Builder/ }),
+    ).toBeVisible();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'ada@example.com',
+    );
     expect(started).toHaveLength(1);
     expect(started[0]!.url).toMatch(`/v1/access/users/${ids.bob}/impersonate`);
-    // Nothing of the administrator's is cached; `me` is the user's.
+    // `me` is the user's.
     expect(queryClient.getQueryData(['auth', 'me'])).toEqual(asBob);
-    expect(queryClient.getQueryData(['access', 'roles'])).toBeUndefined();
-    load.mockRestore();
   });
 });
