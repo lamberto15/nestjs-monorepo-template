@@ -29,6 +29,19 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 - **Email links** open pages of the web app (`WEB_URL/reset-password`,
   `/verify-email`, `/magic-link`) that POST the token back: mail scanners
   follow GET links. Links are single-use and short-lived.
+- **`redirectTo`** (`POST /v1/auth/magic-link`,
+  `GET /v1/auth/oidc/{provider}/login`) is a path of the web app, never
+  another site: one leading `/`, printable ASCII only (no space, tab,
+  newline or other control), no `\`, no scheme (`https:`, `javascript:`),
+  at most 2,048 characters, and the same once percent-decoded (`/%09/x`,
+  `/%5Cx`); resolved against `WEB_URL` it must stay on its origin
+  (`core/http/redirect-path.ts`: `redirectPath`, `isSafeRedirectPath`,
+  `webAppUrl`). The magic link refuses anything else (400
+  `validation_failed`); the OIDC login, which the browser navigates to,
+  ignores it (the web app's root). A stored value is checked again before
+  it is answered (`magic-link/verify`'s `redirectTo`) or redirected to (the
+  OIDC callback, which lands on `WEB_URL` + the path): one stored before
+  the rule falls back to the default.
 - **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
   one account per address, in every tenant it belongs to; a session acts in
   one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
