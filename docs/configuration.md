@@ -132,6 +132,12 @@ route answers the app's ordinary 404 problem.
 | `USAGE` | No metering and no quota enforcement: `UsageInterceptor` is not registered, so nothing is counted on the hot path, the nightly roll-up and `GET /v1/access/clients/{id}/usage` are gone, and a client's `dailyQuota` can still be set but **does not apply** (no `429 quota_exceeded`, no `X-Quota-*` headers). |
 | `REALTIME` | No `/realtime` gateway and no socket.io Redis adapter. Everything that pushes (notifications, bulk and export progress, documents, approvals) keeps working: notifications are still stored and mailed, only the live event is dropped. |
 
+The environment is also the **ceiling of the auth policies** a tenant's
+administrators set at runtime (`auth.requireMfa`, `auth.passwordMinLength`):
+a setting only tightens what the env allows, never loosens it
+(`AUTH_MFA=off` and `auth.requireMfa` can't be on). See
+[auth.md](auth.md#policies) and [settings.md](settings.md#iams-auth-policies-auth).
+
 There is no `WORKFLOWS` switch: approvals (and the notes example) start and
 signal workflows unconditionally, so the workflow engine is part of the core
 of the platform, not an optional module.

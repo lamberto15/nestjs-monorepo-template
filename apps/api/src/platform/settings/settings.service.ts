@@ -79,6 +79,11 @@ const NOTHING: Cached = { version: undefined, loadedAt: 0, byKey: new Map() };
 export class SettingsService {
   private readonly logger = new Logger('Settings');
   private readonly byKey = new Map<string, SettingDeclaration<any>>();
+  /** Deployment limits on values (`restrict()`), by key. */
+  private readonly restrictions = new Map<
+    string,
+    ((value: unknown) => string | undefined)[]
+  >();
   /** Per tenant, the least recently loaded first (dropped past MAX_CACHED_TENANTS). */
   private readonly caches = new Map<string, Cached>();
   private static readonly MAX_CACHED_TENANTS = 1_000;
@@ -122,6 +127,77 @@ export class SettingsService {
       throw new NotFoundException(`No setting "${key}".`);
     }
     return declaration;
+  }
+
+  /**
+   * Refuses values of `key` the deployment doesn't allow, when they are set
+   * (`check` answers why, or undefined): the env's ceiling on what a
+   * tenant may choose (the auth.* settings, platform/auth-policy). A
+   * refused value is a 400 `setting_not_allowed`. What is already stored
+   * stays: whoever reads the setting applies the ceiling again.
+   */
+  restrict<T>(
+    declaration: SettingDeclaration<T>,
+    check: (value: T) => string | undefined,
+  ) {
+    this.declaration(declaration.key);
+    const checks = this.restrictions.get(declaration.key) ?? [];
+    checks.push(check as (value: unknown) => string | undefined);
+    this.restrictions.set(declaration.key, checks);
+  }
+
+  /** A 400 `setting_not_allowed` when a restriction refuses the value. */
+  private assertAllowed(key: string, value: unknown) {
+    for (const check of this.restrictions.get(key) ?? []) {
+      const reason = check(value);
+      if (reason) {
+        throw new BadRequestException({
+          code: 'setting_not_allowed',
+          message: reason,
+          errors: [{ path: 'value', message: reason }],
+        });
+      }
+    }
+  }
+
+  /**
+   * Whether any value that applies to the principal is `true`: the
+   * tenant's, one of their teams', their own (when the setting takes a
+   * user scope). For policies whose `true` is the strict side: a narrower
+   * scope's `false` doesn't exempt anyone from a wider scope's `true`, as
+   * the usual precedence (`resolve()`) would. No rollout counts.
+   */
+  async anyOn(
+    declaration: SettingDeclaration<boolean>,
+    principal: Principal,
+  ): Promise<boolean> {
+    const on = ((await this.load()).byKey.get(declaration.key) ?? []).filter(
+      (override) => override.value === true,
+    );
+    if (on.some((override) => override.scope === 'tenant')) {
+      return true;
+    }
+    const scopes = declaration.scopes ?? ['tenant'];
+    if (
+      scopes.includes('user') &&
+      on.some(
+        (override) =>
+          override.scope === 'user' &&
+          override.scopeId === principalKey(principal),
+      )
+    ) {
+      return true;
+    }
+    const teams = on.filter((override) => override.scope === 'team');
+    if (
+      !scopes.includes('team') ||
+      principal.kind !== 'user' ||
+      !teams.length
+    ) {
+      return false;
+    }
+    const mine = new Set(await this.teamsOf(principal.id));
+    return teams.some((override) => mine.has(override.scopeId));
   }
 
   /** The value of a setting for a principal (none: for everyone). */
@@ -236,6 +312,9 @@ export class SettingsService {
         errors: issues,
       });
     }
+    if (dto.value !== undefined) {
+      this.assertAllowed(key, value);
+    }
     return this.write(
       actor,
       key,
@@ -291,6 +370,7 @@ export class SettingsService {
         })),
       });
     }
+    this.assertAllowed(key, parsed.data);
     await this.write(
       principal,
       key,

@@ -97,6 +97,8 @@ import './auth/auth-types.js';
 import { DrizzleAuthenticationStore } from './auth/drizzle-authentication.store.js';
 import { JwtAuth } from './auth/jwt-auth.provider.js';
 import { PrincipalGuard } from './auth/principal.guard.js';
+import { AuthPolicyService } from './auth/auth-policy.service.js';
+import { MfaEnrollmentGuard } from './auth/mfa-enrollment.guard.js';
 import { SessionAuth } from './auth/session-auth.provider.js';
 import { UsersRepository } from './auth/users.repository.js';
 import type { IamEnv } from './iam.env.js';
@@ -156,6 +158,8 @@ export class IamModule {
       // Global, so AuthenticationModule's PasswordHasher (below) reaches them.
       PasswordHashLimiter,
       PASSWORD_HASHER_PARAMS,
+      // The auth policies as they apply (the platform's and the features' routes may ask).
+      AuthPolicyService,
     ];
     return {
       module: IamModule,
@@ -295,6 +299,12 @@ export class IamModule {
         // The authentication guard: this module's providers come before its
         // imports (AuthorizationModule's guard) in Nest's order.
         { provide: APP_GUARD, useClass: PrincipalGuard },
+        // Right after it, before authorization: a user their tenant requires
+        // two-factor of, without one, reaches only the enrollment routes
+        // (auth.requireMfa, docs/auth.md "Policies").
+        { provide: APP_GUARD, useClass: MfaEnrollmentGuard },
+        // The auth policies: the platform's settings (AUTH_POLICY) under the env's ceiling.
+        AuthPolicyService,
         // Authentication: the credential providers and the store of everything they keep.
         DrizzleAuthenticationStore,
         SessionAuth,
