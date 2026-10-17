@@ -43,6 +43,7 @@ describe('mergeNav', () => {
     expect(workspace?.items.map((i) => i.to)).toEqual([
       '/',
       '/notifications',
+      '/approvals',
       '/notes',
     ]);
   });
