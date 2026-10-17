@@ -6,7 +6,7 @@
 // added. Each function takes the context (`t` the names, `fields`,
 // `softDelete`, `team`, `capabilities`, `description`) and returns a file's
 // text; Prettier formats it after.
-import { e2eTests, lowerFirst, titleField } from './capabilities.mjs';
+import { lowerFirst } from './capabilities.mjs';
 import { builderOf, camelOf, pascalOf } from './fields.mjs';
 
 const GENERATED = (what) =>
@@ -578,16 +578,15 @@ export function feature({ t, description }) {
   ].join('\n');
 }
 
-export function e2e({ t, fields, softDelete, capabilities }) {
+export function e2e({ t, softDelete }) {
   const path = `/v1/${t.plural}`;
   const audit = lowerFirst(t.Singular);
-  const has = (name) => capabilities.has(name);
-  const capTests = e2eTests({ t, has, path, title: titleField(fields) });
   return [
     `import { randomUUID } from 'node:crypto';`,
     `import type request from 'supertest';`,
     `import { ${t.SINGULAR} } from '../src/features/${t.plural}/${t.singular}.record.js';`,
     `import { fieldSamples } from '../src/platform/fields/fields.js';`,
+    `import { describeCapabilities } from './record-capabilities.js';`,
     `import { bootApp, type TestApp } from './support.js';`,
     '',
     `/**`,
@@ -666,9 +665,9 @@ export function e2e({ t, fields, softDelete, capabilities }) {
     `    expect(page.body.items[0].id).toBe(newest);`,
     `    expect(page.body.items).toHaveLength(2);`,
     `  });`,
-    ...capTests.flatMap((line) =>
-      line.startsWith('  it(') ? ['', line] : [line],
-    ),
+    '',
+    `  // Each capability ${t.singular}.record.ts declares (record-capabilities.ts).`,
+    `  describeCapabilities(() => node, ${t.SINGULAR});`,
     `});`,
   ].join('\n');
 }

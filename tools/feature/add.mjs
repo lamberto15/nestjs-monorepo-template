@@ -18,20 +18,15 @@
 // enum(a|b), json, ref(<feature>)?; `?` optional, `!unique` unique per tenant.
 // Then: pnpm db:generate (new tables: drizzle-kit asks nothing),
 // pnpm client:generate, and the check before every commit (CLAUDE.md).
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { CAPABILITIES, parseCapabilities, texts } from './capabilities.mjs';
+import { CAPABILITIES, parseCapabilities } from './capabilities.mjs';
 import { parseFields } from './fields.mjs';
 import { names } from './names.mjs';
 import * as templates from './templates.mjs';
+import { syncFeature } from './sync.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -132,18 +127,17 @@ export async function addFeature(root, options) {
   writeFileSync(spec, await format(spec, templates.e2e(context)));
   written.push(path.relative(root, spec));
 
-  const translate = await addTexts(
-    api,
-    texts({ t, fields, has: (name) => capabilities.has(name) }),
+  const changed = [await appendFeature(api, t), await appendTables(api, t)].map(
+    (file) => path.relative(root, file),
   );
-
-  const changed = [
-    await appendFeature(api, t),
-    await appendTables(api, t),
-    await addOpenApiPaths(api, t, context.softDelete, capabilities),
-    ...translate.files,
-  ].map((file) => path.relative(root, file));
-  return { written, changed, names: t, translate: translate.keys };
+  // Its texts and OpenAPI paths, as `pnpm feature:sync` keeps them.
+  const synced = syncFeature(api, t.plural);
+  return {
+    written,
+    changed: [...changed, ...synced.changes],
+    names: t,
+    translate: synced.translate,
+  };
 }
 
 /** features/index.ts: the import and the list entry, at the markers. */
@@ -179,127 +173,6 @@ async function appendTables(api, t) {
     ),
   );
   return file;
-}
-
-/** The OpenAPI test lists every path, sorted as the test sorts them: the feature's join it. */
-export async function addOpenApiPaths(
-  api,
-  t,
-  softDelete,
-  capabilities = new Set(),
-) {
-  const file = path.join(api, 'test/openapi.e2e-spec.ts');
-  const text = readFileSync(file, 'utf8');
-  const start = text.indexOf(
-    'expect(Object.keys(document.paths).sort()).toEqual([',
-  );
-  const end = text.indexOf(']);', start);
-  if (start < 0 || end < 0) {
-    throw new Error(
-      'test/openapi.e2e-spec.ts: its sorted path list moved; add the paths by hand.',
-    );
-  }
-  const head = text.slice(0, start);
-  const block = text.slice(start, end);
-  const open = block.indexOf('[') + 1;
-  const paths = [...block.slice(open).matchAll(/'([^']+)'/g)].map((m) => m[1]);
-  const base = `/v1/${t.plural}`;
-  const has = (name) => capabilities.has(name);
-  const added = [
-    base,
-    `${base}/{id}`,
-    ...(softDelete ? [`${base}/{id}/restore`] : []),
-    ...(has('bulk') ? [`${base}/bulk`] : []),
-    ...(has('attachments') ? [`${base}/{id}/attachments`] : []),
-    ...(has('comments')
-      ? [`${base}/{id}/comments`, `${base}/{id}/comments/{commentId}`]
-      : []),
-    ...(has('pdf') ? [`${base}/{id}/pdf`] : []),
-    ...(has('revisions')
-      ? [
-          `${base}/{id}/revisions`,
-          `${base}/{id}/revisions/{a}/diff/{b}`,
-          `${base}/{id}/revisions/{number}`,
-          `${base}/{id}/revisions/{number}/restore`,
-        ]
-      : []),
-    ...(has('tags') ? [`${base}/{id}/tags`] : []),
-    ...(has('watch') ? [`${base}/{id}/watch`] : []),
-  ];
-  const all = [...new Set([...paths, ...added])].sort();
-  const list = all.map((p) => `      '${p}',`).join('\n');
-  const updated = `${head}${block.slice(0, open)}\n${list}\n    ${text.slice(end)}`;
-  writeFileSync(file, await format(file, updated));
-  return file;
-}
-
-/**
- * The capabilities' texts (notifications, PDF labels) in every locale's
- * namespace file: English everywhere, so the app runs in every language;
- * the keys outside en/ are returned to be translated.
- */
-async function addTexts(api, texts) {
-  const files = [];
-  const keys = [];
-  const root = path.join(api, 'src/i18n');
-  const locales = readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-  for (const [namespace, entries] of Object.entries(texts)) {
-    for (const locale of locales) {
-      const file = path.join(root, locale, `${namespace}.json`);
-      if (!existsSync(file)) {
-        throw new Error(`i18n/${locale}/${namespace}.json is missing.`);
-      }
-      const current = JSON.parse(readFileSync(file, 'utf8'));
-      for (const key of Object.keys(entries)) {
-        if (key in current) {
-          throw new Error(
-            `i18n/${locale}/${namespace}.json has "${key}" already.`,
-          );
-        }
-      }
-      writeFileSync(
-        file,
-        `${JSON.stringify({ ...current, ...withPlurals(entries, locale) }, null, 2)}\n`,
-      );
-      files.push(file);
-      if (locale !== 'en') {
-        keys.push(
-          ...Object.keys(entries).map(
-            (key) => `${locale}/${namespace}.json: ${key}`,
-          ),
-        );
-      }
-    }
-  }
-  return { files, keys };
-}
-
-/**
- * A text with plural forms (`{ one, other }`) gets every form the locale
- * uses (Arabic: zero, one, two, few, many, other), each the `other` text
- * but `one`'s: the catalogs' test asks for them all.
- */
-function withPlurals(value, locale) {
-  if (typeof value !== 'object' || value === null) {
-    return value;
-  }
-  const keys = Object.keys(value);
-  if (keys.length === 2 && 'one' in value && 'other' in value) {
-    const forms = new Intl.PluralRules(locale).resolvedOptions()
-      .pluralCategories;
-    return Object.fromEntries(
-      forms.map((form) => [form, form === 'one' ? value.one : value.other]),
-    );
-  }
-  return Object.fromEntries(
-    Object.entries(value).map(([key, inner]) => [
-      key,
-      withPlurals(inner, locale),
-    ]),
-  );
 }
 
 /** Formats as `pnpm format` would (the repository's Prettier config). */

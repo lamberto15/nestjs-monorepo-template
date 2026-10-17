@@ -27,7 +27,8 @@
     "changeset": "changeset",
     "client:publish": "turbo run build --filter=@nestjs-monorepo-template/api-client && changeset publish",
     "release:notes": "node tools/release/notes.mjs",
-    "feature:add": "node tools/feature/add.mjs"
+    "feature:add": "node tools/feature/add.mjs",
+    "feature:sync": "node tools/feature/sync.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",

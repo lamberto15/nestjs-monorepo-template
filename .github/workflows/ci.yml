@@ -280,14 +280,28 @@ jobs:
             --fields "title:string,notes:text?,quantity:int,rate:decimal?,total:money,discount:money?,paid:bool,dueOn:date?,sentAt:datetime?,status:enum(draft|sent|paid),meta:json?,code:string!unique,rank:int?"
           pnpm feature:add smoke-parts --no-soft-delete --with bulk,transfer,watch,comments \
             --fields "name:string,widgetId:ref(smoke-widgets)?"
+          pnpm feature:add smoke-entries --fields "title:string,total:money"
       - name: 'Their migration (new tables only: drizzle-kit asks nothing)'
         run: pnpm db:generate
+      - name: 'Change a feature by its declaration only: capabilities and fields, then sync'
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path('apps/api/src/features/smoke-entries/smoke-entry.record.ts')
+          s = p.read_text()
+          s = s.replace("    title: field.string(),", "    title: field.string().searchable(),\n    rank: field.int().default(1),\n    note: field.text().optional(),")
+          s = s.replace("  capabilities: [],", "  capabilities: ['tags', 'comments', 'attachments', 'revisions', 'pdf', 'bulk', 'watch', 'search', 'transfer'],")
+          p.write_text(s)
+          PY
+          pnpm feature:sync
+          pnpm feature:sync --check
+          pnpm db:generate
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm db:check
       - run: pnpm client:generate
       - name: Their generated e2e tests, and the OpenAPI document's paths
-        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts test/smoke-widgets.e2e-spec.ts test/smoke-parts.e2e-spec.ts test/openapi.e2e-spec.ts
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts test/smoke-widgets.e2e-spec.ts test/smoke-parts.e2e-spec.ts test/smoke-entries.e2e-spec.ts test/openapi.e2e-spec.ts
         env:
           REDIS_URL: redis://localhost:6379
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
