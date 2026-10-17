@@ -1,6 +1,7 @@
 import { writeNote, exampleSender } from './notes-support.js';
 import { randomUUID } from 'node:crypto';
 import { publicationId } from '../../../src/features/notes/note-publication.workflow.js';
+import { noteSchema } from '../../../src/features/notes/note.schemas.js';
 import { bootApp, webhookReceiver, type TestApp } from '../../support.js';
 
 describe('the example feature: notes (e2e)', () => {
@@ -268,6 +269,132 @@ describe('the example feature: notes (e2e)', () => {
     });
   });
 
+  // What the web app's note page needs (#106): one ETag from create to
+  // write, and what the reader may do with the note now.
+  describe('record pages', () => {
+    /** The answer is the documented schema, no more (no tenantId): strict. */
+    const conforms = (body: unknown) =>
+      expect(noteSchema.strict().safeParse(body).error?.issues ?? []).toEqual(
+        [],
+      );
+
+    it("answers a create with GET's strong ETag, good as If-Match at once", async () => {
+      const editor = (await node.user(['editor'])).agent;
+      const created = await writeNote(node, editor).expect(201);
+      const etag = created.headers.etag as string;
+      expect(etag).toMatch(/^"[\w-]+"$/);
+      conforms(created.body);
+      expect(created.body).not.toHaveProperty('tenantId');
+      const shown = await editor
+        .get(`/v1/notes/${created.body.id}`)
+        .expect(200);
+      expect(shown.headers.etag).toBe(etag);
+      conforms(shown.body);
+      // The list's items too.
+      conforms(
+        (await editor.get('/v1/notes').expect(200)).body.items[0] as unknown,
+      );
+      await editor
+        .patch(`/v1/notes/${created.body.id}`)
+        .set('If-Match', etag)
+        .send({ title: 'Changed' })
+        .expect(200);
+      // The create's tag is spent once the note changed.
+      await editor
+        .patch(`/v1/notes/${created.body.id}`)
+        .set('If-Match', etag)
+        .send({ title: 'Again' })
+        .expect(412);
+    });
+
+    it("says what the reader may do (?include=can): an editor's draft, then published, then the admin", async () => {
+      const editor = (await node.user(['editor'])).agent;
+      const note = (await writeNote(node, editor).expect(201)).body;
+      const read = (agent = editor) =>
+        agent.get(`/v1/notes/${note.id}?include=can`).expect(200);
+      const draft = await read();
+      conforms(draft.body);
+      expect(draft.body.can).toEqual({
+        update: true,
+        delete: true,
+        restore: false,
+      });
+      // Not part of the tag: the If-Match of a page that asked for `can` works.
+      await editor
+        .patch(`/v1/notes/${note.id}`)
+        .set('If-Match', draft.headers.etag as string)
+        .send({ title: 'Edited' })
+        .expect(200);
+
+      await node.worker.drain();
+      node.clock.advance('10s');
+      await node.worker.drain();
+      const published = await read();
+      expect(published.body.status).toBe('published');
+      expect(published.body.can).toEqual({
+        update: false,
+        delete: false,
+        restore: false,
+      });
+      // As the routes decide.
+      await editor
+        .patch(`/v1/notes/${note.id}`)
+        .send({ title: 'Too late' })
+        .expect(403);
+      await editor.delete(`/v1/notes/${note.id}`).expect(403);
+      const listed = await editor.get('/v1/notes?include=can').expect(200);
+      expect(
+        listed.body.items.find((item: { id: string }) => item.id === note.id)
+          .can,
+      ).toEqual(published.body.can);
+
+      const admin = node.admin();
+      expect((await read(admin)).body.can).toEqual({
+        update: true,
+        delete: true,
+        restore: false,
+      });
+      await admin.delete(`/v1/notes/${note.id}`).expect(204);
+      const bin = await admin
+        .get('/v1/notes?deleted=true&include=can')
+        .expect(200);
+      expect(
+        bin.body.items.find((item: { id: string }) => item.id === note.id).can,
+      ).toEqual({ update: false, delete: false, restore: true });
+    });
+
+    it("evaluates an API client's own: its drafts, not another client's", async () => {
+      const [a, b] = [await node.client(), await node.client()];
+      const note = (await writeNote(node, a.auth).expect(201)).body;
+      const page = await node
+        .http()
+        .get('/v1/notes?include=can&fields=title')
+        .set('Authorization', a.auth)
+        .expect(200);
+      expect(page.body.items).toEqual([
+        {
+          id: note.id,
+          title: note.title,
+          can: { update: true, delete: true, restore: false },
+        },
+      ]);
+      expect(
+        (
+          await node
+            .http()
+            .get('/v1/notes?include=can')
+            .set('Authorization', b.auth)
+            .expect(200)
+        ).body.items,
+      ).toEqual([]);
+      await node
+        .http()
+        .get('/v1/notes?include=nothing')
+        .set('Authorization', a.auth)
+        .expect(400);
+    });
+  });
+
   describe('the durable workflow', () => {
     it('publishes a draft when its delay is over', async () => {
       const client = await node.client();
@@ -358,7 +485,7 @@ describe('the example feature: notes (e2e)', () => {
       // The route is public: the event names the note's tenant (docs/tenancy.md).
       const payload = {
         type: 'note.publish-requested',
-        data: { noteId: note.id, tenantId: note.tenantId as string },
+        data: { noteId: note.id, tenantId: node.tenantId },
       };
       // Another tenant's id finds no such note there: 404, nothing recorded.
       await exampleSender(node, {

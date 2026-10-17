@@ -16,6 +16,7 @@ import { NotePolicy } from './note.policy.js';
 import { noteSnapshot } from './note.resource.js';
 import {
   type Note,
+  noteView,
   type UpdateNoteDto,
   updateNoteSchema,
 } from './note.schemas.js';
@@ -180,10 +181,9 @@ export class NoteRevisions implements RevisionTarget {
 
   /** A note as GET /v1/notes/{id} answers it (NotesController.shown): what its ETag covers. */
   private async present(principal: Principal, note: Note) {
-    const { search: _search, ...view } = note;
     const [shown] = await this.customFields.visible(
       'Note',
-      await this.notes.withTags([view]),
+      await this.notes.withTags([noteView(note)]),
     );
     return this.access.redact(principal, 'read', 'Note', shown!);
   }

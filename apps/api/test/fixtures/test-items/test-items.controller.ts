@@ -30,6 +30,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiPreconditionFailedResponse,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
@@ -52,6 +53,11 @@ import {
   sentFields,
 } from '../../../src/platform/records/record.js';
 import { RecordPresenter } from '../../../src/platform/records/record-contract.js';
+import {
+  IncludePipe,
+  includeQuery,
+  type RecordInclude,
+} from '../../../src/platform/records/record-can.js';
 import { deleteDocs } from '../../../src/platform/records/record-restore.routes.js';
 import { TEST_ITEM_LIST } from './test-item.list.js';
 import { TestItemPolicy } from './test-item.policy.js';
@@ -86,6 +92,8 @@ export class TestItemsController {
   ) {}
 
   @Post()
+  // The ETag GET /{id} would send: If-Match on the next write needs no read first.
+  @Etag()
   // A retry with the same key gets the first answer instead of a second record.
   @Idempotent({ scope: principalScope })
   @Can(TestItemPolicy, 'create')
@@ -125,9 +133,11 @@ export class TestItemsController {
   })
   @ApiOkResponse({ standardSchema: pageSchema(SCHEMAS.response) })
   @ApiListQuery(TEST_ITEM_LIST, recordListDocs(TEST_ITEM))
+  @ApiQuery(includeQuery())
   async list(
     @CurrentUser() user: RequestPrincipal,
     @Query() raw: Record<string, unknown>,
+    @Query('include', IncludePipe) include: RecordInclude,
   ) {
     // Validated against the custom fields defined now (custom), and no filter, search, sort or `fields` on what the caller may not read.
     const { list, query } = await this.presenter.query(
@@ -149,10 +159,7 @@ export class TestItemsController {
       query,
       list.sortSelect(query),
     );
-    return list.pick(
-      { ...page, items: await this.presenter.many(user, page.items) },
-      query,
-    );
+    return this.presenter.page(user, page, { list, query, include });
   }
 
   @Get(':id')
@@ -164,15 +171,17 @@ export class TestItemsController {
       'With an ETag: If-None-Match gets 304 while unchanged; If-Match on a write refuses it if it changed.',
   })
   @ApiHeader(ifNoneMatchHeader())
+  @ApiQuery(includeQuery())
   @ApiOkResponse({ standardSchema: SCHEMAS.response })
   @ApiNotFoundResponse()
   async get(
     @CurrentUser() user: RequestPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('include', IncludePipe) include: RecordInclude,
   ) {
     const row = await this.testItems.findOne(id);
     await this.authorization.authorize(TestItemPolicy, 'read', user, row);
-    return this.presenter.one(user, row);
+    return this.presenter.one(user, row, include);
   }
 
   @Patch(':id')

@@ -3,6 +3,17 @@ import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Config, CoreEnv } from '../config/core.env.js';
 import { assignRequestId } from '../logging/logging.js';
+import { JSON_BODY_LIMIT } from './body-limit.js';
+
+/** The response headers a browser app on CORS_ORIGINS may read (`Access-Control-Expose-Headers`). */
+export const CORS_EXPOSED_HEADERS = [
+  'X-Request-Id',
+  'Retry-After',
+  'Content-Language',
+  'ETag',
+  'Location',
+  'Idempotent-Replayed',
+] as const;
 
 /**
  * The HTTP layer every project keeps: proxy trust, security headers, CORS,
@@ -25,6 +36,10 @@ export function setupHttp(app: NestExpressApplication) {
   // check, as the JSON parser keeps them for the other incoming webhooks.
   // SNS messages are at most 256 KB.
   app.useBodyParser('text', { type: 'text/plain', limit: '512kb' });
+  // JSON bodies: up to JSON_BODY_LIMIT (body-limit.ts), then 413
+  // payload_too_large. Registered here, Nest's own JSON parser is skipped;
+  // rawBody (main.ts) is kept for the incoming webhooks' signatures.
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
 
   // HSTS, nosniff, frame-ancestors 'none', a strict CSP (Swagger UI's assets
   // are served from this origin, so it works with the default policy)...
@@ -43,7 +58,9 @@ export function setupHttp(app: NestExpressApplication) {
     app.enableCors({
       origin: origins,
       credentials: true,
-      exposedHeaders: ['X-Request-Id', 'Retry-After', 'Content-Language'],
+      // What a browser app may read: ETag (If-Match, If-None-Match),
+      // Location, and Idempotent-Replayed (@nestjs/idempotency's checklist).
+      exposedHeaders: [...CORS_EXPOSED_HEADERS],
       maxAge: 600,
     });
   }
