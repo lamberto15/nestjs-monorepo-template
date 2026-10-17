@@ -64,6 +64,47 @@ Filling `.env` (each step is commented in `env.example`):
   included: a few seconds' pause). Older logs are not kept: ship them
   somewhere if you need them for longer.
 
+### Redeploying without downtime
+
+`docker compose up -d --build` recreates both `api` replicas at once, and a
+replica answers only after it boots (the image's health check starts after
+30 s; Node needs 30-60 s with the migrations done). Compose has no rolling
+update, so for that window no replica is up. What the stack does about it:
+
+- **Caddy holds the request** (`lb_try_duration 30s`, `lb_try_interval 250ms`
+  in `caddy/Caddyfile`, and the load test's copy): with no healthy upstream
+  it tries again every 250 ms for up to 30 s instead of answering 503. A
+  browser pinned (cookie `lb_replica`) to a replica that is gone is moved to
+  a live one at the next try, and gets a new cookie. Replicas come and go
+  through DNS (`dynamic a`, refreshed every 5 s), so a new one is found
+  within 5 s of existing. There is no `lb_retries`: a count would end the
+  tries before the duration does.
+- **Limits:** a boot longer than 30 s still ends in a 503 for requests that
+  waited. A request that reached a replica which then died is retried only if
+  it is a GET (`lb_retry_match`); a failed connection is retried for any
+  method. Open socket.io connections drop and reconnect (the client does).
+  Active health checks (`health_uri`) run on static upstreams only; with
+  `dynamic a`, a replica that refuses connections is skipped by the passive
+  check (`fail_duration`) and the retries.
+
+To shorten the window, have the images ready and the one-off steps done
+before the replicas restart:
+
+```bash
+docker compose build api worker                # no downtime: the slow part
+docker compose up -d --no-deps --wait migrate worker   # migrations, then the worker
+docker compose up -d --no-deps --wait api      # recreates the replicas; Caddy holds requests
+```
+
+`--wait` returns when the replicas are healthy (the first check runs after
+the image's 30 s start period, so it can take up to a minute). Migrations run
+while the old replicas still serve, so a migration must stay compatible with
+the old code (add a column before the code that uses it, drop it in a later
+deploy). A real rolling update (one replica at a time, the other serving)
+needs an orchestrator ([Scaling further](#scaling-further)); `--scale api=4
+--no-recreate` followed by `--scale api=2` does not give it, because Compose
+removes replicas by number, not by age.
+
 ### Secrets in files
 
 The secrets below can live in files instead of `.env`. Compose mounts each
