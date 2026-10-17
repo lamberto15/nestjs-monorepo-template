@@ -80,7 +80,7 @@ export class TestItemsController {
 
   @Post()
   // A retry with the same key gets the first answer instead of a second record.
-  @Idempotent({ required: true, scope: principalScope })
+  @Idempotent({ scope: principalScope })
   @Can(TestItemPolicy, 'create')
   @ApiOperation({
     summary: 'Create a test item',

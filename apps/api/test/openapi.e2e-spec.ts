@@ -219,6 +219,17 @@ describe('OpenAPI document (e2e)', () => {
     expect(init.text).toContain('crypto.randomUUID()');
   });
 
+  it('marks Idempotency-Key required where the deployment demands it (IDEMPOTENCY=required, the default)', () => {
+    const required = Object.values<
+      Record<string, { parameters?: { name: string; required?: boolean }[] }>
+    >(document.paths)
+      .flatMap((operations) => Object.values(operations))
+      .flatMap((operation) => operation.parameters ?? [])
+      .filter((parameter) => parameter.name === 'Idempotency-Key')
+      .filter((parameter) => parameter.required === true);
+    expect(required.length).toBeGreaterThan(0);
+  });
+
   it('documents the three credentials: API key, user session, user token', () => {
     expect(Object.keys(document.components.securitySchemes).sort()).toEqual([
       'api-key',

@@ -43,6 +43,12 @@ export const flag = (fallback: 'on' | 'off') =>
     .preprocess(unsetIfEmpty, z.enum(['on', 'off']).default(fallback))
     .transform((value) => value === 'on');
 
+/** One of a fixed set of words; unset or empty, the fallback. */
+export const choice = <const T extends [string, ...string[]]>(
+  values: T,
+  fallback: T[number],
+) => z.preprocess(unsetIfEmpty, z.enum(values).default(fallback));
+
 /** A comma-separated list, as an array (empty when unset). */
 export const list = () =>
   z.preprocess(unsetIfEmpty, z.string().optional()).transform((value) =>

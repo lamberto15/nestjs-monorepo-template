@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   baseUrl,
+  choice,
   flag,
   list,
   optional,
@@ -25,6 +26,11 @@ const DEFAULT_ATTACHMENT_TYPES = [
 
 /** The environment of the platform: workers, keys at rest, integrations. */
 export const platformEnv = z.object({
+  /**
+   * `required`: the routes marked @Idempotent() refuse a request without an
+   * Idempotency-Key (400). `optional`: a key is honoured when sent, never demanded.
+   */
+  IDEMPOTENCY: choice(['required', 'optional'], 'required'),
   /** Seal stored idempotent responses: base64 keys, newest first. Unset: created once, kept in the database. */
   IDEMPOTENCY_KEYS: secret(optional()),
   /** Seal webhook endpoint secrets at rest: base64 keys, newest first. */

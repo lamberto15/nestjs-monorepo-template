@@ -26,6 +26,15 @@ describe('test items (e2e)', () => {
     sent = samples.body(),
   ) => agent.post('/v1/test-items').set('Idempotency-Key', key).send(sent);
 
+  it('refuses a create without an Idempotency-Key (IDEMPOTENCY=required, the default)', async () => {
+    const refused = await node
+      .admin()
+      .post('/v1/test-items')
+      .send(samples.body())
+      .expect(400);
+    expect(refused.body).toMatchObject({ code: 'IDEMPOTENCY_KEY_REQUIRED' });
+  });
+
   it('creates once per Idempotency-Key, changes with If-Match (audited), deletes', async () => {
     const admin = node.admin();
     const key = randomUUID();
