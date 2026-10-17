@@ -20,6 +20,7 @@ import { AccessService } from './access/access.service.js';
 import { TeamsController } from './access/teams.controller.js';
 import { TeamsService } from './access/teams.service.js';
 import { ApiClientsService } from './access/api-clients.service.js';
+import { PrincipalsService } from './access/principals.service.js';
 import { PermissionCatalog } from './access/permission-catalog.js';
 import { AccessPolicy } from './access/policies.js';
 import { SystemContext } from './access/system-context.js';
@@ -370,6 +371,7 @@ export class IamModule {
         AccessAdminService,
         TeamsService,
         ApiClientsService,
+        PrincipalsService,
         AccessSeeder,
         TenantsService,
         SingleTenant,

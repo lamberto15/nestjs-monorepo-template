@@ -213,7 +213,7 @@ function jsonSchema(field: FilterField, op: FilterOp): z.ZodType {
 }
 
 /** `%` and `_` match anything in LIKE: a search for them means the characters. */
-const escapeLike = (value: string) =>
+export const escapeLike = (value: string) =>
   value.replace(/[\\%_]/g, (char) => `\\${char}`);
 
 /** One condition on a declared field, from a validated value. */
