@@ -58,6 +58,12 @@ services:
     extends:
       file: ../compose.yaml
       service: postgres
+    environment:
+      # The workspace connects over 127.0.0.1 (its network is PostgreSQL's),
+      # which the image trusts without a password by default: passwords are
+      # checked there too, as everywhere else (the e2e tests prove a rotated
+      # one). Read when the volume is created.
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     volumes:
       # Marks the database as a development one (the demo seed's marker).
       - ../dev/postgres:/docker-entrypoint-initdb.d:ro

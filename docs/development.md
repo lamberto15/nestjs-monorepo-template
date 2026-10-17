@@ -162,6 +162,18 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **`node_modules` are the container's** (volumes): the Linux binaries of
   oxlint, esbuild, turbo and lefthook never replace the host's. A frontend
   added under `apps/` needs a volume for its own `node_modules` too.
+- **PostgreSQL checks passwords on loopback too** (`POSTGRES_INITDB_ARGS:
+  --auth-host=scram-sha-256`): the image trusts 127.0.0.1 by default, which
+  is the workspace's way in; `database-roles.e2e-spec.ts` proves a rotated
+  password is refused.
+- **`pnpm migrate`** (what a deploy runs, also making the maintenance role
+  of `DATABASE_MAINTENANCE_URL`) reads the environment only, as on the
+  host: `set -a; . apps/api/.env.development; set +a; pnpm migrate` (the
+  file's `MAIL_FROM` line upsets `sh`: harmless). `pnpm start:dev` and
+  `pnpm db:seed:demo` migrate on start (`MIGRATE_ON_START`).
+- **`devcontainer up` asks for `--allow=fs.read=…`** with a recent Docker
+  (buildx bake checks the CLI's generated Dockerfile in a temporary
+  directory): `BUILDX_BAKE_ENTITLEMENTS_FS=0 devcontainer up …`.
 - Dependabot raises the base image; pnpm's version is raised with
   `devEngines` by hand (`PNPM_VERSION`).
 
