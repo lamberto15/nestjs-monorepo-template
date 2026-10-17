@@ -33,13 +33,17 @@ realtime events, exports and imports. For the rest, see
 
 ```bash
 pnpm install
+pnpm setup                # first run: a few questions, writes apps/api/.env.development (or the root .env for production)
 pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES), Gotenberg (PDF)
-cp apps/api/env.development.example apps/api/.env.development   # optional: point the app at them
 pnpm start:dev            # http://localhost:3000/api
 pnpm db:seed:demo         # optional: demo users, notes and tags (passwords printed once)
 ```
 
-The first start creates the administrator (`ADMIN_EMAIL`; the password is
+`pnpm setup` asks what shapes a project (one organization or many, mail,
+storage, sign-up, bot protection), keeps the rest off, and generates the
+secrets; without it, copy `apps/api/env.development.example` to
+`apps/api/.env.development` by hand ([configuration](docs/configuration.md),
+"First setup"). The first start creates the administrator (`ADMIN_EMAIL`; the password is
 logged once unless `ADMIN_PASSWORD` is set). Or open the repository in its
 devcontainer (`.devcontainer/`): the same services, nothing to install. More
 in [development](docs/development.md).
@@ -47,12 +51,12 @@ in [development](docs/development.md).
 ## Deploy
 
 ```bash
-cp env.example .env && chmod 600 .env   # then fill it: domain, Cloudflare token, secrets
+pnpm setup --target production           # asks, writes .env (chmod 600) with every secret generated
 docker compose up -d --build
 ```
 
-`env.example` says which values are required and how to generate each
-secret.
+By hand instead: `cp env.example .env && chmod 600 .env`; `env.example` says
+which values are required and how to generate each secret.
 
 Caddy (HTTPS) → `api` replicas; `worker` replicas for the background work;
 PostgreSQL and Redis; migrations once per deploy. See

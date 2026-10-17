@@ -69,6 +69,47 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Container logs (Compose) | `DOCKER_LOG_DRIVER` (`local`; `json-file` for a shipper reading Docker's files), `DOCKER_LOG_MAX_SIZE` (20m), `DOCKER_LOG_MAX_FILE` (5): per container |
 | Example feature | `NOTE_PUBLISH_DELAY`, `EXAMPLE_SENDER_WEBHOOK_SECRET` |
 
+## First setup: pnpm setup
+
+`pnpm setup` is the wizard for a new project: it asks the few questions that
+shape it and writes the env file from the template, so most toggles stay off
+and no secret is made by hand (`tools/setup/`: `setup.mjs` asks and writes,
+`plan.mjs` maps answers to variables, `envfile.mjs` merges them into the
+template's text, keeping its comments, order and unknown keys).
+
+- **Target:** `development` writes `apps/api/.env.development` (from
+  `env.development.example`), `production` the root `.env` (from
+  `env.example`, chmod 600).
+- **The deployment shape is chosen here, once:** `TENANCY` (one organization
+  or many; [tenancy.md](tenancy.md), "Single-tenant deployments"), and with
+  `single` and sign-up on, `SIGN_UP_ROLES`. Then self sign-up
+  (`AUTH_SIGN_UP`), mail (`MAIL_TRANSPORT` and its address or key), storage
+  (`STORAGE_DRIVER`, S3), bot protection (`CAPTCHA_MODE` and the Turnstile keys,
+  only when chosen), passkeys (`PASSKEYS`; the relying party id defaults to
+  the web app's host and can never change), social sign-in, exchange rates,
+  PDF documents, metrics; in production also `APP_DOMAIN`, `ACME_EMAIL`,
+  `CLOUDFLARE_API_TOKEN`, `WEB_URL`, `CORS_ORIGINS`, the administrator and the
+  first tenant. It asks only what the target's template has variables for.
+- **Secrets are generated** as `env.example` says (passwords `openssl rand
+  -hex 24`, keys `-base64 32`) and never printed, except the first
+  administrator's password, once at the end.
+- **The example feature:** the last question removes `notes`
+  (`pnpm feature:remove notes`; default yes in production); then run `pnpm
+  db:generate`.
+- **Re-running** reads the existing file for its defaults, keeps its secrets
+  (`--rotate` makes new ones: keys are put in front of the old ones, so old
+  data stays readable), shows the changes masked, asks before writing and
+  keeps the old file as `<file>.bak`. A changed `TENANCY` or `PASSKEY_RP_ID`
+  is warned about.
+- **Without a terminal:** `--yes` takes the defaults and the flags (one per
+  question, `pnpm setup --help`; a required one missing is an error naming
+  it), `--dry-run` prints the plan and writes nothing.
+
+```bash
+pnpm setup --yes --target production --app-domain api.example.com --acme-email ops@example.com \
+  --cloudflare-api-token <token> --tenancy single --mail smtp --smtp-url <url> --mail-from <from> --no-passkeys
+```
+
 ## Secrets
 
 The variables that hold secrets are declared with `secret()` in their group's
