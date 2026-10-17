@@ -36,7 +36,12 @@ import {
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
-import { type RecordDeclaration, recordKey, recordView } from './record.js';
+import {
+  type RecordDeclaration,
+  recordKey,
+  recordView,
+  takes,
+} from './record.js';
 export { recordKey } from './record.js';
 import {
   RECORD_CONTRACT,
@@ -536,9 +541,12 @@ export class RecordDocuments {
         : typeof value === 'object'
           ? JSON.stringify(value)
           : String(value as string | number | boolean);
-    const fields = Object.entries(this.c.declaration.fields)
-      .filter(([name, f]) => f.kind !== 'json' && name in shown)
-      .map(([name]) => name);
+    const fields = [
+      ...(takes(this.c.declaration, 'numbered') ? ['number'] : []),
+      ...Object.entries(this.c.declaration.fields)
+        .filter(([name, f]) => f.kind !== 'json' && name in shown)
+        .map(([name]) => name),
+    ];
     return {
       template: 'record',
       fields,
@@ -583,6 +591,7 @@ export class RecordTransfer {
     this.subject = c.declaration.subject;
     this.columns = [
       { key: 'id' },
+      ...(takes(c.declaration, 'numbered') ? [{ key: 'number' }] : []),
       ...fields.map(([name, f]): TransferColumn => {
         if (f.kind === 'money') {
           return {

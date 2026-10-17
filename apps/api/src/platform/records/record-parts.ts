@@ -30,8 +30,11 @@ import {
   RecordTransfer,
 } from './record-targets.js';
 
-/** The generic target of each capability (record-targets.ts). */
-const TARGETS: Record<Capability, Type> = {
+/**
+ * The generic target of each capability that has one (record-targets.ts);
+ * `events` and `numbered` have none: RecordLifecycle does them.
+ */
+const TARGETS: Partial<Record<Capability, Type>> = {
   tags: RecordTags,
   comments: RecordComments,
   attachments: RecordAttachments,
@@ -111,9 +114,10 @@ export function recordParts(
     },
     RecordLifecycle,
     RecordPresenter,
-    ...declaration.capabilities.map(
-      (capability) => options.override?.[capability] ?? TARGETS[capability],
-    ),
+    ...declaration.capabilities.flatMap((capability) => {
+      const target = options.override?.[capability] ?? TARGETS[capability];
+      return target ? [target] : [];
+    }),
   ];
   return { controllers, providers };
 }

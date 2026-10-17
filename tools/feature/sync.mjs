@@ -36,6 +36,7 @@ const BASE_COLUMNS = new Set([
   'updated_at',
   'deleted_at',
   'deleted_by',
+  'number',
   'search',
 ]);
 
@@ -305,6 +306,9 @@ function guard(api, record) {
     }
   }
   if (record.capabilities.has('search') !== Boolean(columns.search))
+    generate = true;
+  // Taken later: the column is empty (nullable) for the records already there.
+  if (record.capabilities.has('numbered') !== Boolean(columns.number))
     generate = true;
   return { errors, generate };
 }

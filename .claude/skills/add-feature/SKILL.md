@@ -1,6 +1,6 @@
 ---
 name: add-feature
-description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search or export), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
+description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, export, webhooks for its changes or human-readable numbers), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
 ---
 
 # Add a feature
@@ -36,7 +36,14 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
 4. **What it needs** (`--with`): tags, comments, attachments, revisions
    (history and restore), pdf (a document of a record), bulk (act on many),
    watch (be notified of changes), search, transfer (CSV/Excel export and
-   import). Only what they need.
+   import). Only what they need. Ask two more, by name:
+   - **"Do API clients need webhooks for its changes?"** → `events`
+     (`<item>.created`, `.updated`, `.deleted`, `.restored` webhooks, sent to
+     the API client that owns the record).
+   - **"Human-readable numbers?"** (`INV-2026-00042`, gapless per tenant) →
+     `numbered`; ask the prefix (default: the name's first letters) and
+     whether the year restarts it, and set `number: { prefix, perYear, width }`
+     in the declaration.
 5. **Business rules.** What must be true on create and update, what happens
    after (notifications, webhooks, workflows, approvals), anything slow
    (that goes to a queue worker, never the request: CLAUDE.md).
@@ -92,7 +99,8 @@ capabilities, and everything else derives from it.
    capability).
 2. Edit the declaration: a field line (`dueOn: field.date().optional()`), or a
    name in `capabilities` (search: mark searched fields `.searchable()`; pdf
-   needs attachments).
+   needs attachments; numbered: a `number: { prefix: 'INV' }` line, and
+   the records already there stay without a number).
 3. `pnpm feature:sync`: it writes the texts and OpenAPI paths, and its guard
    refuses a new required field without `.default(…)`, an optional field made
    required, or a removed field. Follow what it says (expand/contract for

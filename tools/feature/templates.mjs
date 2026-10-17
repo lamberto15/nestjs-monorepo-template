@@ -6,7 +6,7 @@
 // added. Each function takes the context (`t` the names, `fields`,
 // `softDelete`, `team`, `capabilities`, `description`) and returns a file's
 // text; Prettier formats it after.
-import { lowerFirst } from './capabilities.mjs';
+import { lowerFirst, numberPrefix } from './capabilities.mjs';
 import { builderOf, camelOf, pascalOf } from './fields.mjs';
 
 const GENERATED = (what) =>
@@ -37,6 +37,12 @@ export function record({ t, fields, softDelete, team, capabilities }) {
     `  table: '${t.table}',`,
     `  softDelete: ${softDelete},`,
     `  team: ${team},`,
+    ...(capabilities.has('numbered')
+      ? [
+          `  // Its number, gapless per tenant: ${numberPrefix(t.Singular)}-2026-00001 (perYear: false drops the year).`,
+          `  number: { prefix: '${numberPrefix(t.Singular)}', perYear: true, width: 5 },`,
+        ]
+      : []),
     `  fields: {`,
     ...fields.map((f) => `    ${f.name}: ${builderOf(f, { searchable })},`),
     `  },`,
@@ -232,7 +238,7 @@ export function service({ t, fields, softDelete, team }) {
     '',
     `/**`,
     ` * ${pascalOf(t.nouns)}: the writes and the reads. Each write, its audit entry and what its`,
-    ` * capabilities do (RecordLifecycle: watchers, revisions) commit in one transaction.`,
+    ` * capabilities do (RecordLifecycle: number, watchers, revisions, webhooks) commit in one transaction.`,
     ` * ${GENERATED('the business logic goes where the comments say "Business logic".')}`,
     ` */`,
     `@Injectable()`,
@@ -263,6 +269,8 @@ export function service({ t, fields, softDelete, team }) {
           `          teamId: owner.kind === 'user' ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null) : null,`,
         ]
       : []),
+    `          // Its number (numbered), when the record takes one.`,
+    `          ...(await this.lifecycle.creating(tx)),`,
     `          ...recordValues(${t.SINGULAR}, dto),`,
     `        } as typeof ${table}.$inferInsert)`,
     `        .returning()${uniques.length ? '.catch(taken)' : ''};`,
@@ -332,7 +340,8 @@ export function service({ t, fields, softDelete, team }) {
           `  /** To the recycle bin (soft delete): hidden everywhere, restorable until purged. */`,
           `  async delete(by: Principal, row: ${S}, ip?: string) {`,
           `    await inTransaction(this.txHost, async (tx) => {`,
-          `      await tx.update(${table}).set({ deletedAt: new Date(), deletedBy: principalKey(by) }).where(eq(${table}.id, row.id));`,
+          `      const [deleted] = await tx.update(${table}).set({ deletedAt: new Date(), deletedBy: principalKey(by) }).where(eq(${table}.id, row.id)).returning();`,
+          `      await this.lifecycle.deleted(tx, { row: deleted!, by });`,
           `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'deleted', id: row.id, before: recordView(${t.SINGULAR}, row) }, tx, ip);`,
           `    });`,
           `  }`,
@@ -341,6 +350,7 @@ export function service({ t, fields, softDelete, team }) {
           `  async restore(by: Principal, row: ${S}, ip?: string) {`,
           `    return inTransaction(this.txHost, async (tx) => {`,
           `      const [restored] = await tx.update(${table}).set({ deletedAt: null, deletedBy: null }).where(eq(${table}.id, row.id)).returning();`,
+          `      await this.lifecycle.restored(tx, { row: restored!, by });`,
           `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'restored', id: row.id, after: recordView(${t.SINGULAR}, restored!) }, tx, ip);`,
           `      return restored!;`,
           `    });`,
@@ -351,6 +361,7 @@ export function service({ t, fields, softDelete, team }) {
           `  async delete(by: Principal, row: ${S}, ip?: string) {`,
           `    await inTransaction(this.txHost, async (tx) => {`,
           `      await tx.delete(${table}).where(eq(${table}.id, row.id));`,
+          `      await this.lifecycle.deleted(tx, { row, by });`,
           `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'deleted', id: row.id, before: recordView(${t.SINGULAR}, row) }, tx, ip);`,
           `    });`,
           `  }`,

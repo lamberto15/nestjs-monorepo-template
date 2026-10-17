@@ -11,6 +11,7 @@ import { defineNotifications } from '../platform/notifications/notification.type
 import type { PlatformOptions } from '../platform/platform.options.js';
 import {
   type RecordDeclaration,
+  recordEventTypes,
   recordKey,
   takes,
 } from '../platform/records/record.js';
@@ -99,7 +100,11 @@ export function featureDeclarations(features: readonly FeatureDefinition[]) {
     modules: features.map((feature) => feature.module),
     permissions: features.map((feature) => feature.permissions),
     resources: all((feature) => feature.resources),
-    eventTypes: all((feature) => feature.eventTypes),
+    // Plus a record's `events`: <item>.created, .updated, .deleted, .restored.
+    eventTypes: all((feature) => [
+      ...(feature.eventTypes ?? []),
+      ...(feature.record ? recordEventTypes(feature.record) : []),
+    ]),
     incomingWebhooks: all((feature) => feature.incomingWebhooks),
     queues: all((feature) => feature.queues),
     customFields: all((feature) => feature.customFields),

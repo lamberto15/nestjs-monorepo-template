@@ -16,6 +16,8 @@ export const TEST_ITEM = defineRecord({
   table: 'test_items',
   softDelete: true,
   team: true,
+  // Its number, gapless per tenant: TI-2026-00001 (perYear: false drops the year).
+  number: { prefix: 'TI', perYear: true, width: 5 },
   fields: {
     title: field.string().searchable(),
     body: field.text().optional().searchable(),
@@ -30,5 +32,7 @@ export const TEST_ITEM = defineRecord({
     'watch',
     'search',
     'transfer',
+    'events',
+    'numbered',
   ],
 });

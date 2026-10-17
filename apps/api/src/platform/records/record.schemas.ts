@@ -2,7 +2,15 @@ import { z } from 'zod';
 import { bulkRequestSchema } from '../bulk/bulk.schemas.js';
 import { fieldSchemas } from '../fields/fields.js';
 import { tagRefSchema } from '../tags/tag.schemas.js';
-import { type RecordDeclaration, takes } from './record.js';
+import { numberFormat, type RecordDeclaration, takes } from './record.js';
+
+/** `INV-2026-00042`: what a number looks like, for the docs. */
+const numberExample = (declaration: RecordDeclaration) => {
+  const { prefix, perYear, width } = numberFormat(declaration);
+  return [prefix, perYear ? 'YYYY' : '', '1'.padStart(width, '0')]
+    .filter(Boolean)
+    .join('-');
+};
 
 /**
  * A record's API schemas, from its declaration (record.ts): `create` (POST's
@@ -22,6 +30,14 @@ export function recordSchemas<const D extends RecordDeclaration>(
       .describe('Who created it: `user:<id>` or `client:<id>`.'),
     ...(declaration.team && {
       teamId: z.uuid().nullable().describe("The creator's team."),
+    }),
+    ...(takes(declaration, 'numbered') && {
+      number: z
+        .string()
+        .nullable()
+        .describe(
+          `Its human-readable number (${numberExample(declaration)}), gapless per tenant, assigned when it is created. Read-only; null for ${declaration.noun}s from before numbering.`,
+        ),
     }),
     ...fields.response,
     ...(takes(declaration, 'tags') && {

@@ -1,13 +1,21 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Webhooks } from '@nestjs/webhooks';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { fieldSnapshot } from '../fields/fields.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
+import { SequencesService } from '../sequences/sequences.service.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { TagsService } from '../tags/tags.service.js';
-import { type RecordDeclaration, recordView, takes } from './record.js';
+import {
+  numberFormat,
+  type RecordDeclaration,
+  recordKey,
+  recordView,
+  takes,
+} from './record.js';
 import type { RecordList } from './record-list.js';
 import type { RecordSchemas } from './record.schemas.js';
 
@@ -60,10 +68,14 @@ export interface RecordContract {
   schemas: RecordSchemas;
 }
 
+/** The changes a record's `events` capability sends as webhooks (`<item>.created`…). */
+export type RecordEvent = 'created' | 'updated' | 'deleted' | 'restored';
+
 /**
  * What happens with every record of the feature, as its capabilities say,
- * in the write's transaction: the owner watches a new one (watch), each
- * state is a revision (revisions). The service always calls it, so adding a
+ * in the write's transaction: it gets its number (numbered), the owner
+ * watches a new one (watch), each state is a revision (revisions), each
+ * change is a webhook (events). The service always calls it, so adding a
  * capability changes no service.
  */
 @Injectable()
@@ -72,6 +84,9 @@ export class RecordLifecycle {
     @Inject(RECORD_DECLARATION) private readonly declaration: RecordDeclaration,
     private readonly subscriptions: SubscriptionsService,
     private readonly revisions: RevisionsService,
+    private readonly sequences: SequencesService,
+    private readonly webhooks: Webhooks<Transaction>,
+    private readonly access: AccessService,
   ) {}
 
   private snapshot(row: Record<string, unknown>) {
@@ -79,6 +94,57 @@ export class RecordLifecycle {
       this.declaration.fields,
       recordView(this.declaration, row),
     );
+  }
+
+  /**
+   * The values a new record's insert takes besides its own: its number
+   * (numbered), gapless per tenant, from the transaction's counter.
+   */
+  async creating(tx: Transaction): Promise<{ number?: string }> {
+    if (!takes(this.declaration, 'numbered')) {
+      return {};
+    }
+    const { formatted } = await this.sequences.next(
+      tx,
+      recordKey(this.declaration),
+      numberFormat(this.declaration),
+    );
+    return { number: formatted };
+  }
+
+  /**
+   * An `events` webhook (`<item>.created`…), through the outbox in the
+   * write's transaction: it goes out if and only if the write commits.
+   * The data is the record as the API shows it, less the fields its
+   * receiver may not read. Endpoints belong to API clients, so it goes to
+   * the client that owns the record (a user's records send none), as the
+   * example feature's do. Without an endpoint subscribed it is a no-op.
+   */
+  private async emit(tx: Transaction, event: RecordEvent, row: RecordRow) {
+    if (
+      !takes(this.declaration, 'events') ||
+      !row.ownerId.startsWith('client:')
+    ) {
+      return;
+    }
+    const client = row.ownerId.slice('client:'.length);
+    const receiver = {
+      kind: 'client',
+      id: client,
+      name: client,
+      tenantId: row.tenantId as string,
+    } as const;
+    const data = await this.access.redact(
+      receiver,
+      'read',
+      this.declaration.subject,
+      recordView(this.declaration, row),
+    );
+    await this.webhooks.dispatch(tx, {
+      type: `${recordKey(this.declaration)}.${event}`,
+      tenant: client,
+      data,
+    });
   }
 
   async created(
@@ -97,6 +163,7 @@ export class RecordLifecycle {
         by,
       });
     }
+    await this.emit(tx, 'created', row);
   }
 
   async updated(
@@ -121,6 +188,17 @@ export class RecordLifecycle {
         restoredFrom,
       });
     }
+    await this.emit(tx, 'updated', after);
+  }
+
+  /** `row` as it is once deleted (in the recycle bin, or as it was when deleted for good). */
+  async deleted(tx: Transaction, { row }: { row: RecordRow; by: Principal }) {
+    await this.emit(tx, 'deleted', row);
+  }
+
+  /** `row` as it is once restored from the recycle bin. */
+  async restored(tx: Transaction, { row }: { row: RecordRow; by: Principal }) {
+    await this.emit(tx, 'restored', row);
   }
 }
 
