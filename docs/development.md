@@ -493,6 +493,34 @@ when `pnpm-lock.yaml` conflicts, regenerate it with `pnpm install` rather than
 merging it by hand. Merge dependent PRs in order and merge `origin/main` into the
 ones that fall behind.
 
+### Issues and labels
+
+Several sessions (people or Claude) work at once, often from the same GitHub
+account, so the labels say what each issue and PR is about and who has it.
+
+| Label | Meaning |
+| --- | --- |
+| `backend` | `apps/api`, the typed client's generation, migrations, backend docs |
+| `frontend` | `apps/web`, `packages/ui` |
+| `ci` | workflows, images, Compose and deploys |
+| `documentation` | docs only |
+| `enhancement` / `bug` | new work or a fix: one of the two on every issue and PR |
+| `in progress` | someone is working on it (the comments say who and where) |
+
+A change that touches several areas gets each label
+(`gh pr create --label backend,enhancement`). Work found outside your area
+becomes an issue with that area's label: the problem, the evidence
+(`file:line`, the request and response) and a proposal.
+
+Picking up an issue:
+
+1. Skip it if it's already labelled `in progress`.
+2. Claim it: `gh issue edit <n> --add-label "in progress" --add-assignee @me`,
+   then `gh issue comment <n>` with the branch (and the PR once it exists).
+   The assignee alone can't tell two sessions on one account apart.
+3. The PR's body says `Closes #<n>`: GitHub links the two and closes the
+   issue on the merge. Abandoning it: remove the label and comment why.
+
 ## Git hooks
 
 `pnpm install` sets them up ([lefthook](https://lefthook.dev), `lefthook.yml`).

@@ -12,6 +12,11 @@ Details live in `docs/`: read the file a task needs, not all of them.
   request to `origin` (GitHub) and green CI; then the worktree is removed and
   the PR squash-merged with its branch deleted. Never rebase or force-push:
   update a branch with `git merge origin/main`. See docs/development.md, "Git workflow".
+- **Issues and PRs are labelled and claimed.** Every issue and PR carries
+  its area (`backend`, `frontend`, `ci`, `documentation`) plus `enhancement`
+  or `bug`. Picking up an issue: skip it if it's already `in progress`;
+  otherwise add that label, assign yourself and comment the branch. The PR
+  says `Closes #N`. See docs/development.md, "Issues and labels".
 - **Check the NestJS docs before building anything.** Look up the NestJS docs
   (Context7, docs.nestjs.com, or the markdown in github.com/nestjs/docs.nestjs.com)
   and the installed `@nestjs/*` packages first, so nothing NestJS offers gets
