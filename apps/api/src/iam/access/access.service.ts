@@ -15,7 +15,11 @@ import type { Redis } from 'ioredis';
 import { IAM_OPTIONS, type IamOptions } from '../iam.options.js';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { REDIS, closeRedis } from '../../core/redis/redis.js';
-import { type ListQuery, queryReads } from '../../core/http/list-query.js';
+import {
+  type ListQuery,
+  queryMatches,
+  queryReads,
+} from '../../core/http/list-query.js';
 import {
   AbilityBuilder,
   createMongoAbility,
@@ -64,6 +68,58 @@ interface Cached {
  */
 /** The field a permission with `fields: []` grants: none that exists. */
 const NO_FIELDS = '$none';
+
+/**
+ * Whether `field`, which some rule lets `action` reach, is hidden on some
+ * of the records `action` reaches: what a filter, a sort or a search on it
+ * would reveal. CASL's `can(action, subject, field)` on a subject type is
+ * true as soon as one rule grants the field, conditions or not, so the
+ * rules are read (`rulesFor(action, subject, field)`: those for the field,
+ * the one that wins first; `possibleRulesFor(action, subject)`: every rule
+ * of the action, whatever its fields).
+ *
+ * - A rule with fields and conditions that forbids it (inverted), ahead of
+ *   any grant without conditions: hidden where its conditions hold.
+ * - A grant of the field without conditions: shown on every record.
+ * - Otherwise every rule that lets `reach` reach records must have a
+ *   rule of `action` grant the field on the same records: the same
+ *   conditions. `read` own notes with every field and `read` the team's
+ *   with `fields: []` leaves `body` hidden on the team's; `read` own notes
+ *   alone shows it on every note the read reaches.
+ *
+ * `reach` is the action whose rows the query matches, when it isn't
+ * `action` itself: the recycle bin lists what the caller may `restore`, a
+ * bulk run selects what it may `delete`, and so on, while what they see of
+ * those rows is still what `read` grants. `read` own notes with every field
+ * and `restore` the team's leaves `body` hidden on the team's deleted notes.
+ */
+export function hiddenOnSomeRecords(
+  ability: AppAbility,
+  action: string,
+  subject: string,
+  field: string,
+  reach: string = action,
+): boolean {
+  const rules = ability.rulesFor(action, subject, field);
+  for (const rule of rules) {
+    if (!rule.inverted && !rule.conditions) {
+      return false;
+    }
+    if (rule.inverted && rule.fields && rule.conditions) {
+      return true;
+    }
+  }
+  const granted = new Set(
+    rules
+      .filter((rule) => !rule.inverted)
+      .map((rule) => JSON.stringify(rule.conditions)),
+  );
+  return ability
+    .possibleRulesFor(reach, subject)
+    .some(
+      (rule) => !rule.inverted && !granted.has(JSON.stringify(rule.conditions)),
+    );
+}
 
 @Injectable()
 export class AccessService implements OnModuleInit, OnApplicationShutdown {
@@ -229,8 +285,8 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
    * The declared fields of `subject` the principal may `action` on no
    * record at all (field-level permissions, conditions aside): what a
    * description of the subject leaves out (GET /v1/lists/{subject}). A
-   * field allowed on some records only is not among them: `redact()`
-   * decides per record.
+   * field allowed on some records only is not among them (see
+   * `conditionalFields()`): `redact()` decides per record.
    */
   async deniedFields(
     principal: Principal,
@@ -246,20 +302,73 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
   }
 
   /**
+   * The declared fields of `subject` the principal may `action` on some of
+   * the records they may `action` only: a rule reaches records without
+   * granting the field on them (a grant of the field with conditions beside
+   * a rule with other conditions, or none, and fewer fields), or a rule
+   * with conditions forbids it on some records. `redact()` shows or
+   * hides them per record, but a query that filters, searches or sorts by
+   * one would tell its value on the records that hide it (which rows match,
+   * in which order), so lists refuse that (`assertQueryFields`) and the
+   * global search leaves them out. Administrators and grants without
+   * conditions have none.
+   */
+  async conditionalFields(
+    principal: Principal,
+    action: string,
+    subject: string,
+    /** The action whose rows are matched, when another (see hiddenOnSomeRecords). */
+    reach: string = action,
+  ): Promise<string[]> {
+    const declared = this.catalog.declaredFields(subject);
+    if (declared.length === 0) {
+      return [];
+    }
+    const { ability } = await this.load(principal);
+    return declared.filter(
+      (field) =>
+        ability.can(action, subject, field) &&
+        hiddenOnSomeRecords(ability, action, subject, field, reach),
+    );
+  }
+
+  /**
+   * The declared fields a query may not filter, search or sort by:
+   * `deniedFields()` and `conditionalFields()` together.
+   */
+  async unmatchableFields(
+    principal: Principal,
+    action: string,
+    subject: string,
+  ): Promise<string[]> {
+    const [denied, conditional] = await Promise.all([
+      this.deniedFields(principal, action, subject),
+      this.conditionalFields(principal, action, subject),
+    ]);
+    return [...denied, ...conditional];
+  }
+
+  /**
    * A 403 `field_forbidden` when a validated list query (`listQuery()`)
-   * filters, searches, sorts or selects by a field `deniedFields()` hides:
-   * `redact()` takes it out of the items, and a filter on it would still
-   * tell its values, one probe at a time. Every list of a subject with
-   * declared fields calls it after validating the query, and so do the
-   * exports, bulk runs and reports that take the list's filters. A field
-   * allowed on some records only (a rule with conditions) passes: whether
-   * a record shows it is decided per record, and a filter on it may still
-   * match records whose value the caller can't see (docs/permissions.md).
+   * filters, searches, sorts or selects by a field `deniedFields()` hides,
+   * or filters, searches or sorts by one `conditionalFields()` shows on some
+   * records only: `redact()` takes such a value out of the items, and
+   * which rows match (or their order) would still tell it, one probe at a
+   * time. Selecting (`fields=`) a conditional field is allowed: `redact()`
+   * decides per record what is shown. Every list of a subject with declared
+   * fields calls it after validating the query, and so do the exports,
+   * bulk runs and reports that take the list's filters.
+   *
+   * `reach`: the action whose rows the query matches (`sqlFilter()`'s), when
+   * not `read`: `restore` for a recycle bin, a bulk run's action, an
+   * exporter's `action`. A field is matchable only where `read` shows it
+   * on every row that action reaches.
    */
   async assertQueryFields(
     principal: Principal,
     subject: string,
     query: ListQuery,
+    { reach = 'read' }: { reach?: string } = {},
   ): Promise<void> {
     // A subject with no declared fields hides none: nothing to check, whatever
     // validated the query. Otherwise only a listQuery() query (queryReads throws).
@@ -270,8 +379,16 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     if (reads.length === 0) {
       return;
     }
-    const denied = await this.deniedFields(principal, 'read', subject);
-    const forbidden = reads.filter((field) => denied.includes(field));
+    const matching = queryMatches(query);
+    const [denied, conditional] = await Promise.all([
+      this.deniedFields(principal, 'read', subject),
+      this.conditionalFields(principal, 'read', subject, reach),
+    ]);
+    const forbidden = reads.filter(
+      (field) =>
+        denied.includes(field) ||
+        (conditional.includes(field) && matching.includes(field)),
+    );
     if (forbidden.length) {
       throw new ForbiddenException({
         code: 'field_forbidden',

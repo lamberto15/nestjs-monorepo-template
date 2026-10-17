@@ -20,7 +20,8 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
   `app_storage` volume is mounted on `/app/.data/storage`).
 - Secrets left unset are created once and kept in the database
   (`loadOrCreateSecret`): `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`,
-  `STORAGE_SIGNING_KEYS`, `IDEMPOTENCY_KEYS`, the incoming webhook secrets.
+  `STORAGE_SIGNING_KEYS`, `IDEMPOTENCY_KEYS`, `CURSOR_KEYS`, the incoming
+  webhook secrets.
   Set them in `.env` to keep them out of the database (`openssl rand -base64
   32` each); keys are comma-separated, newest first (add a new one in front
   to rotate).
@@ -38,7 +39,7 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 
 | Group | Variables |
 | --- | --- |
-| Runtime | `NODE_ENV` (`development` set explicitly is half of the demo seed's check: [development](development.md), "Demo data"), `APP_ENV` (the deployment's name; `loadtest` only for the load test's stack), `APP_ROLE` (`all`/`api`/`worker`), `PORT`, `SERVICE_NAME`, `OPENAPI` |
+| Runtime | `NODE_ENV` (`development` set explicitly is half of the demo seed's check: [development](development.md), "Demo data"), `APP_ENV` (the deployment's name; `loadtest` only for the load test's stack), `APP_ROLE` (`all`/`api`/`worker`), `PORT`, `SERVICE_NAME`, `OPENAPI`, `CURSOR_KEYS` (seals sorted lists' `nextCursor`; unset: created once, kept in the database) |
 | URLs | `APP_URL` (this API), `WEB_URL` (the web app, for email links), `CORS_ORIGINS` |
 | Database | `DATABASE_URL` (required, PostgreSQL 18+, the app role), `DATABASE_OWNER_URL` (the owner: `migrate`, and the app when `MIGRATE_ON_START` is on), `DATABASE_MAINTENANCE_URL` (the maintenance role, BYPASSRLS: workers' sweeps across tenants, never api; docs/tenancy.md), `MIGRATE_ON_START`, `DATABASE_POOL_MAX` (10), `DATABASE_POOL_TIMEOUT_MS` (5000), `DATABASE_STATEMENT_TIMEOUT_MS` (30000), `DATABASE_IDLE_TX_TIMEOUT_MS` (60000); Compose: `POSTGRES_USER` (`app`, the owner), `POSTGRES_PASSWORD`, `POSTGRES_APP_USER` (`app_runtime`), `POSTGRES_APP_PASSWORD`, `POSTGRES_MAINTENANCE_USER` (`app_maintenance`), `POSTGRES_MAINTENANCE_PASSWORD`, `POSTGRES_DB` (`app`), `POSTGRES_MONITOR_USER` (`app_monitor`: the PostgreSQL exporter's role, `pg_monitor` only, NOBYPASSRLS) and `POSTGRES_MONITOR_PASSWORD` (required with `compose.monitoring.yaml`; or `DATABASE_MONITOR_URL` on a managed PostgreSQL), `API_DATABASE_POOL_MAX` (10), `WORKER_DATABASE_POOL_MAX` (20), `POSTGRES_MAX_CONNECTIONS` (100) |
 | Redis | `REDIS_URL` (Redis 7.0 or newer: `EXPIRE NX`; checked at start, [deployment.md](deployment.md), "Redis"), `REDIS_PASSWORD` (replaces the URL's: for one in a file), `REDIS_SENTINELS`, `REDIS_SENTINEL_NAME`, `REDIS_PREFIX`, `RATE_LIMIT_STORE`, `RATE_LIMIT_MULTIPLIER` (1: every rate limit times this; the load test's stack only, [development](development.md), "Load tests": with `NODE_ENV=production`, above 1 stops the app unless `APP_ENV=loadtest`) |
@@ -229,6 +230,7 @@ holds it too (for code that reads it directly).
 | `MFA_ENCRYPTION_KEYS` | encrypts TOTP secrets; a list, newest first | Add a new key in front; keep every older one, which still decrypts the secrets sealed with it. Removing one locks its users out of their authenticator until a re-encryption exists (roadmap item 5). |
 | `STORAGE_SIGNING_KEYS` | signs file URLs; a list, newest first | Add a new key in front; drop the old one once the URLs it signed have expired (report links last up to `REPORT_LINK_TTL`, at most 7 days). |
 | `IDEMPOTENCY_KEYS` | seals stored idempotent responses; a list, newest first | Add a new key in front; drop the old one once the responses it sealed have expired. |
+| `CURSOR_KEYS` | seals sorted lists' cursors (`nextCursor`: the last row's sort values, which may be fields the caller can't see; core/http/cursor-seal.ts); a list, newest first | Add a new key in front; drop the old one when cursors handed out with it may fail (a client paging at that moment gets a 400 and starts again from the first page). |
 | `WEBHOOKS_ENCRYPTION_KEYS` | encrypts webhook endpoint secrets; a list, newest first | Add a new key in front; keep the old one while endpoint secrets sealed with it remain (rotating an endpoint's secret, `POST /v1/webhook-endpoints/{id}/rotate-secret`, seals it with the newest key). |
 | `EXAMPLE_SENDER_WEBHOOK_SECRET` | verifies the example sender's webhooks (one secret) | Agree on a moment with the sender: change it on both sides; deliveries signed with the old one in between are refused and retried by the sender. |
 | `ADMIN_PASSWORD` | the first administrator's, on the first start only | Nothing to rotate: change the password in the app, then remove the variable or file. |

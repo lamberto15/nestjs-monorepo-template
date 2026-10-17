@@ -566,16 +566,25 @@ export function listQuery(
       }
       // What field-level permissions check (queryReads): every name the
       // query filters, sorts or selects by, as the record fields it reveals.
-      const names = [
+      // Filters, `q` and sort match or order rows by a value; `fields=` only shows it.
+      const matching = [
         ...keys
           .filter(({ key }) => query[key] !== undefined)
           .map((k) => k.name),
         ...((query.filter as FilterTree | undefined)?.fields ?? []),
         ...(sort ?? []).map(({ name }) => name),
-        ...((query.fields as string[] | undefined) ?? []),
+      ];
+      const reads = (names: string[]) => [
+        ...new Set(names.flatMap((name) => fieldsRead(fields, name))),
       ];
       Object.defineProperty(query, READS, {
-        value: [...new Set(names.flatMap((name) => fieldsRead(fields, name)))],
+        value: {
+          all: reads([
+            ...matching,
+            ...((query.fields as string[] | undefined) ?? []),
+          ]),
+          matching: reads(matching),
+        } satisfies Reads,
       });
       return query;
     });
@@ -674,6 +683,12 @@ export function listQuery(
 /** Where a validated query keeps `queryReads()`: not enumerable, so never a filter nor in a job's JSON. */
 const READS = Symbol('list query reads');
 
+/** The record fields a validated query reads: all of them, and those it matches or orders rows by. */
+interface Reads {
+  all: string[];
+  matching: string[];
+}
+
 /**
  * The record fields a list field, or a `fields=` name, reveals: its
  * `reads`, else its own name; a dotted name (`custom.region`) also its
@@ -699,8 +714,23 @@ export function fieldsRead(
  * the check fails closed rather than pass a query it can't read.
  */
 export function queryReads(query: ListQuery): readonly string[] {
-  const reads = (query as Record<symbol, unknown>)[READS] as
-    string[] | undefined;
+  return readsOf(query).all;
+}
+
+/**
+ * The record fields of `queryReads()` the query filters (flat and
+ * `filter`), searches (`q`) or sorts by: those that decide which rows match
+ * or in which order, not the ones `fields=` only shows. A field the caller
+ * may read on some records only is refused here
+ * (`AccessService.assertQueryFields`): which rows match would tell its
+ * value on the others.
+ */
+export function queryMatches(query: ListQuery): readonly string[] {
+  return readsOf(query).matching;
+}
+
+function readsOf(query: ListQuery): Reads {
+  const reads = (query as Record<symbol, unknown>)[READS] as Reads | undefined;
   if (!reads) {
     throw new Error(
       'Not a query listQuery() validated: check the fields of `list.parse(raw)` itself, not a copy.',

@@ -323,7 +323,8 @@ the controller (`notes.*`); singular for what describes one record
      `select({ ...getTableColumns(t), ...list.sortSelect(query) })`
      (`NotesController.list`). Without: `@Query({ schema: LIST.schema })`.
    - With field-level permissions (declared `fields`), a hidden field
-     can't be filtered, sorted, selected or searched (docs/permissions.md).
+     can't be filtered, sorted, selected or searched, nor one shown on some
+     records only be filtered, sorted or searched (docs/permissions.md).
      A generated controller gets that from its only way to a query,
      `const { list, query } = await this.presenter.query(user, LIST, raw)`
      (`RecordPresenter`: custom fields, validation, then

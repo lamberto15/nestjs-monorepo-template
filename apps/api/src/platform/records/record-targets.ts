@@ -342,16 +342,16 @@ export class RecordSearch {
       (a, b) =>
         Number(fields[b]!.kind === 'text') - Number(fields[a]!.kind === 'text'),
     );
-    // Field-level: a field the principal may read on no record isn't
-    // matched (a hit would tell its text): a vector of the others, made
-    // now, without the index. A field allowed on some records only is
-    // matched (docs/permissions.md).
-    const denied = await this.access.deniedFields(
+    // Field-level: a field the principal may read on no record, or on some
+    // records only, isn't matched (a hit would tell its text where it is
+    // hidden): a vector of the others, made now, without the index
+    // (docs/permissions.md).
+    const unmatchable = await this.access.unmatchableFields(
       principal,
       'read',
       this.subject,
     );
-    const visible = searchable.filter((name) => !denied.includes(name));
+    const visible = searchable.filter((name) => !unmatchable.includes(name));
     if (visible.length === 0) return [];
     const vector =
       visible.length === searchable.length

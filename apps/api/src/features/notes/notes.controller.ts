@@ -159,7 +159,10 @@ export class NotesController {
     const list = await this.customFields.extendList(NOTE_LIST, 'Note');
     const query = list.parse(raw);
     // Field-level: no filter, search, sort or `fields` on what the caller may not read.
-    await this.access.assertQueryFields(user, 'Note', query);
+    // Matched among the rows the list reaches: the recycle bin's are those the caller may restore.
+    await this.access.assertQueryFields(user, 'Note', query, {
+      reach: query.deleted ? 'restore' : 'read',
+    });
     const page = await this.notes.findPage(
       and(
         // The recycle bin (?deleted=true) is for those who may restore.
