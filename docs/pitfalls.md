@@ -295,3 +295,32 @@ matters.)
   (every error's) is masked under `body` and `query` only; a credential
   interpolated into a message is caught by the text patterns, which match
   shapes (`Bearer …`, a JWT, `name=value`), never a bare value.
+
+## Migrations: drizzle-kit and renames
+
+Learned renaming org units to teams (#23, 2026-10-17):
+
+- **`pnpm db:generate` asks** "created or renamed?" for every table and
+  column that disappears, and has no flag to answer it: it needs a terminal.
+  Answer *rename* for the renamed ones; a policy, index or constraint whose
+  name follows the table is dropped and created, which is right.
+- **It orders a referenced key's rename wrongly.** Renaming a table renames
+  its `(tenant_id, id)` unique key (`tenantTable(…, { referenced: true })`),
+  and drizzle-kit drops that key before the foreign keys that use it, then
+  adds the foreign keys before the new key: PostgreSQL refuses both. Generate
+  it in steps instead, each with `pnpm db:generate`, never by editing the SQL:
+  1. rename, with the foreign keys to the table left out of the
+     `*.tables.ts` and the unique key's old name kept for the moment;
+  2. the key's new name;
+  3. the foreign keys back.
+
+  The e2e setup applies every migration to a real PostgreSQL: run one spec
+  before committing a generated migration.
+- **Names stored in rows** (a role's condition key, a settings scope, an
+  approval rule's type) are data, not schema: list them in
+  `apps/api/src/stored-renames.ts`, which every migrate rewrites
+  (`core/database/stored-renames.ts`), tenant by tenant.
+- That rename skipped expand/contract (above): the owner accepts breaking
+  changes until the template has adopters, and the release is a major one.
+  With adopters, a rename takes the three releases above.
+
