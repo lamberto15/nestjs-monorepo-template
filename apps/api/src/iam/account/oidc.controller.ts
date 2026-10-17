@@ -39,6 +39,7 @@ import {
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
+import { redirectPath, webAppUrl } from '../../core/http/redirect-path.js';
 import { AccountService } from './account.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
@@ -62,14 +63,18 @@ const identitySchema = z.object({
  * a string method on it throws (a 500, CodeQL
  * js/type-confusion-through-parameter-tampering): the schema makes each one a
  * string or, when it isn't one, absent (`catch`), since the browser is
- * navigating here and a problem response would be its landing page.
+ * navigating here and a problem response would be its landing page. So is
+ * a `redirectTo` that isn't a path of the web app (`isSafeRedirectPath`):
+ * dropped, never stored with the login, and the browser lands on the web
+ * app's root.
  */
 const loginQuerySchema = z.object({
-  redirectTo: z
-    .string()
+  redirectTo: redirectPath
     .optional()
     .catch(undefined)
-    .describe('A path of the web app to land on.'),
+    .describe(
+      'A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.',
+    ),
   link: z
     .string()
     .optional()
@@ -191,29 +196,18 @@ export class OidcController {
   }
 
   /**
-   * `redirectTo` (a path of the web app, else its root) with `?error=`. The
-   * path is accepted by the package's rule for its own redirects
-   * (`safeRedirectPath`, @nestjs/authentication utils/crypto.util.js, not
-   * exported): starts with one `/`, no `\` (a URL parser reads it as `/`),
-   * printable ASCII only (a tab or a newline is dropped by the parser, so
-   * `/%09/evil` would mean `//evil`), at most 2,048 characters. Then the
-   * URL built must still be the web app's: anything else goes to its root.
+   * `redirectTo` (a path of the web app, else its root: `webAppUrl`, the
+   * one rule for every redirect target) with `?error=`.
    */
   private backToWebApp(redirectTo: string | undefined, error: string) {
-    const web = new URL(`${webUrl(this.config)}/`);
-    const safe =
-      typeof redirectTo === 'string' &&
-      redirectTo.startsWith('/') &&
-      !redirectTo.startsWith('//') &&
-      !redirectTo.includes('\\') &&
-      redirectTo.length <= 2048 &&
-      /^[\x21-\x7e]+$/.test(redirectTo);
-    let url = new URL(safe ? redirectTo : '/', web);
-    if (url.origin !== web.origin) {
-      url = new URL('/', web);
-    }
+    const url = this.webApp(redirectTo);
     url.searchParams.set('error', error);
     return url.toString();
+  }
+
+  /** `value` on the web app (WEB_URL, else APP_URL, which has a default), else its root. */
+  private webApp(value: unknown) {
+    return webAppUrl(value, `${webUrl(this.config)}`);
   }
 
   @Public()
@@ -247,7 +241,14 @@ export class OidcController {
       if (stepUpExpected) {
         res.append('Set-Cookie', cookie.clear());
       }
-      return redirect;
+      // The login's `redirectTo` (a path, else the package's
+      // `redirectAfterLogin`) checked again and made the web app's: a login
+      // stored before the rule lands on its root, and a path lands on the
+      // web app, not on this API's origin.
+      return {
+        ...redirect,
+        url: this.webApp(redirect.url).toString(),
+      };
     } catch (error) {
       if (error instanceof ReauthenticationRefused) {
         res.append('Set-Cookie', cookie.clear());

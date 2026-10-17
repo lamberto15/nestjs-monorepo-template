@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   useCallback,
   useEffect,
@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { useInvalidateRecords } from '@/lib/records';
+import { recordKeys, useInvalidateRecords } from '@/lib/records';
 
 /**
  * Delete (to the recycle bin) with a confirmation, then a toast with an
@@ -38,6 +38,7 @@ export function useRecordDelete<T>(options: {
 }) {
   const { path, remove, restore, texts, onDeleted, onRestored } = options;
   const invalidate = useInvalidateRecords(path);
+  const queryClient = useQueryClient();
   const [target, setTarget] = useState<{ record: T } | null>(null);
   // Mutations, so a failure reaches the global handler (lib/errors.ts).
   const removing = useMutation({ mutationFn: remove });
@@ -69,7 +70,13 @@ export function useRecordDelete<T>(options: {
         if (!target) return;
         const { record } = target;
         await removing.mutateAsync(record);
-        await invalidate();
+        // The record is gone from its route: dropping its query (not
+        // invalidating it) keeps a detail page still on screen from
+        // refetching it into a 404 before it navigates away.
+        queryClient.removeQueries({ queryKey: recordKeys.details(path) });
+        await queryClient.invalidateQueries({
+          queryKey: recordKeys.lists(path),
+        });
         toast(texts.deleted, {
           action: {
             label: texts.undo,

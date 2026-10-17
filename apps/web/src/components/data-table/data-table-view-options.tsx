@@ -6,6 +6,8 @@ import {
   Subscribe,
 } from '@tanstack/react-table';
 import { cn } from 'cn';
+// Patched in (not in the registry): the texts go through react-i18next (`list.table.*`).
+import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -38,6 +40,7 @@ export function DataTableViewOptions<TData extends RowData>({
   className,
   ...props
 }: DataTableViewOptionsProps<TData>) {
+  const { t } = useTranslation();
   const dir = useDirection();
   const columns = React.useMemo(
     () =>
@@ -62,7 +65,7 @@ export function DataTableViewOptions<TData extends RowData>({
           <FacetedTrigger
             render={
               <Button
-                aria-label="View columns"
+                aria-label={t('list.table.viewColumns')}
                 variant="outline"
                 className="ms-auto hidden lg:flex"
                 disabled={disabled}
@@ -70,18 +73,18 @@ export function DataTableViewOptions<TData extends RowData>({
             }
           >
             <Settings2 className="text-muted-foreground" />
-            View
+            {t('list.table.view')}
           </FacetedTrigger>
           <FacetedContent
-            aria-label="Columns"
+            aria-label={t('list.table.columns')}
             dir={dir}
             align="center"
             className={cn('w-44', className)}
             {...props}
           >
-            <FacetedInput placeholder="Search columns..." />
+            <FacetedInput placeholder={t('list.table.searchColumns')} />
             <FacetedList>
-              <FacetedEmpty>No columns found.</FacetedEmpty>
+              <FacetedEmpty>{t('list.table.noColumns')}</FacetedEmpty>
               <FacetedGroup>
                 {columns.map((column) => (
                   <FacetedItem

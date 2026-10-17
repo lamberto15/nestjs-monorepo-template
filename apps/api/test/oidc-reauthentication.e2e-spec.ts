@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { OidcService } from '@nestjs/authentication';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import type { Redis } from 'ioredis';
@@ -11,7 +12,7 @@ import {
   SignInContext,
   signInMetadata,
 } from '../src/iam/auth/sign-in-context.js';
-import { userIdentities } from '../src/iam/iam.tables.js';
+import { oidcLogins, userIdentities } from '../src/iam/iam.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
 // A configured GitHub (read once, when AppModule loads): an OAuth 2.0
@@ -344,5 +345,93 @@ describe('step-up through a provider: prompt=login and auth_time (e2e)', () => {
     await expect(
       stepUp({ auth_time: Math.floor(Date.now() / 1000) }),
     ).resolves.toEqual({ id: me.id });
+  });
+
+  describe('redirectTo: a path of the web app, never another site (#74)', () => {
+    const offSite = [
+      '//evil.example',
+      '/\\evil.example',
+      '/\t/evil.example',
+      '/%09/evil.example',
+      '/.//evil.example',
+      'https://evil.example',
+      'javascript:alert(1)',
+    ];
+
+    it('never stores one with a login or a step-up', async () => {
+      const db = node.app.get<Database>(getDrizzleToken());
+      const me = await person();
+      for (const redirectTo of offSite) {
+        const plain = await node
+          .http()
+          .get('/v1/auth/oidc/github/login')
+          .query({ redirectTo })
+          .expect(302);
+        const state = new URL(plain.headers.location!).searchParams.get(
+          'state',
+        )!;
+        const [login] = await db
+          .select({ redirectTo: oidcLogins.redirectTo })
+          .from(oidcLogins)
+          .where(eq(oidcLogins.state, state));
+        expect(login, JSON.stringify(redirectTo)).toEqual({ redirectTo: null });
+
+        const stepUp = await me.agent
+          .get('/v1/auth/oidc/github/login')
+          .query({ reauthenticate: 'true', redirectTo })
+          .expect(302);
+        const stepUpState = new URL(stepUp.headers.location!).searchParams.get(
+          'state',
+        )!;
+        const remembered = JSON.parse(
+          (await node.app
+            .get<Redis>(REDIS)
+            .get(`oidc:reauthentication:${stepUpState}`))!,
+        ) as Record<string, unknown>;
+        expect(remembered, JSON.stringify(redirectTo)).not.toHaveProperty(
+          'redirectTo',
+        );
+      }
+      const kept = await node
+        .http()
+        .get('/v1/auth/oidc/github/login')
+        .query({ redirectTo: '/a/b?x=1#h' })
+        .expect(302);
+      const [login] = await db
+        .select({ redirectTo: oidcLogins.redirectTo })
+        .from(oidcLogins)
+        .where(
+          eq(
+            oidcLogins.state,
+            new URL(kept.headers.location!).searchParams.get('state')!,
+          ),
+        );
+      expect(login).toEqual({ redirectTo: '/a/b?x=1#h' });
+    });
+
+    it("lands a finished sign-in on the web app: a stored login's path checked again", async () => {
+      const finish = vi.spyOn(node.app.get(OidcService), 'finish');
+      const land = async (url: string) => {
+        finish.mockResolvedValueOnce({ url, cookies: [] });
+        return (
+          await node
+            .http()
+            .get('/v1/auth/oidc/github/callback?state=s&code=c')
+            .expect(302)
+        ).headers.location;
+      };
+      // A login stored before the rule: the web app's root.
+      for (const url of [...offSite, 'https://web.example.com//evil.example']) {
+        expect(await land(url), url).toBe('https://web.example.com/');
+      }
+      // The package's answers: the login's path (on the web app, not this
+      // API's origin), else `redirectAfterLogin`.
+      expect(await land('/settings?tab=a#h')).toBe(
+        'https://web.example.com/settings?tab=a#h',
+      );
+      expect(await land('https://web.example.com/')).toBe(
+        'https://web.example.com/',
+      );
+    });
   });
 });

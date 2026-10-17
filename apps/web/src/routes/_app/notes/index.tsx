@@ -18,6 +18,7 @@ import {
 } from '@/components/records/recycle-bin';
 import { NOTES_PATH } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
+import { TagBadge } from '@/lib/tags';
 import { Can, useCan } from '@/lib/features';
 import { useDateTimeFormat } from '@/lib/date-time';
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -84,6 +85,13 @@ function Notes() {
         id: 'tags',
         accessorFn: (note) => note.tags?.map((tag) => tag.name).join(', '),
         ...header('tags'),
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            {row.original.tags?.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} />
+            ))}
+          </div>
+        ),
       },
       {
         id: 'createdAt',

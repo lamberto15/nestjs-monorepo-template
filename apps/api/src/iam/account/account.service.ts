@@ -20,6 +20,7 @@ import {
 import { t } from '@nestjs/i18n';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Transaction } from '../../core/database/drizzle.js';
+import { isSafeRedirectPath } from '../../core/http/redirect-path.js';
 import {
   database,
   type DrizzleTransactions,
@@ -314,7 +315,10 @@ export class AccountService {
     return {
       signedIn: !mfaRequired,
       mfaRequired,
-      redirectTo: issued.redirectTo,
+      // Checked again: a link stored before the rule, or by an older package, answers none.
+      redirectTo: isSafeRedirectPath(issued.redirectTo)
+        ? issued.redirectTo
+        : undefined,
     };
   }
 

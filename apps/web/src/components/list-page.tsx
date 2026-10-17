@@ -17,10 +17,13 @@ import { DataTableFilterMenu } from '@/components/data-table/data-table-filter-m
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableSortMenu } from '@/components/data-table/data-table-sort-menu';
 import { useDataTable } from '@/hooks/use-data-table';
+import { customFieldColumns, tagFilterColumns } from '@/lib/list-columns';
+import { tagOptions, useTags } from '@/lib/tags';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import {
   DEFAULT_PER_PAGE,
   defaultSorting,
+  isTagField,
   useListDescription,
   useListQuery,
   withListMeta,
@@ -83,6 +86,7 @@ export function ListPage<P extends ListPath>(props: ListPageProps<P>) {
 }
 
 function ListTable<P extends ListPath>({
+  subject,
   path,
   columns,
   description,
@@ -90,21 +94,39 @@ function ListTable<P extends ListPath>({
   rowHref,
   rowActions,
 }: ListPageProps<P> & { description: ListDescription }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter({ warn: false });
-  const cols = useMemo(() => {
-    const withMeta = withListMeta(columns, description);
-    return rowActions
-      ? [
-          ...withMeta,
-          getDataTableActionsColumn<ListRow<P>>({
-            actions: ({ row }) => rowActions(row.original),
-          }),
-        ]
-      : withMeta;
-  }, [columns, description, rowActions]);
+  const tags = useTags(subject, description.fields.some(isTagField));
+  const tagChoices = useMemo(() => tagOptions(tags.data ?? []), [tags.data]);
+  // The caller's columns, then what the list's metadata adds to them: the
+  // custom fields (hidden at first) and the tag filter (never shown).
+  const { cols, hidden } = useMemo(() => {
+    const declared = new Set(columns.map((c) => c.id));
+    const extra = [
+      ...tagFilterColumns<ListRow<P>>(description, t('list.tag')),
+      ...customFieldColumns<ListRow<P>>(description, i18n.language, t),
+    ].filter((c) => !declared.has(c.id));
+    const withMeta = withListMeta(
+      [...columns, ...extra],
+      description,
+      tagChoices,
+    );
+    return {
+      cols: rowActions
+        ? [
+            ...withMeta,
+            getDataTableActionsColumn<ListRow<P>>({
+              actions: ({ row }) => rowActions(row.original),
+            }),
+          ]
+        : withMeta,
+      hidden: Object.fromEntries(
+        extra.flatMap((c) => (c.id ? [[c.id, false]] : [])),
+      ),
+    };
+  }, [columns, description, tagChoices, t, i18n.language, rowActions]);
   const [fields, setFields] = useState(() =>
-    cols.flatMap((c) => (c.id ? [c.id] : [])),
+    cols.flatMap((c) => (c.id && !(c.id in hidden) ? [c.id] : [])),
   );
   const query = useListQuery(path, description, cols, fields, extraQuery);
 
@@ -115,6 +137,7 @@ function ListTable<P extends ListPath>({
     initialState: {
       sorting: defaultSorting(description),
       pagination: { pageIndex: 0, pageSize: DEFAULT_PER_PAGE },
+      columnVisibility: hidden,
     },
     getRowId: (row) => (row as { id: string }).id,
   });
