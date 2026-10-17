@@ -6,6 +6,7 @@ import {
 import { secretNames, withSecretFiles } from './core/config/secret-files.js';
 import { logRedaction } from './core/logging/redaction.js';
 import { notesEnv } from './features/notes/notes.env.js';
+import { passkeyEnvIssues } from './iam/account/passkeys.config.js';
 import { iamEnv } from './iam/iam.env.js';
 import { platformEnv } from './platform/platform.env.js';
 
@@ -19,7 +20,14 @@ const variables = coreEnv
   // Features
   .extend(notesEnv.shape)
   // Rules across variables, once every group is in.
-  .refine(rateLimitMultiplierAllowed, RATE_LIMIT_MULTIPLIER_REFUSED);
+  .refine(rateLimitMultiplierAllowed, RATE_LIMIT_MULTIPLIER_REFUSED)
+  // The passkey relying party must be consistent before a credential is
+  // bound to it (docs/auth.md, "Passkeys"): each problem names its variable.
+  .superRefine((env, ctx) => {
+    for (const [variable, message] of passkeyEnvIssues(env)) {
+      ctx.addIssue({ code: 'custom', path: [variable], message });
+    }
+  });
 
 /**
  * The variables that hold secrets (declared with `secret()`): each can come

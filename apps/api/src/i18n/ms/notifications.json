@@ -52,6 +52,16 @@
       "title": "Log masuk dua faktor diubah",
       "body": "Log masuk dua faktor untuk akaun anda telah dihidupkan atau dimatikan (dari {ip}). Jika ini bukan anda, tukar kata laluan anda dengan segera."
     },
+    "passkeyAdded": {
+      "label": "Kunci laluan ditambah",
+      "title": "Kunci laluan telah ditambah pada akaun anda",
+      "body": "Kunci laluan bernama “{name}” telah ditambah pada akaun anda (dari {ip}). Jika ini bukan anda, buang kunci itu dan tukar kata laluan anda dengan segera."
+    },
+    "passkeyRemoved": {
+      "label": "Kunci laluan dibuang",
+      "title": "Kunci laluan telah dibuang daripada akaun anda",
+      "body": "Kunci laluan “{name}” telah dibuang daripada akaun anda (dari {ip}). Jika ini bukan anda, tukar kata laluan anda dengan segera."
+    },
     "apiKeyRotated": {
       "label": "Kunci API diputar",
       "title": "Kunci API baharu",

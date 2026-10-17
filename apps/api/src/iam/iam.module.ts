@@ -75,6 +75,12 @@ import { SecurityAlertsService } from './account/security-alerts.service.js';
 import { MagicLinkController } from './account/magic-link.controller.js';
 import { MfaController } from './account/mfa.controller.js';
 import { OidcController } from './account/oidc.controller.js';
+import { PasskeysController } from './account/passkeys.controller.js';
+import {
+  passkeyDecoyKeyProvider,
+  PasskeysService,
+} from './account/passkeys.service.js';
+import { WellKnownController } from './account/well-known.controller.js';
 import { oidcProviders } from './account/oidc.providers.js';
 import { PasswordController } from './account/password.controller.js';
 import { ReauthenticationController } from './account/reauthentication.controller.js';
@@ -100,7 +106,7 @@ const random256 = () => randomBytes(32).toString('base64url');
  * Identity and access: who is calling, what they may do, and who did what.
  *
  * - Sign-in: password (browser session or tokens for mobile apps), magic
- *   link, Google / Microsoft / GitHub, with TOTP two-factor and recovery
+ *   link, passkeys, Google / Microsoft / GitHub, with TOTP two-factor and recovery
  *   codes; sign-up when open, invitations, email verification, forgot /
  *   reset / change password, sessions and sign-out everywhere.
  * - API clients by key; support impersonation, audited.
@@ -274,6 +280,8 @@ export class IamModule {
         OidcController,
         TokensController,
         ReauthenticationController,
+        PasskeysController,
+        WellKnownController,
         AccessController,
         OrgUnitsController,
         TenantSwitchController,
@@ -336,6 +344,9 @@ export class IamModule {
         // How each session was created, and step-up.
         SignInContext,
         ReauthenticationService,
+        // Passkeys (WebAuthn): registration, sign-in, re-authentication.
+        PasskeysService,
+        passkeyDecoyKeyProvider,
         // Security notifications (IAM_NOTIFICATIONS), sent through the platform's IAM_NOTIFIER.
         SecurityAlertsService,
         // Authorization: the catalog, the CASL abilities, their admin, the audit log.

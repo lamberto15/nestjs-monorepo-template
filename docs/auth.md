@@ -20,6 +20,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Re-authenticate for a sensitive action | `GET /v1/auth/reauthenticate` (how, until when), `POST /v1/auth/reauthenticate`: see [Step-up](#step-up-recent-authentication) |
 | Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
+| Passkeys | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
 | Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh`, `/token/revoke` |
 | Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
@@ -167,7 +168,7 @@ Every session's metadata (the package's `SessionRecord.metadata`, the
 
 | Key | What |
 | --- | --- |
-| `method` | `password`, `magic-link`, `oidc`; `sso` and `passkey` are reserved for roadmap items 2 and 3; `impersonation` for an administrator's session as the user |
+| `method` | `password`, `magic-link`, `oidc`, `passkey`; `sso` is reserved for roadmap item 2; `impersonation` for an administrator's session as the user |
 | `provider` | the OIDC provider (`google`), later the SSO connection |
 | `authenticatedAt` | the sign-in, then each re-authentication (ISO 8601) |
 
@@ -205,7 +206,7 @@ credential's `authentication` (`via`: `session` or `token`) and
 `recentUntil`.
 
 Token clients (`POST /v1/auth/token`) carry it in the access token: `amr`
-(RFC 8176: `pwd`, and `mfa` from the package) and `auth_time` (OpenID
+(RFC 8176: `pwd`, `pop` for a passkey, and `mfa` from the package) and `auth_time` (OpenID
 Connect, epoch seconds), fixed for the refresh family's life
 (`RefreshTokenRecord.claims`). The package has no listing of refresh
 families, so they aren't in the sessions list.
@@ -243,10 +244,10 @@ The problem tells the client what to do:
 }
 ```
 
-`methods`: `password` and `totp` re-authenticate in place
+`methods`: `password`, `totp` and `passkey` re-authenticate in place
 (`POST /v1/auth/reauthenticate`); `magic-link` and `oidc:<provider>` by
 signing in again (the new session is recent). `mfaRequired`: a code goes
-with the password.
+with the password (and with a token client's passkey).
 
 ### The protected routes
 
@@ -257,6 +258,8 @@ with the password.
 | `POST /v1/auth/mfa/recovery-codes`, `DELETE /v1/auth/mfa` | new codes are credentials; two-factor off weakens the account (both also want `mfa: verified`) |
 | `GET /v1/auth/oidc/{provider}/login?link=true` | a linked provider lets whoever linked it back in at will (a plain sign-in isn't asked). The browser navigates here, so a stale session isn't answered with the 403 problem but sent to the web app: `redirectTo` (else its root) with `?error=reauthentication_required`; the frontend asks `GET /v1/auth/reauthenticate` before it starts a link, and spares the round trip. Nobody signed in: 401 |
 | `DELETE /v1/auth/identities/{provider}` | removes a way to sign in |
+| `POST /v1/auth/passkeys/registration/options`, `POST /v1/auth/passkeys` | a stolen session must not add its own passkey, a way back in at will |
+| `DELETE /v1/auth/passkeys/{id}` | removes a way to sign in |
 | `POST /v1/account/deletion` | irreversible after the grace period. The password stays required too (when the account has one): within the window a stolen session can enrol its own authenticator, and re-authenticating with that must not be enough to lock the owner out of "sign in and cancel". Passwordless accounts: step-up alone |
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
 | `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
@@ -273,14 +276,21 @@ they take the decorator when they come.
 
 ### Re-authenticating
 
-`POST /v1/auth/reauthenticate { password?, code?, recoveryCode?, refreshToken? }`,
+`POST /v1/auth/reauthenticate { password?, code?, recoveryCode?, passkey?, refreshToken? }`,
 from a session or a token client (`GET` says how and until when):
 
 - **What the account signs in with:** its password, and a code (or a
   recovery code) when two-factor is on; an account without a password but
-  with two-factor, a code alone (`totp`). Neither (an account that signs in
-  only by link or provider): 409 `reauthentication_unavailable` with
-  `methods`: sign in again.
+  with two-factor, a code alone (`totp`). Or a **passkey**: the assertion
+  of one of the account's passkeys, from
+  `POST /v1/auth/passkeys/reauthentication/options` (a challenge bound to
+  this session and user), with user verification (`uv`): it stands for
+  the password and, from a session, for the code (the session becomes
+  `mfa: verified`); a token client still sends a code with it when
+  two-factor is on (the package's `issue()` takes no passkey as a second
+  factor). None of these (an account that signs in only by link or
+  provider): 409 `reauthentication_unavailable` with `methods`: sign in
+  again.
 - **The deletion's password** (`POST /v1/account/deletion`): wrong, 403
   `forbidden` (not the sign-in's 401, which a web app reads as signed
   out), audited as `account.deletion-refused` by the user; limited like
@@ -305,9 +315,11 @@ from a session or a token client (`GET` says how and until when):
   (`@UserThrottle()`, `iam/auth/user-throttle.guard.ts`: the body names no
   email for the global guard to count by, so the signed-in user's id is
   the key; 429 `rate_limited` with `Retry-After-user`).
-- **Audited:** `auth.reauthenticated` (`details.method`: `password` or
-  `totp`, `mfa`, `via: token`) and `auth.reauthentication-failed`
-  (`details.reason`: `password`, `code`, `impersonating`).
+- **Audited:** `auth.reauthenticated` (`details.method`: `password`,
+  `totp` or `passkey`, `mfa`, `via: token`) and
+  `auth.reauthentication-failed` (`details.reason`: `password`, `code`,
+  `impersonating`, `passkey:<why>`: `challenge`, `user-verification`,
+  `counter`…).
 - **Never while impersonating** (403, audited).
 
 Signing in again by email link or with a provider re-authenticates too:
@@ -324,14 +336,9 @@ provider, so a project can set `prompt=login` for such a provider, at the
 cost of every sign-in asking (a per-request `prompt` for the link and
 re-authentication flows is a follow-up).
 
-**Passkeys (item 3)** plug in as another proof of
-`ReauthenticationService.reauthenticate()` (an assertion with user
-verification counts for both factors) and a `passkey` entry in
-`options()`. **SSO (item 2)** re-authenticates by signing in again
+**SSO (item 2)** re-authenticates by signing in again
 (`sso:<connection>` in `methods`); "SSO required" revokes the sessions
-whose `metadata->>'method'` is not `sso`. Mind that the package drops
-`hwk` from `claims.amr` (it means a second factor): a passkey token
-sign-in records itself another way.
+whose `metadata->>'method'` is not `sso`.
 
 ## Security notifications
 
@@ -346,9 +353,10 @@ daily, never off.
 
 | Type | When | `data` |
 | --- | --- | --- |
-| `security.newSignIn` | a sign-in from a new device, by any method: password (a browser or a token client), email link, Google / Microsoft / GitHub (even with two-factor still to do) | `device` ("Chrome on macOS"), `ip`, `at` |
+| `security.newSignIn` | a sign-in from a new device, by any method: password (a browser or a token client), email link, passkey, Google / Microsoft / GitHub (even with two-factor still to do) | `device` ("Chrome on macOS"), `ip`, `at` |
 | `security.passwordChanged` | `POST /auth/password/change`, or a reset link when the account was used before (any audit entry as its actor: not an invitation's first password) | `via` (`change` \| `reset`), `ip` |
 | `security.mfaChanged` | two-factor confirmed on, or turned off | `enabled`, `ip` |
+| `security.passkeyAdded`, `security.passkeyRemoved` | a passkey registered, or removed | `name`, `ip` |
 | `security.apiKeyRotated` | to the API client: `POST /access/clients/{id}/rotate` (webhook) | `clientId`, `keyId`, `previousKeysEnd` |
 
 - **A device** is the user agent without its version numbers (a browser
@@ -371,17 +379,150 @@ daily, never off.
   then refused; a rollback would forget the count), and sessions and
   tokens are revoked after the commit.
 - Every sign-in writes one `auth.signed-in` entry (`details.method`:
-  `password`, `magic-link`, `oidc:google`; `via: token` for a token
-  client), from the service that signs in (`signInWithPassword`,
-  `issueTokens`, `signInWithMagicLink`). The OIDC callback is signed in
+  `password`, `magic-link`, `passkey` (with `passkey`, its id, and
+  `userVerified`), `oidc:google`; `via: token` for a token client), from
+  the service that signs in (`signInWithPassword`, `issueTokens`,
+  `signInWithMagicLink`, `PasskeysService`). The OIDC callback is signed in
   inside the package (`OidcService.finish`), so `SecurityAlertsService`
   hears its `sign-in` event instead and records it right after; its
   bookkeeping still running is awaited on shutdown (`settled()`).
 
+## Passkeys
+
+WebAuthn credentials (`@simplewebauthn/server`; `@nestjs/authentication`
+has no WebAuthn), several per account, each named by its owner. On by
+default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
+`iam/account/passkeys.service.ts`, `passkeys.controller.ts`; the table
+`passkeys` is global (a user's, not a tenant's: users are global; no
+`tenant_id`, no row-level security, [tenancy.md](tenancy.md)).
+
+| Need | Route |
+| --- | --- |
+| Your passkeys | `GET /v1/auth/passkeys` (name, `deviceType`, `backedUp`, transports, last use) |
+| Register one | `POST /v1/auth/passkeys/registration/options` → `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`) → `POST /v1/auth/passkeys { name, response }`; both want a recent sign-in ([step-up](#step-up-recent-authentication)) |
+| Rename, remove | `PATCH /v1/auth/passkeys/{id} { name }`, `DELETE /v1/auth/passkeys/{id}` (step-up; not the last way to sign in) |
+| Sign in (browser) | `POST /v1/auth/passkeys/sign-in/options { email? }` → `navigator.credentials.get()` → `POST /v1/auth/passkeys/sign-in { response }` (the session cookie) |
+| Sign in (app) | the same options → `POST /v1/auth/passkeys/token { response, code?, tenantId? }` (tokens) |
+| Re-authenticate | `POST /v1/auth/passkeys/reauthentication/options` → `POST /v1/auth/reauthenticate { passkey }` |
+
+- **The relying party** is configuration ([configuration.md](configuration.md)):
+  the RP ID is `PASSKEY_RP_ID`, by default `WEB_URL`'s host (else
+  `APP_URL`'s), one for the deployment (roadmap decision 1: one origin).
+  Every credential is bound to it: **never change it once passkeys
+  exist**. The origins a ceremony may run on are `WEB_URL`'s,
+  `PASSKEY_ORIGINS` and the Android apps' `android:apk-key-hash:` origins.
+  The app refuses to start when an origin is not the RP ID or under it,
+  and in production when the RP ID is `localhost` or an IP address or an
+  origin is not `https` (`env.ts`, `passkeyEnvIssues()`).
+- **Challenges** are one-time and short-lived: 32 random bytes, kept in
+  Redis for `PASSKEY_CHALLENGE_TTL_SECONDS` (120) and taken with `GETDEL`,
+  so a second answer to one finds nothing, on any replica. Each remembers
+  its ceremony (registration, sign-in, re-authentication: one can't finish
+  another), the user and session it was made for, and the page's `Origin`
+  header: the request that finishes it must come from the same session and
+  origin. That header narrows the configured origins, never widens them:
+  the library checks `clientDataJSON.origin` and the RP ID hash against
+  configuration.
+- **User verification.** Every ceremony asks for it (`required`).
+  Registering wants the `uv` flag (a passkey that can't verify its user
+  could never be a second factor: 400 `passkey_invalid`, `reason:
+  user-verification`). At sign-in, an assertion **with** `uv` counts for
+  both factors: with two-factor on, the session is `mfa: verified` at once;
+  one **without** it is the first factor only (`mfaRequired`, finish with
+  `POST /v1/auth/mfa/verify`). Re-authenticating wants `uv`. A token client
+  with two-factor on sends a code with its passkey: the package's
+  `TokenService.issue()` takes no passkey as a second factor (it keeps the
+  `amr` values meaning one for itself); its tokens carry `amr: ["pop"]`.
+- **Tenants.** A passkey sign-in starts its session as a password's does:
+  in the last chosen tenant, else the oldest membership
+  (`metadata.tenantId`, set by the store), or none for a user without a
+  tenant (who still signs in). The token route takes `tenantId` like
+  `POST /v1/auth/token`: a tenant the user isn't a member of is the same
+  401 as a refused assertion; the tokens carry it as `tid`.
+- **Verify first.** An account whose address was never proved (a self
+  sign-up) can't register a passkey (403 `email_unverified`, as for
+  two-factor and providers), and a passkey never signs it in (403
+  `email_unverified` after the assertion, as its password is refused).
+- **The session** records `method: passkey` (via `signInOptions('passkey')`);
+  the sign-in is audited (`auth.signed-in`, with the passkey's id and
+  `userVerified`) and a new device is told as for any sign-in. A refused
+  assertion is a 401 that says nothing more, audited as
+  `auth.sign-in-failed` with `details.reason` (`challenge`, `origin`,
+  `user`, `unknown`, `counter`, `invalid`…).
+- **Usernameless or with an email.** Without an email, the options list no
+  credentials and the browser offers the site's discoverable ones; the
+  user handle (the user id's 16 bytes, no personal data) must match the
+  credential's owner. With an email, the account's credentials are listed
+  and the challenge is bound to the account. An address without an account,
+  or without passkeys, gets one or two decoy credentials (HMACs of the
+  address under a key derived from `JWT_SECRET`, the same every time, with
+  the id lengths and sorted transports real authenticators have), after the
+  same queries, so the answer doesn't say whether the address has an
+  account or passkeys. What still shows: an account with three passkeys or
+  more, or ids of unusual lengths, is a real one; with `AUTH_SIGN_UP=on`,
+  sign-up's 409 says whether an account exists anyway.
+- **The counter.** A device-bound authenticator counts its uses; an
+  assertion whose counter isn't above the one stored is refused (a cloned
+  authenticator, or one restored from a backup), logged as a warning when
+  its signature is genuine, and the owner removes and registers the passkey
+  again. Synced passkeys (iCloud Keychain, Google Password Manager) keep 0,
+  which is accepted. The update is a compare-and-set: two assertions at
+  once can't move it back.
+- **No attestation** (`attestationType: 'none'`): the authenticator's
+  model is nobody's business here, and `none` never prompts for consent.
+- **Limits.** The public ceremonies (`/sign-in/options`, `/sign-in`,
+  `/token`) share a budget of 30 requests per address in 15 minutes
+  (`@AddressThrottle({ name: 'passkey' })`, `iam/auth/address-throttle.guard.ts`):
+  the global guard keys by `email|address`, which a usernameless sign-in
+  can't use and one naming a new email each time would dodge. The answers
+  are also limited to 10 per address in 15 minutes, and carry the same
+  bot check as the password sign-in (`@Captcha({ action: 'sign-in' })`,
+  failures counted per address). Re-authentication's options: 10 per
+  account in 15 minutes. At most 20 passkeys per account (409
+  `passkey_limit`).
+- **The last way to sign in.** Removing a passkey, or unlinking a
+  provider, is refused with 409 `last_sign_in_method` when it would leave
+  the account with no password, no passkey and no provider
+  (`iam/account/sign-in-methods.ts`, counted under the account's row lock,
+  so two removals at once can't both pass).
+- **Audited and told:** `auth.passkey-added`, `auth.passkey-renamed`,
+  `auth.passkey-removed`; the owner gets `security.passkeyAdded` and
+  `security.passkeyRemoved` (mandatory). All account-level (no tenant,
+  like a sign-in's): in no tenant's `GET /v1/access/audit`, and the
+  notifications are the person's in every tenant.
+- **While impersonating:** the list is empty (account-level data, as the
+  sessions list shows only the impersonation's own), and registering,
+  renaming, removing and re-authenticating are refused (403).
+- **Your data:** passkeys are in the account-level part of the data export
+  (`accounts/<user id>/`; kind `passkey`: name, credential id, device type,
+  dates; not the public key) and erased with the account
+  (`UsersRepository.anonymize`).
+- **Native apps** use the passkeys of the RP ID when the operating system
+  finds the app listed on the RP ID's host: `GET /.well-known/assetlinks.json`
+  (Android Digital Asset Links, from `PASSKEY_ANDROID_APPS`:
+  `package.name:SHA256:FINGERPRINT`, the signing certificate's as
+  `keytool` or the Play Console print it) and
+  `GET /.well-known/apple-app-site-association` (`webcredentials`, from
+  `PASSKEY_APPLE_APPS`: `TEAMID.bundle.id`). JSON, not in OpenAPI, 404 when
+  none is configured. With one origin (Caddy in front of the API), they are
+  served on the RP ID's host as they must be; a web app on another host
+  serves them itself, or proxies them here.
+- **Tests:** `apps/api/test/passkeys.e2e-spec.ts` drives the routes with a
+  software authenticator (`test/software-authenticator.ts`: ES256 keys,
+  `none` attestation, authenticator data and signatures as the spec lays
+  them out): registration, both sign-ins, the decoy, challenge replay and
+  binding, wrong origins, user verification and two-factor, the counter,
+  the last-method checks, re-authentication, tokens, the limits, the
+  export and the association files; `security.e2e-spec.ts` has the races
+  (one challenge answered twice at once, a passkey and a provider removed
+  at once) and a forged user handle; `passkeys.config.spec.ts` and
+  `env.spec.ts` the configuration checks.
+
 ## Bot protection
 
 The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, `/sign-up`,
-`/magic-link`, `/password/forgot`) can ask for a challenge token, verified
+`/magic-link`, `/password/forgot`, and the passkey sign-ins `/passkeys/sign-in`
+and `/passkeys/token`, which count their failures per address) can ask for a challenge token, verified
 server-side with Cloudflare Turnstile. **Off by default**: without
 `CAPTCHA_MODE` and the keys, nothing changes for an existing deployment.
 

@@ -209,7 +209,8 @@ export class OidcController {
   @ApiOperation({ summary: 'Disconnect a provider' })
   @ApiNoContentResponse()
   @ApiConflictResponse({
-    description: 'It is your only way to sign in: set a password first.',
+    description:
+      '`last_sign_in_method`: it is your only way to sign in (no password, passkey or other provider): set a password or register a passkey first.',
   })
   async unlink(
     @CurrentUser() user: UserPrincipal,

@@ -15405,6 +15405,10 @@
                     "magicLink": {
                       "type": "boolean"
                     },
+                    "passkeys": {
+                      "type": "boolean",
+                      "description": "Sign in with a passkey: POST /auth/passkeys/sign-in/options, then /auth/passkeys/sign-in."
+                    },
                     "providers": {
                       "type": "array",
                       "items": {
@@ -15446,6 +15450,7 @@
                     "password",
                     "signUp",
                     "magicLink",
+                    "passkeys",
                     "providers",
                     "captcha"
                   ],
@@ -17102,7 +17107,7 @@
             "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
           },
           "409": {
-            "description": "It is your only way to sign in: set a password first."
+            "description": "`last_sign_in_method`: it is your only way to sign in (no password, passkey or other provider): set a password or register a passkey first."
           }
         },
         "security": [
@@ -17339,11 +17344,11 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login)."
+                      "description": "How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login)."
                     },
                     "mfaRequired": {
                       "type": "boolean",
-                      "description": "In place, a code (or a recoveryCode) goes with the password."
+                      "description": "In place, a code (or a recoveryCode) goes with the password (and with a passkey from a token client)."
                     },
                     "authenticatedAt": {
                       "nullable": true,
@@ -17393,7 +17398,7 @@
         ]
       },
       "post": {
-        "description": "Your password, with a code when two-factor is on (a code alone when the account has no password). A session gets a new id (the cookie changes: a request sent meanwhile with the old one gets 401; reconnect realtime); a token client gets new tokens, and the family of the refreshToken it sent is revoked. Audited. Never while acting as another user.",
+        "description": "Your password, with a code when two-factor is on (a code alone when the account has no password); or a passkey (with a code from a token client when two-factor is on). A session gets a new id (the cookie changes: a request sent meanwhile with the old one gets 401; reconnect realtime); a token client gets new tokens, and the family of the refreshToken it sent is revoked. Audited. Never while acting as another user.",
         "operationId": "ReauthenticationController_reauthenticate_v1",
         "parameters": [],
         "requestBody": {
@@ -17404,13 +17409,13 @@
                 "type": "object",
                 "properties": {
                   "password": {
-                    "description": "Required when the account has a password.",
+                    "description": "Required when the account has a password, unless a passkey is sent.",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 256
                   },
                   "code": {
-                    "description": "With two-factor on: a code from the app (or a recoveryCode).",
+                    "description": "With two-factor on: a code from the app (or a recoveryCode). Not with a passkey from a session (it verified you); a token client sends one with its passkey too.",
                     "type": "string",
                     "pattern": "^\\d{6}$"
                   },
@@ -17418,6 +17423,83 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64
+                  },
+                  "passkey": {
+                    "description": "Instead of the password: the assertion of one of your passkeys, made from the options of POST /auth/passkeys/reauthentication/options (user verification required).",
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "rawId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "public-key"
+                        ]
+                      },
+                      "response": {
+                        "type": "object",
+                        "properties": {
+                          "clientDataJSON": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "authenticatorData": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "signature": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4096,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "userHandle": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          }
+                        },
+                        "required": [
+                          "clientDataJSON",
+                          "authenticatorData",
+                          "signature"
+                        ]
+                      },
+                      "clientExtensionResults": {
+                        "default": {},
+                        "description": "`clientExtensionResults` of the credential, usually `{}`.",
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "authenticatorAttachment": {
+                        "type": "string",
+                        "enum": [
+                          "platform",
+                          "cross-platform"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "rawId",
+                      "type",
+                      "response"
+                    ]
                   },
                   "refreshToken": {
                     "description": "A token client: your current refresh token, revoked (its whole family) once the new tokens are issued. Unknown: ignored.",
@@ -17503,6 +17585,1154 @@
           }
         ],
         "summary": "Prove again who you are, for the sensitive routes",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/passkeys": {
+      "get": {
+        "description": "Account-level: empty while an administrator acts as you (impersonation shows only what belongs to the tenant).",
+        "operationId": "PasskeysController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "deviceType": {
+                            "type": "string",
+                            "enum": [
+                              "singleDevice",
+                              "multiDevice"
+                            ],
+                            "description": "`multiDevice`: a synced passkey (iCloud Keychain, Google Password Manager…); `singleDevice`: bound to one authenticator (a security key)."
+                          },
+                          "backedUp": {
+                            "type": "boolean",
+                            "description": "Synced to the user's other devices now."
+                          },
+                          "transports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "How the browser reaches it: `internal`, `hybrid`, `usb`, `nfc`, `ble`."
+                          },
+                          "lastUsedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "deviceType",
+                          "backedUp",
+                          "transports",
+                          "lastUsedAt",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Your passkeys",
+        "tags": [
+          "auth",
+          "account"
+        ]
+      },
+      "post": {
+        "description": "The answer of the options from POST /auth/passkeys/registration/options, with a name. Audited; you get an email.",
+        "operationId": "PasskeysController_register_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "What you call it: \"MacBook\", \"YubiKey\"."
+                  },
+                  "response": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "rawId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "public-key"
+                        ]
+                      },
+                      "response": {
+                        "type": "object",
+                        "properties": {
+                          "clientDataJSON": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "attestationObject": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 65536,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "transports": {
+                            "maxItems": 10,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 32
+                            }
+                          },
+                          "authenticatorData": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "publicKey": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4096,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "publicKeyAlgorithm": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "clientDataJSON",
+                          "attestationObject"
+                        ]
+                      },
+                      "clientExtensionResults": {
+                        "default": {},
+                        "description": "`clientExtensionResults` of the credential, usually `{}`.",
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "authenticatorAttachment": {
+                        "type": "string",
+                        "enum": [
+                          "platform",
+                          "cross-platform"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "rawId",
+                      "type",
+                      "response"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "response"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "deviceType": {
+                      "type": "string",
+                      "enum": [
+                        "singleDevice",
+                        "multiDevice"
+                      ],
+                      "description": "`multiDevice`: a synced passkey (iCloud Keychain, Google Password Manager…); `singleDevice`: bound to one authenticator (a security key)."
+                    },
+                    "backedUp": {
+                      "type": "boolean",
+                      "description": "Synced to the user's other devices now."
+                    },
+                    "transports": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "How the browser reaches it: `internal`, `hybrid`, `usb`, `nfc`, `ble`."
+                    },
+                    "lastUsedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "deviceType",
+                    "backedUp",
+                    "transports",
+                    "lastUsedAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`passkey_invalid` with `reason`: the challenge is unknown, used or expired (`challenge`), was made for another session or origin, the response is not for this site, or the authenticator did not verify its user (`user-verification`)."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "409": {
+            "description": "`passkey_registered`: this credential is registered already."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Register a passkey: the credential the browser made",
+        "tags": [
+          "auth",
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/passkeys/registration/options": {
+      "post": {
+        "description": "Give them to `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`), then POST the credential to /auth/passkeys. The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS, from this session (and this origin). User verification is required. An account whose address was never proved gets 403 `email_unverified` (verify first); not while acting as another user.",
+        "operationId": "PasskeysController_registrationOptions_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rp": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "displayName"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "challenge": {
+                      "type": "string"
+                    },
+                    "pubKeyCredParams": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "public-key"
+                            ]
+                          },
+                          "alg": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "alg"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "timeout": {
+                      "type": "number"
+                    },
+                    "excludeCredentials": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "public-key"
+                            ]
+                          },
+                          "transports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "authenticatorSelection": {
+                      "type": "object",
+                      "properties": {
+                        "authenticatorAttachment": {
+                          "type": "string"
+                        },
+                        "residentKey": {
+                          "type": "string"
+                        },
+                        "requireResidentKey": {
+                          "type": "boolean"
+                        },
+                        "userVerification": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "attestation": {
+                      "type": "string"
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "hints": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "rp",
+                    "user",
+                    "challenge",
+                    "pubKeyCredParams"
+                  ],
+                  "additionalProperties": false,
+                  "description": "WebAuthn creation options (JSON): `PublicKeyCredential.parseCreationOptionsFromJSON()` or @simplewebauthn/browser `startRegistration({ optionsJSON })`. The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "Passkeys are off (PASSKEYS=off)."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Start registering a passkey: the options for the browser",
+        "tags": [
+          "auth",
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/passkeys/{id}": {
+      "patch": {
+        "operationId": "PasskeysController_rename_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "deviceType": {
+                      "type": "string",
+                      "enum": [
+                        "singleDevice",
+                        "multiDevice"
+                      ],
+                      "description": "`multiDevice`: a synced passkey (iCloud Keychain, Google Password Manager…); `singleDevice`: bound to one authenticator (a security key)."
+                    },
+                    "backedUp": {
+                      "type": "boolean",
+                      "description": "Synced to the user's other devices now."
+                    },
+                    "transports": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "How the browser reaches it: `internal`, `hybrid`, `usb`, `nfc`, `ble`."
+                    },
+                    "lastUsedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "deviceType",
+                    "backedUp",
+                    "transports",
+                    "lastUsedAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Rename a passkey",
+        "tags": [
+          "auth",
+          "account"
+        ]
+      },
+      "delete": {
+        "description": "Not the last way to sign in (409 `last_sign_in_method`: set a password first). Audited; you get an email.",
+        "operationId": "PasskeysController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "`last_sign_in_method`: it is your only way to sign in."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Remove a passkey",
+        "tags": [
+          "auth",
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/passkeys/sign-in/options": {
+      "post": {
+        "description": "With an `email`, the account’s passkeys are offered (`allowCredentials`); without one, the browser offers the passkeys it holds for this site (usernameless, or a sign-in field with `useBrowserAutofill`). The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS. Then POST the assertion to /auth/passkeys/sign-in (a browser) or /auth/passkeys/token (an app).",
+        "operationId": "PasskeysController_signInOptions_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "description": "The account whose passkeys to offer. Without it, the browser offers the passkeys it has for this site (usernameless; `useBrowserAutofill`).",
+                    "example": "ada@example.com",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "string"
+                    },
+                    "timeout": {
+                      "type": "number"
+                    },
+                    "rpId": {
+                      "type": "string"
+                    },
+                    "allowCredentials": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "public-key"
+                            ]
+                          },
+                          "transports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "userVerification": {
+                      "type": "string"
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "hints": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "challenge"
+                  ],
+                  "additionalProperties": false,
+                  "description": "WebAuthn request options (JSON): `PublicKeyCredential.parseRequestOptionsFromJSON()` or @simplewebauthn/browser `startAuthentication({ optionsJSON })`; with `useBrowserAutofill` for a sign-in field. The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Passkeys are off (PASSKEYS=off)."
+          },
+          "429": {
+            "description": "More than 30 passkey sign-in requests (options and answers) from this address in 15 minutes."
+          }
+        },
+        "summary": "Start signing in with a passkey: the options for the browser",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/passkeys/sign-in": {
+      "post": {
+        "description": "The assertion the browser made from the options. A passkey that verified its user (Touch ID, a PIN…) counts for both factors: with two-factor on, the session is verified at once. One that did not counts as the first factor: mfaRequired, finish with POST /auth/mfa/verify. A refused assertion is a 401 saying no more.",
+        "operationId": "PasskeysController_signIn_v1",
+        "parameters": [
+          {
+            "name": "X-Captcha-Token",
+            "in": "header",
+            "description": "The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "response": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "rawId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "public-key"
+                        ]
+                      },
+                      "response": {
+                        "type": "object",
+                        "properties": {
+                          "clientDataJSON": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "authenticatorData": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "signature": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4096,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "userHandle": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          }
+                        },
+                        "required": [
+                          "clientDataJSON",
+                          "authenticatorData",
+                          "signature"
+                        ]
+                      },
+                      "clientExtensionResults": {
+                        "default": {},
+                        "description": "`clientExtensionResults` of the credential, usually `{}`.",
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "authenticatorAttachment": {
+                        "type": "string",
+                        "enum": [
+                          "platform",
+                          "cross-platform"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "rawId",
+                      "type",
+                      "response"
+                    ]
+                  }
+                },
+                "required": [
+                  "response"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "signedIn": {
+                      "type": "boolean"
+                    },
+                    "mfaRequired": {
+                      "type": "boolean",
+                      "description": "true: send a code to POST /auth/mfa/verify to finish signing in."
+                    },
+                    "redirectTo": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "signedIn",
+                    "mfaRequired"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The challenge is unknown, used or expired; the credential is unknown; or the assertion does not verify."
+          },
+          "403": {
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+          },
+          "429": {
+            "description": "More than 10 attempts from this address in 15 minutes, or 30 passkey sign-in requests."
+          }
+        },
+        "summary": "Sign in with a passkey: sets the session cookie",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/passkeys/token": {
+      "post": {
+        "description": "The assertion the app made from the options (an app listed in PASSKEY_ANDROID_APPS or PASSKEY_APPLE_APPS). With two-factor on, a code (or a recoveryCode) goes with it: the token service takes no passkey as the second factor.",
+        "operationId": "PasskeysController_issueTokens_v1",
+        "parameters": [
+          {
+            "name": "X-Captcha-Token",
+            "in": "header",
+            "description": "The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "response": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "rawId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1364,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "public-key"
+                        ]
+                      },
+                      "response": {
+                        "type": "object",
+                        "properties": {
+                          "clientDataJSON": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "authenticatorData": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "signature": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4096,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          },
+                          "userHandle": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                          }
+                        },
+                        "required": [
+                          "clientDataJSON",
+                          "authenticatorData",
+                          "signature"
+                        ]
+                      },
+                      "clientExtensionResults": {
+                        "default": {},
+                        "description": "`clientExtensionResults` of the credential, usually `{}`.",
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "authenticatorAttachment": {
+                        "type": "string",
+                        "enum": [
+                          "platform",
+                          "cross-platform"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "rawId",
+                      "type",
+                      "response"
+                    ]
+                  },
+                  "code": {
+                    "description": "With two-factor on: a code from the app (or a recoveryCode).",
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "recoveryCode": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "tenantId": {
+                    "description": "The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "response"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "A JWT: `Authorization: Bearer …`."
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "Single use: POST /auth/token/refresh."
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "accessToken",
+                    "refreshToken",
+                    "expiresIn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The assertion was refused, or a second factor is required or wrong (`mfa_required`)."
+          },
+          "403": {
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+          },
+          "429": {
+            "description": "More than 10 attempts from this address in 15 minutes, or 30 passkey sign-in requests."
+          }
+        },
+        "summary": "Sign in a token client with a passkey (native apps)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/passkeys/reauthentication/options": {
+      "post": {
+        "description": "Your passkeys, user verification required. Then POST the assertion as `passkey` to /auth/reauthenticate. The challenge is bound to this session.",
+        "operationId": "PasskeysController_reauthenticationOptions_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "challenge": {
+                      "type": "string"
+                    },
+                    "timeout": {
+                      "type": "number"
+                    },
+                    "rpId": {
+                      "type": "string"
+                    },
+                    "allowCredentials": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "public-key"
+                            ]
+                          },
+                          "transports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "userVerification": {
+                      "type": "string"
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "hints": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "challenge"
+                  ],
+                  "additionalProperties": false,
+                  "description": "WebAuthn request options (JSON): `PublicKeyCredential.parseRequestOptionsFromJSON()` or @simplewebauthn/browser `startAuthentication({ optionsJSON })`; with `useBrowserAutofill` for a sign-in field. The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Passkeys are off (PASSKEYS=off)."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Start re-authenticating with a passkey: the options",
         "tags": [
           "auth"
         ]

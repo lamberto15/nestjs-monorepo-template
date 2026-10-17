@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -26,7 +25,7 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
-import { and, count, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
@@ -38,6 +37,7 @@ import { CredentialsService } from './credentials.service.js';
 import { PasswordHashLimiter } from './password-hashing.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
+import { assertNotLastSignInMethod } from './sign-in-methods.js';
 
 /** The fields a user may change on their own profile. */
 export type ProfileChanges = {
@@ -435,25 +435,25 @@ export class AccountService {
 
   /**
    * Disconnects a provider, unless it's the last way to sign in (no password,
-   * no other provider): 409. The account row is locked first, so two
-   * disconnects at once can't each see "one left" and remove both.
+   * no passkey, no other provider): 409 `last_sign_in_method`. The account
+   * row is locked first (`assertNotLastSignInMethod`), so two removals at
+   * once (a provider, a passkey) can't each see "one left" and remove both.
    */
   async unlinkIdentity(user: UserPrincipal, provider: string) {
     await inTransaction(this.txHost, async (tx) => {
-      const [account] = await tx
-        .select({ passwordHash: users.passwordHash })
-        .from(users)
-        .where(eq(users.id, user.id))
-        .for('update');
-      const [{ identities }] = await tx
-        .select({ identities: count() })
+      const [linked] = await tx
+        .select({ provider: userIdentities.provider })
         .from(userIdentities)
-        .where(eq(userIdentities.userId, user.id));
-      if (!account?.passwordHash && identities <= 1) {
-        throw new ConflictException(
-          'This is your only way to sign in: set a password first.',
+        .where(
+          and(
+            eq(userIdentities.userId, user.id),
+            eq(userIdentities.provider, provider),
+          ),
         );
+      if (!linked) {
+        throw new NotFoundException();
       }
+      await assertNotLastSignInMethod(tx, user.id);
       const deleted = await tx
         .delete(userIdentities)
         .where(
