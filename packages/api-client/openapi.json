@@ -3928,7 +3928,7 @@
     },
     "/v1/settings": {
       "get": {
-        "description": "Your value: your own, else your org unit's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
+        "description": "Your value: your own, else your team's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
         "operationId": "SettingsController_list_v1",
         "parameters": [],
         "responses": {
@@ -3967,7 +3967,7 @@
                               "type": "string",
                               "enum": [
                                 "tenant",
-                                "orgUnit",
+                                "team",
                                 "user"
                               ]
                             },
@@ -3981,7 +3981,7 @@
                             "type": "string",
                             "enum": [
                               "tenant",
-                              "orgUnit",
+                              "team",
                               "user",
                               "rollout",
                               "default"
@@ -4081,7 +4081,7 @@
                         "type": "string",
                         "enum": [
                           "tenant",
-                          "orgUnit",
+                          "team",
                           "user"
                         ]
                       },
@@ -4095,7 +4095,7 @@
                       "type": "string",
                       "enum": [
                         "tenant",
-                        "orgUnit",
+                        "team",
                         "user",
                         "rollout",
                         "default"
@@ -4171,12 +4171,12 @@
                     "type": "string",
                     "enum": [
                       "tenant",
-                      "orgUnit",
+                      "team",
                       "user"
                     ]
                   },
                   "scopeId": {
-                    "description": "For orgUnit: the unit's id; for user: the principal's key (`user:<id>`, `client:<id>`).",
+                    "description": "For team: the team's id; for user: the principal's key (`user:<id>`, `client:<id>`).",
                     "type": "string",
                     "maxLength": 100
                   },
@@ -4214,13 +4214,13 @@
                       "type": "string",
                       "enum": [
                         "tenant",
-                        "orgUnit",
+                        "team",
                         "user"
                       ]
                     },
                     "scopeId": {
                       "type": "string",
-                      "description": "The org unit's id, the principal's key (`user:<id>`), or '' for the tenant."
+                      "description": "The team's id, the principal's key (`user:<id>`), or '' for the tenant."
                     },
                     "value": {},
                     "rollout": {
@@ -4262,7 +4262,7 @@
             "description": "Not allowed by your permissions."
           },
           "404": {
-            "description": "No such setting, org unit or principal."
+            "description": "No such setting, team or principal."
           }
         },
         "security": [
@@ -4276,7 +4276,7 @@
             "api-key": []
           }
         ],
-        "summary": "Set a setting for everyone, an org unit, or one principal",
+        "summary": "Set a setting for everyone, a team, or one principal",
         "tags": [
           "settings"
         ]
@@ -4301,7 +4301,7 @@
               "type": "string",
               "enum": [
                 "tenant",
-                "orgUnit",
+                "team",
                 "user"
               ]
             }
@@ -4409,7 +4409,7 @@
                         "type": "string",
                         "enum": [
                           "tenant",
-                          "orgUnit",
+                          "team",
                           "user"
                         ]
                       },
@@ -4423,7 +4423,7 @@
                       "type": "string",
                       "enum": [
                         "tenant",
-                        "orgUnit",
+                        "team",
                         "user",
                         "rollout",
                         "default"
@@ -4520,7 +4520,7 @@
                         "type": "string",
                         "enum": [
                           "tenant",
-                          "orgUnit",
+                          "team",
                           "user"
                         ]
                       },
@@ -4534,7 +4534,7 @@
                       "type": "string",
                       "enum": [
                         "tenant",
-                        "orgUnit",
+                        "team",
                         "user",
                         "rollout",
                         "default"
@@ -4622,13 +4622,13 @@
                             "type": "string",
                             "enum": [
                               "tenant",
-                              "orgUnit",
+                              "team",
                               "user"
                             ]
                           },
                           "scopeId": {
                             "type": "string",
-                            "description": "The org unit's id, the principal's key (`user:<id>`), or '' for the tenant."
+                            "description": "The team's id, the principal's key (`user:<id>`), or '' for the tenant."
                           },
                           "value": {},
                           "rollout": {
@@ -19443,9 +19443,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, orgUnitIds.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, teamIds.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, orgUnitIds.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, teamIds.",
               "type": "string"
             }
           }
@@ -19475,7 +19475,7 @@
         ]
       },
       "post": {
-        "description": "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
+        "description": "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and teams, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
         "operationId": "AccessController_createUser_v1",
         "parameters": [],
         "requestBody": {
@@ -19514,8 +19514,8 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                     }
                   },
-                  "orgUnitIds": {
-                    "description": "The org units the user belongs to.",
+                  "teamIds": {
+                    "description": "The teams the user belongs to.",
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -19587,7 +19587,7 @@
     },
     "/v1/access/users/{id}": {
       "patch": {
-        "description": "Its activation, roles and org units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
+        "description": "Its activation, roles and teams in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
         "operationId": "AccessController_updateUser_v1",
         "parameters": [
           {
@@ -19627,7 +19627,7 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                     }
                   },
-                  "orgUnitIds": {
+                  "teamIds": {
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -19714,7 +19714,7 @@
                               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                             }
                           },
-                          "orgUnitIds": {
+                          "teamIds": {
                             "type": "array",
                             "items": {
                               "type": "string",
@@ -19740,7 +19740,7 @@
                           "expiresAt",
                           "name",
                           "roleIds",
-                          "orgUnitIds",
+                          "teamIds",
                           "invitedBy",
                           "expired",
                           "createdAt"
@@ -20972,9 +20972,9 @@
         ]
       }
     },
-    "/v1/access/org-units": {
+    "/v1/access/teams": {
       "get": {
-        "operationId": "OrgUnitsController_list_v1",
+        "operationId": "TeamsController_list_v1",
         "parameters": [],
         "responses": {
           "200": {
@@ -21007,7 +21007,7 @@
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991,
-                            "description": "0 for a top-level unit."
+                            "description": "0 for a top-level team."
                           },
                           "members": {
                             "type": "integer",
@@ -21055,13 +21055,13 @@
             "user-session": []
           }
         ],
-        "summary": "Every org unit, top-level first, with its parent and depth",
+        "summary": "Every team, top-level first, with its parent and depth",
         "tags": [
           "access"
         ]
       },
       "post": {
-        "operationId": "OrgUnitsController_create_v1",
+        "operationId": "TeamsController_create_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -21076,7 +21076,7 @@
                     "maxLength": 120
                   },
                   "parentId": {
-                    "description": "Leave out for a top-level unit.",
+                    "description": "Leave out for a top-level team.",
                     "nullable": true,
                     "type": "string",
                     "format": "uuid",
@@ -21144,15 +21144,15 @@
             "user-session": []
           }
         ],
-        "summary": "Create a unit",
+        "summary": "Create a team",
         "tags": [
           "access"
         ]
       }
     },
-    "/v1/access/org-units/{id}": {
+    "/v1/access/teams/{id}": {
       "patch": {
-        "operationId": "OrgUnitsController_update_v1",
+        "operationId": "TeamsController_update_v1",
         "parameters": [
           {
             "name": "id",
@@ -21176,7 +21176,7 @@
                     "maxLength": 120
                   },
                   "parentId": {
-                    "description": "Moves the unit, with every unit under it; null: to the top.",
+                    "description": "Moves the team, with every team under it; null: to the top.",
                     "nullable": true,
                     "type": "string",
                     "format": "uuid",
@@ -21244,13 +21244,13 @@
             "user-session": []
           }
         ],
-        "summary": "Rename a unit, or move it with everything under it",
+        "summary": "Rename a team, or move it with everything under it",
         "tags": [
           "access"
         ]
       },
       "delete": {
-        "operationId": "OrgUnitsController_remove_v1",
+        "operationId": "TeamsController_remove_v1",
         "parameters": [
           {
             "name": "id",
@@ -21269,7 +21269,7 @@
             "description": ""
           },
           "409": {
-            "description": "It still has units under it, or members."
+            "description": "It still has teams under it, or members."
           }
         },
         "security": [
@@ -21280,7 +21280,7 @@
             "user-session": []
           }
         ],
-        "summary": "Delete an empty unit",
+        "summary": "Delete an empty team",
         "tags": [
           "access"
         ]
@@ -21714,9 +21714,9 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`."
                     },
-                    "orgUnitId": {
+                    "teamId": {
                       "nullable": true,
-                      "description": "The author's org unit.",
+                      "description": "The author's team.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -21798,7 +21798,7 @@
                     "id",
                     "number",
                     "ownerId",
-                    "orgUnitId",
+                    "teamId",
                     "title",
                     "status",
                     "createdAt",
@@ -22017,28 +22017,28 @@
             }
           },
           {
-            "name": "orgUnitId",
+            "name": "teamId",
             "required": false,
             "in": "query",
-            "description": "Filter: orgUnitId =",
+            "description": "Filter: teamId =",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "orgUnitId.in",
+            "name": "teamId.in",
             "required": false,
             "in": "query",
-            "description": "Filter: orgUnitId in",
+            "description": "Filter: teamId in",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "orgUnitId.isNull",
+            "name": "teamId.isNull",
             "required": false,
             "in": "query",
-            "description": "Filter: orgUnitId isNull",
+            "description": "Filter: teamId isNull",
             "schema": {
               "type": "string"
             }
@@ -22191,7 +22191,7 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); orgUnitId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull).",
             "schema": {
               "type": "string"
             }
@@ -22218,7 +22218,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, orgUnitId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags.",
             "schema": {
               "type": "string"
             }
@@ -22258,9 +22258,9 @@
                             "type": "string",
                             "description": "Who wrote it: `user:<id>` or `client:<id>`."
                           },
-                          "orgUnitId": {
+                          "teamId": {
                             "nullable": true,
-                            "description": "The author's org unit.",
+                            "description": "The author's team.",
                             "type": "string",
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -22342,7 +22342,7 @@
                           "id",
                           "number",
                           "ownerId",
-                          "orgUnitId",
+                          "teamId",
                           "title",
                           "status",
                           "createdAt",
@@ -22464,9 +22464,9 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`."
                     },
-                    "orgUnitId": {
+                    "teamId": {
                       "nullable": true,
-                      "description": "The author's org unit.",
+                      "description": "The author's team.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -22548,7 +22548,7 @@
                     "id",
                     "number",
                     "ownerId",
-                    "orgUnitId",
+                    "teamId",
                     "title",
                     "status",
                     "createdAt",
@@ -22660,9 +22660,9 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`."
                     },
-                    "orgUnitId": {
+                    "teamId": {
                       "nullable": true,
-                      "description": "The author's org unit.",
+                      "description": "The author's team.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -22744,7 +22744,7 @@
                     "id",
                     "number",
                     "ownerId",
-                    "orgUnitId",
+                    "teamId",
                     "title",
                     "status",
                     "createdAt",
@@ -22873,9 +22873,9 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`."
                     },
-                    "orgUnitId": {
+                    "teamId": {
                       "nullable": true,
-                      "description": "The author's org unit.",
+                      "description": "The author's team.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -22957,7 +22957,7 @@
                     "id",
                     "number",
                     "ownerId",
-                    "orgUnitId",
+                    "teamId",
                     "title",
                     "status",
                     "createdAt",
@@ -24996,9 +24996,9 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`."
                     },
-                    "orgUnitId": {
+                    "teamId": {
                       "nullable": true,
-                      "description": "The author's org unit.",
+                      "description": "The author's team.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -25080,7 +25080,7 @@
                     "id",
                     "number",
                     "ownerId",
-                    "orgUnitId",
+                    "teamId",
                     "title",
                     "status",
                     "createdAt",

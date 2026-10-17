@@ -597,6 +597,15 @@ After 1a and 5.
 
 ### 25. Groups: teams, departments, organizations inside a tenant
 
+**Decided (owner, 2026-10-17): teams, a rename only.** Org units became
+**teams** (the Better Auth word): tables `teams`, `team_tree`, `user_teams`,
+`/v1/access/teams`, `teamIds`/`teamId`, `manageTeams`, `inMyTeams`, the
+`team` settings scope, the `teamRole` approval rule; nesting stays (an
+optional parent). Names stored in rows are rewritten at migrate
+(`stored-renames.ts`). The group redesign below is **not planned for the
+template**: a project that needs group types, membership roles or an owner
+group per record builds it on teams. Kept for reference:
+
 Decision 6. This **replaces** today's org units outright (breaking changes are
 accepted, see the top).
 

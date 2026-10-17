@@ -20,7 +20,7 @@ export interface StoredRename {
  * the migrations, as the owner: data, not schema, so drizzle-kit has no
  * migration for it, and a stale name (a role's `inMyUnits`) would fail
  * every check that reads it. Tenant by tenant, each in its own transaction
- * with the tenant's setting (as TenantPool sends it), so it works under the
+ * with the tenant's settings (as TenantPool sends them), so it works under the
  * forced row-level security whether or not the owner is a superuser.
  * Idempotent: only rows still holding the old name change; a second run
  * changes none.
@@ -39,7 +39,11 @@ export async function applyStoredRenames(
     const counts = new Map<StoredRename, number>();
     for (const { id } of all) {
       await db.transaction(async (tx) => {
-        await tx.execute(sql`select set_config('app.tenant_id', ${id}, true)`);
+        // Both settings, as TenantPool sends them: an UPDATE's WHERE reads
+        // rows, so the select policy (app.read_tenants) must see them too.
+        await tx.execute(
+          sql`select set_config('app.tenant_id', ${id}, true), set_config('app.read_tenants', ${id}, true)`,
+        );
         for (const rename of renames) {
           const table = sql.identifier(getTableName(rename.column.table));
           const column = sql.identifier(rename.column.name);

@@ -557,7 +557,7 @@ export interface paths {
         };
         /**
          * Every setting and flag, with your value of each
-         * @description Your value: your own, else your org unit's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.
+         * @description Your value: your own, else your team's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.
          */
         get: operations["SettingsController_list_v1"];
         put?: never;
@@ -578,7 +578,7 @@ export interface paths {
         /** One setting, with your value */
         get: operations["SettingsController_get_v1"];
         /**
-         * Set a setting for everyone, an org unit, or one principal
+         * Set a setting for everyone, a team, or one principal
          * @description Replaces what that scope had, in the caller's tenant. A flag at the tenant scope may take `rollout` (a percentage) instead of a value. Applies on the next request. Audited.
          */
         put: operations["SettingsController_set_v1"];
@@ -2108,7 +2108,7 @@ export interface paths {
         put?: never;
         /**
          * Invite someone to this tenant
-         * @description The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.
+         * @description The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and teams, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.
          */
         post: operations["AccessController_createUser_v1"];
         delete?: never;
@@ -2132,7 +2132,7 @@ export interface paths {
         head?: never;
         /**
          * Change a member's membership; only what is sent changes
-         * @description Its activation, roles and org units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.
+         * @description Its activation, roles and teams in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.
          */
         patch: operations["AccessController_updateUser_v1"];
         trace?: never;
@@ -2280,25 +2280,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/access/org-units": {
+    "/v1/access/teams": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Every org unit, top-level first, with its parent and depth */
-        get: operations["OrgUnitsController_list_v1"];
+        /** Every team, top-level first, with its parent and depth */
+        get: operations["TeamsController_list_v1"];
         put?: never;
-        /** Create a unit */
-        post: operations["OrgUnitsController_create_v1"];
+        /** Create a team */
+        post: operations["TeamsController_create_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/access/org-units/{id}": {
+    "/v1/access/teams/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2308,12 +2308,12 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete an empty unit */
-        delete: operations["OrgUnitsController_remove_v1"];
+        /** Delete an empty team */
+        delete: operations["TeamsController_remove_v1"];
         options?: never;
         head?: never;
-        /** Rename a unit, or move it with everything under it */
-        patch: operations["OrgUnitsController_update_v1"];
+        /** Rename a team, or move it with everything under it */
+        patch: operations["TeamsController_update_v1"];
         trace?: never;
     };
     "/v1/auth/tenants": {
@@ -4646,14 +4646,14 @@ export interface operations {
                             /** @description A feature flag (boolean, may roll out to a share of principals). */
                             flag: boolean;
                             /** @description Where it may be set; `user`: you may set it for yourself. */
-                            scopes: ("tenant" | "orgUnit" | "user")[];
+                            scopes: ("tenant" | "team" | "user")[];
                             public: boolean;
                             value: unknown;
                             /**
                              * @description Where your value comes from.
                              * @enum {string}
                              */
-                            source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
+                            source: "tenant" | "team" | "user" | "rollout" | "default";
                             default: unknown;
                         }[];
                     };
@@ -4699,14 +4699,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("tenant" | "orgUnit" | "user")[];
+                        scopes: ("tenant" | "team" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
+                        source: "tenant" | "team" | "user" | "rollout" | "default";
                         default: unknown;
                     };
                 };
@@ -4749,8 +4749,8 @@ export interface operations {
                      * @default tenant
                      * @enum {string}
                      */
-                    scope?: "tenant" | "orgUnit" | "user";
-                    /** @description For orgUnit: the unit's id; for user: the principal's key (`user:<id>`, `client:<id>`). */
+                    scope?: "tenant" | "team" | "user";
+                    /** @description For team: the team's id; for user: the principal's key (`user:<id>`, `client:<id>`). */
                     scopeId?: string;
                     /** @description The value; left out with `rollout`: the flag's rollout alone applies. */
                     value?: unknown;
@@ -4769,8 +4769,8 @@ export interface operations {
                         /** @example notes.publishDelay */
                         key: string;
                         /** @enum {string} */
-                        scope: "tenant" | "orgUnit" | "user";
-                        /** @description The org unit's id, the principal's key (`user:<id>`), or '' for the tenant. */
+                        scope: "tenant" | "team" | "user";
+                        /** @description The team's id, the principal's key (`user:<id>`), or '' for the tenant. */
                         scopeId: string;
                         value: unknown;
                         rollout: number | null;
@@ -4801,7 +4801,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No such setting, org unit or principal. */
+            /** @description No such setting, team or principal. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4813,7 +4813,7 @@ export interface operations {
     SettingsController_unset_v1: {
         parameters: {
             query?: {
-                scope?: "tenant" | "orgUnit" | "user";
+                scope?: "tenant" | "team" | "user";
                 scopeId?: string;
             };
             header?: never;
@@ -4882,14 +4882,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("tenant" | "orgUnit" | "user")[];
+                        scopes: ("tenant" | "team" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
+                        source: "tenant" | "team" | "user" | "rollout" | "default";
                         default: unknown;
                     };
                 };
@@ -4947,14 +4947,14 @@ export interface operations {
                         /** @description A feature flag (boolean, may roll out to a share of principals). */
                         flag: boolean;
                         /** @description Where it may be set; `user`: you may set it for yourself. */
-                        scopes: ("tenant" | "orgUnit" | "user")[];
+                        scopes: ("tenant" | "team" | "user")[];
                         public: boolean;
                         value: unknown;
                         /**
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "orgUnit" | "user" | "rollout" | "default";
+                        source: "tenant" | "team" | "user" | "rollout" | "default";
                         default: unknown;
                     };
                 };
@@ -5002,8 +5002,8 @@ export interface operations {
                             /** @example notes.publishDelay */
                             key: string;
                             /** @enum {string} */
-                            scope: "tenant" | "orgUnit" | "user";
-                            /** @description The org unit's id, the principal's key (`user:<id>`), or '' for the tenant. */
+                            scope: "tenant" | "team" | "user";
+                            /** @description The team's id, the principal's key (`user:<id>`), or '' for the tenant. */
                             scopeId: string;
                             value: unknown;
                             rollout: number | null;
@@ -11644,7 +11644,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -email. Sortable: email, name, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, orgUnitIds. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: kind,email. Fields: id, kind, email, name, emailVerified, locale, timezone, active, hasPassword, createdAt, updatedAt, roleIds, roles, teamIds. */
                 fields?: string;
             };
             header?: never;
@@ -11695,8 +11695,8 @@ export interface operations {
                     roleExpiresAt?: {
                         [key: string]: string;
                     };
-                    /** @description The org units the user belongs to. */
-                    orgUnitIds?: string[];
+                    /** @description The teams the user belongs to. */
+                    teamIds?: string[];
                 };
             };
         };
@@ -11750,7 +11750,7 @@ export interface operations {
                     roleExpiresAt?: {
                         [key: string]: string;
                     };
-                    orgUnitIds?: string[];
+                    teamIds?: string[];
                 };
             };
         };
@@ -11813,7 +11813,7 @@ export interface operations {
                             expiresAt: string;
                             name: string | null;
                             roleIds: string[];
-                            orgUnitIds: string[];
+                            teamIds: string[];
                             invitedBy: string;
                             expired: boolean;
                             /** Format: date-time */
@@ -12389,7 +12389,7 @@ export interface operations {
             };
         };
     };
-    OrgUnitsController_list_v1: {
+    TeamsController_list_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12410,7 +12410,7 @@ export interface operations {
                             name: string;
                             /** Format: uuid */
                             parentId: string | null;
-                            /** @description 0 for a top-level unit. */
+                            /** @description 0 for a top-level team. */
                             depth: number;
                             members: number;
                             /** Format: date-time */
@@ -12423,7 +12423,7 @@ export interface operations {
             };
         };
     };
-    OrgUnitsController_create_v1: {
+    TeamsController_create_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12436,7 +12436,7 @@ export interface operations {
                     name: string;
                     /**
                      * Format: uuid
-                     * @description Leave out for a top-level unit.
+                     * @description Leave out for a top-level team.
                      */
                     parentId?: string | null;
                 };
@@ -12463,7 +12463,7 @@ export interface operations {
             };
         };
     };
-    OrgUnitsController_remove_v1: {
+    TeamsController_remove_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12486,7 +12486,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description It still has units under it, or members. */
+            /** @description It still has teams under it, or members. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12495,7 +12495,7 @@ export interface operations {
             };
         };
     };
-    OrgUnitsController_update_v1: {
+    TeamsController_update_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12510,7 +12510,7 @@ export interface operations {
                     name?: string;
                     /**
                      * Format: uuid
-                     * @description Moves the unit, with every unit under it; null: to the top.
+                     * @description Moves the team, with every team under it; null: to the top.
                      */
                     parentId?: string | null;
                 };
@@ -12780,12 +12780,12 @@ export interface operations {
                 "title.endsWith"?: string;
                 /** @description Filter: ownerId = */
                 ownerId?: string;
-                /** @description Filter: orgUnitId = */
-                orgUnitId?: string;
-                /** @description Filter: orgUnitId in */
-                "orgUnitId.in"?: string;
-                /** @description Filter: orgUnitId isNull */
-                "orgUnitId.isNull"?: string;
+                /** @description Filter: teamId = */
+                teamId?: string;
+                /** @description Filter: teamId in */
+                "teamId.in"?: string;
+                /** @description Filter: teamId isNull */
+                "teamId.isNull"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -12818,13 +12818,13 @@ export interface operations {
                 "publishedAt.between"?: string;
                 /** @description Filter: publishedAt isNull */
                 "publishedAt.isNull"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"q","op":"eq","value":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); orgUnitId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"q","op":"eq","value":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt. */
                 sort?: string;
                 /** @description true: the recycle bin (deleted records), for those who may restore them. */
                 deleted?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, orgUnitId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
                 fields?: string;
                 /** @description Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`. */
                 "custom.<key>[.<op>]"?: string;
@@ -12849,9 +12849,9 @@ export interface operations {
                             ownerId: string;
                             /**
                              * Format: uuid
-                             * @description The author's org unit.
+                             * @description The author's team.
                              */
-                            orgUnitId: string | null;
+                            teamId: string | null;
                             title: string;
                             /** @description Left out when your permissions don't include the note's text. */
                             body?: string;
@@ -12959,9 +12959,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's org unit.
+                         * @description The author's team.
                          */
-                        orgUnitId: string | null;
+                        teamId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -13057,9 +13057,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's org unit.
+                         * @description The author's team.
                          */
-                        orgUnitId: string | null;
+                        teamId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -13207,9 +13207,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's org unit.
+                         * @description The author's team.
                          */
-                        orgUnitId: string | null;
+                        teamId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -13294,9 +13294,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's org unit.
+                         * @description The author's team.
                          */
-                        orgUnitId: string | null;
+                        teamId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
@@ -14248,9 +14248,9 @@ export interface operations {
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's org unit.
+                         * @description The author's team.
                          */
-                        orgUnitId: string | null;
+                        teamId: string | null;
                         title: string;
                         /** @description Left out when your permissions don't include the note's text. */
                         body?: string;
