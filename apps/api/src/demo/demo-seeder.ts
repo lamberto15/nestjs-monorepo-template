@@ -1,12 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { StorageDisk } from '@nestjs/storage';
-import { eq, like, min, sql } from 'drizzle-orm';
+import { and, eq, like, min, sql } from 'drizzle-orm';
 import type { Transaction } from '../core/database/drizzle.js';
 import { NotesService } from '../features/notes/notes.service.js';
 import { AccessAdminService } from '../iam/access/access-admin.service.js';
 import { AccessService } from '../iam/access/access.service.js';
 import { OrgUnitsService } from '../iam/access/org-units.service.js';
+import { SingleTenant } from '../iam/access/single-tenant.js';
 import { SystemContext } from '../iam/access/system-context.js';
 import { AuditService } from '../iam/audit/audit.service.js';
 import type { SystemPrincipal } from '../iam/auth/principal.js';
@@ -21,6 +22,7 @@ import {
 import { AttachmentsService } from '../platform/attachments/attachments.service.js';
 import { CommentsService } from '../platform/comments/comments.service.js';
 import { TagsService } from '../platform/tags/tags.service.js';
+import { tags as tagsTable } from '../platform/tags/tags.tables.js';
 import {
   DEMO_EMAIL_DOMAIN,
   DEMO_NOTES,
@@ -47,7 +49,14 @@ export interface DemoCredentials {
 }
 
 export type DemoSeedResult =
-  | { seeded: true; tenant: string; users: DemoCredentials[]; notes: number }
+  | {
+      seeded: true;
+      tenant: string;
+      /** TENANCY=single: the seed filled the operators' tenant, the only one. */
+      operators: boolean;
+      users: DemoCredentials[];
+      notes: number;
+    }
   | { seeded: false; since: Date };
 
 /** A demo user's address: `maya.patel@demo.example.com`. */
@@ -94,6 +103,7 @@ export class DemoSeeder {
     private readonly attachments: AttachmentsService,
     private readonly disk: StorageDisk,
     private readonly audit: AuditService,
+    private readonly singleTenant: SingleTenant,
   ) {}
 
   async seed(): Promise<DemoSeedResult> {
@@ -111,28 +121,32 @@ export class DemoSeeder {
       return await this.system.run(
         DEMO_SEED_JOB,
         async () => {
-          const created = await this.tenants
-            .create(
-              DEMO_TENANT,
-              null,
-              // Everything in the new tenant, in create()'s transaction.
-              (_tx, tenant) =>
-                this.system.run(
-                  DEMO_SEED_JOB,
-                  (system, tx) => this.fill(system, tx, tenant.id, stored),
-                  { tenantId: tenant.id },
-                ),
-              (tx) => this.assertMaySeed(tx),
-            )
-            .catch((error: unknown) => {
-              if (error instanceof SeededAlready) {
-                return { since: error.since };
-              }
-              throw error;
-            });
+          const created = await (
+            this.singleTenant.enabled
+              ? this.fillTheTenant(stored)
+              : this.tenants
+                  .create(
+                    DEMO_TENANT,
+                    null,
+                    // Everything in the new tenant, in create()'s transaction.
+                    (_tx, tenant) =>
+                      this.system.run(
+                        DEMO_SEED_JOB,
+                        (system, tx) => this.fill(system, tx, tenant, stored),
+                        { tenantId: tenant.id },
+                      ),
+                    (tx) => this.assertMaySeed(tx),
+                  )
+                  .then(({ result }) => result!)
+          ).catch((error: unknown) => {
+            if (error instanceof SeededAlready) {
+              return { since: error.since };
+            }
+            throw error;
+          });
           return 'since' in created
             ? { seeded: false as const, since: created.since }
-            : created.result!;
+            : created;
         },
         { transaction: false, tenantId: null },
       );
@@ -140,6 +154,25 @@ export class DemoSeeder {
       await this.disk.delete(stored).catch(() => undefined);
       throw error;
     }
+  }
+
+  /**
+   * TENANCY=single (docs/tenancy.md, "Single-tenant deployments"): no
+   * tenant of its own, which the deployment refuses, but the one there is,
+   * in one transaction under the same lock and checks. That tenant is the
+   * operators', so the demo administrator acts as an operator: a
+   * development database only (demo-guard.ts), as every seed.
+   */
+  private async fillTheTenant(stored: string[]): Promise<DemoSeedResult> {
+    const tenant = await this.singleTenant.tenant();
+    return this.system.run(
+      DEMO_SEED_JOB,
+      async (system, tx) => {
+        await this.assertMaySeed(tx);
+        return this.fill(system, tx, tenant, stored);
+      },
+      { tenantId: tenant.id },
+    );
   }
 
   /**
@@ -172,12 +205,13 @@ export class DemoSeeder {
   private async fill(
     system: SystemPrincipal,
     tx: Transaction,
-    tenantId: string,
+    tenant: { id: string; name: string },
     stored: string[],
   ): Promise<DemoSeedResult> {
+    const tenantId = tenant.id;
     const units = await this.createOrgUnits(system);
     const people = await this.createUsers(system, tx, units);
-    const tags = await this.createTags(system);
+    const tags = await this.createTags(system, tx);
     for (const note of DEMO_NOTES) {
       await this.createNote(system, tenantId, note, people, tags, stored);
     }
@@ -196,7 +230,8 @@ export class DemoSeeder {
     );
     return {
       seeded: true,
-      tenant: DEMO_TENANT.name,
+      tenant: tenant.name,
+      operators: this.singleTenant.enabled,
       users: people.credentials,
       notes: DEMO_NOTES.length,
     };
@@ -277,10 +312,25 @@ export class DemoSeeder {
     return { ids, credentials };
   }
 
-  private async createTags(system: SystemPrincipal) {
+  private async createTags(system: SystemPrincipal, tx: Transaction) {
     await this.assertCan(system, 'manageTags', 'Access');
     const ids = new Map<string, string>();
     for (const tag of DEMO_TAGS) {
+      // A tenant that has one by that name already (TENANCY=single fills
+      // the existing tenant): the demo notes get it, unchanged.
+      const [existing] = await tx
+        .select({ id: tagsTable.id })
+        .from(tagsTable)
+        .where(
+          and(
+            eq(tagsTable.subject, 'Note'),
+            sql`lower(${tagsTable.name}) = lower(${tag.name})`,
+          ),
+        );
+      if (existing) {
+        ids.set(tag.key, existing.id);
+        continue;
+      }
       const created = await this.tags.create(system, {
         subject: 'Note',
         name: tag.name,

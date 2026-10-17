@@ -155,6 +155,7 @@ describe('demo seed (e2e)', () => {
     // Everyone lands in the demo tenant, its only one. Its administrator
     // administers that tenant alone: no operator.
     expect(result.tenant).toBe('Demo Company');
+    expect(result.operators).toBe(false);
     expect(credentials('Noah Fischer').roles).toEqual(['Administrator']);
     const admin = await signIn('Noah Fischer');
     const me = (await admin.get('/v1/auth/me').expect(200)).body as {

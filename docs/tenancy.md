@@ -242,8 +242,9 @@ can be made (`iam/access/single-tenant.ts`):
 
 - **One tenant.** The first start makes it (`ADMIN_TENANT_NAME`); making
   another is refused with 409 `single_tenant` in `TenantsService.create()`,
-  so `POST /v1/tenants` and the demo seed (`pnpm db:seed:demo`, which makes a
-  tenant of its own: run it with `TENANCY=multi`) alike.
+  so `POST /v1/tenants` alike. The demo seed (`pnpm db:seed:demo`) fills the
+  one tenant instead of making its own: that tenant is the operators', so
+  the demo administrator acts as an operator (development databases only).
 - **Sign-ups join it.** With `AUTH_SIGN_UP=on`, an account made by
   `POST /v1/auth/sign-up` or by a first sign-in with a provider becomes a
   member of the tenant in the transaction that makes it, with the roles in

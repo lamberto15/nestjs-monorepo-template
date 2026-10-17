@@ -118,7 +118,7 @@ export class SingleTenant implements OnApplicationBootstrap {
     if (!this.enabled) {
       return inTransaction(this.txHost, create);
     }
-    const tenantId = await this.tenantId();
+    const { id: tenantId } = await this.tenant();
     return this.tenancy.run(tenantId, () =>
       inTransaction(this.txHost, async (tx) => {
         const account = await create(tx);
@@ -153,10 +153,13 @@ export class SingleTenant implements OnApplicationBootstrap {
     );
   }
 
-  /** The deployment's tenant: the operator tenant the first start made. */
-  private async tenantId(): Promise<string> {
+  /**
+   * The deployment's tenant: the operator tenant the first start made (what
+   * sign-ups join, and what the demo seed fills).
+   */
+  async tenant(): Promise<{ id: string; name: string }> {
     const [tenant] = await database(this.txHost)
-      .select({ id: tenants.id, active: tenants.active })
+      .select({ id: tenants.id, name: tenants.name, active: tenants.active })
       .from(tenants)
       .where(eq(tenants.operator, true))
       .orderBy(asc(tenants.createdAt))
@@ -166,6 +169,6 @@ export class SingleTenant implements OnApplicationBootstrap {
         'TENANCY=single: the operator tenant is missing or deactivated; sign-ups have nowhere to join.',
       );
     }
-    return tenant.id;
+    return { id: tenant.id, name: tenant.name };
   }
 }
