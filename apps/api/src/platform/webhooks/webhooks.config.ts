@@ -3,6 +3,7 @@ import { runsWorkers } from '../../core/config/core.env.js';
 import { NOTIFICATION_WEBHOOK_EVENT } from '../notifications/notification.types.js';
 import { APPROVAL_EVENT_TYPES } from '../approvals/approval-events.js';
 import type { PlatformOptions } from '../platform.options.js';
+import { switchedOn } from '../switches.js';
 
 /**
  * `WEBHOOKS_ALLOW_LOOPBACK=on` lets endpoints be http://127.0.0.1, for local
@@ -39,7 +40,10 @@ export function webhooksOptions(
       allowedAddresses: loopback ? ['127.0.0.1/32'] : [],
     },
     worker: {
-      enabled: process.env.WEBHOOKS_WORKER !== 'off' && runsWorkers(),
+      enabled:
+        switchedOn('WEBHOOKS') &&
+        process.env.WEBHOOKS_WORKER !== 'off' &&
+        runsWorkers(),
       pollInterval: '1s',
     },
     // Endpoint secrets at rest: the first key encrypts, every key decrypts.

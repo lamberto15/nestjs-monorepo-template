@@ -5,6 +5,10 @@ schedule, its file mailed to the recipients with a download link.
 `apps/api/src/platform/reports/`; any `DataExporter` ([data-transfer.md](data-transfer.md))
 can be scheduled, nothing to add to a feature.
 
+**`REPORTS=off`** ([configuration.md](configuration.md#deployment-switches))
+leaves the module out: no `/v1/reports` (404), no hourly runner, no report mails. Exports and
+imports are unaffected; a feature's `transfer` capability keeps working.
+
 ```http
 POST /v1/reports
 { "name": "Weekly drafts", "exporter": "notes", "format": "xlsx",

@@ -3,11 +3,19 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
-import { fieldSnapshot } from '../fields/fields.js';
+import type { List } from '../../core/http/list-query.js';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { TagsService } from '../tags/tags.service.js';
-import { type RecordDeclaration, recordView, takes } from './record.js';
+import {
+  type RecordDeclaration,
+  recordSnapshot,
+  recordTableOf,
+  recordValues,
+  recordView,
+  takes,
+} from './record.js';
 import type { RecordList } from './record-list.js';
 import type { RecordSchemas } from './record.schemas.js';
 
@@ -65,8 +73,9 @@ export interface RecordContract {
 /**
  * What happens with every record of the feature, as its capabilities say,
  * in the write's transaction: the owner watches a new one (watch), each
- * state is a revision (revisions). The service always calls it, so adding a
- * capability changes no service.
+ * state is a revision (revisions), a body's custom values are checked
+ * (custom). The service always calls it, so adding a capability changes no
+ * service.
  */
 @Injectable()
 export class RecordLifecycle {
@@ -74,13 +83,48 @@ export class RecordLifecycle {
     @Inject(RECORD_DECLARATION) private readonly declaration: RecordDeclaration,
     private readonly subscriptions: SubscriptionsService,
     private readonly revisions: RevisionsService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
   private snapshot(row: Record<string, unknown>) {
-    return fieldSnapshot(
-      this.declaration.fields,
-      recordView(this.declaration, row),
+    return recordSnapshot(this.declaration, recordView(this.declaration, row));
+  }
+
+  /**
+   * A create or update body as the table's columns (money, datetimes
+   * mapped; with custom fields, `custom` checked against the subject's
+   * active fields: defaults filled on create, a patch merged into the
+   * stored values on update). Call it before the write's transaction: a
+   * validation error then costs no transaction.
+   */
+  async values(
+    dto: Record<string, unknown>,
+    mode: 'create' | 'update',
+  ): Promise<Record<string, unknown>> {
+    const { custom, ...rest } = dto;
+    const values = recordValues(this.declaration, rest);
+    if (!takes(this.declaration, 'custom')) {
+      return values;
+    }
+    const subject = this.declaration.subject;
+    const parsed = await this.customFields.parseValues(
+      subject,
+      custom as Record<string, unknown> | undefined,
+      mode,
     );
+    if (mode === 'create') {
+      return { ...values, custom: parsed };
+    }
+    // Only the keys sent change (jsonb ||); null removes one.
+    return Object.keys(parsed).length > 0
+      ? {
+          ...values,
+          custom: this.customFields.mergeValues(
+            recordTableOf(this.declaration).custom!,
+            parsed,
+          ),
+        }
+      : values;
   }
 
   async created(
@@ -128,7 +172,7 @@ export class RecordLifecycle {
 
 /**
  * Records as a caller reads them: the API's view (money as objects), their
- * tags (tags), less the fields the caller may not see. The controller
+ * tags (tags), their active custom values (custom), less the fields the caller may not see. The controller
  * always calls it (and its ETags cover what it returns).
  */
 @Injectable()
@@ -137,7 +181,19 @@ export class RecordPresenter {
     @Inject(RECORD_DECLARATION) private readonly declaration: RecordDeclaration,
     private readonly access: AccessService,
     private readonly tags: TagsService,
+    private readonly customFields: CustomFieldsService,
   ) {}
+
+  /**
+   * The record's list with the custom fields defined now (filter, sort,
+   * `fields`): validate a request's query with its `parse()`, and select
+   * `sortSelect(query)`. The list itself without custom fields.
+   */
+  async list(list: List): Promise<List> {
+    return takes(this.declaration, 'custom')
+      ? this.customFields.extendList(list, this.declaration.subject)
+      : list;
+  }
 
   /** One record, as the caller may see it. */
   async one(user: Principal, row: Record<string, unknown>) {
@@ -159,6 +215,10 @@ export class RecordPresenter {
         ...view,
         tags: tags.get(view.id as string) ?? [],
       }));
+    }
+    if (takes(this.declaration, 'custom')) {
+      // Only the values of the fields active now (a deactivated one's stay stored).
+      views = await this.customFields.visible(this.declaration.subject, views);
     }
     return this.access.redactAll(user, 'read', this.declaration.subject, views);
   }

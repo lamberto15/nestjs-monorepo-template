@@ -45,6 +45,7 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Languages and time | `LOCALES`, `APP_TIMEZONE` |
 | Mail | `MAIL_TRANSPORT`, `MAIL_FROM`, `SMTP_URL`, `MAIL_API_KEY`, `MAIL_DIRECTORY` (`.data/mail`), `SES_ENDPOINT` (Floci) |
 | Deliverability | `SES_SNS_TOPIC_ARNS` (the SNS topics SES publishes bounces and complaints to; empty: `POST /v1/webhooks/mail/ses` refuses everything), `MAIL_SOFT_BOUNCE_THRESHOLD` (3: transient bounces before an address is suppressed), `MAIL_SOFT_BOUNCE_WINDOW_HOURS` (24: they count when the last is at most this old), `MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS` (72: how long a soft-bounce suppression lasts), `SES_SNS_REQUIRE_SIGNATURE_V2` (`off`: refuse SignatureVersion 1), `MAIL_EVENTS_RETENTION_DAYS` (90: the bounce, complaint and delivery events); [deliverability.md](deliverability.md) |
+| Deployment switches | `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (all `on`; [below](#deployment-switches)) |
 | Background | `SCHEDULER`, `OUTBOX_RELAY`, `WEBHOOKS_WORKER`, `BULK_SYNC_LIMIT` (100: bulk runs of up to this many ids answer in the request, larger ones are queued) |
 | Notifications | `NOTIFICATIONS_DIGEST_HOUR` (8: daily digests, in each user's time zone), `NOTIFICATIONS_RETENTION_DAYS` (90: read ones), `NOTIFICATIONS_MAX_AGE_DAYS` (365: any) |
 | Attachments | `ATTACHMENT_MAX_MB` (25), `ATTACHMENT_ALLOWED_TYPES` (comma-separated MIME types, detected from the bytes; default: JPEG, PNG, GIF, WebP, PDF, docx, xlsx, pptx, plain text, CSV, zip) |
@@ -56,18 +57,44 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Revisions | `REVISIONS_RETENTION_DAYS` (365: record revisions; each record's latest stays, [revisions.md](revisions.md)) |
 | Money | `EXCHANGE_RATES_FETCH` (`on`: the ECB's reference rates every working day), `EXCHANGE_RATES_ECB_URL` (`https://www.ecb.europa.eu/stats/eurofxref`, or a mirror); [money.md](money.md) |
 | Scheduled reports | `REPORT_LINK_TTL` (`24h`: how long a report mail's download link works, at most `7d`; [reports.md](reports.md)) |
-| Accounts | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_TENANT_NAME` (the first tenant, the operators': docs/tenancy.md), `TENANCY` (`multi`; `single`: the first tenant is the only one), `SIGN_UP_ROLES` (`single`: the roles a sign-up gets, seed role keys; none by default), `INVITATION_TTL_HOURS` (168: how long an invitation to a tenant works), `SESSION_COOKIE_SECURE`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`, `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `MFA_ISSUER`, `IMPERSONATION_TTL_MINUTES`, `REAUTHENTICATION_MAX_AGE_MINUTES` (10: how long a sign-in counts for the sensitive routes), `AUDIT_RETENTION_DAYS`, `SOFT_DELETE_RETENTION_DAYS` (30: the recycle bins) |
+| Accounts | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_TENANT_NAME` (the first tenant, the operators': docs/tenancy.md), `TENANCY` (`multi`; `single`: the first tenant is the only one), `SIGN_UP_ROLES` (`single`: the roles a sign-up gets, seed role keys; none by default), `INVITATION_TTL_HOURS` (168: how long an invitation to a tenant works), `SESSION_COOKIE_SECURE`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`, `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `MFA_ISSUER`, `IMPERSONATION` (off: a privileged support tool, opt in), `IMPERSONATION_TTL_MINUTES`, `AUTH_MFA` (on; off: no new enrollments, enrolled users still asked), `API_CLIENTS` (on; off: no client routes, no keys accepted), `REAUTHENTICATION_MAX_AGE_MINUTES` (10: how long a sign-in counts for the sensitive routes), `AUDIT_RETENTION_DAYS`, `SOFT_DELETE_RETENTION_DAYS` (30: the recycle bins) |
 | Passkeys | `PASSKEYS` (`on`), `PASSKEY_RP_ID` (the relying party: default `WEB_URL`'s host, else `APP_URL`'s; never change it once passkeys exist), `PASSKEY_RP_NAME` (default `SERVICE_NAME`), `PASSKEY_ORIGINS` (more origins under the RP ID), `PASSKEY_CHALLENGE_TTL_SECONDS` (120), `PASSKEY_ANDROID_APPS` (`package:SHA256-fingerprint`), `PASSKEY_APPLE_APPS` (`TEAMID.bundle.id`). Refused at boot: an origin outside the RP ID; in production also `localhost`, an IP address or plain http (or `PASSKEYS=off`); [auth.md](auth.md#passkeys) |
 | Bot protection | `CAPTCHA_MODE` (`off`; `always`, `after-failures`), `CAPTCHA_PROVIDER` (`turnstile`; `stub` for tests and load tests, refused in production), `TURNSTILE_SITE_KEY` (public), `TURNSTILE_SECRET_KEY`, `CAPTCHA_VERIFY_URL` (Cloudflare's siteverify), `CAPTCHA_HOSTNAMES` (the widget's hosts; default: `WEB_URL`'s), `CAPTCHA_TIMEOUT_MS` (2000), `CAPTCHA_ON_ERROR` (`allow`: fail-open under `CAPTCHA_DEGRADED_LIMIT` (2) per address in the window; `reject`: 503), `CAPTCHA_FAILURES` (3), `CAPTCHA_FAILURES_WINDOW_MINUTES` (15); [auth.md](auth.md#bot-protection) |
 | Sign in with | `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_TENANT_ID/CLIENT_ID/CLIENT_SECRET`, `GITHUB_CLIENT_ID/SECRET` (redirect URI: `<APP_URL>/v1/auth/oidc/<provider>/callback`) |
 | Files | `STORAGE_DRIVER` (`local`/`s3`), `STORAGE_ROOT` (`.data/storage`), `STORAGE_SIGNING_KEYS`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` |
 | AWS (S3, SES) | `AWS_REGION` (also S3's default region), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`; unset keys: the packages read `process.env` |
-| Platform keys | `IDEMPOTENCY_KEYS`, `WEBHOOKS_ENCRYPTION_KEYS`, `WEBHOOKS_ALLOW_LOOPBACK` (development only) |
+| Platform keys | `IDEMPOTENCY` (`required`; `optional`: [api-conventions.md](api-conventions.md#idempotency)), `IDEMPOTENCY_KEYS`, `WEBHOOKS_ENCRYPTION_KEYS`, `WEBHOOKS_ALLOW_LOOPBACK` (development only) |
 | Compose | `COMPOSE_FILE`, `COMPOSE_PROJECT_NAME`, `APP_IMAGE` (unset: built from the checkout; a published image: [deployment.md](deployment.md), "Publishing and rolling back images"), `API_REPLICAS`, `WORKER_REPLICAS`, `API_CPUS`, `API_MEMORY` (768M), `API_HEAP_MB` (384), `API_PASSWORD_HASH_CONCURRENCY` (2), `WORKER_CPUS`, `WORKER_MEMORY` (1G), `WORKER_HEAP_MB` (768), `WORKER_PASSWORD_HASH_CONCURRENCY` (1), `POSTGRES_CPUS`, `POSTGRES_MEMORY`, `REDIS_PASSWORD`, `REDIS_CPUS`, `REDIS_MEMORY`, `REDIS_MAXMEMORY` (the PostgreSQL roles: the Database row) |
 | Caddy | `APP_DOMAIN`, `CLOUDFLARE_API_TOKEN`, `ACME_EMAIL` |
 | Backups (Compose, [deployment.md](deployment.md), "Backups and restore") | `BACKUP_SCHEDULE` (`0 3 * * *`, cron, UTC), `BACKUP_RETENTION_DAYS` (14: in the `backups` volume), `BACKUP_MAX_AGE_HOURS` (25: older, a catch-up runs and the service turns unhealthy), `BACKUP_CPUS` (0.5), `BACKUP_MEMORY` (512M); off the host, all optional: `BACKUP_S3_BUCKET` (empty: off), `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, `BACKUP_S3_PREFIX` (`COMPOSE_PROJECT_NAME`), `BACKUP_S3_PROVIDER` (rclone's provider name) |
 | Container logs (Compose) | `DOCKER_LOG_DRIVER` (`local`; `json-file` for a shipper reading Docker's files), `DOCKER_LOG_MAX_SIZE` (20m), `DOCKER_LOG_MAX_FILE` (5): per container |
 | Example feature | `NOTE_PUBLISH_DELAY`, `EXAMPLE_SENDER_WEBHOOK_SECRET` |
+
+## Deployment switches
+
+Platform modules not every project needs. Each is `on` by default, so nothing
+changes until it is turned off; the committed OpenAPI document and typed
+client are made with all on. They are read when the app is built (a change
+needs a restart), validated at boot (a typo stops the app), and `off` leaves
+the module's routes, workers and jobs out with no error at boot. An absent
+route answers the app's ordinary 404 problem.
+
+| Switch | Off means |
+| --- | --- |
+| `WEBHOOKS` | No `/v1/webhook-endpoints` or delivery API and no delivery worker. The webhooks package stays registered (notifications, approvals and incoming receivers use it), so incoming webhooks work as before, and the outbox relay keeps running: notification delivery goes through it. Deliveries already queued for existing endpoints wait until it is turned on again. |
+| `REPORTS` | No `/v1/reports` and no hourly runner; exports and imports are untouched. The `reports` table stays (migrations are not switched); existing reports stop running and are left out of an account's personal-data export. |
+| `USAGE` | No metering and no quota enforcement: `UsageInterceptor` is not registered, so nothing is counted on the hot path, the nightly roll-up and `GET /v1/access/clients/{id}/usage` are gone, and a client's `dailyQuota` can still be set but **does not apply** (no `429 quota_exceeded`, no `X-Quota-*` headers). |
+| `REALTIME` | No `/realtime` gateway and no socket.io Redis adapter. Everything that pushes (notifications, bulk and export progress, documents, approvals) keeps working: notifications are still stored and mailed, only the live event is dropped. |
+
+There is no `WORKFLOWS` switch: approvals (and the notes example) start and
+signal workflows unconditionally, so the workflow engine is part of the core
+of the platform, not an optional module.
+
+Features that depend on a switched-off module must not fail because of it:
+inject `Realtime` and `Webhooks` as before (they exist either way: `Realtime`
+then does nothing, and webhook deliveries to endpoints created earlier wait
+in the queue); a feature that calls the reports or usage services directly
+should not (nothing else in the template does).
 
 ## Secrets
 

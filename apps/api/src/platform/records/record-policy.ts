@@ -13,7 +13,7 @@ import {
   type SystemJobDefinition,
 } from '../../iam/access/permissions.js';
 import type { Principal } from '../../iam/auth/principal.js';
-import type { RecordDeclaration } from './record.js';
+import { type RecordDeclaration, recordPermissionFields } from './record.js';
 import { RECORD_DECLARATION } from './record-contract.js';
 
 /** What a feature adds to its records' standard permissions (recordPermissions). */
@@ -44,6 +44,7 @@ const actionsOf = (declaration: RecordDeclaration) => [
  * A record's permissions (definePermissions), from its declaration
  * (record.ts): the conditions `mine` and, with teams, `inMyTeams`; the
  * actions read, create, update, delete and, with a recycle bin, restore;
+ * the field-level permissions of its capabilities (custom);
  * an API client's own records; the seed roles' grants: editors their own,
  * team leads their teams' (with teams), viewers every one. Flipping
  * `softDelete` or `team` changes them with no code of the feature's;
@@ -71,7 +72,8 @@ export function recordPermissions(
     subjects: {
       [subject]: {
         label: `${nouns[0]!.toUpperCase()}${nouns.slice(1)}`,
-        fields: options.fields ?? {},
+        // Field-level: those of its capabilities (custom), and its own.
+        fields: { ...recordPermissionFields(declaration), ...options.fields },
         conditions: {
           mine: createdBy('ownerId', table.ownerId),
           ...(declaration.team && {

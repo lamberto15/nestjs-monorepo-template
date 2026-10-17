@@ -211,4 +211,51 @@ export function describeCapabilities(
       expect(found.map((item) => item.id)).toContain(id);
     });
   }
+
+  if (has('custom')) {
+    it('takes custom fields: values checked on create and update, shown, filtered and sorted', async () => {
+      const admin = node().admin();
+      await admin
+        .post('/v1/custom-fields')
+        .send({
+          subject: record.subject,
+          key: 'region',
+          label: 'Region',
+          type: 'select',
+          options: [
+            { value: 'eu', label: 'Europe' },
+            { value: 'us', label: 'Americas' },
+          ],
+          filterable: true,
+          sortable: true,
+        })
+        .expect(201);
+      await admin
+        .post(path)
+        .set('Idempotency-Key', randomUUID())
+        .send({ ...samples.body(), custom: { region: 'asia' } })
+        .expect(400);
+      const created = await admin
+        .post(path)
+        .set('Idempotency-Key', randomUUID())
+        .send({ ...samples.body(), custom: { region: 'eu' } })
+        .expect(201);
+      const id = created.body.id as string;
+      expect(created.body.custom).toEqual({ region: 'eu' });
+      expect(
+        (
+          await admin
+            .patch(`${path}/${id}`)
+            .send({ custom: { region: 'us' } })
+            .expect(200)
+        ).body.custom,
+      ).toEqual({ region: 'us' });
+      const listed = (
+        await admin
+          .get(`${path}?custom.region=us&sort=custom.region`)
+          .expect(200)
+      ).body.items as { id: string }[];
+      expect(listed.map((item) => item.id)).toEqual([id]);
+    });
+  }
 }

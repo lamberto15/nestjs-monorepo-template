@@ -23,12 +23,18 @@ import { BulkRegistry } from '../bulk/bulk.registry.js';
 import type { BulkSelection } from '../bulk/bulk.types.js';
 import { CommentsRegistry } from '../comments/comments.registry.js';
 import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
-import type { TransferColumn } from '../data-transfer/data-transfer.types.js';
+import { columnsOf } from '../data-transfer/import-columns.js';
+import type {
+  ImportColumn,
+  TransferColumn,
+} from '../data-transfer/data-transfer.types.js';
 import {
   type DocumentRenderOptions,
   DocumentsRegistry,
 } from '../documents/documents.registry.js';
-import { fieldSnapshot, searchableFields } from '../fields/fields.js';
+import { z } from 'zod';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
+import { searchableFields } from '../fields/fields.js';
 import {
   type RevisionItem,
   RevisionsRegistry,
@@ -36,7 +42,15 @@ import {
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
-import { type RecordDeclaration, recordKey, recordView } from './record.js';
+import { TagsService } from '../tags/tags.service.js';
+import {
+  type RecordDeclaration,
+  recordKey,
+  recordSnapshot,
+  recordView,
+  sentFields,
+  takes,
+} from './record.js';
 export { recordKey } from './record.js';
 import {
   RECORD_CONTRACT,
@@ -284,7 +298,7 @@ export class RecordBulk {
         principal,
         'update',
         this.subject,
-        dto,
+        sentFields(dto),
         row,
       );
       if (forbidden.length) {
@@ -384,6 +398,7 @@ export class RecordRevisions {
     private readonly access: AccessService,
     // The answer a GET gives (tags too), so a restore's ETag is the GET's.
     private readonly presenter: RecordPresenter,
+    private readonly customFields: CustomFieldsService,
     registry: RevisionsRegistry,
   ) {
     this.subject = c.declaration.subject;
@@ -400,8 +415,34 @@ export class RecordRevisions {
     const row = await find(this.c, id);
     return row !== null && this.c.policy.update(principal, row);
   }
-  snapshot(row: Record<string, unknown>) {
-    return fieldSnapshot(this.c.declaration.fields, this.view(row));
+  snapshot(row: Record<string, unknown>): Record<string, unknown> {
+    return recordSnapshot(this.c.declaration, this.view(row));
+  }
+
+  /**
+   * The custom values to set back: those of the active fields that differ
+   * from the record's now (a value the snapshot lacks is removed: null);
+   * fields deactivated since stay as they are.
+   */
+  private async customPatch(was: unknown, now: unknown) {
+    const subject = this.c.declaration.subject;
+    const [then, current] = await this.customFields.visible(subject, [
+      { custom: (was ?? {}) as Record<string, unknown> },
+      { custom: (now ?? {}) as Record<string, unknown> },
+    ]);
+    const patch: Record<string, unknown> = {};
+    for (const key of new Set([
+      ...Object.keys(then!.custom),
+      ...Object.keys(current!.custom),
+    ])) {
+      const value = then!.custom[key] ?? null;
+      if (
+        JSON.stringify(value) !== JSON.stringify(current!.custom[key] ?? null)
+      ) {
+        patch[key] = value;
+      }
+    }
+    return patch;
   }
   async apply(
     principal: Principal,
@@ -411,12 +452,18 @@ export class RecordRevisions {
   ) {
     const row = await this.c.service.findOne(id);
     const now = this.snapshot(row);
-    const changes = Object.fromEntries(
+    const changes: Record<string, unknown> = Object.fromEntries(
       Object.entries(fields).filter(
         ([field, value]) =>
-          field in now && JSON.stringify(value) !== JSON.stringify(now[field]),
+          field !== 'custom' &&
+          field in now &&
+          JSON.stringify(value) !== JSON.stringify(now[field]),
       ),
     );
+    if (takes(this.c.declaration, 'custom')) {
+      const patch = await this.customPatch(fields.custom, row.custom);
+      if (Object.keys(patch).length > 0) changes.custom = patch;
+    }
     const parsed = this.c.schemas.update.safeParse(changes);
     if (!parsed.success) {
       throw validationException(parsed.error.issues);
@@ -426,7 +473,7 @@ export class RecordRevisions {
       principal,
       'update',
       this.subject,
-      dto,
+      sentFields(dto),
       row,
     );
     if (forbidden.length) {
@@ -451,8 +498,30 @@ export class RecordRevisions {
     items: RevisionItem[],
   ): Promise<RevisionItem[]> {
     const row = this.view(await this.c.service.findOne(id));
+    const custom = takes(this.c.declaration, 'custom');
+    // Custom values: only those of the fields active now, in the snapshots and in the changes (`custom.<key>`).
+    let snapshots = items.map(({ snapshot }) => snapshot);
+    let active = new Set<string>();
+    if (custom) {
+      snapshots = await this.customFields.visible(
+        this.subject,
+        snapshots.map((snapshot) => ({
+          ...snapshot,
+          custom: (snapshot.custom ?? {}) as Record<string, unknown>,
+        })),
+      );
+      const named = items.flatMap(({ changes }) =>
+        Object.keys(changes ?? {})
+          .filter((key) => key.startsWith('custom.'))
+          .map((key) => key.slice('custom.'.length)),
+      );
+      const [probe] = await this.customFields.visible(this.subject, [
+        { custom: Object.fromEntries(named.map((key) => [key, true])) },
+      ]);
+      active = new Set(Object.keys(probe!.custom));
+    }
     return Promise.all(
-      items.map(async ({ snapshot: kept, changes }) => {
+      snapshots.map(async (kept, index) => {
         const allowed = await this.access.redact(
           principal,
           'read',
@@ -465,14 +534,19 @@ export class RecordRevisions {
         const shown = Object.fromEntries(
           Object.entries(kept).filter(([field]) => field in allowed),
         );
+        const changes = items[index]!.changes;
         return {
           snapshot: shown,
           changes:
             changes &&
             Object.fromEntries(
-              Object.entries(changes).filter(
-                ([key]) => key.split('.', 1)[0]! in shown,
-              ),
+              Object.entries(changes).filter(([key]) => {
+                const [field, sub] = key.split('.', 2) as [string, string?];
+                if (!(field in shown)) return false;
+                return (
+                  field !== 'custom' || sub === undefined || active.has(sub)
+                );
+              }),
             ),
         };
       }),
@@ -572,9 +646,19 @@ export class RecordTransfer {
   readonly columns: readonly TransferColumn[];
   readonly filters: RecordContract['list']['schema'];
   readonly schema?: RecordContract['schemas']['create'];
+  // With custom fields (custom): one `custom.<key>` column per active field, both ways.
+  columnsFor?: () => Promise<readonly TransferColumn[]>;
+  templateColumns?: () => Promise<readonly ImportColumn[]>;
+  schemaFor?: () => Promise<z.ZodType<Record<string, unknown>>>;
+  refusedColumns?: (
+    principal: Principal,
+    headers: readonly string[],
+  ) => Promise<string[]>;
   constructor(
     @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
     private readonly access: AccessService,
+    customFields: CustomFieldsService,
+    private readonly tags: TagsService,
     registry: DataTransferRegistry,
     personalData: PersonalDataRegistry,
   ) {
@@ -605,10 +689,32 @@ export class RecordTransfer {
         if (f.kind === 'datetime') return { key: name, type: 'datetime' };
         return { key: name };
       }),
+      // Its tags' names, `Urgent, Q3` (batches() adds them, one query per
+      // batch). Export only: an import's schema doesn't name `tags`, so the
+      // column is ignored there.
+      ...(takes(c.declaration, 'tags')
+        ? [
+            {
+              key: 'tags',
+              value: (row: Record<string, unknown>) =>
+                ((row.tags as { name: string }[] | undefined) ?? [])
+                  .map((tag) => tag.name)
+                  .join(', '),
+            } satisfies TransferColumn,
+          ]
+        : []),
       { key: 'ownerId', header: 'owner' },
       { key: 'createdAt', type: 'datetime' },
     ];
     this.filters = c.list.schema;
+    const subject = this.subject;
+    const custom = takes(c.declaration, 'custom');
+    if (custom) {
+      this.columnsFor = async () => [
+        ...this.columns,
+        ...(await customFields.transferColumns(subject)),
+      ];
+    }
     registry.registerExporter(this as never);
     const importable = fields.every(
       ([, f]) =>
@@ -622,7 +728,21 @@ export class RecordTransfer {
           .filter(([, f]) => ['money', 'json'].includes(f.kind))
           .map(([name]) => [name, true]),
       );
-      this.schema = c.schemas.create.omit(flat as never) as never;
+      // The custom values come in their `custom.<key>` columns (schemaFor adds them).
+      const row = c.schemas.create.omit({
+        ...flat,
+        ...(custom && { custom: true }),
+      } as never) as unknown as z.ZodObject;
+      this.schema = row as never;
+      if (custom) {
+        this.templateColumns = async () => [
+          ...columnsOf(row),
+          ...(await customFields.importColumns(subject)),
+        ];
+        this.schemaFor = () => customFields.importSchema(subject, row) as never;
+        this.refusedColumns = (_principal, headers) =>
+          customFields.unknownColumns(subject, headers);
+      }
       registry.registerImporter(this as never);
     }
     personalData.register(this);
@@ -656,12 +776,27 @@ export class RecordTransfer {
     }
   }
   async *batches(principal: Principal, filters: Record<string, unknown>) {
-    yield* this.pages(
+    const withTags = takes(this.c.declaration, 'tags');
+    for await (const rows of this.pages(
       and(
         await this.access.sqlFilter(principal, this.subject, 'read'),
         this.c.list.where({ limit: 1000, ...filters } as ListQuery),
       ),
-    );
+    )) {
+      if (!withTags) {
+        yield rows;
+        continue;
+      }
+      // One query for the batch's tags, as RecordPresenter does.
+      const tags = await this.tags.tagsOf(
+        this.subject,
+        rows.map((row) => row.id as string),
+      );
+      yield rows.map((row) => ({
+        ...row,
+        tags: tags.get(row.id as string) ?? [],
+      }));
+    }
   }
   async write(principal: Principal, row: Record<string, unknown>) {
     await this.c.service.create(principal, row);

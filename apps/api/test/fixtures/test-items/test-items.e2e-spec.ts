@@ -26,6 +26,30 @@ describe('test items (e2e)', () => {
     sent = samples.body(),
   ) => agent.post('/v1/test-items').set('Idempotency-Key', key).send(sent);
 
+  it('refuses a create without an Idempotency-Key (IDEMPOTENCY=required, the default)', async () => {
+    const refused = await node
+      .admin()
+      .post('/v1/test-items')
+      .send(samples.body())
+      .expect(400);
+    expect(refused.body).toMatchObject({ code: 'IDEMPOTENCY_KEY_REQUIRED' });
+  });
+
+  // On a record's create, which every app with a feature has (the app alone
+  // may have none: CI's template-without-notes).
+  it('documents Idempotency-Key as required where the deployment demands it (IDEMPOTENCY=required, the default)', async () => {
+    const document = (await node.http().get('/api-json').expect(200)).body as {
+      paths: Record<
+        string,
+        Record<string, { parameters?: { name: string; required?: boolean }[] }>
+      >;
+    };
+    const header = document.paths['/v1/test-items']!.post!.parameters!.find(
+      (parameter) => parameter.name === 'Idempotency-Key',
+    );
+    expect(header?.required).toBe(true);
+  });
+
   it('creates once per Idempotency-Key, changes with If-Match (audited), deletes', async () => {
     const admin = node.admin();
     const key = randomUUID();

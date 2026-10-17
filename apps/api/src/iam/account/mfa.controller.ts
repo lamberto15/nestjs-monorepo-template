@@ -25,6 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { UserPrincipal } from '../auth/principal.js';
+import { RequiresSwitch } from '../auth/deployment-switch.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
@@ -78,6 +79,7 @@ export class MfaController {
   @UserOnly()
   @RecentAuthentication()
   @Post('enroll')
+  @RequiresSwitch('AUTH_MFA')
   @HttpCode(200)
   @ApiOperation({ summary: 'Start setting up an authenticator app' })
   @ApiOkResponse({ standardSchema: enrollmentSchema })
@@ -99,6 +101,7 @@ export class MfaController {
 
   @UserOnly()
   @Post('confirm')
+  @RequiresSwitch('AUTH_MFA')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Turn two-factor on with a first code from the app',

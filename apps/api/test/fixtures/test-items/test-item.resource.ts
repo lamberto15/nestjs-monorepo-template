@@ -4,6 +4,7 @@ import { testItems } from './test-items.tables.js';
 
 /**
  * Test items: every change audited (testItem.created, testItem.updated…),
- * deleted ones in a recycle bin when test-item.record.ts says softDelete (recordResource).
+ * a custom value's change as `custom.<key>`, deleted ones in a recycle bin when
+ * test-item.record.ts says softDelete (recordResource).
  */
 export const TEST_ITEM_RESOURCE = recordResource(TEST_ITEM, testItems);

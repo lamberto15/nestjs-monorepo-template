@@ -81,7 +81,7 @@ export class NotesController {
 
   @Post()
   // A retry with the same key gets the first note back instead of a second note.
-  @Idempotent({ required: true, scope: principalScope })
+  @Idempotent({ scope: principalScope })
   @Can(NotePolicy, 'create')
   @ApiOperation({
     summary: 'Write a note',

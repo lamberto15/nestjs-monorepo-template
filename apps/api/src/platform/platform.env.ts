@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   baseUrl,
+  choice,
   flag,
   list,
   optional,
@@ -25,6 +26,11 @@ const DEFAULT_ATTACHMENT_TYPES = [
 
 /** The environment of the platform: workers, keys at rest, integrations. */
 export const platformEnv = z.object({
+  /**
+   * `required`: the routes marked @Idempotent() refuse a request without an
+   * Idempotency-Key (400). `optional`: a key is honoured when sent, never demanded.
+   */
+  IDEMPOTENCY: choice(['required', 'optional'], 'required'),
   /** Seal stored idempotent responses: base64 keys, newest first. Unset: created once, kept in the database. */
   IDEMPOTENCY_KEYS: secret(optional()),
   /** Seal webhook endpoint secrets at rest: base64 keys, newest first. */
@@ -34,6 +40,19 @@ export const platformEnv = z.object({
   /** Background workers: off in tests, which drive them with runOnce(). */
   OUTBOX_RELAY: flag('on'),
   WEBHOOKS_WORKER: flag('on'),
+
+  /**
+   * Deployment switches (docs/configuration.md): platform modules a project
+   * may not need. `off` leaves the module's routes, workers and jobs out.
+   */
+  /** Outgoing webhooks: the endpoint and delivery API and the delivery worker. */
+  WEBHOOKS: flag('on'),
+  /** Scheduled reports: the API and the hourly runner. */
+  REPORTS: flag('on'),
+  /** API clients' usage metering, daily quotas, the usage API and its roll-up. */
+  USAGE: flag('on'),
+  /** The socket.io gateway at /realtime and its Redis adapter. */
+  REALTIME: flag('on'),
 
   /** The hour (0–23, in each user's time zone) daily notification digests are mailed. */
   NOTIFICATIONS_DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),

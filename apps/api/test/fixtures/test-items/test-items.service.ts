@@ -13,10 +13,7 @@ import {
 import type { PageQuery } from '../../../src/core/http/pagination.js';
 import { AuditService } from '../../../src/iam/audit/audit.service.js';
 import type { Principal } from '../../../src/iam/auth/principal.js';
-import {
-  recordValues,
-  recordView,
-} from '../../../src/platform/records/record.js';
+import { recordView } from '../../../src/platform/records/record.js';
 import { RecordLifecycle } from '../../../src/platform/records/record-contract.js';
 import { RecordStore } from '../../../src/platform/records/record-store.js';
 import { TEST_ITEM } from './test-item.record.js';
@@ -55,13 +52,15 @@ export class TestItemsService {
     { by = owner }: { by?: Principal } = {},
   ): Promise<TestItem> {
     // Business logic: check or derive values here, before the transaction.
+    // The body as columns; custom values checked against their fields (RecordLifecycle).
+    const values = await this.lifecycle.values(dto, 'create');
     return inTransaction(this.txHost, async (tx) => {
       const [row] = await tx
         .insert(testItems)
         .values({
           // Its owner, and with teams the owner's team.
           ...(await this.records.owner(owner, tx)),
-          ...recordValues(TEST_ITEM, dto),
+          ...values,
         } as typeof testItems.$inferInsert)
         .returning();
       await this.lifecycle.created(tx, { row: row!, owner, by });
@@ -110,7 +109,7 @@ export class TestItemsService {
     ip?: string,
     { restoredFrom }: { restoredFrom?: number } = {},
   ) {
-    const changes = recordValues(TEST_ITEM, dto);
+    const changes = await this.lifecycle.values(dto, 'update');
     if (Object.keys(changes).length === 0) {
       return row; // nothing to change
     }
