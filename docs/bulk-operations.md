@@ -93,22 +93,16 @@ export class NoteBulk implements BulkOperation<Note> {
 }
 ```
 
-and a route on the feature's controller, HTTP only:
+and the route, built by the platform (`platform/bulk/bulk.routes.ts`) and
+listed among the feature module's controllers:
 
 ```ts
-@Post('bulk')
-@HttpCode(HttpStatus.OK)
-@Idempotent({ required: true, scope: principalScope })
-@Can.Anyone()                                       // BulkService checks the permissions
-@ApiHeader(idempotencyKeyHeader(true))
-@ApiOkResponse({ standardSchema: bulkResultSchema })
-@ApiAcceptedResponse({ standardSchema: bulkStartedSchema })
-async runBulk(@CurrentUser() user, @Body({ schema: noteBulkSchema }) dto, @Ip() ip, @Res({ passthrough: true }) res) {
-  const outcome = await this.bulk.run(user, { name: 'notes', ...dto, ip });
-  if ('status' in outcome) res.status(HttpStatus.ACCEPTED);
-  return outcome;
-}
+bulkRoutes(NOTE_ROUTES, { name: 'notes', body: noteBulkSchema, docs: NOTE_BULK_DOCS })
 ```
+
+It is idempotent (`Idempotency-Key` required), answers 200 with a result per
+record or 202 with a job, and keeps the operationId it had when the route
+was the feature's own (`NotesController_runBulk_v1`).
 
 `noteBulkSchema = bulkRequestSchema(['delete', 'restore', 'update'], updateNoteSchema)`
 documents the body. `BulkService.run()` does the rest:

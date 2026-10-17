@@ -5,7 +5,7 @@ language: a template filled in on a worker, rendered by
 [Gotenberg](https://gotenberg.dev) (Chromium in its own container), then
 issued as an attachment of the record. `apps/api/src/platform/documents/`;
 notes are the example (`features/notes/note-documents.ts`,
-`note-documents.controller.ts`, the template `apps/api/src/documents/templates/note.html`).
+`documentRoutes()` in `notes.module.ts`, the template `apps/api/src/documents/templates/note.html`).
 
 ## For clients
 

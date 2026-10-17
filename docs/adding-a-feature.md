@@ -158,10 +158,30 @@ the controller (`notes.*`); singular for what describes one record
      checks on writes (`field_forbidden`).
    - `@ApiOperation`, `@Api*Response` with the Zod schemas; errors are
      problem details (throw Nest's exceptions with a `code`).
+   - **Record-level routes are declared, not written.** The platform builds
+     `/<x>/{id}/tags`, `comments`, `attachments`, `revisions`, `pdf`, `watch`
+     and `POST /<x>/bulk` from one `RecordRouteSpec` (`<x>.routes.ts`:
+     subject, path, Swagger tag, class name, noun), and the module lists the
+     controllers its targets back:
+     ```ts
+     controllers: [
+       InvoicesController,
+       tagRoutes(INVOICE_ROUTES),
+       commentRoutes(INVOICE_ROUTES),
+       revisionRoutes(INVOICE_ROUTES, { restored: invoiceSchema }),
+       bulkRoutes(INVOICE_ROUTES, { name: 'invoices', body: invoiceBulkSchema, docs }),
+       watchRoutes(INVOICE_ROUTES),
+     ],
+     ```
+     Each factory lives with its module (`platform/<module>/<module>.routes.ts`,
+     the spec in `platform/records/record-routes.ts`); `docs` overrides say
+     what the feature's records hold (notes: `features/notes/note.routes.ts`).
    - Acting on many records at once (delete, restore, change): a
-     `BulkOperation` (`<item>.bulk.ts`) and `POST /<x>/bulk` calling
-     `BulkService.run()`, each item through the same service call
-     ([bulk-operations.md](bulk-operations.md)).
+     `BulkOperation` (`<item>.bulk.ts`) and `bulkRoutes()`, each item through
+     the same service call ([bulk-operations.md](bulk-operations.md)).
+   - Watching its records: a `SubscriptionTarget` (`<item>-subscriptions.ts`,
+     who may watch: whoever may read) registered into `SubscriptionsRegistry`,
+     and `watchRoutes()`.
 10. **Notifications** (optional): declare the types the feature sends
     (`<x>-notifications.ts`, `defineNotifications()`, passed to
     `PlatformModule.forRoot({ notifications })`), their texts in
@@ -170,22 +190,21 @@ the controller (`notes.*`); singular for what describes one record
     ([notifications.md](notifications.md)).
     Comments on its records: a `CommentTarget` (`<item>-comments.ts`)
     registered into `CommentsRegistry`, a `<subject>.commented` type, and
-    `/<x>/{id}/comments` routes calling `CommentsService` ([comments.md](comments.md)).
+    `commentRoutes()` ([comments.md](comments.md)).
     Files attached to its records: an `AttachmentTarget` (`<item>-attachments.ts`)
-    registered into `AttachmentsRegistry`, and `/<x>/{id}/attachments` routes
-    (`AttachmentUpload('<Subject>')`) calling `AttachmentsService` ([attachments.md](attachments.md)).
+    registered into `AttachmentsRegistry`, and `attachmentRoutes()`
+    ([attachments.md](attachments.md)).
     A PDF of its records: a `DocumentSource` (`<item>-documents.ts`) registered
     into `DocumentsRegistry`, a template in `apps/api/src/documents/templates/`,
-    its labels in `i18n/<locale>/documents.json`, and `POST /<x>/{id}/pdf`
-    calling `DocumentsService.request()` ([documents.md](documents.md)).
+    its labels in `i18n/<locale>/documents.json`, and
+    `documentRoutes(spec, { source })` ([documents.md](documents.md)).
     Tags on its records: a `TagTarget` (`<item>-tags.ts`) registered into
-    `TagsRegistry`, `PUT /<x>/{id}/tags` calling `TagsService.setTags`,
-    `...tagFilter('<Subject>', <x>.id)` in the list, `tagsOf()` for the
-    responses ([tags.md](tags.md)).
+    `TagsRegistry`, `tagRoutes()`, `...tagFilter('<Subject>', <x>.id)` in the
+    list, `tagsOf()` for the responses ([tags.md](tags.md)).
     Revisions of its records (history, diff, restore): a `RevisionTarget`
     (`<item>-revisions.ts`) registered into `RevisionsRegistry`,
     `revisions.record(tx, …)` in the create and update transactions, and
-    `/<x>/{id}/revisions` routes calling `RevisionsService` ([revisions.md](revisions.md)).
+    `revisionRoutes(spec, { restored })` ([revisions.md](revisions.md)).
     Approval before an action (publish, pay, grant): `defineApproval()` in
     `<item>-approvals.ts` with an `ApprovalHandler` registered into
     `ApprovalsRegistry`, the declaration in `PlatformModule.forRoot({ approvals })`,

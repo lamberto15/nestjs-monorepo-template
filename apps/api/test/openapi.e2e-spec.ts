@@ -26,6 +26,15 @@ describe('OpenAPI document (e2e)', () => {
     expect(response).toContain('"totalCapped"');
   });
 
+  it('gives every operation its own operationId (the typed client keys them)', () => {
+    const ids = Object.values(document.paths).flatMap((operations) =>
+      Object.values(operations).map(
+        (operation: { operationId: string }) => operation.operationId,
+      ),
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('serves Swagger UI', async () => {
     await node.http().get('/api').expect(200);
   });

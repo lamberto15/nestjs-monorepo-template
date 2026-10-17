@@ -92,6 +92,7 @@ import { AccountTransfer } from './account/account.transfer.js';
 import { PersonalDataRegistry } from './account/personal-data.registry.js';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
 import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
+import { SubscriptionsRegistry } from './subscriptions/subscriptions.registry.js';
 import { SearchController } from './search/search.controller.js';
 import { SearchRegistry } from './search/search.registry.js';
 import { SequencesService } from './sequences/sequences.service.js';
@@ -396,6 +397,7 @@ export class PlatformModule {
         AccountDeletionMail,
         // Watching records: features subscribe creators and notify the watchers of a change.
         SubscriptionsService,
+        SubscriptionsRegistry,
         // Global search: features register a SearchSource.
         SearchRegistry,
         // Gapless human-readable numbers, taken in a write's transaction.
@@ -468,6 +470,7 @@ export class PlatformModule {
         SettingsService,
         PersonalDataRegistry,
         SubscriptionsService,
+        SubscriptionsRegistry,
         SearchRegistry,
         SequencesService,
         AttachmentsRegistry,

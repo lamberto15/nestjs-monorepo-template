@@ -22,6 +22,7 @@ import {
   type NotifyInput,
 } from '../notifications/notifications.service.js';
 import { SUBSCRIPTION_LIST } from './subscription.list.js';
+import { SubscriptionsRegistry } from './subscriptions.registry.js';
 import { recordSubscriptions } from './subscriptions.tables.js';
 
 /** A record, by its permission subject and id. */
@@ -32,8 +33,8 @@ export interface RecordRef {
 
 /**
  * Watching records: a principal follows a record and is notified when it
- * changes. The feature decides who may watch (whoever may read the
- * record: `POST /notes/{id}/watch` checks that, then calls `subscribe`),
+ * changes. The feature decides who may watch (its SubscriptionTarget, which
+ * `watch()` asks: `POST /<path>/{id}/watch`, subscription.routes.ts),
  * watches creators by default (`subscribe` in the create's transaction),
  * and tells the watchers in each change's transaction
  * (`notifyWatchers`, through the notification system: in-app, realtime,
@@ -50,6 +51,7 @@ export class SubscriptionsService {
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly notifications: NotificationsService,
+    private readonly registry: SubscriptionsRegistry,
     purges: RecordPurgeRegistry,
   ) {
     // A record purged from its recycle bin: nobody watches it any more.
@@ -57,6 +59,21 @@ export class SubscriptionsService {
       name: 'subscriptions',
       forget: (tx, subject, ids) => this.forgetAll(tx, subject, ids),
     });
+  }
+
+  /**
+   * Starts watching a record its feature lets the principal watch (the
+   * subject's SubscriptionTarget: a 404 or 403 from it otherwise).
+   */
+  async watch(principal: Principal, record: RecordRef) {
+    const target = this.registry.find(record.subject);
+    if (!target) {
+      throw new Error(
+        `No SubscriptionTarget for "${record.subject}": register one (subscriptions.registry.ts).`,
+      );
+    }
+    await target.assertCanWatch(principal, record.recordId);
+    await this.subscribe(principal, record);
   }
 
   /**

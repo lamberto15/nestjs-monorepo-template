@@ -381,6 +381,9 @@ Built together after 1a.
     `(tenant_id, id)` key.
   - It appends to a `features/index.ts` barrel instead of editing `app.module.ts`.
   - It refuses to run when the feature exists.
+  - Record-level routes are already declared, not written (`RecordRouteSpec`,
+    `platform/records`): the generator emits the spec and the module's list of
+    `<module>Routes()` calls, no controllers for them.
 - **`notes` is the golden output.** CI regenerates `notes` with all options on and
   diffs against the committed feature, then runs `db:check` and `client:check`. Every
   later item that changes what a feature includes fails CI until the templates follow.
