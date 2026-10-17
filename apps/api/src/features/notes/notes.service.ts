@@ -26,7 +26,7 @@ import { SubscriptionsService } from '../../platform/subscriptions/subscriptions
 import { TagsService } from '../../platform/tags/tags.service.js';
 import { RevisionsService } from '../../platform/revisions/revisions.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
-import { OrgUnitsService } from '../../iam/access/org-units.service.js';
+import { TeamsService } from '../../iam/access/teams.service.js';
 import { principalKey, type Principal } from '../../iam/auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
@@ -53,7 +53,7 @@ export class NotesService {
     private readonly publisher: NotePublisher,
     private readonly customFields: CustomFieldsService,
     private readonly audit: AuditService,
-    private readonly orgUnits: OrgUnitsService,
+    private readonly teams: TeamsService,
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
     private readonly sequences: SequencesService,
@@ -106,10 +106,10 @@ export class NotesService {
         .values({
           number,
           ownerId: principalKey(owner),
-          // A user's note belongs to their (first) org unit.
-          orgUnitId:
+          // A user's note belongs to their (first) team.
+          teamId:
             owner.kind === 'user'
-              ? ((await this.orgUnits.unitsOf(owner.id, tx))[0] ?? null)
+              ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null)
               : null,
           title: dto.title,
           body: dto.body,

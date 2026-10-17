@@ -19,7 +19,7 @@ const limit = setting({
   label: 'Limit',
   schema: z.int(),
   default: 10,
-  scopes: ['tenant', 'orgUnit', 'user'],
+  scopes: ['tenant', 'team', 'user'],
 });
 const theme = setting({
   key: 'ui.theme',
@@ -68,28 +68,28 @@ describe('resolveSetting', () => {
     ).toEqual({ value: 20, source: 'tenant' });
   });
 
-  it("prefers the principal's own value, then one of their org units', in order", () => {
+  it("prefers the principal's own value, then one of their teams', in order", () => {
     const overrides = [
       override('notes.limit', 'tenant', '', 20),
-      override('notes.limit', 'orgUnit', 'unit-b', 30),
-      override('notes.limit', 'orgUnit', 'unit-a', 25),
+      override('notes.limit', 'team', 'team-b', 30),
+      override('notes.limit', 'team', 'team-a', 25),
       override('notes.limit', 'user', 'user:0000-u1', 5),
     ];
     expect(
-      resolveSetting(limit, overrides, user, ['unit-a', 'unit-b'], TENANT),
+      resolveSetting(limit, overrides, user, ['team-a', 'team-b'], TENANT),
     ).toEqual({ value: 5, source: 'user' });
     expect(
       resolveSetting(
         limit,
         overrides.slice(0, 3),
         user,
-        ['unit-a', 'unit-b'],
+        ['team-a', 'team-b'],
         TENANT,
       ),
-    ).toEqual({ value: 25, source: 'orgUnit' });
+    ).toEqual({ value: 25, source: 'team' });
     expect(
-      resolveSetting(limit, overrides.slice(0, 3), user, ['unit-b'], TENANT),
-    ).toEqual({ value: 30, source: 'orgUnit' });
+      resolveSetting(limit, overrides.slice(0, 3), user, ['team-b'], TENANT),
+    ).toEqual({ value: 30, source: 'team' });
     expect(
       resolveSetting(limit, overrides.slice(0, 3), user, [], TENANT),
     ).toEqual({
@@ -99,8 +99,8 @@ describe('resolveSetting', () => {
   });
 
   it('ignores a scope the declaration does not allow', () => {
-    const overrides = [override('ui.theme', 'orgUnit', 'unit-a', 'dark')];
-    expect(resolveSetting(theme, overrides, user, ['unit-a'], TENANT)).toEqual({
+    const overrides = [override('ui.theme', 'team', 'team-a', 'dark')];
+    expect(resolveSetting(theme, overrides, user, ['team-a'], TENANT)).toEqual({
       value: 'light',
       source: 'default',
     });

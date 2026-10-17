@@ -8,7 +8,7 @@ carry a `number` as the example.
 // in the write's transaction
 const { value, formatted } = await this.sequences.next(tx, 'note', {
   prefix: 'NOTE', perYear: true, width: 5,   // NOTE-2026-00042
-  scope: orgUnitId,                            // a series per unit (default: one series)
+  scope: teamId,                            // a series per unit (default: one series)
 });
 ```
 

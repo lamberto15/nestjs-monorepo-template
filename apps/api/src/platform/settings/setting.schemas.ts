@@ -39,7 +39,7 @@ export const settingOverrideSchema = z.object({
   scopeId: z
     .string()
     .describe(
-      "The org unit's id, the principal's key (`user:<id>`), or '' for the tenant.",
+      "The team's id, the principal's key (`user:<id>`), or '' for the tenant.",
     ),
   value: z.unknown(),
   rollout: z.int().min(0).max(100).nullable(),
@@ -55,7 +55,7 @@ export const setSettingSchema = z
       .max(100)
       .optional()
       .describe(
-        "For orgUnit: the unit's id; for user: the principal's key (`user:<id>`, `client:<id>`).",
+        "For team: the team's id; for user: the principal's key (`user:<id>`, `client:<id>`).",
       ),
     value: z
       .unknown()

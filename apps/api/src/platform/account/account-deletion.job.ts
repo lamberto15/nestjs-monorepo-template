@@ -34,7 +34,7 @@ import { PersonalDataRegistry } from './personal-data.registry.js';
  * Carries out the account deletions whose grace period passed, every
  * night at 03:50 in APP_TIMEZONE, on one instance: the user is anonymized
  * (name, address, password, sign-in methods, sessions, tokens,
- * memberships with their roles and units; their audit entries keep the
+ * memberships with their roles and teams; their audit entries keep the
  * actor key, not the name), their notifications, preferences and settings
  * go, and each feature erases what it must (`PersonalDataSource.erase`).
  * Records they created stay. As the system principal

@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { SQL } from 'drizzle-orm';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { type SQL, sql } from 'drizzle-orm';
 import type { Principal } from '../auth/principal.js';
 import { IAM_OPTIONS, type IamOptions } from '../iam.options.js';
 import {
@@ -32,9 +32,8 @@ export const ACCESS_PERMISSIONS = definePermissions({
           label: 'Create API clients, rotate and revoke their keys',
           conditions: [],
         },
-        manageOrgUnits: {
-          label:
-            'Create, move and delete org units (what "in my units" covers)',
+        manageTeams: {
+          label: 'Create, move and delete teams (what "in my teams" covers)',
           conditions: [],
         },
         manageCustomFields: {
@@ -44,7 +43,7 @@ export const ACCESS_PERMISSIONS = definePermissions({
         },
         manageSettings: {
           label:
-            'Set settings and feature flags for everyone, an org unit or a user (platform/settings)',
+            'Set settings and feature flags for everyone, a team or a user (platform/settings)',
           conditions: [],
         },
         manageTags: {
@@ -292,9 +291,27 @@ export class PermissionCatalog {
     permission: PermissionInput,
     key: string,
   ): ConditionTemplate {
-    return this.subjects[permission.subject].conditions[key];
+    const template = this.subjects[permission.subject]?.conditions[key];
+    if (template) {
+      return template;
+    }
+    // A stored role naming a condition no declaration has (renamed, removed:
+    // stored-renames.ts rewrites the renamed ones at migrate): it grants
+    // nothing, rather than failing every check of the role's members.
+    new Logger('Access').error(
+      `A role's ${permission.subject}.${permission.action} names the unknown condition "${key}": it matches nothing.`,
+    );
+    return NO_MATCH;
   }
 }
+
+/** What an unknown condition stands for: no record, in CASL and in SQL. */
+const NO_MATCH: ConditionTemplate = {
+  label: 'Unknown condition',
+  description: 'A stored condition no declaration has: it matches nothing.',
+  casl: () => ({ id: { $in: [] } }),
+  sql: () => sql`false`,
+};
 
 /**
  * All of the conditions, as one CASL condition. CASL's matcher has no `$and`,

@@ -24,13 +24,13 @@ import {
 import {
   auditLog,
   memberships,
-  orgUnits,
+  teams,
   passkeys,
   refreshTokens,
   roles,
   sessions,
   userIdentities,
-  userOrgUnits,
+  userTeams,
   userRoles,
   users,
 } from '../../iam/iam.tables.js';
@@ -274,11 +274,11 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
     ).map((role) => row('role', role));
     yield (
       await this.db
-        .select({ id: orgUnits.id, name: orgUnits.name })
-        .from(userOrgUnits)
-        .innerJoin(orgUnits, eq(orgUnits.id, userOrgUnits.orgUnitId))
-        .where(eq(userOrgUnits.userId, user.id))
-    ).map((unit) => row('orgUnit', unit));
+        .select({ id: teams.id, name: teams.name })
+        .from(userTeams)
+        .innerJoin(teams, eq(teams.id, userTeams.teamId))
+        .where(eq(userTeams.userId, user.id))
+    ).map((team) => row('team', team));
     yield (
       await this.db
         .select()

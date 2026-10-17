@@ -137,7 +137,7 @@ describe('demo seed (e2e)', () => {
         .sort();
 
     // The roles' conditions apply to the notes, which are their owners':
-    // an editor sees their own, a team lead their units' (Sales and the
+    // an editor sees their own, a team lead their teams' (Sales and the
     // Sales North below it), a viewer every one.
     expect(await titles('Jonas Berg')).toEqual([
       'Call notes: Northwind renewal',
@@ -213,7 +213,7 @@ describe('demo seed (e2e)', () => {
     ).body.items as { name: string }[];
     expect(files.map((file) => file.name)).toEqual(['northwind-call.txt']);
 
-    // The mention reached Maya, who may read the note (her unit's).
+    // The mention reached Maya, who may read the note (her team's).
     await node.app.get(OutboxRelay).runOnce();
     const maya = await signIn('Maya Patel');
     const mentioned = (
@@ -229,7 +229,7 @@ describe('demo seed (e2e)', () => {
     ).body.items as { action: string; actorLabel: string }[];
     const actions = new Set(audited.map((entry) => entry.action));
     for (const action of [
-      'org-unit.created',
+      'team.created',
       'user.seeded',
       'tag.created',
       'note.created',

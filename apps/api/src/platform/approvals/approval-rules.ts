@@ -9,10 +9,10 @@ import {
 import { AccessService } from '../../iam/access/access.service.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import {
-  orgUnitTree,
+  teamTree,
   rolePermissions,
   roles,
-  userOrgUnits,
+  userTeams,
   userRoles,
   users,
 } from '../../iam/iam.tables.js';
@@ -22,7 +22,7 @@ import { ApprovalsRegistry } from './approvals.registry.js';
 /**
  * The built-in approver rules. Each is a provider that registers itself,
  * as a project's own rule does (docs/approvals.md, "Extending"). They read
- * roles, permissions and org units as they are when the stage starts.
+ * roles, permissions and teams as they are when the stage starts.
  */
 
 /** A role by its key (`editor`) or its id: roles made in the API have no key. */
@@ -64,24 +64,24 @@ export class RoleRule implements ApproverRule<{ role: string }> {
   }
 }
 
-interface OrgUnitRoleParams {
+interface TeamRoleParams {
   role: string;
   levelsUp: number;
   nearest: boolean;
 }
 
 /**
- * `{ "type": "orgUnitRole", "role": "team-lead" }`: users holding the role
- * in the requester's org units ("the lead of my unit"). `levelsUp` starts
- * that many units higher (1: the parent unit, for an escalation to the
+ * `{ "type": "teamRole", "role": "team-lead" }`: users holding the role
+ * in the requester's teams ("the lead of my team"). `levelsUp` starts
+ * that many teams higher (1: the parent team, for an escalation to the
  * next level); with `nearest` (the default) it goes up the tree until it
  * finds someone other than the requester, so a lead's own request goes to
  * the lead above them.
  */
 @Injectable()
-export class OrgUnitRoleRule implements ApproverRule<OrgUnitRoleParams> {
-  readonly type = 'orgUnitRole';
-  readonly label = "Users holding a role in the requester's org unit, or above";
+export class TeamRoleRule implements ApproverRule<TeamRoleParams> {
+  readonly type = 'teamRole';
+  readonly label = "Users holding a role in the requester's team, or above";
   readonly schema = z
     .object({
       role: z.string().min(1).max(100),
@@ -97,46 +97,40 @@ export class OrgUnitRoleRule implements ApproverRule<OrgUnitRoleParams> {
     registry.addRule(this);
   }
 
-  async resolve(context: ApprovalContext & { params: OrgUnitRoleParams }) {
+  async resolve(context: ApprovalContext & { params: TeamRoleParams }) {
     const me = requesterUser(context);
     if (!me) {
-      return []; // an API client belongs to no unit
+      return []; // an API client belongs to no team
     }
     const { role, levelsUp, nearest } = context.params;
     const db = database(this.txHost);
-    // How far up the requester's units go: the deepest ancestor's depth.
+    // How far up the requester's teams go: the deepest ancestor's depth.
     const [{ depth } = { depth: null }] = await db
-      .select({ depth: sql<number | null>`max(${orgUnitTree.depth})` })
-      .from(orgUnitTree)
-      .innerJoin(
-        userOrgUnits,
-        eq(userOrgUnits.orgUnitId, orgUnitTree.descendantId),
-      )
-      .where(eq(userOrgUnits.userId, me));
+      .select({ depth: sql<number | null>`max(${teamTree.depth})` })
+      .from(teamTree)
+      .innerJoin(userTeams, eq(userTeams.teamId, teamTree.descendantId))
+      .where(eq(userTeams.userId, me));
     const top = nearest ? (depth ?? -1) : levelsUp;
     for (let level = levelsUp; level <= top; level++) {
-      // The units `level` steps above each of the requester's units.
-      const units = db
-        .select({ id: orgUnitTree.ancestorId })
-        .from(orgUnitTree)
-        .innerJoin(
-          userOrgUnits,
-          eq(userOrgUnits.orgUnitId, orgUnitTree.descendantId),
-        )
-        .where(and(eq(userOrgUnits.userId, me), eq(orgUnitTree.depth, level)));
+      // The teams `level` steps above each of the requester's teams.
+      const teams = db
+        .select({ id: teamTree.ancestorId })
+        .from(teamTree)
+        .innerJoin(userTeams, eq(userTeams.teamId, teamTree.descendantId))
+        .where(and(eq(userTeams.userId, me), eq(teamTree.depth, level)));
       const rows = await db
-        .selectDistinct({ id: userOrgUnits.userId })
-        .from(userOrgUnits)
-        .innerJoin(userRoles, eq(userRoles.userId, userOrgUnits.userId))
+        .selectDistinct({ id: userTeams.userId })
+        .from(userTeams)
+        .innerJoin(userRoles, eq(userRoles.userId, userTeams.userId))
         .innerJoin(roles, eq(roles.id, userRoles.roleId))
-        .innerJoin(users, eq(users.id, userOrgUnits.userId))
+        .innerJoin(users, eq(users.id, userTeams.userId))
         .where(
           and(
-            inArray(userOrgUnits.orgUnitId, units),
+            inArray(userTeams.teamId, teams),
             roleIs(role),
             granted(),
             eq(users.active, true),
-            ne(userOrgUnits.userId, me),
+            ne(userTeams.userId, me),
           ),
         );
       if (rows.length) {
@@ -155,7 +149,7 @@ interface PermissionParams {
 /**
  * `{ "type": "permission", "action": "update" }`: users who may do the
  * action on the record, by their permissions (CASL, conditions included:
- * "may update notes of their units"). The subject is the request's unless
+ * "may update notes of their teams"). The subject is the request's unless
  * given. Needs the feature's `record()`.
  */
 @Injectable()
@@ -171,7 +165,7 @@ export class PermissionRule implements ApproverRule<PermissionParams> {
   /**
    * Candidates checked one by one: a bound, so a broad permission can't make
    * a stage start slow. Beyond it (in id order) users aren't considered: a
-   * permission that wide wants a narrower rule (a role, an org unit).
+   * permission that wide wants a narrower rule (a role, a team).
    */
   private static readonly MAX_CANDIDATES = 2000;
 
@@ -249,7 +243,7 @@ export class UsersRule implements ApproverRule<{ userIds: string[] }> {
 /** The built-in rules, for the platform module's providers. */
 export const BUILT_IN_RULES = [
   RoleRule,
-  OrgUnitRoleRule,
+  TeamRoleRule,
   PermissionRule,
   UsersRule,
 ];

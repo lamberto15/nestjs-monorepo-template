@@ -22,7 +22,7 @@ export const settingOverrides = pgTable(
     /** A declared key: `notes.publishDelay`. */
     key: text('key').notNull(),
     scope: text('scope').$type<SettingScope>().notNull(),
-    /** The org unit's id, the principal's key, or '' for the tenant scope. */
+    /** The team's id, the principal's key, or '' for the tenant scope. */
     scopeId: text('scope_id').notNull().default(''),
     /** The value (checked by the declaration's schema); null: only `rollout` applies (a flag). */
     value: jsonb('value'),

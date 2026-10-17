@@ -115,7 +115,7 @@ export const users = pgTable('users', {
  * lists them, the switch checks one; a tenant's administrators read and
  * change only their own tenant's (`tenant_id` filtered in code). What a
  * membership may do is in tenant tables: its roles (`user_roles`) and org
- * units (`user_org_units`), whose keys reference it.
+ * teams (`user_teams`), whose keys reference it.
  */
 export const memberships = pgTable(
   'memberships',
@@ -140,7 +140,7 @@ export const memberships = pgTable(
 
 /**
  * Invitations to a tenant (docs/tenancy.md, "Invitations"): an address, the
- * roles and units its membership will have, and the link's token (only its
+ * roles and teams its membership will have, and the link's token (only its
  * SHA-256). Nothing about an account is read or changed until the person
  * accepts: a new address chooses a password with the link; an existing
  * account accepts while signed in. A tenant table: the token names its
@@ -161,7 +161,7 @@ export const invitations = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default({}),
-    orgUnitIds: jsonb('org_unit_ids').$type<string[]>().notNull().default([]),
+    teamIds: jsonb('team_ids').$type<string[]>().notNull().default([]),
     /** The SHA-256 of the link's secret, base64url. */
     tokenHash: text('token_hash').notNull(),
     /** `user:<id>` of who invited. */
@@ -516,25 +516,25 @@ export const emailTokens = pgTable(
 );
 
 /**
- * The organization of a tenant: units in a tree (company, department,
- * team). Users belong to units; records can carry the unit that owns them,
- * and the `inMyUnits` condition grants what is in a user's units and below.
+ * The organization of a tenant: teams in a tree (company, department,
+ * team). Users belong to teams; records can carry the team that owns them,
+ * and the `inMyTeams` condition grants what is in a user's teams and below.
  */
-export const orgUnits = pgTable(
-  'org_units',
+export const teams = pgTable(
+  'teams',
   {
     id: uuidPk(),
     tenantId: tenantColumn(),
     name: text('name').notNull(),
-    /** Null: a top-level unit. The closure table (org_unit_tree) holds every path. */
+    /** Null: a top-level team. The closure table (team_tree) holds every path. */
     parentId: uuid('parent_id'),
     ...timestamps(),
   },
   (table) => [
-    index('org_units_parent_id_idx').on(table.parentId),
-    ...tenantTable('org_units', table, { referenced: true }),
+    index('teams_parent_id_idx').on(table.parentId),
+    ...tenantTable('teams', table, { referenced: true }),
     tenantReference(
-      'org_units_parent_fk',
+      'teams_parent_fk',
       [table.tenantId, table.parentId],
       [table.tenantId, table.id],
       'restrict',
@@ -542,30 +542,30 @@ export const orgUnits = pgTable(
   ],
 ).enableRLS();
 
-/** Every (ancestor, descendant) pair of org units: "under X" at any depth in one lookup. */
-export const orgUnitTree = closureTable('org_unit_tree', () => orgUnits);
+/** Every (ancestor, descendant) pair of teams: "under X" at any depth in one lookup. */
+export const teamTree = closureTable('team_tree', () => teams);
 
-/** Which units a member belongs to. */
-export const userOrgUnits = pgTable(
-  'user_org_units',
+/** Which teams a member belongs to. */
+export const userTeams = pgTable(
+  'user_teams',
   {
     tenantId: tenantColumn(),
     userId: uuid('user_id').notNull(),
-    orgUnitId: uuid('org_unit_id').notNull(),
+    teamId: uuid('team_id').notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.userId, table.orgUnitId] }),
-    index('user_org_units_org_unit_id_idx').on(table.orgUnitId),
-    ...tenantTable('user_org_units', table),
+    primaryKey({ columns: [table.userId, table.teamId] }),
+    index('user_teams_team_id_idx').on(table.teamId),
+    ...tenantTable('user_teams', table),
     foreignKey({
-      name: 'user_org_units_membership_fk',
+      name: 'user_teams_membership_fk',
       columns: [table.tenantId, table.userId],
       foreignColumns: [memberships.tenantId, memberships.userId],
     }).onDelete('cascade'),
     tenantReference(
-      'user_org_units_org_unit_fk',
-      [table.tenantId, table.orgUnitId],
-      [orgUnits.tenantId, orgUnits.id],
+      'user_teams_team_fk',
+      [table.tenantId, table.teamId],
+      [teams.tenantId, teams.id],
     ),
   ],
 ).enableRLS();

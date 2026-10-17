@@ -15,7 +15,7 @@ export const DEMO_TENANT = { name: 'Demo Company', slug: 'demo' };
 /** The demo users' addresses: example.com is reserved, nothing is ever delivered. */
 export const DEMO_EMAIL_DOMAIN = 'demo.example.com';
 
-export interface DemoOrgUnit {
+export interface DemoTeam {
   key: string;
   name: string;
   /** The parent's key. */
@@ -30,8 +30,8 @@ export interface DemoUser {
    * tenant's administrator (of that tenant only, no operator).
    */
   roles: string[];
-  /** Org units' keys. */
-  units: string[];
+  /** Teams' keys. */
+  teams: string[];
 }
 
 export interface DemoTag {
@@ -53,54 +53,54 @@ export interface DemoNote {
   file?: { name: string; text: string };
 }
 
-export const DEMO_ORG_UNITS: DemoOrgUnit[] = [
+export const DEMO_TEAMS: DemoTeam[] = [
   { key: 'sales', name: 'Sales' },
   { key: 'sales-north', name: 'Sales North', parent: 'sales' },
   { key: 'engineering', name: 'Engineering' },
 ];
 
 export const DEMO_USERS: DemoUser[] = [
-  // Runs the demo tenant: its members, roles, units, tags, audit log.
+  // Runs the demo tenant: its members, roles, teams, tags, audit log.
   {
     key: 'noah',
     name: 'Noah Fischer',
     roles: ['administrator'],
-    units: [],
+    teams: [],
   },
-  // Team leads see the notes of their unit and every unit below it.
+  // Team leads see the notes of their team and every team below it.
   {
     key: 'maya',
     name: 'Maya Patel',
     roles: ['editor', 'team-lead'],
-    units: ['sales'],
+    teams: ['sales'],
   },
   {
     key: 'lucas',
     name: 'Lucas Moreau',
     roles: ['editor', 'team-lead'],
-    units: ['engineering'],
+    teams: ['engineering'],
   },
   // Editors see their own notes.
   {
     key: 'jonas',
     name: 'Jonas Berg',
     roles: ['editor'],
-    units: ['sales-north'],
+    teams: ['sales-north'],
   },
   {
     key: 'amara',
     name: 'Amara Okafor',
     roles: ['editor'],
-    units: ['sales-north'],
+    teams: ['sales-north'],
   },
   {
     key: 'sofia',
     name: 'Sofia Rossi',
     roles: ['editor'],
-    units: ['engineering'],
+    teams: ['engineering'],
   },
   // A viewer sees every note and the operations API, and changes nothing.
-  { key: 'elena', name: 'Elena Novak', roles: ['viewer'], units: [] },
+  { key: 'elena', name: 'Elena Novak', roles: ['viewer'], teams: [] },
 ];
 
 export const DEMO_TAGS: DemoTag[] = [
@@ -154,7 +154,7 @@ export const DEMO_NOTES: DemoNote[] = [
     body: 'The magic-link test fails about once in twenty runs on CI. Suspect: the mail arrives after the assertion.',
     tags: ['urgent', 'internal'],
     comments: [
-      'Seeded comment: @lucas, a team lead, can read this note (it belongs to his unit), so the mention reached him.',
+      'Seeded comment: @lucas, a team lead, can read this note (it belongs to his team), so the mention reached him.',
     ],
   },
   {

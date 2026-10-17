@@ -24,8 +24,8 @@ import {
 import {
   apiClients,
   memberships,
-  orgUnits,
-  userOrgUnits,
+  teams,
+  userTeams,
 } from '../../iam/iam.tables.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { resolveSetting, type SettingSource } from './setting-resolution.js';
@@ -146,17 +146,17 @@ export class SettingsService {
     principal: Principal | null,
   ) {
     const overrides = (await this.load()).byKey.get(declaration.key) ?? [];
-    const units =
+    const teams =
       principal?.kind === 'user' &&
-      (declaration.scopes ?? []).includes('orgUnit') &&
-      overrides.some((override) => override.scope === 'orgUnit')
-        ? await this.unitsOf(principal.id)
+      (declaration.scopes ?? []).includes('team') &&
+      overrides.some((override) => override.scope === 'team')
+        ? await this.teamsOf(principal.id)
         : [];
     return resolveSetting(
       declaration,
       overrides,
       principal,
-      units,
+      teams,
       currentTenantId(),
     );
   }
@@ -310,9 +310,9 @@ export class SettingsService {
   }
 
   /**
-   * The scope's id as stored: '' for the tenant; one of its org units; one
+   * The scope's id as stored: '' for the tenant; one of its teams; one
    * of its members or API clients (a user is global: a member of the
-   * tenant, by its memberships; a unit or a client of another tenant is
+   * tenant, by its memberships; a team or a client of another tenant is
    * no row, row-level security).
    */
   private async scopeId(
@@ -336,13 +336,13 @@ export class SettingsService {
     if (!scopeId) {
       refuse('scopeId', `Required for the ${scope} scope.`);
     }
-    if (scope === 'orgUnit') {
-      const [unit] = await this.db
-        .select({ id: orgUnits.id })
-        .from(orgUnits)
-        .where(eq(orgUnits.id, scopeId!));
-      if (!unit) throw new NotFoundException(`Org unit ${scopeId} not found.`);
-      return unit.id;
+    if (scope === 'team') {
+      const [team] = await this.db
+        .select({ id: teams.id })
+        .from(teams)
+        .where(eq(teams.id, scopeId!));
+      if (!team) throw new NotFoundException(`Team ${scopeId} not found.`);
+      return team.id;
     }
     const [kind, id] = scopeId!.split(':') as [string, string | undefined];
     const found =
@@ -472,11 +472,11 @@ export class SettingsService {
     if (removed) await this.bump();
   }
 
-  private async unitsOf(userId: string) {
+  private async teamsOf(userId: string) {
     const rows = await this.db
-      .select({ id: userOrgUnits.orgUnitId })
-      .from(userOrgUnits)
-      .where(eq(userOrgUnits.userId, userId));
+      .select({ id: userTeams.teamId })
+      .from(userTeams)
+      .where(eq(userTeams.userId, userId));
     return rows.map((row) => row.id);
   }
 

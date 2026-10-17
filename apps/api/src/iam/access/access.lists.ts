@@ -52,7 +52,7 @@ export const USER_LIST = listQuery(
       'updatedAt',
       'roleIds',
       'roles',
-      'orgUnitIds',
+      'teamIds',
     ],
   },
 );

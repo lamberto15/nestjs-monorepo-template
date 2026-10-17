@@ -183,33 +183,33 @@ describe('access control (e2e)', () => {
   });
 
   describe('organization hierarchy', () => {
-    it('lets a lead see the notes of their units and every unit below them', async () => {
+    it('lets a lead see the notes of their teams and every team below them', async () => {
       const admin = node.admin();
-      const unit = async (name: string, parentId?: string) =>
+      const team = async (name: string, parentId?: string) =>
         (
           await admin
-            .post('/v1/access/org-units')
+            .post('/v1/access/teams')
             .send({ name, parentId })
             .expect(201)
         ).body.id as string;
-      const sales = await unit('Sales');
-      const north = await unit('North', sales);
-      const south = await unit('South', sales);
-      const northEast = await unit('North East', north);
+      const sales = await team('Sales');
+      const north = await team('North', sales);
+      const south = await team('South', sales);
+      const northEast = await team('North East', north);
 
-      const units = (await admin.get('/v1/access/org-units').expect(200)).body
+      const teams = (await admin.get('/v1/access/teams').expect(200)).body
         .items;
       expect(
-        units.find((u: { id: string }) => u.id === northEast),
+        teams.find((u: { id: string }) => u.id === northEast),
       ).toMatchObject({ depth: 2, parentId: north });
 
-      // Members write notes in their units.
+      // Members write notes in their teams.
       const [lead] = await node.roleIds('team-lead');
-      const member = async (orgUnitId: string) => {
+      const member = async (teamId: string) => {
         const created = await node.user(['editor']);
         await admin
           .patch(`/v1/access/users/${created.id}`)
-          .send({ orgUnitIds: [orgUnitId] })
+          .send({ teamIds: [teamId] })
           .expect(204);
         return created.agent;
       };
@@ -223,11 +223,11 @@ describe('access control (e2e)', () => {
         .writeNote(await member(south), { title: 'From South', body: 'x' })
         .expect(201);
 
-      const leadOf = async (orgUnitId: string) => {
+      const leadOf = async (teamId: string) => {
         const created = await node.user([lead]);
         await admin
           .patch(`/v1/access/users/${created.id}`)
-          .send({ orgUnitIds: [orgUnitId] })
+          .send({ teamIds: [teamId] })
           .expect(204);
         const notes = (await created.agent.get('/v1/notes').expect(200)).body
           .items as { title: string }[];
@@ -239,17 +239,17 @@ describe('access control (e2e)', () => {
 
       // Moving a subtree moves what is seen through it.
       await admin
-        .patch(`/v1/access/org-units/${north}`)
+        .patch(`/v1/access/teams/${north}`)
         .send({ parentId: south })
         .expect(200);
       expect(await leadOf(south)).toEqual(['From North East', 'From South']);
-      // Never under itself or its own units.
+      // Never under itself or its own teams.
       await admin
-        .patch(`/v1/access/org-units/${south}`)
+        .patch(`/v1/access/teams/${south}`)
         .send({ parentId: northEast })
         .expect(400);
-      // Only empty units can go.
-      await admin.delete(`/v1/access/org-units/${south}`).expect(409);
+      // Only empty teams can go.
+      await admin.delete(`/v1/access/teams/${south}`).expect(409);
     });
   });
 });

@@ -29,7 +29,7 @@ administrator reads another person's sign-ins); null notification rows in every
 scope, the code filtering by recipient as it always did.
 
 What a membership may do lives in tenant tables: its roles (`user_roles`) and
-org units (`user_org_units`), whose keys reference the membership. API clients
+teams (`user_teams`), whose keys reference the membership. API clients
 belong to one tenant; their roles, keys and usage too.
 
 ## The wall
@@ -176,7 +176,7 @@ Built in the platform code, never at call sites (`tenantKey()`):
   for a tenant when they sign in (`POST /v1/auth/token { tenantId }`); the
   tenant is the token family's `tid` claim.
 - **Invitations: adding people is invite-only.** `POST /v1/access/users
-  { email, name?, roleIds, roleExpiresAt?, orgUnitIds? }` (202) stores an
+  { email, name?, roleIds, roleExpiresAt?, teamIds? }` (202) stores an
   invitation (a tenant table; the link's token, `inv_<tenant id>_<secret>`,
   only as its SHA-256) and mails a link (`WEB_URL/accept-invitation?token=…`,
   `INVITATION_TTL_HOURS`). Nothing about an account is read, changed or

@@ -532,23 +532,20 @@ describe('approvals (e2e)', () => {
       });
     });
 
-    it('resolves "the lead of my unit" by role in the requester’s org unit, or the nearest above', async () => {
+    it('resolves "the lead of my team" by role in the requester’s team, or the nearest above', async () => {
       const admin = node.admin();
       const sales = (
-        await admin
-          .post('/v1/access/org-units')
-          .send({ name: 'Sales' })
-          .expect(201)
+        await admin.post('/v1/access/teams').send({ name: 'Sales' }).expect(201)
       ).body;
       const north = (
         await admin
-          .post('/v1/access/org-units')
+          .post('/v1/access/teams')
           .send({ name: 'North', parentId: sales.id })
           .expect(201)
       ).body;
       const support = (
         await admin
-          .post('/v1/access/org-units')
+          .post('/v1/access/teams')
           .send({ name: 'Support' })
           .expect(201)
       ).body;
@@ -558,17 +555,17 @@ describe('approvals (e2e)', () => {
         await node.user(['team-lead']),
         await node.user(['team-lead']),
       ];
-      const unitsOf = (user: User, ids: string[]) =>
+      const teamsOf = (user: User, ids: string[]) =>
         admin
           .patch(`/v1/access/users/${user.id}`)
-          .send({ orgUnitIds: ids })
+          .send({ teamIds: ids })
           .expect(204);
-      await unitsOf(requester, [north.id]);
-      await unitsOf(salesLead, [sales.id]);
-      await unitsOf(northLead, [north.id]);
-      await unitsOf(otherLead, [support.id]);
+      await teamsOf(requester, [north.id]);
+      await teamsOf(salesLead, [sales.id]);
+      await teamsOf(northLead, [north.id]);
+      await teamsOf(otherLead, [support.id]);
       await setPolicy({
-        stages: [stage([{ type: 'orgUnitRole', role: 'team-lead' }])],
+        stages: [stage([{ type: 'teamRole', role: 'team-lead' }])],
       });
 
       const id = await ask(requester);
@@ -974,7 +971,7 @@ describe('approvals (e2e)', () => {
       ).toEqual(
         expect.arrayContaining([
           'role',
-          'orgUnitRole',
+          'teamRole',
           'permission',
           'users',
           'test-pick',

@@ -22,10 +22,10 @@ export type MongoQuery = Record<string, unknown>;
 
 /**
  * What conditions may read besides the principal, loaded with its
- * permissions: the org units it belongs to, and every unit below them.
+ * permissions: the teams it belongs to, and every team below them.
  */
 export interface AccessContext {
-  orgUnitIds: string[];
+  teamIds: string[];
 }
 
 /** A condition an admin may attach to an action: typed parameters, rendered for CASL and for SQL. */
@@ -157,27 +157,27 @@ export const createdBy = (
 
 /**
  * A reusable condition: records whose `field` (the Drizzle `column`) is one
- * of the principal's org units or a unit below them. A team lead in
+ * of the principal's teams or a team below them. A team lead in
  * "Sales" sees what "Sales / North" and "Sales / South" own. Lists filter in
  * SQL through the closure table (no ids loaded); one record is checked
- * against the units loaded with the principal's permissions.
+ * against the teams loaded with the principal's permissions.
  */
-export const inMyUnits = (
+export const inMyTeams = (
   field: string,
   column: AnyPgColumn,
 ): ConditionTemplate => ({
-  label: 'In my units',
+  label: 'In my teams',
   description:
-    'Only records of the org units I belong to, and of the units below them.',
+    'Only records of the teams I belong to, and of the teams below them.',
   casl: (_principal, _params, context) => ({
-    [field]: { $in: context.orgUnitIds },
+    [field]: { $in: context.teamIds },
   }),
   sql: (principal) =>
     principal.kind === 'user'
       ? inArray(
           column,
-          sql`(select tree.descendant_id from org_unit_tree tree
-               join user_org_units mine on mine.org_unit_id = tree.ancestor_id
+          sql`(select tree.descendant_id from team_tree tree
+               join user_teams mine on mine.team_id = tree.ancestor_id
                where mine.user_id = ${principal.id})`,
         )
       : sql`false`,

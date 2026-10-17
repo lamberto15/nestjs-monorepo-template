@@ -70,19 +70,19 @@ describe('security (e2e)', () => {
       .patch(`/v1/access/users/${viewer.id}`)
       .send({ roleIds: [viewerRole] })
       .expect(204);
-    // Own org units: never.
-    const unit = await node
+    // Own teams: never.
+    const team = await node
       .admin()
-      .post('/v1/access/org-units')
+      .post('/v1/access/teams')
       .send({ name: 'Sales' })
       .expect(201);
     await support.agent
       .patch(`/v1/access/users/${support.id}`)
-      .send({ orgUnitIds: [unit.body.id] })
+      .send({ teamIds: [team.body.id] })
       .expect(403);
-    // Org units are their own permission.
+    // Teams are their own permission.
     await support.agent
-      .post('/v1/access/org-units')
+      .post('/v1/access/teams')
       .send({ name: 'Mine' })
       .expect(403);
   });

@@ -33,7 +33,7 @@ describe('settings and feature flags (e2e)', () => {
   const settingOf = (body: { items: { key: string }[] }, key: string) =>
     body.items.find((item) => item.key === key);
 
-  it('shows every setting with its default; managers set values for everyone or an org unit, audited', async () => {
+  it('shows every setting with its default; managers set values for everyone or a team, audited', async () => {
     const manager = await node.user([await role(['Access', 'manageSettings'])]);
     const editor = await node.user(['editor']);
     const other = await node.user(['editor']);
@@ -56,7 +56,7 @@ describe('settings and feature flags (e2e)', () => {
     expect(settingOf(list.body, 'notes.richText')).toMatchObject({
       value: false,
       source: 'default',
-      scopes: ['tenant', 'orgUnit', 'user'],
+      scopes: ['tenant', 'team', 'user'],
       flag: true,
     });
 
@@ -121,32 +121,32 @@ describe('settings and feature flags (e2e)', () => {
       (await editor.agent.get(`/v1/notes/${note.id}`).expect(200)).body.status,
     ).toBe('published');
 
-    // For an org unit: its users, not the others.
-    const unit = (
+    // For a team: its users, not the others.
+    const team = (
       await node
         .admin()
-        .post('/v1/access/org-units')
-        .send({ name: 'Unit A' })
+        .post('/v1/access/teams')
+        .send({ name: 'Team A' })
         .expect(201)
     ).body as { id: string };
     await node
       .admin()
       .patch(`/v1/access/users/${editor.id}`)
-      .send({ orgUnitIds: [unit.id] })
+      .send({ teamIds: [team.id] })
       .expect(204);
     await manager.agent
       .put('/v1/settings/notes.richText')
-      .send({ scope: 'orgUnit', scopeId: unit.id, value: true })
+      .send({ scope: 'team', scopeId: team.id, value: true })
       .expect(200);
     expect(
       (await editor.agent.get('/v1/settings/notes.richText').expect(200)).body,
-    ).toMatchObject({ value: true, source: 'orgUnit' });
+    ).toMatchObject({ value: true, source: 'team' });
     expect(
       (await other.agent.get('/v1/settings/notes.richText').expect(200)).body,
     ).toMatchObject({ value: false, source: 'default' });
     await manager.agent
       .put('/v1/settings/notes.richText')
-      .send({ scope: 'orgUnit', scopeId: randomUUID(), value: true })
+      .send({ scope: 'team', scopeId: randomUUID(), value: true })
       .expect(404);
 
     // The stored values, and back to the default.
@@ -155,13 +155,13 @@ describe('settings and feature flags (e2e)', () => {
       .expect(200);
     expect(overrides.body.items).toHaveLength(1);
     expect(overrides.body.items[0]).toMatchObject({
-      scope: 'orgUnit',
-      scopeId: unit.id,
+      scope: 'team',
+      scopeId: team.id,
       value: true,
     });
     await editor.agent.get('/v1/settings/notes.richText/overrides').expect(403);
     await manager.agent
-      .delete(`/v1/settings/notes.richText?scope=orgUnit&scopeId=${unit.id}`)
+      .delete(`/v1/settings/notes.richText?scope=team&scopeId=${team.id}`)
       .expect(204);
     expect(
       (await editor.agent.get('/v1/settings/notes.richText').expect(200)).body,

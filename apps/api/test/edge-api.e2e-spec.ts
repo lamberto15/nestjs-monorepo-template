@@ -524,7 +524,7 @@ describe('API conventions, edge cases (e2e)', () => {
         titles.length,
       );
       expect(await found({ 'publishedAt.isNull': 'false' })).toEqual([]);
-      expect(await found({ 'orgUnitId.isNull': 'false' })).toEqual([]);
+      expect(await found({ 'teamId.isNull': 'false' })).toEqual([]);
     });
 
     it('combines filters with and', async () => {
@@ -565,7 +565,7 @@ describe('API conventions, edge cases (e2e)', () => {
 
     it('checks filter values by type', async () => {
       for (const [key, value] of [
-        ['orgUnitId', 'not-a-uuid'],
+        ['teamId', 'not-a-uuid'],
         ['createdAt.gte', '2026-01-01'],
         ['publishedAt.isNull', 'yes'],
         ['status', 'archived'],

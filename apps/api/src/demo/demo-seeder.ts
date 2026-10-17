@@ -6,7 +6,7 @@ import type { Transaction } from '../core/database/drizzle.js';
 import { NotesService } from '../features/notes/notes.service.js';
 import { AccessAdminService } from '../iam/access/access-admin.service.js';
 import { AccessService } from '../iam/access/access.service.js';
-import { OrgUnitsService } from '../iam/access/org-units.service.js';
+import { TeamsService } from '../iam/access/teams.service.js';
 import { SingleTenant } from '../iam/access/single-tenant.js';
 import { SystemContext } from '../iam/access/system-context.js';
 import { AuditService } from '../iam/audit/audit.service.js';
@@ -26,7 +26,7 @@ import { tags as tagsTable } from '../platform/tags/tags.tables.js';
 import {
   DEMO_EMAIL_DOMAIN,
   DEMO_NOTES,
-  DEMO_ORG_UNITS,
+  DEMO_TEAMS,
   DEMO_TAGS,
   DEMO_TENANT,
   DEMO_USERS,
@@ -85,7 +85,7 @@ const demoEmail = (name: string) =>
  *   every breach list). The demo administrator administers the demo
  *   tenant only: the way any tenant gets its first administrator
  *   (`TenantsService.addAdministrator()`), never an operator.
- * - The notes belong to the demo users (their `mine` and `inMyUnits`
+ * - The notes belong to the demo users (their `mine` and `inMyTeams`
  *   conditions then show something), created on their behalf by the seed.
  */
 @Injectable()
@@ -95,7 +95,7 @@ export class DemoSeeder {
     private readonly access: AccessService,
     private readonly accessAdmin: AccessAdminService,
     private readonly tenants: TenantsService,
-    private readonly orgUnits: OrgUnitsService,
+    private readonly teams: TeamsService,
     private readonly users: UsersRepository,
     private readonly notes: NotesService,
     private readonly tags: TagsService,
@@ -209,8 +209,8 @@ export class DemoSeeder {
     stored: string[],
   ): Promise<DemoSeedResult> {
     const tenantId = tenant.id;
-    const units = await this.createOrgUnits(system);
-    const people = await this.createUsers(system, tx, units);
+    const teams = await this.createTeams(system);
+    const people = await this.createUsers(system, tx, teams);
     const tags = await this.createTags(system, tx);
     for (const note of DEMO_NOTES) {
       await this.createNote(system, tenantId, note, people, tags, stored);
@@ -250,16 +250,16 @@ export class DemoSeeder {
     }
   }
 
-  private async createOrgUnits(system: SystemPrincipal) {
-    await this.assertCan(system, 'manageOrgUnits', 'Access');
+  private async createTeams(system: SystemPrincipal) {
+    await this.assertCan(system, 'manageTeams', 'Access');
     const ids = new Map<string, string>();
-    // Parents come first in DEMO_ORG_UNITS.
-    for (const unit of DEMO_ORG_UNITS) {
-      const created = await this.orgUnits.create(system, {
-        name: unit.name,
-        parentId: unit.parent ? ids.get(unit.parent) : null,
+    // Parents come first in DEMO_TEAMS.
+    for (const team of DEMO_TEAMS) {
+      const created = await this.teams.create(system, {
+        name: team.name,
+        parentId: team.parent ? ids.get(team.parent) : null,
       });
-      ids.set(unit.key, created.id);
+      ids.set(team.key, created.id);
     }
     return ids;
   }
@@ -267,7 +267,7 @@ export class DemoSeeder {
   private async createUsers(
     system: SystemPrincipal,
     tx: Transaction,
-    units: Map<string, string>,
+    teams: Map<string, string>,
   ) {
     await this.assertCan(system, 'manageUsers', 'Access');
     // The tenant's roles, made with it in this transaction.
@@ -295,7 +295,7 @@ export class DemoSeeder {
         roleIds: user.roles
           .filter((key) => key !== ADMINISTRATOR_ROLE)
           .map((key) => role(key).id),
-        orgUnitIds: user.units.map((key) => units.get(key)!),
+        teamIds: user.teams.map((key) => teams.get(key)!),
       });
       if (administrator) {
         // The tenant's first administrator, as every tenant gets one.

@@ -11,7 +11,7 @@ import {
 import { sequences } from './sequences.tables.js';
 
 export interface NextNumberOptions {
-  /** Numbered apart: an org unit's id, a client's key… Default: one series. */
+  /** Numbered apart: a team's id, a client's key… Default: one series. */
   scope?: string;
   /** Starts over every year, the year in the number: `INV-2026-00042`. */
   perYear?: boolean;
