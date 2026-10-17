@@ -1,3 +1,5 @@
+import i18n from 'i18next';
+
 export function formatDate(
   date: Date | string | number | undefined,
   opts: Intl.DateTimeFormatOptions = {},
@@ -5,7 +7,8 @@ export function formatDate(
   if (!date) return '';
 
   try {
-    return new Intl.DateTimeFormat('en-US', {
+    // Patched in: the UI language, not a fixed en-US.
+    return new Intl.DateTimeFormat(i18n.language || 'en-US', {
       month: opts.month ?? 'long',
       day: opts.day ?? 'numeric',
       year: opts.year ?? 'numeric',
