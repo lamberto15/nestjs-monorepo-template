@@ -279,7 +279,7 @@ jobs:
             --fields "title:string,notes:text?,quantity:int,rate:decimal?,total:money,discount:money?,paid:bool,dueOn:date?,sentAt:datetime?,status:enum(draft|sent|paid),meta:json?,code:string!unique,rank:int?"
           pnpm feature:add smoke-parts --no-soft-delete \
             --fields "name:string,widgetId:ref(smoke-widgets)?"
-      - name: Their migration (new tables only: drizzle-kit asks nothing)
+      - name: 'Their migration (new tables only: drizzle-kit asks nothing)'
         run: pnpm db:generate
       - run: pnpm lint
       - run: pnpm build
