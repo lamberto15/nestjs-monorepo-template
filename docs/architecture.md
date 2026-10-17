@@ -68,8 +68,12 @@ src/
 ## Rules
 
 - **Dependency direction:** core ← iam ← platform ← features. A group never
-  imports a feature; only `app.module.ts`, `schema.ts` and `env.ts` know them all.
-- **Features plug in by declaration**, in `app.module.ts`, `schema.ts`, `env.ts`:
+  imports a feature; only `features/index.ts`, `features/tables.ts` and
+  `features/env.ts` list them all, and `app.module.ts`, `schema.ts`, `env.ts`
+  and `openapi.ts` read those lists.
+- **Features plug in by declaration**: each feature's `<x>.feature.ts`
+  (`defineFeature()`, `features/feature.ts`) names its module, Swagger tag
+  and everything below, and `features/index.ts` lists it:
   - permissions: `definePermissions()` → `IamModule.forRoot({ permissions })`;
   - webhook event types and incoming senders → `PlatformModule.forRoot({ eventTypes, incomingWebhooks })`;
   - queues and resilience presets → `PlatformModule.forRoot({ queues, resiliencePresets })`;
@@ -78,7 +82,7 @@ src/
   - settings and flags (`defineSettings()`) → `PlatformModule.forRoot({ settings })`;
   - actions that need approval (`defineApproval()`) → `PlatformModule.forRoot({ approvals })`,
     their handlers, approver rules, modes and listeners register into `ApprovalsRegistry`;
-  - tables → `schema.ts`; environment → `env.ts`;
+  - tables → `features/tables.ts`; environment → `features/env.ts`;
   - exporters and importers register themselves (`DataTransferRegistry`);
   - what goes when a record is purged from its recycle bin: platform
     services register into `RecordPurgeRegistry` (iam), and
