@@ -169,6 +169,37 @@ the operator tenant.
 - Changes apply on the next request, on every instance (the invalidation is
   published through Redis).
 
+## Picking users and API clients
+
+`GET /v1/access/principals` lists the tenant's members and API clients as
+one cursor-paged list, for the pickers of whom a setting's value or a
+flag is for (`scopeId: user:<id>`), an `actor` filter, and the like:
+
+```
+GET /v1/access/principals?q=ada&kind=user&limit=20
+{ "items": [{ "id": "…", "key": "user:…", "kind": "user", "label": "Ada Lovelace", "email": "ada@example.com", "active": true }], "nextCursor": "…" }
+```
+
+- **Who:** the callers who may already list users and clients
+  (`AccessPolicy.open`: any of `Access.manageRoles`, `manageUsers`,
+  `manageClients`, `readAudit`), as users (an API key is no credential on
+  the access API, 401). Anyone else: 403. It shows nothing those two lists
+  don't: the same people and clients, their name and address, which the
+  access lists show to the same callers whole (no field-level rules apply
+  to them).
+- **Whose:** the current tenant's alone: users through their memberships
+  in it (as `GET /v1/access/users`, inactive ones too: `active=true` to
+  leave them out), clients through row-level security. No other tenant's
+  user or client ever appears; an operator appears only as a member of a
+  tenant, in that tenant. With `API_CLIENTS=off` no client is listed.
+- **`q`:** a part of a user's name or address, or of a client's name,
+  whatever the case; 1 to 200 characters (else 400). `%` and `_` are
+  searched as the characters (escaped, as `contains` filters do). Also
+  `kind=user|client`, `active`, `label.contains`, `sort=label` (whatever
+  the case), `fields=`, `count=true`, `page=`, as every list
+  ([api-conventions.md](api-conventions.md)).
+- Rate-limited as every route (600 a minute per IP).
+
 ## Organization hierarchy
 
 Teams form a tree (`/v1/access/teams`; a closure table, so "under X"

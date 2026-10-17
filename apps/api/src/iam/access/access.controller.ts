@@ -35,8 +35,17 @@ import {
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { ListQuery } from '../../core/http/list-query.js';
-import { listSchema } from '../../core/http/pagination.js';
-import { AUDIT_LIST, USER_LIST } from './access.lists.js';
+import { listSchema, pageSchema } from '../../core/http/pagination.js';
+import { AUDIT_LIST, PRINCIPAL_LIST, USER_LIST } from './access.lists.js';
+import {
+  auditEntrySchema,
+  catalogSchema,
+  createdRoleSchema,
+  principalSchema,
+  roleViewSchema,
+  userViewSchema,
+} from './access.schemas.js';
+import { PrincipalsService } from './principals.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
@@ -235,6 +244,7 @@ export class AccessController {
     private readonly audit: AuditService,
     private readonly impersonation: ImpersonationService,
     private readonly invitationsService: InvitationsService,
+    private readonly principals: PrincipalsService,
   ) {}
 
   @Get('catalog')
@@ -243,6 +253,7 @@ export class AccessController {
     summary:
       'Every permission that exists: subjects, actions and the conditions each may carry; and the system jobs, with what each may do',
   })
+  @ApiOkResponse({ standardSchema: catalogSchema })
   catalog() {
     return {
       subjects: this.permissions.view(),
@@ -256,6 +267,7 @@ export class AccessController {
   @ApiOperation({
     summary: 'The roles, with their permissions and member counts',
   })
+  @ApiOkResponse({ standardSchema: listSchema(roleViewSchema) })
   async roles() {
     return { items: await this.admin.listRoles() };
   }
@@ -263,7 +275,10 @@ export class AccessController {
   @Post('roles')
   @Can(AccessPolicy, 'manageRoles')
   @ApiOperation({ summary: 'Create a role' })
-  @ApiCreatedResponse({ description: 'The new role id.' })
+  @ApiCreatedResponse({
+    description: 'The new role id.',
+    standardSchema: createdRoleSchema,
+  })
   @ApiConflictResponse({ description: 'A role with this name exists.' })
   createRole(
     @CurrentUser() user: UserPrincipal,
@@ -313,6 +328,7 @@ export class AccessController {
     description:
       'Filter flat (`?active=true&email.contains=@example.com`) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes.',
   })
+  @ApiOkResponse({ standardSchema: pageSchema(userViewSchema) })
   async users(@Query({ schema: USER_LIST.schema }) query: ListQuery) {
     return USER_LIST.pick(
       await this.admin.listUsers(query, USER_LIST.where(query)),
@@ -423,6 +439,27 @@ export class AccessController {
     res.append('Set-Cookie', cookie);
   }
 
+  /**
+   * The picker of whom a setting's override, a rollout or a filter is for:
+   * the members and API clients GET /access/users and /access/clients
+   * already show, to the same callers (`open`), searched by name or
+   * address. Nothing they don't show: the tenant's own (memberships, row-
+   * level security), the same fields.
+   */
+  @Get('principals')
+  @Can(AccessPolicy, 'open')
+  @ApiOperation({
+    summary: "Search the tenant's users and API clients, as principal keys",
+    description:
+      "`?q=` matches a part of a user's name or address, or of a client's name, whatever the case (`%` and `_` are the characters); `?kind=user|client`, `?active=true`, `?sort=label`. Cursor pages. Each item's `key` (`user:<id>`, `client:<id>`) is what a setting's user scope takes as `scopeId`. Clients only while API_CLIENTS is on.",
+  })
+  @ApiOkResponse({ standardSchema: pageSchema(principalSchema) })
+  async principalsList(
+    @Query({ schema: PRINCIPAL_LIST.schema }) query: ListQuery,
+  ) {
+    return PRINCIPAL_LIST.pick(await this.principals.page(query), query);
+  }
+
   @Get('clients')
   @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'open')
@@ -514,6 +551,7 @@ export class AccessController {
     description:
       'Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes.',
   })
+  @ApiOkResponse({ standardSchema: pageSchema(auditEntrySchema) })
   async auditLog(@Query({ schema: AUDIT_LIST.schema }) query: ListQuery) {
     return AUDIT_LIST.pick(
       await this.audit.page(query, AUDIT_LIST.where(query)),
