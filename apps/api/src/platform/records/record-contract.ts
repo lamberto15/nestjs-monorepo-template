@@ -4,7 +4,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
-import type { List } from '../../core/http/list-query.js';
+import type { List, ListQuery } from '../../core/http/list-query.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
 import { SequencesService } from '../sequences/sequences.service.js';
@@ -259,14 +259,24 @@ export class RecordPresenter {
   ) {}
 
   /**
-   * The record's list with the custom fields defined now (filter, sort,
-   * `fields`): validate a request's query with its `parse()`, and select
-   * `sortSelect(query)`. The list itself without custom fields.
+   * A list request's query, the only way a record's list route gets one:
+   * validated against the list with the custom fields defined now (a 400
+   * naming what is wrong), then refused (403 `field_forbidden`) when it
+   * filters, searches, sorts or selects by a field the caller may read on
+   * no record (`AccessService.assertQueryFields`). Answers the list it was
+   * checked against too: its `where()`, `sortSelect()` and `pick()`.
    */
-  async list(list: List): Promise<List> {
-    return takes(this.declaration, 'custom')
-      ? this.customFields.extendList(list, this.declaration.subject)
+  async query(
+    user: Principal,
+    list: List,
+    raw: Record<string, unknown>,
+  ): Promise<{ list: List; query: ListQuery }> {
+    const extended = takes(this.declaration, 'custom')
+      ? await this.customFields.extendList(list, this.declaration.subject)
       : list;
+    const query = extended.parse(raw);
+    await this.access.assertQueryFields(user, this.declaration.subject, query);
+    return { list: extended, query };
   }
 
   /** One record, as the caller may see it. */

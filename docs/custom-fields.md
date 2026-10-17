@@ -70,8 +70,9 @@ Create and update bodies take `custom: { key: value }`; responses carry it.
 - On update, only the keys sent change (`custom || patch`); `null` removes
   a key (not a required one).
 - Field-level permissions: `custom` is one restrictable field of the
-  subject (like `body`): without it, responses leave `custom` out and writes
-  that set it are a 403 `field_forbidden`.
+  subject (like `body`): without it, responses leave `custom` out, and writes
+  that set it and lists, exports or bulk runs that filter, sort or select by
+  `custom.<key>` are a 403 `field_forbidden`.
 
 ## For features: opting in
 

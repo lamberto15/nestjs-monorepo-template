@@ -87,7 +87,8 @@ describe('full-text search (e2e)', () => {
     ).toEqual([]);
     await editor.agent.get('/v1/search').expect(400);
 
-    // A user who may read test items but not their text gets no snippet of it.
+    // A user who may read test items but not their text: a word only in the
+    // text finds nothing (a hit would tell what it holds), and no snippet of it.
     const titlesOnly = await node
       .admin()
       .post('/v1/access/roles')
@@ -100,10 +101,13 @@ describe('full-text search (e2e)', () => {
       .expect(201);
     const reader = await node.user([titlesOnly.body.id]);
     const blind = await reader.agent.get('/v1/search?q=night').expect(200);
-    expect(blind.body.items.map((h: { id: string }) => h.id)).toEqual([
-      dark.id,
-    ]);
-    expect(blind.body.items[0].snippet).toBeNull();
+    expect(blind.body.items).toEqual([]);
+    const byTitle = await reader.agent.get('/v1/search?q=dark').expect(200);
+    const darkHit = byTitle.body.items.find(
+      (h: { id: string }) => h.id === dark.id,
+    );
+    // The title's snippet, never the text's.
+    expect(darkHit.snippet).toBe('<b>Dark</b> mode');
     const titled = await reader.agent.get('/v1/search?q=legacy').expect(200);
     expect(titled.body.items[0].snippet).toBe('<b>Legacy</b> dark theme');
   });

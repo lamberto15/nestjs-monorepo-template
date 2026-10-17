@@ -17,6 +17,7 @@ import {
   requireTenantId,
   TenantScopeMissingError,
 } from '../../core/tenancy/tenant-scope.js';
+import type { ListQuery } from '../../core/http/list-query.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import {
@@ -196,6 +197,14 @@ export class DataTransferService {
           message: issue.message,
         })),
       });
+    }
+    if (parsed) {
+      // Field-level: which rows an export holds would tell a hidden field's values.
+      await this.access.assertQueryFields(
+        principal,
+        exporter.subject,
+        parsed.data as ListQuery,
+      );
     }
     // The job keeps the raw filters: it travels as JSON, so parsed values
     // (dates) would arrive as strings. The worker parses them again.

@@ -49,7 +49,8 @@ Send `ids` or `filter`, one of them.
   `ids` and `filter`, an unknown action, a bad filter or input; `errors`
   names the path: `action`, `ids.3`, `filter.title.nope`, `input.title`),
   `bulk_too_many` (more than 500 ids: use a filter), `forbidden` (you may
-  not do this action at all), the idempotency codes.
+  not do this action at all), `field_forbidden` (a filter on a field your
+  permissions hide: docs/permissions.md), the idempotency codes.
 - A job is never retried, not even when its worker is lost mid-way (a
   redeploy): it fails with "Items done stay done"; the audit log says
   which, and a new run with the same selection does the rest (ids already

@@ -60,7 +60,11 @@ export class BulkProcessor extends TenantWorkerHost<BulkJob, BulkResult> {
       throw new Error(`No bulk operation named "${job.data.name}".`);
     }
     // Parsed here, not at enqueue: the job is JSON. The request checked them.
-    const { selection, input } = this.bulk.parse(operation, job.data);
+    const { selection, input } = await this.bulk.parse(
+      principal,
+      operation,
+      job.data,
+    );
     const result = await this.bulk.execute(
       principal,
       operation,

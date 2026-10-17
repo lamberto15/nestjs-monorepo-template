@@ -24,6 +24,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiCookieAuth,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -137,6 +138,10 @@ export class DataTransferController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Export data to a file (a background job)' })
   @ApiAcceptedResponse({ standardSchema: startedSchema })
+  @ApiForbiddenResponse({
+    description:
+      'You may not export it (forbidden), or its filters use a field your permissions hide (field_forbidden, naming it).',
+  })
   startExport(
     @CurrentUser() user: RequestPrincipal,
     @Body({ schema: exportSchema }) body: z.infer<typeof exportSchema>,

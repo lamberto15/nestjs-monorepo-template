@@ -77,11 +77,6 @@ export function recordParts(
   },
 ) {
   const has = (capability: Capability) => takes(declaration, capability);
-  const currencyOf = new Map(
-    Object.entries(declaration.fields)
-      .filter(([, field]) => field.kind === 'money')
-      .map(([name]) => [`${name}Currency`, name]),
-  );
   const controllers: Type[] = [
     ...(declaration.softDelete
       ? [
@@ -136,10 +131,8 @@ export function recordParts(
     RecordStore,
     RecordLifecycle,
     RecordPresenter,
-    // GET /v1/lists/{subject}: its list described (a money field's currency filter reads the field).
-    listSource(declaration.subject, options.list, {
-      fieldOf: (name) => currencyOf.get(name) ?? name,
-    }),
+    // GET /v1/lists/{subject}: its list described.
+    listSource(declaration.subject, options.list),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];

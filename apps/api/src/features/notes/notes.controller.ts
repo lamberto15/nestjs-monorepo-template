@@ -144,7 +144,7 @@ export class NotesController {
   @ApiOperation({
     summary: 'The notes you may read, newest first',
     description:
-      'Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter.',
+      'Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).',
   })
   @ApiOkResponse({ standardSchema: pageSchema(noteSchema) })
   @ApiListQuery(
@@ -158,6 +158,8 @@ export class NotesController {
     // The list with the custom fields defined now: validated per request.
     const list = await this.customFields.extendList(NOTE_LIST, 'Note');
     const query = list.parse(raw);
+    // Field-level: no filter, search, sort or `fields` on what the caller may not read.
+    await this.access.assertQueryFields(user, 'Note', query);
     const page = await this.notes.findPage(
       and(
         // The recycle bin (?deleted=true) is for those who may restore.

@@ -7,7 +7,12 @@ import {
 import { I18nService } from '@nestjs/i18n';
 import { AuthorizationService } from '@nestjs/authorization';
 import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
-import { headline, matches, rank } from '../../core/database/search.js';
+import {
+  headline,
+  matches,
+  rank,
+  vectorOf,
+} from '../../core/database/search.js';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { validationException } from '../../core/http/problem-details.filter.js';
 import { AccessService } from '../../iam/access/access.service.js';
@@ -337,11 +342,26 @@ export class RecordSearch {
       (a, b) =>
         Number(fields[b]!.kind === 'text') - Number(fields[a]!.kind === 'text'),
     );
+    // Field-level: a field the principal may read on no record isn't
+    // matched (a hit would tell its text): a vector of the others, made
+    // now, without the index. A field allowed on some records only is
+    // matched (docs/permissions.md).
+    const denied = await this.access.deniedFields(
+      principal,
+      'read',
+      this.subject,
+    );
+    const visible = searchable.filter((name) => !denied.includes(name));
+    if (visible.length === 0) return [];
+    const vector =
+      visible.length === searchable.length
+        ? table.search!
+        : vectorOf(visible.map((name) => table[name]!));
     const where = and(
       await this.access.sqlFilter(principal, this.subject, 'read'),
-      matches(table.search!, q),
+      matches(vector, q),
     );
-    const score = rank(table.search!, q);
+    const score = rank(vector, q);
     const rows = (await this.c.service.query((db) =>
       db
         // The whole row: the permission conditions (`mine`) read it.

@@ -204,6 +204,143 @@ describe('security (e2e)', () => {
     await node.writeItem(user.agent, { title: 'T' }).expect(201);
   });
 
+  it('refuses lists, exports, bulk runs and reports that filter, search, sort or select by a hidden field', async () => {
+    // Reads every test item but none of its restrictable fields (body, custom); may delete.
+    const blind = await node
+      .admin()
+      .post('/v1/access/roles')
+      .send({
+        name: `no-text-${randomUUID().slice(0, 8)}`,
+        permissions: [
+          { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
+          { subject: 'TestItem', action: 'delete', conditions: [] },
+        ],
+      })
+      .expect(201);
+    const user = await node.user([blind.body.id]);
+    await node
+      .writeItem(node.admin(), { title: 'Plain', body: 'zebracode inside' })
+      .expect(201);
+    const tree = (field: string) =>
+      encodeURIComponent(
+        JSON.stringify({
+          and: [
+            { field: 'title', op: 'contains', value: 'P' },
+            { or: [{ field, op: 'contains', value: 'zebra' }] },
+          ],
+        }),
+      );
+
+    for (const query of [
+      'body.contains=zebra', // a flat filter
+      `filter=${tree('body')}`, // a condition nested in the tree
+      'fields=title,body', // a field picked
+      'q=zebracode', // the search document holds the text
+      'sort=-rank', // ordered by that match
+    ]) {
+      const refused = await user.agent
+        .get(`/v1/test-items?${query}`)
+        .expect(403);
+      expect(refused.body).toMatchObject({
+        code: 'field_forbidden',
+        fields: ['body'],
+      });
+    }
+    // The custom values are hidden too: their filters and sorts with them.
+    await node
+      .admin()
+      .post('/v1/custom-fields')
+      .send({
+        subject: 'TestItem',
+        key: 'region',
+        label: 'Region',
+        type: 'select',
+        options: [{ value: 'eu', label: 'Europe' }],
+        filterable: true,
+        sortable: true,
+      })
+      .expect(201);
+    for (const query of ['custom.region=eu', 'sort=custom.region']) {
+      const refused = await user.agent
+        .get(`/v1/test-items?${query}`)
+        .expect(403);
+      expect(refused.body).toMatchObject({
+        code: 'field_forbidden',
+        fields: ['custom'],
+      });
+    }
+
+    // The same on a field it may read: answered.
+    for (const query of [
+      'title.contains=Plain',
+      `filter=${tree('title')}`,
+      'fields=title',
+      'sort=title',
+    ]) {
+      await user.agent.get(`/v1/test-items?${query}`).expect(200);
+    }
+    // Whoever may read the text filters, searches and sorts by it as before.
+    for (const query of [
+      'body.contains=zebra',
+      `filter=${tree('body')}`,
+      'fields=body',
+      'q=zebracode&sort=-rank',
+    ]) {
+      const page = await node
+        .admin()
+        .get(`/v1/test-items?${query}`)
+        .expect(200);
+      expect(page.body.items).toHaveLength(1);
+    }
+
+    // The global search matches the title only: the text's word finds nothing.
+    const search = await user.agent.get('/v1/search?q=zebracode').expect(200);
+    expect(search.body.items).toEqual([]);
+    expect(
+      (await user.agent.get('/v1/search?q=plain').expect(200)).body.items,
+    ).toHaveLength(1);
+    expect(
+      (await node.admin().get('/v1/search?q=zebracode').expect(200)).body.items,
+    ).toHaveLength(1);
+
+    // An export, a bulk run and a report select rows by the same filters.
+    const exported = await user.agent
+      .post('/v1/data/exports')
+      .send({
+        name: 'test-items',
+        format: 'csv',
+        filters: { 'body.contains': 'zebra' },
+      })
+      .expect(403);
+    expect(exported.body.code).toBe('field_forbidden');
+    const bulk = await user.agent
+      .post('/v1/test-items/bulk')
+      .set('Idempotency-Key', randomUUID())
+      .send({ action: 'delete', filter: { 'body.contains': 'zebra' } })
+      .expect(403);
+    expect(bulk.body.code).toBe('field_forbidden');
+    const report = await user.agent
+      .post('/v1/reports')
+      .send({
+        name: 'Zebras',
+        exporter: 'test-items',
+        format: 'csv',
+        timezone: 'UTC',
+        schedule: { every: 'daily', hour: 8 },
+        filters: { 'body.contains': 'zebra' },
+      })
+      .expect(403);
+    expect(report.body.code).toBe('field_forbidden');
+    await user.agent
+      .post('/v1/data/exports')
+      .send({
+        name: 'test-items',
+        format: 'csv',
+        filters: { 'title.contains': 'Plain' },
+      })
+      .expect(202);
+  });
+
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {
     const { id } = await node.user([]);
     const db = node.db;

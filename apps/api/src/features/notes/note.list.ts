@@ -7,8 +7,8 @@ import { notes } from './notes.tables.js';
 /** What GET /notes can be filtered, sorted (`sortable`) and narrowed (`select`) by. */
 export const NOTE_LIST = listQuery(
   {
-    // ?q=words (web search syntax) and ?sort=-rank: the best match first.
-    ...searchFields(notes.search),
+    // ?q=words (web search syntax) and ?sort=-rank: the best match first; the vector holds the title and the text.
+    ...searchFields(notes.search, ['title', 'body']),
     // ?tag=<id> and ?tag.in=<id>,<id>: the notes carrying it (any of them).
     ...tagFilter('Note', notes.id),
     number: {

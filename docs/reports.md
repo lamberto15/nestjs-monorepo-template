@@ -30,7 +30,8 @@ POST /v1/reports
   checked again when each run starts and on the worker.
 - **Checked on create and update** as an export is: an exporter the owner
   may run (`GET /v1/data`), else a 400 on `exporter`; its filters
-  (`filters.<field>`); an IANA `timezone` (default: the user's own, else
+  (`filters.<field>`; a filter on a field the owner's permissions hide is
+  a 403 `field_forbidden`, and a run that meets one is skipped); an IANA `timezone` (default: the user's own, else
   `APP_TIMEZONE`); at most 20 `recipients` (default: the user's own
   address; an API client names them). At most 20 active reports per
   owner (a 400 on `active` past it, on create or reactivation).
