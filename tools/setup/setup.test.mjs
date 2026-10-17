@@ -571,6 +571,142 @@ describe('the example feature', () => {
   });
 });
 
+describe('deployment switches', () => {
+  test('production defaults: idempotency required, services on, MFA and API clients on, impersonation off', async () => {
+    const root = fixture();
+    const out = temp();
+    const { code, text } = await setup(root, out, PRODUCTION);
+    assert.equal(code, 0, text);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('IDEMPOTENCY'), 'required');
+    for (const key of ['WEBHOOKS', 'REPORTS', 'USAGE', 'REALTIME']) {
+      assert.equal(env.get(key), 'on', key);
+    }
+    assert.equal(env.get('AUTH_MFA'), 'on');
+    assert.equal(env.get('API_CLIENTS'), 'on');
+    assert.equal(env.get('IMPERSONATION'), 'off');
+  });
+
+  test('development keeps its template: impersonation on, services commented, the rest not asked', async () => {
+    const root = fixture();
+    const out = temp();
+    const { code, text } = await setup(root, out, ['--target', 'development']);
+    assert.equal(code, 0, text);
+    const env = parseEnv(read(out, 'development'));
+    assert.equal(env.get('IMPERSONATION'), 'on');
+    for (const key of ['WEBHOOKS', 'REPORTS', 'USAGE', 'REALTIME']) {
+      assert.equal(env.has(key), false, key);
+    }
+    for (const key of ['IDEMPOTENCY', 'AUTH_MFA', 'API_CLIENTS']) {
+      assert.equal(env.has(key), false, key);
+    }
+  });
+
+  test('flags set every switch, in both targets', async () => {
+    const flags = [
+      '--idempotency',
+      'optional',
+      '--no-webhooks',
+      '--no-reports',
+      '--no-usage',
+      '--no-realtime',
+      '--no-auth-mfa',
+      '--no-api-clients',
+      '--impersonation',
+    ];
+    const root = fixture();
+    const out = temp();
+    const production = await setup(root, out, [...PRODUCTION, ...flags]);
+    assert.equal(production.code, 0, production.text);
+    const env = parseEnv(read(out, 'production'));
+    assert.equal(env.get('IDEMPOTENCY'), 'optional');
+    for (const key of ['WEBHOOKS', 'REPORTS', 'USAGE', 'REALTIME']) {
+      assert.equal(env.get(key), 'off', key);
+    }
+    assert.equal(env.get('AUTH_MFA'), 'off');
+    assert.equal(env.get('API_CLIENTS'), 'off');
+    assert.equal(env.get('IMPERSONATION'), 'on');
+
+    const devOut = temp();
+    const development = await setup(root, devOut, [
+      '--target',
+      'development',
+      '--no-webhooks',
+      '--no-impersonation',
+    ]);
+    assert.equal(development.code, 0, development.text);
+    const dev = parseEnv(read(devOut, 'development'));
+    assert.equal(dev.get('WEBHOOKS'), 'off');
+    assert.equal(dev.get('IMPERSONATION'), 'off');
+    assert.equal(dev.has('REPORTS'), false);
+  });
+
+  test('a wrong idempotency value is an error naming the flag', async () => {
+    await assert.rejects(
+      setup(fixture(), temp(), [...PRODUCTION, '--idempotency', 'maybe']),
+      /--idempotency: one of required, optional/,
+    );
+  });
+
+  test('a re-run reads the existing values and keeps them', async () => {
+    const root = fixture();
+    const out = temp();
+    await setup(root, out, [
+      ...PRODUCTION,
+      '--idempotency',
+      'optional',
+      '--no-realtime',
+      '--no-api-clients',
+      '--impersonation',
+    ]);
+    const first = read(out, 'production');
+    const again = await setup(root, out, ['--target', 'production']);
+    assert.equal(again.code, 0, again.text);
+    assert.equal(read(out, 'production'), first, 'unchanged');
+    const env = parseEnv(first);
+    assert.equal(env.get('IDEMPOTENCY'), 'optional');
+    assert.equal(env.get('REALTIME'), 'off');
+    assert.equal(env.get('API_CLIENTS'), 'off');
+    assert.equal(env.get('IMPERSONATION'), 'on');
+  });
+
+  test('the writable keys cover every switch the templates name', () => {
+    for (const [target, names] of [
+      [
+        'production',
+        [
+          'IDEMPOTENCY',
+          'WEBHOOKS',
+          'REPORTS',
+          'USAGE',
+          'REALTIME',
+          'AUTH_MFA',
+          'API_CLIENTS',
+          'IMPERSONATION',
+        ],
+      ],
+      [
+        'development',
+        ['WEBHOOKS', 'REPORTS', 'USAGE', 'REALTIME', 'IMPERSONATION'],
+      ],
+    ]) {
+      const text = readFileSync(path.join(REPO, TEMPLATES[target]), 'utf8');
+      const ctx = {
+        target,
+        tpl: parseEnv(text),
+        keys: templateKeys(text),
+        existing: null,
+        current: parseEnv(text),
+        hasNotes: false,
+      };
+      const writable = writableKeys(ctx);
+      for (const name of names) {
+        assert.ok(writable.has(name), `${target}: ${name} is not writable`);
+      }
+    }
+  });
+});
+
 describe('templates and wizard do not drift', () => {
   for (const target of ['development', 'production']) {
     test(`${target}: every variable the wizard can write is in ${TEMPLATES[target]}`, () => {
