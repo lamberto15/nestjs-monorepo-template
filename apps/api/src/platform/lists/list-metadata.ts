@@ -36,6 +36,9 @@ export const LIST_LIMITS: ListMetadata['limits'] = {
  *
  * - `hidden(name)`: a field the caller may not read; it is left out of
  *   `fields` and `select`.
+ * - `unmatchable(name)`: a field the caller may read on some records only;
+ *   it stays (and in `select`) with no operators and not sortable, and
+ *   `search` is false when `q` reads one (the list route refuses those).
  * - Fields neither filterable nor sortable are only in `select`.
  */
 export function listMetadata(
@@ -43,27 +46,33 @@ export function listMetadata(
   list: List,
   {
     hidden = () => false,
+    unmatchable = () => false,
     labels = new Map(),
     recycleBin = false,
   }: {
     hidden?: (name: string) => boolean;
+    /** A field the caller may read on some records only: not filtered nor sorted by. */
+    unmatchable?: (name: string) => boolean;
     /** Custom fields' labels, by key. */
     labels?: ReadonlyMap<string, string>;
     /** Whether the caller may list the recycle bin (with `softDelete`). */
     recycleBin?: boolean;
   } = {},
 ): ListMetadata {
-  // `q` reads the search document's fields: hidden with any of them.
-  const search = 'q' in list.fields && !hidden('q');
+  // `q` reads the search document's fields: off with any of them hidden, or
+  // shown on some records only.
+  const searchable = 'q' in list.fields;
+  const search = searchable && !hidden('q') && !unmatchable('q');
   const fields: ListField[] = [];
   for (const [name, field] of Object.entries(list.fields)) {
     if (
-      (search && SEARCH_FIELDS.includes(name)) ||
+      (searchable && SEARCH_FIELDS.includes(name)) ||
       (!field.ops.length && !field.sortable) ||
       hidden(name)
     ) {
       continue;
     }
+    const matchable = !unmatchable(name);
     const custom = name.startsWith(CUSTOM_PREFIX);
     const label = custom
       ? labels.get(name.slice(CUSTOM_PREFIX.length))
@@ -72,8 +81,8 @@ export function listMetadata(
       name,
       type: field.type,
       ...(field.type === 'enum' && { options: [...field.values] }),
-      operators: [...field.ops],
-      sortable: field.sortable === true,
+      operators: matchable ? [...field.ops] : [],
+      sortable: matchable && field.sortable === true,
       custom,
       ...(label !== undefined && { label }),
     });

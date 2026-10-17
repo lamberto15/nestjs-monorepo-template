@@ -586,6 +586,7 @@ export const SECRETS = [
   { key: 'WEBHOOKS_ENCRYPTION_KEYS', ...base64x32, list: true },
   { key: 'MFA_ENCRYPTION_KEYS', ...base64x32, list: true },
   { key: 'STORAGE_SIGNING_KEYS', ...base64x32, list: true },
+  { key: 'CURSOR_KEYS', ...base64x32, list: true },
   { key: 'JWT_SECRET', ...base64x32 },
   {
     key: 'EXAMPLE_SENDER_WEBHOOK_SECRET',

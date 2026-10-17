@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   type ExecutionContext,
   Global,
@@ -27,7 +28,12 @@ import { ThrottlerModule, minutes } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import type { Redis } from 'ioredis';
 import { type Config, type CoreEnv, runsWorkers } from './config/core.env.js';
-import { createDatabase } from './database/drizzle.js';
+import {
+  createDatabase,
+  type Database,
+  loadOrCreateSecret,
+} from './database/drizzle.js';
+import { useCursorKeys } from './http/cursor-seal.js';
 import { HealthController } from './health/health.controller.js';
 import { AppThrottlerGuard } from './http/throttler.guard.js';
 import {
@@ -61,6 +67,9 @@ import {
  * http/http-setup.ts, applied by main.ts and the tests. ConfigModule is
  * registered by AppModule, which knows every group's environment schema.
  */
+/** Set once the cursor keys are in place (the provider's value says nothing more). */
+const CURSOR_KEYS = Symbol('CURSOR_KEYS');
+
 @Global()
 @Module({
   imports: [
@@ -151,6 +160,21 @@ import {
   exports: [MailQueue, BullModule, Tenancy],
   providers: [
     Tenancy,
+    // The keys sorted lists' cursors are sealed with (CURSOR_KEYS, else the
+    // one created in app_secrets): every api and worker instance shares them.
+    {
+      provide: CURSOR_KEYS,
+      inject: [getDrizzleToken()],
+      useFactory: async (db: Database) => {
+        const keys = (
+          await loadOrCreateSecret(db, 'CURSOR_KEYS', () =>
+            randomBytes(32).toString('base64'),
+          )
+        ).split(',');
+        useCursorKeys(keys);
+        return true;
+      },
+    },
     DrizzleLockStore,
     DatabaseHealth,
     DatabasePoolMonitor,

@@ -341,6 +341,198 @@ describe('security (e2e)', () => {
       .expect(202);
   });
 
+  it('refuses filters, search and sorts on a field shown on some records only, and seals cursors', async () => {
+    // Issue #76's role: own items with every field, the team's with none of
+    // the restrictable ones (body, custom). Test items, not notes: the notes
+    // example can be removed from a project, these tests stay.
+    const conditional = await node
+      .admin()
+      .post('/v1/access/roles')
+      .send({
+        name: `own-text-${randomUUID().slice(0, 8)}`,
+        permissions: [
+          { subject: 'TestItem', action: 'create', conditions: [] },
+          {
+            subject: 'TestItem',
+            action: 'read',
+            conditions: [{ key: 'mine' }],
+          },
+          {
+            subject: 'TestItem',
+            action: 'read',
+            conditions: [{ key: 'inMyTeams' }],
+            fields: [],
+          },
+        ],
+      })
+      .expect(201);
+    const team = await node
+      .admin()
+      .post('/v1/access/teams')
+      .send({ name: `Team ${randomUUID().slice(0, 8)}` })
+      .expect(201);
+    const member = async () => {
+      const created = await node.user([conditional.body.id]);
+      await node
+        .admin()
+        .patch(`/v1/access/users/${created.id}`)
+        .send({ teamIds: [team.body.id] })
+        .expect(204);
+      return created;
+    };
+    const [caller, teammate] = [await member(), await member()];
+    await node
+      .admin()
+      .post('/v1/custom-fields')
+      .send({
+        subject: 'TestItem',
+        key: 'grade',
+        label: 'Grade',
+        type: 'select',
+        options: [
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+        ],
+        filterable: true,
+        sortable: true,
+      })
+      .expect(201);
+    const theirs = await node
+      .writeItem(teammate.agent, {
+        title: 'Theirs',
+        body: 'layoffquokka planned',
+        custom: { grade: 'b' },
+      })
+      .expect(201);
+    await node
+      .writeItem(caller.agent, {
+        title: 'Mine',
+        body: 'my own text',
+        custom: { grade: 'a' },
+      })
+      .expect(201);
+    // Both are listed; the teammate's without its text.
+    const all = await caller.agent.get('/v1/test-items').expect(200);
+    expect(all.body.items).toHaveLength(2);
+
+    for (const [query, fields] of [
+      ['body.contains=layoff', ['body']],
+      ['q=layoffquokka', ['body']],
+      ['q=layoffquokka&sort=-rank', ['body']],
+      ['custom.grade=b', ['custom']],
+      ['sort=custom.grade', ['custom']],
+    ] as const) {
+      const refused = await caller.agent
+        .get(`/v1/test-items?${query}`)
+        .expect(403);
+      expect(refused.body, query).toMatchObject({
+        code: 'field_forbidden',
+        fields,
+      });
+    }
+    // Selecting it is answered: redaction decides per record.
+    const picked = await caller.agent
+      .get('/v1/test-items?fields=title,body')
+      .expect(200);
+    const byTitle = Object.fromEntries(
+      picked.body.items.map((item: { title: string }) => [item.title, item]),
+    );
+    expect(byTitle.Mine.body).toBe('my own text');
+    expect(byTitle.Theirs).not.toHaveProperty('body');
+    expect(byTitle.Theirs.id).toBe(theirs.body.id);
+
+    // The list's description says the same.
+    const described = await caller.agent.get('/v1/lists/TestItem').expect(200);
+    expect(described.body.search).toBe(false);
+    expect(
+      described.body.fields.find(
+        (field: { name: string }) => field.name === 'custom.grade',
+      ),
+    ).toMatchObject({ operators: [], sortable: false });
+    expect(described.body.select).toEqual(
+      expect.arrayContaining(['body', 'custom.grade']),
+    );
+
+    // The global search matches the title only: the hidden text's word finds nothing.
+    expect(
+      (await caller.agent.get('/v1/search?q=layoffquokka').expect(200)).body
+        .items,
+    ).toEqual([]);
+    expect(
+      (await node.admin().get('/v1/search?q=layoffquokka').expect(200)).body
+        .items,
+    ).toHaveLength(1);
+
+    // Whoever reads the field on every record they read filters by it as before.
+    const own = await node.user([
+      (
+        await node
+          .admin()
+          .post('/v1/access/roles')
+          .send({
+            name: `own-${randomUUID().slice(0, 8)}`,
+            permissions: [
+              {
+                subject: 'TestItem',
+                action: 'read',
+                conditions: [{ key: 'mine' }],
+              },
+            ],
+          })
+          .expect(201)
+      ).body.id,
+    ]);
+    await own.agent.get('/v1/test-items?q=layoffquokka').expect(200);
+    await own.agent.get('/v1/test-items?sort=custom.grade').expect(200);
+
+    // A sorted cursor holds the sort values sealed: no value, not even JSON.
+    const sorted = await node
+      .admin()
+      .get('/v1/test-items?sort=custom.grade,title&limit=1')
+      .expect(200);
+    const cursor = sorted.body.nextCursor as string;
+    expect(cursor).toEqual(expect.any(String));
+    expect(() =>
+      JSON.parse(Buffer.from(cursor, 'base64url').toString()),
+    ).toThrow();
+    for (const part of cursor.split('.')) {
+      expect(Buffer.from(part, 'base64url').toString('latin1')).not.toMatch(
+        /Mine|Theirs|"a"|"b"/,
+      );
+    }
+    const next = await node
+      .admin()
+      .get(
+        `/v1/test-items?sort=custom.grade,title&limit=1&cursor=${encodeURIComponent(cursor)}`,
+      )
+      .expect(200);
+    expect(next.body.items[0].id).not.toBe(sorted.body.items[0].id);
+    // Another sort, a changed cursor, a forged one: the invalid-cursor 400.
+    const changed = `${cursor.slice(0, -2)}${cursor.endsWith('AA') ? 'AB' : 'AA'}`;
+    for (const [sort, bad] of [
+      ['title', cursor],
+      ['custom.grade,title', changed],
+      [
+        'custom.grade,title',
+        Buffer.from(
+          JSON.stringify({
+            s: 'custom.grade,title',
+            v: ['a', 'Mine'],
+            id: randomUUID(),
+          }),
+        ).toString('base64url'),
+      ],
+    ]) {
+      const refused = await node
+        .admin()
+        .get(`/v1/test-items?sort=${sort}&cursor=${encodeURIComponent(bad)}`)
+        .expect(400);
+      expect(JSON.stringify(refused.body)).toContain(
+        'cursor is not the nextCursor of this list and sort',
+      );
+    }
+  });
+
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {
     const { id } = await node.user([]);
     const db = node.db;

@@ -33,27 +33,38 @@ export class ListsService {
    * The list as `principal` may use it. Custom fields are the request's
    * tenant's (CustomFieldsService reads them behind row-level security);
    * a field the principal may read on no record is left out, so the
-   * description shows nothing the list's items would hide.
+   * description shows nothing the list's items would hide; one it may
+   * read on some records only is neither filterable nor sortable (nor `q`
+   * when it reads one), only selectable.
    */
   async describe(principal: Principal, subject: string): Promise<ListMetadata> {
     const source = this.source(subject);
     const takesCustom = this.customFields.subjects().includes(subject);
-    const [list, definitions, denied, restore] = await Promise.all([
-      takesCustom
-        ? this.customFields.extendList(source.list, subject)
-        : source.list,
-      takesCustom ? this.customFields.definitions(subject) : [],
-      this.access.deniedFields(principal, 'read', subject),
-      source.list.options.softDelete
-        ? this.access.can(principal, 'restore', subject)
-        : false,
-    ]);
+    const [list, definitions, denied, conditional, restore] = await Promise.all(
+      [
+        takesCustom
+          ? this.customFields.extendList(source.list, subject)
+          : source.list,
+        takesCustom ? this.customFields.definitions(subject) : [],
+        this.access.deniedFields(principal, 'read', subject),
+        this.access.conditionalFields(principal, 'read', subject),
+        source.list.options.softDelete
+          ? this.access.can(principal, 'restore', subject)
+          : false,
+      ],
+    );
     const hiddenFields = new Set(denied);
+    const conditionalFields = new Set(conditional);
     // The list routes refuse the same names (AccessService.assertQueryFields).
     const hidden = (name: string) =>
       fieldsRead(list.fields, name).some((field) => hiddenFields.has(field));
+    const unmatchable = (name: string) =>
+      fieldsRead(list.fields, name).some((field) =>
+        conditionalFields.has(field),
+      );
     return listMetadata(subject, list, {
       hidden,
+      unmatchable,
       labels: new Map(definitions.map((field) => [field.key, field.label])),
       recycleBin: restore,
     });

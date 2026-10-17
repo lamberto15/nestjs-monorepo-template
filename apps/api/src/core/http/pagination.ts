@@ -32,8 +32,9 @@ export const MAX_LIMIT = 100;
  * it, so the lists that don't pay nothing.
  *
  * `?sort=-createdAt,title` orders by declared fields, then by id; the
- * cursor is then opaque (the last row's sort values and id, keyset: a
- * page costs the same however deep, and stays stable under inserts).
+ * cursor is then opaque (the last row's sort values and id, sealed for the
+ * sort by the server: list-sort.ts encodeCursor; keyset: a page costs the
+ * same however deep, and stays stable under inserts).
  *
  * `?page=3` pages by number instead (`limit` rows a page; `count=true`
  * adds `pageCount`), for screens that jump to a page. Its cost (the rows

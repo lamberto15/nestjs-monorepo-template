@@ -314,6 +314,7 @@ describe('the environment (env.ts)', () => {
         'ADMIN_PASSWORD',
         'AWS_SECRET_ACCESS_KEY',
         'AWS_SESSION_TOKEN',
+        'CURSOR_KEYS',
         'DATABASE_MAINTENANCE_URL',
         'DATABASE_OWNER_URL',
         'DATABASE_URL',

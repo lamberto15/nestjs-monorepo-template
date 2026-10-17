@@ -210,6 +210,11 @@ export const coreEnv = z.object({
   /** Off for the docs at /api in production. */
   OPENAPI: flag('on'),
   /**
+   * Seal sorted lists' cursors (`nextCursor`, core/http/cursor-seal.ts): keys
+   * newest first, comma-separated. Unset: created once, kept in the database.
+   */
+  CURSOR_KEYS: secret(optional()),
+  /**
    * Prometheus' bearer token for GET /metrics (at least 16 characters);
    * unset, /metrics answers 404.
    */

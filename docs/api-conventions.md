@@ -86,8 +86,10 @@ GET /v1/notes?limit=50&cursor=<nextCursor>     → the next page; nextCursor nul
 
 Newest first. Ids are UUIDv7 (time-ordered), so the cursor is the last id:
 no offsets, stable while rows are added. With a `sort`, the cursor is
-opaque (the last row's sort values and id: keyset pagination, as cheap on
-page 1,000 as on page 1); pass it back with the same `sort`, or it is a 400.
+opaque (the last row's sort values and id, encrypted and authenticated by
+the server with `CURSOR_KEYS`: keyset pagination, as cheap on page 1,000 as
+on page 1); pass it back unchanged with the same `sort`, or it is a 400.
+Clients can't read it: it may hold values of fields they can't see.
 
 Screens that jump to a page number ask by number instead:
 
@@ -246,7 +248,11 @@ repeating the declaration:
 - **Permissions:** for whoever may read the subject (the list route's
   permission), else 403; an unknown subject is a 404 (`not_found`). A field
   the caller may read on no record (field-level permissions) is left out of
-  `fields` and `select`, `custom.*` with `custom`.
+  `fields` and `select`, `custom.*` with `custom`. One they may read on
+  some records only (a grant with conditions) stays in `fields` with
+  `operators: []` and `sortable: false`, and in `select`; `search` is
+  false when `q` reads one. The list route refuses the same (403
+  `field_forbidden`).
 - Every feature has it: a generated record registers its list through
   `recordParts()`; a hand-written list adds `listSource('<Subject>', LIST)`
   to its module's providers (notes does; `platform/lists`).

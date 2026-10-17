@@ -23,7 +23,7 @@ Filling `.env` (each step is commented in `env.example`):
   endpoint secrets are stored unencrypted), and `BACKUP_S3_*` (unset, the
   backups stay on this host: [Backups and restore](#backups-and-restore)).
 - **Optional:** `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `STORAGE_SIGNING_KEYS`,
-  `IDEMPOTENCY_KEYS` and `EXAMPLE_SENDER_WEBHOOK_SECRET`: unset, the app
+  `IDEMPOTENCY_KEYS`, `CURSOR_KEYS` and `EXAMPLE_SENDER_WEBHOOK_SECRET`: unset, the app
   creates each on the first start and keeps it in the database
   ([configuration](configuration.md)). `ADMIN_PASSWORD`: unset, the first
   administrator's password is logged once.
@@ -151,7 +151,7 @@ reads.
 | `CLOUDFLARE_API_TOKEN_FILE` | Caddy (`caddy/entrypoint.sh`) | `CLOUDFLARE_API_TOKEN` |
 | `BACKUP_S3_SECRET_ACCESS_KEY_FILE` | the backup | `BACKUP_S3_SECRET_ACCESS_KEY` |
 | `SMTP_URL_FILE` | the app, and Alertmanager (its default `ALERT_SMTP_URL`) | `SMTP_URL` |
-| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate) | the variable without `_FILE` |
+| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate) | the variable without `_FILE` |
 
 Not in this list, so they stay variables in Compose:
 - `METRICS_TOKEN`: `compose.monitoring.yaml` gives Prometheus its secret from the variable.
