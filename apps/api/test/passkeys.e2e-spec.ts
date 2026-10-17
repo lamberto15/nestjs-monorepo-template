@@ -500,7 +500,7 @@ describe('passkeys (e2e)', () => {
   it('completes two-factor only with user verification', async () => {
     const me = await person();
     await register(me);
-    const recoveryCodes = await enableMfa(me);
+    let recoveryCodes = await enableMfa(me);
 
     const verified = request.agent(node.app.getHttpServer());
     const both = await passkeySignIn(
@@ -513,7 +513,11 @@ describe('passkeys (e2e)', () => {
       mfa: true,
     });
     // The verified session works where two-factor is required.
-    await verified.post('/v1/auth/mfa/recovery-codes').expect(200);
+    // (New recovery codes: the old ones stop working.)
+    const renewed = await verified
+      .post('/v1/auth/mfa/recovery-codes')
+      .expect(200);
+    recoveryCodes = renewed.body.recoveryCodes as string[];
 
     // Presence alone: the first factor; the code still goes to /mfa/verify.
     const present = request.agent(node.app.getHttpServer());
