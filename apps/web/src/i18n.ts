@@ -1,14 +1,32 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import ar from '@/locales/ar/common.json';
-import de from '@/locales/de/common.json';
-import en from '@/locales/en/common.json';
-import ms from '@/locales/ms/common.json';
-import zh from '@/locales/zh/common.json';
 
 // The API's locales (LOCALES in env.example).
 export const languages = ['en', 'de', 'ar', 'zh', 'ms'] as const;
 export type Language = (typeof languages)[number];
+
+// Every src/locales/<lng>/<ns>.json is the namespace <ns>. Eager: the app is
+// small and a namespace missing at first paint would flash keys. (i18next's
+// lazy way is a backend such as i18next-resources-to-backend; switch to it
+// when the texts outgrow the bundle.)
+const files = import.meta.glob<Record<string, unknown>>('@/locales/*/*.json', {
+  eager: true,
+  import: 'default',
+});
+
+/** `{ en: { common: {...}, nav: {...} }, de: ... }` from the glob. */
+export function resourcesFrom(
+  modules: Record<string, Record<string, unknown>>,
+) {
+  const resources: Record<string, Record<string, Record<string, unknown>>> = {};
+  for (const [path, texts] of Object.entries(modules)) {
+    const match = /\/locales\/([^/]+)\/([^/]+)\.json$/.exec(path);
+    if (match?.[1] && match[2]) {
+      (resources[match[1]] ??= {})[match[2]] = texts;
+    }
+  }
+  return resources;
+}
 
 const storageKey = 'language';
 
@@ -39,13 +57,7 @@ function applyToDocument(language: string) {
 
 export async function initI18n() {
   await i18n.use(initReactI18next).init({
-    resources: {
-      en: { common: en },
-      de: { common: de },
-      ar: { common: ar },
-      zh: { common: zh },
-      ms: { common: ms },
-    },
+    resources: resourcesFrom(files),
     lng: stored() ?? fromBrowser(),
     fallbackLng: 'en',
     supportedLngs: languages,
