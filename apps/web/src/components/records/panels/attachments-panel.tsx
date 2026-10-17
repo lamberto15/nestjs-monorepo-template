@@ -1,4 +1,7 @@
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import {
+  Button,
+  buttonVariants,
+} from '@nestjs-monorepo-template/ui/components/button';
 import {
   FileUpload,
   FileUploadDropzone,
@@ -175,20 +178,15 @@ function AttachmentRow(props: {
       <div className="flex shrink-0 gap-1">
         {/* The API answers with a redirect to a signed link (5 minutes) and
             names the file itself (Content-Disposition: attachment). */}
-        <Button
-          variant="outline"
-          size="sm"
-          render={
-            <a
-              href={downloadUrl(attachment.id)}
-              download={attachment.name}
-              aria-label={t('attachments.download', { name: attachment.name })}
-            />
-          }
+        <a
+          href={downloadUrl(attachment.id)}
+          download={attachment.name}
+          aria-label={t('attachments.download', { name: attachment.name })}
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
           <DownloadIcon />
           {t('attachments.downloadShort')}
-        </Button>
+        </a>
         {props.canRemove && !attachment.locked && (
           <ConfirmButton
             variant="ghost"
