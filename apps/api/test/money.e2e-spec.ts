@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { SystemContext } from '../src/iam/access/system-context.js';
@@ -60,7 +59,7 @@ describe('money and exchange rates (e2e)', () => {
 
   beforeAll(async () => {
     node = await bootApp();
-    db = node.app.get<Database>(getDrizzleToken());
+    db = node.db;
   });
   afterAll(async () => {
     await node.close();

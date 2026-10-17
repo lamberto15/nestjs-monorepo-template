@@ -1,23 +1,23 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { OutboxRelay } from '@nestjs/outbox';
 import { and, eq, sql } from 'drizzle-orm';
 import request from 'supertest';
-import type { Database } from '../src/core/database/drizzle.js';
 import { UsersRepository } from '../src/iam/auth/users.repository.js';
 import { AccountTransfer } from '../src/platform/account/account.transfer.js';
 import {
   auditLog,
+  memberships,
   passkeys,
   sessions,
   userIdentities,
   users,
 } from '../src/iam/iam.tables.js';
+import { notifications } from '../src/platform/notifications/notifications.tables.js';
 import {
   type SoftwareCredential,
   SoftwareAuthenticator,
 } from './software-authenticator.js';
-import { bootApp, newPassword, totp, type TestApp } from './support.js';
+import { bootApp, totp, type TestApp } from './support.js';
 
 // Read when AppModule loads: the web app's origin is trusted (CORS and the
 // package's login-CSRF check), and native apps are listed for the
@@ -51,7 +51,8 @@ interface Person {
 
 describe('passkeys (e2e)', () => {
   let node: TestApp;
-  const db = () => node.app.get<Database>(getDrizzleToken());
+  /** The database as the maintenance role: global tables, and audit entries of every tenant and none. */
+  const db = () => node.db;
 
   beforeEach(async () => {
     node = await bootApp();
@@ -70,17 +71,15 @@ describe('passkeys (e2e)', () => {
     return agent;
   }
 
-  /** A user with a password, signed in, with a software authenticator of their own. */
+  /**
+   * A member of the seeded tenant (invited, accepted: a proved address)
+   * with a password, signed in from the web app, with a software
+   * authenticator of their own.
+   */
   async function person(options: { synced?: boolean } = {}): Promise<Person> {
-    const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email, name: email, password, roleIds: [] })
-      .expect(201);
+    const { id, email, password } = await node.user([]);
     return {
-      id: created.body.id,
+      id,
       email,
       password,
       agent: await signIn(email, password),
@@ -228,13 +227,14 @@ describe('passkeys (e2e)', () => {
       (await me.agent.get('/v1/auth/passkeys').expect(200)).body.items,
     ).toHaveLength(1);
 
-    const actions = (
-      await db()
-        .select({ action: auditLog.action })
-        .from(auditLog)
-        .where(sql`${auditLog.action} like 'auth.passkey-%'`)
-        .orderBy(auditLog.id)
-    ).map((row) => row.action);
+    const entries = await db()
+      .select({ action: auditLog.action, tenantId: auditLog.tenantId })
+      .from(auditLog)
+      .where(sql`${auditLog.action} like 'auth.passkey-%'`)
+      .orderBy(auditLog.id);
+    // Account-level, like a sign-in: in no tenant's log.
+    expect(entries.every((entry) => entry.tenantId === null)).toBe(true);
+    const actions = entries.map((row) => row.action);
     expect(actions).toEqual([
       'auth.passkey-added',
       'auth.passkey-added',
@@ -252,6 +252,12 @@ describe('passkeys (e2e)', () => {
       'security.passkeyAdded',
       'security.passkeyRemoved',
     ]);
+    const stored = await db()
+      .select({ tenantId: notifications.tenantId })
+      .from(notifications)
+      .where(sql`${notifications.type} like 'security.passkey%'`);
+    expect(stored).toHaveLength(3);
+    expect(stored.every((row) => row.tenantId === null)).toBe(true);
   });
 
   it('registers only from a recent sign-in, with user verification, from the session and origin that asked', async () => {
@@ -351,6 +357,8 @@ describe('passkeys (e2e)', () => {
     const session = await current(browser);
     expect(session.method).toBe('passkey');
     const meNow = (await browser.get('/v1/auth/me').expect(200)).body;
+    // The session starts in the user's tenant, as a password sign-in's does.
+    expect(meNow.user.tenantId).toBe(node.tenantId);
     expect(meNow.authentication).toMatchObject({
       via: 'session',
       method: 'passkey',
@@ -669,6 +677,32 @@ describe('passkeys (e2e)', () => {
       via: 'token',
       method: 'passkey',
     });
+    // The tenant: the last chosen by default, or one named (the `tid` claim).
+    expect(meNow.body.user.tenantId).toBe(node.tenantId);
+    const named = await node
+      .http()
+      .post('/v1/auth/passkeys/token')
+      .set('X-Forwarded-For', ip())
+      .send({
+        response: me.device.get(await signInOptions({}, ip(), null)),
+        tenantId: node.tenantId,
+      })
+      .expect(200);
+    const claims = JSON.parse(
+      Buffer.from(named.body.accessToken.split('.')[1], 'base64url').toString(),
+    );
+    expect(claims).toMatchObject({ tid: node.tenantId, amr: ['pop'] });
+    // A tenant the user isn't a member of: the same 401 as a refused assertion.
+    const other = await node.otherTenant();
+    await node
+      .http()
+      .post('/v1/auth/passkeys/token')
+      .set('X-Forwarded-For', ip())
+      .send({
+        response: me.device.get(await signInOptions({}, ip(), null)),
+        tenantId: other.id,
+      })
+      .expect(401);
 
     const recoveryCodes = await enableMfa(me);
     const missing = await node
@@ -687,6 +721,93 @@ describe('passkeys (e2e)', () => {
         recoveryCode: recoveryCodes.pop(),
       })
       .expect(200);
+  });
+
+  it('signs in a user who belongs to no tenant (yet), with a session of no tenant', async () => {
+    const me = await person();
+    await register(me);
+    await db()
+      .update(memberships)
+      .set({ active: false })
+      .where(eq(memberships.userId, me.id));
+    const browser = request.agent(node.app.getHttpServer());
+    await passkeySignIn(me.device.get(await signInOptions()), browser).expect(
+      200,
+    );
+    const meNow = (await browser.get('/v1/auth/me').expect(200)).body;
+    expect(meNow.user.tenantId).toBeNull();
+    expect(meNow.authentication.method).toBe('passkey');
+    const tokens = await node
+      .http()
+      .post('/v1/auth/passkeys/token')
+      .set('X-Forwarded-For', ip())
+      .send({ response: me.device.get(await signInOptions({}, ip(), null)) })
+      .expect(200);
+    const claims = JSON.parse(
+      Buffer.from(
+        tokens.body.accessToken.split('.')[1],
+        'base64url',
+      ).toString(),
+    );
+    expect(claims).not.toHaveProperty('tid');
+  });
+
+  it('wants a proved address: verify first, for registering and signing in', async () => {
+    const me = await person();
+    await register(me);
+    // An address never proved (as a self sign-up's, which signs in by no
+    // method until it is): no passkey is registered, none signs in.
+    await db()
+      .update(users)
+      .set({ emailVerified: false })
+      .where(eq(users.id, me.id));
+    const refused = await me.agent
+      .post('/v1/auth/passkeys/registration/options')
+      .set('Origin', WEB)
+      .expect(403);
+    expect(refused.body.code).toBe('email_unverified');
+    const signIn = await passkeySignIn(
+      me.device.get(await signInOptions()),
+    ).expect(403);
+    expect(signIn.body.code).toBe('email_unverified');
+    const token = await node
+      .http()
+      .post('/v1/auth/passkeys/token')
+      .set('X-Forwarded-For', ip())
+      .send({ response: me.device.get(await signInOptions({}, ip(), null)) })
+      .expect(403);
+    expect(token.body.code).toBe('email_unverified');
+  });
+
+  it('shows and changes nothing of the account while an administrator acts as the user', async () => {
+    const me = await person();
+    const { id } = await register(me);
+    const admin = await node.signIn(
+      process.env.ADMIN_EMAIL!,
+      process.env.ADMIN_PASSWORD!,
+    );
+    await admin.post(`/v1/access/users/${me.id}/impersonate`).expect(204);
+    expect(
+      (await admin.get('/v1/auth/passkeys').expect(200)).body.items,
+    ).toEqual([]);
+    await admin
+      .post('/v1/auth/passkeys/registration/options')
+      .set('Origin', WEB)
+      .expect(403);
+    await admin
+      .patch(`/v1/auth/passkeys/${id}`)
+      .send({ name: 'Mine now' })
+      .expect(403);
+    await admin.delete(`/v1/auth/passkeys/${id}`).expect(403);
+    await admin
+      .post('/v1/auth/passkeys/reauthentication/options')
+      .set('Origin', WEB)
+      .expect(403);
+    const [row] = await db()
+      .select({ name: passkeys.name })
+      .from(passkeys)
+      .where(eq(passkeys.id, id));
+    expect(row.name).toBe('Laptop');
   });
 
   it('limits the public ceremonies per address, whatever email they name', async () => {

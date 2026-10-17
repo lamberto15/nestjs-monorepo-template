@@ -20,7 +20,10 @@ import { FILES_ROUTE } from './storage.config.js';
  * Serves the private disk's signed URLs when it's a local disk: the
  * signature in the query string is the credential (no session needed), it
  * names one key, one method and an expiry. With S3, the URLs point at the
- * bucket and this route answers 404.
+ * bucket and this route answers 404. Tenancy (docs/tenancy.md): a URL is
+ * issued only after the route that issues it checked the tenant (the
+ * attachment's row, the transfer's job), and a key is under its tenant's
+ * `tenants/<id>/` prefix, so a URL never reaches another tenant's file.
  */
 @ApiExcludeController()
 @Public()

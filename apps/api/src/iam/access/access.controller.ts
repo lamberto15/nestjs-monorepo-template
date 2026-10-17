@@ -20,7 +20,7 @@ import {
 import type { Response } from 'express';
 import { Can } from '@nestjs/authorization';
 import {
-  ApiBadRequestResponse,
+  ApiAcceptedResponse,
   ApiConflictResponse,
   ApiBearerAuth,
   ApiCookieAuth,
@@ -43,6 +43,7 @@ import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
 import { ImpersonationService } from '../account/impersonation.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessAdminService } from './access-admin.service.js';
+import { InvitationsService } from './invitations.service.js';
 import { ApiClientsService } from './api-clients.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import { AccessPolicy } from './policies.js';
@@ -73,13 +74,6 @@ const roleSchema = z.object({
   permissions: z.array(permissionSchema).max(100),
 });
 
-/** 12 to 128 characters, and not in known data breaches (BreachedPasswordsService, in the service). */
-const password = z.string().min(12).max(128);
-
-const breachedPasswordResponse = ApiBadRequestResponse({
-  description: '`password_breached`: the password is in known data breaches.',
-});
-
 /** When grants end, by role id: temporary access. Roles not listed never end. */
 const roleExpiresAt = z
   .record(z.uuid(), z.iso.datetime({ offset: true }))
@@ -88,14 +82,17 @@ const roleExpiresAt = z
     'When each grant ends, by role id (temporary access); the others never do.',
   );
 
-const createUserSchema = z.object({
+// Strict: a `password` (or `name` on a change) is refused, not ignored:
+// administrators never set another person's account (docs/tenancy.md).
+const createUserSchema = z.strictObject({
   email: z.email(),
-  name: z.string().trim().min(1).max(120),
-  password: password
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
     .optional()
-    .describe(
-      'Leave it out to invite the user: they get an email to choose one.',
-    ),
+    .describe('The name a new account starts with; its owner changes it.'),
   roleIds: z.array(z.uuid()).default([]),
   roleExpiresAt,
   orgUnitIds: z
@@ -104,13 +101,29 @@ const createUserSchema = z.object({
     .describe('The org units the user belongs to.'),
 });
 
-const updateUserSchema = z.object({
-  name: z.string().trim().min(1).max(120).optional(),
-  active: z.boolean().optional(),
+const updateUserSchema = z.strictObject({
+  active: z
+    .boolean()
+    .optional()
+    .describe('The membership in this tenant, not the account.'),
   roleIds: z.array(z.uuid()).optional(),
   roleExpiresAt,
   orgUnitIds: z.array(z.uuid()).optional(),
-  password: password.optional(),
+});
+
+const invitationSchema = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  expiresAt: z.iso.datetime(),
+});
+
+const pendingInvitationSchema = invitationSchema.extend({
+  name: z.string().nullable(),
+  roleIds: z.array(z.uuid()),
+  orgUnitIds: z.array(z.uuid()),
+  invitedBy: z.string(),
+  expired: z.boolean(),
+  createdAt: z.iso.datetime(),
 });
 
 const clientSchema = z.object({
@@ -220,6 +233,7 @@ export class AccessController {
     private readonly permissions: PermissionCatalog,
     private readonly audit: AuditService,
     private readonly impersonation: ImpersonationService,
+    private readonly invitationsService: InvitationsService,
   ) {}
 
   @Get('catalog')
@@ -307,21 +321,18 @@ export class AccessController {
 
   @Post('users')
   @Can(AccessPolicy, 'manageUsers')
-  // A password or roles make an account someone can sign in to with
-  // privileges at once (a stale stolen session must not); an invitation
-  // without either stays frequent administration.
+  // Roles are privileges (a stale stolen session must not hand them out);
+  // an invitation without any stays frequent administration.
   @RecentAuthentication({
-    when: ({ body }) =>
-      body?.password !== undefined ||
-      (Array.isArray(body?.roleIds) && body.roleIds.length > 0),
+    when: ({ body }) => Array.isArray(body?.roleIds) && body.roleIds.length > 0,
   })
+  @HttpCode(202)
   @ApiOperation({
-    summary: 'Create a user, or invite one',
+    summary: 'Invite someone to this tenant',
     description:
-      'Without a password, the user is emailed an invitation to choose one (WEB_URL/reset-password?token=…, valid an hour).',
+      "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
   })
-  @breachedPasswordResponse
-  @ApiConflictResponse({ description: 'A user with this email exists.' })
+  @ApiAcceptedResponse({ standardSchema: invitationSchema })
   createUser(
     @CurrentUser() user: UserPrincipal,
     @Body({ schema: createUserSchema })
@@ -333,22 +344,18 @@ export class AccessController {
 
   @Patch('users/:id')
   @Can(AccessPolicy, 'manageUsers')
-  // Setting someone's password takes their account; roles are privileges;
-  // reactivating one brings its sign-in back (deactivating isn't asked).
+  // Roles are privileges; reactivating a membership brings its access back
+  // (deactivating isn't asked).
   @RecentAuthentication({
-    when: ({ body }) =>
-      body?.password !== undefined ||
-      body?.roleIds !== undefined ||
-      body?.active === true,
+    when: ({ body }) => body?.roleIds !== undefined || body?.active === true,
   })
   @HttpCode(204)
   @ApiOperation({
-    summary: 'Change a user; only what is sent changes',
+    summary: "Change a member's membership; only what is sent changes",
     description:
-      'A new password or a deactivation signs them out everywhere. The last active administrator stays.',
+      "Its activation, roles and org units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
   })
   @ApiNoContentResponse()
-  @breachedPasswordResponse
   @ApiNotFoundResponse()
   @ApiConflictResponse({
     description: 'Deactivating yourself, or removing the last administrator.',
@@ -361,6 +368,28 @@ export class AccessController {
     @Ip() ip: string,
   ) {
     await this.admin.updateUser(user, id, body, ip);
+  }
+
+  @Get('invitations')
+  @Can(AccessPolicy, 'manageUsers')
+  @ApiOperation({ summary: "This tenant's invitations not accepted yet" })
+  @ApiOkResponse({ standardSchema: listSchema(pendingInvitationSchema) })
+  async invitations() {
+    return { items: await this.invitationsService.pending() };
+  }
+
+  @Delete('invitations/:id')
+  @Can(AccessPolicy, 'manageUsers')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Withdraw an invitation: its link stops working' })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse()
+  async revokeInvitation(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Ip() ip: string,
+  ) {
+    await this.invitationsService.revoke(user, id, ip);
   }
 
   /**

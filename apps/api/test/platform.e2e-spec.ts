@@ -30,7 +30,8 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     expect(me).toEqual({
       kind: 'client',
       id: client.id,
-      rooms: [`principal:client:${client.id}`],
+      tenantId: node.tenantId,
+      rooms: [`tenant:${node.tenantId}:principal:client:${client.id}`],
     });
 
     const { port } = node.app.getHttpServer().address() as AddressInfo;
@@ -55,7 +56,9 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       const socket = await connect(node, client.key);
       sockets.push(socket);
       const me = await socket.emitWithAck('whoami');
-      expect(me.rooms).toEqual([`principal:client:${client.id}`]);
+      expect(me.rooms).toEqual([
+        `tenant:${node.tenantId}:principal:client:${client.id}`,
+      ]);
     }
   });
 

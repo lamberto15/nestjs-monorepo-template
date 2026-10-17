@@ -4,9 +4,10 @@ import {
   type WorkflowContext,
   type WorkflowRunner,
 } from '@nestjs/workflows';
+import { inTenantOf } from '../../core/tenancy/tenant-job.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { SettingsService } from '../../platform/settings/settings.service.js';
-import { publishNow } from './note-events.js';
+import { type NotePublicationInput, publishNow } from './note-events.js';
 import { NOTE_PUBLICATION_JOB } from './note.policy.js';
 import { NotePublisher } from './note-publisher.service.js';
 import { NOTE_PUBLISH_DELAY } from './note-settings.js';
@@ -18,11 +19,12 @@ export const publicationId = (noteId: string) => `note-${noteId}`;
  * The example durable workflow: wait for the delay or a "publish now" signal,
  * whichever comes first, then publish. It survives restarts and deploys: the
  * timer and the signal are in the database, and each step runs once.
- * Its steps act as the system principal (`system:note-publication`).
+ * Its steps act as the system principal (`system:note-publication`), in
+ * the note's tenant (the input's `tenantId`, docs/tenancy.md).
  */
 @Workflow('note-publication', { timeout: '30d' })
 export class NotePublicationWorkflow implements WorkflowRunner<
-  string,
+  NotePublicationInput,
   { published: boolean; trigger: string }
 > {
   constructor(
@@ -31,12 +33,14 @@ export class NotePublicationWorkflow implements WorkflowRunner<
     private readonly system: SystemContext,
   ) {}
 
-  async run(ctx: WorkflowContext, noteId: string) {
+  async run(ctx: WorkflowContext, input: NotePublicationInput) {
+    const { noteId, tenantId } = input;
     ctx.setStatus('waiting');
     // The delay is a setting (changed at runtime, PUT /settings/notes.publishDelay);
     // read in a step, so a replay sees the value this instance started with.
+    // The tenant's value: the step runs in the note's tenant.
     const delay = await ctx.step('delay', () =>
-      this.settings.get(NOTE_PUBLISH_DELAY),
+      inTenantOf(input, () => this.settings.get(NOTE_PUBLISH_DELAY)),
     );
     const trigger = await ctx.waitForAny('await-publication', {
       delay: ctx.timer(delay as Duration),
@@ -49,7 +53,7 @@ export class NotePublicationWorkflow implements WorkflowRunner<
       this.system.run(
         NOTE_PUBLICATION_JOB,
         () => this.publisher.requestApproval(noteId, idempotencyKey),
-        { transaction: false },
+        { transaction: false, tenantId },
       ),
     );
     if (approval !== 'not-needed') {
@@ -60,7 +64,7 @@ export class NotePublicationWorkflow implements WorkflowRunner<
       this.system.run(
         NOTE_PUBLICATION_JOB,
         (system) => this.publisher.publish(noteId, system),
-        { transaction: false },
+        { transaction: false, tenantId },
       ),
     );
     ctx.setStatus(published ? 'published' : 'gone');

@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq, sql } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { AccountService } from '../src/iam/account/account.service.js';
 import { PasskeysService } from '../src/iam/account/passkeys.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
@@ -12,7 +10,7 @@ import {
   users,
 } from '../src/iam/iam.tables.js';
 import { SoftwareAuthenticator } from './software-authenticator.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 /**
  * The rules that keep one account from gaining rights through another:
@@ -49,10 +47,10 @@ describe('security (e2e)', () => {
   it('lets nobody act on an account that holds more than they do', async () => {
     const support = await node.user([await role(['Access', 'manageUsers'])]);
     const admin = await adminId();
-    // Not the administrator's password, nor their activation…
+    // Not the administrator's roles, nor their activation…
     const refused = await support.agent
       .patch(`/v1/access/users/${admin}`)
-      .send({ password: newPassword() })
+      .send({ roleIds: [] })
       .expect(403);
     expect(refused.body.code).toBe('authority_required');
     await support.agent
@@ -198,7 +196,7 @@ describe('security (e2e)', () => {
 
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {
     const { id } = await node.user([]);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db.update(users).set({ passwordHash: null }).where(eq(users.id, id));
     await db.insert(userIdentities).values([
       { provider: 'google', subject: `g-${id}`, userId: id },
@@ -227,7 +225,7 @@ describe('security (e2e)', () => {
 
   it('never removes the last way to sign in when a passkey and a provider go at once', async () => {
     const { id } = await node.user([]);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db.update(users).set({ passwordHash: null }).where(eq(users.id, id));
     await db
       .insert(userIdentities)
@@ -313,7 +311,7 @@ describe('security (e2e)', () => {
     // js/type-confusion-through-parameter-tampering). Linking from a stale
     // session is the flow that reads `redirectTo`, to send the browser back.
     const me = await node.user(['editor']);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const current = (
       (await me.agent.get('/v1/auth/sessions').expect(200)).body.items as {
         id: string;

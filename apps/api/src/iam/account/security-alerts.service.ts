@@ -1,3 +1,4 @@
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
   Inject,
   Injectable,
@@ -67,6 +68,7 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly audit: AuditService,
     private readonly users: UsersRepository,
+    private readonly tenancy: Tenancy,
     events: AuthenticationEvents,
     @Optional()
     @Inject(IAM_NOTIFIER)
@@ -113,52 +115,58 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     const device = deviceOf(context.userAgent, context.ip);
     const actor = principalKey(user);
     const since = new Date(Date.now() - KNOWN_DEVICE_DAYS * 86_400_000);
-    const told = await inTransaction(this.txHost, async (tx) => {
-      const [before] = await tx
-        .select({ id: auditLog.id })
-        .from(auditLog)
-        .where(signInsOf(actor))
-        .limit(1);
-      const [known] = before
-        ? await tx
-            .select({ id: auditLog.id })
-            .from(auditLog)
-            .where(
-              and(
-                signInsOf(actor),
-                gt(auditLog.at, since),
-                sql`${auditLog.details}->>'device' = ${device.hash}`,
-              ),
-            )
-            .limit(1)
-        : [];
-      await this.audit.record(
-        user,
-        {
-          action: 'auth.signed-in',
-          ip: device.ip,
-          details: {
-            device: device.hash,
-            userAgent: device.summary,
-            method: context.method,
-            ...(context.via && { via: context.via }),
-            ...context.details,
+    // The account's own, in no tenant (docs/tenancy.md): a sign-in is to
+    // the person, whichever tenant the session lands in, so its entry and
+    // the new-device lookup read the account's rows of every sign-in, and
+    // no tenant's administrator reads another person's sign-ins.
+    const told = await this.tenancy.none(() =>
+      inTransaction(this.txHost, async (tx) => {
+        const [before] = await tx
+          .select({ id: auditLog.id })
+          .from(auditLog)
+          .where(signInsOf(actor))
+          .limit(1);
+        const [known] = before
+          ? await tx
+              .select({ id: auditLog.id })
+              .from(auditLog)
+              .where(
+                and(
+                  signInsOf(actor),
+                  gt(auditLog.at, since),
+                  sql`${auditLog.details}->>'device' = ${device.hash}`,
+                ),
+              )
+              .limit(1)
+          : [];
+        await this.audit.record(
+          user,
+          {
+            action: 'auth.signed-in',
+            ip: device.ip,
+            details: {
+              device: device.hash,
+              userAgent: device.summary,
+              method: context.method,
+              ...(context.via && { via: context.via }),
+              ...context.details,
+            },
           },
-        },
-        tx,
-      );
-      if (!before || known) {
-        return false; // the first sign-in ever, or a known device
-      }
-      return this.alert(tx, 'security.newSignIn', actor, {
-        data: {
-          device: device.summary,
-          ip: device.ip,
-          at: new Date().toISOString(),
-        },
-        key: `security.newSignIn:${device.hash}`,
-      });
-    });
+          tx,
+        );
+        if (!before || known) {
+          return false; // the first sign-in ever, or a known device
+        }
+        return this.alert(tx, 'security.newSignIn', actor, {
+          data: {
+            device: device.summary,
+            ip: device.ip,
+            at: new Date().toISOString(),
+          },
+          key: `security.newSignIn:${device.hash}`,
+        });
+      }),
+    );
     if (told) {
       this.deliverNow();
     }

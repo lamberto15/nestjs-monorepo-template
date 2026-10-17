@@ -2,6 +2,7 @@ import { createHmac, hkdfSync, randomBytes } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -36,18 +37,21 @@ import {
   type Database,
   loadOrCreateSecret,
 } from '../../core/database/drizzle.js';
+import type { Transaction } from '../../core/database/drizzle.js';
 import {
   database,
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
 import { REDIS } from '../../core/redis/redis.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { signInOptions, tokenClaims } from '../auth/authentication-method.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import type { IamEnv } from '../iam.env.js';
 import { passkeys, users } from '../iam.tables.js';
+import { verifiedEmailOnly } from './account.schemas.js';
 import type { PasskeyView } from './passkey.schemas.js';
 import { type PasskeySettings, passkeySettingsOf } from './passkeys.config.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
@@ -197,6 +201,7 @@ export class PasskeysService {
     private readonly signInService: SignInService,
     private readonly sessions: SessionService,
     private readonly tokens: TokenService,
+    private readonly tenancy: Tenancy,
     config: ConfigService<IamEnv & CoreEnv, true>,
   ) {
     this.settings = passkeySettingsOf(config);
@@ -247,6 +252,8 @@ export class PasskeysService {
     binding: CeremonyBinding,
   ): Promise<PublicKeyCredentialCreationOptionsJSON> {
     this.assertEnabled();
+    // Verify first: a passkey is a way in, as a second factor or a provider is.
+    verifiedEmailOnly(user);
     const existing = await this.descriptors(user.id);
     if (existing.length >= MAX_PASSKEYS) {
       throw tooMany();
@@ -288,6 +295,7 @@ export class PasskeysService {
     ip: string,
   ): Promise<PasskeyView> {
     this.assertEnabled();
+    verifiedEmailOnly(user);
     const refused = (reason: string, cause?: unknown) => {
       this.logger.debug(`registration refused: ${reason}`, {
         cause: cause instanceof Error ? cause.message : undefined,
@@ -337,7 +345,7 @@ export class PasskeysService {
     }
     const { credential, credentialDeviceType, credentialBackedUp, aaguid } =
       verification.registrationInfo;
-    const row = await inTransaction(this.txHost, async (tx) => {
+    const row = await this.accountLevel(async (tx) => {
       // The account row locked: two registrations at once count one after the other.
       await tx
         .select({ id: users.id })
@@ -394,7 +402,7 @@ export class PasskeysService {
 
   /** A new name; 404 for another user's passkey. Audited. */
   async rename(user: UserPrincipal, id: string, name: string) {
-    return inTransaction(this.txHost, async (tx) => {
+    return this.accountLevel(async (tx) => {
       const [row] = await tx
         .update(passkeys)
         .set({ name })
@@ -423,7 +431,7 @@ export class PasskeysService {
    * audit entry and the owner's notification go in the same transaction.
    */
   async remove(user: UserPrincipal, id: string, ip: string) {
-    await inTransaction(this.txHost, async (tx) => {
+    await this.accountLevel(async (tx) => {
       const [found] = await tx
         .select({ id: passkeys.id, name: passkeys.name })
         .from(passkeys)
@@ -532,6 +540,7 @@ export class PasskeysService {
       { origin: context.origin },
       context.ip,
     );
+    assertVerified(user);
     let issued: IssuedSession = await this.signInService.signIn(
       user.id,
       signInOptions('passkey'),
@@ -575,6 +584,7 @@ export class PasskeysService {
     response: AuthenticationResponseJSON,
     secondFactor: { code?: string; recoveryCode?: string },
     context: SignInContext,
+    tenantId?: string,
   ) {
     this.assertEnabled();
     const { user, passkey, userVerified } = await this.assertOrRefuse(
@@ -582,9 +592,23 @@ export class PasskeysService {
       { origin: context.origin },
       context.ip,
     );
+    assertVerified(user);
+    // As the password's token sign-in (AccountService.issueTokens): the
+    // tenant asked for when the user is a member (else the same 401 as a
+    // refused assertion: nothing about tenants is told before a sign-in),
+    // else the last chosen; none for a user without a tenant.
+    const tenant =
+      tenantId === undefined
+        ? await this.users.defaultTenant(user.id)
+        : (await this.users.isMember(user.id, tenantId))
+          ? tenantId
+          : null;
+    if (tenantId !== undefined && !tenant) {
+      throw new UnauthorizedException(t('auth.passkeyInvalid'));
+    }
     const tokens = await this.tokens.issue(user.id, {
       method: 'passkey',
-      claims: tokenClaims(['pop']),
+      claims: tokenClaims(['pop'], new Date(), tenant),
       secondFactor,
     });
     await this.securityAlerts.signedIn(user, {
@@ -769,6 +793,16 @@ export class PasskeysService {
     return new PasskeyAssertionError('counter', cause);
   }
 
+  /**
+   * A transaction outside any tenant: passkeys are the person's, not a
+   * tenant's (docs/tenancy.md), so their audit entries and the owner's
+   * notifications are account-level, like a sign-in's, whichever tenant
+   * the session is in.
+   */
+  private accountLevel<T>(work: (tx: Transaction) => Promise<T>) {
+    return this.tenancy.none(() => inTransaction(this.txHost, work));
+  }
+
   // Challenges
 
   private async requestOptions(
@@ -918,6 +952,21 @@ const DECOY_TRANSPORTS: AuthenticatorTransportFuture[][] = [
   ['hybrid', 'internal'],
   ['nfc', 'usb'],
 ];
+
+/**
+ * Verify first (docs/auth.md, "Sign-up"): an account whose address was never proved
+ * (a self sign-up) signs in by no method; its password is refused the
+ * same way (CredentialsService). Registration already wants a verified
+ * address, so this holds even if one changed.
+ */
+function assertVerified(user: UserPrincipal) {
+  if (!user.emailVerified) {
+    throw new ForbiddenException({
+      code: 'email_unverified',
+      message: t('auth.emailUnverified'),
+    });
+  }
+}
 
 const tooMany = () =>
   new ConflictException({

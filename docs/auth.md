@@ -22,13 +22,39 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
 | Passkeys | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
-| Mobile apps | `POST /v1/auth/token`, `/token/refresh`, `/token/revoke` |
+| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh`, `/token/revoke` |
+| Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
 
 - **Email links** open pages of the web app (`WEB_URL/reset-password`,
   `/verify-email`, `/magic-link`) that POST the token back: mail scanners
   follow GET links. Links are single-use and short-lived.
-- **Invitations:** an administrator creates a user without a password
-  (`POST /v1/access/users`); the user gets an email to choose one.
+- **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
+  one account per address, in every tenant it belongs to; a session acts in
+  one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
+  tenant's administrators manage its memberships (`PATCH` deactivates the
+  membership, never the account) and never set or change anyone's password
+  or name.
+- **Invitations (invite-only):** `POST /v1/access/users` (202) mails the
+  address a link (`WEB_URL/accept-invitation`); nothing about an account is
+  read, changed or returned until its owner accepts at
+  `POST /v1/auth/invitations/accept`: a new address chooses its password
+  there, an existing account accepts signed in as itself
+  ([tenancy](tenancy.md), "Accounts and sessions").
+- **A proved address** (`emailVerified`) is wanted to link a provider or
+  enrol two-factor (403 `email_unverified`).
+- **Sign-up: verify first** (`AUTH_SIGN_UP=on`). `POST /v1/auth/sign-up` makes
+  the account and mails a verification link; it makes no session. Its
+  password signs in (session or token) only once the address is proved:
+  before, the right password gets 403 `email_unverified` (a wrong one the
+  usual 401). Proving it takes the link **and** that password
+  (`POST /v1/auth/email/verify { token, password }`; without it 400
+  `password_required`, a wrong one 403, the link usable again either way):
+  the link proves the mailbox, not who chose the password, so whoever signed
+  up someone else's address can't have its owner verify it for them and
+  sign in as the owner. The owner of such an address uses
+  "forgot password" instead: the reset link proves the address and replaces
+  the password. A provider sign-in that asserts the address is verified
+  already; invitations prove it with their link.
 - **Account linking** by verified email only, or from a signed-in session
   (`?link=true`): never by an unverified address.
 - **Two-factor** secrets are encrypted at rest (`MFA_ENCRYPTION_KEYS`); a code
@@ -45,9 +71,9 @@ NIST SP 800-63B: length, no composition rules, and no password from a
 breach corpus. Every place a password is **set** checks it against Have I
 Been Pwned's [Pwned Passwords](https://haveibeenpwned.com/API/v3#PwnedPasswords)
 (`BreachedPasswordsService`, `iam/account/breached-passwords.service.ts`):
-sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
-`POST /v1/auth/password/change`, and an administrator's
-`POST /v1/access/users` and `PATCH /v1/access/users/{id}`.
+sign-up, a reset link (`POST /v1/auth/password/reset`), an invitation's
+acceptance (`POST /v1/auth/invitations/accept`) and
+`POST /v1/auth/password/change`. Administrators set no passwords.
 
 - **k-anonymity:** the password's SHA-1 is computed here; only its first 5
   hex characters go to `GET <PASSWORD_BREACH_API_URL>/range/{prefix}`, with
@@ -97,13 +123,14 @@ sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
 | Need | Route |
 | --- | --- |
 | A pending deletion, what you agreed to | `GET /v1/account` |
-| A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`) |
+| A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's) |
 | Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels |
 | Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }`, `GET /v1/account/consents` (the latest of each kind; kept as proof) |
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
 placeholder address and name, no password, sign-in methods, sessions,
-tokens, roles or units; its notifications, preferences and settings go;
+tokens, memberships (with their roles and units); its notifications,
+preferences and settings go;
 its audit entries keep the actor key, labelled "Deleted user". Records
 the person created stay, owned by an account that is nobody's. A feature
 holding personal data registers a `PersonalDataSource` (`rows()` for the
@@ -111,6 +138,20 @@ export, `erase()` for what must go with the person; `note.transfer.ts`).
 All of it is audited (`account.deletion-requested`, `-cancelled`,
 `account.deleted`, `account.consented`); `account.deleted` is the job's,
 the system principal `system:account-deletion`. Never while impersonating.
+
+**Across tenants** ([tenancy](tenancy.md)): the account is the person's,
+not a tenant's. Its entries above are account-level (no tenant: no
+tenant's administrator reads them), whichever tenant the session is in.
+The export (queued in no tenant, so an account with none has one too,
+filed under `accounts/<user id>/`) reads each tenant the person belongs to
+in that tenant's scope: everything it holds about them for an active
+membership, only what is personal (the membership, audit entries
+about them) for a tenant they left, never its business records. Account
+data (`GET /v1/account`, consents, notification preferences, the
+account's own notifications) stays hidden while impersonating. The deletion erases their data in
+each of those tenants (`PersonalDataSource.erase` per tenant, one
+transaction each), then anonymizes the account outside any tenant. A run
+cut short leaves the request open, and the next night finishes it.
 
 ## Step-up (recent authentication)
 
@@ -222,8 +263,8 @@ with the password (and with a token client's passkey).
 | `POST /v1/account/deletion` | irreversible after the grace period. The password stays required too (when the account has one): within the window a stolen session can enrol its own authenticator, and re-authenticating with that must not be enough to lock the owner out of "sign in and cancel". Passwordless accounts: step-up alone |
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
 | `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
-| `POST /v1/access/users`, only with `password` or non-empty `roleIds` | a stale stolen administrator session must not create an account it can sign in to with privileges (an invitation without either isn't asked) |
-| `PATCH /v1/access/users/{id}`, only with `password`, `roleIds` or `active: true` | setting someone's password takes their account; roles are privileges; reactivating brings their sign-in back (a name change, a deactivation aren't asked) |
+| `POST /v1/access/users`, only with non-empty `roleIds` | an invitation with privileges (one without roles isn't asked) |
+| `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
 
 Not protected, on purpose: signing out (sessions, everywhere), data export
@@ -352,7 +393,8 @@ WebAuthn credentials (`@simplewebauthn/server`; `@nestjs/authentication`
 has no WebAuthn), several per account, each named by its owner. On by
 default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 `iam/account/passkeys.service.ts`, `passkeys.controller.ts`; the table
-`passkeys` (a user's, not a tenant's: users are global).
+`passkeys` is global (a user's, not a tenant's: users are global; no
+`tenant_id`, no row-level security, [tenancy.md](tenancy.md)).
 
 | Need | Route |
 | --- | --- |
@@ -360,7 +402,7 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 | Register one | `POST /v1/auth/passkeys/registration/options` → `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`) → `POST /v1/auth/passkeys { name, response }`; both want a recent sign-in ([step-up](#step-up-recent-authentication)) |
 | Rename, remove | `PATCH /v1/auth/passkeys/{id} { name }`, `DELETE /v1/auth/passkeys/{id}` (step-up; not the last way to sign in) |
 | Sign in (browser) | `POST /v1/auth/passkeys/sign-in/options { email? }` → `navigator.credentials.get()` → `POST /v1/auth/passkeys/sign-in { response }` (the session cookie) |
-| Sign in (app) | the same options → `POST /v1/auth/passkeys/token { response, code? }` (tokens) |
+| Sign in (app) | the same options → `POST /v1/auth/passkeys/token { response, code?, tenantId? }` (tokens) |
 | Re-authenticate | `POST /v1/auth/passkeys/reauthentication/options` → `POST /v1/auth/reauthenticate { passkey }` |
 
 - **The relying party** is configuration ([configuration.md](configuration.md)):
@@ -391,6 +433,16 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   with two-factor on sends a code with its passkey: the package's
   `TokenService.issue()` takes no passkey as a second factor (it keeps the
   `amr` values meaning one for itself); its tokens carry `amr: ["pop"]`.
+- **Tenants.** A passkey sign-in starts its session as a password's does:
+  in the last chosen tenant, else the oldest membership
+  (`metadata.tenantId`, set by the store), or none for a user without a
+  tenant (who still signs in). The token route takes `tenantId` like
+  `POST /v1/auth/token`: a tenant the user isn't a member of is the same
+  401 as a refused assertion; the tokens carry it as `tid`.
+- **Verify first.** An account whose address was never proved (a self
+  sign-up) can't register a passkey (403 `email_unverified`, as for
+  two-factor and providers), and a passkey never signs it in (403
+  `email_unverified` after the assertion, as its password is refused).
 - **The session** records `method: passkey` (via `signInOptions('passkey')`);
   the sign-in is audited (`auth.signed-in`, with the passkey's id and
   `userVerified`) and a new device is told as for any sign-in. A refused
@@ -435,10 +487,16 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   so two removals at once can't both pass).
 - **Audited and told:** `auth.passkey-added`, `auth.passkey-renamed`,
   `auth.passkey-removed`; the owner gets `security.passkeyAdded` and
-  `security.passkeyRemoved` (mandatory). Never while impersonating.
-- **Your data:** passkeys are in the data export (kind `passkey`: name,
-  credential id, device type, dates; not the public key) and erased with
-  the account (`UsersRepository.anonymize`).
+  `security.passkeyRemoved` (mandatory). All account-level (no tenant,
+  like a sign-in's): in no tenant's `GET /v1/access/audit`, and the
+  notifications are the person's in every tenant.
+- **While impersonating:** the list is empty (account-level data, as the
+  sessions list shows only the impersonation's own), and registering,
+  renaming, removing and re-authenticating are refused (403).
+- **Your data:** passkeys are in the account-level part of the data export
+  (`accounts/<user id>/`; kind `passkey`: name, credential id, device type,
+  dates; not the public key) and erased with the account
+  (`UsersRepository.anonymize`).
 - **Native apps** use the passkeys of the RP ID when the operating system
   finds the app listed on the RP ID's host: `GET /.well-known/assetlinks.json`
   (Android Digital Asset Links, from `PASSKEY_ANDROID_APPS`:
@@ -597,6 +655,10 @@ manual try against Cloudflare, Turnstile's documented test keys (its docs,
 
 ## Impersonation (support)
 
+Within one tenant ([tenancy](tenancy.md)): the administrator's current
+tenant, whose member the user must be; the impersonation session stays in
+it (no switching, no profile change) and ends when either membership does.
+
 `POST /v1/access/users/{id}/impersonate` (the `Access.impersonate`
 permission, a session) replaces the administrator's session with the user's
 for `IMPERSONATION_TTL_MINUTES`. Everything done meanwhile is audited as
@@ -611,6 +673,7 @@ back, with their own sign-in's method and time.
 
 ## API clients
 
+Each belongs to one tenant and acts in it alone ([tenancy](tenancy.md)).
 Systems call the API with keys (`sk_<id>_<secret>`; only the SHA-256 is
 stored). `POST /v1/access/clients` (the key is shown once),
 `POST /v1/access/clients/{id}/rotate { graceSeconds }` (the old key keeps

@@ -327,6 +327,7 @@ export class ReauthenticationService {
       try {
         tokens = await this.tokens.issue(user.id, {
           method,
+          // The same tenant: a re-authentication doesn't switch.
           claims: tokenClaims(
             method === 'passkey'
               ? ['pop']
@@ -334,6 +335,7 @@ export class ReauthenticationService {
                 ? ['pwd']
                 : [],
             now,
+            user.tenantId,
           ),
           secondFactor,
         });

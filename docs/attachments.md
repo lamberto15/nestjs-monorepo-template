@@ -30,7 +30,10 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
 
 - **Uploads** stream onto the private disk (`StorageDisk`, as imports do:
   `uploadToDisk()`), never into memory, after the caller's right to the
-  record is checked: a refused request stores nothing. The row and its
+  record is checked: a refused request stores nothing. Keys are under the
+  uploader's tenant, `tenants/<id>/attachments/…` ([tenancy](tenancy.md)):
+  a tenant's files are one prefix, and an attachment row only takes a file
+  of its own tenant. The nightly sweep walks the tenants one at a time. The row and its
   audit entry (`attachment.added`, `attachment.removed`) commit together;
   a failed write deletes the file.
 - **Types** come from the bytes, never from the client: images and PDF by

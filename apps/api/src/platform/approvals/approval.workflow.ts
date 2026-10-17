@@ -12,6 +12,7 @@ import {
   type ApprovalPlan,
 } from './approval-engine.service.js';
 import {
+  type ApprovalWorkflowInput,
   requestCancelled,
   requestResubmitted,
   stageDecided,
@@ -57,7 +58,7 @@ const isEnding = (answer: string): answer is Ending =>
  */
 @Workflow('approval')
 export class ApprovalWorkflow implements WorkflowRunner<
-  { requestId: string },
+  ApprovalWorkflowInput,
   { status: Ending | 'gone' }
 > {
   constructor(
@@ -66,20 +67,24 @@ export class ApprovalWorkflow implements WorkflowRunner<
   ) {}
 
   /**
-   * A step's work as the system principal (`system:approvals`): the actor
+   * A step's work as the system principal (`system:approvals`), in the
+   * request's tenant (the input's `tenantId`, docs/tenancy.md): the actor
    * of what the engine records, and of the outcome handlers. The engine
    * opens its own transactions.
    */
-  private asSystem<T>(work: () => Promise<T>): Promise<T> {
-    return this.system.run(APPROVALS_JOB, work, { transaction: false });
+  private asSystem<T>(tenantId: string, work: () => Promise<T>): Promise<T> {
+    return this.system.run(APPROVALS_JOB, work, {
+      transaction: false,
+      tenantId,
+    });
   }
 
   async run(
     ctx: WorkflowContext,
-    { requestId }: { requestId: string },
+    { requestId, tenantId }: ApprovalWorkflowInput,
   ): Promise<{ status: Ending | 'gone' }> {
     const plan = await ctx.step('plan', () =>
-      this.asSystem(() => this.engine.plan(requestId)),
+      this.asSystem(tenantId, () => this.engine.plan(requestId)),
     );
     if (!plan) {
       return { status: 'gone' }; // purged with its record
@@ -89,7 +94,9 @@ export class ApprovalWorkflow implements WorkflowRunner<
       for (let stage = 0; stage < plan.stages.length; stage++) {
         ctx.setStatus({ round, stage });
         const started = await ctx.step(`start-${round}-${stage}`, () =>
-          this.asSystem(() => this.engine.startStage(requestId, round, stage)),
+          this.asSystem(tenantId, () =>
+            this.engine.startStage(requestId, round, stage),
+          ),
         );
         if (started === 'gone' || isEnding(started)) {
           ending = started;
@@ -97,6 +104,7 @@ export class ApprovalWorkflow implements WorkflowRunner<
         }
         const outcome = await this.stage(
           ctx,
+          tenantId,
           requestId,
           round,
           stage,
@@ -112,12 +120,24 @@ export class ApprovalWorkflow implements WorkflowRunner<
       }
       const status = ending;
       ctx.setStatus({ round, ending: status });
-      const concluded = await this.conclude(ctx, requestId, round, status);
+      const concluded = await this.conclude(
+        ctx,
+        tenantId,
+        requestId,
+        round,
+        status,
+      );
       if (concluded !== 'changes_requested') {
         return { status: concluded };
       }
       // Back to the requester: they resubmit (a new round), cancel, or let it expire.
-      const next = await this.resubmission(ctx, requestId, round, plan);
+      const next = await this.resubmission(
+        ctx,
+        tenantId,
+        requestId,
+        round,
+        plan,
+      );
       if (next === 'gone') {
         return { status: 'gone' };
       }
@@ -125,7 +145,7 @@ export class ApprovalWorkflow implements WorkflowRunner<
         const final = await ctx.step(
           `conclude-${round}-${next}`,
           ({ idempotencyKey }) =>
-            this.asSystem(() =>
+            this.asSystem(tenantId, () =>
               this.engine.conclude(requestId, next, idempotencyKey, round),
             ),
           { retry: APPLY_RETRY },
@@ -142,6 +162,7 @@ export class ApprovalWorkflow implements WorkflowRunner<
    */
   private async conclude(
     ctx: WorkflowContext,
+    tenantId: string,
     requestId: string,
     round: number,
     status: Ending,
@@ -150,7 +171,7 @@ export class ApprovalWorkflow implements WorkflowRunner<
       return await ctx.step(
         `conclude-${round}`,
         ({ idempotencyKey }) =>
-          this.asSystem(() =>
+          this.asSystem(tenantId, () =>
             this.engine.conclude(requestId, status, idempotencyKey, round),
           ),
         { retry: APPLY_RETRY },
@@ -160,7 +181,9 @@ export class ApprovalWorkflow implements WorkflowRunner<
         throw error; // the engine's control flow (isWorkflowInterrupt), or a definition error
       }
       const failed = await ctx.step(`apply-failed-${round}`, () =>
-        this.asSystem(() => this.engine.applyFailed(requestId, round)),
+        this.asSystem(tenantId, () =>
+          this.engine.applyFailed(requestId, round),
+        ),
       );
       if (failed !== 'failed') {
         return failed === 'gone' || failed === 'raced' ? 'gone' : failed;
@@ -168,7 +191,7 @@ export class ApprovalWorkflow implements WorkflowRunner<
       return ctx.step(
         `conclude-${round}-apply-failed`,
         ({ idempotencyKey }) =>
-          this.asSystem(() =>
+          this.asSystem(tenantId, () =>
             this.engine.conclude(requestId, 'failed', idempotencyKey, round),
           ),
         { retry: APPLY_RETRY },
@@ -179,6 +202,7 @@ export class ApprovalWorkflow implements WorkflowRunner<
   /** Waits for a stage's outcome, reminding and handling the deadline on the way. */
   private async stage(
     ctx: WorkflowContext,
+    tenantId: string,
     requestId: string,
     round: number,
     stage: number,
@@ -209,7 +233,9 @@ export class ApprovalWorkflow implements WorkflowRunner<
         return ended(first);
       }
       const reminded = await ctx.step(`remind-${name}`, () =>
-        this.asSystem(() => this.engine.remind(requestId, round, stage)),
+        this.asSystem(tenantId, () =>
+          this.engine.remind(requestId, round, stage),
+        ),
       );
       if (reminded === 'gone' || isEnding(reminded)) {
         return reminded;
@@ -224,7 +250,9 @@ export class ApprovalWorkflow implements WorkflowRunner<
         return ended(due);
       }
       const overdue = await ctx.step(`overdue-${name}`, () =>
-        this.asSystem(() => this.engine.overdue(requestId, round, stage)),
+        this.asSystem(tenantId, () =>
+          this.engine.overdue(requestId, round, stage),
+        ),
       );
       if (overdue === 'gone' || isEnding(overdue)) {
         return overdue;
@@ -241,7 +269,9 @@ export class ApprovalWorkflow implements WorkflowRunner<
           return ended(late);
         }
         const expired = await ctx.step(`expire-${name}`, () =>
-          this.asSystem(() => this.engine.expireStage(requestId, round, stage)),
+          this.asSystem(tenantId, () =>
+            this.engine.expireStage(requestId, round, stage),
+          ),
         );
         if (expired === 'gone' || isEnding(expired)) {
           return expired;
@@ -255,6 +285,7 @@ export class ApprovalWorkflow implements WorkflowRunner<
   /** After changes were requested: resubmitted, or how it ended (cancelled, expired). */
   private async resubmission(
     ctx: WorkflowContext,
+    tenantId: string,
     requestId: string,
     round: number,
     plan: ApprovalPlan,
@@ -274,7 +305,9 @@ export class ApprovalWorkflow implements WorkflowRunner<
       return first.key;
     }
     const expired = await ctx.step(`expire-resubmit-${round}`, () =>
-      this.asSystem(() => this.engine.expireResubmission(requestId, round)),
+      this.asSystem(tenantId, () =>
+        this.engine.expireResubmission(requestId, round),
+      ),
     );
     if (expired === 'gone' || isEnding(expired)) {
       return expired;

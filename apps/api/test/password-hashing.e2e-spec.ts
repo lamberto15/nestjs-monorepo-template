@@ -90,12 +90,7 @@ describe('Password hashing under load (e2e)', () => {
     );
     limiter = node.app.get(PasswordHashLimiter);
     email = `${randomUUID().slice(0, 8)}@example.com`;
-    secret = newPassword();
-    await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email, name: email, password: secret, roleIds: [] })
-      .expect(201);
+    secret = await node.acceptAsNew(await node.invite(node.admin(), { email }));
   });
   afterAll(async () => {
     await node.close();
@@ -215,14 +210,19 @@ describe('Password hashing under load (e2e)', () => {
     }
 
     /** Busy: 503 and the link kept; free again: the same link sets the password. */
-    async function expectLinkSurvivesBusy(address: string, token: string) {
+    async function expectLinkSurvivesBusy(
+      address: string,
+      token: string,
+      route = '/v1/auth/password/reset',
+      ok = 204,
+    ) {
       const release = busy();
       const chosen = newPassword();
       try {
         await vi.waitFor(() => expect(limiter.bulkhead.queued).toBe(4));
         const res = await node
           .http()
-          .post('/v1/auth/password/reset')
+          .post(route)
           .send({ token, password: chosen });
         expect(res.status).toBe(503);
         expect(res.body.code).toBe('server_busy');
@@ -232,9 +232,9 @@ describe('Password hashing under load (e2e)', () => {
       }
       await node
         .http()
-        .post('/v1/auth/password/reset')
+        .post(route)
         .send({ token, password: chosen })
-        .expect(204);
+        .expect(ok);
       await node
         .http()
         .post('/v1/auth/sign-in')
@@ -258,13 +258,13 @@ describe('Password hashing under load (e2e)', () => {
 
     it('keeps an invitation link working after a 503 server_busy', async () => {
       const invited = `${randomUUID().slice(0, 8)}@example.com`;
-      await node
-        .admin()
-        .post('/v1/access/users')
-        .send({ email: invited, name: invited, roleIds: [] })
-        .expect(201);
-      const mail = await node.waitForMail({ to: invited, subject: /invited/ });
-      await expectLinkSurvivesBusy(invited, tokenOf(mail));
+      const token = await node.invite(node.admin(), { email: invited });
+      await expectLinkSurvivesBusy(
+        invited,
+        token,
+        '/v1/auth/invitations/accept',
+        200,
+      );
     });
   });
 });

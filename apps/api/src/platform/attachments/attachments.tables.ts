@@ -7,6 +7,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { timestamps, uuidPk } from '../../core/database/columns.js';
+import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 
 /**
  * Files attached to records: a record (its permission subject and id), the
@@ -17,10 +18,11 @@ export const attachments = pgTable(
   'attachments',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The record's permission subject: `Note`. */
     subject: text('subject').notNull(),
     recordId: uuid('record_id').notNull(),
-    /** Where the file is on the private disk (StorageDisk). */
+    /** Where the file is on the private disk (StorageDisk): under `tenants/<tenant id>/`. */
     key: text('key').notNull(),
     /** The file name the client gave, shown and used for downloads. */
     name: text('name').notNull(),
@@ -46,7 +48,8 @@ export const attachments = pgTable(
   (table) => [
     index('attachments_record_idx').on(table.subject, table.recordId),
     index('attachments_uploaded_by_idx').on(table.uploadedBy),
+    ...tenantTable('attachments', table, { referenced: true }),
   ],
-);
+).enableRLS();
 
 export type Attachment = typeof attachments.$inferSelect;

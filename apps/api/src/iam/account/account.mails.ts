@@ -94,3 +94,54 @@ export class MagicLinkMail extends AccountMailable {
   protected readonly template = 'magic-link';
   protected readonly subjectKey = 'mail.magicLink.subject';
 }
+
+/** What a tenant's invitation says: who invited, to what, and the link. */
+export interface TenantInvitation {
+  inviter: string;
+  tenant: string;
+  url: string;
+  expiresAt: Date;
+}
+
+/**
+ * An invitation to a tenant (InvitationsService): to a new address or to an
+ * existing account alike, the same words, so the mail says nothing about
+ * whether the address has an account.
+ */
+@Injectable()
+export class TenantInvitationMail implements Mailable<TenantInvitation> {
+  constructor(
+    private readonly i18n: I18nService,
+    private readonly config: ConfigService<CoreEnv, true>,
+  ) {}
+
+  render(
+    { inviter, tenant, url, expiresAt }: TenantInvitation,
+    { locale }: MailRenderContext,
+  ) {
+    const app = this.config.get('SERVICE_NAME', { infer: true });
+    return {
+      subject: this.i18n.t('mail.tenantInvitation.subject', {
+        locale,
+        args: { app, inviter, tenant },
+      }),
+      template: 'tenant-invitation',
+      context: {
+        app,
+        inviter,
+        tenant,
+        url,
+        expiresAt: this.i18n.formatDate(expiresAt, {
+          locale,
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: this.config.get('APP_TIMEZONE', { infer: true }),
+          timeZoneName: 'short',
+        }),
+      },
+    };
+  }
+}

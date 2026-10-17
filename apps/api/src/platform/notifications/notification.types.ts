@@ -1,6 +1,7 @@
 import type { I18nService } from '@nestjs/i18n';
 import type { z } from 'zod';
 import type { Transaction } from '../../core/database/drizzle.js';
+import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { notifications } from './notifications.tables.js';
 
@@ -142,8 +143,12 @@ export const NOTIFICATION_EVENTS = {
   unreadCount: 'notifications.unread-count',
 } as const;
 
-/** What the outbox carries per recipient. */
-export interface NotificationMessage {
+/**
+ * What the outbox carries per recipient, with the tenant the notification
+ * was stored in (TenantEnvelope: null for an account's own, sent outside
+ * any tenant): the delivery runs in it (docs/tenancy.md).
+ */
+export interface NotificationMessage extends TenantEnvelope {
   notificationId: string;
   recipient: string;
   type: string;

@@ -81,13 +81,25 @@ io('https://api.example.com/realtime', { withCredentials: true, transports: ['we
 // An API client
 io('https://api.example.com/realtime', { auth: { token: 'sk_…' }, transports: ['websocket'] });
 
-await socket.emitWithAck('whoami'); // { kind, id, rooms }
+await socket.emitWithAck('whoami'); // { kind, id, tenantId, rooms }
 ```
 
-Each connection joins its principal's room before the client hears it's
-connected (authentication runs in socket.io's middleware), so nothing sent
-to it from that moment is missed. A feature pushes to it with
-`Realtime.toPrincipal(principal, event, data)`, after the change committed.
+Each connection joins its principal's room **in its tenant**
+(`tenant:<tenantId>:principal:<user|client>:<id>`: the session's or the
+key's tenant, [tenancy](tenancy.md)) before the client hears it's connected
+(authentication runs in socket.io's middleware), so nothing sent to it from
+that moment is missed. A user's connection also joins their account room
+(`principal:user:<id>`), for what is the person's own in every tenant (a
+security notification sent at sign-in, outside any tenant). A feature pushes
+with `Realtime.toPrincipal(principal, event, data)`, after the change
+committed: the room is the current context's tenant's (a request's, a job's
+restored from its envelope), so an event of tenant A never reaches a socket
+opened in tenant B, even the same person's; outside any tenant it goes to the
+user's account room (an API client always has a tenant). A tenant switch
+issues a new session: sockets opened before stay in the old tenant's room
+until they reconnect. Each message runs in a CLS context with its
+principal's tenant (`ClsInterceptor` on the gateway, set up in CoreModule:
+gateways get no global middleware).
 To tell a person something they can also read later (and get by mail), send
 a [notification](notifications.md) instead: its `notification` event comes
 through the same connection.

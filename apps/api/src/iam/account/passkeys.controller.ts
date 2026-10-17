@@ -86,6 +86,12 @@ const tokenSchema = signInSchema.extend({
     .optional()
     .describe('With two-factor on: a code from the app (or a recoveryCode).'),
   recoveryCode: z.string().max(64).optional(),
+  tenantId: z
+    .uuid()
+    .optional()
+    .describe(
+      'The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.',
+    ),
 });
 /**
  * The public ceremonies' own budget per address (options, browser and app
@@ -140,9 +146,18 @@ export class PasskeysController {
   @ApiTags('account')
   @ApiCookieAuth('user-session')
   @ApiBearerAuth('user-token')
-  @ApiOperation({ summary: 'Your passkeys' })
+  @ApiOperation({
+    summary: 'Your passkeys',
+    description:
+      'Account-level: empty while an administrator acts as you (impersonation shows only what belongs to the tenant).',
+  })
   @ApiOkResponse({ standardSchema: listSchema(passkeySchema) })
   async list(@CurrentUser() user: UserPrincipal) {
+    // The account's credentials are no tenant's: an impersonating
+    // administrator sees none (as the sessions list shows only its own).
+    if (user.impersonator) {
+      return { items: [] };
+    }
     return { items: await this.passkeys.list(user.id) };
   }
 
@@ -158,7 +173,7 @@ export class PasskeysController {
   @ApiOperation({
     summary: 'Start registering a passkey: the options for the browser',
     description:
-      'Give them to `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`), then POST the credential to /auth/passkeys. The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS, from this session (and this origin). User verification is required.',
+      'Give them to `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`), then POST the credential to /auth/passkeys. The challenge works once, for PASSKEY_CHALLENGE_TTL_SECONDS, from this session (and this origin). User verification is required. An account whose address was never proved gets 403 `email_unverified` (verify first); not while acting as another user.',
   })
   @ApiOkResponse({ standardSchema: creationOptionsSchema })
   @ApiNotFoundResponse({ description: 'Passkeys are off (PASSKEYS=off).' })
@@ -352,6 +367,7 @@ export class PasskeysController {
       body.response as AuthenticationResponseJSON,
       { code: body.code, recoveryCode: body.recoveryCode },
       { ip, userAgent, origin },
+      body.tenantId,
     );
   }
 

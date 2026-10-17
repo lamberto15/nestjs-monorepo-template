@@ -31,6 +31,7 @@ import {
   refreshTokens,
   sessions,
 } from '../iam.tables.js';
+import { UsersRepository } from './users.repository.js';
 
 /**
  * Keeps sessions, refresh tokens, authenticators and pending links in
@@ -63,6 +64,7 @@ export class DrizzleAuthenticationStore
 
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly users: UsersRepository,
     storage: AuthenticationStorage,
   ) {
     storage.registerSource({
@@ -85,7 +87,18 @@ export class DrizzleAuthenticationStore
     return row && withoutNulls(row);
   }
 
+  // Every new session (a sign-in by any method; a rotation copies its
+  // metadata) acts in a tenant (docs/tenancy.md): the user's last chosen,
+  // else the oldest membership, unless the caller named one (a switch, an
+  // impersonation) or none (null).
   async createSession(record: SessionRecord): Promise<void> {
+    if (record.metadata?.tenantId === undefined) {
+      // In place: the caller's record (the issued session) shows it too.
+      record.metadata = {
+        ...record.metadata,
+        tenantId: await this.users.defaultTenant(record.userId),
+      };
+    }
     await this.db.insert(sessions).values(record);
     await this.db
       .delete(sessions)

@@ -60,12 +60,18 @@ export const signInOptions = (method: string) => ({
  * The claims of a token client's sign-in, fixed for its refresh family: how
  * (RFC 8176 `amr`: `pwd` a password, `pop` a passkey, as proof of
  * possession of a key, since the package drops `hwk` (it means a second
- * factor there); the package adds `mfa` itself) and when (OpenID Connect
- * `auth_time`, epoch seconds).
+ * factor there); the package adds `mfa` itself), when (OpenID Connect
+ * `auth_time`, epoch seconds), and the tenant the tokens act in (`tid`,
+ * docs/tenancy.md; JwtAuth checks the membership on every request).
  */
-export const tokenClaims = (amr: string[], at = new Date()) => ({
+export const tokenClaims = (
+  amr: string[],
+  at = new Date(),
+  tenantId: string | null = null,
+) => ({
   ...(amr.length > 0 && { amr }),
   auth_time: Math.floor(at.getTime() / 1000),
+  ...(tenantId && { tid: tenantId }),
 });
 
 /** The metadata without its authentication keys, and those keys apart. */

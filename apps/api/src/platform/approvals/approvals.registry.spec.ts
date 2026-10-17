@@ -271,7 +271,7 @@ describe('ApprovalsRegistry', () => {
           key: 'expenses.approval',
           label: 'Approval',
           default: true,
-          scopes: ['global', 'orgUnit'],
+          scopes: ['tenant', 'orgUnit'],
         }),
       },
     ]);

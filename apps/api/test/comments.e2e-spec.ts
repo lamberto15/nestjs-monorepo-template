@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { OutboxRelay } from '@nestjs/outbox';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 type Agent = ReturnType<TestApp['admin']>;
 interface Comment {
@@ -32,19 +32,16 @@ describe('comments and mentions on notes (e2e)', () => {
   /** A user with these roles whose address and password the test knows, signed in. */
   async function person(roles: string[], name = 'Ada') {
     const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email, name, password, roleIds: await node.roleIds(...roles) })
-      .expect(201);
-    return {
-      id: created.body.id as string,
-      key: `user:${created.body.id as string}`,
+    const token = await node.invite(node.admin(), {
       email,
-      password,
-      agent: await node.signIn(email, password),
-    };
+      name,
+      roleIds: await node.roleIds(...roles),
+    });
+    const password = await node.acceptAsNew(token);
+    const agent = await node.signIn(email, password);
+    const id = (await agent.get('/v1/auth/me').expect(200)).body.user
+      .id as string;
+    return { id, key: `user:${id}`, email, password, agent };
   }
   const writeNote = async (agent: Agent, title = 'Plan') =>
     (await node.writeNote(agent, { title, body: 'x' }).expect(201)).body

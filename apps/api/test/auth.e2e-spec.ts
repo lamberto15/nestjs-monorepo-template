@@ -131,12 +131,16 @@ describe('authentication (e2e)', () => {
     const unknown = await attempt('nobody@example.com').expect(401);
     expect(wrong.body.detail).toBe(unknown.body.detail);
 
-    const audit = await node.admin().get('/v1/access/audit').expect(200);
+    // An account's own entries, in no tenant's log (docs/tenancy.md).
     expect(
-      audit.body.items.filter(
+      await node.auditEntries({ action: 'auth.sign-in-failed' }),
+    ).toHaveLength(2);
+    const tenantLog = await node.admin().get('/v1/access/audit').expect(200);
+    expect(
+      tenantLog.body.items.filter(
         (entry: { action: string }) => entry.action === 'auth.sign-in-failed',
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(0);
   });
 
   it('limits sign-in to 5 attempts per email and IP every 15 minutes', async () => {
@@ -158,16 +162,13 @@ describe('authentication (e2e)', () => {
       .expect(403);
   });
 
-  it('signs a user out everywhere when deactivated or given a new password', async () => {
-    const { id, agent } = await node.user(['viewer']);
-    await agent.get('/v1/auth/me').expect(200);
-
+  it('signs a user out of the tenant when deactivated (no administrator sets a password)', async () => {
+    const { id } = await node.user(['viewer']);
     await node
       .admin()
       .patch(`/v1/access/users/${id}`)
       .send({ password: newPassword() })
-      .expect(204);
-    await agent.get('/v1/auth/me').expect(401);
+      .expect(400);
 
     const again = await node.user(['viewer']);
     await node

@@ -1,15 +1,34 @@
 {
-  "resetPassword": { "subject": "重置您的密码" },
-  "invitation": { "subject": "邀请您加入 {app}" },
-  "verifyEmail": { "subject": "请确认您的电子邮件地址" },
-  "magicLink": { "subject": "您的登录链接" },
-  "notification": { "subject": "{title}" },
+  "resetPassword": {
+    "subject": "重置您的密码"
+  },
+  "invitation": {
+    "subject": "邀请您加入 {app}"
+  },
+  "verifyEmail": {
+    "subject": "请确认您的电子邮件地址"
+  },
+  "magicLink": {
+    "subject": "您的登录链接"
+  },
+  "notification": {
+    "subject": "{title}"
+  },
   "notificationDigest": {
     "subject": {
       "other": "{app} 中有 {count} 条新通知"
     }
   },
-  "accountDeletion": { "subject": "您的 {app} 账户将被删除" },
-  "reportReady": { "subject": "报表已生成：{report}" },
-  "reportFailed": { "subject": "报表生成失败：{report}" }
+  "accountDeletion": {
+    "subject": "您的 {app} 账户将被删除"
+  },
+  "reportReady": {
+    "subject": "报表已生成：{report}"
+  },
+  "reportFailed": {
+    "subject": "报表生成失败：{report}"
+  },
+  "tenantInvitation": {
+    "subject": "{inviter} 邀请您加入 {app} 上的 {tenant}"
+  }
 }

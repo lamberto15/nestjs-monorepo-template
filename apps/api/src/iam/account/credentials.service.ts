@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PasswordHasher } from '@nestjs/authentication';
 import { t } from '@nestjs/i18n';
 import { AuditService } from '../audit/audit.service.js';
@@ -44,6 +48,18 @@ export class CredentialsService {
         ip,
       });
       throw new UnauthorizedException(t('auth.invalidCredentials'));
+    }
+    // Verify first (docs/auth.md, "Sign-up"): a password set before its
+    // address was proved (a self sign-up) signs nobody in, by session or
+    // token, until the address is: else whoever signed up someone else's
+    // address would sign in as them. Told only to whoever knows the
+    // password. Custom: @nestjs/authentication's `verifiedEmail` guards
+    // routes for a signed-in user, not the password check that signs in.
+    if (!found.user.emailVerified) {
+      throw new ForbiddenException({
+        code: 'email_unverified',
+        message: t('auth.emailUnverified'),
+      });
     }
     // The cost settings changed since this hash was stored: upgrade it while we have the plaintext.
     if (this.passwordHasher.needsRehash(found.passwordHash)) {

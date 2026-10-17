@@ -1,6 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { index, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
 import { attachments } from '../attachments/attachments.tables.js';
 
 export const DOCUMENT_STATUSES = [
@@ -21,6 +26,7 @@ export const documents = pgTable(
   'documents',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The DocumentSource that renders it: `note`. */
     source: text('source').notNull(),
     /** The record's permission subject (`Note`) and id: whose attachment it becomes. */
@@ -33,9 +39,7 @@ export const documents = pgTable(
     /** `user:<id>` or `client:<id>`; `anonymized` after their account was deleted. */
     requestedBy: text('requested_by').notNull(),
     /** The issued PDF; the document goes with it (the sweep of a record deleted for good). */
-    attachmentId: uuid('attachment_id').references(() => attachments.id, {
-      onDelete: 'cascade',
-    }),
+    attachmentId: uuid('attachment_id'),
     /**
      * The record's fields the PDF shows (`title`, `body`…): whoever reads it,
      * or its attachment, must be allowed every one of them now.
@@ -57,9 +61,21 @@ export const documents = pgTable(
     index('documents_attachment_idx').on(table.attachmentId),
     // One document at a time per record, requester and language.
     uniqueIndex('documents_pending_idx')
-      .on(table.source, table.recordId, table.requestedBy, table.locale)
+      .on(
+        table.tenantId,
+        table.source,
+        table.recordId,
+        table.requestedBy,
+        table.locale,
+      )
       .where(sql`${table.status} in ('queued', 'rendering')`),
+    ...tenantTable('documents', table),
+    tenantReference(
+      'documents_attachment_fk',
+      [table.tenantId, table.attachmentId],
+      [attachments.tenantId, attachments.id],
+    ),
   ],
-);
+).enableRLS();
 
 export type DocumentRow = typeof documents.$inferSelect;

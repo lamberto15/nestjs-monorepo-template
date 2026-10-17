@@ -35,37 +35,45 @@ describe('sequences: gapless human-readable numbers (e2e)', () => {
     const sequences = node.app.get(SequencesService);
     const txHost = node.app.get(TransactionHost);
     await expect(
-      inTransaction(txHost, async (tx) => {
-        await sequences.next(tx, 'note', {
-          prefix: 'NOTE',
-          perYear: true,
-          width: 5,
-        });
-        throw new Error('changed my mind');
-      }),
+      node.inTenant(() =>
+        inTransaction(txHost, async (tx) => {
+          await sequences.next(tx, 'note', {
+            prefix: 'NOTE',
+            perYear: true,
+            width: 5,
+          });
+          throw new Error('changed my mind');
+        }),
+      ),
     ).rejects.toThrow('changed my mind');
     expect((await node.writeNote(client.auth).expect(201)).body.number).toBe(
       `NOTE-${year}-00022`,
     );
-    expect(await sequences.current('note', { perYear: true })).toBe(22);
+    expect(
+      await node.inTenant(() => sequences.current('note', { perYear: true })),
+    ).toBe(22);
 
     // Another year, another scope: their own series.
     const lastYear = new Date(Date.UTC(year - 1, 5, 1));
-    const other = await inTransaction(txHost, (tx) =>
-      sequences.next(tx, 'note', {
-        prefix: 'NOTE',
-        perYear: true,
-        width: 5,
-        at: lastYear,
-      }),
+    const other = await node.inTenant(() =>
+      inTransaction(txHost, (tx) =>
+        sequences.next(tx, 'note', {
+          prefix: 'NOTE',
+          perYear: true,
+          width: 5,
+          at: lastYear,
+        }),
+      ),
     );
     expect(other.formatted).toBe(`NOTE-${year - 1}-00001`);
-    const scoped = await inTransaction(txHost, (tx) =>
-      sequences.next(tx, 'invoice', {
-        scope: 'unit-a',
-        prefix: 'INV',
-        width: 3,
-      }),
+    const scoped = await node.inTenant(() =>
+      inTransaction(txHost, (tx) =>
+        sequences.next(tx, 'invoice', {
+          scope: 'unit-a',
+          prefix: 'INV',
+          width: 3,
+        }),
+      ),
     );
     expect(scoped).toEqual({ value: 1, formatted: 'INV-001' });
 

@@ -182,8 +182,12 @@ grows, and `mail_suppressed_total{reason}` counts it. Core knows only the
 `MAIL_SUPPRESSION` token; the platform provides the list behind it, so an
 app without the platform sends to everyone.
 
-**Administrators** (`MailSuppression.view`, `MailSuppression.manage`;
-users only, never while impersonating):
+**The deployment's operators** (`MailSuppression.view`,
+`MailSuppression.manage`, in the operator tenant: the list holds every
+tenant's addresses, so any other tenant gets 403 `operator_required`,
+[tenancy](tenancy.md); users only, never while impersonating). The
+intake (`system:mail-intake`) works outside any tenant: its audit entries
+have none.
 
 | Need | Route |
 | --- | --- |

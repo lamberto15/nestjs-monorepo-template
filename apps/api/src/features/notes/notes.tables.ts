@@ -14,6 +14,11 @@ import {
   timestamps,
   uuidPk,
 } from '../../core/database/columns.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
 import { orgUnits } from '../../iam/iam.tables.js';
 import type { NoteStatus } from './note.schemas.js';
 
@@ -22,13 +27,13 @@ export const notes = pgTable(
   'notes',
   {
     id: uuidPk(),
+    /** The tenant the note belongs to (docs/tenancy.md): every feature table has one. */
+    tenantId: tenantColumn(),
     /** The number people quote, `NOTE-2026-00042` (platform/sequences): set on create. */
     number: text('number'),
     ownerId: text('owner_id').notNull(),
     /** The author's org unit (users in a unit): what `inMyUnits` reads. */
-    orgUnitId: uuid('org_unit_id').references(() => orgUnits.id, {
-      onDelete: 'set null',
-    }),
+    orgUnitId: uuid('org_unit_id'),
     title: text('title').notNull(),
     body: text('body').notNull(),
     status: text('status').$type<NoteStatus>().notNull(),
@@ -52,11 +57,21 @@ export const notes = pgTable(
     ),
   },
   (table) => [
-    uniqueIndex('notes_number_idx').on(table.number),
+    // Uniques are per tenant: each numbers its own notes.
+    uniqueIndex('notes_number_idx').on(table.tenantId, table.number),
     index('notes_owner_id_idx').on(table.ownerId),
     // The purge job finds old deleted rows by it.
     index('notes_deleted_at_idx').on(table.deletedAt),
     index('notes_custom_idx').using('gin', table.custom),
     index('notes_search_idx').using('gin', table.search),
+    // The policies and the unique (tenant_id, id) other tables' keys point at.
+    ...tenantTable('notes', table),
+    // A key within the tenant: (tenant_id, org_unit_id), never another tenant's unit.
+    tenantReference(
+      'notes_org_unit_fk',
+      [table.tenantId, table.orgUnitId],
+      [orgUnits.tenantId, orgUnits.id],
+      'set null',
+    ),
   ],
-);
+).enableRLS();

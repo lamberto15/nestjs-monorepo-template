@@ -1,3 +1,4 @@
+import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 import type { z } from 'zod';
 import type { Principal, RequestPrincipal } from '../../iam/auth/principal.js';
 
@@ -94,8 +95,14 @@ export interface BulkResult {
   truncated?: boolean;
 }
 
-/** A queued run (the `bulk` queue). The selection and input travel raw: parsed again by the worker. */
-export interface BulkJob {
+/**
+ * A queued run (the `bulk` queue). The selection and input travel raw:
+ * parsed again by the worker. It names the tenant it was started in
+ * (TenantEnvelope, docs/tenancy.md): the worker runs it there and nowhere
+ * else.
+ */
+export interface BulkJob extends TenantEnvelope {
+  readonly tenantId: string;
   /** Never the system principal: a queued job's principal is data (docs/permissions.md). */
   principal: RequestPrincipal;
   name: string;

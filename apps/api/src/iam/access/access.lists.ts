@@ -1,5 +1,5 @@
 import { listQuery } from '../../core/http/list-query.js';
-import { auditLog, users } from '../iam.tables.js';
+import { auditLog, memberships, users } from '../iam.tables.js';
 
 /** What GET /access/users can be filtered, sorted and narrowed by. */
 export const USER_LIST = listQuery(
@@ -16,7 +16,9 @@ export const USER_LIST = listQuery(
       ops: ['contains', 'startsWith'],
       sortable: true,
     },
-    active: { column: users.active, type: 'boolean', ops: ['eq'] },
+    // The membership in this tenant (an account in the list is active: a
+    // deleted one has no memberships left).
+    active: { column: memberships.active, type: 'boolean', ops: ['eq'] },
     emailVerified: {
       column: users.emailVerified,
       type: 'boolean',

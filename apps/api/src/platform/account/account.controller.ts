@@ -68,6 +68,9 @@ export class AccountController {
   })
   @ApiOkResponse({ standardSchema: accountStateSchema })
   state(@CurrentUser() user: UserPrincipal) {
+    // The person's own, across their tenants: not an administrator's to read
+    // while acting as them in one tenant (docs/tenancy.md).
+    notWhileImpersonating(user);
     return this.account.state(user);
   }
 
@@ -140,6 +143,7 @@ export class AccountController {
   })
   @ApiOkResponse({ standardSchema: listSchema(consentSchema) })
   async consents(@CurrentUser() user: UserPrincipal) {
+    notWhileImpersonating(user);
     return { items: await this.account.consents(user.id) };
   }
 

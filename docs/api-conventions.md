@@ -263,6 +263,11 @@ first response. A key is spent even when that first answer was an error (a
 400 included): send a corrected request with a new key. Its errors come from
 `@nestjs/idempotency` with its own codes (`IDEMPOTENCY_KEY_REQUIRED`,
 `IDEMPOTENCY_KEY_REUSED`: 422 for the same key with another body).
+Keys are the caller's own, **in its tenant**: the scope is
+`tenant:<tenantId>:<user|client>:<id>` ([tenancy](tenancy.md)), so two
+callers never replay each other's responses, and neither does one person
+in two tenants (a key sent in tenant B never returns what was done in
+tenant A); a user acting in no tenant has an `account:` scope of their own.
 
 ## Credentials
 

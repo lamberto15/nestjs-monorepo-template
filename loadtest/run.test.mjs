@@ -38,5 +38,5 @@ test('applies the overlay even with COMPOSE_FILE exported', { skip: !docker && '
   assert.match(result.stdout, /APP_ENV: loadtest/);
   assert.doesNotMatch(result.stdout, /published:/);
   // Generated, never a default the scenarios know.
-  assert.match(readFileSync(join(out, 'stack.env'), 'utf8'), /^LOADTEST_USER_PASSWORD=[0-9a-f]{48}$/m);
+  assert.match(readFileSync(join(out, 'stack.env'), 'utf8'), /^ADMIN_PASSWORD=[0-9a-f]{48}$/m);
 });

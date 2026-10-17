@@ -1,6 +1,7 @@
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
 import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
+import { GLOBAL_TABLES_WITH_TENANT } from '../tenancy/global-tables.js';
 import { Client, type ClientBase, escapeIdentifier, escapeLiteral } from 'pg';
 import * as schema from '../../schema.js';
 
@@ -14,6 +15,12 @@ import * as schema from '../../schema.js';
 export type DatabaseUrls = {
   ownerUrl: string;
   appUrl: string;
+  /**
+   * The maintenance role's (DATABASE_MAINTENANCE_URL): BYPASSRLS, used only
+   * by the worker's sweeps across tenants (docs/tenancy.md, "The bypass").
+   * Unset: no such role is made or checked.
+   */
+  maintenanceUrl?: string;
 };
 
 /**
@@ -56,12 +63,28 @@ export async function ensureAppRole(
       `DATABASE_URL (database "${app.database}") and DATABASE_OWNER_URL (database "${owner.database}") must name the same database.`,
     );
   }
+  const maintenance = urls.maintenanceUrl
+    ? credentials(urls.maintenanceUrl, 'DATABASE_MAINTENANCE_URL')
+    : undefined;
+  if (maintenance) {
+    if (maintenance.role === app.role || maintenance.role === owner.role) {
+      throw new Error(
+        `DATABASE_MAINTENANCE_URL connects as "${maintenance.role}", the role of DATABASE_URL or DATABASE_OWNER_URL: the maintenance role (BYPASSRLS) must be one of its own, which api never holds (docs/deployment.md, "Database roles").`,
+      );
+    }
+    if (maintenance.database !== app.database) {
+      throw new Error(
+        `DATABASE_MAINTENANCE_URL (database "${maintenance.database}") and DATABASE_URL (database "${app.database}") must name the same database.`,
+      );
+    }
+  }
   const client = new Client({
     connectionString: urls.ownerUrl,
     application_name: 'migrate:roles',
   });
   await client.connect();
   let created = false;
+  let maintenanceCreated = false;
   try {
     await client.query('begin');
     // One bootstrap at a time (two deploys, or a deploy and a developer).
@@ -69,13 +92,25 @@ export async function ensureAppRole(
       `select pg_advisory_xact_lock(hashtext('nestjs-monorepo-template:app-role'))`,
     );
     created = await ensureRole(client, app, log);
+    if (maintenance) {
+      maintenanceCreated = await ensureRole(client, maintenance, log, {
+        bypassRls: true,
+      });
+    }
     const schemas = await applicationSchemas(client);
     await warnAboutForeignOwners(client, owner.role, schemas, log);
-    await grantConnect(client, app, log);
-    for (const schema of schemas) {
-      await grantSchema(client, owner.role, app.role, schema);
+    for (const role of [app, ...(maintenance ? [maintenance] : [])]) {
+      await grantConnect(client, role, log);
+      for (const schema of schemas) {
+        await grantSchema(client, owner.role, role.role, schema);
+      }
     }
+    await forceRowLevelSecurity(client, log);
     await assertFit(client, app.role, schemas);
+    if (maintenance) {
+      await assertFit(client, maintenance.role, schemas);
+    }
+    await assertTenantWall(client);
     await client.query('commit');
   } catch (error) {
     await client.query('rollback').catch(() => undefined);
@@ -90,6 +125,17 @@ export async function ensureAppRole(
     // wins: the same password from the same .env, and a password grants no
     // privilege, so nothing above is at stake.
     const passwordSet = await ensurePassword(client, app, urls.appUrl, created);
+    if (maintenance) {
+      const maintenanceSet = await ensurePassword(
+        client,
+        maintenance,
+        urls.maintenanceUrl!,
+        maintenanceCreated,
+      );
+      log(
+        `Maintenance role "${maintenance.role}" ${maintenanceCreated ? 'created' : 'checked'}${maintenanceSet ? ', password set' : ''}: BYPASSRLS for the worker's sweeps across tenants, no superuser, owns nothing.`,
+      );
+    }
     log(
       `App role "${app.role}" ${created ? 'created' : 'checked'}${passwordSet ? ', password set' : ''}: no superuser, no RLS bypass, owns nothing.`,
     );
@@ -132,6 +178,7 @@ async function ensureRole(
   client: ClientBase,
   app: Credentials,
   log: (line: string) => void,
+  { bypassRls = false }: { bypassRls?: boolean } = {},
 ) {
   const { rows } = await client.query<RoleFlags>(
     `select rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication, rolcanlogin
@@ -142,9 +189,24 @@ async function ensureRole(
   if (rows.length === 0) {
     // Only the hash crosses the wire (PASSWORD takes a SCRAM verifier), so
     // the secret never reaches the server's statement log.
-    await client.query(
-      `create role ${role} login nosuperuser nobypassrls nocreatedb nocreaterole noreplication inherit password ${escapeLiteral(scramSha256Verifier(app.password))}`,
-    );
+    try {
+      await client.query('savepoint create_role');
+      await client.query(
+        `create role ${role} login nosuperuser ${bypassRls ? 'bypassrls' : 'nobypassrls'} nocreatedb nocreaterole noreplication inherit password ${escapeLiteral(scramSha256Verifier(app.password))}`,
+      );
+      await client.query('release savepoint create_role');
+    } catch (error) {
+      if (
+        bypassRls &&
+        (error as { code?: string }).code === INSUFFICIENT_PRIVILEGE
+      ) {
+        throw new Error(
+          `The owner may not create "${app.role}" with BYPASSRLS (only a superuser, or a role with BYPASSRLS, may). Create it once as one: CREATE ROLE ${role} LOGIN BYPASSRLS PASSWORD '…'; then migrate again (docs/deployment.md, "Database roles").`,
+          { cause: error },
+        );
+      }
+      throw error;
+    }
     return true;
   }
   const [flags] = rows;
@@ -157,8 +219,13 @@ async function ensureRole(
       ['rolreplication', 'NOREPLICATION'],
     ] as const
   )
-    .filter(([flag]) => flags[flag])
-    .map(([, fix]) => fix);
+    // The maintenance role must bypass row-level security; the app must not.
+    .filter(([flag]) =>
+      flag === 'rolbypassrls' ? flags[flag] !== bypassRls : flags[flag],
+    )
+    .map(([flag, fix]) =>
+      flag === 'rolbypassrls' && bypassRls ? 'BYPASSRLS' : fix,
+    );
   if (forbidden.length > 0) {
     throw new Error(
       `Role "${app.role}" (DATABASE_URL) must not serve the app as it is: run \`ALTER ROLE ${role} ${forbidden.join(' ')}\` as a superuser, or give the app another role.`,
@@ -448,3 +515,116 @@ export function scramSha256Verifier(password: string, salt = randomBytes(16)) {
   const serverKey = createHmac('sha256', salted).update('Server Key').digest();
   return `SCRAM-SHA-256$${iterations}:${salt.toString('base64')}$${storedKey.toString('base64')}:${serverKey.toString('base64')}`;
 }
+
+/** The tables of the schema that declare row-level security (`.enableRLS()`): the tenant tables. */
+function rowSecuredTables() {
+  return Object.values(schema)
+    .filter((value) => is(value, PgTable))
+    .map((table) => getTableConfig(table))
+    .filter((config) => config.enableRLS)
+    .map((config) => ({
+      schema: config.schema ?? 'public',
+      name: config.name,
+    }));
+}
+
+/**
+ * `FORCE ROW LEVEL SECURITY` on every tenant table, so the policies bind
+ * the tables' owner too (a migration, a fixture run as the owner): what
+ * drizzle-kit can't emit (it writes `ENABLE`, from `.enableRLS()` and the
+ * policies), done here as code, idempotently: only a table not forced yet
+ * is altered (an ALTER TABLE takes its strongest lock).
+ */
+async function forceRowLevelSecurity(
+  client: ClientBase,
+  log: (line: string) => void,
+) {
+  for (const table of rowSecuredTables()) {
+    const { rows } = await client.query<{ forced: boolean }>(
+      `select c.relforcerowsecurity as forced
+       from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = $1 and c.relname = $2`,
+      [table.schema, table.name],
+    );
+    if (rows[0] && !rows[0].forced) {
+      await client.query(
+        `alter table ${escapeIdentifier(table.schema)}.${escapeIdentifier(table.name)} force row level security`,
+      );
+      log(`Row-level security forced on ${table.name}.`);
+    }
+  }
+}
+
+/**
+ * The tenant wall holds before anything commits: every table with a
+ * `tenant_id` column has row-level security enabled and forced, its four
+ * policies by name and command and no other permissive one (docs/tenancy.md), except the few global tables that only
+ * record which tenant a row belongs to (GLOBAL_TABLES_WITH_TENANT:
+ * memberships, API keys). A table someone added without `tenantTable()`
+ * and `.enableRLS()` stops the deploy here.
+ */
+async function assertTenantWall(client: ClientBase) {
+  const { rows } = await client.query<{
+    name: string;
+    enabled: boolean;
+    forced: boolean;
+    policies: { name: string; command: string; permissive: boolean }[] | null;
+  }>(
+    `select c.relname as name, c.relrowsecurity as enabled, c.relforcerowsecurity as forced,
+            (select json_agg(json_build_object('name', p.polname, 'command', p.polcmd, 'permissive', p.polpermissive))
+             from pg_policy p where p.polrelid = c.oid) as policies
+     from pg_class c
+     join pg_namespace n on n.oid = c.relnamespace
+     join pg_attribute a on a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped
+     where n.nspname = 'public' and c.relkind in ('r', 'p')
+     order by 1`,
+  );
+  const problems = rows
+    .filter((row) => !GLOBAL_TABLES_WITH_TENANT.includes(row.name))
+    .flatMap((row) => {
+      const found = row.policies ?? [];
+      // Exactly the four of tenantPolicies(), one per command (pg_policy's
+      // polcmd: r select, a insert, w update, d delete), and nothing else
+      // permissive: another permissive policy would OR its rows in.
+      const expected = TENANT_POLICY_COMMANDS.map(
+        ([suffix, command]) =>
+          [`${row.name}_tenant_${suffix}`, command] as const,
+      );
+      const wrong = [
+        !row.enabled && 'row-level security off',
+        !row.forced && 'not forced',
+        ...expected
+          .filter(
+            ([name, command]) =>
+              !found.some(
+                (policy) =>
+                  policy.name === name &&
+                  policy.command === command &&
+                  policy.permissive,
+              ),
+          )
+          .map(([name]) => `missing policy ${name}`),
+        ...found
+          .filter(
+            (policy) =>
+              policy.permissive &&
+              !expected.some(([name]) => name === policy.name),
+          )
+          .map((policy) => `unexpected permissive policy ${policy.name}`),
+      ].filter(Boolean);
+      return wrong.length ? [`${row.name} (${wrong.join(', ')})`] : [];
+    });
+  if (problems.length > 0) {
+    throw new Error(
+      `Tenant tables without their wall: ${problems.join('; ')}. Declare them with tenantTable() and .enableRLS() (docs/tenancy.md).`,
+    );
+  }
+}
+
+/** The four policies of a tenant table: name suffix and pg_policy.polcmd. */
+const TENANT_POLICY_COMMANDS = [
+  ['select', 'r'],
+  ['insert', 'a'],
+  ['update', 'w'],
+  ['delete', 'd'],
+] as const;

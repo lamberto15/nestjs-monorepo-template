@@ -9,11 +9,9 @@ import {
   type JwtClaims,
   JwtSigner,
 } from '@nestjs/authentication';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
 import type { AddressInfo } from 'node:net';
 import { io } from 'socket.io-client';
-import type { Database } from '../src/core/database/drizzle.js';
 import { inTransaction } from '../src/core/database/transactions.js';
 import { SystemContext } from '../src/iam/access/system-context.js';
 import { AuditRetentionJob } from '../src/iam/audit/audit-retention.job.js';
@@ -62,9 +60,10 @@ describe('the system principal', () => {
   });
 
   it("is a cron job's audit actor, named after the job", async () => {
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const old = new Date(Date.now() - 400 * 86_400_000);
     await db.insert(auditLog).values({
+      tenantId: node.tenantId,
       actor: 'user:00000000-0000-7000-8000-000000000000',
       actorLabel: 'someone@example.com',
       action: 'note.created',
@@ -176,7 +175,7 @@ describe('the system principal', () => {
         service.notify(tx, { type: 'note.published', to: 'system:seed', data }),
       ),
     ).toEqual([]);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     expect(
       (await db.select({ to: notifications.recipient }).from(notifications))
         .map((row) => row.to)
@@ -224,11 +223,11 @@ class LeakyJwtAuth extends JwtBearerProvider<Principal> {
     registry.registerProvider(this, { order: 2 });
   }
 
-  validate({ sub }: JwtClaims) {
+  validate({ sub, tid }: JwtClaims) {
     if (sub === 'system') {
       return this.system.principal(ACCOUNT_DELETION_JOB);
     }
-    return sub ? this.accounts.findActive(sub) : null;
+    return sub ? this.accounts.inTenant(sub, tid as string | undefined) : null;
   }
 }
 
@@ -262,7 +261,10 @@ describe('a credential provider returning the system principal', () => {
     expect(await handshake(node, token)).toBe('unauthorized');
     // The same provider still signs users in.
     const me = await node.admin().get('/v1/auth/me').expect(200);
-    const user = tokenFor(node, { sub: me.body.user.id });
+    const user = tokenFor(node, {
+      sub: me.body.user.id,
+      tid: me.body.user.tenantId,
+    });
     await node
       .http()
       .get('/v1/notes')

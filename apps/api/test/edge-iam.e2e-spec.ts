@@ -19,21 +19,22 @@ describe('identity and access, edge cases (e2e)', () => {
   const browser = () => request.agent(node.app.getHttpServer());
   const email = () => `${randomUUID().slice(0, 8)}@example.com`;
 
-  /** A user with a password, not signed in (sign-ins are limited to 5 per email). */
+  /**
+   * A user who accepted an invitation (their own password), not signed in
+   * (sign-ins are limited to 5 per email).
+   */
   async function account(roleKeys: string[] = []) {
     const address = email();
-    const password = newPassword();
-    const created = await node
+    const token = await node.invite(node.admin(), {
+      email: address,
+      roleIds: await node.roleIds(...roleKeys),
+    });
+    const password = await node.acceptAsNew(token, address);
+    const listed = await node
       .admin()
-      .post('/v1/access/users')
-      .send({
-        email: address,
-        name: address,
-        password,
-        roleIds: await node.roleIds(...roleKeys),
-      })
-      .expect(201);
-    return { id: created.body.id as string, email: address, password };
+      .get(`/v1/access/users?email=${encodeURIComponent(address)}`)
+      .expect(200);
+    return { id: listed.body.items[0].id as string, email: address, password };
   }
 
   const notesAs = (auth: string) =>
@@ -53,25 +54,26 @@ describe('identity and access, edge cases (e2e)', () => {
 
     it('stores a new email in lower case, so two spellings are one account', async () => {
       const local = `Mixed.${randomUUID().slice(0, 8)}`;
+      const lower = `${local.toLowerCase()}@example.com`;
       const created = await node
         .admin()
         .post('/v1/access/users')
-        .send({
-          email: `${local}@Example.COM`,
-          name: 'Mixed',
-          password: newPassword(),
-        })
-        .expect(201);
-      expect(created.body.email).toBe(`${local.toLowerCase()}@example.com`);
-      const again = await node
+        .send({ email: `${local}@Example.COM`, name: 'Mixed', roleIds: [] })
+        .expect(202);
+      expect(created.body.email).toBe(lower);
+      const password = await node.acceptInvitation(lower);
+      await node.signIn(`${local}@EXAMPLE.com`, password);
+      // Invited again in another spelling: the same address, one account.
+      await node
         .admin()
         .post('/v1/access/users')
-        .send({
-          email: `${local.toLowerCase()}@example.com`,
-          name: 'Mixed again',
-          password: newPassword(),
-        });
-      expect(again.status).toBe(409);
+        .send({ email: lower.toUpperCase(), roleIds: [] })
+        .expect(202);
+      const listed = await node
+        .admin()
+        .get(`/v1/access/users?email=${encodeURIComponent(lower)}`)
+        .expect(200);
+      expect(listed.body.items).toHaveLength(1);
     });
 
     it('signs in with spaces around the email (a paste), and refuses invisible or non-ASCII characters (400)', async () => {

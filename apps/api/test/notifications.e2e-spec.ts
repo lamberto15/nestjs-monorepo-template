@@ -1,11 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { OutboxRelay } from '@nestjs/outbox';
 import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
 import type request from 'supertest';
-import type { Database } from '../src/core/database/drizzle.js';
 import { inTransaction } from '../src/core/database/transactions.js';
 import { NotificationDigestJob } from '../src/platform/notifications/notification-digest.job.js';
 import { NotificationRetentionJob } from '../src/platform/notifications/notification-retention.job.js';
@@ -34,7 +32,7 @@ describe('notifications (e2e)', () => {
     await node.close();
   });
 
-  const db = () => node.app.get(getDrizzleToken()) as Database;
+  const db = () => node.db;
   /** Hands committed outbox messages to the delivery handler (the worker's job). */
   const deliver = () => node.app.get(OutboxRelay).runOnce();
   /** The `errors` paths of a problem response. */
@@ -56,13 +54,16 @@ describe('notifications (e2e)', () => {
   async function notify(to: string, input: Partial<NotifyInput> = {}) {
     const service = node.app.get(NotificationsService);
     const txHost = node.app.get(TransactionHost);
-    const [id] = await inTransaction(txHost, (tx) =>
-      service.notify(tx, {
-        type: 'note.published',
-        to,
-        data: { noteId: randomUUID(), title: 'Direct' },
-        ...input,
-      }),
+    // In the seeded tenant, as a feature notifies from a request or a job.
+    const [id] = await node.inTenant(() =>
+      inTransaction(txHost, (tx) =>
+        service.notify(tx, {
+          type: 'note.published',
+          to,
+          data: { noteId: randomUUID(), title: 'Direct' },
+          ...input,
+        }),
+      ),
     );
     return id!;
   }
@@ -71,6 +72,12 @@ describe('notifications (e2e)', () => {
     (
       await db().select().from(notifications).where(eq(notifications.id, id))
     )[0]!;
+
+  /** The mail a user got but their invitation: what notifications sent them. */
+  const noticesTo = (email: string) =>
+    node.mailbox
+      .filter({ to: email })
+      .filter((mail) => !/invited you to/.test(mail.message.subject));
 
   /** A user's address, for the mailbox. */
   const emailOf = async (agent: request.Agent) =>
@@ -294,7 +301,7 @@ describe('notifications (e2e)', () => {
     expect(
       (await editor.agent.get('/v1/notifications').expect(200)).body.items,
     ).toHaveLength(1);
-    expect(node.mailbox.find({ to: email })).toBeUndefined();
+    expect(noticesTo(email)).toEqual([]);
 
     // Invalid settings, each named.
     const invalid = async (body: object, path: string) => {
@@ -452,7 +459,7 @@ describe('notifications (e2e)', () => {
     expect(due.getUTCHours()).toBe(4);
     expect(due.getTime()).toBeGreaterThan(Date.now());
     expect(due.getTime() - Date.now()).toBeLessThanOrEqual(86_400_000);
-    expect(node.mailbox.find({ to: email })).toBeUndefined();
+    expect(noticesTo(email)).toEqual([]);
 
     expect(await job.run(new Date(due.getTime() - 1000))).toEqual({
       mails: 0,
@@ -490,6 +497,7 @@ describe('notifications (e2e)', () => {
       .insert(notifications)
       .values([
         {
+          tenantId: node.tenantId,
           recipient: to,
           type: 'note.published',
           data: {},
@@ -497,12 +505,14 @@ describe('notifications (e2e)', () => {
           readAt: days(95),
         },
         {
+          tenantId: node.tenantId,
           recipient: to,
           type: 'note.published',
           data: {},
           createdAt: days(400),
         },
         {
+          tenantId: node.tenantId,
           recipient: to,
           type: 'note.published',
           data: {},
@@ -574,7 +584,7 @@ describe('notifications (e2e)', () => {
       .expect(204);
     await deliver();
     expect((await row(id)).deliveredAt).toBeTruthy();
-    expect(node.mailbox.find({ to: email })).toBeUndefined();
+    expect(noticesTo(email)).toEqual([]);
     const ops = await node.admin().get('/v1/ops/outbox').expect(200);
     expect(ops.body.deadLetters).toEqual([]);
     expect(ops.body.notifications).toEqual({ undelivered: 0 });

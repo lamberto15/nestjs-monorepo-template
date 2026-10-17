@@ -6,6 +6,12 @@ import {
 } from '@nestjs/common';
 import { AuthenticationGuard } from '@nestjs/authentication';
 import { WsException } from '@nestjs/websockets';
+import { ClsServiceManager } from 'nestjs-cls';
+import {
+  NO_TENANT,
+  TENANT_SCOPE,
+  tenantScope,
+} from '../../core/tenancy/tenant-scope.js';
 
 /** The refusal's code (Nest's `errorCode`, the problem's `code`). */
 export const SYSTEM_PRINCIPAL_REFUSED = 'system_principal_refused';
@@ -28,7 +34,19 @@ export class PrincipalGuard extends AuthenticationGuard {
   override async canActivate(context: ExecutionContext): Promise<boolean> {
     const allowed = await super.canActivate(context);
     const carrier = carrierOf(context);
-    const user = carrier?.user as { kind?: string } | undefined;
+    const user = carrier?.user as
+      { kind?: string; tenantId?: string | null } | undefined;
+    // The request's tenant (docs/tenancy.md): its principal's, set in the
+    // request's CLS context (ClsModule's middleware) before anything after
+    // this guard queries, the permission check first. A guest, or a user
+    // without one, has none: tenant tables are out of reach.
+    const cls = ClsServiceManager.getClsService();
+    if (cls.isActive() && user?.kind !== 'system') {
+      cls.set(
+        TENANT_SCOPE,
+        user?.tenantId ? tenantScope(user.tenantId) : NO_TENANT,
+      );
+    }
     if (user?.kind === 'system') {
       // As the package's own refusals do: a socket keeps no principal it was refused.
       carrier!.user = null;
