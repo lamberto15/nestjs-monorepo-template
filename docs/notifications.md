@@ -6,6 +6,11 @@ connections, mailed at once or in a digest, sent to an API client as a
 webhook, as the recipient prefers. The code is in `apps/api/src/platform/notifications/`;
 notes is the example (`features/notes/note-notifications.ts`).
 
+`REALTIME=off` ([configuration.md](configuration.md#deployment-switches))
+removes the live push only: notifications are still stored and mailed (and sent as
+webhooks), the realtime channel just has no connection to reach. `WEBHOOKS=off`
+removes the webhook endpoint API and the delivery worker; the outbox relay stays.
+
 ## How it works
 
 1. A feature **declares its types** and hands them to the platform:
