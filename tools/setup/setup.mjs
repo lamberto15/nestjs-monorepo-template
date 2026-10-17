@@ -320,7 +320,8 @@ async function wizard(values, io) {
   }
   if (plan.adminPassword) {
     out(
-      `\nFirst administrator: ${answers.adminEmail}\nPassword (shown once, also in ${files.file}): ${plan.adminPassword}`,
+      // Never printed: terminals and CI logs keep what they show.
+      `\nFirst administrator: ${answers.adminEmail}\nPassword: generated, ADMIN_PASSWORD in ${files.file} (read it there, then change it after the first sign-in).`,
     );
   }
 

@@ -237,7 +237,9 @@ describe('defaults', () => {
       assert.match(env.get(key), /^[A-Za-z0-9+/]{43}=$/, key); // openssl rand -base64 32
     }
     assert.match(env.get('ADMIN_PASSWORD'), /^[A-Za-z0-9+/]{24}$/); // -base64 18
-    assert.ok(text.includes(env.get('ADMIN_PASSWORD')));
+    // Never printed: it's in the file only.
+    assert.ok(!text.includes(env.get('ADMIN_PASSWORD')));
+    assert.match(text, /ADMIN_PASSWORD in /);
     for (const key of ['POSTGRES_PASSWORD', 'JWT_SECRET', 'METRICS_TOKEN']) {
       assert.ok(!text.includes(env.get(key)), `${key} printed`);
     }
@@ -388,7 +390,7 @@ describe('re-runs', () => {
     assert.equal(read(out, 'production'), first, 'unchanged');
     assert.equal(parseEnv(read(out, 'production')).get('TENANCY'), 'single');
     assert.ok(existsSync(path.join(out, '.env.bak')));
-    assert.doesNotMatch(second.text, /Password \(shown once/);
+    assert.doesNotMatch(second.text, /First administrator/);
 
     const rotated = await setup(root, out, [
       '--target',
