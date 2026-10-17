@@ -1,0 +1,34 @@
+{
+  "nav": {
+    "title": "Auditprotokoll"
+  },
+  "title": "Auditprotokoll",
+  "filters": {
+    "label": "Filter",
+    "action": "Aktion beginnt mit",
+    "actor": "Akteur",
+    "subject": "Objekttyp",
+    "from": "Von",
+    "to": "Bis",
+    "apply": "Anwenden",
+    "reset": "Zurücksetzen"
+  },
+  "retry": "Erneut versuchen",
+  "loading": "Wird geladen…",
+  "columns": {
+    "at": "Zeitpunkt",
+    "actor": "Akteur",
+    "action": "Aktion",
+    "target": "Ziel"
+  },
+  "empty": "Keine Einträge.",
+  "page": "Seite {{page}} von {{pages}}",
+  "previous": "Zurück",
+  "next": "Weiter",
+  "details": {
+    "toggle": "Details zu {{action}} anzeigen",
+    "actor": "Akteur-ID",
+    "ip": "IP-Adresse",
+    "none": "Keine Details."
+  }
+}
