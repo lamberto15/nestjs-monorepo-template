@@ -9,9 +9,9 @@ import { NoteSearch } from './note.search.js';
 import { NoteTransfer } from './note.transfer.js';
 import { NoteBulk } from './note.bulk.js';
 import { NoteAttachments } from './note-attachments.js';
-import { NoteAttachmentsController } from './note-attachments.controller.js';
+import { attachmentRoutes } from '../../platform/attachments/attachment.routes.js';
 import { NoteComments } from './note-comments.js';
-import { NoteCommentsController } from './note-comments.controller.js';
+import { commentRoutes } from '../../platform/comments/comment.routes.js';
 import { NoteTags } from './note-tags.js';
 import { NOTE_ROUTES } from './note.routes.js';
 import { tagRoutes } from '../../platform/tags/tag.routes.js';
@@ -37,8 +37,8 @@ import { NoteDocumentsController } from './note-documents.controller.js';
   controllers: [
     NotesController,
     ExampleSenderWebhookController,
-    NoteCommentsController,
-    NoteAttachmentsController,
+    commentRoutes(NOTE_ROUTES),
+    attachmentRoutes(NOTE_ROUTES),
     tagRoutes(NOTE_ROUTES),
     NoteRevisionsController,
     NoteDocumentsController,
