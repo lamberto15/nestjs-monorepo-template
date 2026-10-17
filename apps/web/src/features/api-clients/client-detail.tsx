@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import {
+  Button,
+  buttonVariants,
+} from '@nestjs-monorepo-template/ui/components/button';
 import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import {
   Select,
@@ -18,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
+import { cn } from 'cn';
 import { Link } from '@tanstack/react-router';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -53,15 +57,16 @@ export function ClientDetail(props: { id: string }) {
   }
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="self-start"
-        render={<Link to="/api-clients" />}
+      <Link
+        to="/api-clients"
+        className={cn(
+          buttonVariants({ variant: 'ghost', size: 'sm' }),
+          'self-start',
+        )}
       >
         <ArrowLeftIcon className="rtl:rotate-180" />
         {t('detail.back')}
-      </Button>
+      </Link>
       {client ? (
         <>
           <div className="flex flex-wrap items-center gap-3">
@@ -73,19 +78,16 @@ export function ClientDetail(props: { id: string }) {
               {t('detail.created', { date: formatDateTime(client.createdAt) })}
             </span>
             {hasUsage && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="ms-auto"
-                render={
-                  <Link
-                    to="/api-clients/usage"
-                    search={{ client: client.id, days: '30' }}
-                  />
-                }
+              <Link
+                to="/api-clients/usage"
+                search={{ client: client.id, days: '30' }}
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'ms-auto',
+                )}
               >
                 {t('detail.viewUsage')}
-              </Button>
+              </Link>
             )}
           </div>
           <KeysSection client={client} />

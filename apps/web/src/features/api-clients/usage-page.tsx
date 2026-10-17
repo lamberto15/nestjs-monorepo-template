@@ -161,7 +161,7 @@ function UsageReport(props: {
   const { from, to } = useMemo(() => rangeFor(props.days), [props.days]);
   const usage = useQuery(usageQuery(props.id, from, to));
   const chartConfig = {
-    total: { label: t('usage.chart.series'), color: 'var(--chart-1)' },
+    total: { label: t('usage.chart.series'), color: 'var(--primary)' },
   } satisfies ChartConfig;
   if (usage.isPending) {
     return <Spinner />;
