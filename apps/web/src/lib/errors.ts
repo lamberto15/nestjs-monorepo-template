@@ -21,15 +21,33 @@ export type ErrorMeta = {
 export type ErrorHandlerTarget = {
   /** The page to come back to after signing in again. */
   currentHref(): string;
+  /** Whether that page is one of the signed-in app (not sign-in, a link's). */
+  inApp(): boolean;
   toSignIn(redirect: string): void;
 };
+
+/**
+ * The session ended under the user (idle or absolute limit, signed out in
+ * another tab, an impersonation ended): forget the user and their data and,
+ * on a page of the signed-in app, go to sign-in, back here afterwards.
+ * Whoever notices first does it; `me` is null afterwards, so it runs once.
+ */
+export function endSession(
+  queryClient: QueryClient,
+  target: ErrorHandlerTarget | undefined,
+) {
+  createSession(queryClient).clear();
+  if (target?.inApp()) {
+    target.toSignIn(target.currentHref());
+  }
+}
 
 /**
  * Every query and mutation error goes through here (TanStack Query's
  * QueryCache/MutationCache `onError`):
  *
- * - 401 while signed in: the session ended (idle, absolute limit, signed out
- *   elsewhere). Forget the user and go to sign-in, back here afterwards.
+ * - 401: never a toast. While signed in, the session ended (endSession);
+ *   once it is cleared, the other requests that failed with it say nothing.
  *   A 401 while nobody is signed in (a wrong password) is the form's.
  * - 403 `reauthentication_required` never gets here unless the user gave up
  *   the re-authenticate dialog (lib/api.ts retries after it): nothing to say.
@@ -45,13 +63,9 @@ export function handleApiError(
   if (isApiError(error)) {
     if (error.status === 401) {
       if (queryClient.getQueryData(meQuery.queryKey)) {
-        createSession(queryClient).clear();
-        target?.toSignIn(target.currentHref());
-        return;
+        endSession(queryClient, target);
       }
-      if (meta?.errorToast === false) {
-        return;
-      }
+      return;
     }
     if (error.code === 'reauthentication_required') {
       return;
@@ -91,7 +105,40 @@ export function createQueryClient(
       },
     },
   });
+  watchSession(queryClient, target);
   return queryClient;
+}
+
+/**
+ * `me` refetched (a window focus, an invalidation) and nobody is signed in
+ * any more: the session ended without a 401 anyone else saw. A null that
+ * the app set itself (sign-out, endSession: setQueryData) is no news.
+ */
+function watchSession(
+  queryClient: QueryClient,
+  target: () => ErrorHandlerTarget | undefined,
+) {
+  const meHash = JSON.stringify(meQuery.queryKey);
+  let signedIn = false;
+  queryClient.getQueryCache().subscribe((event) => {
+    if (event.query.queryHash !== meHash) {
+      return;
+    }
+    if (event.type === 'removed') {
+      signedIn = false;
+      return;
+    }
+    if (event.type !== 'updated' || event.action.type !== 'success') {
+      return;
+    }
+    const now = event.action.data != null;
+    if (signedIn && !now && !event.action.manual) {
+      signedIn = false;
+      endSession(queryClient, target());
+      return;
+    }
+    signedIn = now;
+  });
 }
 
 /**

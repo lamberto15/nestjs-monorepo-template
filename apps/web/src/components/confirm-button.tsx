@@ -55,7 +55,8 @@ export function ConfirmButton(props: {
                   await props.onConfirm();
                   setOpen(false);
                 } catch {
-                  // The global handler told the user; the dialog stays.
+                  // The action failed: its own handler (or the global one)
+                  // told the user, and the dialog stays open to try again.
                 } finally {
                   setBusy(false);
                 }

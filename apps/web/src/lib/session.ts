@@ -45,6 +45,9 @@ export const featuresQuery = queryOptions({
   staleTime: 5 * 60_000,
 });
 
+/** Saving the menu's language (PATCH /v1/auth/me): see useSavedLanguage. */
+export const saveLanguageKey = ['auth', 'language'] as const;
+
 export const tenantsQuery = queryOptions({
   queryKey: ['auth', 'tenants'],
   queryFn: () => unwrap(api.GET('/v1/auth/tenants')),
@@ -64,12 +67,16 @@ export function createSession(queryClient: QueryClient) {
      * else): nothing cached belongs to it, so everything is dropped.
      */
     reset: async () => {
+      // Mutations too: their variables and results (a password change,
+      // recovery codes, a TOTP secret) must not outlive the session.
+      queryClient.getMutationCache().clear();
       queryClient.removeQueries();
       await queryClient.fetchQuery(meQuery);
     },
     /** Signed out (or the session ended): forget the user and their data. */
     clear: () => {
       // The sign-in options are public: the only thing worth keeping.
+      queryClient.getMutationCache().clear();
       queryClient.removeQueries({
         predicate: (query) => query.queryHash !== methodsHash,
       });

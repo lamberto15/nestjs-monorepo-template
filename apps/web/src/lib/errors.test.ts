@@ -1,46 +1,123 @@
 import { ApiError } from '@nestjs-monorepo-template/api-client';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it, vi } from 'vitest';
-import { reauthenticationMiddleware } from '@/lib/api';
+import { toast } from 'sonner';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { api, reauthenticationMiddleware } from '@/lib/api';
 import { createQueryClient, handleApiError } from '@/lib/errors';
-import { meQuery } from '@/lib/session';
+import { createSession, meQuery } from '@/lib/session';
 import { problem, server, signedInUser } from '@/test/server';
 import { createApiClient, unwrap } from '@nestjs-monorepo-template/api-client';
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
+const target = (inApp = true) => ({
+  currentHref: () => '/notes?page=2',
+  inApp: () => inApp,
+  toSignIn: vi.fn(),
+});
+
 describe('the global error handler', () => {
+  beforeEach(() => vi.mocked(toast.error).mockClear());
+
   it('sends a user whose session ended to sign-in, back here afterwards', () => {
-    const toSignIn = vi.fn();
-    const target = { currentHref: () => '/notes?page=2', toSignIn };
-    const queryClient = createQueryClient(() => target);
+    const to = target();
+    const queryClient = createQueryClient(() => to);
     queryClient.setQueryData(meQuery.queryKey, signedInUser);
     queryClient.setQueryData(['notes'], { items: [] });
 
     handleApiError(
       queryClient,
-      target,
+      to,
       new ApiError({ status: 401, code: 'unauthorized' }),
       undefined,
     );
 
-    expect(toSignIn).toHaveBeenCalledWith('/notes?page=2');
+    expect(to.toSignIn).toHaveBeenCalledWith('/notes?page=2');
     expect(queryClient.getQueryData(meQuery.queryKey)).toBeNull();
     expect(queryClient.getQueryData(['notes'])).toBeUndefined();
   });
 
-  it('leaves a 401 to the form when nobody was signed in (a wrong password)', () => {
-    const toSignIn = vi.fn();
-    const target = { currentHref: () => '/sign-in', toSignIn };
-    const queryClient = createQueryClient(() => target);
+  it('turns three 401s at once into one trip to sign-in and no toast', async () => {
+    server.use(
+      http.get('/v1/auth/sessions', () => problem(401, 'unauthorized')),
+      http.get('/v1/auth/passkeys', () => problem(401, 'unauthorized')),
+      http.get('/v1/auth/mfa', () => problem(401, 'unauthorized')),
+    );
+    const to = target();
+    const queryClient = createQueryClient(() => to);
+    queryClient.setQueryData(meQuery.queryKey, signedInUser);
+    await Promise.allSettled([
+      queryClient.fetchQuery({
+        queryKey: ['sessions'],
+        queryFn: () => unwrap(api.GET('/v1/auth/sessions')),
+      }),
+      queryClient.fetchQuery({
+        queryKey: ['passkeys'],
+        queryFn: () => unwrap(api.GET('/v1/auth/passkeys')),
+      }),
+      queryClient.fetchQuery({
+        queryKey: ['mfa'],
+        queryFn: () => unwrap(api.GET('/v1/auth/mfa')),
+      }),
+    ]);
+    expect(to.toSignIn).toHaveBeenCalledOnce();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('never toasts a 401, even when nobody was signed in', () => {
+    const to = target(false);
+    const queryClient = createQueryClient(() => to);
     queryClient.setQueryData(meQuery.queryKey, null);
     handleApiError(
       queryClient,
-      target,
+      to,
       new ApiError({ status: 401, code: 'unauthorized' }),
-      { errorToast: false },
+      undefined,
     );
-    expect(toSignIn).not.toHaveBeenCalled();
+    expect(to.toSignIn).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('toasts any other problem with its detail', () => {
+    const queryClient = createQueryClient(() => target());
+    handleApiError(
+      queryClient,
+      target(),
+      new ApiError({ status: 409, code: 'conflict', detail: 'Already there' }),
+      undefined,
+    );
+    expect(toast.error).toHaveBeenCalledWith('Already there');
+  });
+
+  it('goes to sign-in when a refetch of `me` finds nobody signed in', async () => {
+    const to = target();
+    const queryClient = createQueryClient(() => to);
+    server.use(http.get('/v1/auth/me', () => HttpResponse.json(signedInUser)));
+    await queryClient.fetchQuery(meQuery);
+    // Signed out in another tab: the next refetch answers 401 (me: null).
+    server.use(http.get('/v1/auth/me', () => problem(401, 'unauthorized')));
+    await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+    expect(to.toSignIn).toHaveBeenCalledExactlyOnceWith('/notes?page=2');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('stays put when the app itself set `me` to null (signing out)', () => {
+    const to = target();
+    const queryClient = createQueryClient(() => to);
+    queryClient.setQueryData(meQuery.queryKey, signedInUser);
+    createSession(queryClient).clear();
+    expect(to.toSignIn).not.toHaveBeenCalled();
+  });
+
+  it('forgets mutations (their variables and results) with the session', async () => {
+    const queryClient = createQueryClient(() => target());
+    await queryClient
+      .getMutationCache()
+      .build(queryClient, { mutationFn: async () => ['recovery-code'] })
+      .execute(undefined);
+    expect(queryClient.getMutationCache().getAll()).toHaveLength(1);
+    createSession(queryClient).clear();
+    expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
   });
 });
 
@@ -85,6 +162,24 @@ describe('step-up (reauthentication_required)', () => {
       { newPassword: 'a long new password' },
     ]);
     expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it('keeps an Idempotency-Key the caller set', async () => {
+    const keys: (string | null)[] = [];
+    server.use(
+      http.post('/v1/auth/mfa/enroll', ({ request }) => {
+        keys.push(request.headers.get('idempotency-key'));
+        return keys.length === 1
+          ? problem(403, 'reauthentication_required')
+          : HttpResponse.json({ secret: 'S', uri: 'otpauth://totp/x' });
+      }),
+    );
+    await unwrap(
+      client(async () => true).POST('/v1/auth/mfa/enroll', {
+        params: { header: { 'Idempotency-Key': 'mine' } } as never,
+      }),
+    );
+    expect(keys).toEqual(['mine', 'mine']);
   });
 
   it('throws the 403 when the user gives up', async () => {

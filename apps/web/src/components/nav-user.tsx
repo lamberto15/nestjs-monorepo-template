@@ -38,7 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { languages, type Language } from '@/i18n';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/features';
-import { meQuery } from '@/lib/session';
+import { meQuery, saveLanguageKey } from '@/lib/session';
 import { useSignOut } from '@/lib/sign-out';
 
 const themes = ['light', 'dark', 'system'] as const;
@@ -64,6 +64,7 @@ export function NavUser() {
   // The language is the account's (the API mails in it too): saved with
   // the profile, not only in this browser.
   const saveLanguage = useMutation({
+    mutationKey: saveLanguageKey,
     mutationFn: (locale: Language) =>
       unwrap(api.PATCH('/v1/auth/me', { body: { locale } })),
     onSuccess: () =>

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useIsMutating, useQuery } from '@tanstack/react-query';
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import {
   SidebarInset,
@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { languages } from '@/i18n';
-import { meQuery } from '@/lib/session';
+import { meQuery, saveLanguageKey } from '@/lib/session';
 
 // The signed-in app. Nobody signed in: to sign-in, and back here afterwards.
 export const Route = createFileRoute('/_app')({
@@ -58,14 +58,23 @@ function AppLayout() {
   );
 }
 
-/** The language the user saved in their profile wins over the browser's. */
+/**
+ * The language the user saved in their profile wins over the browser's.
+ * While a language from the menu is being saved, `me` may still carry an
+ * older one (the refetch after the first of two quick switches): ignored
+ * until the last save settled, which refetches `me` before it does.
+ */
 function useSavedLanguage() {
   const { i18n } = useTranslation();
   const locale = useQuery(meQuery).data?.user.locale;
+  const saving = useIsMutating({ mutationKey: saveLanguageKey }) > 0;
   useEffect(() => {
+    if (saving) {
+      return;
+    }
     const language = languages.find((value) => value === locale);
     if (language && language !== i18n.language) {
       void i18n.changeLanguage(language);
     }
-  }, [locale, i18n]);
+  }, [locale, saving, i18n]);
 }

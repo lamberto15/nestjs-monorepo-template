@@ -18,17 +18,22 @@ type Middleware = Parameters<ApiClient['use']>[0];
 export function reauthenticationMiddleware(
   ask: (problem: ReauthProblem) => Promise<boolean> = requestReauthentication,
 ): Middleware {
-  // The body of a sent Request is spent: keep a copy to send again.
-  const copies = new Map<string, Request>();
+  // The body of a sent Request is spent: keep a copy to send again, and
+  // whether its Idempotency-Key was the caller's.
+  const copies = new Map<string, { request: Request; callerKey: boolean }>();
   return {
-    onRequest({ request, id }) {
-      copies.set(id, request.clone());
+    onRequest({ request, id, params }) {
+      const header = (params as { header?: Record<string, unknown> }).header;
+      const callerKey = Object.keys(header ?? {}).some(
+        (name) => name.toLowerCase() === 'idempotency-key',
+      );
+      copies.set(id, { request: request.clone(), callerKey });
       return undefined;
     },
     async onResponse({ response, id, options }) {
-      const copy = copies.get(id);
+      const saved = copies.get(id);
       copies.delete(id);
-      if (response.status !== 403 || !copy) {
+      if (response.status !== 403 || !saved) {
         return undefined;
       }
       const problem = (await response
@@ -41,13 +46,16 @@ export function reauthenticationMiddleware(
       if (!(await ask({ ...problem, status: 403 }))) {
         return undefined;
       }
-      // The refused request did nothing: the retry is a new operation, with
-      // a new Idempotency-Key (a key the server saw could replay the 403).
-      const headers = new Headers(copy.headers);
-      if (headers.has('idempotency-key')) {
+      // The API refuses step-up in a guard, before its idempotency layer:
+      // nothing was stored under the key, so the retry may reuse it. A key
+      // the caller set (`params.header['Idempotency-Key']`) is theirs and is
+      // kept; the one the client made up for this call is replaced, as the
+      // retry is a new attempt of the client's own.
+      const headers = new Headers(saved.request.headers);
+      if (!saved.callerKey && headers.has('idempotency-key')) {
         headers.set('idempotency-key', crypto.randomUUID());
       }
-      return options.fetch(new Request(copy, { headers }));
+      return options.fetch(new Request(saved.request, { headers }));
     },
     onError({ id }) {
       copies.delete(id);

@@ -42,6 +42,8 @@ export function createApp(history?: RouterHistory) {
     return (
       current && {
         currentHref: () => current.state.location.href,
+        inApp: () =>
+          current.state.matches.some((match) => match.routeId === '/_app'),
         toSignIn: (redirect) =>
           void current.navigate({ to: '/sign-in', search: { redirect } }),
       }

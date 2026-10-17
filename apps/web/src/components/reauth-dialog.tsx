@@ -32,6 +32,7 @@ import {
   useReauthRequest,
   type ReauthProblem,
 } from '@/lib/reauth';
+import { safeRedirect } from '@/lib/safe-redirect';
 import { meQuery } from '@/lib/session';
 
 /**
@@ -96,7 +97,9 @@ function ReauthMethods({ problem }: { problem: ReauthProblem }) {
     }
   };
 
-  const here = `${location.pathname}${location.search}`;
+  // Back to this page afterwards (a redirectTo the API passes on: only a
+  // normalized path of this app).
+  const here = safeRedirect(`${location.pathname}${location.search}`);
   return (
     <FieldGroup>
       <FormAlert message={error} />

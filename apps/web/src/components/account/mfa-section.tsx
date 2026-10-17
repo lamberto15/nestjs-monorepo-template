@@ -103,7 +103,14 @@ export function MfaSection() {
         </Alert>
       )}
       {codes && (
-        <RecoveryCodes codes={codes} onDone={() => setCodes(undefined)} />
+        <RecoveryCodes
+          codes={codes}
+          onDone={() => {
+            // Shown once: nothing keeps them (the mutations' results too).
+            setCodes(undefined);
+            newCodes.reset();
+          }}
+        />
       )}
       {status.isPending ? (
         <Spinner />
@@ -139,10 +146,14 @@ export function MfaSection() {
           enrollment={enrollment}
           onConfirmed={async (recoveryCodes) => {
             setEnrollment(undefined);
+            enroll.reset();
             setCodes(recoveryCodes);
             await refresh();
           }}
-          onCancel={() => setEnrollment(undefined)}
+          onCancel={() => {
+            setEnrollment(undefined);
+            enroll.reset();
+          }}
         />
       ) : enrollAllowed ? (
         <Button
@@ -185,6 +196,7 @@ function ConfirmEnrollment(props: {
       setError(undefined);
       try {
         const result = await confirm.mutateAsync(value.code);
+        confirm.reset();
         await props.onConfirmed(result.recoveryCodes);
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
