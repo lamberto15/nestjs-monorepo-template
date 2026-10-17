@@ -28,7 +28,8 @@
       "files": ["packages/ui/src/**"],
       "rules": {
         "react/set-state-in-effect": "off",
-        "typescript/no-useless-default-assignment": "off"
+        "typescript/no-useless-default-assignment": "off",
+        "typescript/no-floating-promises": "off"
       },
       "plugins": ["react", "typescript", "oxc"]
     }

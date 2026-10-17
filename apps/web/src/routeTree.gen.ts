@@ -10,17 +10,62 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
+import { Route as CancelDeletionRouteImport } from './routes/cancel-deletion'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as MagicLinkRouteImport } from './routes/magic-link'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppNotesRouteImport } from './routes/_app/notes'
+import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
+import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
+import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
+  id: '/accept-invitation',
+  path: '/accept-invitation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CancelDeletionRoute = CancelDeletionRouteImport.update({
+  id: '/cancel-deletion',
+  path: '/cancel-deletion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MagicLinkRoute = MagicLinkRouteImport.update({
+  id: '/magic-link',
+  path: '/magic-link',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -33,35 +78,128 @@ const AppNotesRoute = AppNotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
+  id: '/account/profile',
+  path: '/account/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
+  id: '/account/security',
+  path: '/account/security',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/accept-invitation': typeof AcceptInvitationRoute
+  '/cancel-deletion': typeof CancelDeletionRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/magic-link': typeof MagicLinkRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/notes': typeof AppNotesRoute
+  '/account/profile': typeof AppAccountProfileRoute
+  '/account/security': typeof AppAccountSecurityRoute
+  '/account/': typeof AppAccountIndexRoute
 }
 export interface FileRoutesByTo {
+  '/accept-invitation': typeof AcceptInvitationRoute
+  '/cancel-deletion': typeof CancelDeletionRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/magic-link': typeof MagicLinkRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/notes': typeof AppNotesRoute
   '/': typeof AppIndexRoute
+  '/account/profile': typeof AppAccountProfileRoute
+  '/account/security': typeof AppAccountSecurityRoute
+  '/account': typeof AppAccountIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/accept-invitation': typeof AcceptInvitationRoute
+  '/cancel-deletion': typeof CancelDeletionRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/magic-link': typeof MagicLinkRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/_app/notes': typeof AppNotesRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/account/profile': typeof AppAccountProfileRoute
+  '/_app/account/security': typeof AppAccountSecurityRoute
+  '/_app/account/': typeof AppAccountIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/notes'
+  fullPaths:
+    | '/'
+    | '/accept-invitation'
+    | '/cancel-deletion'
+    | '/forgot-password'
+    | '/magic-link'
+    | '/reset-password'
+    | '/sign-in'
+    | '/sign-up'
+    | '/verify-email'
+    | '/notes'
+    | '/account/profile'
+    | '/account/security'
+    | '/account/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/sign-in' | '/notes' | '/'
-  id: '__root__' | '/_app' | '/sign-in' | '/_app/notes' | '/_app/'
+  to:
+    | '/accept-invitation'
+    | '/cancel-deletion'
+    | '/forgot-password'
+    | '/magic-link'
+    | '/reset-password'
+    | '/sign-in'
+    | '/sign-up'
+    | '/verify-email'
+    | '/notes'
+    | '/'
+    | '/account/profile'
+    | '/account/security'
+    | '/account'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/accept-invitation'
+    | '/cancel-deletion'
+    | '/forgot-password'
+    | '/magic-link'
+    | '/reset-password'
+    | '/sign-in'
+    | '/sign-up'
+    | '/verify-email'
+    | '/_app/notes'
+    | '/_app/'
+    | '/_app/account/profile'
+    | '/_app/account/security'
+    | '/_app/account/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AcceptInvitationRoute: typeof AcceptInvitationRoute
+  CancelDeletionRoute: typeof CancelDeletionRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  MagicLinkRoute: typeof MagicLinkRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -73,11 +211,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accept-invitation': {
+      id: '/accept-invitation'
+      path: '/accept-invitation'
+      fullPath: '/accept-invitation'
+      preLoaderRoute: typeof AcceptInvitationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cancel-deletion': {
+      id: '/cancel-deletion'
+      path: '/cancel-deletion'
+      fullPath: '/cancel-deletion'
+      preLoaderRoute: typeof CancelDeletionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/magic-link': {
+      id: '/magic-link'
+      path: '/magic-link'
+      fullPath: '/magic-link'
+      preLoaderRoute: typeof MagicLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-in': {
       id: '/sign-in'
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -94,24 +281,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account/': {
+      id: '/_app/account/'
+      path: '/account'
+      fullPath: '/account/'
+      preLoaderRoute: typeof AppAccountIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/profile': {
+      id: '/_app/account/profile'
+      path: '/account/profile'
+      fullPath: '/account/profile'
+      preLoaderRoute: typeof AppAccountProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/security': {
+      id: '/_app/account/security'
+      path: '/account/security'
+      fullPath: '/account/security'
+      preLoaderRoute: typeof AppAccountSecurityRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppNotesRoute: typeof AppNotesRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAccountProfileRoute: typeof AppAccountProfileRoute
+  AppAccountSecurityRoute: typeof AppAccountSecurityRoute
+  AppAccountIndexRoute: typeof AppAccountIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppNotesRoute: AppNotesRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAccountProfileRoute: AppAccountProfileRoute,
+  AppAccountSecurityRoute: AppAccountSecurityRoute,
+  AppAccountIndexRoute: AppAccountIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AcceptInvitationRoute: AcceptInvitationRoute,
+  CancelDeletionRoute: CancelDeletionRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  MagicLinkRoute: MagicLinkRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
