@@ -40,7 +40,7 @@ Filling `.env` (each step is commented in `env.example`):
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
   Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
   `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
-  provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` sets zod to
+  provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
   off everything but WebAuthn. **A new third-party script, frame, API or font host** needs
