@@ -66,7 +66,12 @@ export const AUDIT_LIST = listQuery(
       ops: ['eq', 'in', 'notIn', 'startsWith'],
       sortable: true,
     },
-    actor: { column: auditLog.actor, type: 'string', ops: ['eq', 'in'] },
+    actor: {
+      column: auditLog.actor,
+      type: 'string',
+      ops: ['eq', 'in'],
+      ref: 'principal',
+    },
     targetType: {
       column: auditLog.targetType,
       type: 'string',

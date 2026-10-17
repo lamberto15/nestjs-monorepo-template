@@ -1,0 +1,73 @@
+{
+  "nav": "Settings",
+  "title": "Settings and flags",
+  "search": "Search settings",
+  "none": "No setting matches.",
+  "on": "On",
+  "off": "Off",
+  "default": "Default",
+  "save": "Save",
+  "saved": "Saved.",
+  "edit": "Edit",
+  "editNamed": "Edit {{label}}",
+  "clear": "Clear",
+  "clearTitle": "Clear this override?",
+  "clearDescription": "The value set for {{label}} is removed; the setting falls back to the next level.",
+  "overrides": "Stored values",
+  "noOverrides": "Nothing is set: the default applies.",
+  "flag": "Flag",
+  "managersOnly": "Managers only",
+  "authNote": "Sign-in policy settings: only managers can see and change them, and a value the deployment does not allow is refused.",
+  "rolloutOf": "{{percent}}% of principals",
+  "scopeLabel": "Scope",
+  "valueLabel": "Value",
+  "scope": {
+    "tenant": "Whole tenant",
+    "team": "Team",
+    "user": "User"
+  },
+  "scopeId": {
+    "team": "Team",
+    "user": "User"
+  },
+  "mode": {
+    "label": "Applies as",
+    "value": "A fixed value",
+    "rollout": "A gradual rollout"
+  },
+  "rollout": {
+    "label": "Share of principals",
+    "description": "The flag is on for this percentage of the tenant's principals; the same ones every time, and raising it never switches anyone off."
+  },
+  "invalid": {
+    "boolean": "Choose on or off.",
+    "number": "Enter a number.",
+    "string": "Enter a value.",
+    "json": "Enter valid JSON.",
+    "rollout": "Enter a percentage from 0 to 100."
+  },
+  "source": {
+    "tenant": "Tenant",
+    "team": "Team",
+    "user": "You",
+    "rollout": "Rollout",
+    "default": "Default"
+  },
+  "columns": {
+    "setting": "Setting",
+    "value": "Your value",
+    "source": "Source",
+    "default": "Default"
+  },
+  "groups": {
+    "auth": "Sign-in policy",
+    "notes": "Notes"
+  },
+  "preferences": {
+    "title": "Preferences",
+    "empty": "There is nothing to set for yourself.",
+    "saved": "Preference saved.",
+    "reset": "Reset to default",
+    "resetDone": "Preference reset."
+  }
+}
