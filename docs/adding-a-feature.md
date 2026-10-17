@@ -32,6 +32,27 @@ test's path list.
   `--no-soft-delete` (deleted for good, no recycle bin), `--singular <name>`
   (when it can't be derived: `people` → `--singular person`),
   `--description "…"` (the Swagger tag's).
+- **Capabilities (`--with a,b,…`):** each writes the feature's target,
+  registered in the platform's registry, and lists the platform's routes
+  for it in the module (platform/records); notes shows each one in full.
+
+  | `--with` | Writes | Routes and more |
+  | --- | --- | --- |
+  | `tags` | `<item>-tags.ts` (who may change it tags it) | `PUT /<x>/{id}/tags`, `?tag=` on the list, `tags` in responses |
+  | `comments` | `<item>-comments.ts`, `<item>-notifications.ts` | `/<x>/{id}/comments`, the `<item>.commented` notification (texts in every locale) |
+  | `attachments` | `<item>-attachments.ts` | `/<x>/{id}/attachments`, download and remove at `/v1/attachments/{id}` |
+  | `revisions` | `<item>-revisions.ts`, `snapshot()` in the service | `/<x>/{id}/revisions` (list, one, diff, restore) |
+  | `pdf` | `<item>-documents.ts`, `documents/templates/<item>.html` (brings `attachments`) | `POST /<x>/{id}/pdf`, labels in `documents.json` |
+  | `bulk` | `<item>.bulk.ts` | `POST /<x>/bulk` (delete, update, restore) |
+  | `watch` | `<item>-subscriptions.ts`; the owner watches from the start | `POST`/`DELETE /<x>/{id}/watch` |
+  | `search` | a search vector over its string and text fields, `<item>.search.ts` | `?q=` on the list, GET /v1/search |
+  | `transfer` | `<item>.transfer.ts` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
+
+  Texts go to every locale in English (each locale's plural forms); the
+  command lists the keys to translate.
+- **Not generated:** custom fields, approvals, settings, workflows and
+  outgoing webhook events: add them as the sections below say, notes as the
+  example.
 - **Adding seed roles to an existing database:** the roles are written when a
   tenant is made; an existing tenant's administrators grant the new
   permissions through the access API.

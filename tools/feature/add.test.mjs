@@ -16,6 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import { addFeature, MARKERS } from './add.mjs';
+import { parseCapabilities } from './capabilities.mjs';
 import { parseField, parseFields } from './fields.mjs';
 import { names, singularize } from './names.mjs';
 
@@ -81,6 +82,26 @@ describe('fields', () => {
   });
 });
 
+describe('capabilities', () => {
+  const fields = parseFields('title:string');
+  it('reads --with, and a PDF brings attachments (it is one)', () => {
+    assert.deepEqual([...parseCapabilities('pdf,tags', fields)].sort(), [
+      'attachments',
+      'pdf',
+      'tags',
+    ]);
+    assert.equal(parseCapabilities(undefined, fields).size, 0);
+  });
+
+  it('refuses an unknown one, and search without text to search', () => {
+    assert.throws(() => parseCapabilities('likes', fields), /not a capability/);
+    assert.throws(
+      () => parseCapabilities('search', parseFields('total:money')),
+      /string or text field/,
+    );
+  });
+});
+
 describe('addFeature', () => {
   let root;
   const api = (...parts) => path.join(root, 'apps/api', ...parts);
@@ -97,6 +118,10 @@ describe('addFeature', () => {
       'src/features/tables.ts',
       'test/openapi.e2e-spec.ts',
       'src/features/notes/notes.tables.ts',
+      ...['ar', 'de', 'en', 'ms', 'zh'].flatMap((locale) => [
+        `src/i18n/${locale}/notifications.json`,
+        `src/i18n/${locale}/documents.json`,
+      ]),
     ]) {
       mkdirSync(path.dirname(api(file)), { recursive: true });
       copyFileSync(path.join(REPO, 'apps/api', file), api(file));
@@ -176,6 +201,55 @@ describe('addFeature', () => {
       addFeature(root, { name: 'invoices', fields: 'title:string' }),
       /exists already/,
     );
+  });
+
+  it('adds what each capability needs: its target, its routes, its texts in every locale', async () => {
+    mkdirSync(api('src/documents/templates'), { recursive: true });
+    const result = await addFeature(root, {
+      name: 'tickets',
+      fields: 'title:string,body:text',
+      with: 'tags,comments,pdf,bulk,watch,search,revisions,transfer',
+    });
+    for (const file of [
+      'ticket-tags.ts',
+      'ticket-comments.ts',
+      'ticket-notifications.ts',
+      'ticket-attachments.ts',
+      'ticket-documents.ts',
+      'ticket.bulk.ts',
+      'ticket-subscriptions.ts',
+      'ticket.search.ts',
+      'ticket-revisions.ts',
+      'ticket.transfer.ts',
+    ]) {
+      assert.ok(existsSync(api('src/features/tickets', file)), file);
+    }
+    assert.ok(existsSync(api('src/documents/templates/ticket.html')));
+    const module = readFileSync(
+      api('src/features/tickets/tickets.module.ts'),
+      'utf8',
+    );
+    assert.match(module, /commentRoutes\(TICKET_ROUTES\)/);
+    assert.match(module, /bulkRoutes\(TICKET_ROUTES/);
+    // Arabic gets its six plural forms; Chinese its one.
+    const ar = JSON.parse(
+      readFileSync(api('src/i18n/ar/notifications.json'), 'utf8'),
+    );
+    assert.deepEqual(Object.keys(ar.ticket.commented.body).sort(), [
+      'few',
+      'many',
+      'one',
+      'other',
+      'two',
+      'zero',
+    ]);
+    const zh = JSON.parse(
+      readFileSync(api('src/i18n/zh/notifications.json'), 'utf8'),
+    );
+    assert.deepEqual(Object.keys(zh.ticket.commented.body), ['other']);
+    assert.ok(result.translate.includes('de/documents.json: ticket'));
+    const spec = readFileSync(api('test/openapi.e2e-spec.ts'), 'utf8');
+    assert.ok(spec.includes("'/v1/tickets/{id}/revisions/{a}/diff/{b}'"));
   });
 
   it("refuses a reference to a table others can't point at", async () => {
