@@ -261,6 +261,11 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     subject: string,
     query: ListQuery,
   ): Promise<void> {
+    // A subject with no declared fields hides none: nothing to check, whatever
+    // validated the query. Otherwise only a listQuery() query (queryReads throws).
+    if (this.catalog.declaredFields(subject).length === 0) {
+      return;
+    }
     const reads = queryReads(query);
     if (reads.length === 0) {
       return;

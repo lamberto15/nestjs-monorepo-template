@@ -692,13 +692,22 @@ export function fieldsRead(
 /**
  * The record fields a validated list query filters (flat and `filter`, at
  * every depth), searches (`q`), sorts or selects (`fields=`) by, from
- * `fieldsRead()`. Empty for a query `listQuery()`'s schema didn't validate.
- * A list refuses the query when the caller may read one on no record
- * (`AccessService.assertQueryFields`): a filter on a hidden field would
- * tell its values one probe at a time.
+ * `fieldsRead()`. A list refuses the query when the caller may read one on
+ * no record (`AccessService.assertQueryFields`): a filter on a hidden field
+ * would tell its values one probe at a time. Throws for a query
+ * `listQuery()`'s schema didn't validate (a copy, a hand-built object):
+ * the check fails closed rather than pass a query it can't read.
  */
-export const queryReads = (query: ListQuery): readonly string[] =>
-  ((query as Record<symbol, unknown>)[READS] as string[] | undefined) ?? [];
+export function queryReads(query: ListQuery): readonly string[] {
+  const reads = (query as Record<symbol, unknown>)[READS] as
+    string[] | undefined;
+  if (!reads) {
+    throw new Error(
+      'Not a query listQuery() validated: check the fields of `list.parse(raw)` itself, not a copy.',
+    );
+  }
+  return reads;
+}
 
 /** A validated list query: the page, the sort, and the filter values by key. */
 export type ListQuery = PageQuery & Record<string, unknown>;

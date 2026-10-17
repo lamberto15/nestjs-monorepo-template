@@ -109,9 +109,15 @@ describe('queryReads', () => {
     expect(reads({ sort: '-rank' })).toEqual(['body', 'title']);
   });
 
-  it('names nothing for paging alone, and nothing for a query it did not validate', () => {
+  it('names nothing for paging alone, and fails closed for a query it did not validate', () => {
     expect(reads({ limit: '10', count: 'true' })).toEqual([]);
-    expect(queryReads({ limit: 10, status: 'draft' })).toEqual([]);
+    expect(() => queryReads({ limit: 10, status: 'draft' })).toThrow(
+      /listQuery\(\) validated/,
+    );
+    // A copy loses what the check reads: it throws too, never passes.
+    expect(() =>
+      queryReads({ ...LIST.parse({ 'body.contains': 'x' }) }),
+    ).toThrow();
   });
 
   it('keeps them out of the query: not a key, nor in its JSON', () => {
