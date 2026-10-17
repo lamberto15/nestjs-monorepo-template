@@ -118,5 +118,12 @@
       "title": "Anfrage zurückgezogen",
       "body": "{by} hat „{title}“ zurückgezogen: Es ist keine Entscheidung mehr nötig."
     }
+  },
+  "system": {
+    "test": {
+      "label": "Testbenachrichtigung",
+      "title": "Testbenachrichtigung",
+      "body": "Dies ist eine Testbenachrichtigung, gesendet um {at}. Sie ging über alle Kanäle, die Sie eingeschaltet haben."
+    }
   }
 }
