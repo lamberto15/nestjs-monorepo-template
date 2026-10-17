@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import request from 'supertest';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
@@ -6,6 +7,7 @@ import { AccountService } from '../src/iam/account/account.service.js';
 import { PasskeysService } from '../src/iam/account/passkeys.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import {
+  magicLinks,
   passkeys,
   sessions,
   userIdentities,
@@ -500,6 +502,104 @@ describe('security (e2e)', () => {
       .http()
       .get('/v1/auth/oidc/google/callback?code=a&state=s&state=t')
       .expect(400);
+  });
+
+  describe('redirectTo: a path of the web app, never another site (#74)', () => {
+    /** Every spelling of "another site" a browser, a URL parser or a once-decoding client follows. */
+    const offSite = [
+      '//evil.example',
+      '/\\evil.example',
+      '\\\\evil.example',
+      '/\t/evil.example',
+      '/%09/evil.example',
+      '/%5Cevil.example',
+      '/.//evil.example',
+      '/x\n',
+      ' /x',
+      'https://evil.example',
+      'javascript:alert(1)',
+      `/${'a'.repeat(2048)}`,
+    ];
+
+    it('refuses a magic-link request whose redirectTo could leave the web app (400), and stores nothing', async () => {
+      const { email } = await node.user([]);
+      // One address each: the route allows 5 requests per address.
+      for (const [i, redirectTo] of offSite.entries()) {
+        const refused = await node
+          .http()
+          .post('/v1/auth/magic-link')
+          .set('X-Forwarded-For', `10.74.${i}.1`)
+          .send({ email, redirectTo })
+          .expect(400);
+        expect(refused.body.code, JSON.stringify(redirectTo)).toBe(
+          'validation_failed',
+        );
+        expect(refused.body.errors).toEqual([
+          { path: 'redirectTo', message: expect.any(String) },
+        ]);
+      }
+      expect(
+        await node.db.$count(magicLinks, eq(magicLinks.email, email)),
+      ).toBe(0);
+      await node
+        .http()
+        .post('/v1/auth/magic-link')
+        .set('X-Forwarded-For', '10.74.255.1')
+        .send({ email, redirectTo: '/a/b?x=1#h' })
+        .expect(202);
+    });
+
+    it('never answers a stored redirectTo that could leave the web app (a link from before the rule)', async () => {
+      const { email } = await node.user([]);
+      const asking = request.agent(node.app.getHttpServer());
+      await asking
+        .post('/v1/auth/magic-link')
+        .send({ email, redirectTo: '/inbox' })
+        .expect(202);
+      const mail = await node.waitForMail({
+        to: email,
+        subject: 'Your sign-in link',
+      });
+      const token = mail.link('/magic-link').searchParams.get('token')!;
+      // Stored before the rule (or by an older package): an off-site path.
+      await node.db
+        .update(magicLinks)
+        .set({ redirectTo: '/\\evil.example' })
+        .where(eq(magicLinks.email, email));
+      const signedIn = await asking
+        .post('/v1/auth/magic-link/verify')
+        .send({ token })
+        .expect(200);
+      expect(signedIn.body).toEqual({ signedIn: true, mfaRequired: false });
+    });
+
+    it('sends a browser leaving the OIDC login to the web app, whatever redirectTo says', async () => {
+      // Linking from a stale session reads `redirectTo` with no provider configured.
+      const me = await node.user([]);
+      const current = (
+        (await me.agent.get('/v1/auth/sessions').expect(200)).body.items as {
+          id: string;
+          current: boolean;
+        }[]
+      ).find((item) => item.current)!;
+      await node.db
+        .update(sessions)
+        .set({
+          metadata: sql`${sessions.metadata} || ${JSON.stringify({
+            authenticatedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+          })}::jsonb`,
+        })
+        .where(eq(sessions.id, current.id));
+      for (const redirectTo of offSite) {
+        const sent = await me.agent
+          .get('/v1/auth/oidc/google/login')
+          .query({ link: 'true', redirectTo })
+          .expect(302);
+        expect(sent.headers.location, JSON.stringify(redirectTo)).toBe(
+          'https://web.example.com/?error=reauthentication_required',
+        );
+      }
+    });
   });
 
   describe("the deletion mail's cancel link (no sign-in)", () => {

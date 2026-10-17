@@ -17,7 +17,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Forgot / reset password | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset` |
 | Change password | `POST /v1/auth/password/change` (others signed out; [step-up](#step-up-recent-authentication)) |
 | Verify email | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` |
-| Sessions (each with how it was signed in) | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `POST /v1/auth/sign-out-everywhere` |
+| Sessions (each with how it was signed in, and its device) | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `POST /v1/auth/sign-out-everywhere` |
 | Re-authenticate for a sensitive action | `GET /v1/auth/reauthenticate` (how, until when), `POST /v1/auth/reauthenticate`: see [Step-up](#step-up-recent-authentication) |
 | Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
@@ -29,6 +29,19 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 - **Email links** open pages of the web app (`WEB_URL/reset-password`,
   `/verify-email`, `/magic-link`) that POST the token back: mail scanners
   follow GET links. Links are single-use and short-lived.
+- **`redirectTo`** (`POST /v1/auth/magic-link`,
+  `GET /v1/auth/oidc/{provider}/login`) is a path of the web app, never
+  another site: one leading `/`, printable ASCII only (no space, tab,
+  newline or other control), no `\`, no scheme (`https:`, `javascript:`),
+  at most 2,048 characters, and the same once percent-decoded (`/%09/x`,
+  `/%5Cx`); resolved against `WEB_URL` it must stay on its origin
+  (`core/http/redirect-path.ts`: `redirectPath`, `isSafeRedirectPath`,
+  `webAppUrl`). The magic link refuses anything else (400
+  `validation_failed`); the OIDC login, which the browser navigates to,
+  ignores it (the web app's root). A stored value is checked again before
+  it is answered (`magic-link/verify`'s `redirectTo`) or redirected to (the
+  OIDC callback, which lands on `WEB_URL` + the path): one stored before
+  the rule falls back to the default.
 - **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
   one account per address, in every tenant it belongs to; a session acts in
   one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
@@ -228,7 +241,10 @@ signInOptions('passkey'))` (or `sso:<id>`), or runs the package's call in
   in to it.
 
 `GET /v1/auth/sessions` lists `method`, `provider`, `mfa` and
-`authenticatedAt` per session; `GET /v1/auth/me` has the current
+`authenticatedAt` per session, and a readable `device` ("Chrome on macOS",
+null when no user agent was recorded) next to the raw `userAgent`; it is the
+summary the security alerts use (`deviceLabel()`, `iam/account/devices.ts`),
+so clients don't parse user agents; `GET /v1/auth/me` has the current
 credential's `authentication` (`via`: `session` or `token`) and
 `recentUntil`.
 

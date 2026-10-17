@@ -7,18 +7,18 @@ import {
   SidebarMenuItem,
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { useTranslation } from 'react-i18next';
-import { useFeatures, useMe, visible } from '@/lib/features';
-import { nav } from '@/nav';
+import { useFeatures, useMe } from '@/lib/features';
+import { nav, visibleGroups } from '@/nav';
 
 export function NavMain() {
   const { t } = useTranslation();
   // The one place the menu is filtered (UX only: the API enforces both).
-  const items = visible(nav, useFeatures(), useMe()?.can);
-  return (
-    <SidebarGroup>
-      <SidebarGroupLabel>{t('nav.platform')}</SidebarGroupLabel>
+  const groups = visibleGroups(nav, useFeatures(), useMe()?.can);
+  return groups.map((group) => (
+    <SidebarGroup key={group.id}>
+      <SidebarGroupLabel>{t(group.label)}</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
+        {group.items.map((item) => (
           <SidebarMenuItem key={item.to}>
             <SidebarMenuButton
               tooltip={t(item.label)}
@@ -37,5 +37,5 @@ export function NavMain() {
         ))}
       </SidebarMenu>
     </SidebarGroup>
-  );
+  ));
 }

@@ -75,10 +75,17 @@ http://localhost:5173) side by side.
   the API is same-origin (the `__Host-sid` cookie needs it).
 - **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
   `_app.tsx` (the signed-in layout, shadcn's `sidebar-07` block), `_app/index.tsx`
-  (dashboard), `sign-in.tsx`. A new page is a file there; the menu is
-  `src/nav.ts` (`to`, an i18n `label`, `icon`, optional `feature` and
-  `permission`).
-- **Languages:** `src/locales/<lng>/common.json` for the API's five locales.
+  (dashboard), `sign-in.tsx`. A new page is a file there; its menu entry is
+  `features/<feature>/nav.ts` (default export: `group`, `order`, `to`, an
+  i18n `label`, `icon`, optional `feature` and `permission`). `src/nav.ts`
+  collects them (`import.meta.glob`) into the groups `workspace`,
+  `administration`, `operators` (sorted by `order`; a group with nothing
+  visible is hidden), so a feature never edits a shared file.
+- **Languages:** `src/locales/<lng>/<ns>.json` for the API's five locales; every
+  file is the namespace `<ns>` (loaded eagerly, `import.meta.glob` in `i18n.ts`).
+  A feature's texts: `locales/<lng>/<feature>.json`, used with
+  `useTranslation('<feature>')`; `common` is the default; `nav` holds the group
+  titles. A key missing in a language falls back to `en`.
   `en` is complete; the others are copies of it until translated. `<html lang>`
   and `dir` (`rtl` for `ar`) follow the language; the theme (light, dark,
   system) is a class on `<html>`.

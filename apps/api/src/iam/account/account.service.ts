@@ -20,6 +20,7 @@ import {
 import { t } from '@nestjs/i18n';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Transaction } from '../../core/database/drizzle.js';
+import { isSafeRedirectPath } from '../../core/http/redirect-path.js';
 import {
   database,
   type DrizzleTransactions,
@@ -30,7 +31,11 @@ import { AuditService } from '../audit/audit.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import { userIdentities, users } from '../iam.tables.js';
-import { signInOptions, tokenClaims } from '../auth/authentication-method.js';
+import {
+  authenticationOf,
+  signInOptions,
+  tokenClaims,
+} from '../auth/authentication-method.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
 import { AuthPolicyService } from '../auth/auth-policy.service.js';
@@ -45,6 +50,7 @@ import {
 import { PasswordHashLimiter } from './password-hashing.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
+import { deviceLabel } from './devices.js';
 import { assertNotLastSignInMethod } from './sign-in-methods.js';
 
 /** The fields a user may change on their own profile. */
@@ -309,7 +315,10 @@ export class AccountService {
     return {
       signedIn: !mfaRequired,
       mfaRequired,
-      redirectTo: issued.redirectTo,
+      // Checked again: a link stored before the rule, or by an older package, answers none.
+      redirectTo: isSafeRedirectPath(issued.redirectTo)
+        ? issued.redirectTo
+        : undefined,
     };
   }
 
@@ -488,6 +497,35 @@ export class AccountService {
     if (told) {
       this.securityAlerts.deliverNow();
     }
+  }
+
+  /**
+   * The user's browser sessions as the sessions list shows them, with a
+   * readable `device` ("Chrome on macOS") from the recorded user agent.
+   * While an administrator acts as the user: only that session (the
+   * person's others, their devices and other tenants, are theirs).
+   */
+  async listSessions(user: UserPrincipal, current: SessionRecord | undefined) {
+    const sessions = (await this.sessions.list(user.id)).filter(
+      (session) => !user.impersonator || session.id === current?.id,
+    );
+    return sessions.map((session) => {
+      const authentication = authenticationOf(session);
+      const userAgent =
+        (session.metadata?.userAgent as string | undefined) ?? null;
+      return {
+        id: session.id,
+        createdAt: session.createdAt.toISOString(),
+        lastActiveAt: session.lastActiveAt.toISOString(),
+        userAgent,
+        device: deviceLabel(userAgent),
+        method: authentication?.method ?? null,
+        provider: authentication?.provider ?? null,
+        mfa: authentication?.mfa ?? false,
+        authenticatedAt: authentication?.authenticatedAt?.toISOString() ?? null,
+        current: session.id === current?.id,
+      };
+    });
   }
 
   /**
