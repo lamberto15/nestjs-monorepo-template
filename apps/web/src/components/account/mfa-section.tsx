@@ -23,7 +23,7 @@ import { ShieldAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
 import { api } from '@/lib/api';

@@ -7,7 +7,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { useCaptcha } from '@/components/auth/captcha';
 import { LinkResult } from '@/components/auth/link-result';
