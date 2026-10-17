@@ -50,6 +50,8 @@ export type DatabaseUrls = {
 export async function ensureAppRole(
   urls: DatabaseUrls,
   log: (line: string) => void = () => {},
+  /** Tables beyond the app's schema: the tests' fixtures (test/global-setup.ts). */
+  extraTables: Record<string, unknown> = {},
 ) {
   const owner = credentials(urls.ownerUrl, 'DATABASE_OWNER_URL');
   const app = credentials(urls.appUrl, 'DATABASE_URL');
@@ -105,7 +107,7 @@ export async function ensureAppRole(
         await grantSchema(client, owner.role, role.role, schema);
       }
     }
-    await forceRowLevelSecurity(client, log);
+    await forceRowLevelSecurity(client, log, extraTables);
     await assertFit(client, app.role, schemas);
     if (maintenance) {
       await assertFit(client, maintenance.role, schemas);
@@ -721,8 +723,8 @@ export function scramSha256Verifier(password: string, salt = randomBytes(16)) {
 }
 
 /** The tables of the schema that declare row-level security (`.enableRLS()`): the tenant tables. */
-function rowSecuredTables() {
-  return Object.values(schema)
+function rowSecuredTables(extraTables: Record<string, unknown> = {}) {
+  return [...Object.values(schema), ...Object.values(extraTables)]
     .filter((value) => is(value, PgTable))
     .map((table) => getTableConfig(table))
     .filter((config) => config.enableRLS)
@@ -742,8 +744,9 @@ function rowSecuredTables() {
 async function forceRowLevelSecurity(
   client: ClientBase,
   log: (line: string) => void,
+  extraTables: Record<string, unknown>,
 ) {
-  for (const table of rowSecuredTables()) {
+  for (const table of rowSecuredTables(extraTables)) {
     const { rows } = await client.query<{ forced: boolean }>(
       `select c.relforcerowsecurity as forced
        from pg_class c join pg_namespace n on n.oid = c.relnamespace

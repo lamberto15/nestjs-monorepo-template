@@ -344,7 +344,37 @@ the controller (`notes.*`); singular for what describes one record
 
 Rename it (`name` in the root `package.json` and the `@nestjs-monorepo-template/`
 scope of the packages, `API_TITLE` in `apps/api/src/openapi.ts`,
-`API_KEY_PREFIX`), then delete `features/notes/` and its lines in
-`features/index.ts`, `features/tables.ts` and `features/env.ts`,
-`apps/api/test/notes.e2e-spec.ts`, and run
-`pnpm db:generate`.
+`API_KEY_PREFIX`), then remove the example feature and its table:
+
+```bash
+pnpm feature:remove notes   # --dry-run shows what goes
+pnpm db:generate
+pnpm client:generate
+```
+
+`pnpm feature:remove <name>` removes any feature the same way: its folder,
+its tests (`test/<name>.e2e-spec.ts`, `test/features/<name>/`), its lines in
+`features/index.ts`, `tables.ts` and `env.ts`, its texts (the `<item>` key of
+each locale's files), its PDF template, and its variables (the
+`feature:<name> begin … end` blocks in `env.example`,
+`apps/api/env.development.example` and `test/setup-env.ts`). It refuses while
+another feature refers to it. On a live database, dropping a table is a
+contract step: release the code that no longer uses it first
+(docs/development.md, migrations).
+
+Nothing else depends on a feature: the platform's own tests run on a
+test-only record (`apps/api/test/fixtures/test-items`, made by the generator,
+its migrations in `test/fixtures/drizzle`, `pnpm db:generate:fixtures`), and
+CI's `template-without-notes` job removes notes on every change and runs
+everything. A feature's own tests live in `test/<name>.e2e-spec.ts` or
+`test/features/<name>/`, with their helpers next to them.
+
+### A feature's demo data
+
+`pnpm db:seed:demo` makes the demo tenant, its teams and users in the seed
+roles (`editor`, `team-lead`, `viewer`: `iam/access/seed-roles.ts`; features
+add their grants to them by key). A feature adds its own data with `demo` in
+its `defineFeature()`: a provider of its module implementing
+`FeatureDemoSeeder` (`seed(context)`: the transaction, the tenant, the demo
+users by key) and the permissions it needs (`features/notes/notes.demo.ts`
+is the example).

@@ -1,0 +1,10 @@
+{
+  "testItem": {
+    "document": "Test item",
+    "issued": "Issued {date}",
+    "fields": {
+      "title": "Title",
+      "body": "Body"
+    }
+  }
+}

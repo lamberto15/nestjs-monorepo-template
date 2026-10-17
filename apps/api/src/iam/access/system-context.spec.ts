@@ -3,7 +3,6 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TransactionHost } from '@nestjs-cls/transactional';
 import { ClsService } from 'nestjs-cls';
 import type { DrizzleTransactions } from '../../core/database/transactions.js';
-import { NOTE_PERMISSIONS } from '../../features/notes/note.policy.js';
 import { ACCOUNT_DELETION_JOB } from '../../platform/platform.jobs.js';
 import { PLATFORM_PERMISSIONS } from '../../platform/ops/ops.policy.js';
 import { SEED_JOB } from '../iam.jobs.js';
@@ -12,7 +11,7 @@ import { PermissionCatalog } from './permission-catalog.js';
 import { SystemContext } from './system-context.js';
 
 const catalog = new PermissionCatalog({
-  permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS],
+  permissions: [PLATFORM_PERMISSIONS],
 });
 
 /** A transaction host that records what ran in a transaction. */

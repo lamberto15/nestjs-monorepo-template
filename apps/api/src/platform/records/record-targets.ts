@@ -36,11 +36,18 @@ import {
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
-import { type RecordDeclaration, recordKey, recordView } from './record.js';
+import { TagsService } from '../tags/tags.service.js';
+import {
+  type RecordDeclaration,
+  recordKey,
+  recordView,
+  takes,
+} from './record.js';
 export { recordKey } from './record.js';
 import {
   RECORD_CONTRACT,
   type RecordContract,
+  RecordPresenter,
   type RecordRow,
 } from './record-contract.js';
 
@@ -316,7 +323,12 @@ export class RecordSearch {
     limit: number,
   ): Promise<SearchHit[]> {
     const table = this.c.table;
-    const first = searchableFields(this.c.declaration.fields)[0]!;
+    const fields = this.c.declaration.fields;
+    // Long texts first (a body says more than a title), then the rest.
+    const searchable = searchableFields(fields).sort(
+      (a, b) =>
+        Number(fields[b]!.kind === 'text') - Number(fields[a]!.kind === 'text'),
+    );
     const where = and(
       await this.access.sqlFilter(principal, this.subject, 'read'),
       matches(table.search!, q),
@@ -330,7 +342,13 @@ export class RecordSearch {
             table as unknown as Parameters<typeof getTableColumns>[0],
           ),
           score,
-          snippet: headline(table[first]!, q),
+          // A snippet of each searchable field, its own key next to the row's.
+          ...Object.fromEntries(
+            searchable.map((name) => [
+              `${SNIPPET}${name}`,
+              headline(table[name]!, q),
+            ]),
+          ),
         })
         .from(table as never)
         .where(where)
@@ -347,12 +365,21 @@ export class RecordSearch {
       subject: this.subject,
       id: row.id as string,
       title: titleOf(this.c.declaration, row),
-      snippet: (row.snippet as string | null) ?? null,
+      // Field-level permissions: only a snippet of a field still shown
+      // after redaction, and only one that highlights a match.
+      snippet:
+        searchable
+          .filter((name) => name in row && row[name] != null)
+          .map((name) => row[`${SNIPPET}${name}`] as string | null)
+          .find((snippet) => snippet?.includes('<b>')) ?? null,
       score: Number(row.score),
       link: `/${this.c.declaration.path}/${row.id as string}`,
     }));
   }
 }
+
+/** The key of a field's snippet in a search row (beside the row's own columns). */
+const SNIPPET = '__snippet_';
 
 /** A record's revisions: its fields after each change; restored through the service (a PATCH's checks). */
 @Injectable()
@@ -361,6 +388,8 @@ export class RecordRevisions {
   constructor(
     @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
     private readonly access: AccessService,
+    // The answer a GET gives (tags too), so a restore's ETag is the GET's.
+    private readonly presenter: RecordPresenter,
     registry: RevisionsRegistry,
   ) {
     this.subject = c.declaration.subject;
@@ -416,20 +445,10 @@ export class RecordRevisions {
     const updated = await this.c.service.update(principal, row, dto, ip, {
       restoredFrom,
     });
-    return this.access.redact(
-      principal,
-      'read',
-      this.subject,
-      this.view(updated),
-    );
+    return this.presenter.one(principal, updated);
   }
   async shown(principal: Principal, id: string) {
-    return this.access.redact(
-      principal,
-      'read',
-      this.subject,
-      this.view(await this.c.service.findOne(id)),
-    );
+    return this.presenter.one(principal, await this.c.service.findOne(id));
   }
   /** Without the fields the reader's permissions leave out, in the snapshots and in the changes. */
   async redact(
@@ -562,6 +581,7 @@ export class RecordTransfer {
   constructor(
     @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
     private readonly access: AccessService,
+    private readonly tags: TagsService,
     registry: DataTransferRegistry,
     personalData: PersonalDataRegistry,
   ) {
@@ -592,6 +612,20 @@ export class RecordTransfer {
         if (f.kind === 'datetime') return { key: name, type: 'datetime' };
         return { key: name };
       }),
+      // Its tags' names, `Urgent, Q3` (batches() adds them, one query per
+      // batch). Export only: an import's schema doesn't name `tags`, so the
+      // column is ignored there.
+      ...(takes(c.declaration, 'tags')
+        ? [
+            {
+              key: 'tags',
+              value: (row: Record<string, unknown>) =>
+                ((row.tags as { name: string }[] | undefined) ?? [])
+                  .map((tag) => tag.name)
+                  .join(', '),
+            } satisfies TransferColumn,
+          ]
+        : []),
       { key: 'ownerId', header: 'owner' },
       { key: 'createdAt', type: 'datetime' },
     ];
@@ -643,12 +677,27 @@ export class RecordTransfer {
     }
   }
   async *batches(principal: Principal, filters: Record<string, unknown>) {
-    yield* this.pages(
+    const withTags = takes(this.c.declaration, 'tags');
+    for await (const rows of this.pages(
       and(
         await this.access.sqlFilter(principal, this.subject, 'read'),
         this.c.list.where({ limit: 1000, ...filters } as ListQuery),
       ),
-    );
+    )) {
+      if (!withTags) {
+        yield rows;
+        continue;
+      }
+      // One query for the batch's tags, as RecordPresenter does.
+      const tags = await this.tags.tagsOf(
+        this.subject,
+        rows.map((row) => row.id as string),
+      );
+      yield rows.map((row) => ({
+        ...row,
+        tags: tags.get(row.id as string) ?? [],
+      }));
+    }
   }
   async write(principal: Principal, row: Record<string, unknown>) {
     await this.c.service.create(principal, row);

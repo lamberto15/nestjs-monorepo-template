@@ -3,7 +3,12 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { Client } from 'pg';
 import type { TestProject } from 'vitest/node';
+import { fileURLToPath } from 'node:url';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { migrateAll } from '../src/core/database/migrate-all.js';
+import { ensureAppRole } from '../src/core/database/roles.js';
+import * as fixtureTables from './fixtures/tables.js';
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -296,11 +301,26 @@ export default async function setup(project: TestProject) {
     // ensureMonitorRole): a superuser has it; a managed admin gets it once.
     await onServer(`grant pg_monitor to "${owner}" with admin option`);
     await onServer(`create database "${template}" owner "${owner}"`);
-    await migrateAll({
+    const urls = {
       ownerUrl: databaseUrl(ownerUrl, template),
       appUrl: databaseUrl(appUrl, template),
       maintenanceUrl: databaseUrl(maintenanceUrl, template),
-    });
+    };
+    await migrateAll(urls);
+    // Then the test-only features' tables (test/fixtures), in a journal of
+    // their own, and the app role granted them as it is the app's.
+    const fixtures = drizzle({ connection: urls.ownerUrl });
+    try {
+      await migrate(fixtures, {
+        migrationsFolder: fileURLToPath(
+          new URL('./fixtures/drizzle', import.meta.url),
+        ),
+        migrationsTable: '__drizzle_fixture_migrations',
+      });
+    } finally {
+      await fixtures.$client.end();
+    }
+    await ensureAppRole(urls, undefined, fixtureTables);
   } catch (error) {
     // A failed bootstrap leaves no role, template or container behind.
     await teardown();

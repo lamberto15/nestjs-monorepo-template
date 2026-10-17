@@ -14,6 +14,7 @@
     "start:dev": "pnpm --filter @nestjs-monorepo-template/api start:dev",
     "start:debug": "pnpm --filter @nestjs-monorepo-template/api start:debug",
     "db:generate": "pnpm --filter @nestjs-monorepo-template/api db:generate",
+    "db:generate:fixtures": "pnpm --filter @nestjs-monorepo-template/api db:generate:fixtures",
     "db:check": "pnpm --filter @nestjs-monorepo-template/api db:check",
     "db:studio": "pnpm --filter @nestjs-monorepo-template/api db:studio",
     "migrate": "pnpm --filter @nestjs-monorepo-template/api migrate",

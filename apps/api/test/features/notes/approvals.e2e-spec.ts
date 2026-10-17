@@ -1,29 +1,35 @@
+import { writeNote } from './notes-support.js';
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import type { UserPrincipal } from '../src/iam/auth/principal.js';
-import { SystemContext } from '../src/iam/access/system-context.js';
+import type { UserPrincipal } from '../../../src/iam/auth/principal.js';
+import { SystemContext } from '../../../src/iam/access/system-context.js';
 import {
   ACCOUNT_DELETION_JOB,
   APPROVALS_JOB,
-} from '../src/platform/platform.jobs.js';
-import { NOTE_PUBLICATION_JOB } from '../src/features/notes/note.policy.js';
+} from '../../../src/platform/platform.jobs.js';
+import { NOTE_PUBLICATION_JOB } from '../../../src/features/notes/note.policy.js';
 import { z } from 'zod';
 import type request from 'supertest';
-import { ApprovalsRegistry } from '../src/platform/approvals/approvals.registry.js';
-import { ApprovalsService } from '../src/platform/approvals/approvals.service.js';
-import { approvalWorkflowId } from '../src/platform/approvals/approval-events.js';
-import type { ApprovalLifecycleEvent } from '../src/platform/approvals/approval.types.js';
-import { approvalRequests } from '../src/platform/approvals/approvals.tables.js';
-import { ApprovalEngine } from '../src/platform/approvals/approval-engine.service.js';
-import { NOTE_PUBLISH_APPROVAL } from '../src/features/notes/note-approvals.js';
-import { NotesService } from '../src/features/notes/notes.service.js';
-import { NotePublisher } from '../src/features/notes/note-publisher.service.js';
-import { NotePublishApproval } from '../src/features/notes/note-approvals.js';
-import { RevisionsService } from '../src/platform/revisions/revisions.service.js';
-import { NotificationsService } from '../src/platform/notifications/notifications.service.js';
-import { notes } from '../src/features/notes/notes.tables.js';
-import { RecordPurgeRegistry } from '../src/iam/resources/record-purge.registry.js';
-import { bootApp, connect, type TestApp, webhookReceiver } from './support.js';
+import { ApprovalsRegistry } from '../../../src/platform/approvals/approvals.registry.js';
+import { ApprovalsService } from '../../../src/platform/approvals/approvals.service.js';
+import { approvalWorkflowId } from '../../../src/platform/approvals/approval-events.js';
+import type { ApprovalLifecycleEvent } from '../../../src/platform/approvals/approval.types.js';
+import { approvalRequests } from '../../../src/platform/approvals/approvals.tables.js';
+import { ApprovalEngine } from '../../../src/platform/approvals/approval-engine.service.js';
+import { NOTE_PUBLISH_APPROVAL } from '../../../src/features/notes/note-approvals.js';
+import { NotesService } from '../../../src/features/notes/notes.service.js';
+import { NotePublisher } from '../../../src/features/notes/note-publisher.service.js';
+import { NotePublishApproval } from '../../../src/features/notes/note-approvals.js';
+import { RevisionsService } from '../../../src/platform/revisions/revisions.service.js';
+import { NotificationsService } from '../../../src/platform/notifications/notifications.service.js';
+import { notes } from '../../../src/features/notes/notes.tables.js';
+import { RecordPurgeRegistry } from '../../../src/iam/resources/record-purge.registry.js';
+import {
+  bootApp,
+  connect,
+  type TestApp,
+  webhookReceiver,
+} from '../../support.js';
 
 // /metrics answers with a token only, read when AppModule loads (before the imports run).
 const METRICS = vi.hoisted(() => {
@@ -103,9 +109,10 @@ describe('approvals (e2e)', () => {
       .put('/v1/settings/notes.publishDelay')
       .send({ value: '3650d' })
       .expect(200);
-    const written = await node
-      .writeNote(node.admin(), { title, body: 'x' })
-      .expect(201);
+    const written = await writeNote(node, node.admin(), {
+      title,
+      body: 'x',
+    }).expect(201);
     return written.body.id as string;
   }
 
@@ -144,7 +151,7 @@ describe('approvals (e2e)', () => {
     it('asks an editor before publishing, refuses edits meanwhile, publishes once approved', async () => {
       const owner = await node.user(['editor']);
       const editor = await node.user(['editor']);
-      const note = await node.writeNote(owner.agent).expect(201);
+      const note = await writeNote(node, owner.agent).expect(201);
       await node.worker.drain();
       node.clock.advance('10s'); // the publication delay
       await node.worker.drain(); // the publication asks; the approval assigns the editors
@@ -210,7 +217,7 @@ describe('approvals (e2e)', () => {
         .expect(200);
       const owner = await node.user(['editor']);
       await node.user(['editor']);
-      const note = await node.writeNote(owner.agent).expect(201);
+      const note = await writeNote(node, owner.agent).expect(201);
       await node.worker.drain();
       node.clock.advance('10s');
       await node.worker.drain();
@@ -454,7 +461,7 @@ describe('approvals (e2e)', () => {
     it('withdraws the request when the note is deleted, and ends a purged record’s workflow', async () => {
       const owner = await node.user(['editor']);
       const editor = await node.user(['editor']);
-      const note = await node.writeNote(owner.agent).expect(201);
+      const note = await writeNote(node, owner.agent).expect(201);
       await node.worker.drain();
       node.clock.advance('10s');
       await node.worker.drain();
@@ -1002,7 +1009,7 @@ describe('approvals (e2e)', () => {
       await setPolicy({
         stages: [stage([{ type: 'permission', action: 'read' }])],
       });
-      const note = await node.writeNote(owner.agent).expect(201);
+      const note = await writeNote(node, owner.agent).expect(201);
       const result = await requestApproval(`user:${owner.id}`, {
         subject: 'Note',
         recordId: note.body.id,
@@ -1580,7 +1587,7 @@ describe('approvals (e2e)', () => {
       const owner = await node.user(['editor']);
       const editor = await node.user(['editor']);
       const publishing = async () => {
-        const note = await node.writeNote(owner.agent).expect(201);
+        const note = await writeNote(node, owner.agent).expect(201);
         await node.worker.drain();
         node.clock.advance('10s');
         await node.worker.drain();
@@ -1670,7 +1677,7 @@ describe('approvals (e2e)', () => {
   describe('applying the outcome', () => {
     /** A note asked for publication (as its owner) and assigned to the editors. */
     async function publication(owner: User, editor: User) {
-      const note = await node.writeNote(owner.agent).expect(201);
+      const note = await writeNote(node, owner.agent).expect(201);
       await node.worker.drain();
       node.clock.advance('10s');
       await node.worker.drain();

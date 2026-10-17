@@ -1,9 +1,43 @@
-import { NOTE_PERMISSIONS } from '../../features/notes/note.policy.js';
+import { eq } from 'drizzle-orm';
+import { pgTable, text } from 'drizzle-orm/pg-core';
 import { PLATFORM_PERMISSIONS } from '../../platform/ops/ops.policy.js';
 import { systemPrincipal } from '../auth/principal.js';
 import { AccessService } from './access.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import { ALL, definePermissions, defineSystemJob } from './permissions.js';
+
+/** A sample resource with a `draft` condition, and a job that updates drafts. */
+const notes = pgTable('notes', { status: text('status').notNull() });
+const NOTE_PERMISSIONS = definePermissions({
+  subjects: {
+    Note: {
+      label: 'Notes',
+      conditions: {
+        draft: {
+          label: 'Still a draft',
+          description: 'Only notes not yet published.',
+          casl: () => ({ status: 'draft' }),
+          sql: () => eq(notes.status, 'draft'),
+        },
+      },
+      actions: {
+        read: { label: 'See notes', conditions: [] },
+        update: { label: 'Change notes', conditions: ['draft'] },
+        delete: { label: 'Delete notes', conditions: [] },
+      },
+    },
+  },
+  systemJobs: [
+    defineSystemJob({
+      key: 'note-publication',
+      label: 'Note publication',
+      description: 'Publishes draft notes when their delay passes.',
+      permissions: [
+        { subject: 'Note', action: 'update', conditions: [{ key: 'draft' }] },
+      ],
+    }),
+  ],
+});
 
 const catalog = new PermissionCatalog({
   permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS],

@@ -21,28 +21,30 @@ describe('bulk operations (e2e)', () => {
       ? node.http()[method](path).set('Authorization', auth)
       : auth[method](path);
 
-  /** POST /v1/notes/bulk with a fresh Idempotency-Key (or this one). */
+  /** POST /v1/test-items/bulk with a fresh Idempotency-Key (or this one). */
   const bulk = (
     auth: Caller,
     body: Record<string, unknown>,
     key: string = randomUUID(),
   ) =>
-    as(auth, 'post', '/v1/notes/bulk').set('Idempotency-Key', key).send(body);
+    as(auth, 'post', '/v1/test-items/bulk')
+      .set('Idempotency-Key', key)
+      .send(body);
 
-  /** Writes notes with these titles; their ids. */
+  /** Writes test items with these titles; their ids. */
   async function write(auth: Caller, ...titles: string[]) {
     const ids: string[] = [];
     for (const title of titles) {
       ids.push(
-        (await node.writeNote(auth, { title, body: 'b' }).expect(201)).body.id,
+        (await node.writeItem(auth, { title, body: 'b' }).expect(201)).body.id,
       );
     }
     return ids;
   }
 
   const titles = async (auth: Caller, query = '') =>
-    (await as(auth, 'get', `/v1/notes${query}`).expect(200)).body.items
-      .map((note: { title: string }) => note.title)
+    (await as(auth, 'get', `/v1/test-items${query}`).expect(200)).body.items
+      .map((item: { title: string }) => item.title)
       .sort();
 
   /** Waits until the run is done, and returns its status. */
@@ -57,7 +59,7 @@ describe('bulk operations (e2e)', () => {
     throw new Error('The bulk run never finished');
   }
 
-  it('deletes the ids the caller may delete, skips the rest, and audits each note and the run', async () => {
+  it('deletes the ids the caller may delete, skips the rest, and audits each item and the run', async () => {
     const editor = await node.user(['editor']);
     const mine = await write(editor.agent, 'One', 'Two', 'Three', 'Kept');
     const other = await node.user(['editor']);
@@ -95,7 +97,9 @@ describe('bulk operations (e2e)', () => {
       .get(`/v1/access/audit?actor=user:${editor.id}&limit=100`)
       .expect(200);
     const actions = audit.body.items.map((e: { action: string }) => e.action);
-    expect(actions.filter((a: string) => a === 'note.deleted')).toHaveLength(3);
+    expect(
+      actions.filter((a: string) => a === 'testItem.deleted'),
+    ).toHaveLength(3);
     expect(actions).toEqual(
       expect.arrayContaining(['bulk.started', 'bulk.finished']),
     );
@@ -103,7 +107,7 @@ describe('bulk operations (e2e)', () => {
       (e: { action: string }) => e.action === 'bulk.finished',
     );
     expect(done.details).toEqual({
-      name: 'notes',
+      name: 'test-items',
       action: 'delete',
       done: 3,
       failed: 0,
@@ -119,7 +123,7 @@ describe('bulk operations (e2e)', () => {
     expect(await titles(editor.agent)).toEqual(['Kept', 'One', 'Three', 'Two']);
   });
 
-  it('changes notes with the PATCH body, and fails each note whose field the caller may not set', async () => {
+  it('changes items with the PATCH body, and fails each item whose field the caller may not set', async () => {
     const editor = await node.user(['editor']);
     const ids = await write(editor.agent, 'A', 'B');
     const changed = await bulk(editor.agent, {
@@ -128,8 +132,8 @@ describe('bulk operations (e2e)', () => {
       input: { body: 'x' },
     }).expect(200);
     expect(changed.body).toMatchObject({ done: 2, failed: 0 });
-    const note = await editor.agent.get(`/v1/notes/${ids[0]}`).expect(200);
-    expect(note.body.body).toBe('x');
+    const item = await editor.agent.get(`/v1/test-items/${ids[0]}`).expect(200);
+    expect(item.body.body).toBe('x');
 
     const titlesOnly = await node
       .admin()
@@ -137,10 +141,14 @@ describe('bulk operations (e2e)', () => {
       .send({
         name: `Titles ${Date.now()}`,
         permissions: [
-          { subject: 'Note', action: 'read', conditions: [{ key: 'mine' }] },
-          { subject: 'Note', action: 'create', conditions: [] },
           {
-            subject: 'Note',
+            subject: 'TestItem',
+            action: 'read',
+            conditions: [{ key: 'mine' }],
+          },
+          { subject: 'TestItem', action: 'create', conditions: [] },
+          {
+            subject: 'TestItem',
             action: 'update',
             conditions: [{ key: 'mine' }],
             fields: [],
@@ -194,7 +202,7 @@ describe('bulk operations (e2e)', () => {
     const status = await finished(owner.auth, started.body.id);
     expect(status).toMatchObject({
       id: started.body.id,
-      name: 'notes',
+      name: 'test-items',
       action: 'delete',
       status: 'completed',
       progress: { processed: 3, done: 3, failed: 0 },
@@ -203,7 +211,7 @@ describe('bulk operations (e2e)', () => {
     expect(status.result.results).toHaveLength(3);
     expect(await heard).toEqual({
       id: started.body.id,
-      name: 'notes',
+      name: 'test-items',
       action: 'delete',
       done: 3,
       failed: 0,
@@ -238,7 +246,7 @@ describe('bulk operations (e2e)', () => {
     // A filter is conditions only: paging keys are refused, and so is none at all.
     const stray = await bulk(editor.agent, {
       action: 'delete',
-      filter: { status: 'draft', limit: '10' },
+      filter: { 'title.startsWith': 'x', limit: '10' },
     }).expect(400);
     expect(stray.body.errors.map((e: { path: string }) => e.path)).toEqual([
       'filter.limit',
@@ -259,7 +267,7 @@ describe('bulk operations (e2e)', () => {
     expect(tooMany.body.code).toBe('bulk_too_many');
 
     const unknown = await bulk(editor.agent, {
-      action: 'publish',
+      action: 'explode',
       ids: [id],
     }).expect(400);
     expect(unknown.body.code).toBe('validation_failed');
@@ -280,7 +288,7 @@ describe('bulk operations (e2e)', () => {
     expect(forbidden.body.code).toBe('forbidden');
 
     await editor.agent
-      .post('/v1/notes/bulk')
+      .post('/v1/test-items/bulk')
       .send({ action: 'delete', ids: [id] })
       .expect(400);
     expect(await titles(editor.agent)).toEqual(['Mine']);

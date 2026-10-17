@@ -22,12 +22,11 @@ A pnpm + Turborepo monorepo: the API in `apps/api`, its typed client in
 | Clients | A typed client package for web, mobile and scripts: REST types generated from the OpenAPI document, the conventions applied (credentials, idempotency keys, problem details, pages, ETags), typed realtime events | [api-client](packages/api-client/README.md) |
 | Operations | Separate API and worker processes, health checks, JSON logs with request ids, NestJS Observe (optional), Docker Compose for development and production with resource limits, Caddy HTTPS, CI, Dependabot | [deployment](docs/deployment.md) |
 
-One example feature, **notes**, is the model to copy: permissions with
-conditions and fields, declared filters and pagination, an idempotent create,
-audit diffs, a workflow, webhooks through the outbox, an incoming webhook,
-realtime events, exports and imports. For the rest, see
-`iam/audit/audit-retention.job.ts` (cron on one instance, locks) and
-`iam/account/` (mail through `MailQueue`).
+One example feature, **notes**, shows business logic on top of the platform:
+a publish workflow with an approval, conditions and field-level permissions,
+numbers, custom fields, webhooks through the outbox, an incoming webhook,
+settings. It is there to read, then to remove (`pnpm feature:remove notes`):
+new features start from the generator (`pnpm feature:add`), never from a copy.
 
 ## Start
 
@@ -36,7 +35,7 @@ pnpm install
 pnpm setup                # first run: a few questions, writes apps/api/.env.development (or the root .env for production)
 pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES), Gotenberg (PDF)
 pnpm start:dev            # http://localhost:3000/api
-pnpm db:seed:demo         # optional: demo users, notes and tags (passwords printed once)
+pnpm db:seed:demo         # optional: demo users and teams, and each feature's demo data (passwords printed once)
 ```
 
 `pnpm setup` asks what shapes a project (one organization or many, mail,
@@ -47,6 +46,25 @@ secrets; without it, copy `apps/api/env.development.example` to
 logged once unless `ADMIN_PASSWORD` is set). Or open the repository in its
 devcontainer (`.devcontainer/`): the same services, nothing to install. More
 in [development](docs/development.md).
+
+## Start a new project
+
+```bash
+git clone https://github.com/lamberto15/nestjs-monorepo-template my-app   # keeps the history: template updates merge
+cd my-app && git remote rename origin template
+pnpm install
+pnpm feature:remove notes   # the example feature, its tests and texts
+pnpm db:generate            # the migration that drops its table
+pnpm feature:add invoices --fields "number:string!unique,total:money,dueOn:date?" --with tags,comments,attachments,pdf
+pnpm db:generate && pnpm client:generate
+```
+
+Then rename it (the root `package.json` `name`, the `@nestjs-monorepo-template/`
+scope, `API_TITLE`, `API_KEY_PREFIX`) and write only the business logic, where
+the generated service says so. With Claude Code, `/add-feature` asks what the
+feature needs and runs the generator. GitHub's "Use this template" works too,
+but its fresh history makes template updates harder ([upgrading](docs/upgrading.md)).
+More in [adding a feature](docs/adding-a-feature.md).
 
 ## Deploy
 

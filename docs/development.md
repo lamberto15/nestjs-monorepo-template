@@ -55,19 +55,21 @@ company in a tenant of its own, **Demo Company** (`demo`, never the
 operators' tenant: [tenancy](tenancy.md); with `TENANCY=single`, the one
 tenant there is instead, whose administrator then acts as an operator): teams (Sales, Sales North
 under it, Engineering), seven members (its administrator, two team leads,
-three editors, a viewer), four tags, and seven notes owned by those
-members, tagged, two with a comment that mentions a colleague, one with a
-text file attached. Everything is in the demo tenant: memberships, roles,
-units, tags, notes, comments, the file (under `tenants/<id>/`), the audit
-entries. The data is `apps/api/src/demo/demo-data.ts`: change it with your
-features.
+three editors, a viewer) in the seed roles, then each feature's own data
+(`FeatureDefinition.demo`; the example feature's: four tags and seven notes
+owned by those members, tagged, two with a comment that mentions a
+colleague, one with a text file attached). Everything is in the demo
+tenant: memberships, roles, teams, the features' records, the files (under
+`tenants/<id>/`), the audit entries. The people are
+`apps/api/src/demo/demo-data.ts`; a feature's data is its own
+(`features/notes/notes.demo.ts`, [adding a feature](adding-a-feature.md)).
 
 - **Through the services, as the system principal** `system:demo-seed`
   ([permissions](permissions.md), "The system principal"): a standalone
   application context (`NestFactory.createApplicationContext`, NestJS's way
   for scripts) of the app plus `DemoSeeder`, with no workers in it
   (`APP_ROLE=api`). Every write has its audit entry with the seed as the
-  actor, and the job may do only what `DEMO_SEED_JOB` declares
+  actor, and the job may do only what `demoSeedJob()` declares (the core's, the roles' grants, the features' `demo.permissions`)
   (`src/demo/demo.jobs.ts`), checked where a controller checks and where
   the services do (granting a role takes holding its permissions, and a
   job never holds `all.manage`). The notes are their users' (so `mine`
@@ -111,7 +113,7 @@ features.
 - **Once, all or nothing:** the demo tenant is made as every tenant is
   (`TenantsService.create()`: the row and its roles in one transaction in
   its scope), and everything else runs in that same transaction as
-  `system.run(DEMO_SEED_JOB, …, { tenantId })`, after an advisory lock and
+  `system.run(demoSeedJob(features), …, { tenantId })`, after an advisory lock and
   the checks. A database that already has the demo tenant or demo users is
   left alone ("already here", exit 0). To start over, drop the development
   database's volume (`pnpm services:down`, then
@@ -229,10 +231,21 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
     package suggests): every test boots an app and signs users in, and the
     full cost made the suite several times slower. Same code path; never
     assert the production parameters in an e2e test.
-  - One file: `pnpm test:e2e test/notes.e2e-spec.ts` (the path inside
+  - One file: `pnpm test:e2e test/tags.e2e-spec.ts` (the path inside
     `apps/api`). One shard, as CI runs it: `pnpm test:e2e --shard=1/2`.
     One unit test file: `pnpm --filter @nestjs-monorepo-template/api test
     src/core/http/route-key.spec.ts`.
+- **The platform's record is test-only** (`apps/api/test/fixtures`): the
+  test app is `createAppModule([...FEATURES, TEST_ITEMS_FEATURE])`
+  (`TestAppModule`), so tags, comments, attachments, revisions, search,
+  tenancy… are tested on `TestItem` (`/v1/test-items`, `node.writeItem()`)
+  whatever features a project keeps. It's a generated feature with its own
+  migrations (`test/fixtures/drizzle`, from `pnpm db:generate:fixtures`,
+  applied to the template after the app's) and texts
+  (`test/fixtures/i18n`); no app database ever gets them.
+  `openapi.e2e-spec.ts` boots `AppModule` alone. A feature's own tests live
+  in `test/<name>.e2e-spec.ts` or `test/features/<name>/`, which
+  `pnpm feature:remove` takes with it.
 - **Store contracts** (`apps/api/test/stores.e2e-spec.ts`): the lock and
   authentication stores against the suites their packages ship.
 - `TEST_LOGS=1 pnpm test:e2e` shows the app's errors and warnings.

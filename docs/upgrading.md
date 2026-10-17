@@ -86,6 +86,7 @@ git push -u origin HEAD                   # a pull request, CI, review
 | `docs/roadmap.md`, `README.md`, `CLAUDE.md` | Yours: keep your side, take what you want of the template's |
 | `env.example`, `docs/configuration.md` | Keep both sides' variables; the release notes list the new ones |
 | `app.module.ts`, `schema.ts`, feature registrations | Keep both: your features and the template's modules sit side by side |
+| The example feature you removed (`features/notes/`, `test/features/notes/`): "deleted by us, modified by them" | Keep it removed (`git rm -r` those paths). A release migration that changes the `notes` table can't run on your database, which dropped it: the release notes flag it, and [the migrations](#the-migrations) say how to take a release's migrations |
 | `compose*.yaml`, `.github/workflows/` | Take the template's unless you changed them, then merge by hand; CI checks Compose's secrets and images |
 
 A file you deleted and the template changed comes back as a conflict

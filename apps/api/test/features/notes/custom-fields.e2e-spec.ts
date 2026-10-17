@@ -1,9 +1,10 @@
+import { writeNote } from './notes-support.js';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import type request from 'supertest';
-import { NotesService } from '../src/features/notes/notes.service.js';
-import { notes } from '../src/features/notes/notes.tables.js';
-import { bootApp, type TestApp } from './support.js';
+import { NotesService } from '../../../src/features/notes/notes.service.js';
+import { notes } from '../../../src/features/notes/notes.tables.js';
+import { bootApp, type TestApp } from '../../support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
 const local = (url: string) => {
@@ -297,9 +298,11 @@ describe('custom fields (e2e)', () => {
       site: 'https://example.com/x',
       code: 'ABC',
     };
-    const created = await node
-      .writeNote(client.auth, { title: 'Typed', body: '', custom: valid })
-      .expect(201);
+    const created = await writeNote(node, client.auth, {
+      title: 'Typed',
+      body: '',
+      custom: valid,
+    }).expect(201);
     expect(created.body.custom).toEqual(valid);
     const read = await node
       .http()
@@ -326,13 +329,11 @@ describe('custom fields (e2e)', () => {
       ['nope', 'x'],
     ];
     for (const [key, value] of wrong) {
-      const refused = await node
-        .writeNote(client.auth, {
-          title: 'Bad',
-          body: '',
-          custom: { [key]: value },
-        })
-        .expect(400);
+      const refused = await writeNote(node, client.auth, {
+        title: 'Bad',
+        body: '',
+        custom: { [key]: value },
+      }).expect(400);
       expect(refused.body.code).toBe('validation_failed');
       expect(
         paths(refused.body).some((path) => path.startsWith(`custom.${key}`)),
@@ -351,18 +352,17 @@ describe('custom fields (e2e)', () => {
     await field({ key: 'region', type: 'text' });
     const editor = await node.user(['editor']);
 
-    const missing = await node
-      .writeNote(editor.agent, { title: 'No code', body: '' })
-      .expect(400);
+    const missing = await writeNote(node, editor.agent, {
+      title: 'No code',
+      body: '',
+    }).expect(400);
     expect(paths(missing.body)).toEqual(['custom.code']);
 
-    const created = await node
-      .writeNote(editor.agent, {
-        title: 'Coded',
-        body: '',
-        custom: { code: 'A1', region: 'north' },
-      })
-      .expect(201);
+    const created = await writeNote(node, editor.agent, {
+      title: 'Coded',
+      body: '',
+      custom: { code: 'A1', region: 'north' },
+    }).expect(201);
     expect(created.body.custom).toEqual({
       code: 'A1',
       priority: 3,
@@ -419,13 +419,11 @@ describe('custom fields (e2e)', () => {
   it('treats custom values as one restrictable field', async () => {
     await field({ key: 'region', type: 'text' });
     const client = await node.client();
-    const note = await node
-      .writeNote(client.auth, {
-        title: 'Hi',
-        body: 'x',
-        custom: { region: 'eu' },
-      })
-      .expect(201);
+    const note = await writeNote(node, client.auth, {
+      title: 'Hi',
+      body: 'x',
+      custom: { region: 'eu' },
+    }).expect(201);
     // May read notes, but not their custom fields.
     const reader = await node.user([
       await role(['Note', 'read', ['body']], ['Note', 'create', ['body']]),
@@ -435,13 +433,11 @@ describe('custom fields (e2e)', () => {
       .expect(200);
     expect(read.body.custom).toBeUndefined();
     expect(read.body.body).toBe('x');
-    const refused = await node
-      .writeNote(reader.agent, {
-        title: 'Mine',
-        body: '',
-        custom: { region: 'eu' },
-      })
-      .expect(403);
+    const refused = await writeNote(node, reader.agent, {
+      title: 'Mine',
+      body: '',
+      custom: { region: 'eu' },
+    }).expect(403);
     expect(refused.body.fields).toEqual(['custom']);
   });
 
@@ -457,13 +453,11 @@ describe('custom fields (e2e)', () => {
       ],
     });
     const client = await node.client();
-    const note = await node
-      .writeNote(client.auth, {
-        title: 'Kept',
-        body: '',
-        custom: { region: 'eu', size: 's' },
-      })
-      .expect(201);
+    const note = await writeNote(node, client.auth, {
+      title: 'Kept',
+      body: '',
+      custom: { region: 'eu', size: 's' },
+    }).expect(201);
 
     // Type changes: refused while values exist, unless every value stays valid.
     const refused = await node
@@ -501,16 +495,14 @@ describe('custom fields (e2e)', () => {
       .send({ required: true })
       .expect(200);
     await node.admin().delete(`/v1/custom-fields/${region.id}`).expect(204);
-    await node
-      .writeNote(client.auth, { title: 'Without', body: '' })
-      .expect(201);
-    const unknown = await node
-      .writeNote(client.auth, {
-        title: 'With',
-        body: '',
-        custom: { region: 'us' },
-      })
-      .expect(400);
+    await writeNote(node, client.auth, { title: 'Without', body: '' }).expect(
+      201,
+    );
+    const unknown = await writeNote(node, client.auth, {
+      title: 'With',
+      body: '',
+      custom: { region: 'us' },
+    }).expect(400);
     expect(paths(unknown.body)).toEqual(['custom.region']);
     const kept = await node
       .http()
@@ -542,13 +534,11 @@ describe('custom fields (e2e)', () => {
       .patch(`/v1/custom-fields/${region.id}`)
       .send({ active: true, required: false })
       .expect(200);
-    await node
-      .writeNote(client.auth, {
-        title: 'With',
-        body: '',
-        custom: { region: 'us' },
-      })
-      .expect(201);
+    await writeNote(node, client.auth, {
+      title: 'With',
+      body: '',
+      custom: { region: 'us' },
+    }).expect(201);
   });
 
   it('exports custom fields as columns and imports them with the same checks', async () => {
@@ -563,13 +553,11 @@ describe('custom fields (e2e)', () => {
       ],
     });
     const client = await node.client();
-    await node
-      .writeNote(client.auth, {
-        title: 'Exported',
-        body: 'x',
-        custom: { amount: 12.5, done: true, tags: ['a', 'b'] },
-      })
-      .expect(201);
+    await writeNote(node, client.auth, {
+      title: 'Exported',
+      body: 'x',
+      custom: { amount: 12.5, done: true, tags: ['a', 'b'] },
+    }).expect(201);
 
     async function finished(id: string, auth = client.auth) {
       for (let tries = 0; tries < 100; tries++) {
@@ -812,13 +800,11 @@ describe('custom fields (e2e)', () => {
   it('exports date fields as Excel date cells, read back as days', async () => {
     await field({ key: 'due', type: 'date' });
     const client = await node.client();
-    await node
-      .writeNote(client.auth, {
-        title: 'Dated',
-        body: '',
-        custom: { due: '2026-01-05' },
-      })
-      .expect(201);
+    await writeNote(node, client.auth, {
+      title: 'Dated',
+      body: '',
+      custom: { due: '2026-01-05' },
+    }).expect(201);
     const started = await node
       .http()
       .post('/v1/data/exports')
@@ -867,9 +853,11 @@ describe('custom fields (e2e)', () => {
     async function notesWith(values: Record<string, unknown>[]) {
       const { auth } = await node.client();
       for (const [i, custom] of values.entries()) {
-        await node
-          .writeNote(auth, { title: `Note ${i}`, body: 'x', custom })
-          .expect(201);
+        await writeNote(node, auth, {
+          title: `Note ${i}`,
+          body: 'x',
+          custom,
+        }).expect(201);
       }
       return (query: string) =>
         node.http().get(`/v1/notes${query}`).set('Authorization', auth);
@@ -987,9 +975,11 @@ describe('custom fields (e2e)', () => {
       });
       await list('?custom.color=red').expect(200);
       const { auth } = await node.client();
-      const created = await node
-        .writeNote(auth, { title: 'Red', body: 'x', custom: { color: 'red' } })
-        .expect(201);
+      const created = await writeNote(node, auth, {
+        title: 'Red',
+        body: 'x',
+        custom: { color: 'red' },
+      }).expect(201);
       expect(created.body.custom).toEqual({ color: 'red' });
 
       await node.admin().delete(`/v1/custom-fields/${color.id}`).expect(204);
@@ -1060,23 +1050,19 @@ describe('custom fields (e2e)', () => {
       });
       const { auth } = await node.client();
       const started = performance.now();
-      const refused = await node
-        .writeNote(auth, {
-          title: 'Crafted',
-          body: 'x',
-          // 10,000 characters: longText's limit, so the pattern is the only issue.
-          custom: { evil: `${'a'.repeat(9_999)}!`, slow: 'a'.repeat(10_000) },
-        })
-        .expect(400);
+      const refused = await writeNote(node, auth, {
+        title: 'Crafted',
+        body: 'x',
+        // 10,000 characters: longText's limit, so the pattern is the only issue.
+        custom: { evil: `${'a'.repeat(9_999)}!`, slow: 'a'.repeat(10_000) },
+      }).expect(400);
       expect(performance.now() - started).toBeLessThan(5_000);
       expect(paths(refused.body)).toEqual(['custom.evil', 'custom.slow']);
-      await node
-        .writeNote(auth, {
-          title: 'Fine',
-          body: 'x',
-          custom: { evil: 'aaa', slow: 'aax' },
-        })
-        .expect(201);
+      await writeNote(node, auth, {
+        title: 'Fine',
+        body: 'x',
+        custom: { evil: 'aaa', slow: 'aax' },
+      }).expect(201);
       await field({
         key: 'code',
         type: 'text',

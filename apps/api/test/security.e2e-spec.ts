@@ -61,12 +61,16 @@ describe('security (e2e)', () => {
       .send({ active: false })
       .expect(403);
     // …but an account with fewer rights, yes.
-    const viewer = await node.user(['viewer']);
-    const viewerRole = await role(['Note', 'read']);
-    const supportHoldsNotes = await node.user([
-      await role(['Access', 'manageUsers'], ['Note', 'read'], ['Ops', 'view']),
+    const viewerRole = await role(['TestItem', 'read']);
+    const viewer = await node.user([viewerRole]);
+    const supportHoldsItems = await node.user([
+      await role(
+        ['Access', 'manageUsers'],
+        ['TestItem', 'read'],
+        ['Ops', 'view'],
+      ),
     ]);
-    await supportHoldsNotes.agent
+    await supportHoldsItems.agent
       .patch(`/v1/access/users/${viewer.id}`)
       .send({ roleIds: [viewerRole] })
       .expect(204);
@@ -110,10 +114,13 @@ describe('security (e2e)', () => {
   });
 
   it('never lets impersonation reach more rights, nor manage access meanwhile', async () => {
-    const supportRole = await role(['Access', 'impersonate'], ['Note', 'read']);
+    const supportRole = await role(
+      ['Access', 'impersonate'],
+      ['TestItem', 'read'],
+    );
     const support = await node.user([supportRole]);
     const manager = await node.user([await role(['Access', 'manageUsers'])]);
-    const weaker = await node.user([await role(['Note', 'read'])]);
+    const weaker = await node.user([await role(['TestItem', 'read'])]);
 
     const refused = await support.agent
       .post(`/v1/access/users/${manager.id}/impersonate`)
@@ -175,26 +182,26 @@ describe('security (e2e)', () => {
   });
 
   it('checks field-level permissions on create', async () => {
-    const titlesOnly = await role(['Note', 'read']);
+    const titlesOnly = await role(['TestItem', 'read']);
     const creator = await node
       .admin()
       .post('/v1/access/roles')
       .send({
         name: `create-titles-${randomUUID().slice(0, 8)}`,
         permissions: [
-          { subject: 'Note', action: 'create', conditions: [], fields: [] },
+          { subject: 'TestItem', action: 'create', conditions: [], fields: [] },
         ],
       })
       .expect(201);
     const user = await node.user([titlesOnly, creator.body.id]);
     const refused = await node
-      .writeNote(user.agent, { title: 'T', body: 'secret text' })
+      .writeItem(user.agent, { title: 'T', body: 'secret text' })
       .expect(403);
     expect(refused.body).toMatchObject({
       code: 'field_forbidden',
       fields: ['body'],
     });
-    await node.writeNote(user.agent, { title: 'T', body: '' }).expect(201);
+    await node.writeItem(user.agent, { title: 'T' }).expect(201);
   });
 
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {

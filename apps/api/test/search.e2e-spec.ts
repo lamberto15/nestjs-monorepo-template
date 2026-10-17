@@ -14,7 +14,7 @@ describe('full-text search (e2e)', () => {
     // An editor: may read the text of their notes (an API client may not, by default).
     const editor = await node.user(['editor']);
     const write = (title: string, body: string) =>
-      node.writeNote(editor.agent, { title, body }).expect(201);
+      node.writeItem(editor.agent, { title, body }).expect(201);
     const dark = (
       await write('Dark mode', 'A dark theme for the dark hours of the night.')
     ).body;
@@ -28,7 +28,7 @@ describe('full-text search (e2e)', () => {
     const ids = (items: { id: string }[]) =>
       items.map((item) => item.id).toSorted((a, b) => a.localeCompare(b));
     const list = (query: string) =>
-      editor.agent.get(`/v1/notes?${query}`).expect(200);
+      editor.agent.get(`/v1/test-items?${query}`).expect(200);
 
     // Words anywhere; a phrase; an exclusion; "or".
     expect(ids((await list('q=dark')).body.items)).toEqual(ids([dark, legacy]));
@@ -69,9 +69,9 @@ describe('full-text search (e2e)', () => {
     expect(ids(found.body.items)).toEqual(ids([dark, legacy]));
     const hit = found.body.items.find((h: { id: string }) => h.id === dark.id);
     expect(hit).toMatchObject({
-      subject: 'Note',
+      subject: 'TestItem',
       title: 'Dark mode',
-      link: `/notes/${dark.id}`,
+      link: `/test-items/${dark.id}`,
     });
     expect(hit.snippet).toContain('<b>dark</b> <b>theme</b>');
     expect(found.body.items[0].score).toBeGreaterThanOrEqual(
@@ -87,14 +87,14 @@ describe('full-text search (e2e)', () => {
     ).toEqual([]);
     await editor.agent.get('/v1/search').expect(400);
 
-    // A user who may read notes but not their text gets no snippet of it.
+    // A user who may read test items but not their text gets no snippet of it.
     const titlesOnly = await node
       .admin()
       .post('/v1/access/roles')
       .send({
         name: 'Search titles',
         permissions: [
-          { subject: 'Note', action: 'read', conditions: [], fields: [] },
+          { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
         ],
       })
       .expect(201);

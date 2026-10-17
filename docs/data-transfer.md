@@ -56,6 +56,10 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   - Imports read a header `name (Zone)` as column `name`, its local times
     in that zone, handed to the schema as ISO 8601 UTC: an exported file
     imports back to the same moments.
+- A record that takes `tags` and `transfer` exports a `tags` column: the
+  tag names joined by `, ` (`Urgent, Q3`), loaded one query per batch. An
+  import ignores a `tags` column (the schema doesn't name it; tags are set
+  with `PUT /{path}/{id}/tags`), as for notes.
 - Exports apply **field-level permissions** (a user without `Note.body`
   gets no text) and the caller's read filter.
 - Text a spreadsheet would run as a formula (a cell starting with `=`, `+`,

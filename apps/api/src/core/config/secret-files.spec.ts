@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { envSchema, SECRET_VARIABLES } from '../../env.js';
+import { featuresEnv } from '../../features/env.js';
 import { optional, secret } from './env.helpers.js';
 import {
   readSecretFiles,
@@ -304,7 +305,11 @@ describe('secretValue (node dist/migrate)', () => {
 
 describe('the environment (env.ts)', () => {
   it('declares every secret variable', () => {
-    expect([...SECRET_VARIABLES].sort()).toEqual(
+    // The features' own (features/env.ts) come and go with them.
+    const core = [...SECRET_VARIABLES].filter(
+      (name) => !(name in featuresEnv.shape),
+    );
+    expect(core.sort()).toEqual(
       [
         'ADMIN_PASSWORD',
         'AWS_SECRET_ACCESS_KEY',
@@ -312,7 +317,6 @@ describe('the environment (env.ts)', () => {
         'DATABASE_MAINTENANCE_URL',
         'DATABASE_OWNER_URL',
         'DATABASE_URL',
-        'EXAMPLE_SENDER_WEBHOOK_SECRET',
         'GITHUB_CLIENT_SECRET',
         'GOOGLE_CLIENT_SECRET',
         'IDEMPOTENCY_KEYS',

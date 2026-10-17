@@ -68,11 +68,11 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
 
     const mine = (
       await node
-        .writeNote(ada.agent, { title: 'My note', body: 'x' })
+        .writeItem(ada.agent, { title: 'My note', body: 'x' })
         .expect(201)
     ).body;
     await node
-      .writeNote(other.agent, { title: 'Not mine', body: 'y' })
+      .writeItem(other.agent, { title: 'Not mine', body: 'y' })
       .expect(201);
 
     // Only users have one; it is listed for them.
@@ -120,19 +120,21 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
       'auditEntry',
       'consent',
       'membership',
-      'notes',
       'profile',
       'role',
       'session',
       'subscription',
+      'test-items',
     ]);
     const profile = file.find((row) => row.kind === 'profile')!;
     expect(profile.data.email).toBe(ada.email);
     expect(profile.data).not.toHaveProperty('passwordHash');
     expect(
-      file.filter((row) => row.kind === 'notes').map((row) => row.data.title),
+      file
+        .filter((row) => row.kind === 'test-items')
+        .map((row) => row.data.title),
     ).toEqual(['My note']);
-    expect(file.find((row) => row.kind === 'notes')!.id).toBe(mine.id);
+    expect(file.find((row) => row.kind === 'test-items')!.id).toBe(mine.id);
     expect(file.filter((row) => row.kind === 'consent')).toHaveLength(2);
   });
 
@@ -160,7 +162,7 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
     const ada = await person();
     const note = (
       await node
-        .writeNote(ada.agent, { title: 'Keep me', body: '' })
+        .writeItem(ada.agent, { title: 'Keep me', body: '' })
         .expect(201)
     ).body;
 
@@ -245,7 +247,10 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
     });
     expect(account!.email).toMatch(/^deleted-.*@anonymized\.invalid$/);
     // The note stays, owned by nobody in particular.
-    const kept = await node.admin().get(`/v1/notes/${note.id}`).expect(200);
+    const kept = await node
+      .admin()
+      .get(`/v1/test-items/${note.id}`)
+      .expect(200);
     expect(kept.body.ownerId).toBe(`user:${ada.id}`);
     // The audit trail keeps the actor key, not the person.
     const audit = await node
