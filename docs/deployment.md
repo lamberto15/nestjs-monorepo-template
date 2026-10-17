@@ -892,9 +892,9 @@ merged migration fails it already):
   request that changes `packages/api-client` without a changeset, and on
   `main` opens the client's version pull request; its npm publish is off
   until the owner turns it on ([releases](releases.md), "The typed client").
-- **No GitHub code scanning:** CodeQL and SARIF uploads need it, and a
-  private repository on the free plan doesn't have it. The scans print
-  their findings in the job's log instead.
+- **GitHub code scanning:** the repository is public, CodeQL's default setup
+  analyses every pull request and `main`, and the `main` ruleset requires its
+  result. The other scans print their findings in the job's log.
 - **A finding that doesn't apply:** add it to `.trivyignore.yaml` with a
   `statement` saying why (as for Caddy running as root). For an npm
   advisory, `pnpm audit --ignore <GHSA id>` in the workflow, with a comment.
