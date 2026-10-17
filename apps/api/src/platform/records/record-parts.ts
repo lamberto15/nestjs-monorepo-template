@@ -6,6 +6,7 @@ import { commentRoutes } from '../comments/comment.routes.js';
 import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
+import { listSource } from '../lists/lists.registry.js';
 import { tagRoutes } from '../tags/tag.routes.js';
 import { type Capability, type RecordDeclaration, takes } from './record.js';
 import {
@@ -55,7 +56,8 @@ const TARGETS: Partial<Record<Capability, Type>> = {
  * capabilities (in notes' order: the OpenAPI document's), and the
  * providers: its declaration, table and contract, RecordStore,
  * RecordLifecycle and RecordPresenter (the service and controller call
- * them), and each capability's target. `override` replaces a target with
+ * them), its list's registration (GET /v1/lists/{subject}), and each
+ * capability's target. `override` replaces a target with
  * the feature's own.
  *
  * ```ts
@@ -75,6 +77,11 @@ export function recordParts(
   },
 ) {
   const has = (capability: Capability) => takes(declaration, capability);
+  const currencyOf = new Map(
+    Object.entries(declaration.fields)
+      .filter(([, field]) => field.kind === 'money')
+      .map(([name]) => [`${name}Currency`, name]),
+  );
   const controllers: Type[] = [
     ...(declaration.softDelete
       ? [
@@ -129,6 +136,10 @@ export function recordParts(
     RecordStore,
     RecordLifecycle,
     RecordPresenter,
+    // GET /v1/lists/{subject}: its list described (a money field's currency filter reads the field).
+    listSource(declaration.subject, options.list, {
+      fieldOf: (name) => currencyOf.get(name) ?? name,
+    }),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];

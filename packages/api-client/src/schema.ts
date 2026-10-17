@@ -784,6 +784,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/lists/{subject}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A subject's list: its filters, operators, sorts and fields
+         * @description The fields the list may be filtered and sorted by, with their operators, the custom fields your tenant has now, `fields=` names, search and the list's limits. A field your permissions hide is left out. For anyone who may read the subject.
+         */
+        get: operations["ListsController_describe_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/attachments/{id}/download": {
         parameters: {
             query?: never;
@@ -5475,6 +5495,126 @@ export interface operations {
             };
             /** @description No valid API key or session. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ListsController_describe_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The kind of record, as permissions name it (`Note`). */
+                subject: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example Note */
+                        subject: string;
+                        /** @description The fields the list may be filtered or sorted by, as this caller may read them: a field their permissions hide is not here. */
+                        fields: {
+                            /**
+                             * @description The name in the query: `?<name>.<operator>=`, `{ "field": <name> }` in `filter`, `sort=<name>`. Custom fields are `custom.<key>`.
+                             * @example status
+                             */
+                            name: string;
+                            /**
+                             * @description How values are written: datetime ISO 8601 with an offset, date YYYY-MM-DD, enum one of `options`.
+                             * @enum {string}
+                             */
+                            type: "string" | "uuid" | "datetime" | "date" | "number" | "boolean" | "enum";
+                            /**
+                             * @description The values an enum takes.
+                             * @example [
+                             *       "draft",
+                             *       "published"
+                             *     ]
+                             */
+                            options?: string[];
+                            /**
+                             * @description The operators it may be filtered with; empty: none.
+                             * @example [
+                             *       "eq",
+                             *       "ne",
+                             *       "in",
+                             *       "notIn"
+                             *     ]
+                             */
+                            operators: ("eq" | "ne" | "in" | "notIn" | "contains" | "notContains" | "startsWith" | "endsWith" | "gt" | "gte" | "lt" | "lte" | "between" | "isNull")[];
+                            /** @description `sort` may name it. */
+                            sortable: boolean;
+                            /** @description A custom field of the caller's tenant (GET /v1/custom-fields). */
+                            custom: boolean;
+                            /** @description A custom field's label, as its administrators named it. */
+                            label?: string;
+                        }[];
+                        /**
+                         * @description What `fields=` may pick (id always comes).
+                         * @example [
+                         *       "title",
+                         *       "status",
+                         *       "custom.region"
+                         *     ]
+                         */
+                        select: string[];
+                        /** @description `q=` searches the text, and `sort=-rank` puts the best match first. */
+                        search: boolean;
+                        /** @description `deleted=true` lists the recycle bin for this caller (they may restore). */
+                        recycleBin: boolean;
+                        /**
+                         * @description The order without `sort`: the newest first.
+                         * @example -createdAt
+                         */
+                        defaultSort: string | null;
+                        /** @description The list's limits, the same on every list. */
+                        limits: {
+                            /** @description Rows a page holds without `limit`. */
+                            defaultLimit: number;
+                            /** @description The largest `limit`. */
+                            maxLimit: number;
+                            /** @description No `page` starts past this row: narrow the filters, or page by cursor. */
+                            maxOffset: number;
+                            /** @description `count=true` counts up to this (then `totalCapped`). */
+                            countCap: number;
+                            /** @description Fields `sort` may name. */
+                            maxSort: number;
+                            /** @description Conditions in one `filter`. */
+                            maxConditions: number;
+                            /** @description Groups nested in one `filter`. */
+                            maxDepth: number;
+                            /** @description Values of one `in` or `notIn`. */
+                            maxValues: number;
+                        };
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not read the subject. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No list of that subject (not_found). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

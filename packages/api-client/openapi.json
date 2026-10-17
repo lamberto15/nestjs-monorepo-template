@@ -5594,6 +5594,254 @@
         ]
       }
     },
+    "/v1/lists/{subject}": {
+      "get": {
+        "description": "The fields the list may be filtered and sorted by, with their operators, the custom fields your tenant has now, `fields=` names, search and the list's limits. A field your permissions hide is left out. For anyone who may read the subject.",
+        "operationId": "ListsController_describe_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "example": "Note"
+            },
+            "description": "The kind of record, as permissions name it (`Note`)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "subject": {
+                      "type": "string",
+                      "example": "Note"
+                    },
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "The name in the query: `?<name>.<operator>=`, `{ \"field\": <name> }` in `filter`, `sort=<name>`. Custom fields are `custom.<key>`.",
+                            "example": "status"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "string",
+                              "uuid",
+                              "datetime",
+                              "date",
+                              "number",
+                              "boolean",
+                              "enum"
+                            ],
+                            "description": "How values are written: datetime ISO 8601 with an offset, date YYYY-MM-DD, enum one of `options`."
+                          },
+                          "options": {
+                            "description": "The values an enum takes.",
+                            "example": [
+                              "draft",
+                              "published"
+                            ],
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "operators": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "eq",
+                                "ne",
+                                "in",
+                                "notIn",
+                                "contains",
+                                "notContains",
+                                "startsWith",
+                                "endsWith",
+                                "gt",
+                                "gte",
+                                "lt",
+                                "lte",
+                                "between",
+                                "isNull"
+                              ]
+                            },
+                            "description": "The operators it may be filtered with; empty: none.",
+                            "example": [
+                              "eq",
+                              "ne",
+                              "in",
+                              "notIn"
+                            ]
+                          },
+                          "sortable": {
+                            "type": "boolean",
+                            "description": "`sort` may name it."
+                          },
+                          "custom": {
+                            "type": "boolean",
+                            "description": "A custom field of the caller's tenant (GET /v1/custom-fields)."
+                          },
+                          "label": {
+                            "description": "A custom field's label, as its administrators named it.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "type",
+                          "operators",
+                          "sortable",
+                          "custom"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The fields the list may be filtered or sorted by, as this caller may read them: a field their permissions hide is not here."
+                    },
+                    "select": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "What `fields=` may pick (id always comes).",
+                      "example": [
+                        "title",
+                        "status",
+                        "custom.region"
+                      ]
+                    },
+                    "search": {
+                      "type": "boolean",
+                      "description": "`q=` searches the text, and `sort=-rank` puts the best match first."
+                    },
+                    "recycleBin": {
+                      "type": "boolean",
+                      "description": "`deleted=true` lists the recycle bin for this caller (they may restore)."
+                    },
+                    "defaultSort": {
+                      "nullable": true,
+                      "description": "The order without `sort`: the newest first.",
+                      "example": "-createdAt",
+                      "type": "string"
+                    },
+                    "limits": {
+                      "type": "object",
+                      "properties": {
+                        "defaultLimit": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Rows a page holds without `limit`."
+                        },
+                        "maxLimit": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "The largest `limit`."
+                        },
+                        "maxOffset": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "No `page` starts past this row: narrow the filters, or page by cursor."
+                        },
+                        "countCap": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "`count=true` counts up to this (then `totalCapped`)."
+                        },
+                        "maxSort": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Fields `sort` may name."
+                        },
+                        "maxConditions": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Conditions in one `filter`."
+                        },
+                        "maxDepth": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Groups nested in one `filter`."
+                        },
+                        "maxValues": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Values of one `in` or `notIn`."
+                        }
+                      },
+                      "required": [
+                        "defaultLimit",
+                        "maxLimit",
+                        "maxOffset",
+                        "countCap",
+                        "maxSort",
+                        "maxConditions",
+                        "maxDepth",
+                        "maxValues"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The list's limits, the same on every list."
+                    }
+                  },
+                  "required": [
+                    "subject",
+                    "fields",
+                    "select",
+                    "search",
+                    "recycleBin",
+                    "defaultSort",
+                    "limits"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not read the subject."
+          },
+          "404": {
+            "description": "No list of that subject (not_found)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A subject's list: its filters, operators, sorts and fields",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
     "/v1/attachments/{id}/download": {
       "get": {
         "description": "Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image).",

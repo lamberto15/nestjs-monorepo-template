@@ -223,6 +223,26 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     return touched.filter((field) => !ability.can(action, target, field));
   }
 
+  /**
+   * The declared fields of `subject` the principal may `action` on no
+   * record at all (field-level permissions, conditions aside): what a
+   * description of the subject leaves out (GET /v1/lists/{subject}). A
+   * field allowed on some records only is not among them: `redact()`
+   * decides per record.
+   */
+  async deniedFields(
+    principal: Principal,
+    action: string,
+    subject: string,
+  ): Promise<string[]> {
+    const declared = this.catalog.declaredFields(subject);
+    if (declared.length === 0) {
+      return [];
+    }
+    const { ability } = await this.load(principal);
+    return declared.filter((field) => !ability.can(action, subject, field));
+  }
+
   /** The principal's permissions, as stored (an administrator's is ALL). */
   async permissions(principal: Principal): Promise<PermissionInput[]> {
     return (await this.load(principal)).permissions;

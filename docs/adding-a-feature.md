@@ -22,7 +22,8 @@ where it says "Business logic"):
   recycle bin, search vector, indexes and keys), the schemas
   (`recordSchemas`), the list's filters and sorts (`recordList`);
 - the capabilities' routes and targets (`recordParts` in the module: the
-  platform's generic targets, platform/records), the recycle bin's
+  platform's generic targets, platform/records), its list's description at
+  `GET /v1/lists/<Subject>` (api-conventions.md, "List metadata"), the recycle bin's
   `POST /<x>/{id}/restore` (with `softDelete`), what the service does for
   them (`RecordLifecycle`: watchers, revisions) and how records are shown
   (`RecordPresenter`: money as objects, tags, field-level redaction);
@@ -313,6 +314,10 @@ the controller (`notes.*`); singular for what describes one record
      list.where(query))`, ordered by `pageOrder(table.id, query)`,
      `.offset(pageOffset(query))`, `countPage()` beside it, `toPage()`.
      Then `access.redactAll()` on the items, and `list.pick(page, query)` last.
+   - Described to clients at `GET /v1/lists/<Subject>` (filters, operators,
+     sorts, custom fields: [api-conventions.md](api-conventions.md), "List
+     metadata"): a generated record's comes with `recordParts()`; by hand,
+     `listSource('<Subject>', LIST)` among the module's providers.
    - With custom fields: `@Query() raw` + `@ApiListQuery(LIST, …)`, then
      `customFields.extendList(LIST, subject)`, `list.parse(raw)`, and
      `select({ ...getTableColumns(t), ...list.sortSelect(query) })`

@@ -88,6 +88,8 @@ src/
     services register into `RecordPurgeRegistry` (iam), and
     SoftDeletePurgeJob calls them in the purge's transaction;
   - bulk operations register themselves (`BulkRegistry`);
+  - lists register their declaration (`ListsRegistry`, `GET /v1/lists/{subject}`):
+    `recordParts()` does it for a generated record, `listSource()` by hand;
   - record-level routes (tags, comments, attachments, revisions, PDF, watch,
     bulk) are built by the platform from the feature's `RecordRouteSpec`
     (`platform/records/record-routes.ts`, each module's `<module>.routes.ts`):
