@@ -21,7 +21,8 @@
 
 	# The API's paths (versioned routes, realtime, health, Swagger UI and its
 	# document, stored files, .well-known); every other path is the web app.
-	@api path /v1/* /socket.io/* /health* /api* /files* /.well-known/*
+	# Exact segments, no bare prefixes: /api* would also take the app's /api-keys.
+	@api path /v1/* /socket.io/* /health /health/* /api /api/* /api-json /api-yaml /files/* /.well-known/*
 	handle @api {
 		# Every api replica (API_REPLICAS): Docker's DNS lists them under "api".
 		reverse_proxy {
@@ -55,7 +56,9 @@
 		root * /srv/web
 		# Hashed file names: they never change. A missing one is a 404, not the page.
 		handle /assets/* {
-			header Cache-Control "public, max-age=31536000, immutable"
+			# Only a file that exists: a 404 must not be cached for a year.
+			@asset file
+			header @asset Cache-Control "public, max-age=31536000, immutable"
 			file_server
 		}
 		# index.html names the current assets: always fetched again.
