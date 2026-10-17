@@ -82,6 +82,8 @@ first project is built on the template; until then they report only.
 - An account's export includes only personal data (membership, audit about them)
   from tenants the person has left.
 - Who creates tenants: a `TENANT_SIGN_UP` switch in 1b; operators only until then.
+- One tenant only: `TENANCY=single` (owner, 2026-10-17): no second tenant, and
+  self sign-ups join the one with `SIGN_UP_ROLES`. docs/tenancy.md.
 - Token clients with two-factor keep sending a code with a passkey; ask
   @nestjs/authentication upstream.
 - Releases: a tag per roadmap item or batch, `v0.x` from `v0.1.0`; 1.0.0 with the

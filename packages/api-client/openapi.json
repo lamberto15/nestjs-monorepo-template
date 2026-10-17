@@ -21634,7 +21634,7 @@
             "description": "operator_required: the caller does not act in the operator tenant."
           },
           "409": {
-            "description": "`tenant_slug_taken`."
+            "description": "`tenant_slug_taken`; `single_tenant`: the deployment has its one tenant (TENANCY=single)."
           }
         },
         "summary": "Create a tenant and its first administrator (operators)",

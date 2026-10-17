@@ -27,6 +27,7 @@ import {
   TenantsController,
   TenantSwitchController,
 } from './access/tenants.controller.js';
+import { SingleTenant } from './access/single-tenant.js';
 import { TenantsService } from './access/tenants.service.js';
 import { TenantSwitchService } from './access/tenant-switch.service.js';
 import { InvitationsService } from './access/invitations.service.js';
@@ -150,6 +151,7 @@ export class IamModule {
       SystemContext,
       // Tenants (docs/tenancy.md): the operators' routes and the tests make them.
       TenantsService,
+      SingleTenant,
       OperatorGuard,
       // Global, so AuthenticationModule's PasswordHasher (below) reaches them.
       PasswordHashLimiter,
@@ -360,6 +362,7 @@ export class IamModule {
         ApiClientsService,
         AccessSeeder,
         TenantsService,
+        SingleTenant,
         TenantSwitchService,
         InvitationsService,
         OperatorGuard,

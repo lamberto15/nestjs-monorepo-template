@@ -15,6 +15,7 @@ import { UsersRepository } from '../auth/users.repository.js';
 import { rolePermissions, roles, userRoles } from '../iam.tables.js';
 import { InvitationsService } from './invitations.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
+import { SingleTenant } from './single-tenant.js';
 import { ALL, type SeedRole } from './permissions.js';
 
 /** The built-in role's key (`roles.key`). */
@@ -55,6 +56,7 @@ export class TenantsService {
     private readonly audit: AuditService,
     private readonly accounts: UsersRepository,
     private readonly invitations: InvitationsService,
+    private readonly singleTenant: SingleTenant,
   ) {}
 
   /** Every tenant, oldest first (the operators' list). */
@@ -83,6 +85,8 @@ export class TenantsService {
     return this.tenancy.run(id, () =>
       inTransaction(this.txHost, async (tx) => {
         await first?.(tx);
+        // TENANCY=single: the first start's tenant is the only one.
+        await this.singleTenant.assertMayCreate(tx);
         const [tenant] = await tx
           .insert(tenants)
           .values({
