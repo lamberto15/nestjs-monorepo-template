@@ -24,6 +24,8 @@ export const TEST_ITEM = defineRecord({
   fields: {
     title: field.string().searchable(),
     body: field.text().optional().searchable(),
+    // Set by publishing (test-items.service.ts, through approval when the flag is on); the API takes it as any field.
+    publishedAt: field.datetime().optional(),
   },
   capabilities: [
     'tags',
