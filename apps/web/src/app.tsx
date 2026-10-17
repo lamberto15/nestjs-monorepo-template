@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import {
   RouterProvider,
   createRouter,
@@ -9,6 +9,9 @@ import { I18nextProvider } from 'react-i18next';
 import { ThemeProvider } from '@nestjs-monorepo-template/ui/components/theme-provider';
 import { Toaster } from '@nestjs-monorepo-template/ui/components/sonner';
 import { NotFound } from '@/components/not-found';
+import { ReauthDialog } from '@/components/reauth-dialog';
+import { createQueryClient } from '@/lib/errors';
+import { createSession } from '@/lib/session';
 import { routeTree } from '@/routeTree.gen';
 
 /** The router; a test passes a memory history. */
@@ -18,7 +21,7 @@ export function createAppRouter(
 ) {
   return createRouter({
     routeTree,
-    context: { queryClient, session: null },
+    context: { queryClient, session: createSession(queryClient) },
     defaultNotFoundComponent: NotFound,
     defaultPreload: 'intent',
     ...(history && { history }),
@@ -26,6 +29,27 @@ export function createAppRouter(
 }
 
 export type AppRouter = ReturnType<typeof createAppRouter>;
+
+/**
+ * The query client and the router, wired together: the global error handler
+ * (lib/errors.ts) sends a user whose session ended to sign-in, back to the
+ * page they were on afterwards.
+ */
+export function createApp(history?: RouterHistory) {
+  let router: AppRouter | undefined;
+  const queryClient = createQueryClient(() => {
+    const current = router;
+    return (
+      current && {
+        currentHref: () => current.state.location.href,
+        toSignIn: (redirect) =>
+          void current.navigate({ to: '/sign-in', search: { redirect } }),
+      }
+    );
+  });
+  router = createAppRouter(queryClient, history);
+  return { queryClient, router };
+}
 
 declare module '@tanstack/react-router' {
   interface Register {
@@ -48,6 +72,7 @@ export function App(props: {
       <ThemeProvider>
         <QueryClientProvider client={props.queryClient}>
           <RouterProvider router={props.router} />
+          <ReauthDialog />
           <Toaster />
         </QueryClientProvider>
       </ThemeProvider>
