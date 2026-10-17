@@ -95,7 +95,22 @@ same tenant only (or among the account's own).
 | `GET /v1/notifications/types` | the types: label, `mandatory`, the defaults of the channels the caller may set |
 | `GET /v1/notifications/preferences` | the caller's effective settings per type |
 | `PUT /v1/notifications/preferences` | replaces the caller's overrides: `{ "note.published": { "email": "daily" } }`; a type or channel left out goes back to its default; a mandatory type refuses `false`; audited (`notificationPreferences.updated`) |
+| `POST /v1/notifications/test` | development and tests only: sends the caller a `system.test` notification, answers `{ id }` |
 
+- **The shapes** (typed in the OpenAPI document and so in the client): the
+  settings of one type are `{ email?: false | 'immediate' | 'hourly' | 'daily',
+  webhook?: boolean }`. `GET /types` returns `{ items: [{ type, label,
+  mandatory, channels }] }`, `channels` being the type's defaults for the
+  channels the caller may set (`email` for a user, `webhook` for an API client;
+  in-app and realtime are always on and never listed). `GET /preferences` and
+  `PUT /preferences` return `{ types: { [type]: settings } }`, the effective
+  value of every declared type; `PUT` takes the overrides, `{ [type]:
+  settings }`. A value a channel doesn't take (`email: 'often'`, `webhook:
+  'yes'`) is a 400 `validation_failed` naming `<type>.<channel>`, as are an
+  unknown type or channel, a channel the caller's kind can't set, and a
+  mandatory type switched off. The schemas are in `notification.schemas.ts`;
+  the channels' own (`emailSettingSchema`, `webhookSettingSchema`) are the ones
+  they validate with, so a channel you add documents its setting there.
 - An item: `{ id, type, title, body, data, link, key, count, read, readAt, createdAt, updatedAt }`.
   `type` and `data` are the contract for programs; `title` and `body` are for people.
 - **Realtime**: every connection of the recipient hears `notification`
@@ -113,6 +128,29 @@ same tenant only (or among the account's own).
   zone. After downtime, everything due goes in the next run.
 - **Export**: `POST /v1/data/exports { name: 'notifications' }` (CSV, JSON
   or Excel of the caller's own; see [data-transfer.md](data-transfer.md)).
+
+## Trying it in development
+
+`POST /v1/notifications/test` (no body, no target: the caller's own) sends a
+`system.test` notification the way a feature's goes: stored in the caller's
+tenant, delivered by the worker to every channel the caller has on (the bell
+and the realtime push always; mail `immediate` unless they changed it, for a
+user; the `notification.created` webhook, for an API client), subject to the
+caller's preferences for that type. Call it as often as you like to try the
+bell, the live count and the mail; each call is a notification of its own.
+Not while an administrator acts as the person (403).
+
+It exists only where the demo seed's NODE_ENV check passes (`development` or
+`test`, set explicitly: `nodeEnvRefusal()` in `src/demo/demo-guard.ts`).
+Elsewhere the controller and the `system.test` type are left out of the module
+graph when the app is built (`inDevelopment()`, `notification-test.ts`, as the
+deployment switches leave out their routes): the route answers 404 like any
+missing one, the type is not in `GET /types` or the preferences, and the
+route is not in the served OpenAPI document. The committed document and the
+typed client (generated with `NODE_ENV=test`) do list it, so a development
+frontend can call it. It uses the global rate limit and has no bypass.
+Tested in `test/notifications.e2e-spec.ts` and, under `NODE_ENV=production`,
+`test/notifications-test-route-production.e2e-spec.ts`.
 
 ## Watching records
 
