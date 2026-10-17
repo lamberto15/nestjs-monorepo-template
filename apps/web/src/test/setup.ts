@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
+import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { server } from '@/test/server';
 
@@ -8,6 +9,8 @@ import { server } from '@/test/server';
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 afterEach(() => {
   cleanup();
+  // Sonner's toasts live in a module-level store: one test's must not show in the next.
+  toast.dismiss();
   server.resetHandlers();
 });
 afterAll(() => server.close());
@@ -29,3 +32,7 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Nor elementFromPoint, which input-otp (the code fields) calls.
 document.elementFromPoint = () => null;
+
+// Nor pointer capture, which sonner's toasts (swipe to dismiss) call on press.
+Element.prototype.setPointerCapture = () => {};
+Element.prototype.releasePointerCapture = () => {};
