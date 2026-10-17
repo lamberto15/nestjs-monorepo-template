@@ -36,7 +36,8 @@
 		lb_try_interval 250ms
 		# A replica that stops answering (or shuts down) is skipped for a while.
 		fail_duration 10s
-		health_uri /health
-		health_interval 5s
+		# No active health checks: Caddy doesn't run them for dynamic upstreams
+		# (reverse_proxy docs, "Dynamic upstreams"); the passive fail_duration
+		# and lb_try_duration above do that work.
 	}
 }

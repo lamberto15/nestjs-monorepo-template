@@ -671,7 +671,7 @@ empty 200 for a host it doesn't serve). Going by Caddy's name, not the
 public one, works without public DNS (a host name that only `/etc/hosts` knows, and
 containers don't read the host's `/etc/hosts`). `probe_success` feeds
 `HttpsProbeFailing` (muted while `ApiDown`, `PostgresDown` or `RedisDown`
-fires: Caddy checks `/health`, so it has no healthy replica then; never by
+fires: no replica answers then, so the probe fails too; never by
 an alert about one replica, which would hide a Caddy or certificate outage); `probe_ssl_earliest_cert_expiry` feeds
 `CertificateExpiring`. Why a probe fails:
 
