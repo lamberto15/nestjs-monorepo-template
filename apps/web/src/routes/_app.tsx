@@ -11,7 +11,9 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { NotificationsBell } from '@/features/notifications/bell';
 import { languages } from '@/i18n';
+import { RealtimeProvider } from '@/lib/realtime';
 import { meQuery, saveLanguageKey } from '@/lib/session';
 
 // The signed-in app. Nobody signed in: to sign-in, and back here afterwards.
@@ -38,22 +40,27 @@ function AppLayout() {
   useSavedLanguage();
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <ImpersonationBanner />
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ms-1" />
-            <Separator
-              orientation="vertical"
-              className="me-2 data-[orientation=vertical]:h-4"
-            />
-          </header>
-          <main className="flex flex-1 flex-col gap-4 p-4">
-            <Outlet />
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+      <RealtimeProvider>
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <ImpersonationBanner />
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+              <SidebarTrigger className="-ms-1" />
+              <Separator
+                orientation="vertical"
+                className="me-2 data-[orientation=vertical]:h-4"
+              />
+              <div className="ms-auto">
+                <NotificationsBell />
+              </div>
+            </header>
+            <main className="flex flex-1 flex-col gap-4 p-4">
+              <Outlet />
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </RealtimeProvider>
     </TooltipProvider>
   );
 }

@@ -514,6 +514,8 @@ export class ReportsService implements PersonalDataSource {
         principal,
         exporter.subject,
         parsed.data as ListQuery,
+        // Among the rows its export reaches.
+        { reach: exporter.action ?? 'read' },
       );
     }
   }

@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { FieldDescription } from '@nestjs-monorepo-template/ui/components/field';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { LoginForm } from '@/components/login-form';
 import { FormAlert } from '@/lib/form';

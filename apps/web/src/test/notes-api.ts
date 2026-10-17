@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw/http';
-import { problem, server, signedInUser } from '@/test/server';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 // The notes API as the record pages see it, in memory (msw): enough of
 // POST/GET/PATCH/DELETE/restore, ETags and the recycle bin to drive the pages.
@@ -76,6 +76,13 @@ export function useNotesApi(options: { can: string[]; notes: TestNote[] }) {
         ...signedInUser,
         can: Object.fromEntries(options.can.map((p) => [p, true])),
       }),
+    ),
+    // The sidebar's bell asks for its count; without realtime there is no socket.
+    http.get('/v1/features', () =>
+      HttpResponse.json({ ...allFeatures, realtime: false }),
+    ),
+    http.get('/v1/notifications/unread-count', () =>
+      HttpResponse.json({ unread: 0 }),
     ),
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
     http.get('/v1/notes', ({ request }) => {

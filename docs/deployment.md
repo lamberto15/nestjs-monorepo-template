@@ -23,7 +23,7 @@ Filling `.env` (each step is commented in `env.example`):
   endpoint secrets are stored unencrypted), and `BACKUP_S3_*` (unset, the
   backups stay on this host: [Backups and restore](#backups-and-restore)).
 - **Optional:** `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `STORAGE_SIGNING_KEYS`,
-  `IDEMPOTENCY_KEYS` and `EXAMPLE_SENDER_WEBHOOK_SECRET`: unset, the app
+  `IDEMPOTENCY_KEYS`, `CURSOR_KEYS` and `EXAMPLE_SENDER_WEBHOOK_SECRET`: unset, the app
   creates each on the first start and keeps it in the database
   ([configuration](configuration.md)). `ADMIN_PASSWORD`: unset, the first
   administrator's password is logged once.
@@ -35,6 +35,20 @@ Filling `.env` (each step is commented in `env.example`):
   API's routes are the app's origin, so `__Host-sid` works and no CORS is needed. A new
   unversioned API path needs a line in the `@api` matcher. A web change redeploys Caddy
   (`docker compose up -d --build`).
+- **The web app's security headers** are set in the Caddyfile's web-app `handle` only
+  (the API's responses keep helmet's own): `Content-Security-Policy`
+  (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
+  Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
+  `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
+  `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
+  `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
+  off everything but WebAuthn. **A new third-party script, frame, API or font host** needs
+  its origin in the matching directive of that one line (`script-src`, `frame-src`,
+  `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no inline
+  `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
+  build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
+  events: there must be none.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 
@@ -151,7 +165,7 @@ reads.
 | `CLOUDFLARE_API_TOKEN_FILE` | Caddy (`caddy/entrypoint.sh`) | `CLOUDFLARE_API_TOKEN` |
 | `BACKUP_S3_SECRET_ACCESS_KEY_FILE` | the backup | `BACKUP_S3_SECRET_ACCESS_KEY` |
 | `SMTP_URL_FILE` | the app, and Alertmanager (its default `ALERT_SMTP_URL`) | `SMTP_URL` |
-| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate) | the variable without `_FILE` |
+| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate) | the variable without `_FILE` |
 
 Not in this list, so they stay variables in Compose:
 - `METRICS_TOKEN`: `compose.monitoring.yaml` gives Prometheus its secret from the variable.

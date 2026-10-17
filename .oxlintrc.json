@@ -32,6 +32,28 @@
         "typescript/no-floating-promises": "off"
       },
       "plugins": ["react", "typescript", "oxc"]
+    },
+    {
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "zod",
+                "message": "Import z from '@/lib/zod': it sets jitless before any schema exists (the CSP has no 'unsafe-eval')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/web/src/lib/zod.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
     }
   ]
 }

@@ -19,7 +19,9 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
+import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
@@ -76,9 +78,19 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
   id: '/account/',
   path: '/account/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountNotificationsRoute = AppAccountNotificationsRouteImport.update({
+  id: '/account/notifications',
+  path: '/account/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
@@ -122,6 +134,8 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/notifications': typeof AppNotificationsRoute
+  '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/notes/new': typeof AppNotesNewRoute
@@ -139,7 +153,9 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/notifications': typeof AppNotificationsRoute
   '/': typeof AppIndexRoute
+  '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/notes/new': typeof AppNotesNewRoute
@@ -159,7 +175,9 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/_app/notifications': typeof AppNotificationsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/account/notifications': typeof AppAccountNotificationsRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/notes/new': typeof AppNotesNewRoute
@@ -180,6 +198,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/notifications'
+    | '/account/notifications'
     | '/account/profile'
     | '/account/security'
     | '/notes/new'
@@ -197,7 +217,9 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/notifications'
     | '/'
+    | '/account/notifications'
     | '/account/profile'
     | '/account/security'
     | '/notes/new'
@@ -216,7 +238,9 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/_app/notifications'
     | '/_app/'
+    | '/_app/account/notifications'
     | '/_app/account/profile'
     | '/_app/account/security'
     | '/_app/notes/new'
@@ -310,11 +334,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/account/': {
       id: '/_app/account/'
       path: '/account'
       fullPath: '/account/'
       preLoaderRoute: typeof AppAccountIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/notifications': {
+      id: '/_app/account/notifications'
+      path: '/account/notifications'
+      fullPath: '/account/notifications'
+      preLoaderRoute: typeof AppAccountNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/account/profile': {
@@ -363,7 +401,9 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppNotificationsRoute: typeof AppNotificationsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
@@ -374,7 +414,9 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppNotificationsRoute: AppNotificationsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAccountNotificationsRoute: AppAccountNotificationsRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
   AppNotesNewRoute: AppNotesNewRoute,

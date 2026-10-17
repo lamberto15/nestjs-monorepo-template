@@ -18,7 +18,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { languages } from '@/i18n';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { api } from '@/lib/api';

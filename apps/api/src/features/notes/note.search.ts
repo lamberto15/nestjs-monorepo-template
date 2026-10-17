@@ -38,10 +38,15 @@ export class NoteSearch implements SearchSource {
     q: string,
     limit: number,
   ): Promise<SearchHit[]> {
-    // Field-level: without the text, the title alone is matched (a hit
-    // would tell what the text holds): a vector made now, without the index.
-    const denied = await this.access.deniedFields(principal, 'read', 'Note');
-    const vector = denied.includes('body')
+    // Field-level: without the text on every note (hidden, or shown on some
+    // notes only), the title alone is matched (a hit would tell what the
+    // text holds): a vector made now, without the index.
+    const unmatchable = await this.access.unmatchableFields(
+      principal,
+      'read',
+      'Note',
+    );
+    const vector = unmatchable.includes('body')
       ? vectorOf([notes.title])
       : notes.search;
     const where = and(

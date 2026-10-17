@@ -3,7 +3,7 @@ import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { Section } from '@/components/account/section';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
