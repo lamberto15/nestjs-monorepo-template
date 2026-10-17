@@ -13,13 +13,11 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  Res,
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { AuthorizationService, Can } from '@nestjs/authorization';
 import { Idempotent } from '@nestjs/idempotency';
 import {
-  ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
@@ -49,8 +47,6 @@ import {
 import { principalScope } from '../../platform/idempotency/idempotency.scopes.js';
 import {
   createNoteSchema,
-  noteBulkSchema,
-  type NoteBulkDto,
   noteSchema,
   type CreateNoteDto,
   type Note,
@@ -58,19 +54,11 @@ import {
   type UpdateNoteDto,
 } from './note.schemas.js';
 import { NotesService } from './notes.service.js';
-import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
-import { watchingSchema } from '../../platform/subscriptions/subscription.schemas.js';
 import { pageSchema } from '../../core/http/pagination.js';
 import { ApiListQuery } from '../../core/http/list-docs.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
 import { and } from 'drizzle-orm';
 import { NOTE_LIST } from './note.list.js';
-import type { Response } from 'express';
-import { BulkService } from '../../platform/bulk/bulk.service.js';
-import {
-  bulkResultSchema,
-  bulkStartedSchema,
-} from '../../platform/bulk/bulk.schemas.js';
 
 /**
  * The example feature's API, for API clients (a key) and users (a session).
@@ -89,8 +77,6 @@ export class NotesController {
     private readonly access: AccessService,
     private readonly authorization: AuthorizationService,
     private readonly customFields: CustomFieldsService,
-    private readonly subscriptions: SubscriptionsService,
-    private readonly bulk: BulkService,
   ) {}
 
   @Post()
@@ -265,81 +251,6 @@ export class NotesController {
     }
     const updated = await this.notes.update(user, note, dto, ip);
     return this.shown(user, updated);
-  }
-
-  @Post('bulk')
-  @HttpCode(HttpStatus.OK)
-  // A retry with the same key gets the first answer instead of acting twice.
-  @Idempotent({ required: true, scope: principalScope })
-  @Can.Anyone() // Checked by BulkService: the action's permission, then each note.
-  @ApiOperation({
-    summary: 'Delete, restore or change many notes at once',
-    description: [
-      'Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.',
-      '',
-      '- `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.',
-      '- `filter` (the list\'s filters, `{ "title.startsWith": "Old" }`): always 202.',
-      '',
-      "A 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.",
-    ].join('\n'),
-  })
-  @ApiHeader(idempotencyKeyHeader(true))
-  @ApiOkResponse({ standardSchema: bulkResultSchema })
-  @ApiAcceptedResponse({ standardSchema: bulkStartedSchema })
-  @ApiBadRequestResponse({
-    description:
-      'The body is invalid (validation_failed: ids and filter both or neither, an unknown action, a bad filter or input), more than 500 ids (bulk_too_many), or the Idempotency-Key is missing.',
-  })
-  @ApiConflictResponse({
-    description: 'A request with this Idempotency-Key is still running.',
-  })
-  @ApiUnprocessableEntityResponse({
-    description: 'This Idempotency-Key was used for a different request.',
-  })
-  async runBulk(
-    @CurrentUser() user: RequestPrincipal,
-    @Body({ schema: noteBulkSchema }) dto: NoteBulkDto,
-    @Ip() ip: string,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const outcome = await this.bulk.run(user, { name: 'notes', ...dto, ip });
-    if ('status' in outcome) {
-      res.status(HttpStatus.ACCEPTED);
-    }
-    return outcome;
-  }
-
-  @Post(':id/watch')
-  @HttpCode(HttpStatus.OK)
-  @Can.Anyone() // Checked below: whoever may read the note may watch it.
-  @ApiOperation({
-    summary: 'Watch a note: be told when it changes or is published',
-    description:
-      'Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).',
-  })
-  @ApiOkResponse({ standardSchema: watchingSchema })
-  @ApiNotFoundResponse()
-  async watch(
-    @CurrentUser() user: RequestPrincipal,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    const note = await this.notes.findOne(id);
-    await this.authorization.authorize(NotePolicy, 'read', user, note);
-    await this.subscriptions.subscribe(user, { subject: 'Note', recordId: id });
-    return { watching: true };
-  }
-
-  @Delete(':id/watch')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @Can.Anyone()
-  @ApiOperation({ summary: 'Stop watching a note' })
-  @ApiNoContentResponse()
-  @ApiNotFoundResponse({ description: 'You were not watching it.' })
-  async unwatch(
-    @CurrentUser() user: RequestPrincipal,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    await this.subscriptions.remove(user, { subject: 'Note', recordId: id });
   }
 
   @Post(':id/restore')

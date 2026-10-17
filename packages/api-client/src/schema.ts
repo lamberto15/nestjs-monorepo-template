@@ -2449,52 +2449,6 @@ export interface paths {
         patch: operations["NotesController_update_v1"];
         trace?: never;
     };
-    "/v1/notes/bulk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Delete, restore or change many notes at once
-         * @description Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.
-         *
-         *     - `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.
-         *     - `filter` (the list's filters, `{ "title.startsWith": "Old" }`): always 202.
-         *
-         *     A 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.
-         */
-        post: operations["NotesController_runBulk_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notes/{id}/watch": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Watch a note: be told when it changes or is published
-         * @description Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).
-         */
-        post: operations["NotesController_watch_v1"];
-        /** Stop watching a note */
-        delete: operations["NotesController_unwatch_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/notes/{id}/restore": {
         parameters: {
             query?: never;
@@ -2721,6 +2675,52 @@ export interface paths {
          */
         post: operations["NoteDocumentsController_pdf_v1"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete, restore or change many notes at once
+         * @description Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.
+         *
+         *     - `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.
+         *     - `filter` (the list's filters, `{ "title.startsWith": "Old" }`): always 202.
+         *
+         *     A 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.
+         */
+        post: operations["NotesController_runBulk_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/watch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Watch a note: be told when it changes or is published
+         * @description Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).
+         */
+        post: operations["NotesController_watch_v1"];
+        /** Stop watching a note */
+        delete: operations["NotesController_unwatch_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -13270,213 +13270,6 @@ export interface operations {
             };
         };
     };
-    NotesController_runBulk_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /**
-                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
-                 *
-                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
-                 */
-                "Idempotency-Key"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @enum {string} */
-                    action: "delete" | "restore" | "update";
-                    /** @description These records (1 to 500); those you may not act on are skipped. Send ids or filter. */
-                    ids?: string[];
-                    /** @description Every record matching these list filters, as on the list route: { "status": "draft", "title.startsWith": "Old" }. Always a background job. */
-                    filter?: {
-                        [key: string]: unknown;
-                    };
-                    /** @description What the action takes (update: the PATCH body). */
-                    input?: {
-                        /** @example Hello */
-                        title?: string;
-                        /** @example My first note. */
-                        body?: string;
-                        /**
-                         * @description Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one.
-                         * @example {
-                         *       "region": "eu"
-                         *     }
-                         */
-                        custom?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        done: number;
-                        failed: number;
-                        /** @description Ids not found, or not yours to act on (code not_found). */
-                        skipped: number;
-                        results: {
-                            id: string;
-                            /** @enum {string} */
-                            status: "done" | "failed" | "skipped";
-                            /** @description Why it failed: the problem the record's own route would have answered. */
-                            error?: {
-                                /** @example field_forbidden */
-                                code: string;
-                                message: string;
-                                errors?: {
-                                    path: string;
-                                    message: string;
-                                }[];
-                            };
-                        }[];
-                        /** @description A background job keeps 10000 results; true when there were more. */
-                        truncated?: boolean;
-                    };
-                };
-            };
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        /** @enum {string} */
-                        status: "queued";
-                    };
-                };
-            };
-            /** @description The body is invalid (validation_failed: ids and filter both or neither, an unknown action, a bad filter or input), more than 500 ids (bulk_too_many), or the Idempotency-Key is missing. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A request with this Idempotency-Key is still running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description This Idempotency-Key was used for a different request. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    NotesController_watch_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        watching: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    NotesController_unwatch_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You were not watching it. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     NotesController_restore_v1: {
         parameters: {
             query?: never;
@@ -14600,6 +14393,213 @@ export interface operations {
             };
             /** @description PDF documents are not set up on this server (documents_unavailable: GOTENBERG_URL is unset). */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotesController_runBulk_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
+                 *
+                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "delete" | "restore" | "update";
+                    /** @description These records (1 to 500); those you may not act on are skipped. Send ids or filter. */
+                    ids?: string[];
+                    /** @description Every record matching these list filters, as on the list route: { "status": "draft", "title.startsWith": "Old" }. Always a background job. */
+                    filter?: {
+                        [key: string]: unknown;
+                    };
+                    /** @description What the action takes (update: the PATCH body). */
+                    input?: {
+                        /** @example Hello */
+                        title?: string;
+                        /** @example My first note. */
+                        body?: string;
+                        /**
+                         * @description Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one.
+                         * @example {
+                         *       "region": "eu"
+                         *     }
+                         */
+                        custom?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        done: number;
+                        failed: number;
+                        /** @description Ids not found, or not yours to act on (code not_found). */
+                        skipped: number;
+                        results: {
+                            id: string;
+                            /** @enum {string} */
+                            status: "done" | "failed" | "skipped";
+                            /** @description Why it failed: the problem the record's own route would have answered. */
+                            error?: {
+                                /** @example field_forbidden */
+                                code: string;
+                                message: string;
+                                errors?: {
+                                    path: string;
+                                    message: string;
+                                }[];
+                            };
+                        }[];
+                        /** @description A background job keeps 10000 results; true when there were more. */
+                        truncated?: boolean;
+                    };
+                };
+            };
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description The body is invalid (validation_failed: ids and filter both or neither, an unknown action, a bad filter or input), more than 500 ids (bulk_too_many), or the Idempotency-Key is missing. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A request with this Idempotency-Key is still running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This Idempotency-Key was used for a different request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotesController_watch_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        watching: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotesController_unwatch_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You were not watching it. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

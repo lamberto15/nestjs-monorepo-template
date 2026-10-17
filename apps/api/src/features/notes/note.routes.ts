@@ -13,6 +13,28 @@ export const NOTE_ROUTES: RecordRouteSpec = {
   noun: 'note',
 };
 
+/** What notes' bulk operation offers (NoteBulk, note.bulk.ts). */
+export const NOTE_BULK_DOCS = {
+  summary: 'Delete, restore or change many notes at once',
+  description: [
+    'Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.',
+    '',
+    '- `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.',
+    '- `filter` (the list\'s filters, `{ "title.startsWith": "Old" }`): always 202.',
+    '',
+    "A 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.",
+  ].join('\n'),
+};
+
+/** Who watches a note, and what they hear. */
+export const NOTE_WATCH_DOCS = {
+  watch: {
+    summary: 'Watch a note: be told when it changes or is published',
+    description:
+      'Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).',
+  },
+};
+
 /** What notes' revisions hold and a restore sets: a note's own words. */
 export const NOTE_REVISION_DOCS = {
   list: {

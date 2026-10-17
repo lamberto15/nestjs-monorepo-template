@@ -11,17 +11,22 @@ import { NoteBulk } from './note.bulk.js';
 import { NoteAttachments } from './note-attachments.js';
 import { attachmentRoutes } from '../../platform/attachments/attachment.routes.js';
 import { NoteComments } from './note-comments.js';
+import { NoteSubscriptions } from './note-subscriptions.js';
 import { commentRoutes } from '../../platform/comments/comment.routes.js';
 import { NoteTags } from './note-tags.js';
 import {
+  NOTE_BULK_DOCS,
   NOTE_DOCUMENT_DOCS,
   NOTE_REVISION_DOCS,
   NOTE_ROUTES,
+  NOTE_WATCH_DOCS,
 } from './note.routes.js';
 import { tagRoutes } from '../../platform/tags/tag.routes.js';
 import { NoteRevisions } from './note-revisions.js';
 import { revisionRoutes } from '../../platform/revisions/revision.routes.js';
-import { noteSchema } from './note.schemas.js';
+import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
+import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
+import { noteBulkSchema, noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
 import { NoteDocuments } from './note-documents.js';
 import { documentRoutes } from '../../platform/documents/document.routes.js';
@@ -50,6 +55,12 @@ import { documentRoutes } from '../../platform/documents/document.routes.js';
       docs: NOTE_REVISION_DOCS,
     }),
     documentRoutes(NOTE_ROUTES, { source: 'note', docs: NOTE_DOCUMENT_DOCS }),
+    bulkRoutes(NOTE_ROUTES, {
+      name: 'notes',
+      body: noteBulkSchema,
+      docs: NOTE_BULK_DOCS,
+    }),
+    watchRoutes(NOTE_ROUTES, { docs: NOTE_WATCH_DOCS }),
   ],
   providers: [
     NotesService,
@@ -61,6 +72,7 @@ import { documentRoutes } from '../../platform/documents/document.routes.js';
     NoteBulk,
     NoteAttachments,
     NoteComments,
+    NoteSubscriptions,
     NoteTags,
     NoteRevisions,
     NotePublishApproval,
