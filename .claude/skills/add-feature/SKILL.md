@@ -1,6 +1,6 @@
 ---
 name: add-feature
-description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, custom fields or export, turn its recycle bin or teams on or off), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
+description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, custom fields or export, turn its recycle bin or teams on or off, let API keys use it, change who gets access by default or its Idempotency-Key), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
 ---
 
 # Add a feature
@@ -35,12 +35,24 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
    whether deleting should go to a recycle bin (default) or be final
    (`--no-soft-delete`). Both can change later (`team`, `softDelete` in the
    declaration).
-4. **What it needs** (`--with`): tags, comments, attachments, revisions
+4. **Access beyond people.** Two more questions, with their defaults:
+   - *May API keys use it?* Default **no**: an API client reaches the
+     feature only through a role an administrator grants it. Yes →
+     `--client-access own` (every client creates, reads, changes and deletes
+     the records it created).
+   - *Who gets access by default?* Default the standard roles (editors write
+     their own, team leads read their teams', viewers read all). "Only
+     administrators until someone grants it" → `--grants none`.
+   - *Idempotency-Key*: don't ask unless they mention payments, money
+     movement or clients retrying; then `--idempotency required` (a retry
+     replays; a missing key is a 400), `optional` (honoured when sent) or
+     `off`. Otherwise the deployment's `IDEMPOTENCY` rules (nothing to pass).
+5. **What it needs** (`--with`): tags, comments, attachments, revisions
    (history and restore), pdf (a document of a record), bulk (act on many),
    watch (be notified of changes), search, transfer (CSV/Excel export and
    import), custom (fields administrators add at runtime, no migration).
    Only what they need.
-5. **Business rules.** What must be true on create and update, what happens
+6. **Business rules.** What must be true on create and update, what happens
    after (notifications, webhooks, workflows, approvals), anything slow
    (that goes to a queue worker, never the request: CLAUDE.md).
 
@@ -84,7 +96,9 @@ the user they are to translate.
   in `<item>.policy.ts` (the third argument of `recordPermissions`; a rule on
   one record overrides an action of `RecordPolicy`). Never code the recycle
   bin or teams by hand: the declaration's `softDelete` and `team` drive them
-  (`RecordStore`, `recordPermissions`, the restore route).
+  (`RecordStore`, `recordPermissions`, the restore route); likewise
+  `clientAccess` and `grants` (`recordPermissions`) and `idempotency`
+  (`@RecordIdempotent`): never code them by hand.
 - Add tests for each rule to the generated `test/<x>.e2e-spec.ts`.
 
 ## Changing an existing feature
@@ -99,7 +113,12 @@ declares its fields, capabilities, recycle bin (`softDelete`) and teams
    capability).
 2. Edit the declaration: a field line (`dueOn: field.date().optional()`), a
    name in `capabilities` (search: mark searched fields `.searchable()`; pdf
-   needs attachments), or `softDelete` / `team` flipped.
+   needs attachments), `softDelete` / `team` flipped, `clientAccess`
+   (`false` | `'own'`), `grants` (`'standard'` | `'none'`) or `idempotency`
+   (`'required'` | `'optional'` | `'off'`; delete the line to follow the
+   deployment). Permission changes need no migration, but the seed roles'
+   grants reach only tenants made afterwards: sync warns, and existing
+   tenants' administrators change their roles at `/v1/access/roles`.
 3. `pnpm feature:sync`: it writes the texts and OpenAPI paths, and its guard
    refuses a new required field without `.default(…)`, an optional field made
    required, a removed field, or `softDelete` / `team` turned off (their

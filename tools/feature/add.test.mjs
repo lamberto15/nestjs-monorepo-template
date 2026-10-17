@@ -15,10 +15,11 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { after, before, describe, it } from 'node:test';
 import { addFeature, MARKERS } from './add.mjs';
 import { readRecord, syncFeature } from './sync.mjs';
-import { parseCapabilities } from './capabilities.mjs';
+import { parseCapabilities, parseChoices } from './capabilities.mjs';
 import { parseField, parseFields } from './fields.mjs';
 import { names, singularize } from './names.mjs';
 
@@ -335,6 +336,74 @@ describe('addFeature', () => {
     );
   });
 
+  it('declares API key access, default grants and the idempotency the flags choose, and the code follows from them', async () => {
+    await addFeature(root, {
+      name: 'charges',
+      fields: 'title:string',
+      idempotency: 'optional',
+      clientAccess: 'own',
+      grants: 'none',
+    });
+    await addFeature(root, { name: 'refunds', fields: 'title:string' });
+    const read = (...parts) => readFileSync(api(...parts), 'utf8');
+    const charges = read('src/features/charges/charge.record.ts');
+    assert.match(charges, /\n {2}idempotency: 'optional',/);
+    assert.match(charges, /\n {2}clientAccess: 'own',/);
+    assert.match(charges, /\n {2}grants: 'none',/);
+    // Unset: no idempotency line (the deployment's IDEMPOTENCY rules), clients closed, standard grants.
+    const refunds = read('src/features/refunds/refund.record.ts');
+    assert.doesNotMatch(refunds, /idempotency:/);
+    assert.match(refunds, /\n {2}clientAccess: false,/);
+    assert.match(refunds, /\n {2}grants: 'standard',/);
+    // The controller derives the key from the declaration: nothing coded per feature.
+    for (const name of ['charges', 'refunds']) {
+      const controller = read(`src/features/${name}/${name}.controller.ts`);
+      assert.match(controller, /@RecordIdempotent\((CHARGE|REFUND)\)/);
+      assert.doesNotMatch(controller, /@Idempotent\(|idempotencyKeyHeader/);
+    }
+    // grants none: the generated spec drops the seed-role test.
+    assert.doesNotMatch(read('test/charges.e2e-spec.ts'), /editors their own/);
+    assert.match(read('test/refunds.e2e-spec.ts'), /editors their own/);
+    // The sync reads them back.
+    const back = readRecord(api('src/features/charges/charge.record.ts'));
+    assert.equal(back.idempotency, 'optional');
+    assert.equal(back.clientAccess, 'own');
+    assert.equal(back.grants, 'none');
+    const unset = readRecord(api('src/features/refunds/refund.record.ts'));
+    assert.deepEqual(
+      [unset.idempotency, unset.clientAccess, unset.grants],
+      [undefined, false, 'standard'],
+    );
+  });
+
+  it('idempotency off writes a test that does not expect a replay', async () => {
+    await addFeature(root, {
+      name: 'pings',
+      fields: 'title:string',
+      idempotency: 'off',
+    });
+    const spec = readFileSync(api('test/pings.e2e-spec.ts'), 'utf8');
+    assert.match(spec, /creates, changes with If-Match/);
+    assert.doesNotMatch(spec, /not a second record/);
+  });
+
+  it('refuses a choice it does not know', () => {
+    assert.throws(
+      () => parseChoices({ idempotency: 'always' }),
+      /--idempotency/,
+    );
+    assert.throws(
+      () => parseChoices({ clientAccess: 'all' }),
+      /--client-access/,
+    );
+    assert.throws(() => parseChoices({ grants: 'some' }), /--grants/);
+    assert.deepEqual(parseChoices({}), {
+      idempotency: undefined,
+      clientAccess: false,
+      grants: 'standard',
+    });
+  });
+
   it("refuses a reference to a table others can't point at", async () => {
     await assert.rejects(
       addFeature(root, { name: 'receipts', fields: 'ledgerId:ref(ledgers)?' }),
@@ -562,6 +631,64 @@ describe('feature:sync', () => {
     assert.match(
       syncFeature(api(), 'orders').errors.join('\n'),
       /custom was removed/,
+    );
+  });
+
+  it('accepts idempotency, clientAccess and grants, and rejects values it does not know', () => {
+    edit("  capabilities: ['watch'],", "  capabilities: ['watch', 'custom'],");
+    edit('  team: false,\n', "  team: false,\n  idempotency: 'required',\n");
+    edit('  clientAccess: false,', "  clientAccess: 'own',");
+    edit("  grants: 'standard',", "  grants: 'none',");
+    const read = readRecord(record());
+    assert.deepEqual(
+      [read.idempotency, read.clientAccess, read.grants],
+      ['required', 'own', 'none'],
+    );
+    const result = syncFeature(api(), 'orders', { check: true });
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.changes, []);
+    edit("idempotency: 'required'", "idempotency: 'sometimes'");
+    assert.throws(() => readRecord(record()), /idempotency: sometimes/);
+    edit("idempotency: 'sometimes'", "idempotency: 'required'");
+  });
+
+  it('fails on a controller that still codes the idempotency by hand', () => {
+    const controller = api('src/features/orders/orders.controller.ts');
+    const generated = readFileSync(controller, 'utf8');
+    writeFileSync(
+      controller,
+      `${generated}\n// @Idempotent({ scope: principalScope })\n`,
+    );
+    assert.match(
+      syncFeature(api(), 'orders').errors.join('\n'),
+      /orders\.controller\.ts codes the create route's Idempotency-Key[^\n]*idempotency: required/,
+    );
+    writeFileSync(controller, generated);
+  });
+
+  it("warns that a changed clientAccess or grants doesn't reach existing tenants' roles", () => {
+    const git = (...args) =>
+      execFileSync('git', ['-C', root, ...args], { stdio: 'ignore' });
+    git('init', '-q');
+    git('add', '-A');
+    git(
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-q',
+      '-m',
+      'declared',
+    );
+    assert.deepEqual(syncFeature(api(), 'orders').warnings, []);
+    edit("clientAccess: 'own'", 'clientAccess: false');
+    edit("grants: 'none'", "grants: 'standard'");
+    const warnings = syncFeature(api(), 'orders').warnings.join('\n');
+    assert.match(warnings, /clientAccess own -> false: API clients lose/);
+    assert.match(
+      warnings,
+      /grants none -> standard: the seed roles are written when a tenant is made, so existing tenants keep/,
     );
   });
 });

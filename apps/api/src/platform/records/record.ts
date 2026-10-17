@@ -69,6 +69,19 @@ export interface RecordDeclaration<
   softDelete: boolean;
   /** Records carry their creator's team (`teamId`, the `inMyTeams` condition). */
   team: boolean;
+  /**
+   * May API clients (keys) use it? `'own'`: every client creates, reads,
+   * changes and deletes the records it created (`mine`). Unset or `false`:
+   * a client reaches it only through a role an administrator grants it.
+   */
+  clientAccess?: false | 'own';
+  /**
+   * The seed roles' grants (a tenant's starting roles): `standard`, the
+   * default, is editors their own, team leads their teams' (with `team`),
+   * viewers every record; `none` grants none: only administrators until
+   * someone creates a role.
+   */
+  grants?: 'standard' | 'none';
   fields: F;
   capabilities: C;
 }

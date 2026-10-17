@@ -60,7 +60,7 @@ export function describeCapabilities(
     });
   }
 
-  if (record.team) {
+  if (record.team && record.grants !== 'none') {
     it("belongs to its creator's team: the team's leads see it", async () => {
       const admin = node().admin();
       const team = (
@@ -89,12 +89,127 @@ export function describeCapabilities(
         .expect(204);
       await lead.agent.get(`${path}/${id}`).expect(200);
     });
-  } else {
+  } else if (!record.team) {
     it('has no team', async () => {
       const id = await make();
       expect(
         (await node().admin().get(`${path}/${id}`).expect(200)).body,
       ).not.toHaveProperty('teamId');
+    });
+  }
+
+  if (record.grants === 'none') {
+    it('grants no seed role: only administrators, until someone grants it', async () => {
+      const id = await make();
+      const editor = await node().user(['editor']);
+      const viewer = await node().user(['viewer']);
+      await editor.agent
+        .post(path)
+        .set('Idempotency-Key', randomUUID())
+        .send(samples.body())
+        .expect(403);
+      await editor.agent.get(`${path}/${id}`).expect(403);
+      await viewer.agent.get(`${path}/${id}`).expect(403);
+      await node().admin().get(`${path}/${id}`).expect(200);
+    });
+  }
+
+  if (record.clientAccess === 'own') {
+    it("lets an API client use its own records, not another client's", async () => {
+      const client = await node().client();
+      const other = await node().client();
+      const created = await node()
+        .http()
+        .post(path)
+        .set('Authorization', client.auth)
+        .set('Idempotency-Key', randomUUID())
+        .send(samples.body())
+        .expect(201);
+      const id = created.body.id as string;
+      await node()
+        .http()
+        .get(`${path}/${id}`)
+        .set('Authorization', client.auth)
+        .expect(200);
+      await node()
+        .http()
+        .get(`${path}/${id}`)
+        .set('Authorization', other.auth)
+        .expect(403);
+    });
+  } else {
+    it('is closed to API clients: a role must grant it', async () => {
+      const client = await node().client();
+      const id = await make();
+      await node()
+        .http()
+        .post(path)
+        .set('Authorization', client.auth)
+        .set('Idempotency-Key', randomUUID())
+        .send(samples.body())
+        .expect(403);
+      await node()
+        .http()
+        .get(`${path}/${id}`)
+        .set('Authorization', client.auth)
+        .expect(403);
+    });
+  }
+
+  if (record.idempotency) {
+    describe(`Idempotency-Key: ${record.idempotency}`, () => {
+      const post = (key?: string, sent = samples.body()) => {
+        const call = node().admin().post(path);
+        return (key ? call.set('Idempotency-Key', key) : call).send(sent);
+      };
+      /** The Idempotency-Key parameters of the record's routes in the OpenAPI document. */
+      const headers = async () => {
+        const document = (await node().http().get('/api-json').expect(200))
+          .body;
+        return Object.entries<
+          Record<
+            string,
+            { parameters?: { name?: string; required?: boolean }[] }
+          >
+        >(document.paths)
+          .filter(([route]) => route.startsWith(`${path}`))
+          .flatMap(([, operations]) => Object.values(operations))
+          .flatMap((operation) => operation.parameters ?? [])
+          .filter((parameter) => parameter.name === 'Idempotency-Key');
+      };
+
+      if (record.idempotency === 'off') {
+        it('takes no key: every create is a new record, and the document has no header', async () => {
+          const key = randomUUID();
+          const first = await post(key).expect(201);
+          const second = await post(key).expect(201);
+          expect(second.body.id).not.toBe(first.body.id);
+          expect(await headers()).toEqual([]);
+        });
+      } else if (record.idempotency === 'optional') {
+        it('creates without a key and replays one that is sent, the document says optional', async () => {
+          await post().expect(201);
+          const key = randomUUID();
+          const sent = samples.body();
+          const created = await post(key, sent).expect(201);
+          expect((await post(key, sent).expect(201)).body.id).toBe(
+            created.body.id,
+          );
+          const found = await headers();
+          expect(found.length).toBeGreaterThan(0);
+          expect(found.every((header) => header.required !== true)).toBe(true);
+        });
+      } else {
+        it('refuses a create without a key, whatever the deployment says, the document says required', async () => {
+          const refused = await post().expect(400);
+          expect(refused.body).toMatchObject({
+            code: 'IDEMPOTENCY_KEY_REQUIRED',
+          });
+          const found = await headers();
+          expect(found.length).toBeGreaterThan(0);
+          expect(found.every((header) => header.required === true)).toBe(true);
+        });
+      }
     });
   }
 
