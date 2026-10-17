@@ -250,7 +250,8 @@ export const userRoles = pgTable(
     expiresAt: at('expires_at'),
   },
   (table) => [
-    primaryKey({ columns: [table.tenantId, table.userId, table.roleId] }),
+    // A role belongs to one tenant, so (user, role) names the grant.
+    primaryKey({ columns: [table.userId, table.roleId] }),
     index('user_roles_role_id_idx').on(table.roleId),
     ...tenantTable('user_roles', table),
     foreignKey({

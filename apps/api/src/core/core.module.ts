@@ -86,9 +86,9 @@ import {
       }),
     }),
     // Transactions that follow the call (core/database/transactions.ts): inside
-    // one, every service reading txHost.tx joins it.
-    // and every request runs in a CLS context of its own (the middleware),
-    // which PrincipalGuard gives the principal's tenant (docs/tenancy.md).
+    // one, every service reading txHost.tx joins it. Every request runs in
+    // a CLS context of its own (the middleware), which PrincipalGuard gives
+    // the principal's tenant (docs/tenancy.md).
     ClsModule.forRoot({
       global: true,
       middleware: { mount: true },

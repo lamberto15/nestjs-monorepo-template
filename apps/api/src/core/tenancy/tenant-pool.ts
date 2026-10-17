@@ -155,7 +155,7 @@ function tenantAware(client: pg.PoolClient) {
         // the settings (literals, checked UUIDs) ride along in the same trip.
         args[0] = withText(
           config,
-          `${text.replace(/;\s*$/, '')}; ${tenantSettingsStatement(scope!)}`,
+          `${text.replace(/;\s*$/, '')}; ${scope!.readOnly ? 'set transaction read only; ' : ''}${tenantSettingsStatement(scope!)}`,
         );
       }
       return query(...args);

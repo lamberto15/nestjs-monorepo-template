@@ -356,6 +356,18 @@ deployment, not to the schema.
   sequences, advisory locks and transaction-scoped settings work; and every
   other e2e test boots the app on that role. The `check` job runs `pnpm migrate`
   twice as a deploy does (a superuser owner, as in Compose).
+- **Row-level security** ([tenancy](tenancy.md)): the same run sets `FORCE
+  ROW LEVEL SECURITY` on every tenant table (drizzle-kit emits only
+  `ENABLE` and the policies) and refuses to finish when a table with a
+  `tenant_id` lacks RLS, FORCE or its four policies. FORCE binds a table's
+  owner too, unless it is a superuser (Compose's owner is): the owner never
+  serves a request, and the app role, which does, is neither.
+- **Upgrading to tenancy (1a)** is a reset, not a migration of data (the
+  owner's call for app10): the tenancy migration adds `tenant_id NOT NULL`
+  with no default, which fails on tables that hold rows. Back up, then start
+  from an empty database (`docker compose down`, remove the `postgres_data`
+  volume, `docker compose up -d --build --remove-orphans`); the first start
+  makes the operator tenant (`ADMIN_TENANT_NAME`) and the administrator.
 - **Upgrading a deployment made before the roles** (app10): add
   `POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)` to `.env` and redeploy
   (`docker compose up -d --build --remove-orphans`). `migrate` creates

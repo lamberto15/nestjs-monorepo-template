@@ -166,9 +166,9 @@ export async function testDatabase() {
 /** Runs `work` across every tenant (the maintenance jobs' bypass), with no app booted. */
 export function bypassingTenants<T>(work: () => Promise<T>): Promise<T> {
   const cls = ClsServiceManager.getClsService();
-  return cls.run({ ifNested: 'inherit' }, () => {
+  return cls.run({ ifNested: 'inherit' }, async () => {
     cls.set(TENANT_SCOPE, BYPASS);
-    return work();
+    return await work();
   });
 }
 
@@ -187,7 +187,7 @@ export function testTenant() {
     inTenantOf({ tenantId: tenantId! }, work);
   return {
     scoped,
-    async create(db: Database) {
+    create: async (db: Database) => {
       const [tenant] = await db
         .insert(tenants)
         .values({ slug: `t-${randomUUID().slice(0, 8)}`, name: 'Test' })

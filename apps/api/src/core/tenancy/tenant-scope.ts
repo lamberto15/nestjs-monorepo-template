@@ -28,6 +28,8 @@ export interface TenantScope {
   readonly tenantId: string | null;
   readonly readTenants: readonly string[];
   readonly bypass: boolean;
+  /** Every transaction `READ ONLY` (the aggregates' scope: counts across tenants, nothing written). */
+  readonly readOnly?: boolean;
 }
 
 /**
@@ -58,6 +60,28 @@ export const BYPASS: TenantScope = Object.freeze({
   readTenants: Object.freeze([]),
   bypass: true,
 });
+
+/**
+ * Every tenant, read only: the deployment-wide counts of the metrics
+ * (`MetricsService.collect()`: open approvals, suppressed addresses…).
+ * Each transaction is `READ ONLY`, so nothing in it can write any tenant's
+ * rows; what it returns is an aggregate, never a tenant's rows.
+ */
+export const AGGREGATES: TenantScope = Object.freeze({
+  tenantId: null,
+  readTenants: Object.freeze([]),
+  bypass: true,
+  readOnly: true,
+});
+
+/** Runs `work` in the aggregates' scope (AGGREGATES): metrics across tenants. */
+export function acrossTenantsReadOnly<T>(work: () => Promise<T> | T) {
+  const cls = ClsServiceManager.getClsService();
+  return cls.run({ ifNested: 'inherit' }, async () => {
+    cls.set(TENANT_SCOPE, AGGREGATES);
+    return await work();
+  });
+}
 
 /**
  * The scope of the current context, or undefined outside one (no request,
@@ -162,8 +186,12 @@ export const optionalTenantColumn = () =>
 const bypassOn = sql`(select current_setting('app.bypass_rls', true)) = 'on'`;
 /** The tenant writes go to, null when unset or empty. */
 const writeTenant = sql`(select nullif(current_setting('app.tenant_id', true), '')::uuid)`;
-/** The tenants reads see, `{}` when unset or empty. */
-const readTenants = sql`(select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])`;
+/**
+ * The tenants reads see, `{}` when unset or empty. The cast outside makes
+ * the subquery one value (an array, read once: an InitPlan); `any((select
+ * …))` alone would compare with each of its rows.
+ */
+const readTenants = sql`(select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]`;
 
 /**
  * Who sees the rows without a tenant of a table whose `tenant_id` may be
@@ -205,21 +233,24 @@ export function tenantPolicies(
         : undefined;
   const read = sql`(${bypassOn} or ${column} = any(${readTenants})${readNull ? sql` or ${readNull}` : sql``})`;
   const write = sql`(${bypassOn} or ${column} = ${writeTenant})`;
-  const insert = nullable
-    ? sql`(${bypassOn} or ${column} = ${writeTenant} or (${column} is null and ${writeTenant} is null))`
-    : write;
+  // Rows of no tenant are written where they are read: outside a tenant
+  // (the audit log's), or anywhere (a person's own notifications, marked
+  // read from whichever tenant they are in).
+  const writeNull =
+    nullable === 'everywhere'
+      ? sql`${column} is null`
+      : sql`(${column} is null and ${writeTenant} is null)`;
+  const nullableWrite = sql`(${bypassOn} or ${column} = ${writeTenant} or ${writeNull})`;
+  const own = nullable ? nullableWrite : write;
   return [
     pgPolicy(`${table}_tenant_select`, { for: 'select', using: read }),
-    pgPolicy(`${table}_tenant_insert`, { for: 'insert', withCheck: insert }),
+    pgPolicy(`${table}_tenant_insert`, { for: 'insert', withCheck: own }),
     pgPolicy(`${table}_tenant_update`, {
       for: 'update',
-      using: nullable ? insert : write,
-      withCheck: nullable ? insert : write,
+      using: own,
+      withCheck: own,
     }),
-    pgPolicy(`${table}_tenant_delete`, {
-      for: 'delete',
-      using: nullable ? insert : write,
-    }),
+    pgPolicy(`${table}_tenant_delete`, { for: 'delete', using: own }),
   ];
 }
 

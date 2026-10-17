@@ -1,7 +1,6 @@
 import { getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import {
   DataTransferProcessor,
   STALLED_REASON,
@@ -391,10 +390,12 @@ describe('scheduled reports (e2e)', () => {
     // A second runner holding the row as it was read claims nothing.
     const reports = node.app.get(ReportsService);
     expect(
-      await reports.start((await reports.owner(stale!))!, stale!, {
-        trigger: 'schedule',
-        now,
-      }),
+      await node.inTenant(async () =>
+        reports.start((await reports.owner(stale!))!, stale!, {
+          trigger: 'schedule',
+          now,
+        }),
+      ),
     ).toBeNull();
 
     const after = (await ada.agent.get(`/v1/reports/${due.id}`).expect(200))

@@ -152,7 +152,9 @@ describe('documents (e2e)', () => {
   /** The PDFs on the disk for a document (one key per run). */
   const files = async (id: string) =>
     (
-      await node.app.get(StorageDisk).list({ prefix: `documents/${id}/` })
+      await node.app
+        .get(StorageDisk)
+        .list({ prefix: `tenants/${node.tenantId}/documents/${id}/` })
     ).entries.map((entry) => entry.key);
 
   const status = (auth: string, id: string) =>

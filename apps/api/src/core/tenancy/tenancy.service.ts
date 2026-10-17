@@ -68,9 +68,11 @@ export class Tenancy {
         );
       }
     }
-    return this.cls.run({ ifNested: 'inherit' }, () => {
+    // Awaited inside: a Drizzle query is a thenable that runs when awaited,
+    // and must run in this context, not the caller's.
+    return this.cls.run({ ifNested: 'inherit' }, async () => {
       this.cls.set(TENANT_SCOPE, resolved);
-      return work();
+      return await work();
     });
   }
 
@@ -159,6 +161,7 @@ export class Tenancy {
 const sameScope = (a: TenantScope | undefined, b: TenantScope) =>
   (a?.tenantId ?? null) === b.tenantId &&
   (a?.bypass ?? false) === b.bypass &&
+  (a?.readOnly ?? false) === (b.readOnly ?? false) &&
   (a?.readTenants ?? []).join() === b.readTenants.join();
 
 const describe = (scope: TenantScope | undefined) =>

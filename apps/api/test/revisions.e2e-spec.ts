@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { notes } from '../src/features/notes/notes.tables.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';

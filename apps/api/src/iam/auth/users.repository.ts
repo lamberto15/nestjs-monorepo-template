@@ -221,6 +221,31 @@ export class UsersRepository {
   }
 
   /**
+   * Ends what acts in one tenant for the user (a membership deactivated):
+   * the sessions in it and the token families issued for it. Their other
+   * tenants' sessions and tokens go on.
+   */
+  async endTenantSessions(userId: string, tenantId: string, db: Db = this.db) {
+    await db
+      .delete(sessions)
+      .where(
+        and(
+          eq(sessions.userId, userId),
+          sql`${sessions.metadata}->>'tenantId' = ${tenantId}`,
+        ),
+      );
+    await db
+      .update(refreshTokens)
+      .set({ revoked: true })
+      .where(
+        and(
+          eq(refreshTokens.userId, userId),
+          sql`${refreshTokens.claims}->>'tid' = ${tenantId}`,
+        ),
+      );
+  }
+
+  /**
    * Takes every way in away from an account nobody claimed (its address
    * never proved, `emailVerified` false: an administrator made it, or set
    * its password), before it joins another tenant: no password, two-factor,

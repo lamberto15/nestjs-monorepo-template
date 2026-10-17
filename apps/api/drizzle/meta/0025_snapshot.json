@@ -1,5 +1,5 @@
 {
-  "id": "46614a59-21ac-4e4f-a15e-1530eecf19b4",
+  "id": "f42d5b60-37e4-400d-8561-110c5dda5a9a",
   "prevId": "0cc324bb-3acf-47fb-83c9-d8c2b256ebc1",
   "version": "7",
   "dialect": "postgresql",
@@ -62,6 +62,74 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tenants": {
+      "name": "tenants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "operator": {
+          "name": "operator",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tenants_slug_unique": {
+          "name": "tenants_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -145,7 +213,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"api_client_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"api_client_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "api_client_roles_tenant_insert": {
           "name": "api_client_roles_tenant_insert",
@@ -287,7 +355,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"api_clients\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"api_clients\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "api_clients_tenant_insert": {
           "name": "api_clients_tenant_insert",
@@ -594,7 +662,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"audit_log\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])) or (\"audit_log\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"audit_log\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) or (\"audit_log\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
         },
         "audit_log_tenant_insert": {
           "name": "audit_log_tenant_insert",
@@ -1199,7 +1267,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"org_unit_tree\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"org_unit_tree\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "org_unit_tree_tenant_insert": {
           "name": "org_unit_tree_tenant_insert",
@@ -1328,7 +1396,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"org_units\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"org_units\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "org_units_tenant_insert": {
           "name": "org_units_tenant_insert",
@@ -1576,7 +1644,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"role_permissions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"role_permissions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "role_permissions_tenant_insert": {
           "name": "role_permissions_tenant_insert",
@@ -1746,7 +1814,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "roles_tenant_insert": {
           "name": "roles_tenant_insert",
@@ -2036,7 +2104,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"user_org_units\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"user_org_units\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "user_org_units_tenant_insert": {
           "name": "user_org_units_tenant_insert",
@@ -2147,10 +2215,9 @@
         }
       },
       "compositePrimaryKeys": {
-        "user_roles_tenant_id_user_id_role_id_pk": {
-          "name": "user_roles_tenant_id_user_id_role_id_pk",
+        "user_roles_user_id_role_id_pk": {
+          "name": "user_roles_user_id_role_id_pk",
           "columns": [
-            "tenant_id",
             "user_id",
             "role_id"
           ]
@@ -2165,7 +2232,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"user_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"user_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "user_roles_tenant_insert": {
           "name": "user_roles_tenant_insert",
@@ -2549,7 +2616,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"custom_field_definitions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"custom_field_definitions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "custom_field_definitions_tenant_insert": {
           "name": "custom_field_definitions_tenant_insert",
@@ -2936,7 +3003,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])) or \"notifications\".\"tenant_id\" is null)"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) or \"notifications\".\"tenant_id\" is null)"
         },
         "notifications_tenant_insert": {
           "name": "notifications_tenant_insert",
@@ -2945,7 +3012,7 @@
           "to": [
             "public"
           ],
-          "withCheck": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or (\"notifications\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
+          "withCheck": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notifications\".\"tenant_id\" is null)"
         },
         "notifications_tenant_update": {
           "name": "notifications_tenant_update",
@@ -2954,8 +3021,8 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or (\"notifications\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))",
-          "withCheck": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or (\"notifications\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notifications\".\"tenant_id\" is null)",
+          "withCheck": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notifications\".\"tenant_id\" is null)"
         },
         "notifications_tenant_delete": {
           "name": "notifications_tenant_delete",
@@ -2964,7 +3031,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or (\"notifications\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notifications\".\"tenant_id\" is null)"
         }
       },
       "checkConstraints": {},
@@ -3108,7 +3175,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"setting_overrides\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"setting_overrides\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "setting_overrides_tenant_insert": {
           "name": "setting_overrides_tenant_insert",
@@ -3478,7 +3545,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"record_subscriptions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"record_subscriptions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "record_subscriptions_tenant_insert": {
           "name": "record_subscriptions_tenant_insert",
@@ -3627,7 +3694,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"sequences\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"sequences\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "sequences_tenant_insert": {
           "name": "sequences_tenant_insert",
@@ -3820,7 +3887,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"attachments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"attachments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "attachments_tenant_insert": {
           "name": "attachments_tenant_insert",
@@ -4086,7 +4153,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"documents\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"documents\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "documents_tenant_insert": {
           "name": "documents_tenant_insert",
@@ -4282,7 +4349,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"comments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"comments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "comments_tenant_insert": {
           "name": "comments_tenant_insert",
@@ -4408,7 +4475,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"record_tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"record_tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "record_tags_tenant_insert": {
           "name": "record_tags_tenant_insert",
@@ -4561,7 +4628,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "tags_tenant_insert": {
           "name": "tags_tenant_insert",
@@ -4780,7 +4847,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"report_schedules\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"report_schedules\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "report_schedules_tenant_insert": {
           "name": "report_schedules_tenant_insert",
@@ -4954,7 +5021,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"api_usage\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"api_usage\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "api_usage_tenant_insert": {
           "name": "api_usage_tenant_insert",
@@ -5195,7 +5262,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"revisions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"revisions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "revisions_tenant_insert": {
           "name": "revisions_tenant_insert",
@@ -5434,7 +5501,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_assignments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_assignments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_assignments_tenant_insert": {
           "name": "approval_assignments_tenant_insert",
@@ -5602,7 +5669,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_delegations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_delegations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_delegations_tenant_insert": {
           "name": "approval_delegations_tenant_insert",
@@ -5761,7 +5828,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_events\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_events\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_events_tenant_insert": {
           "name": "approval_events_tenant_insert",
@@ -5914,7 +5981,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_policies_tenant_insert": {
           "name": "approval_policies_tenant_insert",
@@ -6287,7 +6354,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_requests\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"approval_requests\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_requests_tenant_insert": {
           "name": "approval_requests_tenant_insert",
@@ -6932,7 +6999,7 @@
           "to": [
             "public"
           ],
-          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notes\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])))"
+          "using": "((select current_setting('app.bypass_rls', true)) = 'on' or \"notes\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "notes_tenant_insert": {
           "name": "notes_tenant_insert",

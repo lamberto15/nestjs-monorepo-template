@@ -124,6 +124,7 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
     expect([...kinds].sort()).toEqual([
       'auditEntry',
       'consent',
+      'membership',
       'notes',
       'profile',
       'role',

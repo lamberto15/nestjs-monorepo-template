@@ -546,9 +546,12 @@ export class AccessAdminService {
       );
     });
     // A new password signs the account out everywhere; a deactivation ends
-    // its access to this tenant on its next request (the membership check).
+    // its sessions and tokens in this tenant (the others go on; the
+    // membership check would refuse them on their next request anyway).
     if (passwordHash) {
       await this.signInService.signOutEverywhere(id);
+    } else if (changes.active === false) {
+      await this.accounts.endTenantSessions(id, tenantId);
     }
     this.access.invalidate();
   }

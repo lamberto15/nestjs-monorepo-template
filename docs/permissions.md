@@ -64,10 +64,16 @@ deleted rows the principal may restore, under that action's conditions
 
 ## Roles and grants
 
+Roles, grants, org units and the audit log are per tenant ([tenancy](tenancy.md)):
+every tenant gets the built-in Administrator and the declared `seedRoles`
+when it is made; a user's roles are their membership's in the tenant the
+session acts in. `Access.manageTenants` (creating tenants) answers only in
+the operator tenant.
+
 - `/v1/access/roles`: roles of permissions. A permission may carry
   conditions and `fields` (absent: all; `[]`: none of the restrictable ones).
 - You can only grant what you hold without conditions (fields included).
-  `Administrator` is built in (`all.manage`); the last active one stays.
+  `Administrator` is built in (`all.manage`); the last active one of each tenant stays.
 - Grants to users and API clients may end: `roleExpiresAt: { roleId: date }`.
   Expired grants never count; cached abilities never outlive them.
 - Changes apply on the next request, on every instance (the invalidation is

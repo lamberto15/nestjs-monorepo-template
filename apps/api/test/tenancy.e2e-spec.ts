@@ -5,6 +5,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { Client } from 'pg';
 import { io, type Socket } from 'socket.io-client';
 import type { Database } from '../src/core/database/drizzle.js';
+import { TenantScopeMissingError } from '../src/core/tenancy/tenant-scope.js';
 import { notes } from '../src/features/notes/notes.tables.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { Realtime } from '../src/platform/realtime/realtime.service.js';
@@ -178,7 +179,13 @@ describe('tenancy (e2e)', () => {
   });
 
   it('refuses a query on a tenant table without a tenant, before sending it', async () => {
-    await expect(db().select().from(notes)).rejects.toThrow(/without a tenant/);
+    // Drizzle wraps the pool's refusal: the cause says it.
+    const refused = await db()
+      .select()
+      .from(notes)
+      .catch((error: { cause?: unknown }) => error.cause);
+    expect(refused).toBeInstanceOf(TenantScopeMissingError);
+    expect((refused as Error).message).toMatch(/notes ran without a tenant/);
     // In a tenant's scope, the same query reads that tenant's rows only.
     const { a } = await noteInEach();
     const rows = await node.inTenant(() =>

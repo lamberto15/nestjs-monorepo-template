@@ -3,7 +3,6 @@ import { TokenService } from '@nestjs/authentication';
 import { and, eq, sql } from 'drizzle-orm';
 import { ClsService } from 'nestjs-cls';
 import request from 'supertest';
-import type { Database } from '../src/core/database/drizzle.js';
 import { OidcAccounts } from '../src/iam/account/account.handlers.js';
 import { ReauthenticationService } from '../src/iam/account/reauthentication.service.js';
 import { DrizzleAuthenticationStore } from '../src/iam/auth/drizzle-authentication.store.js';
@@ -763,7 +762,11 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
       const me = await person(['administrator']);
       // A token family from a sign-in an hour ago.
       const stale = await node.app.get(TokenService).issue(me.id, {
-        claims: tokenClaims(['pwd'], new Date(Date.now() - 60 * MINUTE)),
+        claims: tokenClaims(
+          ['pwd'],
+          new Date(Date.now() - 60 * MINUTE),
+          node.tenantId,
+        ),
       });
       const createClient = (accessToken: string) =>
         node

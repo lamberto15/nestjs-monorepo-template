@@ -21,11 +21,21 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
-| Mobile apps | `POST /v1/auth/token`, `/token/refresh`, `/token/revoke` |
+| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh`, `/token/revoke` |
+| Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
 
 - **Email links** open pages of the web app (`WEB_URL/reset-password`,
   `/verify-email`, `/magic-link`) that POST the token back: mail scanners
   follow GET links. Links are single-use and short-lived.
+- **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
+  one account per address, in every tenant it belongs to; a session acts in
+  one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
+  tenant's administrators manage its memberships (`POST /v1/access/users`
+  adds an existing account; `PATCH` deactivates the membership, never the
+  account), and change an account's name or password only while it belongs
+  to their tenant alone (409 `account_shared`; a password they set makes the
+  address unproved again, and the account loses its credentials when another
+  tenant adds it).
 - **Invitations:** an administrator creates a user without a password
   (`POST /v1/access/users`); the user gets an email to choose one.
 - **Account linking** by verified email only, or from a signed-in session
@@ -483,6 +493,10 @@ manual try against Cloudflare, Turnstile's documented test keys (its docs,
 
 ## Impersonation (support)
 
+Within one tenant ([tenancy](tenancy.md)): the administrator's current
+tenant, whose member the user must be; the impersonation session stays in
+it (no switching, no profile change) and ends when either membership does.
+
 `POST /v1/access/users/{id}/impersonate` (the `Access.impersonate`
 permission, a session) replaces the administrator's session with the user's
 for `IMPERSONATION_TTL_MINUTES`. Everything done meanwhile is audited as
@@ -497,6 +511,7 @@ back, with their own sign-in's method and time.
 
 ## API clients
 
+Each belongs to one tenant and acts in it alone ([tenancy](tenancy.md)).
 Systems call the API with keys (`sk_<id>_<secret>`; only the SHA-256 is
 stored). `POST /v1/access/clients` (the key is shown once),
 `POST /v1/access/clients/{id}/rotate { graceSeconds }` (the old key keeps

@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { AccountService } from '../src/iam/account/account.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import { sessions, userIdentities, users } from '../src/iam/iam.tables.js';

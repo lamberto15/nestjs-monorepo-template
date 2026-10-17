@@ -4,7 +4,6 @@ import { OutboxRelay } from '@nestjs/outbox';
 import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
 import type request from 'supertest';
-import type { Database } from '../src/core/database/drizzle.js';
 import { inTransaction } from '../src/core/database/transactions.js';
 import { NotificationDigestJob } from '../src/platform/notifications/notification-digest.job.js';
 import { NotificationRetentionJob } from '../src/platform/notifications/notification-retention.job.js';
@@ -55,13 +54,16 @@ describe('notifications (e2e)', () => {
   async function notify(to: string, input: Partial<NotifyInput> = {}) {
     const service = node.app.get(NotificationsService);
     const txHost = node.app.get(TransactionHost);
-    const [id] = await inTransaction(txHost, (tx) =>
-      service.notify(tx, {
-        type: 'note.published',
-        to,
-        data: { noteId: randomUUID(), title: 'Direct' },
-        ...input,
-      }),
+    // In the seeded tenant, as a feature notifies from a request or a job.
+    const [id] = await node.inTenant(() =>
+      inTransaction(txHost, (tx) =>
+        service.notify(tx, {
+          type: 'note.published',
+          to,
+          data: { noteId: randomUUID(), title: 'Direct' },
+          ...input,
+        }),
+      ),
     );
     return id!;
   }

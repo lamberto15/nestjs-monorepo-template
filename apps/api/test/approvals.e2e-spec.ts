@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import { SystemContext } from '../src/iam/access/system-context.js';
 import {
@@ -64,13 +63,16 @@ describe('approvals (e2e)', () => {
       .get(SystemContext)
       .run(NOTE_PUBLICATION_JOB, () => service().request(...args), {
         transaction: false,
+        tenantId: node.tenantId,
       });
 
   /** Erases a person's approvals data as the account deletion job does: as `system:account-deletion`. */
   const erase = (user: UserPrincipal) =>
     node.app
       .get(SystemContext)
-      .run(ACCOUNT_DELETION_JOB, (_system, tx) => service().erase(tx, user));
+      .run(ACCOUNT_DELETION_JOB, (_system, tx) => service().erase(tx, user), {
+        tenantId: node.tenantId,
+      });
 
   /** Stores a version of Note.publish's policy (a runtime override). */
   const setPolicy = (policy: Record<string, unknown>) =>
@@ -1135,13 +1137,15 @@ describe('approvals (e2e)', () => {
       await approve(a, id, { comment: 'Yes.' }).expect(200);
       const person = (user: User) =>
         ({ kind: 'user', id: user.id }) as UserPrincipal;
-      const exported = async (user: User) => {
-        const rows: Record<string, unknown>[] = [];
-        for await (const batch of service().rows(person(user))) {
-          rows.push(...batch);
-        }
-        return rows;
-      };
+      // In the tenant, as the account export reads each of the person's.
+      const exported = (user: User) =>
+        node.inTenant(async () => {
+          const rows: Record<string, unknown>[] = [];
+          for await (const batch of service().rows(person(user))) {
+            rows.push(...batch);
+          }
+          return rows;
+        });
       expect(await exported(requester)).toMatchObject([
         { id, kind: 'request', status: 'approved' },
       ]);
@@ -1228,9 +1232,10 @@ describe('approvals (e2e)', () => {
     const engine = () => node.app.get(ApprovalEngine);
     /** A step called by hand, as the workflow runs it: as `system:approvals`. */
     const asSystem = <T>(work: () => Promise<T>) =>
-      node.app
-        .get(SystemContext)
-        .run(APPROVALS_JOB, work, { transaction: false });
+      node.app.get(SystemContext).run(APPROVALS_JOB, work, {
+        transaction: false,
+        tenantId: node.tenantId,
+      });
 
     it('answers what the first attempt did: escalated, expired, failed', async () => {
       const [requester, a, boss, x] = [

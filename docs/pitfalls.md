@@ -177,6 +177,33 @@
   from) nor the other file: raise those by hand in the same pull request.
   CI's `gotenberg-image` job fails until the three agree.
 
+- **A Drizzle query runs when it is awaited, in the awaiter's context.**
+  `tenancy.run(tenantId, () => db.select()…)` returned the query unawaited,
+  and the `await` outside ran it with no tenant (403 `tenant_required` on
+  every API key). `Tenancy.run()`, `inTenantOf()` and `SystemContext.run()`
+  await the work inside their context; anything else that opens a CLS
+  context for a query must too.
+
+- **drizzle-kit writes foreign keys before unique constraints**, and a
+  primary key change before the column it names, in one migration of
+  `ALTER TABLE`s: a composite key `(tenant_id, x_id) → (tenant_id, id)` added
+  to existing tables failed on the missing unique, a composite primary key
+  on the missing column. Tenancy generated its migration in two steps
+  (`0025_tenancy`, the columns and uniques; `0026_tenancy_keys`, the keys),
+  and kept `(user_id, role_id)` as `user_roles`' key ([tenancy](tenancy.md)).
+  Run new migrations on a real PostgreSQL before pushing.
+
+- **`x = any((select array…))` compares with each row**, not each element
+  (`operator does not exist: uuid = uuid[]`): the policies cast the
+  subquery (`(select …)::uuid[]`) to make it one value, still read once.
+
+- **Tests and row-level security:** `database.db` in a test is the app's
+  pool, so a fixture's query on a tenant table is refused without a tenant.
+  Use `node.db` (the app role with the bypass, for fixtures),
+  `node.inTenant()`, or, with no app, `testTenant()` / `bypassingTenants()`
+  (test/support.ts). Account-level audit entries (sign-ins) are in no
+  tenant's `GET /v1/access/audit`: read them with `node.auditEntries()`.
+
 ## Migrations: expand/contract
 
 A release's migrations must leave the release before it working, because

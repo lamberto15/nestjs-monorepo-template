@@ -5,7 +5,6 @@ import {
   randomUUID,
 } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { MailQueue } from '../src/core/mail/mail-queue.js';
 import { mailSuppressions } from '../src/platform/deliverability/deliverability.tables.js';
 import { ResetPasswordMail } from '../src/iam/account/account.mails.js';
@@ -189,14 +188,13 @@ describe('email deliverability (e2e)', () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect((await entry(address))!.events).toBe(1);
 
-    const audit = await node
-      .admin()
-      .get(
-        `/v1/access/audit?action=mailSuppression.created&targetId=${row!.id}`,
-      )
-      .expect(200);
-    expect(audit.body.items).toHaveLength(1);
-    expect(audit.body.items[0]).toMatchObject({
+    // The intake's entry is in no tenant's log (the suppression list is the deployment's).
+    const audit = await node.auditEntries({
+      action: 'mailSuppression.created',
+      targetId: row!.id,
+    });
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({
       actor: 'system:mail-intake',
       actorLabel: 'System: Mail intake',
     });
@@ -265,13 +263,11 @@ describe('email deliverability (e2e)', () => {
     );
     const upgraded = await entry(soft, (row) => row.suppressedAt !== null);
     expect(upgraded).toMatchObject({ reason: 'hard_bounce', softBounces: 0 });
-    const audit = await node
-      .admin()
-      .get(
-        `/v1/access/audit?action=mailSuppression.created&targetId=${upgraded!.id}`,
-      )
-      .expect(200);
-    expect(audit.body.items).toHaveLength(1);
+    const audit = await node.auditEntries({
+      action: 'mailSuppression.created',
+      targetId: upgraded!.id,
+    });
+    expect(audit).toHaveLength(1);
   });
 
   it('refuses what is not a signed SNS message from the configured topic, and confirms a subscription', async () => {

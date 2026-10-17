@@ -52,9 +52,10 @@ export function inTenantOf<T>(
   const scope =
     tenantId === null ? NO_TENANT : tenantScope(assertUuid(tenantId));
   const cls = ClsServiceManager.getClsService();
-  return cls.run({ ifNested: 'inherit' }, () => {
+  // Awaited inside: a query builder runs when awaited, in this context.
+  return cls.run({ ifNested: 'inherit' }, async () => {
     cls.set(TENANT_SCOPE, scope);
-    return work();
+    return await work();
   });
 }
 

@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { OutboxRelay } from '@nestjs/outbox';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { users } from '../src/iam/iam.tables.js';
 import request from 'supertest';
 import { bootApp, newPassword, totp, type TestApp } from './support.js';

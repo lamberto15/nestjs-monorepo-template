@@ -1,3 +1,4 @@
+import { acrossTenantsReadOnly } from '../tenancy/tenant-scope.js';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { getHeapStatistics } from 'node:v8';
 import { Injectable, Logger } from '@nestjs/common';
@@ -76,7 +77,9 @@ export class MetricsService {
         this.reset();
         try {
           const samples = await Promise.race([
-            read(),
+            // Deployment-wide gauges: every tenant's rows, read only
+            // (docs/tenancy.md, "The bypass").
+            acrossTenantsReadOnly(read),
             sleep(COLLECT_TIMEOUT_MS, TIMED_OUT, { ref: false }),
           ]);
           if (samples === TIMED_OUT) {
