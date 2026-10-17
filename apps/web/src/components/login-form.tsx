@@ -16,7 +16,7 @@ import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { KeyRoundIcon, MailIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { useCaptcha } from '@/components/auth/captcha';
 import { MfaStep } from '@/components/auth/mfa-step';
 import { api } from '@/lib/api';
