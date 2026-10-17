@@ -27,6 +27,14 @@ Filling `.env` (each step is commented in `env.example`):
   creates each on the first start and keeps it in the database
   ([configuration](configuration.md)). `ADMIN_PASSWORD`: unset, the first
   administrator's password is logged once.
+- **Caddy serves the web app too.** Its image builds `apps/web` (stage `web` of
+  `caddy/Dockerfile`, context the repository root) into `/srv/web`. The Caddyfile sends
+  `/v1/*`, `/socket.io/*`, `/health*`, `/api*` (Swagger UI), `/files*` and
+  `/.well-known/*` to the API, `/metrics*` to a 404, and every other path to the app
+  (`index.html` for its routes; `/assets/*` cached for a year, `index.html` never). The
+  API's routes are the app's origin, so `__Host-sid` works and no CORS is needed. A new
+  unversioned API path needs a line in the `@api` matcher. A web change redeploys Caddy
+  (`docker compose up -d --build`).
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 

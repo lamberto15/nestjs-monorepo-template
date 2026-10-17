@@ -5,6 +5,7 @@ pnpm install
 pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
 pnpm start:dev            # the API and the workers, with reload: http://localhost:3000/api
+pnpm dev:web              # the web app (Vite), in a second terminal: http://localhost:5173
 pnpm db:seed:demo         # optional: demo users, teams and each feature's demo data (passwords printed once)
 ```
 
@@ -186,8 +187,9 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | --- | --- |
 | `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
 | `pnpm start:dev` | API and workers, with reload |
+| `pnpm dev:web` | the web app's dev server, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
-| `pnpm format` | Prettier on the TypeScript of every package (not on Markdown) |
+| `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
 | `pnpm db:check` | the migrations match the schema |
@@ -518,8 +520,9 @@ Picking up an issue:
 2. Claim it: `gh issue edit <n> --add-label "in progress" --add-assignee @me`,
    then `gh issue comment <n>` with the branch (and the PR once it exists).
    The assignee alone can't tell two sessions on one account apart.
-3. The PR's body says `Closes #<n>`: GitHub links the two and closes the
-   issue on the merge. Abandoning it: remove the label and comment why.
+3. Open the PR early, as a draft (`gh pr create --draft`), its body saying
+   `Closes #<n>`: GitHub links the two and closes the issue on the merge.
+   Abandoning it: remove the label and comment why.
 
 ## Git hooks
 

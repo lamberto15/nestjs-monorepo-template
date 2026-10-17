@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-nova",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@nestjs-monorepo-template/ui/components",
+    "utils": "@nestjs-monorepo-template/ui/lib/utils",
+    "hooks": "@nestjs-monorepo-template/ui/hooks",
+    "lib": "@nestjs-monorepo-template/ui/lib",
+    "ui": "@nestjs-monorepo-template/ui/components"
+  },
+  "rtl": true,
+  "menuColor": "default",
+  "menuAccent": "subtle"
+}

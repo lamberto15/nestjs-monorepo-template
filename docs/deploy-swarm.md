@@ -39,11 +39,11 @@ What Swarm lacks, and what replaces it:
 
 CI publishes the app and Gotenberg images to GHCR
 ([deployment.md](deployment.md), "CI"). Caddy (the Cloudflare DNS module) and
-the backup service are built from `caddy/` and `backup/` by you, once per
+the backup service are built from `caddy/` (with the web app, from the repository root) and `backup/` by you, once per
 change of those directories, and pushed:
 
 ```bash
-docker build -t ghcr.io/<owner>/<repo>/caddy:1 caddy && docker push ghcr.io/<owner>/<repo>/caddy:1
+docker build -f caddy/Dockerfile -t ghcr.io/<owner>/<repo>/caddy:1 . && docker push ghcr.io/<owner>/<repo>/caddy:1
 docker build -t ghcr.io/<owner>/<repo>/backup:1 backup && docker push ghcr.io/<owner>/<repo>/backup:1
 ```
 

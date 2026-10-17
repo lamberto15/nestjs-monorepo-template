@@ -26,8 +26,8 @@ pre-commit:
     # other Markdown (Prettier reflows its tables). Fixed files are restaged.
     - name: prettier
       glob:
-        - 'apps/*/{src,test}/**/*.ts'
-        - 'packages/*/src/**/*.ts'
+        - 'apps/*/{src,test}/**/*.{ts,tsx}'
+        - 'packages/*/src/**/*.{ts,tsx}'
       run: pnpm exec prettier --write {staged_files}
       stage_fixed: true
       skip:
@@ -35,7 +35,7 @@ pre-commit:
     # The API's `lint` (type-aware oxlint, the root .oxlintrc.json), on the
     # staged files alone.
     - name: oxlint
-      glob: 'apps/api/{src,test}/**/*.ts'
+      glob: 'apps/*/{src,test}/**/*.{ts,tsx}'
       run: pnpm exec oxlint --type-aware {staged_files}
       skip:
         - run: test ! -x node_modules/.bin/oxlint

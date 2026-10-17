@@ -12,11 +12,17 @@ Details live in `docs/`: read the file a task needs, not all of them.
   request to `origin` (GitHub) and green CI; then the worktree is removed and
   the PR squash-merged with its branch deleted. Never rebase or force-push:
   update a branch with `git merge origin/main`. See docs/development.md, "Git workflow".
-- **Issues and PRs are labelled and claimed.** Every issue and PR carries
-  its area (`backend`, `frontend`, `ci`, `documentation`) plus `enhancement`
-  or `bug`. Picking up an issue: skip it if it's already `in progress`;
-  otherwise add that label, assign yourself and comment the branch. The PR
-  says `Closes #N`. See docs/development.md, "Issues and labels".
+- **Label every pull request, and claim the issue you work.** Label a PR by
+  what it changes: `frontend` (apps/web, packages/ui), `backend` (apps/api, the
+  client's generation, migrations), `ci` (workflows, images, deploys),
+  `documentation` (docs only), plus `enhancement` or `bug`. Check
+  `gh label list` and add a missing label with `gh label create`. To work an
+  issue, skip it if it's already `in progress`; otherwise claim it first:
+  `gh issue edit <n> --add-assignee @me --add-label "in progress"`, and comment
+  the branch (sessions share one account). Open the PR early as a draft, and
+  put `Closes #<n>` in its description. Found a problem on the other side
+  while focused on one? File it as an issue with that side's label rather
+  than fixing it there. See docs/development.md, "Issues and labels".
 - **Docs first, every time: backend, frontend, CI, infra.** Before starting
   anything, even adding one component, a dependency or a CI step, look up the
   tool's documented way. Use Context7 (`resolve-library-id`, then `query-docs`),
@@ -63,6 +69,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | --- | --- |
 | Where things are, the processes, how features plug in | [docs/architecture.md](docs/architecture.md) |
 | The monorepo: root scripts, Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
+| The frontend (apps/web, packages/ui: Vite, TanStack Router/Query, shadcn + Dice UI) | [docs/monorepo.md](docs/monorepo.md) |
 | Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer, the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
 | A new feature: `pnpm feature:add` (`tools/feature`, the `/add-feature` skill); changing one: edit its `<item>.record.ts` (fields, capabilities), then `pnpm feature:sync` (`platform/fields`, `platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md), "Changing a feature" |
 | Load tests: k6 on the production stack, the baseline (manual runs), a 2× regression, accepting a change (`loadtest/run.sh`) | [docs/development.md](docs/development.md), "Load tests" |

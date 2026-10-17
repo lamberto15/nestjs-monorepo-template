@@ -370,7 +370,11 @@ services:
           memory: ${REDIS_MEMORY:-512M}
 
   caddy:
-    build: ./caddy
+    # The repository root is the context: the image also holds the web app
+    # (apps/web), built from the workspace.
+    build:
+      context: .
+      dockerfile: caddy/Dockerfile
     restart: unless-stopped
     logging: *logging
     # Docker sees it healthy once it serves its admin API (localhost only, in
