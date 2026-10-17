@@ -8,6 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { timestamps, uuidPk } from '../../core/database/columns.js';
+import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 import type {
   CustomFieldOption,
   CustomFieldType,
@@ -25,6 +26,7 @@ export const customFieldDefinitions = pgTable(
   'custom_field_definitions',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The permission subject the field belongs to: `Note`. */
     subject: text('subject').notNull(),
     /** The JSON key of the value (a slug): set once, never changed. */
@@ -50,6 +52,7 @@ export const customFieldDefinitions = pgTable(
   },
   (table) => [
     uniqueIndex('custom_field_definitions_subject_key_idx').on(
+      table.tenantId,
       table.subject,
       table.key,
     ),
@@ -57,5 +60,6 @@ export const customFieldDefinitions = pgTable(
       table.subject,
       table.position,
     ),
+    ...tenantTable('custom_field_definitions', table),
   ],
-);
+).enableRLS();

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { StorageDisk } from '@nestjs/storage';
 import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
@@ -99,7 +98,7 @@ describe('documents (e2e)', () => {
 
   beforeAll(async () => {
     node = await bootApp();
-    db = node.app.get<Database>(getDrizzleToken());
+    db = node.db;
   });
   beforeEach(() => {
     gotenberg.state.answers.length = 0;
@@ -153,7 +152,9 @@ describe('documents (e2e)', () => {
   /** The PDFs on the disk for a document (one key per run). */
   const files = async (id: string) =>
     (
-      await node.app.get(StorageDisk).list({ prefix: `documents/${id}/` })
+      await node.app
+        .get(StorageDisk)
+        .list({ prefix: `tenants/${node.tenantId}/documents/${id}/` })
     ).entries.map((entry) => entry.key);
 
   const status = (auth: string, id: string) =>
@@ -514,10 +515,23 @@ describe('documents (e2e)', () => {
       await new Promise((r) => setTimeout(r, 10));
     }
     const service = node.app.get(DocumentsService);
-    const principal = { kind: 'client' as const, id: client.id, name: 'x' };
+    const principal = {
+      kind: 'client' as const,
+      id: client.id,
+      name: 'x',
+      tenantId: node.tenantId,
+    };
     // Its rejection (it may lose the claim) is the test's to read, not unhandled.
-    const second = service
-      .issue({ id: asked.body.id, principal }, principal, { final: false })
+    const second = node
+      .inTenant(() =>
+        service.issue(
+          { id: asked.body.id, principal, tenantId: node.tenantId },
+          principal,
+          {
+            final: false,
+          },
+        ),
+      )
       .catch((error: unknown) => error);
     await ready;
     await second;
@@ -547,9 +561,15 @@ describe('documents (e2e)', () => {
       .where(eq(attachments.id, row!.attachmentId!));
     expect(await files(asked.body.id)).toEqual([attachment!.key]);
     // Run again once issued: nothing changes.
-    await service.issue({ id: asked.body.id, principal }, principal, {
-      final: false,
-    });
+    await node.inTenant(() =>
+      service.issue(
+        { id: asked.body.id, principal, tenantId: node.tenantId },
+        principal,
+        {
+          final: false,
+        },
+      ),
+    );
     expect(await files(asked.body.id)).toEqual([attachment!.key]);
   });
 
@@ -569,14 +589,21 @@ describe('documents (e2e)', () => {
     expect(await audited()).toBe(1);
     let heard = 0;
     socket.on('document.failed', () => heard++);
-    await node.app
-      .get(DocumentsService)
-      .fail(
-        {
-          id: asked.body.id,
-          principal: { kind: 'client', id: client.id, name: 'x' },
-        },
-        'again',
+    await node
+      .inTenant(() =>
+        node.app.get(DocumentsService).fail(
+          {
+            id: asked.body.id,
+            tenantId: node.tenantId,
+            principal: {
+              kind: 'client',
+              id: client.id,
+              name: 'x',
+              tenantId: node.tenantId,
+            },
+          },
+          'again',
+        ),
       )
       .catch((error: unknown) => error);
     await new Promise((r) => setTimeout(r, 100));

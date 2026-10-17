@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { OutboxRelay } from '@nestjs/outbox';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { users } from '../src/iam/iam.tables.js';
 import request from 'supertest';
 import { bootApp, newPassword, totp, type TestApp } from './support.js';
@@ -33,15 +31,11 @@ describe('security notifications (e2e)', () => {
   /** Hands committed outbox messages to the delivery handler (the worker's job). */
   const deliver = () => node.app.get(OutboxRelay).runOnce();
 
-  /** A user with a password, not signed in yet. */
+  /** A user who accepted an invitation (their own password), not signed in yet. */
   async function account() {
     const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email, name: email, password, roleIds: [] })
-      .expect(201);
+    const token = await node.invite(node.admin(), { email });
+    const password = await node.acceptAsNew(token, email);
     return { email, password };
   }
 
@@ -108,11 +102,8 @@ describe('security notifications (e2e)', () => {
     ).toHaveLength(1);
 
     // The audit entry carries the device.
-    const audit = await node
-      .admin()
-      .get('/v1/access/audit?action=auth.signed-in&sort=-at')
-      .expect(200);
-    expect(audit.body.items[0].details).toMatchObject({
+    const audit = await node.auditEntries({ action: 'auth.signed-in' });
+    expect(audit[0]!.details).toMatchObject({
       device: expect.stringMatching(/^[0-9a-f]{32}$/),
       userAgent: 'curl',
     });
@@ -123,13 +114,11 @@ describe('security notifications (e2e)', () => {
     const agent = await signInFrom('curl/8.7.1', user);
     const signIns = async () =>
       (
-        await node
-          .admin()
-          .get(
-            `/v1/access/audit?action=auth.signed-in&actor=user:${await idOf(agent)}`,
-          )
-          .expect(200)
-      ).body.items.length as number;
+        await node.auditEntries({
+          action: 'auth.signed-in',
+          actor: `user:${await idOf(agent)}`,
+        })
+      ).length;
     expect(await signIns()).toBe(1);
     await request(node.app.getHttpServer())
       .post('/v1/auth/sign-in')
@@ -168,18 +157,15 @@ describe('security notifications (e2e)', () => {
     const first = await signInFrom(CHROME_MAC(130), user);
     const userId = await idOf(first);
     // Email links go to verified addresses only (as an accepted invitation leaves one).
-    await node.app
-      .get<Database>(getDrizzleToken())
+    await node.db
       .update(users)
       .set({ emailVerified: true })
       .where(eq(users.id, userId));
     const signIns = async () =>
-      (
-        await node
-          .admin()
-          .get(`/v1/access/audit?action=auth.signed-in&actor=user:${userId}`)
-          .expect(200)
-      ).body.items as { details: Record<string, unknown> }[];
+      (await node.auditEntries({
+        action: 'auth.signed-in',
+        actor: `user:${userId}`,
+      })) as { details: Record<string, unknown> }[];
 
     // An email link, opened in the browser that asked for it: another device.
     const phone = request.agent(node.app.getHttpServer());
@@ -275,21 +261,8 @@ describe('security notifications (e2e)', () => {
 
   it("doesn't tell an invited user that their first password was set", async () => {
     const email = `${randomUUID().slice(0, 8)}@example.com`;
-    await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email, name: 'Ada', roleIds: [] })
-      .expect(201);
-    const invitation = await node.waitForMail({
-      to: email,
-      subject: /invited/,
-    });
-    const password = newPassword();
-    await node
-      .http()
-      .post('/v1/auth/password/reset')
-      .send({ token: tokenOf(invitation, '/reset-password'), password })
-      .expect(204);
+    const token = await node.invite(node.admin(), { email, name: 'Ada' });
+    const password = await node.acceptAsNew(token);
     const agent = await signInFrom('curl/8.7.1', { email, password });
     expect(await securityItems(agent)).toEqual([]);
   });

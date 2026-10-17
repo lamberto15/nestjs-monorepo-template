@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Outbox, type NewOutboxMessage } from '@nestjs/outbox';
-import { and, eq, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
+import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import {
   database,
   type DrizzleTransactions,
@@ -62,7 +63,10 @@ export interface NotifyInput {
  * change (the stored notification and its delivery commit with it; the
  * outbox hands it to the delivery handler on a worker), recipients read,
  * mark and remove theirs, and set their preferences. Every read and write
- * for the API is scoped to the caller: nobody sees another's. Each change
+ * for the API is scoped to the caller: nobody sees another's; in a tenant,
+ * that tenant's and the account's own (no tenant: security notifications),
+ * which row-level security gives (docs/tenancy.md).
+ * Preferences are the person's, global (the same in every tenant). Each change
  * is pushed to the caller's other connections too (a badge in every tab).
  */
 @Injectable()
@@ -115,6 +119,10 @@ export class NotificationsService {
     }
     const key =
       input.key ?? (declaration.collapse ? `type:${input.type}` : null);
+    // Stored in the context's tenant (the column's default), or as the
+    // account's own outside any tenant (a sign-in's security notification):
+    // collapsing happens within it, and the delivery restores it.
+    const tenantId = currentTenantId();
     const link = input.link ?? null;
     const ids: string[] = [];
     const messages: NewOutboxMessage<NotificationMessage>[] = [];
@@ -125,7 +133,7 @@ export class NotificationsService {
         // notifies of one key wait for each other instead of one failing on
         // the unique index (which would fail the caller's transaction).
         await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtext(${`${recipient}:${key}`}))`,
+          sql`select pg_advisory_xact_lock(hashtext(${`${tenantId ?? ''}:${recipient}:${key}`}))`,
         );
         const [old] = await tx
           .delete(notifications)
@@ -133,6 +141,11 @@ export class NotificationsService {
             and(
               eq(notifications.recipient, recipient),
               eq(notifications.key, key),
+              // This tenant's (or the account's own): a person's null-tenant
+              // rows are writable from any tenant, and must not go here.
+              tenantId
+                ? eq(notifications.tenantId, tenantId)
+                : isNull(notifications.tenantId),
             ),
           )
           .returning({ count: notifications.count });
@@ -147,7 +160,12 @@ export class NotificationsService {
       messages.push({
         topic: NOTIFICATIONS_TOPIC,
         key: recipient,
-        payload: { notificationId: row!.id, recipient, type: input.type },
+        payload: {
+          notificationId: row!.id,
+          recipient,
+          type: input.type,
+          tenantId,
+        },
       });
     }
     await this.outbox.add(tx, messages);
@@ -163,6 +181,7 @@ export class NotificationsService {
   async page(principal: Principal, query: ListQuery, locale?: string) {
     const where = and(
       eq(notifications.recipient, principalKey(principal)),
+      shownTo(principal),
       NOTIFICATION_LIST.where(query),
     );
     const [rows, total] = await Promise.all([
@@ -210,13 +229,18 @@ export class NotificationsService {
       .where(
         and(
           eq(notifications.recipient, principalKey(principal)),
+          shownTo(principal),
           isNull(notifications.readAt),
         ),
       );
     return { unread: row?.unread ?? 0 };
   }
 
-  /** How many notifications the worker has not delivered, though older than ten minutes: the number to alert on. */
+  /**
+   * How many notifications the worker has not delivered, though older than
+   * ten minutes: the number to alert on. Those the context can see: in a
+   * request, its tenant's and the accounts' own.
+   */
   async undelivered() {
     const [row] = await this.db
       .select({ undelivered: sql<number>`count(*)::int` })
@@ -239,6 +263,7 @@ export class NotificationsService {
         and(
           eq(notifications.id, id),
           eq(notifications.recipient, principalKey(principal)),
+          shownTo(principal),
         ),
       );
     if (!row) {
@@ -417,4 +442,16 @@ export class NotificationsService {
       ),
     };
   }
+}
+
+/**
+ * What of a recipient's notifications this principal is shown: all of
+ * them, but to an administrator acting as the person (impersonation): then
+ * only the tenant's, never the account's own (security notifications: the
+ * person's, across their tenants).
+ */
+function shownTo(principal: Pick<Principal, 'kind' | 'id'>) {
+  return (principal as { impersonator?: unknown }).impersonator
+    ? isNotNull(notifications.tenantId)
+    : undefined;
 }

@@ -288,7 +288,8 @@ export class ReauthenticationService {
       try {
         tokens = await this.tokens.issue(user.id, {
           method: passwordHash ? 'password' : 'totp',
-          claims: tokenClaims(passwordHash ? ['pwd'] : [], now),
+          // The same tenant: a re-authentication doesn't switch.
+          claims: tokenClaims(passwordHash ? ['pwd'] : [], now, user.tenantId),
           secondFactor,
         });
       } catch (error) {

@@ -61,8 +61,14 @@ export class ImpersonationService {
     if (targetId === actor.id) {
       throw new ConflictException('You can’t impersonate yourself.');
     }
-    const target = await this.accounts.findActive(targetId);
-    if (!target) {
+    // Never across tenants (docs/tenancy.md): the target is an active
+    // member of the tenant the administrator acts in, and the impersonation
+    // stays in it (no switching; SessionAuth ends it if either leaves).
+    const tenantId = actor.tenantId;
+    const target = tenantId
+      ? await this.accounts.inTenant(targetId, tenantId)
+      : null;
+    if (!target || !tenantId || target.tenantId !== tenantId) {
       throw new NotFoundException(`User ${targetId} not found.`);
     }
     if (await this.isAdministrator(targetId)) {
@@ -86,13 +92,14 @@ export class ImpersonationService {
       authentication,
       startedAt: now.toISOString(),
       endsAt: new Date(now.getTime() + minutes * 60_000).toISOString(),
+      tenantId,
     };
     await this.sessions.revoke(session.id, { userId: actor.id });
     const issued = await this.sessions.create(target.id, {
       // The administrator's second factor stands for this session; their
       // sign-in's time doesn't (no authenticatedAt: never a recent one).
       mfa: session.mfa,
-      metadata: { ...rest, method: 'impersonation', impersonator },
+      metadata: { ...rest, method: 'impersonation', impersonator, tenantId },
     });
     await this.audit.record(actor, {
       action: 'user.impersonation-started',
@@ -116,7 +123,12 @@ export class ImpersonationService {
     ).rest;
     const issued = await this.sessions.create(impersonation.id, {
       mfa: impersonation.mfa ?? undefined,
-      metadata: { ...metadata, ...impersonation.authentication },
+      // Back in the tenant it was started in.
+      metadata: {
+        ...metadata,
+        ...impersonation.authentication,
+        tenantId: impersonation.tenantId,
+      },
     });
     await this.audit.record(
       {
@@ -127,6 +139,7 @@ export class ImpersonationService {
         emailVerified: true,
         locale: null,
         timezone: null,
+        tenantId: impersonation.tenantId,
       },
       {
         action: 'user.impersonation-stopped',

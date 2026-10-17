@@ -54,12 +54,14 @@ import {
   userSchema,
 } from '../account/account.schemas.js';
 import { ImpersonationService } from '../account/impersonation.service.js';
+import { notWhileImpersonating } from '../account/account.schemas.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { Captcha } from '../captcha/captcha.guard.js';
 import { CaptchaService } from '../captcha/captcha.service.js';
 import { oidcProviders } from '../account/oidc.providers.js';
 import type { IamEnv } from '../iam.env.js';
 import { ReauthenticationService } from '../account/reauthentication.service.js';
-import { SIGN_IN_METHODS, signInOptions } from './authentication-method.js';
+import { SIGN_IN_METHODS } from './authentication-method.js';
 import type { UserPrincipal } from './principal.js';
 import { SessionOnly, UserOnly } from './user-only.decorator.js';
 import { UsersRepository } from './users.repository.js';
@@ -104,6 +106,10 @@ const profileSchema = z.object({
 
 const meSchema = z.object({
   user: userSchema,
+  tenant: z
+    .object({ id: z.string(), slug: z.string(), name: z.string() })
+    .nullable()
+    .describe('The tenant this session or token acts in; null: none.'),
   mfaEnabled: z.boolean(),
   authentication: z
     .object({
@@ -175,6 +181,7 @@ export class AuthController {
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
     private readonly reauthentication: ReauthenticationService,
     private readonly captcha: CaptchaService,
+    private readonly tenancy: Tenancy,
   ) {}
 
   @Public()
@@ -225,9 +232,10 @@ export class AuthController {
   @Captcha({ action: 'sign-up', count: 'requests' })
   @Post('sign-up')
   @ApiOperation({
-    summary: 'Create an account (when AUTH_SIGN_UP=on), and sign in',
+    summary:
+      'Create an account (when AUTH_SIGN_UP=on); it signs in once its address is verified',
     description:
-      'The address is unverified until the user opens the link sent to it (POST /auth/email/verify). The account has no roles: an administrator grants them.',
+      "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.",
   })
   @ApiCreatedResponse({ standardSchema: userSchema })
   @ApiBadRequestResponse({
@@ -254,7 +262,7 @@ export class AuthController {
       },
       ip,
     );
-    await this.signInService.signIn(user.id, signInOptions('password'));
+    // Verify first: no session until the address is proved (CredentialsService).
     await this.emailVerification.send(user);
     const {
       active: _a,
@@ -317,8 +325,14 @@ export class AuthController {
   ) {
     const { authentication, recentUntil } =
       this.reauthentication.status(session);
+    const tenant = user.tenantId
+      ? await this.tenancy.find(user.tenantId)
+      : undefined;
     return {
       user,
+      tenant: tenant
+        ? { id: tenant.id, slug: tenant.slug, name: tenant.name }
+        : null,
       mfaEnabled: await this.mfa.isEnrolled(user.id),
       authentication: authentication && {
         ...authentication,
@@ -363,6 +377,9 @@ export class AuthController {
     @CurrentUser() user: UserPrincipal,
     @Body({ schema: profileSchema }) body: z.infer<typeof profileSchema>,
   ) {
+    // The account is the person's, in every tenant: an administrator acting
+    // as them in one tenant doesn't change it (docs/tenancy.md).
+    notWhileImpersonating(user);
     const changes = {
       ...(body.name !== undefined && { name: body.name }),
       ...(body.timezone !== undefined && { timezone: body.timezone }),
@@ -383,10 +400,7 @@ export class AuthController {
       updatedAt: _u,
       ...principal
     } = updated!;
-    return {
-      ...principal,
-      ...(user.impersonator && { impersonator: user.impersonator }),
-    };
+    return { ...principal, tenantId: user.tenantId };
   }
 
   /** Back to the administrator's own session, from an impersonation. */

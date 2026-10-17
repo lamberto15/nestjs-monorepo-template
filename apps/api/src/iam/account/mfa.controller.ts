@@ -27,7 +27,7 @@ import { z } from 'zod';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
-import { notWhileImpersonating } from './account.schemas.js';
+import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
 import { AccountService } from './account.service.js';
 
 const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/) });
@@ -86,6 +86,7 @@ export class MfaController {
   })
   async enroll(@CurrentUser() user: UserPrincipal) {
     notWhileImpersonating(user);
+    verifiedEmailOnly(user);
     try {
       return await this.mfa.enroll(user.id, user.email);
     } catch (error) {

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, index, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 import type { ReportSchedule } from './report-time.js';
 
 /**
@@ -12,6 +13,7 @@ export const reportSchedules = pgTable(
   'report_schedules',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** Whose report it is, and as whom it runs: `user:<id>` or `client:<id>`. */
     owner: text('owner').notNull(),
     name: text('name').notNull(),
@@ -41,7 +43,8 @@ export const reportSchedules = pgTable(
     index('report_schedules_next_run_at_idx')
       .on(table.nextRunAt)
       .where(sql`active`),
+    ...tenantTable('report_schedules', table),
   ],
-);
+).enableRLS();
 
 export type ReportScheduleRow = typeof reportSchedules.$inferSelect;

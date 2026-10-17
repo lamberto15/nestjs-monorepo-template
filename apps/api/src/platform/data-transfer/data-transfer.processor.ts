@@ -4,22 +4,25 @@ import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { StorageDisk } from '@nestjs/storage';
 import type { Job } from 'bullmq';
 import type { CoreEnv } from '../../core/config/core.env.js';
+import { inTenantOf, TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { stillActive } from '../queues/still-active.js';
+import { isTenantFileKey } from '../storage/storage.config.js';
 import { Realtime } from '../realtime/realtime.service.js';
 import { DataTransferRegistry } from './data-transfer.registry.js';
 import {
   DATA_TRANSFERS,
   readerZone,
   TRANSFER_LINK_TTL,
+  jobFileKey,
 } from './data-transfer.service.js';
 import type {
   ImportRowError,
@@ -96,12 +99,18 @@ export function refusal(
 }
 
 /**
- * Runs exports and imports on the workers (APP_ROLE worker or all). The
- * principal is checked again when the job starts: a user deactivated in the
- * meantime gets nothing.
+ * Runs exports and imports on the workers (APP_ROLE worker or all), in
+ * the tenant the job was started in (TenantWorkerHost restores it from the
+ * job's `tenantId` before anything runs: every query, file and audit entry
+ * is that tenant's). The principal is checked again when the job starts: a
+ * user deactivated in the meantime, or no longer a member of the tenant,
+ * gets nothing.
  */
 @Processor(DATA_TRANSFERS, { concurrency: 2 })
-export class DataTransferProcessor extends WorkerHost {
+export class DataTransferProcessor extends TenantWorkerHost<
+  TransferJob,
+  TransferResult
+> {
   private readonly logger = new Logger('DataTransfer');
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -122,7 +131,7 @@ export class DataTransferProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<TransferJob>): Promise<TransferResult> {
+  async handle(job: Job<TransferJob>): Promise<TransferResult> {
     let result: TransferResult;
     try {
       result = await this.run(job);
@@ -161,12 +170,15 @@ export class DataTransferProcessor extends WorkerHost {
       return;
     }
     this.logger.warn('A transfer stalled and was failed', { id: job.id });
-    await this.registry.finished({
-      id: job.id!,
-      job: job.data,
-      status: 'failed',
-      error: error.message,
-    });
+    // Outside process(): the listeners (a report's failure) write in the job's tenant.
+    await inTenantOf(job.data, () =>
+      this.registry.finished({
+        id: job.id!,
+        job: job.data,
+        status: 'failed',
+        error: error.message,
+      }),
+    );
   }
 
   private async run(job: Job<TransferJob>): Promise<TransferResult> {
@@ -174,6 +186,8 @@ export class DataTransferProcessor extends WorkerHost {
       job.data.principal,
       this.users,
       this.db,
+      // An account export runs in no tenant: the account itself must be active.
+      { account: job.data.tenantId === null },
     );
     if (!principal) {
       throw new Error(
@@ -197,7 +211,7 @@ export class DataTransferProcessor extends WorkerHost {
   ): Promise<TransferResult> {
     const exporter = this.registry.exporter(job.data.name)!;
     const action = exporter.action ?? 'read';
-    const key = `transfers/${job.id}.${job.data.format}`;
+    const key = jobFileKey(job.data, `${job.id}.${job.data.format}`);
     // Parsed here, not at enqueue: the job is JSON, so parsed values (dates)
     // would arrive as strings. The request already checked them.
     const filters = exporter.filters
@@ -285,6 +299,14 @@ export class DataTransferProcessor extends WorkerHost {
         );
       }
     };
+    // The upload was stored under the tenant's prefix: a payload naming
+    // another key (another tenant's file) is refused, neither read nor deleted.
+    if (
+      !job.data.tenantId ||
+      !isTenantFileKey(job.data.tenantId, job.data.key)
+    ) {
+      throw new Error('The upload is not one of this tenant’s files.');
+    }
     try {
       const { body } = await this.disk.get(job.data.key);
       for await (const { row, record } of readRecords(job.data.format, body, {
@@ -358,7 +380,7 @@ export class DataTransferProcessor extends WorkerHost {
     }
     let errorsKey: string | undefined;
     if (errors.length) {
-      errorsKey = `transfers/${job.id}-errors.csv`;
+      errorsKey = jobFileKey(job.data, `${job.id}-errors.csv`);
       await this.writeFile(
         errorsKey,
         'csv',

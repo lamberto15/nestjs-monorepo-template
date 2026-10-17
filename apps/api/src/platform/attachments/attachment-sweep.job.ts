@@ -9,6 +9,7 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { ATTACHMENT_SWEEP_JOB } from '../platform.jobs.js';
@@ -24,8 +25,10 @@ const BATCH = 1000;
  * SoftDeletePurgeJob, at 03:45). Every night at 04:05 in APP_TIMEZONE, on
  * one instance. Each registered target says which of its records still
  * exist (`exists()`); attachments of a subject no target registers any
- * more are left alone. As the system principal (`system:attachment-sweep`):
- * each round's rows go with an `attachments.swept` audit entry.
+ * more are left alone. As the system principal (`system:attachment-sweep`),
+ * one tenant at a time (docs/tenancy.md: `Tenancy.forEachTenant()`, which
+ * logs each): a target's `exists()` and the rows are that tenant's, and
+ * each round's rows go with an `attachments.swept` audit entry in its log.
  */
 @Injectable()
 export class AttachmentSweepJob {
@@ -42,6 +45,7 @@ export class AttachmentSweepJob {
     private readonly registry: AttachmentsRegistry,
     private readonly system: SystemContext,
     private readonly audit: AuditService,
+    private readonly tenancy: Tenancy,
   ) {}
 
   @Cron('5 4 * * *', {
@@ -50,7 +54,18 @@ export class AttachmentSweepJob {
   })
   @OnOneInstance({ key: 'platform:attachment-sweep' })
   @WithoutOverlapping()
-  run() {
+  async run() {
+    // Deactivated tenants too: their orphans' files still go.
+    const swept = await this.tenancy.forEachTenant(
+      ATTACHMENT_SWEEP_JOB.key,
+      (tenant) => this.sweep(tenant.id),
+      { includeInactive: true },
+    );
+    return [...swept.values()].reduce((sum, deleted) => sum + deleted, 0);
+  }
+
+  /** One tenant's orphans (run in its scope). */
+  private sweep(tenantId: string) {
     return this.system.run(
       ATTACHMENT_SWEEP_JOB,
       async (system) => {
@@ -108,7 +123,10 @@ export class AttachmentSweepJob {
             deleted += orphans.length;
           }
         }
-        this.logger.log('Attachments of deleted records removed', { deleted });
+        this.logger.log('Attachments of deleted records removed', {
+          tenant: tenantId,
+          deleted,
+        });
         return deleted;
       },
       { transaction: false },

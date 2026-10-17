@@ -519,14 +519,16 @@ describe('custom fields (e2e)', () => {
       .expect(200);
     // Hidden while the field is inactive, still stored.
     expect(kept.body.custom).toEqual({ size: 's' });
-    const [stored] = await node.app
-      .get(NotesService)
-      .query((db) =>
-        db
-          .select({ custom: notes.custom })
-          .from(notes)
-          .where(eq(notes.id, note.body.id)),
-      );
+    const [stored] = await node.inTenant(() =>
+      node.app
+        .get(NotesService)
+        .query((db) =>
+          db
+            .select({ custom: notes.custom })
+            .from(notes)
+            .where(eq(notes.id, note.body.id)),
+        ),
+    );
     expect(stored.custom).toEqual({ region: 'eu', size: 's' });
     // Another field can't take its key.
     await node

@@ -25,9 +25,13 @@ worked example (`features/notes/note-approvals.ts`).
 - **Assignments**: the approvers of a stage, resolved **when the stage
   starts** and stored, so a role taken away later doesn't change who
   decides a running stage (the next stage resolves again). The requester
-  is never an approver: no self-approval.
+  is never an approver: no self-approval. Only active members of the
+  request's tenant are approvers, or delegates: a rule naming a user of
+  another tenant names nobody here. Requests, policies and delegations are
+  each tenant's own.
 - **The engine**: one durable workflow per request (`@nestjs/workflows`,
-  instance `approval-<id>`). People's decisions happen in their HTTP
+  instance `approval-<id>`, input `{ requestId, tenantId }`: every step
+  runs in the request's tenant, [tenancy](tenancy.md)). People's decisions happen in their HTTP
   requests, in one transaction under the request's row lock, where the
   stage's mode says whether the stage is decided; the workflow is told by a
   signal. The workflow owns time and effects: it starts each stage, reminds,

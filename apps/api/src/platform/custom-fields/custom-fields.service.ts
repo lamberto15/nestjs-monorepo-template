@@ -28,6 +28,7 @@ import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { REDIS } from '../../core/redis/redis.js';
+import { requireTenantId, tenantKey } from '../../core/tenancy/tenant-scope.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { defineResource } from '../../iam/resources/resource.js';
@@ -117,17 +118,22 @@ interface Cached {
  * the values records carry.
  *
  * Definitions are read on every write of a record that has them, so they're
- * cached per subject (with the Zod schemas built from them). Several
- * instances: every change increments a version in Redis
- * (`custom-fields:version`) after its commit, and each read compares it
- * with the cached one (one GET, cheaper than reading the definitions and
- * kinder to the database pool), so a change applies on the next request
- * everywhere. Without Redis the cache holds for FALLBACK_TTL_MS at most.
+ * cached per tenant and subject (with the Zod schemas built from them):
+ * each tenant defines its own (row-level security, docs/tenancy.md), and
+ * one tenant's never serve another's. Several instances: every change
+ * increments the tenant's version in Redis
+ * (`tenant:<id>:custom-fields:version`) after its commit, and each read
+ * compares it with the cached one (one GET, cheaper than reading the
+ * definitions and kinder to the database pool), so a change applies on the
+ * next request everywhere. Without Redis the cache holds for
+ * FALLBACK_TTL_MS at most.
  */
 @Injectable()
 export class CustomFieldsService {
   private readonly logger = new Logger('CustomFields');
+  /** By `<tenant id>:<subject>`, the least recently loaded first (dropped past MAX_CACHED). */
   private readonly cache = new Map<string, Cached>();
+  private static readonly MAX_CACHED = 5_000;
   private readonly declarations: Map<string, CustomFieldsDeclaration>;
   private static readonly VERSION_KEY = 'custom-fields:version';
   private static readonly FALLBACK_TTL_MS = 5_000;
@@ -729,9 +735,12 @@ export class CustomFieldsService {
 
   /** After a committed change: this instance's cache now, the others' on their next read. */
   private async changed() {
-    this.cache.clear();
+    const tenantId = requireTenantId('A custom field');
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) this.cache.delete(key);
+    }
     await this.redis
-      .incr(CustomFieldsService.VERSION_KEY)
+      .incr(tenantKey(CustomFieldsService.VERSION_KEY, tenantId))
       .catch((error: unknown) =>
         this.logger.warn(
           `Could not publish a custom field change; other instances see it within ${CustomFieldsService.FALLBACK_TTL_MS} ms.`,
@@ -740,9 +749,13 @@ export class CustomFieldsService {
       );
   }
 
-  private async version(): Promise<string | undefined> {
+  private async version(tenantId: string): Promise<string | undefined> {
     try {
-      return (await this.redis.get(CustomFieldsService.VERSION_KEY)) ?? '0';
+      return (
+        (await this.redis.get(
+          tenantKey(CustomFieldsService.VERSION_KEY, tenantId),
+        )) ?? '0'
+      );
     } catch {
       return undefined; // Redis away: fall back to a short TTL
     }
@@ -750,8 +763,10 @@ export class CustomFieldsService {
 
   private async load(subject: string): Promise<Cached> {
     this.declaration(subject);
-    const version = await this.version();
-    const cached = this.cache.get(subject);
+    const tenantId = requireTenantId('Custom fields');
+    const cacheKey = `${tenantId}:${subject}`;
+    const version = await this.version(tenantId);
+    const cached = this.cache.get(cacheKey);
     const age = cached ? Date.now() - cached.loadedAt : Infinity;
     if (
       cached &&
@@ -771,7 +786,11 @@ export class CustomFieldsService {
         asc(customFieldDefinitions.key),
       )) as CustomFieldDefinition[];
     const entry: Cached = { version, loadedAt: Date.now(), fields };
-    this.cache.set(subject, entry);
+    this.cache.delete(cacheKey);
+    this.cache.set(cacheKey, entry);
+    if (this.cache.size > CustomFieldsService.MAX_CACHED) {
+      this.cache.delete(this.cache.keys().next().value!);
+    }
     return entry;
   }
 

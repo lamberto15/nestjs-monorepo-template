@@ -16,39 +16,57 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from './drizzle.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../tenancy/tenant-scope.js';
 
 /**
  * A closure table for a tree of rows (org units, categories, folders): one
  * row per (ancestor, descendant) pair, a node being its own ancestor at
  * depth 0. "Everything under X" is one indexed lookup at any depth, with no
- * recursive query; moving a subtree is two statements. Declare it next to
- * the node table, export both from schema.ts:
+ * recursive query; moving a subtree is two statements. A tenant table
+ * (docs/tenancy.md), as the nodes are: its keys are `(tenant_id, …)`, so a
+ * path never joins two tenants' nodes. Declare it next to the node table,
+ * export both from schema.ts:
  *
  * ```ts
- * export const categories = pgTable('categories', { id: uuidPk(), parentId: uuid('parent_id'), … });
- * export const categoryTree = closureTable('category_tree', () => categories.id);
+ * export const categories = pgTable('categories', { id: uuidPk(), tenantId: tenantColumn(), parentId: uuid('parent_id'), … }, …).enableRLS();
+ * export const categoryTree = closureTable('category_tree', () => categories);
  * const tree = new Tree(categoryTree);
  * await tree.add(tx, id, parentId);              // after inserting the node
  * db.select().from(products).where(inArray(products.categoryId, tree.descendants(id)));
  * ```
  */
-export function closureTable(name: string, node: () => AnyPgColumn) {
+export function closureTable(
+  name: string,
+  node: () => { tenantId: AnyPgColumn; id: AnyPgColumn },
+) {
   return pgTable(
     name,
     {
-      ancestorId: uuid('ancestor_id')
-        .notNull()
-        .references(node, { onDelete: 'cascade' }),
-      descendantId: uuid('descendant_id')
-        .notNull()
-        .references(node, { onDelete: 'cascade' }),
+      tenantId: tenantColumn(),
+      ancestorId: uuid('ancestor_id').notNull(),
+      descendantId: uuid('descendant_id').notNull(),
       depth: integer('depth').notNull(),
     },
     (table) => [
       primaryKey({ columns: [table.ancestorId, table.descendantId] }),
       index(`${name}_descendant_idx`).on(table.descendantId),
+      ...tenantTable(name, table),
+      tenantReference(
+        `${name}_ancestor_fk`,
+        [table.tenantId, table.ancestorId],
+        [node().tenantId, node().id],
+      ),
+      tenantReference(
+        `${name}_descendant_fk`,
+        [table.tenantId, table.descendantId],
+        [node().tenantId, node().id],
+      ),
     ],
-  );
+  ).enableRLS();
 }
 
 export type ClosureTable = ReturnType<typeof closureTable>;
@@ -65,8 +83,8 @@ export class Tree {
       .values({ ancestorId: id, descendantId: id, depth: 0 });
     if (parentId) {
       await tx.execute(sql`
-        insert into ${this.closure} (ancestor_id, descendant_id, depth)
-        select ancestor_id, ${id}, depth + 1 from ${this.closure}
+        insert into ${this.closure} (tenant_id, ancestor_id, descendant_id, depth)
+        select tenant_id, ancestor_id, ${id}, depth + 1 from ${this.closure}
         where descendant_id = ${parentId}`);
     }
   }
@@ -89,8 +107,8 @@ export class Tree {
     // …then attach it under every ancestor of the new parent.
     if (parentId) {
       await tx.execute(sql`
-        insert into ${this.closure} (ancestor_id, descendant_id, depth)
-        select above.ancestor_id, below.descendant_id, above.depth + below.depth + 1
+        insert into ${this.closure} (tenant_id, ancestor_id, descendant_id, depth)
+        select above.tenant_id, above.ancestor_id, below.descendant_id, above.depth + below.depth + 1
         from ${this.closure} above cross join ${this.closure} below
         where above.descendant_id = ${parentId} and below.ancestor_id = ${id}`);
     }

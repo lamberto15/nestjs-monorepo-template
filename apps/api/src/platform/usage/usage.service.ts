@@ -14,6 +14,7 @@ import {
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { REDIS } from '../../core/redis/redis.js';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { apiClients } from '../../iam/iam.tables.js';
 import {
   addDays,
@@ -49,7 +50,7 @@ export interface UsageReport {
 
 /**
  * API clients' requests, counted per UTC day and route. The live counters
- * are Redis hashes (`usage:<clientId>:<day>`, one field per route and
+ * are Redis hashes (`tenant:<id>:usage:<clientId>:<day>`, one field per route and
  * `_total`), incremented after each response (UsageInterceptor) and copied
  * every night into `api_usage` (UsageRollupJob). Reports merge both, so
  * today is always included.
@@ -74,7 +75,7 @@ export class UsageService {
    * is logged and the request goes uncounted.
    */
   count(
-    clientId: string,
+    client: { id: string; tenantId: string },
     route: string,
     at = new Date(),
     /** false: the total was taken on entry (`take`); only the route counts now. */
@@ -85,7 +86,7 @@ export class UsageService {
       this.logger.warn(`Usage not counted: Redis is ${this.redis.status}`);
       return;
     }
-    const key = usageKey(clientId, utcDay(at));
+    const key = usageKey(client.tenantId, client.id, utcDay(at));
     const pipeline = this.redis.pipeline().hincrby(key, route, 1);
     if (total) {
       pipeline.hincrby(key, TOTAL_FIELD, 1);
@@ -112,11 +113,11 @@ export class UsageService {
    * through rather than refusing them all; logged).
    */
   async take(
-    clientId: string,
+    client: { id: string; tenantId: string },
     quota: number,
     at = new Date(),
   ): Promise<{ allowed: boolean; used: number | null }> {
-    const key = usageKey(clientId, utcDay(at));
+    const key = usageKey(client.tenantId, client.id, utcDay(at));
     const total = await this.fromRedis(
       'Quota not checked',
       async () => {
@@ -152,10 +153,14 @@ export class UsageService {
    * The client's requests so far today (UTC). Redis unreachable: 0, logged,
    * so an outage lets requests through rather than refusing them all.
    */
-  async today(clientId: string, at = new Date()) {
+  async today(client: { id: string; tenantId: string }, at = new Date()) {
     const total = await this.fromRedis(
       'Quota not checked',
-      () => this.redis.hget(usageKey(clientId, utcDay(at)), TOTAL_FIELD),
+      () =>
+        this.redis.hget(
+          usageKey(client.tenantId, client.id, utcDay(at)),
+          TOTAL_FIELD,
+        ),
       null,
     );
     return Number(total ?? 0);
@@ -219,6 +224,9 @@ export class UsageService {
     range: { from?: string; to?: string },
     now = new Date(),
   ): Promise<UsageReport> {
+    // The client's tenant is the request's: a client of another is no row
+    // (row-level security) and no counter (its keys are under its tenant).
+    const tenantId = requireTenantId('A usage report');
     const today = utcDay(now);
     const to = range.to ?? today;
     const from = range.from ?? addDays(to, -(DEFAULT_REPORT_DAYS - 1));
@@ -279,7 +287,7 @@ export class UsageService {
     if (live.length > 0) {
       const pipeline = this.redis.pipeline();
       for (const day of live) {
-        pipeline.hgetall(usageKey(clientId, day));
+        pipeline.hgetall(usageKey(tenantId, clientId, day));
       }
       // Redis unreachable: the rolled-up rows alone, logged.
       const results = await this.fromRedis(

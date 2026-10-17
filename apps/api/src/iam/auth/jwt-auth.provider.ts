@@ -27,9 +27,14 @@ export class JwtAuth extends JwtBearerProvider<Principal> {
     registry.registerProvider(this, { order: 2 });
   }
 
-  validate({ sub }: JwtClaims) {
+  // The tenant is the token's (`tid`, fixed for its refresh family), while
+  // the membership in it is active.
+  validate({ sub, tid }: JwtClaims) {
     return sub && userId.safeParse(sub).success
-      ? this.accounts.findActive(sub)
+      ? this.accounts.inTenant(
+          sub,
+          typeof tid === 'string' && userId.safeParse(tid).success ? tid : null,
+        )
       : null;
   }
 }

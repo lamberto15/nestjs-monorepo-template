@@ -38,7 +38,12 @@ describe('the system principal', () => {
     ).toThrow(
       'A queued transfer takes a user or an API client, not the system principal (system:account-deletion).',
     );
-    const client: Principal = { kind: 'client', id: 'c1', name: 'Shop' };
+    const client: Principal = {
+      kind: 'client',
+      id: 'c1',
+      name: 'Shop',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+    };
     expect(() =>
       assertRequestPrincipal(client, 'A queued transfer'),
     ).not.toThrow();

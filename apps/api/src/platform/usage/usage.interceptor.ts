@@ -51,7 +51,7 @@ export class UsageInterceptor implements NestInterceptor {
     }
     const quota = principal.dailyQuota ?? null;
     if (quota !== null) {
-      const { allowed, used } = await this.usage.take(principal.id, quota);
+      const { allowed, used } = await this.usage.take(principal, quota);
       res.setHeader('X-Quota-Limit', String(quota));
       if (!allowed) {
         const reset = secondsToUtcMidnight();
@@ -76,8 +76,10 @@ export class UsageInterceptor implements NestInterceptor {
     );
     // 'close', not 'finish': it also fires when the caller hangs up mid-response,
     // so closing the connection doesn't get a request off the meter.
+    // The client is passed whole: the listener runs outside the request's
+    // context, and its counters are under its tenant.
     res.once('close', () =>
-      this.usage.count(principal.id, route, new Date(), quota === null),
+      this.usage.count(principal, route, new Date(), quota === null),
     );
     return next.handle();
   }

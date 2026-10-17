@@ -34,6 +34,7 @@ import { OpsPolicy } from './ops.policy.js';
 import { OpsQueues } from './ops-queues.service.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { UserOnly } from '../../iam/auth/user-only.decorator.js';
+import { OperatorOnly } from '../../iam/auth/operator-only.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 
@@ -42,6 +43,9 @@ const idsSchema = z.object({ ids: z.array(z.string()).max(1000).optional() });
 /**
  * Operations: what runs in the background. Outbox stats, dead letters (requeue,
  * purge), and every engine's events as a live stream. User sessions only.
+ * The queues, the outbox and the engines are the deployment's, every
+ * tenant's work together: only the operators may see them (the operator
+ * tenant, `@OperatorOnly()`, docs/tenancy.md), on top of `Ops.*`.
  */
 @ApiTags('ops')
 @ApiCookieAuth('user-session')
@@ -49,6 +53,7 @@ const idsSchema = z.object({ ids: z.array(z.string()).max(1000).optional() });
 @ApiUnauthorizedResponse({ description: 'No session.' })
 @ApiForbiddenResponse({ description: 'Not allowed by your permissions.' })
 @UserOnly()
+@OperatorOnly()
 @Controller('ops')
 export class OpsController {
   constructor(

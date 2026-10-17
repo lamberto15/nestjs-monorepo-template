@@ -34,6 +34,7 @@ import {
   type StageMode,
 } from './approval.types.js';
 import type { Transaction } from '../../core/database/drizzle.js';
+import type { SettingScope } from '../settings/setting.types.js';
 
 type Issue = { path: (string | number)[]; message: string };
 
@@ -89,9 +90,12 @@ export class ApprovalsRegistry implements OnApplicationBootstrap {
         );
       }
       // A setting its requesters could set for themselves would let them skip approval.
-      if ((declaration.setting?.scopes ?? ['global']).includes('user')) {
+      const scopes: readonly SettingScope[] = declaration.setting?.scopes ?? [
+        'tenant',
+      ];
+      if (scopes.includes('user')) {
         throw new Error(
-          `Approvals: the setting of "${key}" (${declaration.setting!.key}) can be set per user: a requester could switch approval off for themselves. Declare it with scopes ['global'] or ['global', 'orgUnit'].`,
+          `Approvals: the setting of "${key}" (${declaration.setting!.key}) can be set per user: a requester could switch approval off for themselves. Declare it with scopes ['tenant'] or ['tenant', 'orgUnit'].`,
         );
       }
       const issues = this.policyIssues(declaration.policy);

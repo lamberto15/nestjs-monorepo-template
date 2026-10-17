@@ -16,6 +16,7 @@ import { apiKeyId, generateApiKey, hashApiKey } from '../auth/api-keys.js';
 import { principalKey, type UserPrincipal } from '../auth/principal.js';
 import { SecurityAlertsService } from '../account/security-alerts.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { apiClientRoles, apiClients, apiKeys } from '../iam.tables.js';
 
 /** A key as the access API shows it: never the key or its hash. */
@@ -140,6 +141,9 @@ export class ApiClientsService {
         )
         .where(
           and(
+            // api_keys is global (looked up before the tenant is known):
+            // this tenant's keys only, said here.
+            eq(apiKeys.tenantId, requireTenantId()),
             eq(apiKeys.clientId, id),
             isNull(apiKeys.revokedAt),
             or(isNull(apiKeys.expiresAt), gt(apiKeys.expiresAt, until)),
@@ -193,6 +197,7 @@ export class ApiClientsService {
         .set({ revokedAt: new Date() })
         .where(
           and(
+            eq(apiKeys.tenantId, requireTenantId()),
             eq(apiKeys.clientId, clientId),
             eq(apiKeys.id, keyId),
             isNull(apiKeys.revokedAt),
@@ -285,6 +290,8 @@ export class ApiClientsService {
     }
     const key = generateApiKey();
     await tx.insert(apiKeys).values({
+      // The client's tenant (the key is found by its id before any tenant).
+      tenantId: requireTenantId('A key'),
       clientId,
       keyId: apiKeyId(key)!,
       keyHash: hashApiKey(key),
@@ -305,7 +312,12 @@ export class ApiClientsService {
       db
         .select()
         .from(apiKeys)
-        .where(inArray(apiKeys.clientId, ids))
+        .where(
+          and(
+            eq(apiKeys.tenantId, requireTenantId()),
+            inArray(apiKeys.clientId, ids),
+          ),
+        )
         .orderBy(asc(apiKeys.createdAt)),
       db
         .select()

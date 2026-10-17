@@ -3,6 +3,7 @@ import type { Principal } from '../../iam/auth/principal.js';
 import { resolveSetting, rolloutBucket } from './setting-resolution.js';
 import { flag, setting, type SettingOverride } from './setting.types.js';
 
+const TENANT = '0000-t1';
 const user: Principal = {
   kind: 'user',
   id: '0000-u1',
@@ -11,20 +12,21 @@ const user: Principal = {
   emailVerified: true,
   locale: null,
   timezone: null,
+  tenantId: TENANT,
 };
 const limit = setting({
   key: 'notes.limit',
   label: 'Limit',
   schema: z.int(),
   default: 10,
-  scopes: ['global', 'orgUnit', 'user'],
+  scopes: ['tenant', 'orgUnit', 'user'],
 });
 const theme = setting({
   key: 'ui.theme',
   label: 'Theme',
   schema: z.enum(['light', 'dark']),
   default: 'light',
-  scopes: ['global', 'user'],
+  scopes: ['tenant', 'user'],
 });
 const richText = flag({
   key: 'notes.richText',
@@ -41,86 +43,98 @@ const override = (
 ): SettingOverride => ({ key, scope, scopeId, value, rollout });
 
 describe('resolveSetting', () => {
-  it('is the default without overrides, the global one with it', () => {
-    expect(resolveSetting(limit, [], user, [])).toEqual({
+  it('is the default without overrides, the tenant value with it', () => {
+    expect(resolveSetting(limit, [], user, [], TENANT)).toEqual({
       value: 10,
       source: 'default',
     });
     expect(
       resolveSetting(
         limit,
-        [override('notes.limit', 'global', '', 20)],
+        [override('notes.limit', 'tenant', '', 20)],
         user,
         [],
+        TENANT,
       ),
-    ).toEqual({ value: 20, source: 'global' });
+    ).toEqual({ value: 20, source: 'tenant' });
     expect(
       resolveSetting(
         limit,
-        [override('notes.limit', 'global', '', 20)],
+        [override('notes.limit', 'tenant', '', 20)],
         null,
         [],
+        TENANT,
       ),
-    ).toEqual({ value: 20, source: 'global' });
+    ).toEqual({ value: 20, source: 'tenant' });
   });
 
   it("prefers the principal's own value, then one of their org units', in order", () => {
     const overrides = [
-      override('notes.limit', 'global', '', 20),
+      override('notes.limit', 'tenant', '', 20),
       override('notes.limit', 'orgUnit', 'unit-b', 30),
       override('notes.limit', 'orgUnit', 'unit-a', 25),
       override('notes.limit', 'user', 'user:0000-u1', 5),
     ];
     expect(
-      resolveSetting(limit, overrides, user, ['unit-a', 'unit-b']),
+      resolveSetting(limit, overrides, user, ['unit-a', 'unit-b'], TENANT),
     ).toEqual({ value: 5, source: 'user' });
     expect(
-      resolveSetting(limit, overrides.slice(0, 3), user, ['unit-a', 'unit-b']),
+      resolveSetting(
+        limit,
+        overrides.slice(0, 3),
+        user,
+        ['unit-a', 'unit-b'],
+        TENANT,
+      ),
     ).toEqual({ value: 25, source: 'orgUnit' });
     expect(
-      resolveSetting(limit, overrides.slice(0, 3), user, ['unit-b']),
+      resolveSetting(limit, overrides.slice(0, 3), user, ['unit-b'], TENANT),
     ).toEqual({ value: 30, source: 'orgUnit' });
-    expect(resolveSetting(limit, overrides.slice(0, 3), user, [])).toEqual({
+    expect(
+      resolveSetting(limit, overrides.slice(0, 3), user, [], TENANT),
+    ).toEqual({
       value: 20,
-      source: 'global',
+      source: 'tenant',
     });
   });
 
   it('ignores a scope the declaration does not allow', () => {
     const overrides = [override('ui.theme', 'orgUnit', 'unit-a', 'dark')];
-    expect(resolveSetting(theme, overrides, user, ['unit-a'])).toEqual({
+    expect(resolveSetting(theme, overrides, user, ['unit-a'], TENANT)).toEqual({
       value: 'light',
       source: 'default',
     });
   });
 
   it('rolls a flag out to a stable share of principals', () => {
-    const half = [override('notes.richText', 'global', '', null, 50)];
-    const bucket = rolloutBucket('notes.richText', 'user:0000-u1');
+    const half = [override('notes.richText', 'tenant', '', null, 50)];
+    const bucket = rolloutBucket('notes.richText', TENANT, 'user:0000-u1');
     expect(bucket).toBeGreaterThanOrEqual(0);
     expect(bucket).toBeLessThan(100);
-    expect(resolveSetting(richText, half, user, [])).toEqual({
+    expect(resolveSetting(richText, half, user, [], TENANT)).toEqual({
       value: bucket < 50,
       source: 'rollout',
     });
     expect(
       resolveSetting(
         richText,
-        [override('notes.richText', 'global', '', null, 100)],
+        [override('notes.richText', 'tenant', '', null, 100)],
         user,
         [],
+        TENANT,
       ),
     ).toEqual({ value: true, source: 'rollout' });
     expect(
       resolveSetting(
         richText,
-        [override('notes.richText', 'global', '', null, 0)],
+        [override('notes.richText', 'tenant', '', null, 0)],
         user,
         [],
+        TENANT,
       ),
     ).toEqual({ value: false, source: 'rollout' });
     // Without a principal, a rollout is nobody's: the default.
-    expect(resolveSetting(richText, half, null, [])).toEqual({
+    expect(resolveSetting(richText, half, null, [], TENANT)).toEqual({
       value: false,
       source: 'default',
     });
@@ -128,17 +142,19 @@ describe('resolveSetting', () => {
     expect(
       resolveSetting(
         richText,
-        [override('notes.richText', 'global', '', true, 50)],
+        [override('notes.richText', 'tenant', '', true, 50)],
         user,
         [],
+        TENANT,
       ),
-    ).toEqual({ value: true, source: 'global' });
+    ).toEqual({ value: true, source: 'tenant' });
     expect(
       resolveSetting(
         richText,
         [...half, override('notes.richText', 'user', 'user:0000-u1', true)],
         user,
         [],
+        TENANT,
       ),
     ).toEqual({ value: true, source: 'user' });
   });
@@ -146,9 +162,26 @@ describe('resolveSetting', () => {
   it('spreads principals across buckets', () => {
     const on = Array.from(
       { length: 1000 },
-      (_, i) => rolloutBucket('k', `user:${i}`) < 50,
+      (_, i) => rolloutBucket('k', TENANT, `user:${i}`) < 50,
     ).filter(Boolean).length;
     expect(on).toBeGreaterThan(400);
     expect(on).toBeLessThan(600);
+  });
+});
+
+describe('rollouts per tenant', () => {
+  it("draws each tenant apart: the same principal can be in one tenant's share and not another's", () => {
+    const principals = Array.from({ length: 200 }, (_, i) => `user:${i}`);
+    const inA = principals.map((p) => rolloutBucket('k', 'tenant-a', p) < 50);
+    const inB = principals.map((p) => rolloutBucket('k', 'tenant-b', p) < 50);
+    expect(inA.some((on, i) => on !== inB[i])).toBe(true);
+  });
+
+  it('has no rollout without a tenant: the default', () => {
+    const half = [override('notes.richText', 'tenant', '', null, 100)];
+    expect(resolveSetting(richText, half, user, [], null)).toEqual({
+      value: false,
+      source: 'default',
+    });
   });
 });

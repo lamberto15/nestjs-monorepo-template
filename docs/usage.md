@@ -17,7 +17,8 @@ days (400 `validation_failed` otherwise, or when `from` is after `to`).
 
 - **Counting** (`UsageInterceptor`, global): a request authenticated with an
   API key, once its response is done (or the caller hung up), `HINCRBY`s the Redis hash
-  `<REDIS_PREFIX>:usage:<clientId>:<yyyy-mm-dd>` (field: `<METHOD> <route pattern>`,
+  `<REDIS_PREFIX>:tenant:<tenantId>:usage:<clientId>:<yyyy-mm-dd>` (the client's
+  tenant, [tenancy](tenancy.md); field: `<METHOD> <route pattern>`,
   never the URL, and `_total`), in one pipeline, the TTL (3 days) set by the
   day's first count. Fire and forget: an error is logged, the request never
   fails. Users, guests, `/health` and `/api` are not counted; neither are
@@ -36,8 +37,10 @@ days (400 `validation_failed` otherwise, or when `from` is after `to`).
   stored, so the retry after the reset runs.
 - **Roll-up** (`UsageRollupJob`, cron `usage-rollup`, 00:20 UTC, one
   instance): copies every day before today still in Redis into `api_usage`
-  (one row per client, day and route; a rerun overwrites), deletes those
-  counters, then the rows older than `USAGE_RETENTION_DAYS` (400).
+  (one row per client, day and route; a rerun overwrites), tenant by
+  tenant in each counter's tenant (named by its key; logged), deletes those
+  counters, then the rows older than `USAGE_RETENTION_DAYS` (400), every
+  tenant's at once under the worker's row-level security bypass.
   `run(day)` rolls up one day (today's counters are copied and kept).
   Reports merge the rows with the live counters (the larger count per route
   wins), so today, and a day not rolled up yet, are always included.

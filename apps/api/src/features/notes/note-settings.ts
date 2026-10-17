@@ -32,12 +32,12 @@ export const NOTE_RICH_TEXT = flag({
 
 /**
  * Whether publishing a note needs an editor's approval (note-approvals.ts):
- * off by default; on for everyone, an org unit, a user, or a rollout.
+ * off by default; on for the whole tenant, an org unit, or a rollout.
  */
 export const NOTE_PUBLISH_APPROVAL_FLAG = flag({
   // Never per user: a requester could switch their own approval off
   // (ApprovalsRegistry refuses such a setting at startup).
-  scopes: ['global', 'orgUnit'],
+  scopes: ['tenant', 'orgUnit'],
   key: 'notes.publishApproval',
   label: 'Publishing needs approval',
   description:

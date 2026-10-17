@@ -7,6 +7,7 @@ import {
 import { I18nService } from '@nestjs/i18n';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { activeMember } from './approval-engine.service.js';
 import {
   database,
   type DrizzleTransactions,
@@ -102,7 +103,14 @@ export class ApprovalDelegationsService {
     const [delegate] = await this.db
       .select({ id: users.id })
       .from(users)
-      .where(and(eq(users.id, dto.toUserId), eq(users.active, true)));
+      // A member of this tenant: users are global (docs/tenancy.md).
+      .where(
+        and(
+          eq(users.id, dto.toUserId),
+          eq(users.active, true),
+          activeMember(users.id),
+        ),
+      );
     if (!delegate) {
       throw new BadRequestException({
         code: 'validation_failed',

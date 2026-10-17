@@ -1,3 +1,4 @@
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TransactionHost } from '@nestjs-cls/transactional';
 import { ClsService } from 'nestjs-cls';
@@ -42,7 +43,12 @@ function context() {
   const cls = new ClsService(new AsyncLocalStorage());
   const transactions = fakeTransactions();
   return {
-    system: new SystemContext(cls, transactions.host, catalog),
+    system: new SystemContext(
+      cls,
+      transactions.host,
+      catalog,
+      new Tenancy(cls, transactions.host),
+    ),
     cls,
     opened: transactions.opened,
   };

@@ -38,6 +38,7 @@ import {
   type UserPrincipal,
 } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import type { NotificationType } from '../notifications/notification.types.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
@@ -56,6 +57,8 @@ type Comment = typeof comments.$inferSelect;
 /** The author of a comment whose account was deleted (the body becomes DELETED_BODY). */
 export const ANONYMIZED_AUTHOR = 'anonymous';
 export const DELETED_BODY = '[deleted]';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** At most this many people are mentioned in one comment (the rest are ignored). */
 const MAX_MENTIONS = 20;
@@ -336,9 +339,11 @@ export class CommentsService implements PersonalDataSource {
   }
 
   /**
-   * The principal keys of the active users the body mentions who may
-   * read the record, but the author; anyone else is silently left out
-   * (a mention never tells who exists, or that the record does).
+   * The principal keys of the active users the body mentions who are
+   * members of the record's tenant and may read the record, but the
+   * author; anyone else is silently left out (a mention never tells who
+   * exists, or that the record does). Users are global: an address of
+   * someone outside the tenant is nobody here (docs/tenancy.md).
    */
   private async mentions(
     target: CommentTarget,
@@ -350,12 +355,19 @@ export class CommentsService implements PersonalDataSource {
       ...new Set([...body.matchAll(MENTION)].map((m) => m[1]!.toLowerCase())),
     ].slice(0, MAX_MENTIONS);
     const keys = new Set<string>();
+    const tenantId = requireTenantId('A mention');
     for (const handle of handles) {
-      const user = handle.startsWith('user:')
-        ? await this.users.findActive(handle.slice('user:'.length))
+      const account = handle.startsWith('user:')
+        ? UUID.test(handle.slice('user:'.length))
+          ? await this.users.findActive(handle.slice('user:'.length))
+          : null
         : (await this.users.findActiveByEmail(handle))?.user;
+      // As a member of this tenant, or not at all.
+      const user = account
+        ? await this.users.inTenant(account.id, tenantId)
+        : null;
       if (
-        user &&
+        user?.tenantId === tenantId &&
         principalKey(user) !== principalKey(author) &&
         (await target.canRead(user, record.recordId))
       ) {

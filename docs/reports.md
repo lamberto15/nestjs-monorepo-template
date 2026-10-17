@@ -67,3 +67,7 @@ POST /v1/reports
   stalled-job limit, without running it again; the worker that applies
   that failure tells the listeners (`DataTransferProcessor.onFailed`), so
   the failure mail goes all the same.
+- **Tenancy** ([tenancy](tenancy.md)): the hourly runner walks the tenants
+  one at a time (`Tenancy.forEachTenant()`, logging each); a report's owner
+  must still be a member of the report's tenant, or the report is made
+  inactive (`owner_inactive`), and its export runs in that tenant.
