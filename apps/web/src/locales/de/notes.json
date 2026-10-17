@@ -1,0 +1,79 @@
+{
+  "title": "Notizen",
+  "columns": {
+    "number": "Nummer",
+    "title": "Titel",
+    "status": "Status",
+    "tags": "Tags",
+    "createdAt": "Erstellt",
+    "publishedAt": "Veröffentlicht"
+  },
+  "status": {
+    "draft": "Entwurf",
+    "published": "Veröffentlicht"
+  },
+  "fields": {
+    "body": "Text",
+    "tags": "Tags",
+    "updatedAt": "Geändert",
+    "deletedAt": "Gelöscht",
+    "noTags": "Keine Tags",
+    "empty": "—"
+  },
+  "new": {
+    "action": "Neue Notiz",
+    "title": "Neue Notiz"
+  },
+  "edit": {
+    "title": "Notiz bearbeiten"
+  },
+  "form": {
+    "title": "Titel",
+    "body": "Text",
+    "titleRequired": "Geben Sie einen Titel ein.",
+    "titleTooLong": "Der Titel darf höchstens 200 Zeichen lang sein.",
+    "create": "Notiz erstellen",
+    "save": "Änderungen speichern",
+    "cancel": "Abbrechen",
+    "created": "Notiz erstellt",
+    "saved": "Notiz gespeichert"
+  },
+  "detail": {
+    "back": "Zurück zu den Notizen"
+  },
+  "actions": {
+    "open": "Aktionen für diese Notiz",
+    "view": "Ansehen",
+    "edit": "Notiz bearbeiten",
+    "delete": "Löschen",
+    "restore": "Wiederherstellen"
+  },
+  "delete": {
+    "title": "Diese Notiz löschen?",
+    "description": "Sie wandert in den Papierkorb und kann dort bis zur endgültigen Löschung wiederhergestellt werden.",
+    "confirm": "Löschen",
+    "done": "Notiz gelöscht",
+    "undo": "Rückgängig"
+  },
+  "restore": {
+    "done": "Notiz wiederhergestellt"
+  },
+  "bin": {
+    "label": "Papierkorb",
+    "showing": "Gelöschte Notizen werden angezeigt"
+  },
+  "conflict": {
+    "title": "Jemand anderes hat diese Notiz geändert",
+    "description": "Laden Sie neu, um die aktuelle Version zu sehen. Ihre ungespeicherten Änderungen gehen verloren.",
+    "reload": "Notiz neu laden"
+  },
+  "notFound": {
+    "title": "Notiz nicht gefunden",
+    "description": "Sie wurde möglicherweise gelöscht, oder Sie haben keinen Zugriff darauf."
+  },
+  "error": {
+    "title": "Die Notiz konnte nicht geladen werden",
+    "generic": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
+    "retry": "Erneut versuchen"
+  }
+}

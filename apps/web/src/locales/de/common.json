@@ -253,20 +253,5 @@
       "generic": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
       "retry": "Erneut versuchen"
     }
-  },
-  "notes": {
-    "title": "Notizen",
-    "columns": {
-      "number": "Nummer",
-      "title": "Titel",
-      "status": "Status",
-      "tags": "Tags",
-      "createdAt": "Erstellt",
-      "publishedAt": "Veröffentlicht"
-    },
-    "status": {
-      "draft": "Entwurf",
-      "published": "Veröffentlicht"
-    }
   }
 }

@@ -253,20 +253,5 @@
       "generic": "Something went wrong. Try again.",
       "retry": "Try again"
     }
-  },
-  "notes": {
-    "title": "Notes",
-    "columns": {
-      "number": "Number",
-      "title": "Title",
-      "status": "Status",
-      "tags": "Tags",
-      "createdAt": "Created",
-      "publishedAt": "Published"
-    },
-    "status": {
-      "draft": "Draft",
-      "published": "Published"
-    }
   }
 }

@@ -253,20 +253,5 @@
       "generic": "出了点问题，请重试。",
       "retry": "重试"
     }
-  },
-  "notes": {
-    "title": "笔记",
-    "columns": {
-      "number": "编号",
-      "title": "标题",
-      "status": "状态",
-      "tags": "标签",
-      "createdAt": "创建时间",
-      "publishedAt": "发布时间"
-    },
-    "status": {
-      "draft": "草稿",
-      "published": "已发布"
-    }
   }
 }

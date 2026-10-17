@@ -6,10 +6,12 @@ import {
   type ReactTable,
   type RowData,
 } from '@tanstack/react-table';
+import { useRouter } from '@tanstack/react-router';
 import { SearchIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '@/components/data-table/data-table';
+import { getDataTableActionsColumn } from '@/components/data-table/data-table-actions-column';
 import { DataTableAdvancedToolbar } from '@/components/data-table/data-table-advanced-toolbar';
 import { DataTableFilterMenu } from '@/components/data-table/data-table-filter-menu';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
@@ -37,6 +39,17 @@ export interface ListPageProps<P extends ListPath> {
   columns: ListColumn<ListRow<P>>[];
   /** The heading above the table. */
   title: string;
+  /** Buttons beside the heading: "New", a recycle-bin toggle. */
+  toolbarActions?: ReactNode;
+  /** More query parameters of the list route (`{ deleted: 'true' }`: the bin). */
+  query?: Record<string, string>;
+  /** Where a click on a row goes (a link inside the row keeps its own). */
+  rowHref?: (row: ListRow<P>) => string;
+  /**
+   * The items of a row's actions menu (DropdownMenuItem…), as a last column.
+   * Keep it stable (useCallback) so the table is not rebuilt.
+   */
+  rowActions?: (row: ListRow<P>) => ReactNode;
 }
 
 /**
@@ -49,7 +62,12 @@ export function ListPage<P extends ListPath>(props: ListPageProps<P>) {
 
   return (
     <section className="flex flex-col gap-4">
-      <h1 className="text-xl font-medium">{props.title}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-medium">{props.title}</h1>
+        {props.toolbarActions && (
+          <div className="flex items-center gap-2">{props.toolbarActions}</div>
+        )}
+      </div>
       {description.isPending ? (
         <DataTableSkeleton columnCount={props.columns.length} />
       ) : description.isError ? (
@@ -68,16 +86,27 @@ function ListTable<P extends ListPath>({
   path,
   columns,
   description,
+  query: extraQuery,
+  rowHref,
+  rowActions,
 }: ListPageProps<P> & { description: ListDescription }) {
   const { t } = useTranslation();
-  const cols = useMemo(
-    () => withListMeta(columns, description),
-    [columns, description],
-  );
+  const router = useRouter({ warn: false });
+  const cols = useMemo(() => {
+    const withMeta = withListMeta(columns, description);
+    return rowActions
+      ? [
+          ...withMeta,
+          getDataTableActionsColumn<ListRow<P>>({
+            actions: ({ row }) => rowActions(row.original),
+          }),
+        ]
+      : withMeta;
+  }, [columns, description, rowActions]);
   const [fields, setFields] = useState(() =>
     cols.flatMap((c) => (c.id ? [c.id] : [])),
   );
-  const query = useListQuery(path, description, cols, fields);
+  const query = useListQuery(path, description, cols, fields, extraQuery);
 
   const { table } = useDataTable({
     data: query.data?.items ?? EMPTY,
@@ -119,6 +148,11 @@ function ListTable<P extends ListPath>({
         <DataTable
           table={table}
           aria-busy={query.isPlaceholderData}
+          onRowClick={
+            rowHref
+              ? (row) => router?.history.push(rowHref(row as ListRow<P>))
+              : undefined
+          }
           className={query.isPlaceholderData ? 'opacity-60' : undefined}
         />
       )}

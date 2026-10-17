@@ -253,20 +253,5 @@
       "generic": "Sesuatu telah berlaku. Cuba lagi.",
       "retry": "Cuba lagi"
     }
-  },
-  "notes": {
-    "title": "Nota",
-    "columns": {
-      "number": "Nombor",
-      "title": "Tajuk",
-      "status": "Status",
-      "tags": "Tag",
-      "createdAt": "Dicipta",
-      "publishedAt": "Diterbitkan"
-    },
-    "status": {
-      "draft": "Draf",
-      "published": "Diterbitkan"
-    }
   }
 }
