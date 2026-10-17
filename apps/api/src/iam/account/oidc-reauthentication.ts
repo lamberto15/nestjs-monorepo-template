@@ -19,12 +19,14 @@ export const AUTH_TIME_TOLERANCE_MS = 30_000;
 
 /**
  * Why a step-up through a provider was refused: the provider signed in
- * another account (or one not connected to this user), or its `auth_time`
- * says it didn't ask the user again (it ignored `prompt=login`).
+ * another account (or one not connected to this user); its `auth_time`
+ * says it didn't ask the user again (it ignored `prompt=login`), or an
+ * OpenID Connect provider sent none; or the browser came back from a
+ * step-up this app no longer knows (`expired`: never a plain sign-in).
  */
 export class ReauthenticationRefused extends Error {
   constructor(
-    readonly reason: 'account' | 'stale',
+    readonly reason: 'account' | 'stale' | 'expired',
     readonly redirectTo?: string,
   ) {
     super(`provider re-authentication refused: ${reason}`);
@@ -53,19 +55,55 @@ export function reauthenticationUrl(authorizationUrl: string) {
 
 /**
  * Whether the user authenticated at the provider after the step-up
- * started: `auth_time` (when the ID token has one) no older than
- * `startedAt`, less the clock tolerance. Without it (GitHub: OAuth 2.0, no
- * ID token), nothing says otherwise: accepted, the weaker guarantee
- * docs/auth.md describes.
+ * started: `auth_time` no older than `startedAt`, less the clock
+ * tolerance. An OpenID Connect provider (`requireAuthTime`) issues an ID
+ * token, and `max_age` makes the claim required in it: without one, the
+ * login is refused. A plain OAuth 2.0 provider (GitHub) has no ID token,
+ * so nothing says otherwise: accepted, the weaker guarantee docs/auth.md
+ * describes.
  */
 export function isFreshAuthentication(
   authTime: Date | undefined,
   startedAt: number,
+  { requireAuthTime }: { requireAuthTime: boolean },
 ) {
-  return (
-    authTime === undefined ||
-    authTime.getTime() >= startedAt - AUTH_TIME_TOLERANCE_MS
-  );
+  if (authTime === undefined) {
+    return !requireAuthTime;
+  }
+  return authTime.getTime() >= startedAt - AUTH_TIME_TOLERANCE_MS;
+}
+
+/**
+ * The cookie that tells the callback this browser started a step-up, and
+ * which (its `state`): a step-up callback whose marker is gone is refused,
+ * never finished as a plain sign-in. `__Host-` when Secure (as the
+ * package's `__Host-oidc_tx`), SameSite=Lax to survive the provider's
+ * redirect back, as long as the login.
+ */
+export function reauthenticationCookie(secure: boolean) {
+  const name = secure ? '__Host-oidc_reauth' : 'oidc_reauth';
+  const attributes = (maxAge: number) =>
+    `Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+  return {
+    name,
+    set: (state: string) =>
+      `${name}=${encodeURIComponent(state)}; ${attributes(TTL_MS / 1000)}`,
+    clear: () => `${name}=; ${attributes(0)}`,
+    /** The state the request's cookie names, if any. */
+    read(header: string | undefined) {
+      for (const part of (header ?? '').split(';')) {
+        const [key, ...value] = part.trim().split('=');
+        if (key === name) {
+          try {
+            return decodeURIComponent(value.join('='));
+          } catch {
+            return undefined;
+          }
+        }
+      }
+      return undefined;
+    },
+  };
 }
 
 /**
@@ -87,14 +125,30 @@ export class ProviderReauthentications {
     );
   }
 
-  /** The step-up a callback's `state` finishes, once; undefined for a plain sign-in. */
-  async take(state: unknown): Promise<ProviderReauthentication | undefined> {
-    if (typeof state !== 'string' || state.length === 0 || state.length > 256) {
+  /**
+   * The step-up a callback's `state` names; undefined for a plain sign-in.
+   * Read, not taken: a callback that fails the package's checks (no
+   * transaction cookie: someone else's request with a state they learnt)
+   * must leave it for the browser that started it. `forget()` once the
+   * callback was judged.
+   */
+  async peek(state: unknown): Promise<ProviderReauthentication | undefined> {
+    if (!validState(state)) {
       return undefined;
     }
-    const value = await this.redis.getdel(key(state));
+    const value = await this.redis.get(key(state));
     return value ? (JSON.parse(value) as ProviderReauthentication) : undefined;
   }
+
+  async forget(state: unknown) {
+    if (validState(state)) {
+      await this.redis.del(key(state));
+    }
+  }
+}
+
+function validState(state: unknown): state is string {
+  return typeof state === 'string' && state.length > 0 && state.length <= 256;
 }
 
 const key = (state: string) => `oidc:reauthentication:${state}`;

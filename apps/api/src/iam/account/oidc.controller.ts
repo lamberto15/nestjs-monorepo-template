@@ -9,8 +9,11 @@ import {
   Param,
   Query,
   Redirect,
+  Req,
+  Res,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import {
   Authenticate,
   CurrentSession,
@@ -41,7 +44,10 @@ import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
-import { ReauthenticationRefused } from './oidc-reauthentication.js';
+import {
+  ReauthenticationRefused,
+  reauthenticationCookie,
+} from './oidc-reauthentication.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 
 const identitySchema = z.object({
@@ -133,12 +139,13 @@ export class OidcController {
     description:
       'To the provider; or, linking from a stale session, to the web app with `?error=reauthentication_required`.',
   })
-  login(
+  async login(
     @CurrentUser() user: UserPrincipal | null,
     @CurrentSession() session: unknown,
     @Param('provider') provider: string,
     @Query({ schema: loginQuerySchema })
     { redirectTo, link, reauthenticate }: z.infer<typeof loginQuerySchema>,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (reauthenticate === 'true') {
       if (link === 'true') {
@@ -153,11 +160,19 @@ export class OidcController {
       // As linking: an address the person proved (an invitation, the link).
       verifiedEmailOnly(user);
       this.configured(provider);
-      return this.account.startReauthenticationWithProvider(
+      const redirect = await this.account.startReauthenticationWithProvider(
         user,
         provider,
         redirectTo,
       );
+      // This browser started a step-up for this state: its callback is one.
+      res.append(
+        'Set-Cookie',
+        this.stepUpCookie().set(
+          new URL(redirect.url).searchParams.get('state')!,
+        ),
+      );
+      return redirect;
     }
     if (link === 'true') {
       if (!user) {
@@ -214,18 +229,41 @@ export class OidcController {
     @Query({ schema: callbackQuerySchema })
     query: z.infer<typeof callbackQuerySchema>,
     @Ip() ip: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     this.configured(provider);
+    const cookie = this.stepUpCookie();
+    const stepUpExpected =
+      query.state !== undefined &&
+      cookie.read(req.headers.cookie) === query.state;
     try {
-      return await this.account.signInWithProvider(provider, query, ip);
+      const redirect = await this.account.signInWithProvider(
+        provider,
+        query,
+        ip,
+        { stepUpExpected },
+      );
+      if (stepUpExpected) {
+        res.append('Set-Cookie', cookie.clear());
+      }
+      return redirect;
     } catch (error) {
       if (error instanceof ReauthenticationRefused) {
+        res.append('Set-Cookie', cookie.clear());
         return {
           url: this.backToWebApp(error.redirectTo, 'reauthentication_failed'),
         };
       }
       throw error;
     }
+  }
+
+  /** The step-up cookie, Secure (and `__Host-`) as the session's (SESSION_COOKIE_SECURE). */
+  private stepUpCookie() {
+    return reauthenticationCookie(
+      this.config.get('SESSION_COOKIE_SECURE', { infer: true }),
+    );
   }
 
   @UserOnly()

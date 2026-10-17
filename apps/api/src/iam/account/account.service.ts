@@ -309,13 +309,22 @@ export class AccountService {
    * browser back with an error). Audited either way, as the user's
    * `auth.reauthenticated` or `auth.reauthentication-failed`
    * (`method: oidc`), as a re-authentication in place is.
+   *
+   * The marker is read, and forgotten only once the callback was judged
+   * (signed in, or refused): a request that fails the package's checks
+   * (another client with a state it learnt, without this browser's
+   * transaction cookie) leaves it in place. `stepUpExpected` (the browser
+   * carries the step-up cookie for this state): without a marker, the
+   * callback is refused (`expired`), never finished as a plain sign-in,
+   * which would skip the same-user and freshness checks.
    */
   async signInWithProvider(
     provider: string,
-    query: Record<string, string>,
+    query: Record<string, string | undefined>,
     ip?: string,
+    { stepUpExpected = false }: { stepUpExpected?: boolean } = {},
   ) {
-    const reauthenticating = await this.providerReauthentications.take(
+    const reauthenticating = await this.providerReauthentications.peek(
       query.state,
     );
     const finish = () =>
@@ -325,11 +334,22 @@ export class AccountService {
         { reauthenticating },
       );
     if (!reauthenticating) {
+      if (stepUpExpected) {
+        await this.tenancy.none(() =>
+          this.audit.record(null, {
+            action: 'auth.reauthentication-failed',
+            details: { method: 'oidc', provider, reason: 'expired' },
+            ip,
+          }),
+        );
+        throw new ReauthenticationRefused('expired');
+      }
       return finish();
     }
     const user = await this.users.findActive(reauthenticating.userId);
     try {
       const redirect = await finish();
+      await this.providerReauthentications.forget(query.state);
       // Account-level, as every sign-in's entry: in no tenant's log.
       await this.tenancy.none(() =>
         this.audit.record(user, {
@@ -343,6 +363,7 @@ export class AccountService {
       return redirect;
     } catch (error) {
       if (error instanceof ReauthenticationRefused) {
+        await this.providerReauthentications.forget(query.state);
         await this.tenancy.none(() =>
           this.audit.record(user, {
             action: 'auth.reauthentication-failed',

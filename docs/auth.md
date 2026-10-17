@@ -371,13 +371,22 @@ linking; with `link=true` too: 400):
   both; GitHub, OAuth 2.0, neither): the check below doesn't rely on it.
 - **The callback checks it, since the parameters travel through the
   browser and are hints**: the login's `state` is remembered in Redis as a
-  step-up of this user, from now (10 minutes, taken once). On the callback
-  `OidcAccounts` accepts only an identity already connected to that user
-  (no new account, no link by address, nobody else's), and an ID token
-  `auth_time` from after the start (30 s of clock tolerance, the package's
-  own for ID tokens). Without `auth_time` (GitHub: OAuth 2.0, no ID token;
-  a provider that omits it despite `max_age`) the login is accepted as now,
-  the weaker guarantee above.
+  step-up of this user, from now (10 minutes), and the browser gets a
+  cookie naming it (`__Host-oidc_reauth`, HttpOnly, SameSite=Lax). On the
+  callback `OidcAccounts` accepts only an identity already connected to
+  that user (no new account, no link by address, nobody else's), and an ID
+  token `auth_time` from after the start (30 s of clock tolerance, the
+  package's own for ID tokens). An OpenID Connect provider must send
+  `auth_time` (`max_age` makes it required): a login without one is
+  refused. Only a plain OAuth 2.0 provider (GitHub: no ID token) is
+  accepted without it, as now, the weaker guarantee above.
+- **The step-up can't be skipped**: the callback reads the remembered
+  step-up and forgets it only once the login was judged, so a callback the
+  package refuses (someone else's request with a `state` they learnt, no
+  transaction cookie) leaves it for the browser that started it. A
+  callback that carries the step-up cookie but whose step-up is gone is
+  refused (`reason: expired`, audited anonymously), never finished as a
+  plain sign-in.
 - **Accepted**: the browser gets a new session, recent from `auth_time`
   (with two-factor on, pending its code as any sign-in), **in the tenant
   the re-authenticated session acted in** (remembered with the `state`;
@@ -386,7 +395,8 @@ linking; with `link=true` too: 400):
   sign-in happens (the browser keeps its session) and it lands on the web
   app (`redirectTo`, else its root) with
   `?error=reauthentication_failed`, audited
-  `auth.reauthentication-failed` (`reason`: `account` or `stale`). Both
+  `auth.reauthentication-failed` (`reason`: `account`, `stale` or
+  `expired`). Both
   entries are account-level, as every sign-in's: in no tenant's log.
 - `?link=true` keeps the plain login: a link needs a recent session
   already.

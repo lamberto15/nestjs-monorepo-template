@@ -260,4 +260,89 @@ describe('step-up through a provider: prompt=login and auth_time (e2e)', () => {
     // chosen tenant, as for any sign-in.
     expect(await stepUp(elsewhere)).not.toHaveProperty('tenantId');
   });
+
+  it("isn't burnt by a callback without this browser's transaction cookie: the real one is still a step-up", async () => {
+    const me = await person();
+    const state = (await start(me.agent)).searchParams.get('state')!;
+    // Someone who learnt the state (a log, a referrer) calls back without
+    // the browser's cookies: the package refuses it, the step-up stays.
+    await node
+      .http()
+      .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+      .expect(400);
+    expect(
+      await node.app.get<Redis>(REDIS).get(`oidc:reauthentication:${state}`),
+    ).not.toBeNull();
+    // The browser's own callback is still judged as a step-up: a stale
+    // login is refused, not let in as a plain sign-in.
+    providerAnswers(`gh-${me.id}`, {
+      auth_time: Math.floor((Date.now() - 20 * MINUTE) / 1000),
+    });
+    const refused = await me.agent
+      .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+      .expect(302);
+    expect(refused.headers.location).toBe(
+      'https://web.example.com/?error=reauthentication_failed',
+    );
+    expect(await audit('auth.reauthentication-failed', me.id)).toMatchObject([
+      { details: { reason: 'stale' } },
+    ]);
+  });
+
+  it('refuses a step-up callback whose step-up is gone, never signing in instead', async () => {
+    const me = await person();
+    const state = (await start(me.agent)).searchParams.get('state')!;
+    await node.app.get<Redis>(REDIS).del(`oidc:reauthentication:${state}`);
+    const finish = providerAnswers(`gh-${me.id}`, {});
+    const refused = await me.agent
+      .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
+      .expect(302);
+    expect(refused.headers.location).toBe(
+      'https://web.example.com/?error=reauthentication_failed',
+    );
+    expect(finish).not.toHaveBeenCalled();
+    const [entry] = await node.auditEntries({
+      action: 'auth.reauthentication-failed',
+    });
+    expect(entry).toMatchObject({
+      actor: 'anonymous',
+      tenantId: null,
+      details: { method: 'oidc', provider: 'github', reason: 'expired' },
+    });
+    // The step-up cookie is cleared; the browser keeps its session.
+    expect(String(refused.headers['set-cookie'])).toMatch(
+      /oidc_reauth=; .*Max-Age=0/,
+    );
+    await me.agent.get('/v1/auth/me').expect(200);
+  });
+
+  it('refuses an OpenID Connect login without auth_time (its ID token must have one)', async () => {
+    const me = await person();
+    await node.app
+      .get<Database>(getDrizzleToken())
+      .insert(userIdentities)
+      .values({ provider: 'google', subject: `g-${me.id}`, userId: me.id });
+    const context = node.app.get(SignInContext);
+    const resolver = node.app.get(OidcAccounts);
+    const stepUp = (claims: Record<string, unknown>) =>
+      context.run(
+        'oidc:google',
+        () =>
+          resolver.resolveUser(
+            {
+              provider: 'google',
+              subject: `g-${me.id}`,
+              emailVerified: true,
+              claims,
+            },
+            { accessToken: 'at', idToken: 'id' },
+            {},
+          ),
+        { reauthenticating: { userId: me.id, startedAt: Date.now() } },
+      );
+    await expect(stepUp({})).rejects.toMatchObject({ reason: 'stale' });
+    await expect(
+      stepUp({ auth_time: Math.floor(Date.now() / 1000) }),
+    ).resolves.toEqual({ id: me.id });
+  });
 });

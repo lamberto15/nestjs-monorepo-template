@@ -344,7 +344,14 @@ export class OidcAccounts extends OidcAccountResolver {
       throw new ReauthenticationRefused('account', expected.redirectTo);
     }
     const authTime = authTimeOf(profile.claims);
-    if (!isFreshAuthentication(authTime, expected.startedAt)) {
+    // An OpenID Connect provider issues an ID token, which must carry
+    // auth_time here (max_age asked for it); plain OAuth 2.0 (GitHub) has none.
+    const kind = oidcProviders(this.config)[profile.provider]?.kind ?? 'oidc';
+    if (
+      !isFreshAuthentication(authTime, expected.startedAt, {
+        requireAuthTime: kind === 'oidc',
+      })
+    ) {
       throw new ReauthenticationRefused('stale', expected.redirectTo);
     }
     this.recordAuthTime(profile);
