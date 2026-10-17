@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 /** The `?token=` of an email link's page (reset, verify, invitation…). */
 export const tokenSearchSchema = z.object({

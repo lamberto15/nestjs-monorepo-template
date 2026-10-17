@@ -11,6 +11,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { z } from 'zod';
+import { openCursor, sealCursor } from './cursor-seal.js';
 import type { FilterField } from './list-query.js';
 
 /*
@@ -131,28 +132,33 @@ export const sortOrder = (
       : sql`${columnOf(item.expression, query)} asc nulls last`,
   );
 
-/** What a sorted cursor holds: its sort, the last row's sort values, and its id. */
+/** What a sorted cursor holds, sealed: the last row's sort values and its id (the sort is the seal's context). */
 interface CursorData {
-  s: string;
   v: unknown[];
   id: string;
 }
 
-/** The cursor after `row` on a sorted list: opaque to clients (base64url JSON). */
+/**
+ * The cursor after `row` on a sorted list: opaque to clients, sealed
+ * (cursor-seal.ts) for this sort, so the sort values it carries, which may
+ * be fields redaction hides on that row, are never readable.
+ */
 export function encodeCursor(
   sort: readonly SortBy[],
   row: Record<string, unknown> & { id: string },
 ) {
   const data: CursorData = {
-    s: sortKey(sort),
     v: sort.map(({ key }) => {
       const value = row[key];
       return value instanceof Date ? value.toISOString() : (value ?? null);
     }),
     id: row.id,
   };
-  return Buffer.from(JSON.stringify(data)).toString('base64url');
+  return sealCursor(JSON.stringify(data), cursorContext(sort));
 }
+
+/** What a cursor is sealed for: its sort, as `?sort=` spells it. */
+const cursorContext = (sort: readonly SortBy[]) => `sort:${sortKey(sort)}`;
 
 const cursorValue = (type: FilterField['type']) => {
   switch (type) {
@@ -170,19 +176,25 @@ const cursorValue = (type: FilterField['type']) => {
 };
 
 /**
- * The cursor of a sorted list, checked: made by this sort, with a value of
- * the right type per field. `undefined`: not one (a 400).
+ * The cursor of a sorted list, checked: sealed by this server for this
+ * sort, with a value of the right type per field. `undefined`: not one (a
+ * 400): changed, made for another sort, sealed with a key no longer in
+ * CURSOR_KEYS, or not a cursor.
  */
 export function decodeCursor(cursor: string, sort: readonly SortBy[]) {
+  const plaintext = openCursor(cursor, cursorContext(sort));
+  if (plaintext === undefined) {
+    return undefined;
+  }
   let data: unknown;
   try {
-    data = JSON.parse(Buffer.from(cursor, 'base64url').toString());
+    data = JSON.parse(plaintext);
   } catch {
     return undefined;
   }
+  // Sealed by this server, checked anyway: the values go into the SQL.
   const parsed = z
     .object({
-      s: z.literal(sortKey(sort)),
       v: z.tuple(
         sort.map((item) => cursorValue(item.type).nullable()) as unknown as [
           z.ZodType,

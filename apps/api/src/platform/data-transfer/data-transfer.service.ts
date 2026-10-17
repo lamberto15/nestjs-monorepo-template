@@ -204,6 +204,8 @@ export class DataTransferService {
         principal,
         exporter.subject,
         parsed.data as ListQuery,
+        // Among the rows the export reaches (the job's sqlFilter()).
+        { reach: exporter.action ?? 'read' },
       );
     }
     // The job keeps the raw filters: it travels as JSON, so parsed values

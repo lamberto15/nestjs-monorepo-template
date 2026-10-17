@@ -227,10 +227,12 @@ export class BulkService {
         filter: parseAt(operation.filters, request.filter, 'filter'),
       };
       // Field-level: which records a run acts on would tell a hidden field's values.
+      // Among the rows the run's action reaches (the source's select()).
       await this.access.assertQueryFields(
         principal,
         operation.subject,
         selection.filter as ListQuery,
+        { reach: request.action },
       );
     }
     if (!action.input && request.input !== undefined) {

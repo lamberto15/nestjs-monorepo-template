@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "title": "Pemberitahuan"
+  },
+  "loading": "Memuatkan…",
+  "markAllRead": "Tandakan semua sebagai dibaca",
+  "bell": {
+    "label_other": "Pemberitahuan, {{count}} belum dibaca",
+    "title": "Pemberitahuan",
+    "empty": "Tiada yang baharu.",
+    "viewAll": "Buka peti masuk"
+  },
+  "item": {
+    "unread": "Belum dibaca",
+    "markRead": "Tandakan sebagai dibaca",
+    "remove": "Buang"
+  },
+  "inbox": {
+    "title": "Pemberitahuan",
+    "unread_other": "{{count}} belum dibaca",
+    "empty": "Tiada pemberitahuan di sini.",
+    "loadMore": "Muat lagi",
+    "filters": {
+      "status": "Status",
+      "type": "Jenis",
+      "all": "Semua",
+      "unread": "Belum dibaca",
+      "read": "Dibaca",
+      "anyType": "Mana-mana jenis"
+    }
+  },
+  "preferences": {
+    "title": "Tetapan pemberitahuan",
+    "description": "Cara anda dimaklumkan tentang setiap jenis pemberitahuan. Ia sentiasa dipaparkan dalam aplikasi.",
+    "save": "Simpan",
+    "saved": "Tetapan disimpan.",
+    "mandatory": "Diperlukan: anda boleh menukar kekerapan tetapi tidak boleh mematikannya.",
+    "alwaysOn": "sentiasa hidup",
+    "impersonating": "Semasa bertindak sebagai orang lain, tetapan pemberitahuan mereka kekal milik mereka.",
+    "channels": {
+      "inApp": "Dalam aplikasi",
+      "email": "E-mel",
+      "webhook": "Webhook"
+    },
+    "values": {
+      "email": {
+        "false": "Mati",
+        "immediate": "Serta-merta",
+        "hourly": "Ringkasan setiap jam",
+        "daily": "Ringkasan harian"
+      },
+      "webhook": {
+        "false": "Mati",
+        "true": "Hidup"
+      }
+    }
+  }
+}

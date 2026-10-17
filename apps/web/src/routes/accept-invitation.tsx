@@ -10,7 +10,7 @@ import {
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { LinkResult, MissingToken } from '@/components/auth/link-result';
 import { api } from '@/lib/api';
