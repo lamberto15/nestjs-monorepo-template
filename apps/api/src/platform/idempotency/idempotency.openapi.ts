@@ -7,8 +7,15 @@ import type { ApiHeaderOptions } from '@nestjs/swagger';
  */
 export const GENERATE_KEY = 'generate';
 
+/** Marks a header a route chose for itself (not the deployment's mode); removed from the published document. */
+const FIXED = 'x-idempotency-fixed';
+
 /** The `Idempotency-Key` request header, for `@ApiHeader()`. */
-export const idempotencyKeyHeader = (required: boolean): ApiHeaderOptions => ({
+export const idempotencyKeyHeader = (
+  required: boolean,
+  /** A feature's own choice (record.ts `idempotency`): applyIdempotencyMode leaves it as it is. */
+  fixed = false,
+): ApiHeaderOptions => ({
   name: 'Idempotency-Key',
   required,
   description: [
@@ -16,7 +23,11 @@ export const idempotencyKeyHeader = (required: boolean): ApiHeaderOptions => ({
     '',
     `In Swagger UI, leave \`${GENERATE_KEY}\` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.`,
   ].join('\n'),
-  schema: { type: 'string', example: GENERATE_KEY },
+  schema: {
+    type: 'string',
+    example: GENERATE_KEY,
+    ...(fixed && { [FIXED]: true }),
+  },
 });
 
 /**
@@ -41,13 +52,13 @@ export function swaggerRequestInterceptor(request: {
 /**
  * Makes the published document follow IDEMPOTENCY. The decorators document the
  * header as required (the default mode); under `optional` every
- * `Idempotency-Key` parameter is marked optional, whatever the route says.
+ * `Idempotency-Key` parameter is marked optional, except those a feature
+ * chose for itself (record.ts `idempotency`: `required` stays required).
  */
 export function applyIdempotencyMode(
   document: { paths?: Record<string, unknown> },
   mode: 'required' | 'optional',
 ) {
-  if (mode === 'required') return;
   for (const path of Object.values(document.paths ?? {})) {
     for (const operation of Object.values(path as Record<string, unknown>)) {
       const parameters = (operation as { parameters?: unknown }).parameters;
@@ -56,10 +67,14 @@ export function applyIdempotencyMode(
         in?: string;
         name?: string;
         required?: boolean;
+        schema?: Record<string, unknown>;
       }[]) {
-        if (parameter.in === 'header' && parameter.name === 'Idempotency-Key') {
-          parameter.required = false;
+        if (parameter.in !== 'header' || parameter.name !== 'Idempotency-Key') {
+          continue;
         }
+        const fixed = parameter.schema?.[FIXED] === true;
+        if (parameter.schema) delete parameter.schema[FIXED];
+        if (mode === 'optional' && !fixed) parameter.required = false;
       }
     }
   }

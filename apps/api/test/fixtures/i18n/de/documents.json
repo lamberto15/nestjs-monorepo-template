@@ -5,7 +5,9 @@
     "fields": {
       "number": "Number",
       "title": "Title",
-      "body": "Body"
+      "body": "Body",
+      "publishedAt": "Published at",
+      "code": "Code"
     }
   }
 }

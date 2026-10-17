@@ -37,15 +37,24 @@ export const RecentAuthentication = (
 ) =>
   applyDecorators(
     SetMetadata(RECENT_AUTHENTICATION, options),
-    UseGuards(RecentAuthenticationGuard),
+    UseGuards(RecentSignInGuard),
     ApiForbiddenResponse({
       description:
         '`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user.',
     }),
   );
 
+/**
+ * The guard behind `@RecentAuthentication()`. It authenticates nobody: it
+ * reads the principal the global PrincipalGuard already set and only checks
+ * how old its sign-in is. Named without "Auth": @nestjs/authorization's
+ * startup check has no option or marker for "this guard doesn't
+ * authenticate" and goes by class names (/auth(?!or|z)|jwt|api-?key/i), so
+ * a guard after its own named `…AuthenticationGuard` logged a false "@Can()
+ * sees every caller as a guest" at every boot (docs/pitfalls.md).
+ */
 @Injectable()
-export class RecentAuthenticationGuard implements CanActivate {
+export class RecentSignInGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly reauthentication: ReauthenticationService,

@@ -1,10 +1,11 @@
 {
   "testItem": {
     "commented": {
-      "label": "Comment on a test item you watch",
-      "title": "New comment",
+      "label": "Komen pada item ujian yang anda ikuti",
+      "title": "Komen baharu",
       "body": {
-        "other": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}"
+        "one": "{by} mengulas pada \"{title}\": {excerpt}",
+        "other": "{count} komen baharu pada \"{title}\"; yang terbaru oleh {by}: {excerpt}"
       }
     }
   }
