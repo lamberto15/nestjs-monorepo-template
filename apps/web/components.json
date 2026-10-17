@@ -19,5 +19,8 @@
   },
   "rtl": true,
   "menuColor": "default",
-  "menuAccent": "subtle"
+  "menuAccent": "subtle",
+  "registries": {
+    "@diceui": "https://diceui.com/r/{style}/{name}.json"
+  }
 }
