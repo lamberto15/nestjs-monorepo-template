@@ -1,5 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  type AnyPgColumn,
+  index,
+  jsonb,
+  type PgTable,
+  pgTable,
+  text,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import {
   softDeletable,
   timestamps,
@@ -12,11 +20,13 @@ import {
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
 import { teams } from '../../iam/iam.tables.js';
+import { defineCustomFields } from '../custom-fields/custom-field.types.js';
 import { columnName, type Fields } from '../fields/field.js';
 import {
   type FieldColumns,
   fieldColumns,
   fieldExtras,
+  fieldSnapshot,
   fieldValues,
   fieldView,
   type FieldView,
@@ -45,6 +55,7 @@ export const CAPABILITIES = [
   'watch',
   'search',
   'transfer',
+  'custom',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
@@ -109,6 +120,13 @@ const base = () => ({
 });
 const teamColumns = () => ({ teamId: uuid('team_id') });
 const searchColumns = () => ({ search: searchVector('search', () => sql``) });
+const customColumns = () => ({
+  /** Custom field values by key (platform/custom-fields): checked against their definitions on every write. */
+  custom: jsonb('custom')
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+});
 type Empty = Record<never, never>;
 
 /** The columns of a record's table, as its declaration says. */
@@ -121,6 +139,9 @@ export type RecordColumns<D extends RecordDeclaration> = ReturnType<
   (D['softDelete'] extends true ? ReturnType<typeof softDeletable> : Empty) &
   ('search' extends D['capabilities'][number]
     ? ReturnType<typeof searchColumns>
+    : Empty) &
+  ('custom' extends D['capabilities'][number]
+    ? ReturnType<typeof customColumns>
     : Empty);
 
 /**
@@ -136,6 +157,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
     ...base(),
     ...(declaration.team && teamColumns()),
     ...fieldColumns(declaration.fields),
+    ...(takes(declaration, 'custom') && customColumns()),
     ...timestamps(),
     ...(declaration.softDelete && softDeletable()),
     ...(takes(declaration, 'search') && {
@@ -149,7 +171,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
     }),
   } as unknown as RecordColumns<D>;
   const name = declaration.table;
-  return pgTable(name as D['table'], columns, (table) => {
+  const built = pgTable(name as D['table'], columns, (table) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const t = table as any;
     return [
@@ -172,8 +194,85 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
             ),
           ]
         : []),
+      ...(takes(declaration, 'custom')
+        ? [index(`${name}_custom_idx`).using('gin', t.custom)]
+        : []),
     ];
   }).enableRLS();
+  TABLES.set(declaration, built as unknown as PgTable);
+  return built;
+}
+
+/** The tables `recordTable()` made, by declaration: what the platform reads a record's columns from. */
+const TABLES = new WeakMap<RecordDeclaration, PgTable>();
+
+/** The table of a record's declaration (made by `recordTable()` when the feature's tables load). */
+export function recordTableOf(declaration: RecordDeclaration) {
+  const table = TABLES.get(declaration);
+  if (!table) {
+    throw new Error(
+      `${declaration.subject}: its table is not made yet (recordTable(${declaration.subject.toUpperCase()}) in its tables file).`,
+    );
+  }
+  return table as PgTable & Record<string, AnyPgColumn>;
+}
+
+/**
+ * The custom fields a record takes (custom), as the platform wants them
+ * declared (PlatformModule.forRoot): values in the table's `custom` column.
+ */
+export function recordCustomFields(declaration: RecordDeclaration | undefined) {
+  if (!declaration || !takes(declaration, 'custom')) return [];
+  const table = recordTableOf(declaration);
+  return [
+    defineCustomFields({
+      subject: declaration.subject,
+      table,
+      column: table.custom!,
+    }),
+  ];
+}
+
+/** The field-level permissions a record's capabilities bring (spread into the policy's `fields`): `custom` with custom fields. */
+export const recordPermissionFields = (declaration: RecordDeclaration) => ({
+  ...(takes(declaration, 'custom') && {
+    // Every custom field at once: per-field permissions would need each key declared (docs/custom-fields.md).
+    custom: { label: 'The custom fields' },
+  }),
+});
+
+/** What the list's Swagger parameters add with custom fields: where the runtime ones come from. */
+export const recordListDocs = (declaration: RecordDeclaration) =>
+  takes(declaration, 'custom')
+    ? `Custom fields (GET /v1/custom-fields?subject=${declaration.subject}) filter, sort and select like the fields above: \`custom.region=eu\`, \`custom.amount.gte=10\`, in \`filter\` and \`sort\` as \`custom.<key>\`, \`fields=custom.region\`.`
+    : undefined;
+
+/**
+ * A body as the field-level check reads it: what was sent. An empty `custom`
+ * sets nothing, so it needs no permission on the field.
+ */
+export function sentFields(dto: object): Record<string, unknown> {
+  const sent: Record<string, unknown> = { ...dto };
+  const custom = sent.custom;
+  if (
+    custom !== undefined &&
+    custom !== null &&
+    Object.keys(custom as object).length === 0
+  ) {
+    delete sent.custom;
+  }
+  return sent;
+}
+
+/** What a revision keeps: the fields as the API shows them, and the custom values (custom). */
+export function recordSnapshot(
+  declaration: RecordDeclaration,
+  view: Record<string, unknown>,
+) {
+  return {
+    ...fieldSnapshot(declaration.fields, view),
+    ...(takes(declaration, 'custom') && { custom: view.custom ?? {} }),
+  };
 }
 
 /** A body's values as the table's columns (money, datetimes mapped): only what was sent. */

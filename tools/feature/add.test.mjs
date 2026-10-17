@@ -222,14 +222,27 @@ describe('addFeature', () => {
     const result = await addFeature(root, {
       name: 'tickets',
       fields: 'title:string,body:text',
-      with: 'tags,comments,pdf,bulk,watch,search,revisions,transfer',
+      with: 'tags,comments,pdf,bulk,watch,search,revisions,transfer,custom',
     });
     // The platform's generic targets and routes: no file of the feature's.
     const record = readFileSync(
       api('src/features/tickets/ticket.record.ts'),
       'utf8',
     );
-    assert.match(record, /'tags',[\s\S]*'transfer'/);
+    assert.match(record, /'tags',[\s\S]*'transfer',[\s\S]*'custom'/);
+    // Custom fields: derived from the declaration, nothing of the feature's own.
+    assert.match(
+      readFileSync(api('src/features/tickets/ticket.policy.ts'), 'utf8'),
+      /\.\.\.recordPermissionFields\(TICKET\)/,
+    );
+    assert.match(
+      readFileSync(api('src/features/tickets/ticket.resource.ts'), 'utf8'),
+      /expand: \['custom'\]/,
+    );
+    assert.match(
+      readFileSync(api('src/features/tickets/tickets.service.ts'), 'utf8'),
+      /lifecycle\.values\(dto, 'create'\)/,
+    );
     assert.match(record, /title: field\.string\(\)\.searchable\(\)/);
     assert.ok(!existsSync(api('src/features/tickets/ticket-tags.ts')));
     assert.match(
@@ -391,6 +404,23 @@ describe('feature:sync', () => {
     const removed = syncFeature(api(), 'orders');
     assert.ok(
       removed.changes.includes('OpenAPI test: - /v1/orders/{id}/comments'),
+    );
+  });
+
+  it('custom is a table change: it needs a migration, and its removal is refused once the column exists', () => {
+    edit("  capabilities: ['watch'],", "  capabilities: ['watch', 'custom'],");
+    const added = syncFeature(api(), 'orders');
+    assert.equal(added.generate, true);
+    assert.deepEqual(added.errors, []);
+    const file = api('drizzle/meta/0000_snapshot.json');
+    const snapshot = JSON.parse(readFileSync(file, 'utf8'));
+    snapshot.tables['public.orders'].columns.custom = { notNull: true };
+    writeFileSync(file, JSON.stringify(snapshot));
+    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
+    edit("  capabilities: ['watch', 'custom'],", "  capabilities: ['watch'],");
+    assert.match(
+      syncFeature(api(), 'orders').errors.join('\n'),
+      /custom was removed/,
     );
   });
 });

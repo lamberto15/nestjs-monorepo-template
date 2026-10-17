@@ -37,6 +37,7 @@ const BASE_COLUMNS = new Set([
   'deleted_at',
   'deleted_by',
   'search',
+  'custom',
 ]);
 
 /** `InvoiceLine` → `invoice-line`. */
@@ -306,6 +307,14 @@ function guard(api, record) {
   }
   if (record.capabilities.has('search') !== Boolean(columns.search))
     generate = true;
+  if (record.capabilities.has('custom') !== Boolean(columns.custom)) {
+    generate = true;
+    if (columns.custom) {
+      errors.push(
+        `${record.plural}: custom was removed, but the column custom holds the values: dropping it loses data; keep the capability, or stop using the values first (docs/pitfalls.md, expand/contract).`,
+      );
+    }
+  }
   return { errors, generate };
 }
 
