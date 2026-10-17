@@ -16,3 +16,12 @@ allowBuilds:
   # addon for the platform (verified against the hashes pinned in the
   # package), or builds it with node-gyp when none matches.
   re2: true
+# Exact versions of the web app's dependencies released less than a day before
+# they were pinned (pnpm added them; each is pinned in apps/web, packages/ui).
+minimumReleaseAgeExclude:
+  - '@tanstack/react-router@1.170.45'
+  - '@tanstack/router-core@1.171.38'
+  - '@tanstack/router-generator@1.167.45'
+  - '@tanstack/router-plugin@1.168.47'
+  - lucide-react@1.59.0
+  - react-i18next@17.0.21

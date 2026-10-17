@@ -1,0 +1,35 @@
+{
+  "app": { "name": "App" },
+  "nav": {
+    "platform": "Platform",
+    "dashboard": "Dashboard"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "Your overview will appear here."
+  },
+  "signIn": {
+    "title": "Sign in",
+    "description": "Sign-in arrives with the next change."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for does not exist.",
+    "back": "Back to the dashboard"
+  },
+  "preferences": {
+    "open": "Preferences",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "language": "Language"
+  },
+  "languages": {
+    "en": "English",
+    "de": "Deutsch",
+    "ar": "العربية",
+    "zh": "中文",
+    "ms": "Bahasa Melayu"
+  }
+}
