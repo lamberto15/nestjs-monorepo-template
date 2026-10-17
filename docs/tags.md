@@ -30,7 +30,8 @@ const tags = await this.tags.tagsOf('Note', rows.map((row) => row.id)); // Map<i
 - **Showing**: notes carry `tags: [{ id, name, color }]` (by name) in
   `GET /v1/notes/{id}`, the list and every response with the note;
   `fields=tags` picks them. The export has a `tags` column, the names
-  joined by `, `.
+  joined by `, ` (generated records with `tags` and `transfer` get it from
+  the platform); an import ignores that column.
 - **Audit**: `tag.created`, `tag.updated` (what changed), `tag.deleted`;
   a record's set changing is one `tags.changed` entry, the record as
   target (`note`), `from`, `to`, `added`, `removed` (tag ids).
