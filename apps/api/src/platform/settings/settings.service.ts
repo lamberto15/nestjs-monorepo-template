@@ -14,6 +14,7 @@ import {
   inTransaction,
 } from '../../core/database/transactions.js';
 import { REDIS } from '../../core/redis/redis.js';
+import { AccessPolicy } from '../../iam/access/policies.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import {
@@ -30,6 +31,10 @@ import {
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { resolveSetting, type SettingSource } from './setting-resolution.js';
 import type { SetSettingDto } from './setting.schemas.js';
+import {
+  type SettingValueSchema,
+  settingValueSchema,
+} from './setting-value-schema.js';
 import type {
   SettingDeclaration,
   SettingOverride,
@@ -37,8 +42,8 @@ import type {
 } from './setting.types.js';
 import { settingOverrides } from './settings.tables.js';
 
-/** A setting as a caller sees it. */
-export interface SettingView {
+/** A setting as a caller sees it: its value for them, what values it takes, and what they may change. */
+export interface SettingView extends SettingValueSchema {
   key: string;
   label: string;
   description: string | null;
@@ -48,6 +53,10 @@ export interface SettingView {
   value: unknown;
   source: SettingSource;
   default: unknown;
+  /** May set and remove its value at every scope it takes (PUT/DELETE /settings/{key}). */
+  canEdit: boolean;
+  /** May set their own value (PUT/DELETE /settings/{key}/mine). */
+  canSetMine: boolean;
 }
 
 type Row = typeof settingOverrides.$inferSelect;
@@ -79,6 +88,8 @@ const NOTHING: Cached = { version: undefined, loadedAt: 0, byKey: new Map() };
 export class SettingsService {
   private readonly logger = new Logger('Settings');
   private readonly byKey = new Map<string, SettingDeclaration<any>>();
+  /** Each declaration's value schema, derived once at start (setting-value-schema.ts). */
+  private readonly valueSchemas = new Map<string, SettingValueSchema>();
   /** Deployment limits on values (`restrict()`), by key. */
   private readonly restrictions = new Map<
     string,
@@ -101,6 +112,7 @@ export class SettingsService {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(PLATFORM_OPTIONS) options: PlatformOptions,
     private readonly audit: AuditService,
+    private readonly accessPolicy: AccessPolicy,
   ) {
     for (const declaration of options.settings ?? []) {
       if (this.byKey.has(declaration.key)) {
@@ -112,6 +124,10 @@ export class SettingsService {
         );
       }
       this.byKey.set(declaration.key, declaration);
+      this.valueSchemas.set(
+        declaration.key,
+        settingValueSchema(declaration.schema),
+      );
     }
   }
 
@@ -239,29 +255,45 @@ export class SettingsService {
 
   /** Every setting the caller may see, with their value for them. */
   async effective(principal: Principal, { all = false } = {}) {
+    const canEdit = await this.canEdit(principal);
     const views: SettingView[] = [];
     for (const declaration of this.byKey.values()) {
       if (declaration.public === false && !all) continue;
-      views.push(await this.view(declaration, principal));
+      views.push(await this.view(declaration, principal, canEdit));
     }
     return views;
+  }
+
+  /**
+   * Whether the principal may set and remove a setting's shared values
+   * (PUT and DELETE /settings/{key}): the very policy those routes check,
+   * the same at every scope, so one answer holds for all of them.
+   */
+  canEdit(principal: Principal) {
+    return this.accessPolicy.manageSettings(principal);
   }
 
   async view(
     declaration: SettingDeclaration<any>,
     principal: Principal,
+    canEdit?: boolean,
   ): Promise<SettingView> {
     const { value, source } = await this.resolve(declaration, principal);
+    const scopes = declaration.scopes ?? ['tenant'];
     return {
+      ...this.valueSchemas.get(declaration.key)!,
       key: declaration.key,
       label: declaration.label,
       description: declaration.description ?? null,
       flag: declaration.flag === true,
-      scopes: declaration.scopes ?? ['tenant'],
+      scopes,
       public: declaration.public !== false,
       value,
       source,
       default: declaration.default,
+      canEdit: canEdit ?? (await this.canEdit(principal)),
+      // PUT /settings/{key}/mine takes anyone, for a setting set per user.
+      canSetMine: scopes.includes('user'),
     };
   }
 

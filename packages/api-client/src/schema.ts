@@ -2251,6 +2251,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/principals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search the tenant's users and API clients, as principal keys
+         * @description `?q=` matches a part of a user's name or address, or of a client's name, whatever the case (`%` and `_` are the characters); `?kind=user|client`, `?active=true`, `?sort=label`. Cursor pages. Each item's `key` (`user:<id>`, `client:<id>`) is what a setting's user scope takes as `scopeId`. Clients only while API_CLIENTS is on.
+         */
+        get: operations["AccessController_principalsList_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/clients": {
         parameters: {
             query?: never;
@@ -4831,6 +4851,29 @@ export interface operations {
                              */
                             source: "tenant" | "team" | "user" | "rollout" | "default";
                             default: unknown;
+                            /**
+                             * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
+                             * @enum {string}
+                             */
+                            type: "boolean" | "number" | "string" | "enum" | "json";
+                            /** @description `enum`: the values it takes. */
+                            options?: (string | number)[];
+                            /** @description `number`: the smallest it takes. */
+                            min?: number;
+                            /** @description `number`: the largest it takes. */
+                            max?: number;
+                            /** @description `number`: whole numbers only. */
+                            integer?: boolean;
+                            /** @description `string`: the most characters it takes. */
+                            maxLength?: number;
+                            /** @description The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT. */
+                            schema: {
+                                [key: string]: unknown;
+                            };
+                            /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                            canEdit: boolean;
+                            /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
+                            canSetMine: boolean;
                         }[];
                     };
                 };
@@ -4884,6 +4927,29 @@ export interface operations {
                          */
                         source: "tenant" | "team" | "user" | "rollout" | "default";
                         default: unknown;
+                        /**
+                         * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
+                         * @enum {string}
+                         */
+                        type: "boolean" | "number" | "string" | "enum" | "json";
+                        /** @description `enum`: the values it takes. */
+                        options?: (string | number)[];
+                        /** @description `number`: the smallest it takes. */
+                        min?: number;
+                        /** @description `number`: the largest it takes. */
+                        max?: number;
+                        /** @description `number`: whole numbers only. */
+                        integer?: boolean;
+                        /** @description `string`: the most characters it takes. */
+                        maxLength?: number;
+                        /** @description The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT. */
+                        schema: {
+                            [key: string]: unknown;
+                        };
+                        /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                        canEdit: boolean;
+                        /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
+                        canSetMine: boolean;
                     };
                 };
             };
@@ -5067,6 +5133,29 @@ export interface operations {
                          */
                         source: "tenant" | "team" | "user" | "rollout" | "default";
                         default: unknown;
+                        /**
+                         * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
+                         * @enum {string}
+                         */
+                        type: "boolean" | "number" | "string" | "enum" | "json";
+                        /** @description `enum`: the values it takes. */
+                        options?: (string | number)[];
+                        /** @description `number`: the smallest it takes. */
+                        min?: number;
+                        /** @description `number`: the largest it takes. */
+                        max?: number;
+                        /** @description `number`: whole numbers only. */
+                        integer?: boolean;
+                        /** @description `string`: the most characters it takes. */
+                        maxLength?: number;
+                        /** @description The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT. */
+                        schema: {
+                            [key: string]: unknown;
+                        };
+                        /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                        canEdit: boolean;
+                        /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
+                        canSetMine: boolean;
                     };
                 };
             };
@@ -5132,6 +5221,29 @@ export interface operations {
                          */
                         source: "tenant" | "team" | "user" | "rollout" | "default";
                         default: unknown;
+                        /**
+                         * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
+                         * @enum {string}
+                         */
+                        type: "boolean" | "number" | "string" | "enum" | "json";
+                        /** @description `enum`: the values it takes. */
+                        options?: (string | number)[];
+                        /** @description `number`: the smallest it takes. */
+                        min?: number;
+                        /** @description `number`: the largest it takes. */
+                        max?: number;
+                        /** @description `number`: whole numbers only. */
+                        integer?: boolean;
+                        /** @description `string`: the most characters it takes. */
+                        maxLength?: number;
+                        /** @description The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT. */
+                        schema: {
+                            [key: string]: unknown;
+                        };
+                        /** @description You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating. */
+                        canEdit: boolean;
+                        /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
+                        canSetMine: boolean;
                     };
                 };
             };
@@ -11718,7 +11830,58 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        subjects: {
+                            /** @example Note */
+                            subject: string;
+                            label: string;
+                            /** @description The fields a permission may grant one by one. */
+                            fields: {
+                                field: string;
+                                label: string;
+                                /** @description Redacted in the audit log and revisions. */
+                                sensitive: boolean;
+                            }[];
+                            actions: {
+                                /** @example read */
+                                action: string;
+                                label: string;
+                                conditions: {
+                                    key: string;
+                                    label: string;
+                                    description: string;
+                                    /** @description The parameter the condition takes, if any. */
+                                    input: {
+                                        name: string;
+                                        label: string;
+                                        /** @enum {string} */
+                                        type: "text" | "cents";
+                                    } | null;
+                                }[];
+                            }[];
+                        }[];
+                        systemJobs: {
+                            key: string;
+                            /** @description `system:<key>`: the actor of its audit entries. */
+                            actor: string;
+                            label: string;
+                            description: string;
+                            permissions: {
+                                subject: string;
+                                action: string;
+                                conditions: {
+                                    /** @example mine */
+                                    key: string;
+                                    params?: {
+                                        [key: string]: unknown;
+                                    };
+                                }[];
+                                fields: string[] | null;
+                            }[];
+                        }[];
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -11749,7 +11912,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            tenantId: string;
+                            /** @description The code's name of a built-in or seeded role (`administrator`, `editor`); null for roles made through the API. */
+                            key: string | null;
+                            name: string;
+                            description: string;
+                            /** @description Built in: never edited nor deleted. */
+                            system: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            permissions: {
+                                subject: string;
+                                action: string;
+                                conditions: {
+                                    /** @example mine */
+                                    key: string;
+                                    params?: {
+                                        [key: string]: unknown;
+                                    };
+                                }[];
+                                /** @description Only these restrictable fields; absent: all of them. */
+                                fields?: string[];
+                            }[];
+                            /** @description The users who hold it. */
+                            members: number;
+                        }[];
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -11803,7 +12000,12 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -12006,7 +12208,54 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @enum {string} */
+                            kind: "user";
+                            email: string;
+                            name: string;
+                            emailVerified: boolean;
+                            /** @description The language they chose, or null. */
+                            locale: string | null;
+                            /** @description Their IANA time zone, or null (APP_TIMEZONE). */
+                            timezone: string | null;
+                            /** @description The membership in this tenant and the account, together. */
+                            active: boolean;
+                            /** @description false: invited, or signs in only with a provider. */
+                            hasPassword: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            roleIds: string[];
+                            roles: {
+                                /** Format: uuid */
+                                roleId: string;
+                                /**
+                                 * Format: date-time
+                                 * @description When the grant ends; null: never.
+                                 */
+                                expiresAt: string | null;
+                            }[];
+                            teamIds: string[];
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -12266,6 +12515,94 @@ export interface operations {
             };
             /** @description Yourself, or already impersonating. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_principalsList_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: q = */
+                q?: string;
+                /** @description Filter: kind = */
+                kind?: "user" | "client";
+                /** @description Filter: active = */
+                active?: "true" | "false";
+                /** @description Filter: label contains */
+                "label.contains"?: string;
+                /** @description Filter: label startsWith */
+                "label.startsWith"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"q","op":"eq","value":…},{…}]}. Fields and operators: q (eq); kind (eq); active (eq); label (contains, startsWith). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -label. Sortable: label. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: key,kind. Fields: id, key, kind, label, email, active. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /**
+                             * @description The principal's key: `user:<id>` or `client:<id>`, as `scopeId` of a setting's user scope and `actor` filters take it.
+                             * @example user:0190a1b2-0000-7000-8000-000000000000
+                             */
+                            key: string;
+                            /** @enum {string} */
+                            kind: "user" | "client";
+                            /** @description The user's name, or the client's. */
+                            label: string;
+                            /** @description A user's address; null for a client. */
+                            email: string | null;
+                            /** @description A user: the membership in this tenant and the account; a client: not revoked. */
+                            active: boolean;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12738,7 +13075,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            tenantId: string | null;
+                            /** Format: date-time */
+                            at: string;
+                            /** @description `user:<id>`, `client:<id>`, `system:<key>` or `anonymous`. */
+                            actor: string;
+                            actorLabel: string;
+                            /** @example note.created */
+                            action: string;
+                            targetType: string | null;
+                            targetId: string | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            ip: string | null;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
             };
             /** @description No session. */
             401: {
