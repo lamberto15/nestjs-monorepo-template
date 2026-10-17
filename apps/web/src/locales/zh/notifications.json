@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "title": "通知"
+  },
+  "loading": "加载中…",
+  "markAllRead": "全部标为已读",
+  "bell": {
+    "label_other": "通知，{{count}} 条未读",
+    "title": "通知",
+    "empty": "没有新通知。",
+    "viewAll": "打开收件箱"
+  },
+  "item": {
+    "unread": "未读",
+    "markRead": "标为已读",
+    "remove": "移除"
+  },
+  "inbox": {
+    "title": "通知",
+    "unread_other": "{{count}} 条未读",
+    "empty": "这里没有通知。",
+    "loadMore": "加载更多",
+    "filters": {
+      "status": "状态",
+      "type": "类型",
+      "all": "全部",
+      "unread": "未读",
+      "read": "已读",
+      "anyType": "任何类型"
+    }
+  },
+  "preferences": {
+    "title": "通知设置",
+    "description": "每种通知如何告知你。它们始终显示在应用中。",
+    "save": "保存",
+    "saved": "设置已保存。",
+    "mandatory": "必需：可以更改频率，但不能关闭。",
+    "alwaysOn": "始终开启",
+    "impersonating": "代为操作期间，对方的通知设置保持不变。",
+    "channels": {
+      "inApp": "应用内",
+      "email": "电子邮件",
+      "webhook": "Webhook"
+    },
+    "values": {
+      "email": {
+        "false": "关闭",
+        "immediate": "立即",
+        "hourly": "每小时摘要",
+        "daily": "每日摘要"
+      },
+      "webhook": {
+        "false": "关闭",
+        "true": "开启"
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "title": "Benachrichtigungen"
+  },
+  "loading": "Wird geladen …",
+  "markAllRead": "Alle als gelesen markieren",
+  "bell": {
+    "label_one": "Benachrichtigungen, {{count}} ungelesen",
+    "label_other": "Benachrichtigungen, {{count}} ungelesen",
+    "title": "Benachrichtigungen",
+    "empty": "Alles gelesen.",
+    "viewAll": "Posteingang öffnen"
+  },
+  "item": {
+    "unread": "Ungelesen",
+    "markRead": "Als gelesen markieren",
+    "remove": "Entfernen"
+  },
+  "inbox": {
+    "title": "Benachrichtigungen",
+    "unread_one": "{{count}} ungelesen",
+    "unread_other": "{{count}} ungelesen",
+    "empty": "Hier gibt es keine Benachrichtigungen.",
+    "loadMore": "Mehr laden",
+    "filters": {
+      "status": "Status",
+      "type": "Art",
+      "all": "Alle",
+      "unread": "Ungelesen",
+      "read": "Gelesen",
+      "anyType": "Jede Art"
+    }
+  },
+  "preferences": {
+    "title": "Benachrichtigungseinstellungen",
+    "description": "Wie Sie über jede Art von Benachrichtigung informiert werden. In der App erscheinen sie immer.",
+    "save": "Speichern",
+    "saved": "Einstellungen gespeichert.",
+    "mandatory": "Erforderlich: Sie können die Häufigkeit ändern, aber nicht ausschalten.",
+    "alwaysOn": "immer an",
+    "impersonating": "Solange Sie als jemand anderes handeln, bleiben dessen Benachrichtigungseinstellungen unverändert.",
+    "channels": {
+      "inApp": "In der App",
+      "email": "E-Mail",
+      "webhook": "Webhook"
+    },
+    "values": {
+      "email": {
+        "false": "Aus",
+        "immediate": "Sofort",
+        "hourly": "Stündliche Zusammenfassung",
+        "daily": "Tägliche Zusammenfassung"
+      },
+      "webhook": {
+        "false": "Aus",
+        "true": "An"
+      }
+    }
+  }
+}

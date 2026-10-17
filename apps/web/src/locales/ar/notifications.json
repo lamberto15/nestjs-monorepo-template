@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "title": "الإشعارات"
+  },
+  "loading": "جارٍ التحميل…",
+  "markAllRead": "تعليم الكل كمقروء",
+  "bell": {
+    "label_zero": "الإشعارات، {{count}} غير مقروء",
+    "label_one": "الإشعارات، {{count}} غير مقروء",
+    "label_two": "الإشعارات، {{count}} غير مقروء",
+    "label_few": "الإشعارات، {{count}} غير مقروءة",
+    "label_many": "الإشعارات، {{count}} غير مقروء",
+    "label_other": "الإشعارات، {{count}} غير مقروء",
+    "title": "الإشعارات",
+    "empty": "لا جديد.",
+    "viewAll": "فتح صندوق الوارد"
+  },
+  "item": {
+    "unread": "غير مقروء",
+    "markRead": "تعليم كمقروء",
+    "remove": "إزالة"
+  },
+  "inbox": {
+    "title": "الإشعارات",
+    "unread_zero": "{{count}} غير مقروء",
+    "unread_one": "{{count}} غير مقروء",
+    "unread_two": "{{count}} غير مقروء",
+    "unread_few": "{{count}} غير مقروءة",
+    "unread_many": "{{count}} غير مقروء",
+    "unread_other": "{{count}} غير مقروء",
+    "empty": "لا توجد إشعارات هنا.",
+    "loadMore": "تحميل المزيد",
+    "filters": {
+      "status": "الحالة",
+      "type": "النوع",
+      "all": "الكل",
+      "unread": "غير مقروءة",
+      "read": "مقروءة",
+      "anyType": "أي نوع"
+    }
+  },
+  "preferences": {
+    "title": "إعدادات الإشعارات",
+    "description": "كيف يتم إعلامك بكل نوع من الإشعارات. تظهر دائمًا في التطبيق.",
+    "save": "حفظ",
+    "saved": "تم حفظ الإعدادات.",
+    "mandatory": "إلزامي: يمكنك تغيير التكرار لكن لا يمكنك إيقافه.",
+    "alwaysOn": "مفعّل دائمًا",
+    "impersonating": "أثناء التصرف بصفة شخص آخر، تبقى إعدادات إشعاراته له.",
+    "channels": {
+      "inApp": "في التطبيق",
+      "email": "البريد الإلكتروني",
+      "webhook": "Webhook"
+    },
+    "values": {
+      "email": {
+        "false": "متوقف",
+        "immediate": "فورًا",
+        "hourly": "ملخص كل ساعة",
+        "daily": "ملخص يومي"
+      },
+      "webhook": {
+        "false": "متوقف",
+        "true": "مفعّل"
+      }
+    }
+  }
+}

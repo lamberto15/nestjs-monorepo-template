@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "title": "Notifications"
+  },
+  "loading": "Loading…",
+  "markAllRead": "Mark all as read",
+  "bell": {
+    "label_one": "Notifications, {{count}} unread",
+    "label_other": "Notifications, {{count}} unread",
+    "title": "Notifications",
+    "empty": "You're all caught up.",
+    "viewAll": "Open the inbox"
+  },
+  "item": {
+    "unread": "Unread",
+    "markRead": "Mark as read",
+    "remove": "Remove"
+  },
+  "inbox": {
+    "title": "Notifications",
+    "unread_one": "{{count}} unread",
+    "unread_other": "{{count}} unread",
+    "empty": "No notifications here.",
+    "loadMore": "Load more",
+    "filters": {
+      "status": "Status",
+      "type": "Type",
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read",
+      "anyType": "Any type"
+    }
+  },
+  "preferences": {
+    "title": "Notification settings",
+    "description": "How you are told of each kind of notification. They always show in the app.",
+    "save": "Save",
+    "saved": "Settings saved.",
+    "mandatory": "Required: you can change how often, not turn it off.",
+    "alwaysOn": "always on",
+    "impersonating": "While acting as someone, their notification settings stay theirs.",
+    "channels": {
+      "inApp": "In the app",
+      "email": "Email",
+      "webhook": "Webhook"
+    },
+    "values": {
+      "email": {
+        "false": "Off",
+        "immediate": "Immediately",
+        "hourly": "Hourly digest",
+        "daily": "Daily digest"
+      },
+      "webhook": {
+        "false": "Off",
+        "true": "On"
+      }
+    }
+  }
+}
