@@ -34,12 +34,18 @@ export function recordList(
         },
       }),
       ...fieldList(declaration.fields, table),
-      ownerId: { column: table.ownerId!, type: 'string', ops: ['eq'] },
+      ownerId: {
+        column: table.ownerId!,
+        type: 'string',
+        ops: ['eq'],
+        ref: 'principal',
+      },
       ...(declaration.team && {
         teamId: {
           column: table.teamId!,
           type: 'uuid',
           ops: ['eq', 'in', 'isNull'],
+          ref: 'team',
         },
       }),
       createdAt: {
