@@ -100,7 +100,20 @@ export class PermissionCatalog {
       }
     }
     this.clientPermissions = all.flatMap((d) => d.clientPermissions ?? []);
-    this.seedRoles = all.flatMap((d) => d.seedRoles ?? []);
+    // Seed roles of one key from several declarations are one role (each
+    // feature adds its permissions to `editor`, `viewer`…): the first
+    // declaration's name and description, every declaration's permissions.
+    const roles = new Map<string, SeedRole>();
+    for (const role of all.flatMap((d) => d.seedRoles ?? [])) {
+      const seen = roles.get(role.key);
+      roles.set(
+        role.key,
+        seen
+          ? { ...seen, permissions: [...seen.permissions, ...role.permissions] }
+          : role,
+      );
+    }
+    this.seedRoles = [...roles.values()];
     for (const permission of [
       ...this.clientPermissions,
       ...this.seedRoles.flatMap((role) => role.permissions),

@@ -430,6 +430,10 @@ pages, ETags. Usage, the bell-icon recipe included:
   their merge base, and its new journal entries must still come after
   `main`'s), or `node tools/migration-lint/lint.mjs apps/api/drizzle/*.sql` for
   given files; its tests: `node --test tools/migration-lint/lint.test.mjs`.
+- **A new feature:** `pnpm feature:add <plural> --fields "…"`
+  (`tools/feature/`, [adding a feature](adding-a-feature.md)); its tests:
+  `node --test tools/feature/add.test.mjs`. CI's `feature-smoke` job
+  generates two features with every option and runs their generated tests.
 - Entity keys are `uuid` with `DEFAULT uuidv7()` (PostgreSQL 18): time-ordered,
   so they index well and serve as pagination cursors. Use `uuidPk()`.
 - Services read the database through the transaction host and write with

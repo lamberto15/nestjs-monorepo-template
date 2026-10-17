@@ -34,6 +34,36 @@ function canDelete(
 }
 
 describe('PermissionCatalog', () => {
+  it('merges the seed roles several declarations give one key', () => {
+    const invoices = definePermissions({
+      subjects: {
+        Invoice: {
+          label: 'Invoices',
+          conditions: {},
+          actions: { read: { label: 'See invoices', conditions: [] } },
+        },
+      },
+      seedRoles: [
+        {
+          key: 'viewer',
+          name: 'Invoice viewer',
+          description: 'Sees invoices.',
+          permissions: [{ subject: 'Invoice', action: 'read', conditions: [] }],
+        },
+      ],
+    });
+    const merged = new PermissionCatalog({
+      permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS, invoices],
+    });
+    const viewers = merged.seedRoles.filter((role) => role.key === 'viewer');
+    expect(viewers).toHaveLength(1);
+    // The first declaration's name, every declaration's permissions.
+    expect(viewers[0]!.name).toBe('Viewer');
+    expect(
+      viewers[0]!.permissions.map((p) => `${p.subject}.${p.action}`),
+    ).toEqual(expect.arrayContaining(['Note.read', 'Invoice.read']));
+  });
+
   it('merges what every declaration brings', () => {
     expect(Object.keys(catalog.subjects)).toEqual([
       'Access',

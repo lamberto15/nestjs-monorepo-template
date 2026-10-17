@@ -1,9 +1,44 @@
 # Adding a feature
 
 Every feature is built the same way, so the API is uniform for its clients
-and the code for whoever reads it. Copy `apps/api/src/features/notes/` and keep its
-shape; this page is the standard it follows. Check the NestJS docs and the
-installed `@nestjs/*` packages first: use what they offer before writing it.
+and the code for whoever reads it. Check the NestJS docs and the installed
+`@nestjs/*` packages first: use what they offer before writing it.
+
+## Start with the generator
+
+```bash
+pnpm feature:add invoices --fields "title:string,total:money,dueOn:date?,status:enum(draft|sent|paid)"
+pnpm db:generate        # its table's migration (new tables: drizzle-kit asks nothing)
+pnpm client:generate    # the typed client
+```
+
+It writes everything below that every feature has, so only the business
+logic is left to write (`<x>.service.ts`, where it says "Business logic"):
+the table (tenant, owner, timestamps, recycle bin, indexes), the schemas,
+the list's filters and sorts, the permissions (`mine`, with `--team`
+`inMyTeams`; added to the `editor` and `viewer` seed roles, which merge
+across features), the policy, the audited service, the controller
+(idempotent create, ETags, If-Match, field checks), the record-route spec,
+the module, `<x>.feature.ts`, and `test/<x>.e2e-spec.ts`. It appends the
+feature to `features/index.ts`, `features/tables.ts` and the OpenAPI
+test's path list.
+
+- **Field types:** `string`, `text`, `int`, `decimal`, `money` (minor units and
+  currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
+  `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, a key
+  within the tenant). `?` makes a field optional, `!unique` (string, int)
+  unique per tenant (a duplicate is a 409 `<x>_taken`).
+- **Options:** `--team` (records carry their creator's team),
+  `--no-soft-delete` (deleted for good, no recycle bin), `--singular <name>`
+  (when it can't be derived: `people` → `--singular person`),
+  `--description "…"` (the Swagger tag's).
+- **Adding seed roles to an existing database:** the roles are written when a
+  tenant is made; an existing tenant's administrators grant the new
+  permissions through the access API.
+
+`apps/api/src/features/notes/` is the hand-written example of everything
+this page describes, business logic included; the sections below are the
+standard both follow.
 
 ```
 features/notes/
