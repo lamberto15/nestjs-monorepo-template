@@ -8,6 +8,8 @@ import {
   Subscribe,
 } from '@tanstack/react-table';
 import { cn } from 'cn';
+// Patched in (not in the registry): the texts go through react-i18next (`list.table.*`).
+import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -77,6 +79,7 @@ function DataTableColumnHeaderMenu<TData extends RowData, TValue>({
   sortDirection,
   ...props
 }: DataTableColumnHeaderMenuProps<TData, TValue>) {
+  const { t } = useTranslation();
   const dir = useDirection();
 
   function onSortDirectionChange(direction: SortDirection) {
@@ -120,7 +123,7 @@ function DataTableColumnHeaderMenu<TData extends RowData, TValue>({
               onClick={() => onSortDirectionChange('asc')}
             >
               <ChevronUp />
-              Asc
+              {t('list.table.asc')}
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               className="[&_svg]:text-muted-foreground"
@@ -128,7 +131,7 @@ function DataTableColumnHeaderMenu<TData extends RowData, TValue>({
               onClick={() => onSortDirectionChange('desc')}
             >
               <ChevronDown />
-              Desc
+              {t('list.table.desc')}
             </DropdownMenuCheckboxItem>
           </>
         )}
@@ -139,7 +142,7 @@ function DataTableColumnHeaderMenu<TData extends RowData, TValue>({
             onClick={() => column.toggleVisibility(false)}
           >
             <EyeOff />
-            Hide
+            {t('list.table.hide')}
           </DropdownMenuCheckboxItem>
         )}
       </DropdownMenuContent>
