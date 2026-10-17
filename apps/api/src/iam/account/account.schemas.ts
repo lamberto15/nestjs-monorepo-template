@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { t } from '@nestjs/i18n';
 import { z } from 'zod';
 import { isTimeZone } from '../../core/config/env.helpers.js';
+import { redirectPath } from '../../core/http/redirect-path.js';
 import type { Principal, UserPrincipal } from '../auth/principal.js';
 
 /** Passwords: 12 to 128 characters (NIST 800-63B: length over composition rules). */
@@ -20,12 +21,8 @@ export const timezone = z
   .meta({ example: 'Europe/Berlin' });
 /** A BCP 47 language tag; the route checks it against LOCALES. */
 export const locale = z.string().min(2).max(35).meta({ example: 'de' });
-/** Where to send the browser after a sign-in by link or provider: a path of the web app. */
-export const redirectTo = z
-  .string()
-  .max(512)
-  .regex(/^\/(?!\/)/, 'must be a relative path')
-  .optional();
+/** Where to send the browser after a sign-in by link or provider: a path of the web app (`isSafeRedirectPath`). */
+export const redirectTo = redirectPath.optional();
 
 export const userSchema = z.object({
   kind: z.literal('user'),

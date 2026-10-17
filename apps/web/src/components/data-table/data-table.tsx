@@ -11,6 +11,8 @@ import {
   Subscribe,
 } from '@tanstack/react-table';
 import { cn } from 'cn';
+// Patched in (not in the registry): the texts go through react-i18next (`list.table.*`).
+import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -182,6 +184,7 @@ interface DataTableBodyProps<TData extends RowData> {
 function DataTableBody<TData extends RowData>({
   table,
 }: DataTableBodyProps<TData>) {
+  const { t } = useTranslation();
   const rows = table.getRowModel().rows;
 
   if (!rows.length) {
@@ -194,7 +197,7 @@ function DataTableBody<TData extends RowData>({
                 colSpan={table.getVisibleLeafColumns().length || 1}
                 className="h-24 text-center"
               >
-                No results.
+                {t('list.table.noResults')}
               </TableCell>
             </TableRow>
           </TableBody>

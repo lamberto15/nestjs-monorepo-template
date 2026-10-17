@@ -8,6 +8,8 @@ import {
   Subscribe,
 } from '@tanstack/react-table';
 import { cn } from 'cn';
+// Patched in (not in the registry): the texts go through react-i18next (`list.table.*`).
+import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -83,6 +85,7 @@ function DataTableSortMenuContent<TData extends RowData>({
 }: DataTableSortMenuProps<TData> & {
   sorting: SortingState;
 }) {
+  const { t } = useTranslation();
   const dir = useDirection();
   const id = React.useId();
   const labelId = React.useId();
@@ -205,7 +208,7 @@ function DataTableSortMenuContent<TData extends RowData>({
           }
         >
           <ArrowDownUp className="text-muted-foreground" />
-          Sort
+          {t('list.table.sort')}
           {sorting.length > 0 && (
             <Badge
               variant="secondary"
@@ -227,7 +230,9 @@ function DataTableSortMenuContent<TData extends RowData>({
         >
           <div className="flex flex-col gap-1">
             <h4 id={labelId} className="leading-none font-medium">
-              {sorting.length > 0 ? 'Sort by' : 'No sorting applied'}
+              {sorting.length > 0
+                ? t('list.table.sortBy')
+                : t('list.table.noSorting')}
             </h4>
             <p
               id={descriptionId}
@@ -237,8 +242,8 @@ function DataTableSortMenuContent<TData extends RowData>({
               )}
             >
               {sorting.length > 0
-                ? 'Modify sorting to organize your rows.'
-                : 'Add sorting to organize your rows.'}
+                ? t('list.table.modifySorting')
+                : t('list.table.addSortingHint')}
             </p>
           </div>
           {sorting.length > 0 && (
@@ -269,11 +274,11 @@ function DataTableSortMenuContent<TData extends RowData>({
               onClick={onSortAdd}
               disabled={columns.length === 0}
             >
-              Add sort
+              {t('list.table.addSort')}
             </Button>
             {sorting.length > 0 && (
               <Button variant="outline" onClick={onSortingReset}>
-                Reset sorting
+                {t('list.table.resetSorting')}
               </Button>
             )}
           </div>
@@ -308,6 +313,7 @@ function DataTableSortItem({
   onSortUpdate,
   onSortRemove,
 }: DataTableSortItemProps) {
+  const { t } = useTranslation();
   const dir = useDirection();
   const fieldListboxId = `${sortItemId}-field-listbox`;
   const fieldTriggerId = `${sortItemId}-field-trigger`;
@@ -378,9 +384,9 @@ function DataTableSortItem({
           id={fieldListboxId}
           className="w-(--anchor-width)"
         >
-          <FacetedInput placeholder="Search fields..." />
+          <FacetedInput placeholder={t('list.table.searchFields')} />
           <FacetedList>
-            <FacetedEmpty>No fields found.</FacetedEmpty>
+            <FacetedEmpty>{t('list.table.noFields')}</FacetedEmpty>
             <FacetedGroup>
               {columns.map((column) => (
                 <FacetedItem
@@ -407,10 +413,12 @@ function DataTableSortItem({
       >
         <SelectTrigger
           aria-controls={directionListboxId}
-          aria-label={`${label} sort direction`}
+          aria-label={t('list.table.sortDirection', { label })}
           className="w-24"
         >
-          <SelectValue />
+          <SelectValue>
+            {(value: string) => t(`list.table.${value}`)}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent
           dir={dir}
@@ -420,7 +428,7 @@ function DataTableSortItem({
           <SelectGroup>
             {SORT_ORDERS.map((order) => (
               <SelectItem key={order.value} value={order.value}>
-                {order.label}
+                {t(`list.table.${order.value}`)}
               </SelectItem>
             ))}
           </SelectGroup>
@@ -428,7 +436,7 @@ function DataTableSortItem({
       </Select>
       <Button
         aria-controls={sortItemId}
-        aria-label={`Remove ${label} sort`}
+        aria-label={t('list.table.removeSort', { label })}
         variant="outline"
         size="icon"
         className="shrink-0"
@@ -437,7 +445,7 @@ function DataTableSortItem({
         <Trash2 />
       </Button>
       <SortableItemHandle
-        aria-label={`Reorder ${label} sort`}
+        aria-label={t('list.table.reorderSort', { label })}
         render={<Button variant="outline" size="icon" className="shrink-0" />}
       >
         <GripVertical />

@@ -88,12 +88,24 @@ export interface FilterSpec {
 }
 
 /**
+ * A field that points at a tag (docs/tags.md: `?tag=<id>`, `?tag.in=<id>,<id>`):
+ * a uuid named `tag`. The list metadata has no flag for it, so the name and
+ * type mark it; its filter becomes a picker of the tenant's tags.
+ */
+export function isTagField(field: ListField): boolean {
+  return !field.custom && field.name === 'tag' && field.type === 'uuid';
+}
+
+/**
  * The filter menu's variant and operators for a field, from the operators the
  * API lists for it; undefined when it can't be filtered (sort only), or only
- * with operators the menu has no equivalent for (`startsWith`, `endsWith`).
+ * with operators the menu has no equivalent for.
  * The menu's "relative to today" is never offered: the API has no such operator.
  */
-export function filterSpec(field: ListField): FilterSpec | undefined {
+export function filterSpec(
+  field: ListField,
+  tagOptions: FilterOption[] = [],
+): FilterSpec | undefined {
   const has = new Set<ApiOperator>(field.operators);
   const operators: FilterOperator[] = [];
   const add = (condition: boolean, operator: FilterOperator) => {
@@ -105,6 +117,17 @@ export function filterSpec(field: ListField): FilterSpec | undefined {
   };
   let variant: FilterVariant;
   let options: FilterOption[] | undefined;
+
+  if (isTagField(field)) {
+    // A picker of the tenant's tags: `in` takes several, `eq` one.
+    const multiple = has.has('in');
+    if (!multiple && !has.has('eq')) return undefined;
+    return {
+      variant: multiple ? 'multiSelect' : 'select',
+      operators: [multiple ? 'inArray' : 'eq'],
+      options: tagOptions,
+    };
+  }
 
   switch (field.type) {
     case 'enum':
@@ -157,6 +180,8 @@ export function filterSpec(field: ListField): FilterSpec | undefined {
       add(has.has('notContains'), 'notILike');
       add(has.has('eq'), 'eq');
       add(has.has('ne'), 'ne');
+      add(has.has('startsWith'), 'startsWith');
+      add(has.has('endsWith'), 'endsWith');
       empty();
   }
   return operators.length > 0
@@ -167,16 +192,18 @@ export function filterSpec(field: ListField): FilterSpec | undefined {
 /**
  * The caller's columns (cells, headers) completed from the list's metadata:
  * which are filterable (variant, operators, options) and sortable. A column
- * the list doesn't know is neither. `meta.label` stays the caller's.
+ * the list doesn't know is neither. `meta.label` stays the caller's. The tag
+ * filter's options are the tenant's tags.
  */
 export function withListMeta<TData extends RowData>(
   columns: ListColumn<TData>[],
   description: ListDescription,
+  tagOptions?: FilterOption[],
 ): ListColumn<TData>[] {
   const fields = new Map(description.fields.map((f) => [f.name, f]));
   return columns.map((column) => {
     const field = column.id ? fields.get(column.id) : undefined;
-    const spec = field && filterSpec(field);
+    const spec = field && filterSpec(field, tagOptions);
     return {
       ...column,
       enableSorting: field?.sortable ?? false,
@@ -300,6 +327,8 @@ function dateCondition(
 const SIMPLE: Partial<Record<FilterOperator, ApiOperator>> = {
   iLike: 'contains',
   notILike: 'notContains',
+  startsWith: 'startsWith',
+  endsWith: 'endsWith',
   eq: 'eq',
   ne: 'ne',
   inArray: 'in',
