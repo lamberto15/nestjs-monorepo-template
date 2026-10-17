@@ -6,7 +6,11 @@ import { cn } from 'cn';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
-import type { ColumnFilterItem, JoinOperator } from '@/lib/data-table-types';
+import type {
+  ColumnFilterItem,
+  FilterOperator,
+  JoinOperator,
+} from '@/lib/data-table-types';
 
 import {
   getDefaultFilter,
@@ -366,6 +370,7 @@ function DataTableFilterItem<TData extends RowData>({
       <FilterOperatorSelector
         filter={filter}
         label={label}
+        allowed={column.columnDef.meta?.operators}
         listboxId={`${filterItemId}-operator-listbox`}
         onFilterUpdate={onFilterUpdate}
         {...getSelectorProps('operator')}
@@ -527,12 +532,14 @@ function FilterFieldSelector<TData extends RowData>({
 
 interface FilterOperatorSelectorProps extends FilterSelectorProps {
   label: string;
+  allowed?: FilterOperator[];
   listboxId: string;
 }
 
 function FilterOperatorSelector({
   filter,
   label,
+  allowed,
   listboxId,
   open,
   onOpenChange,
@@ -563,7 +570,7 @@ function FilterOperatorSelector({
       </SelectTrigger>
       <SelectContent dir={dir} id={listboxId}>
         <SelectGroup>
-          {getFilterOperators(filter.variant).map((operator) => (
+          {getFilterOperators(filter.variant, allowed).map((operator) => (
             <SelectItem
               key={operator.value}
               value={operator.value}

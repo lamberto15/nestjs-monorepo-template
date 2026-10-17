@@ -1,8 +1,11 @@
 {
-  "app": { "name": "App" },
+  "app": {
+    "name": "App"
+  },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "notes": "Notes"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -31,5 +34,33 @@
     "ar": "العربية",
     "zh": "中文",
     "ms": "Bahasa Melayu"
+  },
+  "list": {
+    "loading": "Loading",
+    "search": "Search",
+    "empty": {
+      "title": "Nothing here yet",
+      "description": "Records will appear here once they exist."
+    },
+    "error": {
+      "title": "The list could not be loaded",
+      "generic": "Something went wrong. Try again.",
+      "retry": "Try again"
+    }
+  },
+  "notes": {
+    "title": "Notes",
+    "columns": {
+      "number": "Number",
+      "title": "Title",
+      "status": "Status",
+      "tags": "Tags",
+      "createdAt": "Created",
+      "publishedAt": "Published"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published"
+    }
   }
 }

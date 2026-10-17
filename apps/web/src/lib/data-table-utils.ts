@@ -192,12 +192,23 @@ export function getColumnSizingStyle<TData extends RowData>(
   return style;
 }
 
-export function getFilterOperators(filterVariant: FilterVariant) {
-  return FILTER_OPERATORS_BY_VARIANT[filterVariant] ?? [];
+// `allowed` is patched in (see DataTableColumnMeta.operators): the column's
+// own operators, which the server lists, narrow the variant's.
+export function getFilterOperators(
+  filterVariant: FilterVariant,
+  allowed?: FilterOperator[],
+) {
+  const operators = FILTER_OPERATORS_BY_VARIANT[filterVariant] ?? [];
+  return allowed
+    ? operators.filter((operator) => allowed.includes(operator.value))
+    : operators;
 }
 
-export function getDefaultFilterOperator(filterVariant: FilterVariant) {
-  const operators = getFilterOperators(filterVariant);
+export function getDefaultFilterOperator(
+  filterVariant: FilterVariant,
+  allowed?: FilterOperator[],
+) {
+  const operators = getFilterOperators(filterVariant, allowed);
 
   return operators[0]?.value ?? (filterVariant === 'text' ? 'iLike' : 'eq');
 }
@@ -245,7 +256,10 @@ export function getDefaultFilter<TData extends RowData>(
   return {
     id: column.id,
     variant,
-    operator: getDefaultFilterOperator(variant),
+    operator: getDefaultFilterOperator(
+      variant,
+      column.columnDef.meta?.operators,
+    ),
     value: '',
   };
 }

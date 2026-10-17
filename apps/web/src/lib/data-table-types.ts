@@ -16,6 +16,12 @@ export interface DataTableColumnMeta {
   label?: string;
   placeholder?: string;
   variant?: FilterVariant;
+  /**
+   * Patched in (not in the registry): the operators the filter menu offers
+   * for this column. The API accepts only the operators GET /v1/lists/{subject}
+   * lists for a field, so offering others gives a 400.
+   */
+  operators?: FilterOperator[];
   options?: FilterOption[];
   range?: [number, number];
   unit?: string;

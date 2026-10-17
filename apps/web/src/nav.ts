@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboardIcon } from 'lucide-react';
+import { LayoutDashboardIcon, StickyNoteIcon } from 'lucide-react';
 import type { FileRoutesByTo } from '@/routeTree.gen';
 
 export type NavItem = {
@@ -15,4 +15,10 @@ export type NavItem = {
 
 export const nav: NavItem[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboardIcon },
+  {
+    to: '/notes',
+    label: 'nav.notes',
+    icon: StickyNoteIcon,
+    permission: 'Note.read',
+  },
 ];
