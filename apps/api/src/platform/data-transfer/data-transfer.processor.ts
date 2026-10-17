@@ -279,12 +279,22 @@ export class DataTransferProcessor extends TenantWorkerHost<
       : importer.schema;
     // The file's date columns, as the template names them: their Excel
     // date cells are read as days.
+    const columns = importer.templateColumns
+      ? await importer.templateColumns(principal)
+      : columnsOf(importer.schema);
     const dateColumns = new Set(
-      (importer.templateColumns
-        ? await importer.templateColumns(principal)
-        : columnsOf(importer.schema)
-      )
-        .filter((column) => column.type === 'date')
+      columns.filter((column) => column.type === 'date').map((c) => c.name),
+    );
+    // An empty cell of an optional column that can't hold an empty value
+    // (a number, a text with a minimum length) is no value: the file an
+    // export wrote imports as it is.
+    const blankIsAbsent = new Set(
+      columns
+        .filter(
+          (column) =>
+            !column.required &&
+            (column.type !== 'text' || (column.min ?? 0) > 0),
+        )
         .map((column) => column.name),
     );
     const action = importer.action ?? 'create';
@@ -329,6 +339,9 @@ export class DataTransferProcessor extends TenantWorkerHost<
         }
         // Each row as one POST of the feature: its schema, the field-level
         // permissions, then the same service call (its 4xx refuses the row).
+        for (const name of blankIsAbsent) {
+          if (record[name] === '') delete record[name];
+        }
         const parsed = schema.safeParse(record);
         if (!parsed.success) {
           refuse(

@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { and, eq, isNull, type SQL } from 'drizzle-orm';
 import type {
   Database,
   Transaction,
 } from '../../../src/core/database/drizzle.js';
+import {
+  pgErrorCode,
+  UNIQUE_VIOLATION,
+} from '../../../src/core/database/errors.js';
 import {
   database,
   type DrizzleTransactions,
@@ -69,7 +73,8 @@ export class TestItemsService {
           ...(await this.lifecycle.creating(tx)),
           ...values,
         } as typeof testItems.$inferInsert)
-        .returning();
+        .returning()
+        .catch(taken);
       await this.lifecycle.created(tx, { row: row!, owner, by });
       // Business logic: what else happens with it, in this transaction (events, notifications).
       await this.audit.recordChange(
@@ -128,7 +133,8 @@ export class TestItemsService {
         .update(testItems)
         .set(changes)
         .where(eq(testItems.id, row.id))
-        .returning();
+        .returning()
+        .catch(taken);
       await this.lifecycle.updated(tx, {
         before: row,
         after: updated!,
@@ -229,7 +235,9 @@ export class TestItemsService {
   /** Out of the recycle bin (POST /v1/test-items/{id}/restore, a bulk restore). */
   async restore(by: Principal, row: TestItem, ip?: string) {
     return inTransaction(this.txHost, async (tx) => {
-      const restored = await this.records.restore<TestItem>(tx, row);
+      const restored = await this.records
+        .restore<TestItem>(tx, row)
+        .catch(taken);
       await this.audit.recordChange(
         by,
         TEST_ITEM_RESOURCE,
@@ -244,4 +252,15 @@ export class TestItemsService {
       return restored;
     });
   }
+}
+
+/** A unique field's value another one has already: a 409, not a 500. */
+function taken(error: unknown): never {
+  if (pgErrorCode(error) === UNIQUE_VIOLATION) {
+    throw new ConflictException({
+      code: 'testItem_taken',
+      message: 'A test item with this code exists already.',
+    });
+  }
+  throw error;
 }

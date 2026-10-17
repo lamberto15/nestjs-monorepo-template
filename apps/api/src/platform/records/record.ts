@@ -251,7 +251,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
       ...(takes(declaration, 'search')
         ? [index(`${name}_search_idx`).using('gin', t.search)]
         : []),
-      ...fieldExtras(name, t, declaration.fields),
+      ...fieldExtras(name, t, declaration.fields, declaration.softDelete),
       // Unique per tenant; empty for records from before the capability (a number is never reused).
       ...(takes(declaration, 'numbered')
         ? [uniqueIndex(`${name}_number_idx`).on(t.tenantId, t.number)]

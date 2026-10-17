@@ -6,7 +6,8 @@
       "number": "Number",
       "title": "Title",
       "body": "Body",
-      "publishedAt": "Published at"
+      "publishedAt": "Published at",
+      "code": "Code"
     }
   }
 }

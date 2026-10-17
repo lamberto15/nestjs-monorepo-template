@@ -10,6 +10,9 @@ import {
 } from '../src/platform/records/record.js';
 import { type TestApp, webhookReceiver } from './support.js';
 
+const lowerFirst = (text: string) =>
+  text.charAt(0).toLowerCase() + text.slice(1);
+
 /**
  * The tests of each capability a record declares (platform/records), and of
  * its recycle bin (`softDelete`) and teams (`team`), for a feature's e2e
@@ -520,6 +523,24 @@ export function describeCapabilities(
           .expect(200)
       ).body.items as { id: string }[];
       expect(listed.map((item) => item.id)).toEqual([id]);
+    });
+  }
+
+  const unique = Object.entries(record.fields).find(
+    ([, f]) => f.options.unique,
+  )?.[0];
+  if (record.softDelete && unique) {
+    it("frees a deleted record's unique value, and refuses to restore it once taken", async () => {
+      const admin = node().admin();
+      const body = samples.body();
+      const create = (data: Record<string, unknown>) =>
+        admin.post(path).set('Idempotency-Key', randomUUID()).send(data);
+      const first = (await create(body).expect(201)).body.id as string;
+      await admin.delete(`${path}/${first}`).expect(204);
+      // The bin doesn't hold the value: a new record takes it.
+      await create({ ...samples.body(), [unique]: body[unique] }).expect(201);
+      const taken = await admin.post(`${path}/${first}/restore`).expect(409);
+      expect(taken.body.code).toBe(`${lowerFirst(record.subject)}_taken`);
     });
   }
 }

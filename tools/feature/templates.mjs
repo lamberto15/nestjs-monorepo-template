@@ -260,7 +260,7 @@ export function service({ t, fields }) {
     `  /** Out of the recycle bin (POST /v1/${t.plural}/{id}/restore, a bulk restore). */`,
     `  async restore(by: Principal, row: ${S}, ip?: string) {`,
     `    return inTransaction(this.txHost, async (tx) => {`,
-    `      const restored = await this.records.restore<${S}>(tx, row);`,
+    `      const restored = await this.records.restore<${S}>(tx, row)${uniques.length ? '.catch(taken)' : ''};`,
     `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'restored', id: row.id, after: recordView(${t.SINGULAR}, restored) }, tx, ip);`,
     `      return restored;`,
     `    });`,
