@@ -25,6 +25,8 @@ import type { RecordSchemas } from './record.schemas.js';
 
 /** A feature module's record declaration (record-parts.ts provides it). */
 export const RECORD_DECLARATION = Symbol('RECORD_DECLARATION');
+/** A feature module's record table (record-parts.ts provides it, for RecordStore). */
+export const RECORD_TABLE = Symbol('RECORD_TABLE');
 /** A feature module's record contract: its service, policy, table, list and schemas. */
 export const RECORD_CONTRACT = Symbol('RECORD_CONTRACT');
 
@@ -232,12 +234,12 @@ export class RecordLifecycle {
   }
 
   /** `row` as it is once deleted (in the recycle bin, or as it was when deleted for good). */
-  async deleted(tx: Transaction, { row }: { row: RecordRow; by: Principal }) {
+  async deleted(tx: Transaction, { row }: { row: RecordRow }) {
     await this.emit(tx, 'deleted', row);
   }
 
   /** `row` as it is once restored from the recycle bin. */
-  async restored(tx: Transaction, { row }: { row: RecordRow; by: Principal }) {
+  async restored(tx: Transaction, { row }: { row: RecordRow }) {
     await this.emit(tx, 'restored', row);
   }
 }

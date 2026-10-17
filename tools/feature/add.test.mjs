@@ -239,14 +239,15 @@ describe('addFeature', () => {
       'utf8',
     );
     assert.match(record, /'tags',[\s\S]*'transfer',[\s\S]*'custom'/);
-    // Custom fields: derived from the declaration, nothing of the feature's own.
+    // Custom fields: derived from the declaration, nothing of the feature's own
+    // (recordPermissions: the `custom` permission field; recordResource: its audit).
     assert.match(
       readFileSync(api('src/features/tickets/ticket.policy.ts'), 'utf8'),
-      /\.\.\.recordPermissionFields\(TICKET\)/,
+      /recordPermissions\(TICKET, tickets\)/,
     );
     assert.match(
       readFileSync(api('src/features/tickets/ticket.resource.ts'), 'utf8'),
-      /expand: \['custom'\]/,
+      /recordResource\(TICKET, tickets\)/,
     );
     assert.match(
       readFileSync(api('src/features/tickets/tickets.service.ts'), 'utf8'),
@@ -298,14 +299,77 @@ describe('addFeature', () => {
       readFileSync(api('src/i18n/en/documents.json'), 'utf8'),
     );
     assert.equal(documents.quote.fields.number, 'Number');
-    // The service takes the number and tells the lifecycle of every write.
+    // The service takes the number and deletes through RecordStore.
     const service = readFileSync(
       api('src/features/quotes/quotes.service.ts'),
       'utf8',
     );
     assert.match(service, /lifecycle\.creating\(tx\)/);
-    assert.match(service, /lifecycle\.deleted\(tx/);
-    assert.match(service, /lifecycle\.restored\(tx/);
+    assert.match(service, /records\.delete\(tx/);
+  });
+
+  it('writes the same code whatever softDelete and team say: only the declaration holds them', async () => {
+    await addFeature(root, {
+      name: 'estimates',
+      fields: 'title:string,total:money,status:enum(draft|paid)',
+      softDelete: false,
+      team: true,
+    });
+    const as = (text) =>
+      text
+        .replaceAll('estimates', 'invoices')
+        .replaceAll('estimate', 'invoice')
+        .replaceAll('Estimate', 'Invoice')
+        .replaceAll('ESTIMATE', 'INVOICE')
+        // Prettier wraps by length: the names' differ.
+        .replace(/\s+/g, '')
+        .replace(/,(?=[)\]}])/g, '');
+    for (const [estimates, invoices] of [
+      [
+        'src/features/estimates/estimates.service.ts',
+        'src/features/invoices/invoices.service.ts',
+      ],
+      [
+        'src/features/estimates/estimates.controller.ts',
+        'src/features/invoices/invoices.controller.ts',
+      ],
+      [
+        'src/features/estimates/estimate.policy.ts',
+        'src/features/invoices/invoice.policy.ts',
+      ],
+      [
+        'src/features/estimates/estimate.resource.ts',
+        'src/features/invoices/invoice.resource.ts',
+      ],
+      [
+        'src/features/estimates/estimates.module.ts',
+        'src/features/invoices/invoices.module.ts',
+      ],
+      ['test/estimates.e2e-spec.ts', 'test/invoices.e2e-spec.ts'],
+    ]) {
+      assert.equal(
+        as(readFileSync(api(estimates), 'utf8')),
+        as(readFileSync(api(invoices), 'utf8')),
+        estimates,
+      );
+    }
+    const record = readFileSync(
+      api('src/features/estimates/estimate.record.ts'),
+      'utf8',
+    );
+    assert.match(record, /softDelete: false,/);
+    assert.match(record, /team: true,/);
+    // The platform's: no recycle bin or team coded in the feature.
+    const service = readFileSync(
+      api('src/features/estimates/estimates.service.ts'),
+      'utf8',
+    );
+    assert.match(service, /this\.records\.owner\(owner, tx\)/);
+    assert.doesNotMatch(service, /deletedAt|teamsOf/);
+    assert.match(
+      readFileSync(api('src/features/estimates/estimate.policy.ts'), 'utf8'),
+      /recordPermissions\(ESTIMATE, estimates\)[\s\S]*extends RecordPolicy \{\}/,
+    );
   });
 
   it("refuses a reference to a table others can't point at", async () => {
@@ -422,6 +486,82 @@ describe('feature:sync', () => {
       /the column title has no field any more/,
     );
     edit('  fields: {\n', '  fields: {\n    title: field.string(),\n');
+  });
+
+  it("turns team on: its column is a migration (with a warning), its code the platform's", () => {
+    edit('  team: false,', '  team: true,');
+    const result = syncFeature(api(), 'orders');
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.generate, true);
+    assert.match(
+      result.warnings.join('\n'),
+      /team turned on: existing records get no team/,
+    );
+    assert.equal(
+      syncFeature(api(), 'orders', { check: true }).changes.length,
+      0,
+    );
+  });
+
+  it('refuses team turned off once migrated: dropping team_id loses data', () => {
+    const snapshot = api('drizzle/meta/0000_snapshot.json');
+    const before = readFileSync(snapshot, 'utf8');
+    const migrated = JSON.parse(before);
+    migrated.tables['public.orders'].columns.team_id = { notNull: false };
+    writeFileSync(snapshot, JSON.stringify(migrated));
+    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
+    edit('  team: true,', '  team: false,');
+    assert.match(
+      syncFeature(api(), 'orders').errors.join('\n'),
+      /team turned off drops team_id; which team each record belongs to is lost/,
+    );
+    writeFileSync(snapshot, before);
+    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
+  });
+
+  it('turns softDelete off: refused like a dropped field, its restore path out of the OpenAPI test; and back on', () => {
+    edit('  softDelete: true,', '  softDelete: false,');
+    const off = syncFeature(api(), 'orders');
+    assert.match(
+      off.errors.join('\n'),
+      /softDelete turned off drops deleted_at and deleted_by; records in the recycle bin would come back as live ones/,
+    );
+    assert.equal(off.generate, true);
+    assert.ok(off.changes.includes('OpenAPI test: - /v1/orders/{id}/restore'));
+    // Nothing else to change: the generated files hold no recycle bin.
+    assert.ok(off.errors.every((error) => !error.includes('by hand')));
+    edit('  softDelete: false,', '  softDelete: true,');
+    const on = syncFeature(api(), 'orders');
+    assert.deepEqual(on.errors, []);
+    assert.ok(on.changes.includes('OpenAPI test: + /v1/orders/{id}/restore'));
+  });
+
+  it('fails on a generated file that still codes a flag by hand', () => {
+    const service = api('src/features/orders/orders.service.ts');
+    const policy = api('src/features/orders/order.policy.ts');
+    const generated = [
+      readFileSync(service, 'utf8'),
+      readFileSync(policy, 'utf8'),
+    ];
+    writeFileSync(
+      service,
+      `${generated[0]}\n// .where(and(eq(orders.id, id), isNull(orders.deletedAt)))\n`,
+    );
+    writeFileSync(
+      policy,
+      `${generated[1]}\n// inMyTeams('teamId', orders.teamId)\n`,
+    );
+    const errors = syncFeature(api(), 'orders', { check: true }).errors.join(
+      '\n',
+    );
+    assert.match(
+      errors,
+      /orders\.service\.ts codes the recycle bin's columns \(RecordStore\) by hand[^\n]*softDelete: true/,
+    );
+    assert.match(errors, /order\.policy\.ts codes the inMyTeams condition/);
+    writeFileSync(service, generated[0]);
+    writeFileSync(policy, generated[1]);
+    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
   });
 
   it("adds a capability's paths and texts, and takes them away when it goes", () => {
