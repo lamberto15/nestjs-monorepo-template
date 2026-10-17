@@ -8,6 +8,7 @@ import { DataTableColumnHeader } from '@/components/data-table/data-table-column
 import { ListPage } from '@/components/list-page';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import type { ListColumn } from '@/lib/list-query';
+import { TagBadge } from '@/lib/tags';
 
 export const Route = createFileRoute('/_app/notes')({
   component: Notes,
@@ -56,6 +57,13 @@ function Notes() {
         id: 'tags',
         accessorFn: (note) => note.tags?.map((tag) => tag.name).join(', '),
         ...header('tags'),
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            {row.original.tags?.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} />
+            ))}
+          </div>
+        ),
       },
       {
         id: 'createdAt',

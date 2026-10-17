@@ -235,9 +235,36 @@ describe('filterSpec', () => {
           operators: ['contains', 'notContains', 'startsWith', 'endsWith'],
         }),
       )?.operators,
-    ).toEqual(['iLike', 'notILike']);
-    expect(filterSpec(field({ operators: ['startsWith'] }))).toBeUndefined();
+    ).toEqual(['iLike', 'notILike', 'startsWith', 'endsWith']);
+    expect(
+      filterSpec(field({ name: 'number', operators: ['eq', 'startsWith'] }))
+        ?.operators,
+    ).toEqual(['eq', 'startsWith']);
     expect(filterSpec(field({ operators: [] }))).toBeUndefined();
+  });
+
+  it('turns a uuid field named tag into a picker of the given tags', () => {
+    const options = [{ label: 'Urgent', value: 'id-1' }];
+    expect(
+      filterSpec(
+        field({ name: 'tag', type: 'uuid', operators: ['eq', 'in'] }),
+        options,
+      ),
+    ).toEqual({ variant: 'multiSelect', operators: ['inArray'], options });
+    expect(
+      filterSpec(field({ name: 'tag', type: 'uuid', operators: ['eq'] })),
+    ).toEqual({ variant: 'select', operators: ['eq'], options: [] });
+    // Any other uuid stays free text; a custom field called tag is not a tag.
+    expect(
+      filterSpec(
+        field({ name: 'teamId', type: 'uuid', operators: ['eq', 'in'] }),
+      )?.variant,
+    ).toBe('text');
+    expect(
+      filterSpec(
+        field({ name: 'tag', type: 'uuid', operators: ['eq'], custom: true }),
+      )?.variant,
+    ).toBe('text');
   });
 
   it('offers dates the operators their conversion needs, never "relative"', () => {
@@ -259,6 +286,86 @@ describe('filterSpec', () => {
       'isNotEmpty',
     ]);
     expect(operators).not.toContain('isRelativeToToday');
+  });
+});
+
+describe('startsWith and endsWith', () => {
+  it('map to the API operators', () => {
+    expect(toCondition(item({ operator: 'startsWith', value: 'N-' }))).toEqual({
+      field: 'title',
+      op: 'startsWith',
+      value: 'N-',
+    });
+    expect(toCondition(item({ operator: 'endsWith', value: '-9' }))).toEqual({
+      field: 'title',
+      op: 'endsWith',
+      value: '-9',
+    });
+  });
+
+  it('send in the filter JSON', () => {
+    const params = listParams(
+      {
+        ...base,
+        filters: [item({ operator: 'startsWith', value: 'N-' })],
+      },
+      fields,
+    );
+    expect(JSON.parse(params.filter ?? 'null')).toEqual({
+      and: [{ field: 'title', op: 'startsWith', value: 'N-' }],
+    });
+  });
+});
+
+describe('the tag filter', () => {
+  it('sends the picked tags as an in list', () => {
+    expect(
+      toCondition(
+        item({
+          id: 'tag',
+          variant: 'multiSelect',
+          operator: 'inArray',
+          value: ['a', 'b'],
+        }),
+        'uuid',
+      ),
+    ).toEqual({ field: 'tag', op: 'in', value: ['a', 'b'] });
+  });
+});
+
+describe('custom fields', () => {
+  it('filter, sort and pick as custom.<key>', () => {
+    const custom = field({
+      name: 'custom.amount',
+      type: 'number',
+      operators: ['gte'],
+      custom: true,
+    });
+    const params = listParams(
+      {
+        ...base,
+        sorting: [{ id: 'custom.amount', desc: true }],
+        fields: ['title', 'custom.amount'],
+        filters: [
+          item({
+            id: 'custom.amount',
+            variant: 'number',
+            operator: 'gte',
+            value: '10',
+          }),
+        ],
+      },
+      [custom],
+    );
+    expect(params.sort).toBe('-custom.amount');
+    expect(params.fields).toBe('title,custom.amount');
+    expect(JSON.parse(params.filter ?? 'null')).toEqual({
+      and: [{ field: 'custom.amount', op: 'gte', value: 10 }],
+    });
+    expect(filterSpec(custom)).toEqual({
+      variant: 'number',
+      operators: ['gte'],
+    });
   });
 });
 
@@ -291,6 +398,21 @@ describe('withListMeta', () => {
     expect(other).toMatchObject({
       enableSorting: false,
       enableColumnFilter: false,
+    });
+  });
+
+  it('gives the tag column the tags as its options', () => {
+    const options = [{ label: 'Urgent', value: 'id-1' }];
+    const [tag] = withListMeta<{ id: string }>(
+      [{ id: 'tag' }],
+      {
+        fields: [field({ name: 'tag', type: 'uuid', operators: ['eq', 'in'] })],
+      } as unknown as ListDescription,
+      options,
+    );
+    expect(tag).toMatchObject({
+      enableColumnFilter: true,
+      meta: { variant: 'multiSelect', operators: ['inArray'], options },
     });
   });
 });
