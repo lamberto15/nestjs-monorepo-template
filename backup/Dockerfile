@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
     go install -trimpath -ldflags="-s -w -X main.Version=$SUPERCRONIC_VERSION" "github.com/aptible/supercronic@$SUPERCRONIC_VERSION" \
  && install -m 755 "$(find /go/bin -type f -name supercronic)" /supercronic
 
-FROM postgres:18-alpine
+FROM postgres:18.6-alpine
 ENV TZ=UTC BACKUP_DIR=/backups BACKUP_STORAGE_DIR=/storage
 COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 COPY --from=supercronic /supercronic /usr/local/bin/supercronic

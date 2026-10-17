@@ -21,7 +21,7 @@ x-logging: &logging
 
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.6-alpine
     restart: unless-stopped
     logging: *logging
     environment:
@@ -38,7 +38,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:8.10-alpine
+    image: redis:8.10.2-alpine
     restart: unless-stopped
     logging: *logging
     # Append-only file: queued jobs survive a restart. noeviction: BullMQ must

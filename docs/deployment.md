@@ -851,7 +851,7 @@ copies only: a lost disk loses them too, so set it.
   `BACKUP_MAX_AGE_HOURS` (25): a host that was off or asleep catches up,
   and a failed run is retried every hour. With a less frequent schedule,
   raise `BACKUP_MAX_AGE_HOURS` to match.
-- **The image** (`backup/Dockerfile`): `postgres:18-alpine` without `gosu`
+- **The image** (`backup/Dockerfile`): `postgres:18.6-alpine` without `gosu`
   (never used: it runs as `postgres`), rclone, and supercronic built from
   its release tag with a current Go, so Go's fixes reach it. CI scans it
   like the app image. Dependabot raises the base images;

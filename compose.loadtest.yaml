@@ -42,7 +42,7 @@ services:
   # Caddy release (caddy/Dockerfile) and the same load balancing
   # (loadtest/Caddyfile), without TLS.
   caddy:
-    image: caddy:2.11
+    image: caddy:2.11.7
     build: !reset null
     ports: !reset []
     secrets: !reset []
