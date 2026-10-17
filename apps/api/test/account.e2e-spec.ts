@@ -33,6 +33,7 @@ describe('accounts (e2e)', () => {
       password: true,
       signUp: false,
       magicLink: true,
+      passkeys: true,
       providers: [],
       // Bot protection is off in every e2e file but its own (CAPTCHA_MODE unset).
       captcha: null,

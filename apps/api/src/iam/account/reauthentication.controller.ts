@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Ip, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Ip,
+  Post,
+  Res,
+} from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
@@ -18,6 +27,8 @@ import { z } from 'zod';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { UserThrottle } from '../auth/user-throttle.guard.js';
+import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
+import { authenticationResponseSchema } from './passkey.schemas.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 
 const proofSchema = z.object({
@@ -26,13 +37,22 @@ const proofSchema = z.object({
     .min(1)
     .max(256)
     .optional()
-    .describe('Required when the account has a password.'),
+    .describe(
+      'Required when the account has a password, unless a passkey is sent.',
+    ),
   code: z
     .string()
     .regex(/^\d{6}$/)
     .optional()
-    .describe('With two-factor on: a code from the app (or a recoveryCode).'),
+    .describe(
+      'With two-factor on: a code from the app (or a recoveryCode). Not with a passkey from a session (it verified you); a token client sends one with its passkey too.',
+    ),
   recoveryCode: z.string().min(1).max(64).optional(),
+  passkey: authenticationResponseSchema
+    .optional()
+    .describe(
+      'Instead of the password: the assertion of one of your passkeys, made from the options of POST /auth/passkeys/reauthentication/options (user verification required).',
+    ),
   refreshToken: z
     .string()
     .min(1)
@@ -47,11 +67,13 @@ const methodsSchema = z.object({
   methods: z
     .array(z.string())
     .describe(
-      'How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login?reauthenticate=true: the provider is asked to authenticate you again).',
+      'How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login?reauthenticate=true: the provider is asked to authenticate you again).',
     ),
   mfaRequired: z
     .boolean()
-    .describe('In place, a code (or a recoveryCode) goes with the password.'),
+    .describe(
+      'In place, a code (or a recoveryCode) goes with the password (and with a passkey from a token client).',
+    ),
 });
 
 const statusSchema = methodsSchema.extend({
@@ -131,7 +153,7 @@ export class ReauthenticationController {
   @ApiOperation({
     summary: 'Prove again who you are, for the sensitive routes',
     description:
-      'Your password, with a code when two-factor is on (a code alone when the account has no password). A session gets a new id (the cookie changes: a request sent meanwhile with the old one gets 401; reconnect realtime); a token client gets new tokens, and the family of the refreshToken it sent is revoked. Audited. Never while acting as another user.',
+      'Your password, with a code when two-factor is on (a code alone when the account has no password); or a passkey (with a code from a token client when two-factor is on). A session gets a new id (the cookie changes: a request sent meanwhile with the old one gets 401; reconnect realtime); a token client gets new tokens, and the family of the refreshToken it sent is revoked. Audited. Never while acting as another user.',
   })
   @ApiOkResponse({ standardSchema: reauthenticatedSchema })
   @ApiBadRequestResponse({
@@ -155,12 +177,18 @@ export class ReauthenticationController {
     @Body({ schema: proofSchema }) body: z.infer<typeof proofSchema>,
     @Res({ passthrough: true }) res: Response,
     @Ip() ip: string,
+    @Headers('origin') origin: string | undefined,
   ) {
     const done = await this.reauthentication.reauthenticate(
       user,
       session,
-      body,
+      {
+        ...body,
+        // The Zod schema is the library's JSON shape (extension results as a loose record).
+        passkey: body.passkey as AuthenticationResponseJSON | undefined,
+      },
       ip,
+      origin,
     );
     if (done.cookie) {
       res.append('Set-Cookie', done.cookie);

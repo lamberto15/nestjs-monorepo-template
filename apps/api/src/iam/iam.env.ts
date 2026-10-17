@@ -70,6 +70,63 @@ export const iamEnv = z.object({
   /** Passwordless sign-in by email link (POST /auth/magic-link). */
   AUTH_MAGIC_LINK: flag('on'),
 
+  // Passkeys (WebAuthn; docs/auth.md, "Passkeys"). The relying party is
+  // the web app's host: the RP ID never changes once passkeys exist (every
+  // credential is bound to it), so it is configuration, not a guess.
+  /** Passkeys: registering them, signing in with them (POST /auth/passkeys/…). */
+  PASSKEYS: flag('on'),
+  /**
+   * The relying party id: a registrable domain the web app is served on
+   * (`example.com` covers `app.example.com` too), never a port or a scheme.
+   * Unset: WEB_URL's host (else APP_URL's). Production refuses `localhost`
+   * and IP addresses, and an RP ID that the origins below don't belong to.
+   */
+  PASSKEY_RP_ID: optional().refine(
+    (value) => value === undefined || /^[a-z0-9.-]+$/i.test(value),
+    'a host name without scheme, port or path',
+  ),
+  /** The name authenticators show for this service; default SERVICE_NAME. */
+  PASSKEY_RP_NAME: optional(),
+  /**
+   * Origins ceremonies may run on, besides WEB_URL's (comma-separated
+   * `https://…` URLs, or `android:apk-key-hash:…` for an Android app that
+   * isn't listed in PASSKEY_ANDROID_APPS). Each https origin's host must be
+   * the RP ID or under it.
+   */
+  PASSKEY_ORIGINS: list(),
+  /** How long a ceremony's challenge lives (one-time, in Redis), and the browser's timeout. */
+  PASSKEY_CHALLENGE_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(30)
+    .max(600)
+    .default(120),
+  /**
+   * Android apps allowed to use the passkeys of this RP ID (served at
+   * /.well-known/assetlinks.json): `package.name:SHA256:FINGERPRINT` of the
+   * signing certificate (comma-separated apps; the fingerprint as
+   * `keytool` or the Play Console prints it, colon-separated hex). Each
+   * one's `android:apk-key-hash:` origin is derived from the fingerprint.
+   */
+  PASSKEY_ANDROID_APPS: list().refine(
+    (apps) =>
+      apps.every((app) =>
+        /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+:([0-9a-f]{2}:){31}[0-9a-f]{2}$/i.test(
+          app,
+        ),
+      ),
+    'comma-separated `package.name:AA:BB:…` (a SHA-256 certificate fingerprint, 32 colon-separated hex pairs)',
+  ),
+  /**
+   * iOS and macOS apps allowed to use the passkeys of this RP ID (served at
+   * /.well-known/apple-app-site-association): `TEAMID.bundle.identifier`,
+   * comma-separated.
+   */
+  PASSKEY_APPLE_APPS: list().refine(
+    (apps) => apps.every((app) => /^[A-Z0-9]{10}\.[a-z0-9.-]+$/i.test(app)),
+    'comma-separated `TEAMID.bundle.identifier`',
+  ),
+
   // Bot protection on the public account routes (docs/auth.md, "Bot protection").
   /**
    * When a challenge token (`X-Captcha-Token`) is required on sign-in,

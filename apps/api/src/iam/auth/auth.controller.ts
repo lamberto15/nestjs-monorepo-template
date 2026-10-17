@@ -140,6 +140,11 @@ const methodsSchema = z.object({
   password: z.literal(true),
   signUp: z.boolean(),
   magicLink: z.boolean(),
+  passkeys: z
+    .boolean()
+    .describe(
+      'Sign in with a passkey: POST /auth/passkeys/sign-in/options, then /auth/passkeys/sign-in.',
+    ),
   providers: z
     .array(z.string())
     .describe('Start with GET /auth/oidc/{provider}/login.'),
@@ -193,6 +198,7 @@ export class AuthController {
       password: true as const,
       signUp: this.config.get('AUTH_SIGN_UP', { infer: true }),
       magicLink: this.config.get('AUTH_MAGIC_LINK', { infer: true }),
+      passkeys: this.config.get('PASSKEYS', { infer: true }),
       providers: Object.keys(oidcProviders(this.config)),
       captcha: this.captcha.settings(),
     };
