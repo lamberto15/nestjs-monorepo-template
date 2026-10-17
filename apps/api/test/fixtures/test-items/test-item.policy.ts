@@ -3,11 +3,25 @@ import { AccessService } from '../../../src/iam/access/access.service.js';
 import {
   createdBy,
   definePermissions,
+  defineSystemJob,
   inMyTeams,
 } from '../../../src/iam/access/permissions.js';
 import type { Principal } from '../../../src/iam/auth/principal.js';
 import type { TestItem } from './test-item.schemas.js';
 import { testItems } from './test-items.tables.js';
+
+/**
+ * A system job that asks for approval on behalf of test items' owners, as
+ * the approval engine's tests do outside a request
+ * (`system:test-item-publication`).
+ */
+export const TEST_ITEM_PUBLICATION_JOB = defineSystemJob({
+  key: 'test-item-publication',
+  label: 'Test item publication',
+  description:
+    'Publishes test items, or asks for approval first, for their owners.',
+  permissions: [{ subject: 'TestItem', action: 'update', conditions: [] }],
+});
 
 /**
  * What can be done with test items (the platform's tests' record: test/fixtures),
@@ -91,6 +105,7 @@ export const TEST_ITEM_PERMISSIONS = definePermissions({
       permissions: [{ subject: 'TestItem', action: 'read', conditions: [] }],
     },
   ],
+  systemJobs: [TEST_ITEM_PUBLICATION_JOB],
 });
 
 /** The fields of a test item its conditions read. */

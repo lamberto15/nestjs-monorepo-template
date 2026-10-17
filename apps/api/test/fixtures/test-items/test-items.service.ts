@@ -25,11 +25,13 @@ import {
   type PageQuery,
   toPage,
 } from '../../../src/core/http/pagination.js';
+import { ApprovalsService } from '../../../src/platform/approvals/approvals.service.js';
 import { TeamsService } from '../../../src/iam/access/teams.service.js';
 import { AuditService } from '../../../src/iam/audit/audit.service.js';
 import {
   type Principal,
   principalKey,
+  type RequestPrincipal,
 } from '../../../src/iam/auth/principal.js';
 import {
   recordValues,
@@ -57,6 +59,7 @@ export class TestItemsService {
     private readonly audit: AuditService,
     private readonly lifecycle: RecordLifecycle,
     private readonly teams: TeamsService,
+    private readonly approvals: ApprovalsService,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -158,6 +161,8 @@ export class TestItemsService {
     }
     // Business logic: what a change must respect, here.
     return inTransaction(this.txHost, async (tx) => {
+      // Not while an approver decides on it (409 approval_pending): sent back for changes, it may change.
+      await this.approvals.assertNotPending('TestItem', row.id);
       const [updated] = await tx
         .update(testItems)
         .set(changes)
@@ -188,6 +193,9 @@ export class TestItemsService {
   /** To the recycle bin (soft delete): hidden everywhere, restorable until purged. */
   async delete(by: Principal, row: TestItem, ip?: string) {
     await inTransaction(this.txHost, async (tx) => {
+      // Not while an approver decides on it; a request sent back for changes is withdrawn with the item.
+      await this.approvals.assertNotPending('TestItem', row.id);
+      await this.approvals.withdraw(tx, by, 'TestItem', row.id);
       await tx
         .update(testItems)
         .set({ deletedAt: new Date(), deletedBy: principalKey(by) })
@@ -199,6 +207,63 @@ export class TestItemsService {
         tx,
         ip,
       );
+    });
+  }
+
+  /**
+   * Publishes one, or asks for approval first (with testItems.publishApproval
+   * on for the requester): `approvalId` is the request, when one was made.
+   */
+  async requestPublication(by: RequestPrincipal, row: TestItem) {
+    const result = await this.approvals.request(by, {
+      subject: 'TestItem',
+      recordId: row.id,
+      action: 'publish',
+    });
+    if (result.required) {
+      return { published: false, approvalId: result.request.id };
+    }
+    return { published: await this.publish(row.id, by), approvalId: null };
+  }
+
+  /**
+   * Sets `publishedAt`, once: `false` when it was deleted or already
+   * published. `by` is the audit's actor (`system:approvals` after an approval).
+   */
+  async publish(id: string, by: Principal): Promise<boolean> {
+    return inTransaction(this.txHost, async (tx) => {
+      const [before] = await tx
+        .select()
+        .from(testItems)
+        .where(
+          and(
+            eq(testItems.id, id),
+            isNull(testItems.publishedAt),
+            isNull(testItems.deletedAt),
+          ),
+        )
+        .for('update');
+      if (!before) {
+        return false;
+      }
+      const [after] = await tx
+        .update(testItems)
+        .set({ publishedAt: new Date() })
+        .where(eq(testItems.id, id))
+        .returning();
+      await this.lifecycle.updated(tx, { before, after: after!, by });
+      await this.audit.recordChange(
+        by,
+        TEST_ITEM_RESOURCE,
+        {
+          action: 'updated',
+          id,
+          before: recordView(TEST_ITEM, before),
+          after: recordView(TEST_ITEM, after!),
+        },
+        tx,
+      );
+      return true;
     });
   }
 

@@ -4,7 +4,8 @@
     "issued": "Issued {date}",
     "fields": {
       "title": "Title",
-      "body": "Body"
+      "body": "Body",
+      "publishedAt": "Published at"
     }
   }
 }

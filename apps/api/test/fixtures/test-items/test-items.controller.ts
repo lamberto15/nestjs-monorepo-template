@@ -194,6 +194,27 @@ export class TestItemsController {
     );
   }
 
+  @Post(':id/publish')
+  @HttpCode(HttpStatus.OK)
+  @Can.Anyone() // Checked below, on the record itself.
+  @ApiOperation({
+    summary: 'Publish a test item',
+    description:
+      'Sets `publishedAt`; with testItems.publishApproval on, asks for approval first (approvalId).',
+  })
+  @ApiOkResponse({
+    description: 'Whether it is published now, and the approval asked for.',
+  })
+  @ApiNotFoundResponse()
+  async publish(
+    @CurrentUser() user: RequestPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const row = await this.testItems.findOne(id);
+    await this.authorization.authorize(TestItemPolicy, 'update', user, row);
+    return this.testItems.requestPublication(user, row);
+  }
+
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
   @Can.Anyone() // Checked below, on the record itself.
