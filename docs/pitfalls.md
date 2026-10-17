@@ -32,6 +32,16 @@
   at call sites: its own services (sign-in, password reset) hash too. A
   flow that consumes something (a reset link) and then hashes takes the
   slot first (`limiter.run()`), or a 503 there would spend the link.
+- **A guard named like authentication after the authorization guard:**
+  @nestjs/authorization checks the guard order at start and, for guards
+  without `@nestjs/authentication`'s brand, goes by the class name
+  (`auth` not followed by `or`/`z`, `jwt`, `api-key`): a route guard
+  called `RecentAuthenticationGuard` logged "AuthorizationGuard runs before
+  RecentAuthenticationGuard … sees every caller as a guest" at every boot,
+  though it only checks the age of the sign-in PrincipalGuard had already
+  set. The package has no option to say a guard doesn't authenticate: name
+  route guards that don't authenticate without those words
+  (`RecentSignInGuard`), and treat the error as real for one that does.
 - **Abstract base classes of injectables need `@Injectable()`**: without it,
   TypeScript emits no constructor metadata and Nest injects `undefined`.
 - **`ConfigService` in constructors:** type it `ConfigService<Env, true>`
