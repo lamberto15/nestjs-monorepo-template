@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { Outlet, createRootRouteWithContext } from '@tanstack/react-router';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { NuqsAdapter } from 'nuqs/adapters/tanstack-router';
 import type { Session } from '@/lib/session';
 
 export const Route = createRootRouteWithContext<{
@@ -14,7 +15,11 @@ export const Route = createRootRouteWithContext<{
 function Root() {
   return (
     <>
-      <Outlet />
+      {/* Inside the router, as nuqs documents it: the adapter reads the
+          router's history (useRouter), so it can't wrap <RouterProvider>. */}
+      <NuqsAdapter>
+        <Outlet />
+      </NuqsAdapter>
       {import.meta.env.DEV && (
         <>
           <TanStackRouterDevtools />
