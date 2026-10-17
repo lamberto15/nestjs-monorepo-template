@@ -10,14 +10,12 @@ import {
 import { CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import { I18nContext } from '@nestjs/i18n';
-import { Idempotent } from '@nestjs/idempotency';
 import { minutes } from '@nestjs/throttler';
 import {
   ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiForbiddenResponse,
-  ApiHeader,
   ApiNotFoundResponse,
   ApiOperation,
   ApiServiceUnavailableResponse,
@@ -26,8 +24,7 @@ import {
 } from '@nestjs/swagger';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import { UserThrottle } from '../../iam/auth/user-throttle.guard.js';
-import { idempotencyKeyHeader } from '../idempotency/idempotency.openapi.js';
-import { principalScope } from '../idempotency/idempotency.scopes.js';
+import { RecordIdempotent } from '../records/record-idempotency.js';
 import {
   aNounOf,
   namedController,
@@ -67,7 +64,7 @@ export function documentRoutes(
     @Post(':id/pdf')
     @HttpCode(HttpStatus.ACCEPTED)
     // A retry with the same key gets the first answer instead of a second document.
-    @Idempotent({ scope: principalScope })
+    @RecordIdempotent(spec)
     // Each one is a Chromium render: 10 a minute per user (API clients have their quotas).
     @UserThrottle({ limit: 10, ttl: minutes(1) })
     @ApiOperation({
@@ -80,7 +77,6 @@ export function documentRoutes(
           'Follow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).',
         ].join('\n'),
     })
-    @ApiHeader(idempotencyKeyHeader(true))
     @ApiAcceptedResponse({ standardSchema: documentQueuedSchema })
     @ApiBadRequestResponse({ description: 'The Idempotency-Key is missing.' })
     @ApiForbiddenResponse({ description: 'You may not issue it.' })

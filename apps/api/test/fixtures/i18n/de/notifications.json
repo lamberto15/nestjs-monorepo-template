@@ -1,11 +1,11 @@
 {
   "testItem": {
     "commented": {
-      "label": "Comment on a test item you watch",
-      "title": "New comment",
+      "label": "Kommentar zu einem beobachteten Testelement",
+      "title": "Neuer Kommentar",
       "body": {
-        "one": "{by} commented on \"{title}\": {excerpt}",
-        "other": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}"
+        "one": "{by} hat „{title}“ kommentiert: {excerpt}",
+        "other": "{count} neue Kommentare zu „{title}“; der neueste von {by}: {excerpt}"
       }
     }
   }

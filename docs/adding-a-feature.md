@@ -35,7 +35,7 @@ where it says "Business logic"):
   route's text and the e2e tests of both (test/record-capabilities.ts);
 - the files it writes around that, the same whatever the flags say: the
   permissions and the policy (a line each, the feature's own rules added
-  there), the audited service, the controller (idempotent create, ETags,
+  there), the audited service, the controller (idempotent create as the declaration says, ETags,
   If-Match, field checks), the module, `<x>.feature.ts` and
   `test/<x>.e2e-spec.ts` (bodies from the declaration).
 
@@ -47,6 +47,7 @@ OpenAPI test's path list.
 export const INVOICE = defineRecord({
   subject: 'Invoice', path: 'invoices', apiTag: 'invoices', className: 'Invoice',
   noun: 'invoice', table: 'invoices', softDelete: true, team: false,
+  clientAccess: false, grants: 'standard',   // idempotency: unset, the deployment's
   fields: {
     title: field.string().searchable(),
     total: field.money(),
@@ -68,6 +69,19 @@ export const INVOICE = defineRecord({
   both changeable later in the declaration, `--singular <name>`
   (when it can't be derived: `people` → `--singular person`),
   `--description "…"` (the Swagger tag's).
+- **Who may use it, and the Idempotency-Key:** three more choices, each a
+  line of the declaration, derived by the platform (nothing of them in the
+  feature's code), changeable later:
+
+  | Flag | Declaration | Default |
+  | --- | --- | --- |
+  | `--client-access own` | `clientAccess: 'own'`: every API client creates, reads, changes and deletes the records it created | `clientAccess: false`: **denied**; a client reaches the feature only through a role an administrator grants it |
+  | `--grants none` | `grants: 'none'`: the seed roles (editor, team lead, viewer) get nothing; only administrators until someone grants it | `grants: 'standard'`: editors their own, team leads their teams' (with `team`), viewers read all |
+  | `--idempotency required\|optional\|off` | `idempotency: '…'`: the create route and the record's platform write routes (bulk, PDF) | unset (no line): follow the deployment's `IDEMPOTENCY` |
+
+  `clientAccess` and `grants` are always written (`false`, `'standard'`);
+  `idempotency` only when chosen. The notes example is hand-written and
+  keeps granting its clients.
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
@@ -135,6 +149,20 @@ pnpm client:generate   # when it says the routes change
   or purge them first, then expand/contract. The guard also fails on a
   generated file that still codes either by hand (one generated before they
   moved to the platform): bring it to the shape `pnpm feature:add` writes.
+- **Who may use it:** `clientAccess` (`false` | `'own'`) and `grants`
+  (`'standard'` | `'none'`) are read by `recordPermissions`; nothing else
+  changes by hand and no migration is needed. API clients' permissions are
+  code, so a change reaches every tenant on the next deploy; the seed
+  roles' grants are written when a tenant is made, so **existing tenants
+  keep the roles they have** (their administrators change them at
+  `/v1/access/roles`) and only new tenants start with the new grants. Sync
+  compares the declaration with the committed one and says so.
+- **The Idempotency-Key:** `idempotency: 'required' | 'optional' | 'off'`,
+  or no line to follow `IDEMPOTENCY`. The create route, bulk and the PDF
+  route take it from the declaration (`@RecordIdempotent`; the OpenAPI
+  document follows: an explicit `required` or `optional` wins over the
+  deployment's mode, `off` has no header); sync fails on a controller that
+  still codes `@Idempotent` by hand.
 - `pnpm feature:sync --check` fails when anything is out of line (CI's
   feature-smoke job runs it after changing a feature this way).
 
@@ -245,7 +273,9 @@ the controller (`notes.*`); singular for what describes one record
      (SOFT_DELETE_RETENTION_DAYS, 30), and with the records, in the same
      transaction, the platform's data about them: comments, tag links,
      watchers, revisions (each registers into `RecordPurgeRegistry`;
-     attachments keep their nightly sweep). A unique column of such a table needs a
+     attachments keep their nightly sweep). A `.unique()` field of a record
+     does it for you (the index is partial on live rows, a restore into a taken
+     value is a 409 `<item>_taken`); a hand-written unique column of such a table needs a
      partial index (``.where(sql`deleted_at is null`)``), or a deleted record
      keeps its value taken.
    Not for link tables, logs, or records with a real "inactive" state (users

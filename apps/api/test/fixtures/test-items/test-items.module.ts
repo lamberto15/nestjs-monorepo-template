@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { recordParts } from '../../../src/platform/records/record-parts.js';
+import { TestItemPublishApproval } from './test-item-approvals.js';
 import { TEST_ITEM_LIST } from './test-item.list.js';
 import { TestItemPolicy } from './test-item.policy.js';
 import { TEST_ITEM } from './test-item.record.js';
@@ -20,7 +21,12 @@ const parts = recordParts(TEST_ITEM, {
 /** Test items. */
 @Module({
   controllers: [TestItemsController, ...parts.controllers],
-  providers: [TestItemsService, TestItemPolicy, ...parts.providers],
+  providers: [
+    TestItemsService,
+    TestItemPolicy,
+    TestItemPublishApproval,
+    ...parts.providers,
+  ],
   exports: [TestItemsService],
 })
 export class TestItemsModule {}

@@ -1,5 +1,6 @@
 // First: .env.development into process.env, before the modules below are evaluated.
 import './dev-env.js';
+import type { Server } from 'node:http';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -24,7 +25,7 @@ async function bootstrap() {
   // On SIGTERM, /health turns 503, then the workers (workflows, outbox,
   // webhooks, queues) finish what they started and hand the rest back.
   app.enableShutdownHooks();
-  exitIfShutdownHangs(role);
+  exitIfShutdownHangs(role, app);
   await app.listen(process.env.PORT ?? 3000);
   const url = await app.getUrl();
   Logger.log(
@@ -45,8 +46,11 @@ async function bootstrap() {
  * worker 60 s; Kubernetes' default is 30 s), and above what a healthy
  * shutdown takes: 5 s of /health 503, then up to 10 s for workflow steps,
  * and for a worker, the queue jobs it is running.
+ *
+ * It also closes keep-alive connections as they go idle, once the server has
+ * stopped listening (see below).
  */
-function exitIfShutdownHangs(role: string) {
+function exitIfShutdownHangs(role: string, app: NestExpressApplication) {
   const deadlineMs = role === 'api' ? 25_000 : 55_000;
   const signals = ['SIGTERM', 'SIGINT', 'SIGHUP'] as const;
   const start = (signal: NodeJS.Signals) => {
@@ -64,6 +68,13 @@ function exitIfShutdownHangs(role: string) {
         'Bootstrap',
       ),
     );
+    // server.close() ends the idle keep-alive connections once, when it stops
+    // listening; one that was serving a request then goes idle and would keep
+    // the process alive until the deadline. Close those as they go idle.
+    const server = app.getHttpServer() as Server;
+    setInterval(() => {
+      if (!server.listening) server.closeIdleConnections();
+    }, 250).unref();
     setTimeout(() => {
       Logger.error(
         `Shutdown (${signal}) still not finished after ${deadlineMs / 1000} s: exiting now.`,

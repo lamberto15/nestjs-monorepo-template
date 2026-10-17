@@ -45,9 +45,11 @@ const actionsOf = (declaration: RecordDeclaration) => [
  * (record.ts): the conditions `mine` and, with teams, `inMyTeams`; the
  * actions read, create, update, delete and, with a recycle bin, restore;
  * the field-level permissions of its capabilities (custom);
- * an API client's own records; the seed roles' grants: editors their own,
- * team leads their teams' (with teams), viewers every one. Flipping
- * `softDelete` or `team` changes them with no code of the feature's;
+ * with `clientAccess: 'own'` an API client's own records (none by default);
+ * the seed roles' grants (`grants`, standard unless 'none'): editors their
+ * own, team leads their teams' (with teams), viewers every one. Flipping
+ * `softDelete`, `team`, `clientAccess` or `grants` changes them with no
+ * code of the feature's;
  * `options` adds the feature's own.
  *
  * ```ts
@@ -96,42 +98,56 @@ export function recordPermissions(
         },
       },
     },
-    // What every API client may do, on top of its roles: its own records.
+    // What every API client may do, on top of its roles: its own records
+    // (clientAccess: 'own'; by default none, a role grants it).
     clientPermissions: [
-      ...actions.map(own),
+      ...(declaration.clientAccess === 'own' ? actions.map(own) : []),
       ...(options.clientPermissions ?? []),
     ],
     // Added to the roles every tenant starts with (iam/access/seed-roles.ts: merged by key).
     seedRoles: [
-      {
-        key: 'editor',
-        name: 'Editor',
-        description: 'Writes records and changes their own.',
-        permissions: actions.map(own),
-      },
-      ...(declaration.team
-        ? [
-            {
-              key: 'team-lead',
-              name: 'Team lead',
-              description:
-                'Sees the records of their teams and every team below them.',
-              permissions: [
-                { subject, action: 'read', conditions: [{ key: 'inMyTeams' }] },
-              ],
-            },
-          ]
-        : []),
-      {
-        key: 'viewer',
-        name: 'Viewer',
-        description: 'Sees every record, changes nothing.',
-        permissions: [{ subject, action: 'read', conditions: [] }],
-      },
+      ...(declaration.grants === 'none'
+        ? []
+        : standardRoles(declaration, actions.map(own))),
       ...(options.seedRoles ?? []),
     ],
     ...(options.systemJobs && { systemJobs: options.systemJobs }),
   });
+}
+
+/** The seed roles' grants of `grants: 'standard'`: editors their own, team leads their teams' (with teams), viewers every record. */
+function standardRoles(
+  declaration: RecordDeclaration,
+  own: PermissionInput[],
+): SeedRole[] {
+  const { subject } = declaration;
+  return [
+    {
+      key: 'editor',
+      name: 'Editor',
+      description: 'Writes records and changes their own.',
+      permissions: own,
+    },
+    ...(declaration.team
+      ? [
+          {
+            key: 'team-lead',
+            name: 'Team lead',
+            description:
+              'Sees the records of their teams and every team below them.',
+            permissions: [
+              { subject, action: 'read', conditions: [{ key: 'inMyTeams' }] },
+            ],
+          },
+        ]
+      : []),
+    {
+      key: 'viewer',
+      name: 'Viewer',
+      description: 'Sees every record, changes nothing.',
+      permissions: [{ subject, action: 'read', conditions: [] }],
+    },
+  ];
 }
 
 /** The fields of a record its standard conditions read. */

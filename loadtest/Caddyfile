@@ -16,9 +16,18 @@
 			refresh 5s
 		}
 		lb_policy cookie lb_replica
-		lb_retries 2
+		# A deploy recreates the replicas and none answers for 30-60 s: hold the
+		# request and try again every 250 ms (for up to 30 s) instead of
+		# answering 503 at once. The replicas are chosen anew at each try, so a
+		# request pinned (cookie) to a replica that is gone falls over to a live
+		# one. No lb_retries: a count would cap the tries (2 at 250 ms is 0.5 s)
+		# before the duration does. A connection that fails is always retried;
+		# once connected, only GET requests are (lb_retry_match).
+		lb_try_duration 30s
+		lb_try_interval 250ms
 		fail_duration 10s
-		health_uri /health
-		health_interval 5s
+		# No active health checks: Caddy doesn't run them for dynamic upstreams
+		# (reverse_proxy docs, "Dynamic upstreams"); the passive fail_duration
+		# and lb_try_duration above do that work.
 	}
 }

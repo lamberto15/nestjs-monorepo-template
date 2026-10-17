@@ -29,9 +29,11 @@
     "client:publish": "turbo run build --filter=@nestjs-monorepo-template/api-client && changeset publish",
     "release:notes": "node tools/release/notes.mjs",
     "setup": "node tools/setup/setup.mjs",
+    "deploy:rolling": "node tools/deploy/rolling.mjs",
     "feature:add": "node tools/feature/add.mjs",
     "feature:remove": "node tools/feature/remove.mjs",
     "feature:sync": "node tools/feature/sync.mjs",
+    "deploy:blue-green": "node tools/deploy/blue-green.mjs",
     "deploy:swarm": "node tools/deploy/swarm.mjs"
   },
   "devDependencies": {

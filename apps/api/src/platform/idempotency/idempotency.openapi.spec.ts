@@ -72,3 +72,44 @@ describe('applyIdempotencyMode', () => {
     ]);
   });
 });
+
+describe('a feature that chose its own Idempotency-Key (idempotencyKeyHeader fixed)', () => {
+  const chosen = (required: boolean) => ({
+    paths: {
+      '/v1/things': {
+        post: {
+          parameters: [
+            {
+              in: 'header',
+              name: 'Idempotency-Key',
+              required,
+              schema: { type: 'string', 'x-idempotency-fixed': true },
+            },
+          ],
+        },
+      },
+    },
+  });
+
+  it('stays required under an optional deployment, without the marker', () => {
+    const document = chosen(true);
+    applyIdempotencyMode(document, 'optional');
+    expect(document.paths['/v1/things'].post.parameters[0]).toEqual({
+      in: 'header',
+      name: 'Idempotency-Key',
+      required: true,
+      schema: { type: 'string' },
+    });
+  });
+
+  it('stays optional under a required deployment, without the marker', () => {
+    const document = chosen(false);
+    applyIdempotencyMode(document, 'required');
+    expect(document.paths['/v1/things'].post.parameters[0]).toEqual({
+      in: 'header',
+      name: 'Idempotency-Key',
+      required: false,
+      schema: { type: 'string' },
+    });
+  });
+});

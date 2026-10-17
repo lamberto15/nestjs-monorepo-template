@@ -47,6 +47,34 @@ export function parseCapabilities(list, fields) {
   return wanted;
 }
 
+/** The values `--idempotency`, `--client-access` and `--grants` take (record.ts); the first of each is what's unset. */
+export const CHOICES = {
+  idempotency: ['required', 'optional', 'off'],
+  clientAccess: ['own'],
+  grants: ['none'],
+};
+
+/**
+ * The per-feature choices of the options, checked: `idempotency` (unset:
+ * follow the deployment's IDEMPOTENCY), `clientAccess` ('own', else false:
+ * API keys can't use the feature) and `grants` ('none', else 'standard').
+ */
+export function parseChoices({ idempotency, clientAccess, grants }) {
+  const check = (flag, name, value) => {
+    if (value !== undefined && !CHOICES[name].includes(value)) {
+      throw new Error(
+        `--${flag}: "${value}" is not a choice; any of ${CHOICES[name].join(', ')}.`,
+      );
+    }
+    return value;
+  };
+  return {
+    idempotency: check('idempotency', 'idempotency', idempotency),
+    clientAccess: check('client-access', 'clientAccess', clientAccess) ?? false,
+    grants: check('grants', 'grants', grants) ?? 'standard',
+  };
+}
+
 const textFields = (fields) =>
   fields.filter((f) => f.type === 'string' || f.type === 'text');
 /** The field a record is called by (comments, search, PDF): its first string, if any. */

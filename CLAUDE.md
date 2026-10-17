@@ -79,6 +79,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Languages, time zones | [docs/i18n-and-time.md](docs/i18n-and-time.md) |
 | Environment variables | [docs/configuration.md](docs/configuration.md) |
 | Compose, staging, scaling, CI and its scans, published images (GHCR, `APP_IMAGE`, rollback) | [docs/deployment.md](docs/deployment.md) |
+| Blue-green deploys: two api colours, switching the traffic, instant rollback (`pnpm deploy:blue-green`, `compose.blue-green.yaml`) | [docs/deploy-blue-green.md](docs/deploy-blue-green.md) |
 | Template releases (`v*` tags, generated notes, migrations section), the typed client's changesets (`pnpm changeset`, the version PR, npm publishing off) | [docs/releases.md](docs/releases.md) |
 | Projects built on the template pulling its updates (upstream remote, merging a tag, conflicts, the migrations caveat) | [docs/upgrading.md](docs/upgrading.md) |
 | Log redaction (secret headers and fields, text patterns; `logRedaction.declare*()` at import time, the registry item 5 extends) | [docs/deployment.md](docs/deployment.md), "Log redaction" |

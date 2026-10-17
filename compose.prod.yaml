@@ -257,6 +257,12 @@ services:
           memory: ${API_MEMORY:-768M}
     # /health turns 503 on SIGTERM, then requests in flight finish.
     stop_grace_period: 30s
+    # The image's liveness check, probed faster: a rolling deploy
+    # (docs/deploy-rolling.md) waits for it before it stops the old containers.
+    healthcheck:
+      interval: 10s
+      start_period: 30s
+      start_interval: 2s
     volumes:
       # Shared by every replica: the local disk's files.
       - app_storage:/app/.data/storage
@@ -317,6 +323,12 @@ services:
           memory: ${WORKER_MEMORY:-1G}
     # Running jobs and workflow steps finish (or are handed back) before it stops.
     stop_grace_period: 60s
+    # The image's liveness check, probed faster: a rolling deploy
+    # (docs/deploy-rolling.md) waits for it before it stops the old containers.
+    healthcheck:
+      interval: 10s
+      start_period: 30s
+      start_interval: 2s
     volumes:
       - app_storage:/app/.data/storage
     # `documents`: Gotenberg's network, which only the workers join.
@@ -361,6 +373,14 @@ services:
     build: ./caddy
     restart: unless-stopped
     logging: *logging
+    # Docker sees it healthy once it serves its admin API (localhost only, in
+    # the container): the process is up and its configuration loaded.
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:2019/config/']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
       - api
     deploy:

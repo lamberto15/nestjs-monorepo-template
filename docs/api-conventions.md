@@ -278,6 +278,16 @@ decorators document the header as required, and under `optional`
 (`applyIdempotencyMode`). The committed typed client is generated with the
 default mode.
 
+**Per feature.** A record declaration (`<item>.record.ts`) may choose its
+own: `idempotency: 'required'` (a payment: a missing key is a 400 whatever
+`IDEMPOTENCY` says), `'optional'` (honoured when sent) or `'off'` (the
+routes take no key and the document has no header); no line follows the
+deployment. It rules the record's create and its platform write routes
+(bulk, PDF), through `@RecordIdempotent(RECORD)`, which merges
+`required` over the module's default per route; the document keeps an
+explicit choice (the header is marked, then the marker is removed by
+`applyIdempotencyMode`) instead of rewriting it to the deployment's mode.
+
 Keys are the caller's own, **in its tenant**: the scope is
 `tenant:<tenantId>:<user|client>:<id>` ([tenancy](tenancy.md)), so two
 callers never replay each other's responses, and neither does one person

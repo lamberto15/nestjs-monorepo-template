@@ -33,7 +33,16 @@ export interface RecordRouteSpec {
    * `${className}sController`.
    */
   operationIdPrefix?: string;
+  /**
+   * The `Idempotency-Key` of the record's create and of its platform write
+   * routes (bulk, PDF): `required`, `optional` (honoured when sent) or `off`
+   * (none). Unset: follow the deployment's `IDEMPOTENCY`.
+   */
+  idempotency?: IdempotencyChoice;
 }
+
+/** A feature's own choice of `Idempotency-Key` (RecordRouteSpec.idempotency). */
+export type IdempotencyChoice = 'required' | 'optional' | 'off';
 
 /** A route's text, when the feature's says more than the generic one. */
 export interface RouteDocs {

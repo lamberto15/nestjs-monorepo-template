@@ -606,6 +606,8 @@ function fromCells(record: Record<string, unknown>) {
       const { key, zone } = columnOf(header);
       if (typeof value !== 'string') return [key, value];
       const text = QUOTED_FORMULA.test(value) ? value.slice(1) : value;
+      // An empty cell of a zoned column is no value (an optional datetime exported empty), not a bad one.
+      if (zone && text.trim() === '') return [key, undefined];
       return [key, zone ? (instantOf(text, zone) ?? text) : text];
     }),
   );
