@@ -72,6 +72,16 @@ x-app: &app
     INVITATION_TTL_HOURS: ${INVITATION_TTL_HOURS:-168}
     IMPERSONATION_TTL_MINUTES: ${IMPERSONATION_TTL_MINUTES:-60}
     REAUTHENTICATION_MAX_AGE_MINUTES: ${REAUTHENTICATION_MAX_AGE_MINUTES:-10}
+    # Passkeys (docs/auth.md, "Passkeys"): the relying party is WEB_URL's
+    # host (else APP_DOMAIN) unless PASSKEY_RP_ID says otherwise; it never
+    # changes once passkeys exist. The app refuses inconsistent values.
+    PASSKEYS: ${PASSKEYS:-on}
+    PASSKEY_RP_ID: ${PASSKEY_RP_ID:-}
+    PASSKEY_RP_NAME: ${PASSKEY_RP_NAME:-}
+    PASSKEY_ORIGINS: ${PASSKEY_ORIGINS:-}
+    PASSKEY_CHALLENGE_TTL_SECONDS: ${PASSKEY_CHALLENGE_TTL_SECONDS:-120}
+    PASSKEY_ANDROID_APPS: ${PASSKEY_ANDROID_APPS:-}
+    PASSKEY_APPLE_APPS: ${PASSKEY_APPLE_APPS:-}
     AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-400}
     SOFT_DELETE_RETENTION_DAYS: ${SOFT_DELETE_RETENTION_DAYS:-30}
     # New passwords against Pwned Passwords (docs/auth.md, "Passwords")

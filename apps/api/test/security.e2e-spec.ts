@@ -1,8 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { AccountService } from '../src/iam/account/account.service.js';
+import { PasskeysService } from '../src/iam/account/passkeys.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
-import { sessions, userIdentities, users } from '../src/iam/iam.tables.js';
+import {
+  passkeys,
+  sessions,
+  userIdentities,
+  users,
+} from '../src/iam/iam.tables.js';
+import { SoftwareAuthenticator } from './software-authenticator.js';
 import { bootApp, type TestApp } from './support.js';
 
 /**
@@ -214,6 +221,87 @@ describe('security (e2e)', () => {
       .from(userIdentities)
       .where(eq(userIdentities.userId, id));
     expect(left).toHaveLength(1);
+  });
+
+  it('never removes the last way to sign in when a passkey and a provider go at once', async () => {
+    const { id } = await node.user([]);
+    const db = node.db;
+    await db.update(users).set({ passwordHash: null }).where(eq(users.id, id));
+    await db
+      .insert(userIdentities)
+      .values({ provider: 'google', subject: `g-${id}`, userId: id });
+    const [passkey] = await db
+      .insert(passkeys)
+      .values({
+        userId: id,
+        name: 'Key',
+        credentialId: `cred-${id}`,
+        publicKey: 'AA',
+        deviceType: 'singleDevice',
+      })
+      .returning();
+    const user = {
+      kind: 'user',
+      id,
+      email: `${id}@example.com`,
+      name: 'Two ways in',
+    } as UserPrincipal;
+    const results = await Promise.allSettled([
+      node.app.get(AccountService).unlinkIdentity(user, 'google'),
+      node.app.get(PasskeysService).remove(user, passkey.id, '127.0.0.1'),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find((r) => r.status === 'rejected');
+    expect((rejected as PromiseRejectedResult).reason.getStatus()).toBe(409);
+  });
+
+  it('takes a passkey challenge once, even from two requests at once, and only for its account', async () => {
+    const owner = await node.user([]);
+    const device = new SoftwareAuthenticator({
+      origin: process.env.WEB_URL!,
+    });
+    const options = (
+      await owner.agent
+        .post('/v1/auth/passkeys/registration/options')
+        .expect(200)
+    ).body;
+    await owner.agent
+      .post('/v1/auth/passkeys')
+      .send({ name: 'Key', response: device.create(options).response })
+      .expect(201);
+    const signInOptions = async (body: object = {}) =>
+      (
+        await node
+          .http()
+          .post('/v1/auth/passkeys/sign-in/options')
+          .send(body)
+          .expect(200)
+      ).body;
+    const assertion = device.get(await signInOptions());
+    const answers = await Promise.all(
+      [0, 1].map(() =>
+        node
+          .http()
+          .post('/v1/auth/passkeys/sign-in')
+          .send({ response: assertion }),
+      ),
+    );
+    expect(answers.map((res) => res.status).sort((a, b) => a - b)).toEqual([
+      200, 401,
+    ]);
+
+    // The owner's credential, presented under another account's user handle.
+    const other = await node.user([]);
+    const forged = device.get(await signInOptions());
+    forged.response.userHandle = Buffer.from(
+      other.id.replace(/-/g, ''),
+      'hex',
+    ).toString('base64url');
+    await node
+      .http()
+      .post('/v1/auth/passkeys/sign-in')
+      .send({ response: forged })
+      .expect(401);
   });
 
   it('answers a query parameter sent twice on the OIDC routes with a redirect or a 400, never a 500', async () => {

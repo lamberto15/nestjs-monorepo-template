@@ -56,6 +56,16 @@
       "title": "Two-factor sign-in changed",
       "body": "Two-factor sign-in for your account was turned on or off (from {ip}). If this wasn't you, change your password right away."
     },
+    "passkeyAdded": {
+      "label": "Passkey added",
+      "title": "A passkey was added to your account",
+      "body": "A passkey named “{name}” was added to your account (from {ip}). If this wasn't you, remove it and change your password right away."
+    },
+    "passkeyRemoved": {
+      "label": "Passkey removed",
+      "title": "A passkey was removed from your account",
+      "body": "The passkey “{name}” was removed from your account (from {ip}). If this wasn't you, change your password right away."
+    },
     "apiKeyRotated": {
       "label": "API key rotated",
       "title": "New API key",

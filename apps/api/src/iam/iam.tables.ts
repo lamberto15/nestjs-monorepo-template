@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   foreignKey,
   index,
@@ -199,6 +200,44 @@ export const userIdentities = pgTable(
     primaryKey({ columns: [table.provider, table.subject] }),
     index('user_identities_user_id_idx').on(table.userId),
   ],
+);
+
+/**
+ * A user's passkeys (WebAuthn credentials; docs/auth.md, "Passkeys"), each
+ * named by its owner. The credential id and the public key are what the
+ * authenticator made; the counter guards against a cloned authenticator
+ * (synced passkeys keep it at 0). Credentials belong to the person, not to
+ * a tenant (roadmap 1a: users are global).
+ */
+export const passkeys = pgTable(
+  'passkeys',
+  {
+    id: uuidPk(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** What the user calls it ("MacBook", "YubiKey 5C"). */
+    name: text('name').notNull(),
+    /** The credential id, base64url, as the authenticator reports it. */
+    credentialId: text('credential_id').notNull().unique(),
+    /** The COSE public key, base64url. */
+    publicKey: text('public_key').notNull(),
+    /** The signature counter last seen; a response with a lower one is refused. */
+    counter: bigint('counter', { mode: 'number' }).notNull().default(0),
+    /** How the browser can reach the authenticator (`internal`, `hybrid`, `usb`…). */
+    transports: jsonb('transports').$type<string[]>().notNull().default([]),
+    /** `multiDevice`: a synced passkey (iCloud Keychain, Google Password Manager); `singleDevice`: bound to one authenticator. */
+    deviceType: text('device_type', {
+      enum: ['singleDevice', 'multiDevice'],
+    }).notNull(),
+    /** Whether the passkey is backed up (synced) right now. */
+    backedUp: boolean('backed_up').notNull().default(false),
+    /** The authenticator model's id (all zeros with `none` attestation on many platforms). */
+    aaguid: text('aaguid').notNull().default(''),
+    lastUsedAt: at('last_used_at'),
+    ...timestamps(),
+  },
+  (table) => [index('passkeys_user_id_idx').on(table.userId)],
 );
 
 // Authentication state that DrizzleAuthenticationStore keeps for

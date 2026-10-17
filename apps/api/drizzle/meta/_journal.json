@@ -190,6 +190,13 @@
       "when": 1792198092369,
       "tag": "0026_tenancy_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792200827372,
+      "tag": "0027_clever_thundra",
+      "breakpoints": true
     }
   ]
 }

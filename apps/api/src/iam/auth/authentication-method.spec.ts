@@ -70,6 +70,13 @@ describe('authentication method', () => {
       mfa: true,
       authenticatedAt: at,
     });
+    // A passkey's token (RFC 8176 `pop`), with its second factor or without.
+    expect(
+      authenticationOf({ sub: 'user', ...tokenClaims(['pop'], at) }),
+    ).toMatchObject({ via: 'token', method: 'passkey', mfa: false });
+    expect(
+      authenticationOf({ sub: 'user', ...tokenClaims(['pop', 'mfa'], at) }),
+    ).toMatchObject({ method: 'passkey', mfa: true });
     // A token from before auth_time was recorded: never recent.
     expect(authenticationOf({ sub: 'user' })).toMatchObject({
       authenticatedAt: null,
