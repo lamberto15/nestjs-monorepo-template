@@ -1,0 +1,144 @@
+{
+  "nav": {
+    "title": "API clients",
+    "usage": "API usage"
+  },
+  "list": {
+    "title": "API clients",
+    "description": "Systems that call the API with a key. A key is shown once, when it is made.",
+    "empty": "No API clients yet.",
+    "create": "New client",
+    "columns": {
+      "name": "Name",
+      "status": "Status",
+      "quota": "Daily quota",
+      "keys": "Active keys",
+      "lastUsed": "Last used"
+    },
+    "open": "Open",
+    "never": "Never",
+    "noQuota": "None"
+  },
+  "status": {
+    "active": "Active",
+    "revoked": "Revoked"
+  },
+  "create": {
+    "title": "New API client",
+    "description": "Its first key is shown once, after you create it.",
+    "name": "Name",
+    "namePlaceholder": "Billing exporter",
+    "nameRequired": "Give the client a name.",
+    "quota": "Daily quota (optional)",
+    "quotaHint": "Requests a day (UTC); past it, the API answers 429. Leave empty for none.",
+    "quotaInvalid": "A whole number of 1 or more.",
+    "submit": "Create client",
+    "cancel": "Cancel"
+  },
+  "secret": {
+    "createdTitle": "Copy the key of {{name}}",
+    "rotatedTitle": "Copy the new key of {{name}}",
+    "warning": "You won't see this key again. Copy it now and keep it somewhere safe.",
+    "usage": "Send it as Authorization: Bearer <key>.",
+    "copy": "Copy",
+    "copied": "Copied to the clipboard.",
+    "copyFailed": "Could not copy. Select the key and copy it by hand.",
+    "done": "I have copied it",
+    "label": "API key"
+  },
+  "detail": {
+    "back": "All clients",
+    "notFound": "No such client.",
+    "created": "Created {{date}}",
+    "viewUsage": "View usage",
+    "quota": {
+      "title": "Daily quota",
+      "description": "Requests a day (UTC). Past it, the API answers 429 quota_exceeded until midnight UTC.",
+      "label": "Requests a day",
+      "save": "Save quota",
+      "saved": "Quota saved.",
+      "remove": "Remove quota",
+      "none": "No quota."
+    },
+    "state": {
+      "title": "Access",
+      "activeDescription": "While revoked, every key of this client is refused.",
+      "revoke": "Revoke client",
+      "revokeTitle": "Revoke {{name}}?",
+      "revokeDescription": "Every key of this client stops working from the next request. You can reactivate it later.",
+      "revokeConfirm": "Revoke",
+      "reactivate": "Reactivate client",
+      "revoked": "Client revoked.",
+      "reactivated": "Client reactivated."
+    },
+    "keys": {
+      "title": "Keys",
+      "empty": "No keys.",
+      "columns": {
+        "key": "Key",
+        "created": "Created",
+        "expires": "Expires",
+        "lastUsed": "Last used",
+        "status": "Status"
+      },
+      "never": "Never",
+      "revokedAt": "Revoked {{date}}",
+      "expired": "Expired",
+      "active": "Active",
+      "revoke": "Revoke",
+      "revokeTitle": "Revoke this key?",
+      "revokeDescription": "The key {{keyId}} stops working now. A system using it is refused.",
+      "revokeConfirm": "Revoke key",
+      "revokedToast": "Key revoked."
+    },
+    "rotate": {
+      "title": "Rotate the key",
+      "description": "Makes a new key. The current ones keep working for the grace period, so the system can switch.",
+      "grace": "Current keys keep working for",
+      "graces": {
+        "0": "Not at all: stop now",
+        "3600": "1 hour",
+        "86400": "1 day",
+        "604800": "7 days"
+      },
+      "submit": "Rotate key",
+      "confirmTitle": "Rotate the key of {{name}}?",
+      "confirmDescription": "A new key is made and shown once. The current keys stop working after the grace period you chose."
+    }
+  },
+  "usage": {
+    "title": "API usage",
+    "description": "Requests of an API client per UTC day and route.",
+    "client": "Client",
+    "selectClient": "Choose a client",
+    "range": "Period",
+    "ranges": {
+      "7": "Last 7 days",
+      "30": "Last 30 days",
+      "90": "Last 90 days"
+    },
+    "noClients": "No API clients yet.",
+    "stats": {
+      "total": "Requests in the period",
+      "today": "Today",
+      "quota": "Daily quota",
+      "remaining_one": "{{count}} left today",
+      "remaining_other": "{{count}} left today",
+      "overQuota": "Quota reached: requests are refused until midnight UTC",
+      "noQuota": "No quota",
+      "usedOf": "{{used}} of {{quota}} used"
+    },
+    "chart": {
+      "title": "Requests per day",
+      "series": "Requests",
+      "empty": "No requests in this period."
+    },
+    "routes": {
+      "title": "By route",
+      "route": "Route",
+      "requests": "Requests",
+      "share": "Share",
+      "empty": "No requests in this period."
+    }
+  }
+}

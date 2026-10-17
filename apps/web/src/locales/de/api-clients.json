@@ -1,0 +1,144 @@
+{
+  "nav": {
+    "title": "API-Clients",
+    "usage": "API-Nutzung"
+  },
+  "list": {
+    "title": "API-Clients",
+    "description": "Systeme, die die API mit einem Schlüssel aufrufen. Ein Schlüssel wird nur einmal angezeigt, wenn er erstellt wird.",
+    "empty": "Noch keine API-Clients.",
+    "create": "Neuer Client",
+    "columns": {
+      "name": "Name",
+      "status": "Status",
+      "quota": "Tageskontingent",
+      "keys": "Aktive Schlüssel",
+      "lastUsed": "Zuletzt verwendet"
+    },
+    "open": "Öffnen",
+    "never": "Nie",
+    "noQuota": "Keines"
+  },
+  "status": {
+    "active": "Aktiv",
+    "revoked": "Gesperrt"
+  },
+  "create": {
+    "title": "Neuer API-Client",
+    "description": "Sein erster Schlüssel wird nach dem Erstellen einmal angezeigt.",
+    "name": "Name",
+    "namePlaceholder": "Rechnungsexport",
+    "nameRequired": "Gib dem Client einen Namen.",
+    "quota": "Tageskontingent (optional)",
+    "quotaHint": "Anfragen pro Tag (UTC); darüber antwortet die API mit 429. Leer lassen für keines.",
+    "quotaInvalid": "Eine ganze Zahl ab 1.",
+    "submit": "Client erstellen",
+    "cancel": "Abbrechen"
+  },
+  "secret": {
+    "createdTitle": "Schlüssel von {{name}} kopieren",
+    "rotatedTitle": "Neuen Schlüssel von {{name}} kopieren",
+    "warning": "Du siehst diesen Schlüssel nicht wieder. Kopiere ihn jetzt und bewahre ihn sicher auf.",
+    "usage": "Sende ihn als Authorization: Bearer <key>.",
+    "copy": "Kopieren",
+    "copied": "In die Zwischenablage kopiert.",
+    "copyFailed": "Kopieren nicht möglich. Markiere den Schlüssel und kopiere ihn von Hand.",
+    "done": "Ich habe ihn kopiert",
+    "label": "API-Schlüssel"
+  },
+  "detail": {
+    "back": "Alle Clients",
+    "notFound": "Diesen Client gibt es nicht.",
+    "created": "Erstellt am {{date}}",
+    "viewUsage": "Nutzung ansehen",
+    "quota": {
+      "title": "Tageskontingent",
+      "description": "Anfragen pro Tag (UTC). Darüber antwortet die API bis Mitternacht UTC mit 429 quota_exceeded.",
+      "label": "Anfragen pro Tag",
+      "save": "Kontingent speichern",
+      "saved": "Kontingent gespeichert.",
+      "remove": "Kontingent entfernen",
+      "none": "Kein Kontingent."
+    },
+    "state": {
+      "title": "Zugriff",
+      "activeDescription": "Solange der Client gesperrt ist, wird jeder seiner Schlüssel abgelehnt.",
+      "revoke": "Client sperren",
+      "revokeTitle": "{{name}} sperren?",
+      "revokeDescription": "Alle Schlüssel dieses Clients funktionieren ab der nächsten Anfrage nicht mehr. Du kannst ihn später wieder aktivieren.",
+      "revokeConfirm": "Sperren",
+      "reactivate": "Client wieder aktivieren",
+      "revoked": "Client gesperrt.",
+      "reactivated": "Client wieder aktiviert."
+    },
+    "keys": {
+      "title": "Schlüssel",
+      "empty": "Keine Schlüssel.",
+      "columns": {
+        "key": "Schlüssel",
+        "created": "Erstellt",
+        "expires": "Läuft ab",
+        "lastUsed": "Zuletzt verwendet",
+        "status": "Status"
+      },
+      "never": "Nie",
+      "revokedAt": "Gesperrt am {{date}}",
+      "expired": "Abgelaufen",
+      "active": "Aktiv",
+      "revoke": "Sperren",
+      "revokeTitle": "Diesen Schlüssel sperren?",
+      "revokeDescription": "Der Schlüssel {{keyId}} funktioniert sofort nicht mehr. Ein System, das ihn nutzt, wird abgelehnt.",
+      "revokeConfirm": "Schlüssel sperren",
+      "revokedToast": "Schlüssel gesperrt."
+    },
+    "rotate": {
+      "title": "Schlüssel rotieren",
+      "description": "Erzeugt einen neuen Schlüssel. Die aktuellen funktionieren während der Übergangsfrist weiter, damit das System umstellen kann.",
+      "grace": "Aktuelle Schlüssel funktionieren noch",
+      "graces": {
+        "0": "Gar nicht: sofort stoppen",
+        "3600": "1 Stunde",
+        "86400": "1 Tag",
+        "604800": "7 Tage"
+      },
+      "submit": "Schlüssel rotieren",
+      "confirmTitle": "Schlüssel von {{name}} rotieren?",
+      "confirmDescription": "Ein neuer Schlüssel wird erzeugt und einmal angezeigt. Die aktuellen Schlüssel enden nach der gewählten Übergangsfrist."
+    }
+  },
+  "usage": {
+    "title": "API-Nutzung",
+    "description": "Anfragen eines API-Clients pro UTC-Tag und Route.",
+    "client": "Client",
+    "selectClient": "Client wählen",
+    "range": "Zeitraum",
+    "ranges": {
+      "7": "Letzte 7 Tage",
+      "30": "Letzte 30 Tage",
+      "90": "Letzte 90 Tage"
+    },
+    "noClients": "Noch keine API-Clients.",
+    "stats": {
+      "total": "Anfragen im Zeitraum",
+      "today": "Heute",
+      "quota": "Tageskontingent",
+      "remaining_one": "{{count}} heute übrig",
+      "remaining_other": "{{count}} heute übrig",
+      "overQuota": "Kontingent erreicht: Anfragen werden bis Mitternacht UTC abgelehnt",
+      "noQuota": "Kein Kontingent",
+      "usedOf": "{{used}} von {{quota}} genutzt"
+    },
+    "chart": {
+      "title": "Anfragen pro Tag",
+      "series": "Anfragen",
+      "empty": "Keine Anfragen in diesem Zeitraum."
+    },
+    "routes": {
+      "title": "Nach Route",
+      "route": "Route",
+      "requests": "Anfragen",
+      "share": "Anteil",
+      "empty": "Keine Anfragen in diesem Zeitraum."
+    }
+  }
+}
