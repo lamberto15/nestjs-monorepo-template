@@ -11,16 +11,29 @@
 //   pnpm feature:add invoices --fields "title:string,amount:money,dueOn:date?,status:enum(draft|sent|paid)"
 //   pnpm feature:add invoices --fields "…" --team --no-soft-delete --description "Invoices to customers"
 //   pnpm feature:add people --singular person --fields "name:string"
+//   pnpm feature:add invoices --fields "…" --with tags,comments,attachments,revisions,pdf,bulk,watch,search,transfer
 //   node --test tools/feature/add.test.mjs                  # its tests
 //
 // Field types: string, text, int, decimal, money, bool, date, datetime,
 // enum(a|b), json, ref(<feature>)?; `?` optional, `!unique` unique per tenant.
 // Then: pnpm db:generate (new tables: drizzle-kit asks nothing),
 // pnpm client:generate, and the check before every commit (CLAUDE.md).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import {
+  CAPABILITIES,
+  documentTemplate,
+  parseCapabilities,
+  parts,
+} from './capabilities.mjs';
 import { parseFields } from './fields.mjs';
 import { names } from './names.mjs';
 import * as templates from './templates.mjs';
@@ -70,6 +83,7 @@ export async function addFeature(root, options) {
     );
   }
   const fields = parseFields(options.fields);
+  const capabilities = parseCapabilities(options.with, fields);
   const api = path.join(root, 'apps/api');
   const dir = path.join(api, 'src/features', t.plural);
   if (existsSync(dir)) {
@@ -93,6 +107,7 @@ export async function addFeature(root, options) {
     fields,
     softDelete: options.softDelete !== false,
     team: options.team === true,
+    capabilities,
     description:
       options.description || `${t.nouns[0].toUpperCase()}${t.nouns.slice(1)}`,
   };
@@ -109,6 +124,8 @@ export async function addFeature(root, options) {
     [`${t.plural}.module.ts`]: templates.moduleFile(context),
     [`${t.plural}.feature.ts`]: templates.feature(context),
   };
+  const extra = parts(context);
+  Object.assign(files, extra.files);
   const written = [];
   mkdirSync(dir, { recursive: true });
   for (const [name, text] of Object.entries(files)) {
@@ -120,12 +137,24 @@ export async function addFeature(root, options) {
   writeFileSync(spec, await format(spec, templates.e2e(context)));
   written.push(path.relative(root, spec));
 
+  if (capabilities.has('pdf')) {
+    const page = path.join(
+      api,
+      'src/documents/templates',
+      `${t.singular}.html`,
+    );
+    writeFileSync(page, documentTemplate());
+    written.push(path.relative(root, page));
+  }
+  const translate = await addTexts(api, extra.texts);
+
   const changed = [
     await appendFeature(api, t),
     await appendTables(api, t),
-    await addOpenApiPaths(api, t, context.softDelete),
+    await addOpenApiPaths(api, t, context.softDelete, capabilities),
+    ...translate.files,
   ].map((file) => path.relative(root, file));
-  return { written, changed, names: t };
+  return { written, changed, names: t, translate: translate.keys };
 }
 
 /** features/index.ts: the import and the list entry, at the markers. */
@@ -164,7 +193,12 @@ async function appendTables(api, t) {
 }
 
 /** The OpenAPI test lists every path, sorted as the test sorts them: the feature's join it. */
-export async function addOpenApiPaths(api, t, softDelete) {
+export async function addOpenApiPaths(
+  api,
+  t,
+  softDelete,
+  capabilities = new Set(),
+) {
   const file = path.join(api, 'test/openapi.e2e-spec.ts');
   const text = readFileSync(file, 'utf8');
   const start = text.indexOf(
@@ -180,16 +214,103 @@ export async function addOpenApiPaths(api, t, softDelete) {
   const block = text.slice(start, end);
   const open = block.indexOf('[') + 1;
   const paths = [...block.slice(open).matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const base = `/v1/${t.plural}`;
+  const has = (name) => capabilities.has(name);
   const added = [
-    `/v1/${t.plural}`,
-    `/v1/${t.plural}/{id}`,
-    ...(softDelete ? [`/v1/${t.plural}/{id}/restore`] : []),
+    base,
+    `${base}/{id}`,
+    ...(softDelete ? [`${base}/{id}/restore`] : []),
+    ...(has('bulk') ? [`${base}/bulk`] : []),
+    ...(has('attachments') ? [`${base}/{id}/attachments`] : []),
+    ...(has('comments')
+      ? [`${base}/{id}/comments`, `${base}/{id}/comments/{commentId}`]
+      : []),
+    ...(has('pdf') ? [`${base}/{id}/pdf`] : []),
+    ...(has('revisions')
+      ? [
+          `${base}/{id}/revisions`,
+          `${base}/{id}/revisions/{a}/diff/{b}`,
+          `${base}/{id}/revisions/{number}`,
+          `${base}/{id}/revisions/{number}/restore`,
+        ]
+      : []),
+    ...(has('tags') ? [`${base}/{id}/tags`] : []),
+    ...(has('watch') ? [`${base}/{id}/watch`] : []),
   ];
   const all = [...new Set([...paths, ...added])].sort();
   const list = all.map((p) => `      '${p}',`).join('\n');
   const updated = `${head}${block.slice(0, open)}\n${list}\n    ${text.slice(end)}`;
   writeFileSync(file, await format(file, updated));
   return file;
+}
+
+/**
+ * The capabilities' texts (notifications, PDF labels) in every locale's
+ * namespace file: English everywhere, so the app runs in every language;
+ * the keys outside en/ are returned to be translated.
+ */
+async function addTexts(api, texts) {
+  const files = [];
+  const keys = [];
+  const root = path.join(api, 'src/i18n');
+  const locales = readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  for (const [namespace, entries] of Object.entries(texts)) {
+    for (const locale of locales) {
+      const file = path.join(root, locale, `${namespace}.json`);
+      if (!existsSync(file)) {
+        throw new Error(`i18n/${locale}/${namespace}.json is missing.`);
+      }
+      const current = JSON.parse(readFileSync(file, 'utf8'));
+      for (const key of Object.keys(entries)) {
+        if (key in current) {
+          throw new Error(
+            `i18n/${locale}/${namespace}.json has "${key}" already.`,
+          );
+        }
+      }
+      writeFileSync(
+        file,
+        `${JSON.stringify({ ...current, ...withPlurals(entries, locale) }, null, 2)}\n`,
+      );
+      files.push(file);
+      if (locale !== 'en') {
+        keys.push(
+          ...Object.keys(entries).map(
+            (key) => `${locale}/${namespace}.json: ${key}`,
+          ),
+        );
+      }
+    }
+  }
+  return { files, keys };
+}
+
+/**
+ * A text with plural forms (`{ one, other }`) gets every form the locale
+ * uses (Arabic: zero, one, two, few, many, other), each the `other` text
+ * but `one`'s: the catalogs' test asks for them all.
+ */
+function withPlurals(value, locale) {
+  if (typeof value !== 'object' || value === null) {
+    return value;
+  }
+  const keys = Object.keys(value);
+  if (keys.length === 2 && 'one' in value && 'other' in value) {
+    const forms = new Intl.PluralRules(locale).resolvedOptions()
+      .pluralCategories;
+    return Object.fromEntries(
+      forms.map((form) => [form, form === 'one' ? value.one : value.other]),
+    );
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, inner]) => [
+      key,
+      withPlurals(inner, locale),
+    ]),
+  );
 }
 
 /** Formats as `pnpm format` would (the repository's Prettier config). */
@@ -199,7 +320,7 @@ async function format(file, text) {
   return prettier.format(text, { ...config, filepath: file });
 }
 
-const USAGE = `pnpm feature:add <plural-name> --fields "name:type,…" [--singular <name>] [--team] [--no-soft-delete] [--description "…"]`;
+const USAGE = `pnpm feature:add <plural-name> --fields "name:type,…" [--with ${CAPABILITIES.join(',')}] [--singular <name>] [--team] [--no-soft-delete] [--description "…"]`;
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -211,6 +332,7 @@ async function main() {
       team: { type: 'boolean', default: false },
       'soft-delete': { type: 'boolean', default: true },
       description: { type: 'string' },
+      with: { type: 'string' },
       root: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -226,11 +348,16 @@ async function main() {
     team: values.team,
     softDelete: values['soft-delete'],
     description: values.description,
+    with: values.with,
   });
   const t = result.names;
   console.log(`Added features/${t.plural}:`);
   for (const file of result.written) console.log(`  + ${file}`);
   for (const file of result.changed) console.log(`  ~ ${file}`);
+  if (result.translate.length) {
+    console.log(`\nTo translate (English for now):`);
+    for (const key of result.translate) console.log(`  ${key}`);
+  }
   console.log(`
 Next:
   pnpm db:generate        # the ${t.table} table's migration (review it, commit apps/api/drizzle/)
