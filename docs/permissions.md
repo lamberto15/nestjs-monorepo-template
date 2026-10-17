@@ -86,6 +86,19 @@ reads all carry the field (`read` own notes, every field) are unaffected.
 `GET /v1/lists/{subject}` describes such a field with no operators, not
 sortable, still selectable, and `search: false` when `q` reads one.
 
+Some queries match rows another action reaches, while what they show of
+those rows is still what `read` grants: the recycle bin (`deleted=true`)
+lists what the caller may `restore`, a bulk run selects what its action
+(`delete`, `restore`…) reaches, an export what its exporter's `action`
+does. The check takes that action (`assertQueryFields(…, { reach })`;
+`RecordPresenter.query()` and the notes list pass `restore` for the bin,
+bulk runs their action, exports and reports `exporter.action ?? 'read'`):
+a field is matchable only when every rule of the reaching action has a
+`read` grant of the field with the same conditions, or `read` grants it
+without conditions. `read` own items with every field beside `restore`
+the team's refuses `deleted=true&q=…`. `GET /v1/lists/{subject}`
+describes the live list (`read`'s reach), not the recycle bin's.
+
 A generated record's list route gets its query only through
 `RecordPresenter.query()`, which calls `assertQueryFields`; notes' calls it
 by hand; exports, bulk runs and scheduled reports check their filters the

@@ -81,17 +81,24 @@ const NO_FIELDS = '$none';
  * - A rule with fields and conditions that forbids it (inverted), ahead of
  *   any grant without conditions: hidden where its conditions hold.
  * - A grant of the field without conditions: shown on every record.
- * - Otherwise every rule that lets `action` reach records must grant the
- *   field on the same records: the same conditions as a rule that grants
- *   it. `read` own notes with every field and `read` the team's with
- *   `fields: []` leaves `body` hidden on the team's; `read` own notes
+ * - Otherwise every rule that lets `reach` reach records must have a
+ *   rule of `action` grant the field on the same records: the same
+ *   conditions. `read` own notes with every field and `read` the team's
+ *   with `fields: []` leaves `body` hidden on the team's; `read` own notes
  *   alone shows it on every note the read reaches.
+ *
+ * `reach` is the action whose rows the query matches, when it isn't
+ * `action` itself: the recycle bin lists what the caller may `restore`, a
+ * bulk run selects what it may `delete`, and so on, while what they see of
+ * those rows is still what `read` grants. `read` own notes with every field
+ * and `restore` the team's leaves `body` hidden on the team's deleted notes.
  */
 export function hiddenOnSomeRecords(
   ability: AppAbility,
   action: string,
   subject: string,
   field: string,
+  reach: string = action,
 ): boolean {
   const rules = ability.rulesFor(action, subject, field);
   for (const rule of rules) {
@@ -108,7 +115,7 @@ export function hiddenOnSomeRecords(
       .map((rule) => JSON.stringify(rule.conditions)),
   );
   return ability
-    .possibleRulesFor(action, subject)
+    .possibleRulesFor(reach, subject)
     .some(
       (rule) => !rule.inverted && !granted.has(JSON.stringify(rule.conditions)),
     );
@@ -310,6 +317,8 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     principal: Principal,
     action: string,
     subject: string,
+    /** The action whose rows are matched, when another (see hiddenOnSomeRecords). */
+    reach: string = action,
   ): Promise<string[]> {
     const declared = this.catalog.declaredFields(subject);
     if (declared.length === 0) {
@@ -319,7 +328,7 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     return declared.filter(
       (field) =>
         ability.can(action, subject, field) &&
-        hiddenOnSomeRecords(ability, action, subject, field),
+        hiddenOnSomeRecords(ability, action, subject, field, reach),
     );
   }
 
@@ -349,11 +358,17 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
    * decides per record what is shown. Every list of a subject with declared
    * fields calls it after validating the query, and so do the exports,
    * bulk runs and reports that take the list's filters.
+   *
+   * `reach`: the action whose rows the query matches (`sqlFilter()`'s), when
+   * not `read`: `restore` for a recycle bin, a bulk run's action, an
+   * exporter's `action`. A field is matchable only where `read` shows it
+   * on every row that action reaches.
    */
   async assertQueryFields(
     principal: Principal,
     subject: string,
     query: ListQuery,
+    { reach = 'read' }: { reach?: string } = {},
   ): Promise<void> {
     // A subject with no declared fields hides none: nothing to check, whatever
     // validated the query. Otherwise only a listQuery() query (queryReads throws).
@@ -367,7 +382,7 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     const matching = queryMatches(query);
     const [denied, conditional] = await Promise.all([
       this.deniedFields(principal, 'read', subject),
-      this.conditionalFields(principal, 'read', subject),
+      this.conditionalFields(principal, 'read', subject, reach),
     ]);
     const forbidden = reads.filter(
       (field) =>

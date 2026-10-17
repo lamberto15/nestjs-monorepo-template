@@ -535,6 +535,115 @@ describe('security (e2e)', () => {
     }
   });
 
+  it('checks matching against the action that reaches the rows: the recycle bin and bulk runs', async () => {
+    const roleOf = async (permissions: Record<string, unknown>[]) =>
+      (
+        await node
+          .admin()
+          .post('/v1/access/roles')
+          .send({ name: `reach-${randomUUID().slice(0, 8)}`, permissions })
+          .expect(201)
+      ).body.id as string;
+    const own = (action: string) => ({
+      subject: 'TestItem',
+      action,
+      conditions: [{ key: 'mine' }],
+    });
+    const team = (action: string) => ({
+      subject: 'TestItem',
+      action,
+      conditions: [{ key: 'inMyTeams' }],
+    });
+    const create = { subject: 'TestItem', action: 'create', conditions: [] };
+    // Reads its own items (every field), restores the team's, deletes any.
+    const wider = await roleOf([
+      create,
+      own('read'),
+      team('restore'),
+      { subject: 'TestItem', action: 'delete', conditions: [] },
+    ]);
+    const plain = await roleOf([create, own('read'), own('delete')]);
+    const group = await node
+      .admin()
+      .post('/v1/access/teams')
+      .send({ name: `Team ${randomUUID().slice(0, 8)}` })
+      .expect(201);
+    const member = async (roleId: string) => {
+      const created = await node.user([roleId]);
+      await node
+        .admin()
+        .patch(`/v1/access/users/${created.id}`)
+        .send({ teamIds: [group.body.id] })
+        .expect(204);
+      return created;
+    };
+    const caller = await member(wider);
+    const teammate = await member(plain);
+    const deleted = await node
+      .writeItem(teammate.agent, {
+        title: 'Binned',
+        body: 'salarywombat secret',
+      })
+      .expect(201);
+    await teammate.agent
+      .delete(`/v1/test-items/${deleted.body.id}`)
+      .expect(204);
+    await node
+      .writeItem(teammate.agent, { title: 'Live', body: 'salarywombat too' })
+      .expect(201);
+
+    // The recycle bin reaches the team's deleted items, whose text read never shows.
+    for (const query of [
+      'deleted=true&q=salarywombat',
+      'deleted=true&body.contains=wombat',
+    ]) {
+      const refused = await caller.agent
+        .get(`/v1/test-items?${query}`)
+        .expect(403);
+      expect(refused.body, query).toMatchObject({
+        code: 'field_forbidden',
+        fields: ['body'],
+      });
+    }
+    const bin = await caller.agent
+      .get('/v1/test-items?deleted=true&title.contains=Binned')
+      .expect(200);
+    expect(bin.body.items.map((item: { id: string }) => item.id)).toEqual([
+      deleted.body.id,
+    ]);
+    expect(bin.body.items[0]).not.toHaveProperty('body');
+    // The live list reaches only its own items: matching there is as before.
+    await caller.agent.get('/v1/test-items?q=salarywombat').expect(200);
+
+    // A bulk run selects by its action's reach.
+    const run = (agent: typeof caller.agent, filter: Record<string, string>) =>
+      agent
+        .post('/v1/test-items/bulk')
+        .set('Idempotency-Key', randomUUID())
+        .send({ action: 'delete', filter });
+    const refused = await run(caller.agent, {
+      'body.contains': 'wombat',
+    }).expect(403);
+    expect(refused.body).toMatchObject({
+      code: 'field_forbidden',
+      fields: ['body'],
+    });
+    expect([200, 202]).toContain(
+      (await run(caller.agent, { 'title.contains': 'Nothing here' })).status,
+    );
+
+    // Restoring and deleting only what one reads, every field: allowed.
+    const self = await member(
+      await roleOf([create, own('read'), own('restore'), own('delete')]),
+    );
+    await self.agent
+      .get('/v1/test-items?deleted=true&q=salarywombat')
+      .expect(200);
+    expect([200, 202]).toContain(
+      (await run(self.agent, { 'body.contains': 'wombat' })).status,
+    );
+  });
+
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {
     const { id } = await node.user([]);
     const db = node.db;

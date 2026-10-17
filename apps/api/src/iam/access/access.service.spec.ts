@@ -48,6 +48,10 @@ const catalog = new PermissionCatalog({
           },
           actions: {
             read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
+            restore: {
+              label: 'Restore notes',
+              conditions: ['mine', 'inMyTeams'],
+            },
           },
         },
       },
@@ -90,6 +94,12 @@ const read = (conditions: string[], fields?: string[]): PermissionInput => ({
   action: 'read',
   conditions: conditions.map((key) => ({ key })),
   ...(fields && { fields }),
+});
+
+const restore = (conditions: string[]): PermissionInput => ({
+  subject: 'Note',
+  action: 'restore',
+  conditions: conditions.map((key) => ({ key })),
 });
 
 /** An AccessService whose principal holds `permissions` (no database, no Redis). */
@@ -238,5 +248,41 @@ describe('AccessService: fields shown on some records only', () => {
       .assertQueryFields(sam, 'Note', LIST.parse({ fields: 'body' }))
       .catch((error: unknown) => error);
     expect(refused).toBeInstanceOf(ForbiddenException);
+  });
+
+  it('reads the rows another action reaches against what read shows of them', async () => {
+    // Restoring the team's notes while reading only one's own: the recycle
+    // bin reaches notes whose text read never shows.
+    const wider = accessWith(read(['mine']), restore(['inMyTeams']));
+    expect(await wider.conditionalFields(sam, 'read', 'Note')).toEqual([]);
+    expect(
+      await wider.conditionalFields(sam, 'read', 'Note', 'restore'),
+    ).toEqual(['body', 'custom']);
+    const bin = LIST.parse({ q: 'salary' });
+    await wider.assertQueryFields(sam, 'Note', bin);
+    await expect(
+      wider.assertQueryFields(sam, 'Note', bin, { reach: 'restore' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await wider.assertQueryFields(
+      sam,
+      'Note',
+      LIST.parse({ 'title.contains': 'x', fields: 'title,body' }),
+      { reach: 'restore' },
+    );
+    // Restoring what one reads, with every field: nothing hidden there.
+    const same = accessWith(read(['mine']), restore(['mine']));
+    expect(
+      await same.conditionalFields(sam, 'read', 'Note', 'restore'),
+    ).toEqual([]);
+    await same.assertQueryFields(sam, 'Note', bin, { reach: 'restore' });
+    // A read of every note with every field covers any reach.
+    expect(
+      await accessWith(read([]), restore(['inMyTeams'])).conditionalFields(
+        sam,
+        'read',
+        'Note',
+        'restore',
+      ),
+    ).toEqual([]);
   });
 });
