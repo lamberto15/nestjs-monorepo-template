@@ -197,6 +197,13 @@
       "when": 1792200827372,
       "tag": "0027_clever_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792212797009,
+      "tag": "0028_account_deletion_started",
+      "breakpoints": true
     }
   ]
 }

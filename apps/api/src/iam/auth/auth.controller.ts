@@ -159,7 +159,7 @@ const methodsSchema = z.object({
     })
     .nullable()
     .describe(
-      "Bot protection on sign-in, sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
+      "Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
     ),
 });
 
@@ -280,9 +280,15 @@ export class AuthController {
     return principal;
   }
 
-  /** The second step of a sign-in with two-factor on: a code from the app, or a recovery code. */
+  /**
+   * The second step of a sign-in with two-factor on: a code from the app, or
+   * a recovery code. A wrong code is a failed sign-in for bot protection:
+   * counted on the address and on the pending account's email and address,
+   * the keys a wrong password counts on, and challenged the same way.
+   */
   @Public()
   @Throttle({ default: { limit: 10, ttl: minutes(15) } })
+  @Captcha({ action: 'sign-in', count: 'failures', account: 'session' })
   @Post('mfa/verify')
   @HttpCode(200)
   @ApiOperation({ summary: 'Finish signing in with a two-factor code' })

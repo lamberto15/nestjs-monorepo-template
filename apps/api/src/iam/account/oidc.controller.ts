@@ -1,14 +1,19 @@
 import {
+  BadRequestException,
   Controller,
   Delete,
+  Ip,
   Get,
   HttpCode,
   NotFoundException,
   Param,
   Query,
   Redirect,
+  Req,
+  Res,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import {
   Authenticate,
   CurrentSession,
@@ -39,6 +44,10 @@ import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
+import {
+  ReauthenticationRefused,
+  reauthenticationCookie,
+} from './oidc-reauthentication.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 
 const identitySchema = z.object({
@@ -66,6 +75,13 @@ const loginQuerySchema = z.object({
     .optional()
     .catch(undefined)
     .describe('`true`: connect the provider to the signed-in account.'),
+  reauthenticate: z
+    .string()
+    .optional()
+    .catch(undefined)
+    .describe(
+      '`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.',
+    ),
 });
 
 /**
@@ -117,19 +133,47 @@ export class OidcController {
   @ApiOperation({
     summary: 'Start signing in with a provider (navigate the browser here)',
     description:
-      'With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first.',
+      'With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first. With `reauthenticate=true`, a signed-in user steps up through the provider: it is asked to authenticate them again (`prompt=login`, `max_age=0`), and the callback accepts only that user, authenticated at the provider after the start (`auth_time`, when the ID token has one); otherwise the browser lands on the web app with `?error=reauthentication_failed`, signed in as before.',
   })
   @ApiFoundResponse({
     description:
       'To the provider; or, linking from a stale session, to the web app with `?error=reauthentication_required`.',
   })
-  login(
+  async login(
     @CurrentUser() user: UserPrincipal | null,
     @CurrentSession() session: unknown,
     @Param('provider') provider: string,
     @Query({ schema: loginQuerySchema })
-    { redirectTo, link }: z.infer<typeof loginQuerySchema>,
+    { redirectTo, link, reauthenticate }: z.infer<typeof loginQuerySchema>,
+    @Res({ passthrough: true }) res: Response,
   ) {
+    if (reauthenticate === 'true') {
+      if (link === 'true') {
+        throw new BadRequestException(
+          '`link` and `reauthenticate` are two flows: one at a time.',
+        );
+      }
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+      notWhileImpersonating(user);
+      // As linking: an address the person proved (an invitation, the link).
+      verifiedEmailOnly(user);
+      this.configured(provider);
+      const redirect = await this.account.startReauthenticationWithProvider(
+        user,
+        provider,
+        redirectTo,
+      );
+      // This browser started a step-up for this state: its callback is one.
+      res.append(
+        'Set-Cookie',
+        this.stepUpCookie().set(
+          new URL(redirect.url).searchParams.get('state')!,
+        ),
+      );
+      return redirect;
+    }
     if (link === 'true') {
       if (!user) {
         throw new UnauthorizedException();
@@ -176,14 +220,50 @@ export class OidcController {
   @Get('oidc/:provider/callback')
   @Redirect()
   @ApiOperation({ summary: 'Where the provider sends the browser back' })
-  @ApiFoundResponse({ description: 'To the web app.' })
+  @ApiFoundResponse({
+    description:
+      'To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`.',
+  })
   async callback(
     @Param('provider') provider: string,
     @Query({ schema: callbackQuerySchema })
     query: z.infer<typeof callbackQuerySchema>,
+    @Ip() ip: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     this.configured(provider);
-    return this.account.signInWithProvider(provider, query);
+    const cookie = this.stepUpCookie();
+    const stepUpExpected =
+      query.state !== undefined &&
+      cookie.read(req.headers.cookie) === query.state;
+    try {
+      const redirect = await this.account.signInWithProvider(
+        provider,
+        query,
+        ip,
+        { stepUpExpected },
+      );
+      if (stepUpExpected) {
+        res.append('Set-Cookie', cookie.clear());
+      }
+      return redirect;
+    } catch (error) {
+      if (error instanceof ReauthenticationRefused) {
+        res.append('Set-Cookie', cookie.clear());
+        return {
+          url: this.backToWebApp(error.redirectTo, 'reauthentication_failed'),
+        };
+      }
+      throw error;
+    }
+  }
+
+  /** The step-up cookie, Secure (and `__Host-`) as the session's (SESSION_COOKIE_SECURE). */
+  private stepUpCookie() {
+    return reauthenticationCookie(
+      this.config.get('SESSION_COOKIE_SECURE', { infer: true }),
+    );
   }
 
   @UserOnly()

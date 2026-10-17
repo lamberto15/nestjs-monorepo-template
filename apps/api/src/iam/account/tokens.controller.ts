@@ -1,5 +1,9 @@
 import { Body, Controller, Headers, HttpCode, Ip, Post } from '@nestjs/common';
-import { Public, TokenService } from '@nestjs/authentication';
+import {
+  AuthenticationError,
+  Public,
+  TokenService,
+} from '@nestjs/authentication';
 import {
   ApiNoContentResponse,
   ApiOkResponse,
@@ -10,6 +14,7 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
 import { Captcha } from '../captcha/captcha.guard.js';
+import { CaptchaService } from '../captcha/captcha.service.js';
 import { email } from './account.schemas.js';
 import { AccountService } from './account.service.js';
 
@@ -57,6 +62,7 @@ export class TokensController {
   constructor(
     private readonly tokens: TokenService,
     private readonly account: AccountService,
+    private readonly captcha: CaptchaService,
   ) {}
 
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
@@ -69,18 +75,34 @@ export class TokensController {
     description:
       'Invalid credentials, or a second factor is required or wrong.',
   })
-  issue(
+  async issue(
     @Body({ schema: issueSchema }) body: z.infer<typeof issueSchema>,
     @Ip() ip: string,
     @Headers('user-agent') userAgent: string | undefined,
   ) {
-    return this.account.issueTokens(
-      body.email,
-      body.password,
-      { code: body.code, recoveryCode: body.recoveryCode },
-      { ip, userAgent },
-      body.tenantId,
-    );
+    try {
+      return await this.account.issueTokens(
+        body.email,
+        body.password,
+        { code: body.code, recoveryCode: body.recoveryCode },
+        { ip, userAgent },
+        body.tenantId,
+      );
+    } catch (error) {
+      // The right password, no code sent: the browser's sign-in answers
+      // that with a 200 (`mfaRequired`), and it is no failure here either.
+      // The 401 keeps the attempt the guard reserved: give it back. A wrong
+      // code (the same `mfa_required`, with a code) stays counted.
+      if (
+        error instanceof AuthenticationError &&
+        error.code === 'mfa_required' &&
+        !body.code &&
+        !body.recoveryCode
+      ) {
+        await this.captcha.release({ ip, email: body.email });
+      }
+      throw error;
+    }
   }
 
   // An unknown, expired or reused refresh token gets a 401.

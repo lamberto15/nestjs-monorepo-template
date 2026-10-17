@@ -146,6 +146,210 @@ export async function ensureAppRole(
 
 type Credentials = { role: string; password: string; database: string };
 
+/** The monitoring role: its name and password (POSTGRES_MONITOR_USER, POSTGRES_MONITOR_PASSWORD). */
+export type MonitorRole = { role: string; password: string };
+
+/**
+ * The role the PostgreSQL exporter connects as (compose.monitoring.yaml;
+ * docs/deployment.md, "Database roles"), as the owner: it exists with that
+ * password and can log in, with the same flags as the app role (no
+ * superuser, no RLS bypass, creates nothing), is a member of `pg_monitor`
+ * and of nothing else, owns nothing and can't read a single application
+ * table: `pg_stat_*`, the settings and the database sizes are all it sees.
+ * Idempotent, like `ensureAppRole()`; the role's attributes are checked,
+ * never changed, and a password that fails is set from `monitor.password`
+ * (that is how it rotates). Returns the log line.
+ *
+ * `GRANT pg_monitor` needs the owner to hold `pg_monitor` with ADMIN OPTION
+ * (a superuser has everything; a managed PostgreSQL's admin role may need
+ * `GRANT pg_monitor TO <owner> WITH ADMIN OPTION` from the provider, or the
+ * membership granted by hand once): the error says which.
+ */
+export async function ensureMonitorRole(
+  urls: Pick<DatabaseUrls, 'ownerUrl'> & Partial<DatabaseUrls>,
+  monitor: MonitorRole,
+  log: (line: string) => void = () => {},
+) {
+  const ownerUrl = urls.ownerUrl;
+  const owner = credentials(ownerUrl, 'DATABASE_OWNER_URL');
+  if (!monitor.role || !monitor.password) {
+    throw new Error(
+      'POSTGRES_MONITOR_USER and POSTGRES_MONITOR_PASSWORD (or its _FILE) are both required for the monitoring role.',
+    );
+  }
+  // Never a role that holds more: the owner, the app (every table), the
+  // maintenance role (BYPASSRLS, every tenant).
+  for (const [name, url] of [
+    ['DATABASE_OWNER_URL', ownerUrl],
+    ['DATABASE_URL', urls.appUrl],
+    ['DATABASE_MAINTENANCE_URL', urls.maintenanceUrl],
+  ] as const) {
+    if (url && credentials(url, name).role === monitor.role) {
+      throw new Error(
+        `POSTGRES_MONITOR_USER names the role of ${name} ("${monitor.role}"): the exporter must connect as a role of its own, with pg_monitor only.`,
+      );
+    }
+  }
+  const creds: Credentials = { ...monitor, database: owner.database };
+  const client = new Client({
+    connectionString: ownerUrl,
+    application_name: 'migrate:roles',
+  });
+  await client.connect();
+  let created = false;
+  try {
+    await client.query('begin');
+    await client.query(
+      `select pg_advisory_xact_lock(hashtext('nestjs-monorepo-template:monitor-role'))`,
+    );
+    created = await ensureRole(client, creds, log);
+    await grantMonitor(client, monitor.role);
+    await grantConnect(client, creds, log);
+    await assertMonitorFit(
+      client,
+      monitor.role,
+      await applicationSchemas(client),
+    );
+    await client.query('commit');
+  } catch (error) {
+    await client.query('rollback').catch(() => undefined);
+    await client.end().catch(() => undefined);
+    throw error;
+  }
+  try {
+    const url = new URL(ownerUrl);
+    url.username = encodeURIComponent(monitor.role);
+    url.password = encodeURIComponent(monitor.password);
+    const passwordSet = await ensurePassword(
+      client,
+      creds,
+      url.toString(),
+      created,
+    );
+    log(
+      `Monitor role "${monitor.role}" ${created ? 'created' : 'checked'}${passwordSet ? ', password set' : ''}: pg_monitor only, owns nothing, reads no table.`,
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+
+/** `GRANT pg_monitor`, once; the owner needs ADMIN OPTION on it (a superuser has it). */
+async function grantMonitor(client: ClientBase, role: string) {
+  const { rows } = await client.query(
+    `select 1 from pg_auth_members m
+     where m.member = $1::regrole and m.roleid = 'pg_monitor'::regrole`,
+    [role],
+  );
+  if (rows.length > 0) {
+    return;
+  }
+  try {
+    await client.query(`grant pg_monitor to ${escapeIdentifier(role)}`);
+  } catch (error) {
+    if ((error as { code?: string }).code !== INSUFFICIENT_PRIVILEGE) {
+      throw error;
+    }
+    throw new Error(
+      `The owner may not grant pg_monitor: run \`GRANT pg_monitor TO ${escapeIdentifier(role)}\` as a superuser (or give the owner \`GRANT pg_monitor TO <owner> WITH ADMIN OPTION\` once), then run the migration again.`,
+    );
+  }
+}
+
+/**
+ * The monitoring role fits before anything commits: a member of
+ * `pg_monitor` and of nothing else (`pg_read_all_data`, the owner, the app
+ * role would hand it the tables), owns nothing, creates nothing, and holds
+ * no privilege on any application table: the exporter reads statistics,
+ * never rows.
+ */
+async function assertMonitorFit(
+  client: ClientBase,
+  role: string,
+  schemas: string[],
+) {
+  const problems: string[] = [];
+  // ensureRole() refuses these on an existing role already; checked again
+  // here so the role's fitness reads in one place.
+  const flags = await client.query<{
+    rolsuper: boolean;
+    rolbypassrls: boolean;
+  }>(`select rolsuper, rolbypassrls from pg_roles where rolname = $1`, [role]);
+  if (flags.rows[0]?.rolsuper || flags.rows[0]?.rolbypassrls) {
+    problems.push(
+      `is a superuser or bypasses row-level security: run ALTER ROLE ${escapeIdentifier(role)} NOSUPERUSER NOBYPASSRLS`,
+    );
+  }
+  const memberships = await client.query<{ rolname: string }>(
+    `select r.rolname from pg_auth_members m
+     join pg_roles r on r.oid = m.roleid
+     where m.member = $1::regrole
+     order by 1`,
+    [role],
+  );
+  const others = memberships.rows
+    .map((row) => row.rolname)
+    .filter((name) => name !== 'pg_monitor');
+  if (others.length > 0) {
+    problems.push(
+      `is a member of ${others.map((name) => `"${name}"`).join(', ')} besides pg_monitor: run ${others
+        .map(
+          (name) =>
+            `REVOKE ${escapeIdentifier(name)} FROM ${escapeIdentifier(role)}`,
+        )
+        .join('; ')}`,
+    );
+  }
+  const owned = await client.query<{ what: string; count: string }>(
+    `select 'relation' as what, count(*)::text from pg_class c join pg_roles r on r.oid = c.relowner where r.rolname = $1
+     union all
+     select 'schema', count(*)::text from pg_namespace n join pg_roles r on r.oid = n.nspowner where r.rolname = $1
+     union all
+     select 'database', count(*)::text from pg_database d join pg_roles r on r.oid = d.datdba where r.rolname = $1`,
+    [role],
+  );
+  for (const row of owned.rows) {
+    if (row.count !== '0') {
+      problems.push(`owns ${row.count} ${row.what}(s)`);
+    }
+  }
+  const creates = await client.query<{ nspname: string }>(
+    `select nspname from pg_namespace
+     where nspname = any($2::text[]) and has_schema_privilege($1, oid, 'CREATE')`,
+    [role, schemas],
+  );
+  for (const row of creates.rows) {
+    problems.push(`may CREATE in schema "${row.nspname}"`);
+  }
+  const readable = await client.query<{ name: string }>(
+    `select n.nspname || '.' || c.relname as name
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = any($2::text[])
+       and c.relkind in ('r', 'p', 'v', 'm')
+       and (has_table_privilege($1, c.oid, 'SELECT')
+            or has_table_privilege($1, c.oid, 'INSERT')
+            or has_table_privilege($1, c.oid, 'UPDATE')
+            or has_table_privilege($1, c.oid, 'DELETE'))
+     order by 1`,
+    [role, schemas],
+  );
+  if (readable.rows.length > 0) {
+    problems.push(
+      `can read or write ${readable.rows
+        .slice(0, 5)
+        .map((row) => row.name)
+        .join(
+          ', ',
+        )}${readable.rows.length > 5 ? ', …' : ''} (the exporter needs statistics, not rows)`,
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Role "${role}" is not fit for monitoring: ${problems.join('; ')}. Nothing was changed.`,
+    );
+  }
+}
+
 /** The role, password and database of a postgres:// URL. */
 function credentials(url: string, name: string): Credentials {
   let parsed: URL;

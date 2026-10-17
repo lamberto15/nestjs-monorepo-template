@@ -8,7 +8,7 @@ import {
   Ip,
   Post,
 } from '@nestjs/common';
-import { CurrentUser } from '@nestjs/authentication';
+import { CurrentUser, Public } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
   ApiAcceptedResponse,
@@ -37,6 +37,7 @@ import { DataTransferService } from '../data-transfer/data-transfer.service.js';
 import {
   acceptConsentSchema,
   accountStateSchema,
+  cancelDeletionByLinkSchema,
   consentSchema,
   deletionSchema,
   exportRequestSchema,
@@ -162,5 +163,45 @@ export class AccountController {
   ) {
     notWhileImpersonating(user);
     return this.account.accept(user, body.kind, body.version, ip);
+  }
+}
+
+/**
+ * The deletion mail's cancel link, without a sign-in: the person may have
+ * lost their password, or never asked for the deletion and wants it
+ * stopped at once. The web app's page (WEB_URL/cancel-deletion?token=…)
+ * POSTs the token here; a GET would let a mail scanner that follows links
+ * cancel it. Public, limited per address, and every refusal is the same
+ * 400, whether the token is forged, expired, used, or the account exists
+ * at all.
+ */
+@ApiTags('account')
+@Public()
+@Controller('account/deletion')
+export class AccountDeletionLinkController {
+  constructor(private readonly account: AccountLifecycleService) {}
+
+  @Post('cancel')
+  @Throttle({ default: { limit: 10, ttl: minutes(15) } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: "Keep your account: cancel the deletion with the mail's link",
+    description:
+      'No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).',
+  })
+  @ApiNoContentResponse()
+  @ApiBadRequestResponse({
+    description:
+      'The link is invalid, expired or used, or the deletion was cancelled or carried out already: one answer for all.',
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'More than 10 attempts from this address in 15 minutes.',
+  })
+  async cancel(
+    @Body({ schema: cancelDeletionByLinkSchema })
+    body: z.infer<typeof cancelDeletionByLinkSchema>,
+    @Ip() ip: string,
+  ) {
+    await this.account.cancelDeletionByLink(body.token, ip);
   }
 }

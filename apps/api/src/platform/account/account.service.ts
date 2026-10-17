@@ -23,6 +23,7 @@ import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { AccountDeletionMail } from './account.mails.js';
+import { DeletionCancelLinks } from './deletion-cancel-links.js';
 import { accountDeletions, consents } from './account.tables.js';
 
 /**
@@ -47,6 +48,7 @@ export class AccountLifecycleService {
     private readonly mailQueue: MailQueue,
     private readonly config: ConfigService<CoreEnv & PlatformEnv, true>,
     private readonly tenancy: Tenancy,
+    private readonly cancelLinks: DeletionCancelLinks,
   ) {}
 
   /** The pending deletion of an account, or undefined. */
@@ -97,8 +99,8 @@ export class AccountLifecycleService {
    * password stays because a stolen session's thief can enrol their own
    * authenticator within the window, and re-authenticating with it must not
    * be enough to lock the owner out of "sign in and cancel". A pending
-   * request is returned as is. The user gets a mail saying when, and how
-   * to cancel.
+   * request is returned as is. The user gets a mail saying when, with a
+   * link that cancels without signing in (`cancelDeletionByLink()`).
    */
   async requestDeletion(
     user: UserPrincipal,
@@ -157,7 +159,12 @@ export class AccountLifecycleService {
     });
     await this.mailQueue.send(AccountDeletionMail, {
       to: { name: user.name, address: user.email },
-      data: { name: user.name, scheduledFor, timezone: user.timezone },
+      data: {
+        name: user.name,
+        scheduledFor,
+        timezone: user.timezone,
+        token: this.cancelLinks.sign(row),
+      },
       locale: user.locale ?? undefined,
     });
     return this.deletionView(row);
@@ -170,10 +177,11 @@ export class AccountLifecycleService {
       throw new NotFoundException('No deletion is pending for this account.');
     }
     await this.accountLevel(async (tx) => {
-      await tx
-        .update(accountDeletions)
-        .set({ cancelledAt: new Date() })
-        .where(eq(accountDeletions.id, pending.id));
+      const [cancelled] = await this.cancelPending(tx, pending.id, user.id);
+      if (!cancelled) {
+        // Carried out, started, or cancelled between the read and now.
+        throw new NotFoundException('No deletion is pending for this account.');
+      }
       await this.audit.record(
         user,
         {
@@ -185,6 +193,71 @@ export class AccountLifecycleService {
         tx,
       );
     });
+  }
+
+  /**
+   * Cancels the deletion a mail's link names, without a sign-in: the token
+   * (DeletionCancelLinks) proves the mailbox, and names one request of one
+   * user. Every refusal is the same 400 (`auth.invalidLink`): a token
+   * badly signed, expired, of another kind, for a request cancelled or
+   * carried out already (a second use), or for an earlier request than the
+   * pending one; the answer never says which, nor whether the account
+   * exists. The update is conditional (still pending), so it can't race
+   * the job or another cancel into both succeeding. Audited as the user's
+   * `account.deletion-cancelled`, `via: link`.
+   */
+  async cancelDeletionByLink(token: string, ip?: string) {
+    const invalid = () => new BadRequestException(t('auth.invalidLink'));
+    const claims = await this.cancelLinks.verify(token);
+    if (!claims) {
+      throw invalid();
+    }
+    // Account-level, as the route has no tenant: the entry is in no
+    // tenant's log (docs/tenancy.md).
+    await this.accountLevel(async (tx) => {
+      const [cancelled] = await this.cancelPending(
+        tx,
+        claims.deletionId,
+        claims.userId,
+      );
+      const user = cancelled && (await this.users.findView(claims.userId, tx));
+      if (!user) {
+        throw invalid(); // rolls the update back
+      }
+      await this.audit.record(
+        user,
+        {
+          action: 'account.deletion-cancelled',
+          targetType: 'user',
+          targetId: user.id,
+          details: { via: 'link' },
+          ip,
+        },
+        tx,
+      );
+    });
+  }
+
+  /**
+   * Marks the request cancelled if it is still pending and the job hasn't
+   * started on it, under the account's lock (the lock the job claims it
+   * under, and the anonymization takes): the row, or none.
+   */
+  private async cancelPending(tx: Transaction, id: string, userId: string) {
+    await this.users.lockAccount(tx, userId);
+    return tx
+      .update(accountDeletions)
+      .set({ cancelledAt: new Date() })
+      .where(
+        and(
+          eq(accountDeletions.id, id),
+          eq(accountDeletions.userId, userId),
+          isNull(accountDeletions.cancelledAt),
+          isNull(accountDeletions.startedAt),
+          isNull(accountDeletions.completedAt),
+        ),
+      )
+      .returning({ id: accountDeletions.id });
   }
 
   /** Records that the user accepted a version of something (again: the time moves). */

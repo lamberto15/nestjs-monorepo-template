@@ -34,6 +34,16 @@ export const requestDeletionSchema = z
   })
   .strict();
 
+export const cancelDeletionByLinkSchema = z
+  .object({
+    token: z
+      .string()
+      .min(1)
+      .max(2048)
+      .describe("The `token` of the deletion mail's cancel link."),
+  })
+  .strict();
+
 export const acceptConsentSchema = z
   .object({
     kind: z

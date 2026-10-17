@@ -11,11 +11,17 @@ export interface AccountDeletionMailData {
   scheduledFor: Date;
   /** The recipient's time zone (null: APP_TIMEZONE). */
   timezone: string | null;
+  /**
+   * The cancel link's token (DeletionCancelLinks): WEB_URL/cancel-deletion
+   * ?token=…, a page that POSTs it to /v1/account/deletion/cancel. Named
+   * `token`, a field the log redaction masks (core/logging/redaction.ts).
+   */
+  token: string;
 }
 
 /**
  * "Your account will be deleted on …, unless you cancel": sent when a user
- * asks for the deletion. A notice of a destructive action the person
+ * asks for the deletion, with a link that cancels it without signing in. A notice of a destructive action the person
  * asked for: essential, so it still goes to an address that complained.
  */
 @EssentialMail()
@@ -27,7 +33,7 @@ export class AccountDeletionMail implements Mailable<AccountDeletionMailData> {
   ) {}
 
   render(
-    { name, scheduledFor, timezone }: AccountDeletionMailData,
+    { name, scheduledFor, timezone, token }: AccountDeletionMailData,
     { locale }: MailRenderContext,
   ) {
     const app = this.config.get('SERVICE_NAME', { infer: true });
@@ -42,6 +48,9 @@ export class AccountDeletionMail implements Mailable<AccountDeletionMailData> {
         name,
         app,
         url: web ? `${web}/account` : null,
+        cancelUrl: web
+          ? `${web}/cancel-deletion?token=${encodeURIComponent(token)}`
+          : null,
         scheduledFor: this.i18n.formatDate(scheduledFor, {
           locale,
           year: 'numeric',

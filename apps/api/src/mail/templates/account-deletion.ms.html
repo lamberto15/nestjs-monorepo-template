@@ -1,4 +1,4 @@
 <p>Hai {{ name }},</p>
 <p>Anda meminta kami memadam akaun {{ app }} anda. Ia akan dipadam pada <strong>{{ scheduledFor }}</strong>: profil, kaedah log masuk, sesi dan pemberitahuan anda akan dipadam bersamanya; rekod yang anda cipta kekal, tanpa nama anda.</p>
-{{#if url}}<p>Berubah fikiran, atau tidak memintanya? Batalkan pemadaman sebelum itu: <a href="{{ url }}">{{ url }}</a></p>{{/if}}
-<p>Sehingga itu, anda juga boleh memuat turun salinan data anda dari halaman yang sama.</p>
+{{#if cancelUrl}}<p>Berubah fikiran, atau tidak memintanya? Batalkan pemadaman sebelum itu, tanpa perlu log masuk: <a href="{{ cancelUrl }}">Kekalkan akaun saya</a>. Pautan ini berfungsi sekali sahaja.</p>{{/if}}
+{{#if url}}<p>Sehingga itu, anda juga boleh memuat turun salinan data anda dari halaman akaun anda: <a href="{{ url }}">{{ url }}</a></p>{{/if}}

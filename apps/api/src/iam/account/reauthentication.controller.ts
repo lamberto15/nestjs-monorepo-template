@@ -67,7 +67,7 @@ const methodsSchema = z.object({
   methods: z
     .array(z.string())
     .describe(
-      'How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login).',
+      'How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login?reauthenticate=true: the provider is asked to authenticate you again).',
     ),
   mfaRequired: z
     .boolean()

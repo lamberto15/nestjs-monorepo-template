@@ -201,7 +201,8 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
   manual workflow clock. `apps/api/test/setup-env.ts` sets the environment before
   AppModule loads.
   - The run starts a throwaway PostgreSQL in **Docker** (on tmpfs, no fsync)
-    and a `redis-server`, or uses `TEST_DATABASE_URL` and `REDIS_URL` (CI,
+    and a `redis-server` (Redis 7.0 or newer, as the app requires: the
+    `EXPIRE NX` of the failure counters is 7.0's), or uses `TEST_DATABASE_URL` and `REDIS_URL` (CI,
     and the [devcontainer](#devcontainer), which sets both).
     Docker must be running; without it, set `TEST_DATABASE_URL` to a
     superuser of a server of your own, the development one for instance

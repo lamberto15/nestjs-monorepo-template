@@ -124,7 +124,7 @@ acceptance (`POST /v1/auth/invitations/accept`) and
 | --- | --- |
 | A pending deletion, what you agreed to | `GET /v1/account` |
 | A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's) |
-| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels |
+| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below), until the job starts on it |
 | Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }`, `GET /v1/account/consents` (the latest of each kind; kept as proof) |
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
@@ -135,6 +135,32 @@ its audit entries keep the actor key, labelled "Deleted user". Records
 the person created stay, owned by an account that is nobody's. A feature
 holding personal data registers a `PersonalDataSource` (`rows()` for the
 export, `erase()` for what must go with the person; `note.transfer.ts`).
+**The cancel link** in the deletion mail (`WEB_URL/cancel-deletion?token=…`;
+the web app's page POSTs the token to the public
+`POST /v1/account/deletion/cancel { token }`, 204; a GET would let a mail
+scanner that follows links cancel it) needs no sign-in: the person may have
+lost their password, or never asked and wants it stopped at once. The
+token (`platform/account/deletion-cancel-links.ts`) is a JWT signed with
+@nestjs/authentication's `JwtSigner`, with a key derived from `JWT_SECRET`
+(HKDF, a label of its own: an access token's key never verifies it, nor
+it an access token), its own audience and `typ`; it names the user and
+the request, and expires a day after the scheduled date (the job runs
+nightly). It works **once**: the route cancels only a request still
+pending and not yet started, in one conditional `UPDATE` under the
+account's lock (`UsersRepository.lockAccount()`), so a second use, the link
+of an earlier request, or one after the deletion ran finds nothing. The job
+claims a due request under the same lock (`started_at`) before it erases
+the person tenant by tenant: from then on neither route cancels it, so no
+cancel lands between one tenant's erasure and the next (a run that fails
+part-way carries on the next night). Every refusal is the same 400
+(`auth.invalidLink`), saying neither why nor whether the account exists;
+10 attempts per address in 15 minutes. The route needs no tenant: the
+cancel and its audit entry are account-level (`account.deletion-cancelled`,
+the user's own, `details.via: link`, in no tenant's log). The token travels in the mail job's `token`
+field, which the log redaction masks. Proof:
+`account-lifecycle.e2e-spec.ts`, `security.e2e-spec.ts` ("the deletion
+mail's cancel link"), `deletion-cancel-links.spec.ts`.
+
 All of it is audited (`account.deletion-requested`, `-cancelled`,
 `account.deleted`, `account.consented`); `account.deleted` is the job's,
 the system principal `system:account-deletion`. Never while impersonating.
@@ -193,9 +219,8 @@ signInOptions('passkey'))` (or `sso:<id>`), or runs the package's call in
   (the resolver) takes the ID token's `auth_time` (OpenID Connect; Google
   and Microsoft send it) as `authenticatedAt`, through
   `SignInContext.authenticatedAt()`. A provider without it (GitHub: OAuth
-  2.0, no ID token) records now: a weaker guarantee, documented here so a
-  project that needs better asks the provider for `prompt=login` /
-  `max_age` (the package's `authorizationParams` are per provider).
+  2.0, no ID token) records now: a weaker guarantee. A step-up through
+  a provider asks it for a fresh login (`?reauthenticate=true`, below).
 - **An impersonation** session never counts as recent, whatever its
   metadata says (`isRecent()`, `authentication-method.ts`): nobody signed
   in to it.
@@ -246,7 +271,9 @@ The problem tells the client what to do:
 
 `methods`: `password`, `totp` and `passkey` re-authenticate in place
 (`POST /v1/auth/reauthenticate`); `magic-link` and `oidc:<provider>` by
-signing in again (the new session is recent). `mfaRequired`: a code goes
+signing in again (the new session is recent): for a provider, the browser
+navigates to `GET /v1/auth/oidc/{provider}/login?reauthenticate=true`
+([below](#re-authenticating-through-a-provider)). `mfaRequired`: a code goes
 with the password (and with a token client's passkey).
 
 ### The protected routes
@@ -324,17 +351,58 @@ from a session or a token client (`GET` says how and until when):
 
 Signing in again by email link or with a provider re-authenticates too:
 a link proves the mailbox now; a provider's sign-in counts from its ID
-token's `auth_time` (above), so one the provider did silently from its own
-old session stays stale, and the user re-authenticates in place or signs
-out of the provider first. Mind the other side of it: an account that
-signs in only with a provider that always sends `auth_time` (Keycloak,
-Okta, Microsoft) can't become recent by signing in again while the
-provider's own session lives: the user signs out of the provider (or ends
-its session there) first. The package's `OidcService.start()` takes no
-per-request `prompt=login` or `max_age`; `authorizationParams` are per
-provider, so a project can set `prompt=login` for such a provider, at the
-cost of every sign-in asking (a per-request `prompt` for the link and
-re-authentication flows is a follow-up).
+token's `auth_time` (above), so a plain one the provider did silently from
+its own old session stays stale. Hence the step-up below.
+
+#### Re-authenticating through a provider
+
+`GET /v1/auth/oidc/{provider}/login?reauthenticate=true` (`redirectTo`
+optional), navigated to from a signed-in session (none: 401; while
+impersonating: 403; an unproved address: 403 `email_unverified`, as for
+linking; with `link=true` too: 400):
+
+- **The provider is asked for a fresh login**: the package's
+  authorization URL (`OidcService.start()`: PKCE, `state`, `nonce`) gets
+  `prompt=login` and `max_age=0` (`reauthenticationUrl()`,
+  `iam/account/oidc-reauthentication.ts`). Custom: `start()` takes no
+  per-request parameters and its `authorizationParams` are per provider,
+  so setting them there would make every sign-in ask. Which of the two a
+  provider honours is its own (Microsoft Entra ID, Keycloak and Okta take
+  both; GitHub, OAuth 2.0, neither): the check below doesn't rely on it.
+- **The callback checks it, since the parameters travel through the
+  browser and are hints**: the login's `state` is remembered in Redis as a
+  step-up of this user, from now (10 minutes), and the browser gets a
+  cookie naming it (`__Host-oidc_reauth`, HttpOnly, SameSite=Lax). On the
+  callback `OidcAccounts` accepts only an identity already connected to
+  that user (no new account, no link by address, nobody else's), and an ID
+  token `auth_time` from after the start (30 s of clock tolerance, the
+  package's own for ID tokens). An OpenID Connect provider must send
+  `auth_time` (`max_age` makes it required): a login without one is
+  refused. Only a plain OAuth 2.0 provider (GitHub: no ID token) is
+  accepted without it, as now, the weaker guarantee above.
+- **The step-up can't be skipped**: the callback reads the remembered
+  step-up and forgets it only once the login was judged, so a callback the
+  package refuses (someone else's request with a `state` they learnt, no
+  transaction cookie) leaves it for the browser that started it. A
+  callback that carries the step-up cookie but whose step-up is gone is
+  refused (`reason: expired`, audited anonymously), never finished as a
+  plain sign-in.
+- **Accepted**: the browser gets a new session, recent from `auth_time`
+  (with two-factor on, pending its code as any sign-in), **in the tenant
+  the re-authenticated session acted in** (remembered with the `state`;
+  the user's last chosen tenant if the membership ended meanwhile), audited
+  `auth.reauthenticated` (`method: oidc`, `provider`). **Refused**: no
+  sign-in happens (the browser keeps its session) and it lands on the web
+  app (`redirectTo`, else its root) with
+  `?error=reauthentication_failed`, audited
+  `auth.reauthentication-failed` (`reason`: `account`, `stale` or
+  `expired`). Both
+  entries are account-level, as every sign-in's: in no tenant's log.
+- `?link=true` keeps the plain login: a link needs a recent session
+  already.
+- Proof: `oidc-reauthentication.e2e-spec.ts` (a configured GitHub, whose
+  login URL needs no discovery; the callback's `finish()` replaced by one
+  running the real resolver), `oidc-reauthentication.spec.ts`.
 
 **SSO (item 2)** re-authenticates by signing in again
 (`sso:<connection>` in `methods`); "SSO required" revokes the sessions
@@ -520,7 +588,7 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 
 ## Bot protection
 
-The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, `/sign-up`,
+The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, the second step `/mfa/verify`, `/sign-up`,
 `/magic-link`, `/password/forgot`, and the passkey sign-ins `/passkeys/sign-in`
 and `/passkeys/token`, which count their failures per address) can ask for a challenge token, verified
 server-side with Cloudflare Turnstile. **Off by default**: without
@@ -538,7 +606,19 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   `CAPTCHA_FAILURES` (3) attempts in `CAPTCHA_FAILURES_WINDOW_MINUTES` (15)
   failed from the address, **or** for the email and address; `off`. The
   two sign-ins (`/sign-in`, `/token`) count their 4xx answers (a wrong
-  password, an unknown account: the same 401); sign-up, the magic-link
+  password, an unknown account: the same 401), and so does **the second
+  factor**: a wrong code (or recovery code) at `/mfa/verify`, or sent to
+  `/token`, is a failed sign-in, counted on the same address and
+  `email|address` keys (on `/mfa/verify` the email is the pending
+  session's account; without a session, the address alone) and challenged
+  the same way, in either mode (the code page renders the widget, action
+  `sign-in`, when a 403 asks, or always with `always`). The right password
+  is no failure: the browser's 200 `mfaRequired` and the token route's 401
+  `mfa_required` (no code sent) give the attempt back. The right password
+  of an unproved address (403 `email_unverified`, refused before any second
+  factor) stays counted, like a wrong one: the challenge comes at the same
+  attempt, with the same problem, whether the address is unproved, has an
+  account, or none. Sign-up, the magic-link
   request and forgot password count every request, since their answers
   reveal nothing. The counts live in Redis, keyed by a hash of the address
   or of `email|address` (**the same keys on every guarded route**: a bot
@@ -608,9 +688,9 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   app attestation (App Attest, Play Integrity) exists, this is what keeps a
   bot from taking the token route around the challenge. API clients never
   sign in on these routes (keys go in `Authorization`), so nothing changes
-  for them. `/mfa/verify`, `/password/reset`, `/magic-link/verify` and
-  `/email/verify` take single-use tokens the attacker doesn't have, and
-  keep their rate limits.
+  for them. `/password/reset`, `/magic-link/verify` and `/email/verify`
+  take single-use tokens the attacker doesn't have, and keep their rate
+  limits.
 - **Configuration:** `TURNSTILE_SITE_KEY` (public) and
   `TURNSTILE_SECRET_KEY` (a secret: `TURNSTILE_SECRET_KEY_FILE` works, and
   `compose.prod.yaml` mounts it; [configuration.md](configuration.md),
@@ -626,7 +706,9 @@ server-side with Cloudflare Turnstile. **Off by default**: without
 - **Tests:** `apps/api/test/bot-protection*.e2e-spec.ts` run the real
   verifier against a siteverify stand-in on loopback
   (`test/captcha-stand-in.ts`; never Cloudflare), one file per mode: each
-  mode, the existence-independent counting (on both sign-ins), a bot
+  mode, the existence-independent counting (on both sign-ins), wrong
+  two-factor codes on `/mfa/verify` and `/token` (counted and challenged
+  like wrong passwords, `mfa_required` not counted), a bot
   alternating `/sign-in` and `/token`, a parallel burst, the replay
   refusal, hostname and action, provider-side error codes, the timeout and
   fail-open / fail-closed behaviour. The unit

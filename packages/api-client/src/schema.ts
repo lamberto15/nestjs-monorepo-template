@@ -707,6 +707,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/deletion/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keep your account: cancel the deletion with the mail's link
+         * @description No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).
+         */
+        post: operations["AccountDeletionLinkController_cancel_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -1741,7 +1761,7 @@ export interface paths {
         };
         /**
          * Start signing in with a provider (navigate the browser here)
-         * @description With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first.
+         * @description With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first. With `reauthenticate=true`, a signed-in user steps up through the provider: it is asked to authenticate them again (`prompt=login`, `max_age=0`), and the callback accepts only that user, authenticated at the provider after the start (`auth_time`, when the ID token has one); otherwise the browser lands on the web app with `?error=reauthentication_failed`, signed in as before.
          */
         get: operations["OidcController_login_v1"];
         put?: never;
@@ -5264,6 +5284,44 @@ export interface operations {
             };
             /** @description Not signed in as a user. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountDeletionLinkController_cancel_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The `token` of the deletion mail's cancel link. */
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link is invalid, expired or used, or the deletion was cancelled or carried out already: one answer for all. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 10 attempts from this address in 15 minutes. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9552,7 +9610,7 @@ export interface operations {
                         passkeys: boolean;
                         /** @description Start with GET /auth/oidc/{provider}/login. */
                         providers: string[];
-                        /** @description Bot protection on sign-in, sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off. */
+                        /** @description Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off. */
                         captcha: {
                             /** @description `turnstile`; `stub` outside production. */
                             provider: string;
@@ -9697,7 +9755,10 @@ export interface operations {
     AuthController_completeMfa_v1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
+                "X-Captcha-Token"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9725,6 +9786,13 @@ export interface operations {
             };
             /** @description No pending sign-in, or a wrong code. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10395,6 +10463,8 @@ export interface operations {
                 redirectTo?: string;
                 /** @description `true`: connect the provider to the signed-in account. */
                 link?: string;
+                /** @description `true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there. */
+                reauthenticate?: string;
             };
             header?: never;
             path: {
@@ -10429,7 +10499,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description To the web app. */
+            /** @description To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`. */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -10633,7 +10703,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login). */
+                        /** @description How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login?reauthenticate=true: the provider is asked to authenticate you again). */
                         methods: string[];
                         /** @description In place, a code (or a recoveryCode) goes with the password (and with a passkey from a token client). */
                         mfaRequired: boolean;

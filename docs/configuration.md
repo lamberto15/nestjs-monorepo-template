@@ -37,8 +37,8 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | --- | --- |
 | Runtime | `NODE_ENV` (`development` set explicitly is half of the demo seed's check: [development](development.md), "Demo data"), `APP_ENV` (the deployment's name; `loadtest` only for the load test's stack), `APP_ROLE` (`all`/`api`/`worker`), `PORT`, `SERVICE_NAME`, `OPENAPI` |
 | URLs | `APP_URL` (this API), `WEB_URL` (the web app, for email links), `CORS_ORIGINS` |
-| Database | `DATABASE_URL` (required, PostgreSQL 18+, the app role), `DATABASE_OWNER_URL` (the owner: `migrate`, and the app when `MIGRATE_ON_START` is on), `DATABASE_MAINTENANCE_URL` (the maintenance role, BYPASSRLS: workers' sweeps across tenants, never api; docs/tenancy.md), `MIGRATE_ON_START`, `DATABASE_POOL_MAX` (10), `DATABASE_POOL_TIMEOUT_MS` (5000), `DATABASE_STATEMENT_TIMEOUT_MS` (30000), `DATABASE_IDLE_TX_TIMEOUT_MS` (60000); Compose: `POSTGRES_USER` (`app`, the owner), `POSTGRES_PASSWORD`, `POSTGRES_APP_USER` (`app_runtime`), `POSTGRES_APP_PASSWORD`, `POSTGRES_MAINTENANCE_USER` (`app_maintenance`), `POSTGRES_MAINTENANCE_PASSWORD`, `POSTGRES_DB` (`app`), `API_DATABASE_POOL_MAX` (10), `WORKER_DATABASE_POOL_MAX` (20), `POSTGRES_MAX_CONNECTIONS` (100) |
-| Redis | `REDIS_URL`, `REDIS_PASSWORD` (replaces the URL's: for one in a file), `REDIS_SENTINELS`, `REDIS_SENTINEL_NAME`, `REDIS_PREFIX`, `RATE_LIMIT_STORE`, `RATE_LIMIT_MULTIPLIER` (1: every rate limit times this; the load test's stack only, [development](development.md), "Load tests": with `NODE_ENV=production`, above 1 stops the app unless `APP_ENV=loadtest`) |
+| Database | `DATABASE_URL` (required, PostgreSQL 18+, the app role), `DATABASE_OWNER_URL` (the owner: `migrate`, and the app when `MIGRATE_ON_START` is on), `DATABASE_MAINTENANCE_URL` (the maintenance role, BYPASSRLS: workers' sweeps across tenants, never api; docs/tenancy.md), `MIGRATE_ON_START`, `DATABASE_POOL_MAX` (10), `DATABASE_POOL_TIMEOUT_MS` (5000), `DATABASE_STATEMENT_TIMEOUT_MS` (30000), `DATABASE_IDLE_TX_TIMEOUT_MS` (60000); Compose: `POSTGRES_USER` (`app`, the owner), `POSTGRES_PASSWORD`, `POSTGRES_APP_USER` (`app_runtime`), `POSTGRES_APP_PASSWORD`, `POSTGRES_MAINTENANCE_USER` (`app_maintenance`), `POSTGRES_MAINTENANCE_PASSWORD`, `POSTGRES_DB` (`app`), `POSTGRES_MONITOR_USER` (`app_monitor`: the PostgreSQL exporter's role, `pg_monitor` only, NOBYPASSRLS) and `POSTGRES_MONITOR_PASSWORD` (required with `compose.monitoring.yaml`; or `DATABASE_MONITOR_URL` on a managed PostgreSQL), `API_DATABASE_POOL_MAX` (10), `WORKER_DATABASE_POOL_MAX` (20), `POSTGRES_MAX_CONNECTIONS` (100) |
+| Redis | `REDIS_URL` (Redis 7.0 or newer: `EXPIRE NX`; checked at start, [deployment.md](deployment.md), "Redis"), `REDIS_PASSWORD` (replaces the URL's: for one in a file), `REDIS_SENTINELS`, `REDIS_SENTINEL_NAME`, `REDIS_PREFIX`, `RATE_LIMIT_STORE`, `RATE_LIMIT_MULTIPLIER` (1: every rate limit times this; the load test's stack only, [development](development.md), "Load tests": with `NODE_ENV=production`, above 1 stops the app unless `APP_ENV=loadtest`) |
 | Logs and traces | `LOG_FORMAT`, `LOG_LEVEL`, `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET` |
 | Metrics | `METRICS_TOKEN` (Prometheus' bearer token for `GET /metrics`, at least 16 characters; unset: 404; [deployment.md](deployment.md), "Metrics") |
 | Alerting (`compose.monitoring.yaml`, optional) | `ALERT_EMAIL_TO`, `ALERT_SMTP_URL` (default: `SMTP_URL`), `ALERT_SMTP_REQUIRE_TLS` (true), `ALERT_EMAIL_FROM` (default: `MAIL_FROM`), `ALERT_WEBHOOK_URL`, `ALERT_SLACK_WEBHOOK_URL`; `PROMETHEUS_PORT` (9090), `ALERTMANAGER_PORT` (9093), both on 127.0.0.1; `PROMETHEUS_CPUS` (0.5), `PROMETHEUS_MEMORY` (1G), `ALERTMANAGER_CPUS` (0.25), `ALERTMANAGER_MEMORY` (128M); [deployment.md](deployment.md), "Alerting" |
@@ -96,15 +96,16 @@ holds it too (for code that reads it directly).
 - A `*_FILE` variable that reads nothing (`JWT_SECERT_FILE`, `PORT_FILE`) is
   ignored, with a warning naming it.
 - A relative path resolves against the app's directory (`apps/api`, `/app` in
-  the image). `node dist/migrate` reads `DATABASE_URL_FILE` and
-  `DATABASE_OWNER_URL_FILE` the same way.
+  the image). `node dist/migrate` reads `DATABASE_URL_FILE`,
+  `DATABASE_OWNER_URL_FILE` and `POSTGRES_MONITOR_PASSWORD_FILE` the same way.
 
 | Secret | What it is | Rotating it |
 | --- | --- | --- |
 | `DATABASE_URL` | the app role's URL, with its password | Change `POSTGRES_APP_PASSWORD` (or the password in `DATABASE_URL` / `DATABASE_URL_FILE`) and redeploy: `migrate` sets the role's password from the URL when the current one fails ([deployment.md](deployment.md), "Database roles"), then api and worker start on it. |
+| `POSTGRES_MONITOR_PASSWORD` | the monitoring role's password (`migrate` sets it, the PostgreSQL exporter connects with it; `compose.monitoring.yaml`) | Change it (or `POSTGRES_MONITOR_PASSWORD_FILE`'s contents) and redeploy: `migrate` sets the role's password when the current one fails, then recreate `postgres-exporter`. |
 | `DATABASE_OWNER_URL` | the owner's URL, with its password (`migrate` only) | Change the owner's password (`ALTER ROLE app PASSWORD '…'` in `psql`), then the URL (and `POSTGRES_PASSWORD`, or both files), then recreate `migrate` and `backup`. `POSTGRES_PASSWORD` only sets the password when the database is created: changing it alone changes nothing. |
 | `REDIS_URL`, `REDIS_PASSWORD` | Redis' password | Change it for the server and the app together (Compose: one file, `REDIS_PASSWORD_FILE`), recreate both: clients reconnect, jobs wait, a few seconds of errors. |
-| `JWT_SECRET` | signs the access tokens (HS256, one key) | Replace it and recreate the app: access tokens (15 minutes) signed with the old one are refused, clients use their refresh tokens. |
+| `JWT_SECRET` | signs the access tokens (HS256, one key), and, through a key derived from it (HKDF, its own label), the account-deletion mail's cancel links | Replace it and recreate the app: access tokens (15 minutes) signed with the old one are refused, clients use their refresh tokens. Cancel links already mailed stop working too: those users sign in and cancel (`DELETE /v1/account/deletion`). |
 | `MFA_ENCRYPTION_KEYS` | encrypts TOTP secrets; a list, newest first | Add a new key in front; keep every older one, which still decrypts the secrets sealed with it. Removing one locks its users out of their authenticator until a re-encryption exists (roadmap item 5). |
 | `STORAGE_SIGNING_KEYS` | signs file URLs; a list, newest first | Add a new key in front; drop the old one once the URLs it signed have expired (report links last up to `REPORT_LINK_TTL`, at most 7 days). |
 | `IDEMPOTENCY_KEYS` | seals stored idempotent responses; a list, newest first | Add a new key in front; drop the old one once the responses it sealed have expired. |
@@ -116,7 +117,7 @@ holds it too (for code that reads it directly).
 | `SMTP_URL`, `MAIL_API_KEY`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`, `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET` | credentials of an outside service | Create a new credential at the provider (most allow two at once), put it in place, recreate the app, then revoke the old one. Where only one can exist (an SMTP password), the swap is a moment of failed sends, which the mail queue retries. |
 
 Outside the app (Compose, [deployment.md](deployment.md), "Secrets in files"):
-`POSTGRES_PASSWORD` (PostgreSQL, the backup, the exporter), `REDIS_PASSWORD`
+`POSTGRES_PASSWORD` (PostgreSQL, the backup), `POSTGRES_MONITOR_PASSWORD` (`migrate`, the PostgreSQL exporter), `REDIS_PASSWORD`
 (Redis, the exporter), `CLOUDFLARE_API_TOKEN` (Caddy:
 create a new token, swap, recreate `caddy`, revoke the old) and
 `BACKUP_S3_SECRET_ACCESS_KEY` (like any provider credential) take a `_FILE`

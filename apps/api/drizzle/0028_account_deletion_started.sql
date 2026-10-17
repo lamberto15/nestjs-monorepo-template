@@ -1,0 +1,1 @@
+ALTER TABLE "account_deletions" ADD COLUMN "started_at" timestamp with time zone;

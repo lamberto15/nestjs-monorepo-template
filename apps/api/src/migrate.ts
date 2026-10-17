@@ -9,20 +9,29 @@ import { migrateAll } from './core/database/migrate-all.js';
  * lock, so a second run waits and then finds nothing to do; then the app's
  * role (DATABASE_URL's, what api and worker connect as) is created or
  * checked and granted what the schema needs (docs/deployment.md, "Database
- * roles").
+ * roles"). With POSTGRES_MONITOR_PASSWORD (or its _FILE) set, the
+ * monitoring role too (POSTGRES_MONITOR_USER, default app_monitor: the
+ * PostgreSQL exporter's, a member of pg_monitor and nothing else).
  *
  *   DATABASE_OWNER_URL=postgres://… DATABASE_URL=postgres://… node dist/migrate
  *   DATABASE_OWNER_URL_FILE=/run/secrets/database_owner_url \
  *     DATABASE_URL_FILE=/run/secrets/database_url node dist/migrate
  *
- * Only the two URLs, each read the way the app reads its secrets
+ * Only these, each read the way the app reads its secrets
  * (secret-files.ts): the file first, the variable as the fallback.
  */
 const owner = secretValue(process.env, 'DATABASE_OWNER_URL');
 const app = secretValue(process.env, 'DATABASE_URL');
 // Optional: the worker's maintenance role (BYPASSRLS), made or checked when set.
 const maintenance = secretValue(process.env, 'DATABASE_MAINTENANCE_URL');
-const problems = [...owner.problems, ...app.problems, ...maintenance.problems];
+// Named for the role, not its secret: only `problems` (never a value) are printed.
+const monitor = secretValue(process.env, 'POSTGRES_MONITOR_PASSWORD');
+const problems = [
+  ...owner.problems,
+  ...app.problems,
+  ...maintenance.problems,
+  ...monitor.problems,
+];
 for (const { variable, message } of problems) {
   console.error(`${variable}: ${message}`);
 }
@@ -40,6 +49,17 @@ await migrateAll(
     ownerUrl: owner.value,
     appUrl: app.value,
     maintenanceUrl: maintenance.value || undefined,
+    ...(monitor.value && {
+      monitor: {
+        role: process.env.POSTGRES_MONITOR_USER?.trim() || 'app_monitor',
+        password: monitor.value,
+      },
+    }),
   },
   (line) => console.log(line),
 );
+if (!monitor.value) {
+  console.log(
+    'No monitoring role: POSTGRES_MONITOR_PASSWORD is unset (needed with compose.monitoring.yaml only).',
+  );
+}

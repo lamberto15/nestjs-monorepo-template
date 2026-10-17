@@ -5089,6 +5089,50 @@
         ]
       }
     },
+    "/v1/account/deletion/cancel": {
+      "post": {
+        "description": "No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).",
+        "operationId": "AccountDeletionLinkController_cancel_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "description": "The `token` of the deletion mail's cancel link."
+                  }
+                },
+                "required": [
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "The link is invalid, expired or used, or the deletion was cancelled or carried out already: one answer for all."
+          },
+          "429": {
+            "description": "More than 10 attempts from this address in 15 minutes."
+          }
+        },
+        "summary": "Keep your account: cancel the deletion with the mail's link",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/v1/subscriptions": {
       "get": {
         "description": "Filter with `?subject=Note`; newest first; cursor pages.",
@@ -15418,7 +15462,7 @@
                     },
                     "captcha": {
                       "nullable": true,
-                      "description": "Bot protection on sign-in, sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
+                      "description": "Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
                       "type": "object",
                       "properties": {
                         "provider": {
@@ -15698,7 +15742,17 @@
     "/v1/auth/mfa/verify": {
       "post": {
         "operationId": "AuthController_completeMfa_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Captcha-Token",
+            "in": "header",
+            "description": "The challenge token (Cloudflare Turnstile, widget action `sign-in`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -15750,6 +15804,9 @@
           },
           "401": {
             "description": "No pending sign-in, or a wrong code."
+          },
+          "403": {
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
           }
         },
         "summary": "Finish signing in with a two-factor code",
@@ -16924,7 +16981,7 @@
     },
     "/v1/auth/oidc/{provider}/login": {
       "get": {
-        "description": "With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first.",
+        "description": "With `link=true`, a signed-in session that is not recent (REAUTHENTICATION_MAX_AGE_MINUTES) is redirected to the web app (`redirectTo`, else its root) with `?error=reauthentication_required`: check GET /auth/reauthenticate first. With `reauthenticate=true`, a signed-in user steps up through the provider: it is asked to authenticate them again (`prompt=login`, `max_age=0`), and the callback accepts only that user, authenticated at the provider after the start (`auth_time`, when the ID token has one); otherwise the browser lands on the web app with `?error=reauthentication_failed`, signed in as before.",
         "operationId": "OidcController_login_v1",
         "parameters": [
           {
@@ -16952,6 +17009,16 @@
             "description": "`true`: connect the provider to the signed-in account.",
             "schema": {
               "description": "`true`: connect the provider to the signed-in account.",
+              "type": "string"
+            }
+          },
+          {
+            "name": "reauthenticate",
+            "required": false,
+            "in": "query",
+            "description": "`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.",
+            "schema": {
+              "description": "`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.",
               "type": "string"
             }
           }
@@ -17014,7 +17081,7 @@
         ],
         "responses": {
           "302": {
-            "description": "To the web app."
+            "description": "To the web app; a refused step-up (`reauthenticate=true`) with `?error=reauthentication_failed`."
           }
         },
         "summary": "Where the provider sends the browser back",
@@ -17344,7 +17411,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login)."
+                      "description": "How you can re-authenticate. In place, with POST /auth/reauthenticate: `password`; `totp` (a code alone, for an account without a password); `passkey` (an assertion from POST /auth/passkeys/reauthentication/options). By signing in again, which counts as well: `magic-link` (POST /auth/magic-link), `oidc:<provider>` (GET /auth/oidc/{provider}/login?reauthenticate=true: the provider is asked to authenticate you again)."
                     },
                     "mfaRequired": {
                       "type": "boolean",

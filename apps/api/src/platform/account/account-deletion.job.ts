@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
-import { and, eq, isNull, lte } from 'drizzle-orm';
+import { and, eq, isNull, lte, sql } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
@@ -107,6 +107,30 @@ export class AccountDeletionJob {
         continue; // gone already (cascade)
       }
       const key = principalKey(user);
+      // Claimed first, under the account's lock: from here on no cancel
+      // (signed in, or the mail's link) takes it back, so a cancel never
+      // lands between one tenant's erasure and the next. A request cancelled
+      // or carried out since the list was read is skipped. A run that fails
+      // part-way leaves it claimed, and the next night carries it on.
+      const claimed = await inTransaction(this.txHost, async (tx) => {
+        await this.users.lockAccount(tx, user.id);
+        return tx
+          .update(accountDeletions)
+          .set({
+            startedAt: sql`coalesce(${accountDeletions.startedAt}, now())`,
+          })
+          .where(
+            and(
+              eq(accountDeletions.id, request.id),
+              isNull(accountDeletions.cancelledAt),
+              isNull(accountDeletions.completedAt),
+            ),
+          )
+          .returning({ id: accountDeletions.id });
+      });
+      if (claimed.length === 0) {
+        continue;
+      }
       // Before the anonymization, which removes the memberships.
       const tenants = await this.db
         .select({ tenantId: memberships.tenantId })

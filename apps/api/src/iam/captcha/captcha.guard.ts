@@ -7,8 +7,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { SessionService } from '@nestjs/authentication';
 import { ApiForbiddenResponse, ApiHeader } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { UsersRepository } from '../auth/users.repository.js';
 import { CaptchaService } from './captcha.service.js';
 
 /** The header the widget's token travels in. */
@@ -23,13 +25,21 @@ export interface CaptchaOptions {
    * route that always answers 202 so as to reveal nothing).
    */
   count: 'failures' | 'requests';
+  /**
+   * Where the account the attempt names comes from, for the email and
+   * address counter: `body` (the default: the body's `email`), or
+   * `session` (the second step of a sign-in, `POST /auth/mfa/verify`: the
+   * user of the session this browser holds, pending its code; none, only
+   * the address counts).
+   */
+  account?: 'body' | 'session';
 }
 
 const CAPTCHA = Symbol('captcha');
 
 /**
- * A public route bots go for (sign-in, sign-up, the magic-link request,
- * forgot password): with CAPTCHA_MODE on, it wants a challenge token in
+ * A public route bots go for (sign-in and its two-factor step, sign-up,
+ * the magic-link request, forgot password): with CAPTCHA_MODE on, it wants a challenge token in
  * `X-Captcha-Token`, always or after N failed attempts from the address or
  * for the account (docs/auth.md, "Bot protection"). Off (the default
  * without keys): nothing changes. Documented in OpenAPI as a header, so the
@@ -60,6 +70,8 @@ export class CaptchaGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly captcha: CaptchaService,
+    private readonly sessions: SessionService,
+    private readonly users: UsersRepository,
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -76,7 +88,10 @@ export class CaptchaGuard implements CanActivate {
     const http = context.switchToHttp();
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
-    const email = (request.body as { email?: unknown } | undefined)?.email;
+    const email =
+      options.account === 'session'
+        ? await this.sessionEmail(request)
+        : (request.body as { email?: unknown } | undefined)?.email;
     const subject = {
       ip: request.ip ?? '',
       email: typeof email === 'string' ? email : undefined,
@@ -95,6 +110,24 @@ export class CaptchaGuard implements CanActivate {
     }
     await this.captcha.check(headerValue(request, CAPTCHA_HEADER), subject);
     return true;
+  }
+
+  /**
+   * The address of the account whose session this browser holds (pending
+   * its second factor, on the code's route), so a wrong code counts on the
+   * same email and address key as a wrong password. Read as the package's
+   * own `SignInService.completeMfa()` reads it (`tokenFrom()`, then
+   * `validate()`): the global guard doesn't resolve a pending session, and
+   * the package has no public "pending sign-in of this request".
+   */
+  private async sessionEmail(request: Request) {
+    const session = await this.sessions.validate(
+      this.sessions.tokenFrom(request),
+    );
+    if (!session) {
+      return undefined;
+    }
+    return (await this.users.findView(session.userId))?.email;
   }
 }
 

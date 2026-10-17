@@ -7,7 +7,12 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate as migratePg } from 'drizzle-orm/node-postgres/migrator';
 import * as schema from '../../schema.js';
 import type { Database } from './drizzle.js';
-import { type DatabaseUrls, ensureAppRole } from './roles.js';
+import {
+  type DatabaseUrls,
+  ensureAppRole,
+  ensureMonitorRole,
+  type MonitorRole,
+} from './roles.js';
 
 /**
  * Brings the database up to this version, as its owner (`ownerUrl`): the
@@ -15,12 +20,13 @@ import { type DatabaseUrls, ensureAppRole } from './roles.js';
  * webhooks' schemas (their CLIs), each under an advisory lock, so a second
  * run waits and then finds nothing to do. Then the app's role (`appUrl`,
  * what api and worker connect as) is created or checked and granted what
- * the new schema needs (roles.ts). Used by `node dist/migrate` (each deploy),
- * by the app when MIGRATE_ON_START is on, and by the tests (their template
- * database).
+ * the new schema needs (roles.ts), and, when `monitor` names one, the
+ * exporter's role (pg_monitor only). Used by `node dist/migrate` (each
+ * deploy), by the app when MIGRATE_ON_START is on, and by the tests (their
+ * template database).
  */
 export async function migrateAll(
-  urls: DatabaseUrls,
+  urls: DatabaseUrls & { monitor?: MonitorRole },
   log: (line: string) => void = () => {},
 ) {
   const url = urls.ownerUrl;
@@ -64,6 +70,9 @@ export async function migrateAll(
   }
   log('Store migrations applied.');
   await ensureAppRole(urls, log);
+  if (urls.monitor) {
+    await ensureMonitorRole(urls, urls.monitor, log);
+  }
 }
 
 /**

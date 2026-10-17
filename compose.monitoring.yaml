@@ -106,23 +106,36 @@ services:
           memory: ${ALERTMANAGER_MEMORY:-128M}
     logging: *logging
 
-  # pg_up, connections against max_connections, as the owner (the app's role
-  # has no pg_monitor). Managed PostgreSQL: it follows DATABASE_OWNER_URL (a
-  # role with pg_monitor is enough).
+  # The monitoring role (docs/deployment.md, "Database roles"): `migrate`
+  # creates POSTGRES_MONITOR_USER (default app_monitor) with
+  # POSTGRES_MONITOR_PASSWORD, a member of pg_monitor and nothing else, so the
+  # exporter reads statistics and never a row. This extends compose.prod.yaml's
+  # migrate service (Compose merges the maps, appends the secrets); the owner
+  # keeps the exporter out of its credentials.
+  migrate:
+    environment:
+      POSTGRES_MONITOR_USER: ${POSTGRES_MONITOR_USER:-app_monitor}
+      POSTGRES_MONITOR_PASSWORD: ${POSTGRES_MONITOR_PASSWORD:-}
+      POSTGRES_MONITOR_PASSWORD_FILE: ${POSTGRES_MONITOR_PASSWORD_FILE:+/run/secrets/postgres_monitor_password}
+    secrets:
+      - postgres_monitor_password
+
+  # pg_up, connections against max_connections, as the monitoring role.
+  # Managed PostgreSQL: DATABASE_MONITOR_URL, the role `migrate` made there
+  # (postgresql://app_monitor:<POSTGRES_MONITOR_PASSWORD>@<host>/<db>).
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.20.1
     restart: unless-stopped
     environment:
-      # As the owner (docs/deployment.md, "Database roles"): pg_stat_* needs
-      # more than the app role gets. Built from POSTGRES_PASSWORD; with the
-      # password in POSTGRES_PASSWORD_FILE (DATA_SOURCE_NAME empty), the
-      # stack's database, the password from the same secret PostgreSQL reads.
-      DATA_SOURCE_NAME: ${DATABASE_OWNER_URL:-${POSTGRES_PASSWORD:+postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}?sslmode=disable}}
+      # Built from POSTGRES_MONITOR_PASSWORD; with the password in
+      # POSTGRES_MONITOR_PASSWORD_FILE (DATA_SOURCE_NAME empty), the stack's
+      # database, the password from the same secret `migrate` set it from.
+      DATA_SOURCE_NAME: ${DATABASE_MONITOR_URL:-${POSTGRES_MONITOR_PASSWORD:+postgresql://${POSTGRES_MONITOR_USER:-app_monitor}:${POSTGRES_MONITOR_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}?sslmode=disable}}
       DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-app}?sslmode=disable
-      DATA_SOURCE_USER: ${POSTGRES_USER:-app}
-      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_password
+      DATA_SOURCE_USER: ${POSTGRES_MONITOR_USER:-app_monitor}
+      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_monitor_password
     secrets:
-      - postgres_password
+      - postgres_monitor_password
     deploy:
       resources:
         limits:
@@ -209,6 +222,10 @@ services:
 secrets:
   metrics_token:
     environment: METRICS_TOKEN
+  # The monitoring role's password: migrate (creates the role) and the
+  # exporter (connects as it) read the same file.
+  postgres_monitor_password:
+    file: ${POSTGRES_MONITOR_PASSWORD_FILE:-./secret.empty}
   # A file, not a variable: a variable that is unset stops Compose. Point
   # ALERT_WATCHDOG_URL_FILE at a file outside the repository holding the URL.
   alert_watchdog_url:
