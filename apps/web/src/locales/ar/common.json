@@ -1,8 +1,11 @@
 {
-  "app": { "name": "App" },
+  "app": {
+    "name": "App"
+  },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "notes": "الملاحظات"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -237,5 +240,33 @@
     "ar": "العربية",
     "zh": "中文",
     "ms": "Bahasa Melayu"
+  },
+  "list": {
+    "loading": "جارٍ التحميل",
+    "search": "بحث",
+    "empty": {
+      "title": "لا يوجد شيء بعد",
+      "description": "ستظهر السجلات هنا عند وجودها."
+    },
+    "error": {
+      "title": "تعذّر تحميل القائمة",
+      "generic": "حدث خطأ ما. حاول مرة أخرى.",
+      "retry": "حاول مرة أخرى"
+    }
+  },
+  "notes": {
+    "title": "الملاحظات",
+    "columns": {
+      "number": "الرقم",
+      "title": "العنوان",
+      "status": "الحالة",
+      "tags": "الوسوم",
+      "createdAt": "تاريخ الإنشاء",
+      "publishedAt": "تاريخ النشر"
+    },
+    "status": {
+      "draft": "مسودة",
+      "published": "منشورة"
+    }
   }
 }

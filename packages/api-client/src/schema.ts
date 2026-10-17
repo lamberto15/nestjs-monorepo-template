@@ -2446,7 +2446,7 @@ export interface paths {
         };
         /**
          * The notes you may read, newest first
-         * @description Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter.
+         * @description Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).
          */
         get: operations["NotesController_list_v1"];
         put?: never;
@@ -3620,6 +3620,13 @@ export interface operations {
                         status: "queued";
                     };
                 };
+            };
+            /** @description You may not export it (forbidden), or its filters use a field your permissions hide (field_forbidden, naming it). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6449,6 +6456,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Its filters use a field your permissions hide (field_forbidden, naming it). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     ReportsController_get_v1: {
@@ -6707,6 +6721,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Its filters use a field your permissions hide (field_forbidden, naming it). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6748,6 +6769,13 @@ export interface operations {
             };
             /** @description No valid API key or session. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Its filters use a field your permissions hide (field_forbidden, naming it). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

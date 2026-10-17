@@ -24,7 +24,7 @@ import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime } from '@/lib/date-time';
 import { FormAlert, useAppForm } from '@/lib/form';
 import {
   createPasskey,

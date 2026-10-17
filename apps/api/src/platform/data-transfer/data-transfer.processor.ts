@@ -10,6 +10,7 @@ import { StorageDisk } from '@nestjs/storage';
 import type { Job } from 'bullmq';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import { inTenantOf, TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
+import type { ListQuery } from '../../core/http/list-query.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
@@ -217,6 +218,14 @@ export class DataTransferProcessor extends TenantWorkerHost<
     const filters = exporter.filters
       ? exporter.filters.parse(job.data.filters ?? {})
       : {};
+    if (exporter.filters) {
+      // Field-level, again: the principal's permissions may have changed since.
+      await this.access.assertQueryFields(
+        principal,
+        exporter.subject,
+        filters as ListQuery,
+      );
+    }
     let rows = 0;
     const columns = exporter.columnsFor
       ? await exporter.columnsFor(principal)

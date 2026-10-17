@@ -14,12 +14,15 @@ Details live in `docs/`: read the file a task needs, not all of them.
   update a branch with `git merge origin/main`. See docs/development.md, "Git workflow".
 - **Label every pull request, and claim the issue you work.** Label a PR by
   what it changes: `frontend` (apps/web, packages/ui), `backend` (apps/api, the
-  client's generation, migrations), `ci` (workflows, images, deploys). Check
+  client's generation, migrations), `ci` (workflows, images, deploys),
+  `documentation` (docs only), plus `enhancement` or `bug`. Check
   `gh label list` and add a missing label with `gh label create`. To work an
-  issue, claim it first: `gh issue edit <n> --add-assignee @me --add-label
-  "in progress"`. Open the PR early as a draft, and put `Closes #<n>` in its
-  description. Found a problem on the other side while focused on one? File it
-  as an issue with that side's label rather than fixing it there.
+  issue, skip it if it's already `in progress`; otherwise claim it first:
+  `gh issue edit <n> --add-assignee @me --add-label "in progress"`, and comment
+  the branch (sessions share one account). Open the PR early as a draft, and
+  put `Closes #<n>` in its description. Found a problem on the other side
+  while focused on one? File it as an issue with that side's label rather
+  than fixing it there. See docs/development.md, "Issues and labels".
 - **Docs first, every time: backend, frontend, CI, infra.** Before starting
   anything, even adding one component, a dependency or a CI step, look up the
   tool's documented way. Use Context7 (`resolve-library-id`, then `query-docs`),

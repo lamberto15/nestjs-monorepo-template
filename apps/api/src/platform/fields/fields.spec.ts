@@ -180,7 +180,10 @@ describe('fields', () => {
     expect(list.totalCurrency).toMatchObject({
       type: 'string',
       ops: ['eq', 'in'],
+      // Its permission is the money field's (field-level).
+      reads: ['total'],
     });
+    expect(list.title).not.toHaveProperty('reads');
     expect(list.notes!.ops).toContain('isNull');
     expect(list.status).toMatchObject({
       type: 'enum',

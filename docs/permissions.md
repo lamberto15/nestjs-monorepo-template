@@ -54,6 +54,32 @@ before.
 | A list | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide |
 | Fields read | `access.redact(user, 'read', 'Note', note)` / `redactAll()` |
 | Fields written | `access.forbiddenFields(user, 'update', 'Note', changes, note)` → 403 `field_forbidden` |
+| Fields a list query uses | `access.assertQueryFields(user, 'Note', query)` after `list.parse()` → 403 `field_forbidden` |
+
+### Field-level permissions and lists
+
+`redact()` takes a hidden field out of the items, but a filter on it would
+still tell its values by which records match, one probe at a time. So
+every list of a subject with declared fields refuses a query that uses a
+field the caller may read on **no** record (`deniedFields()`): its flat
+filters, its `filter` tree at any depth, `sort`, `fields` and `q`
+(`queryReads()` in `core/http/list-query.ts` collects them; a list field's
+`reads` says which record fields it reveals: `q` and `rank` the search
+document's, a money field's currency filter the money field; `custom.<key>`
+also counts as `custom`). A generated record's list route gets its
+query only through `RecordPresenter.query()`, which calls
+`assertQueryFields`; notes' calls it by hand; exports,
+bulk runs and scheduled reports check their filters the same way (again in
+the job: permissions may have changed). The global search
+(`GET /v1/search`) matches only the fields the caller may read, with a
+vector made per request.
+
+**Residual risk:** a field allowed on some records only (a permission
+with conditions and `fields`, beside one without the field) isn't in
+`deniedFields()`, so it may be filtered on: `redact()` decides per record,
+and such a filter can still match records whose value the caller can't
+see. Grant a field with the same conditions as the read, or not at all,
+when that matters.
 
 Every condition has a CASL form (one record) and a SQL form (lists).
 

@@ -632,7 +632,8 @@ describe('the advanced list query on GET /v1/test-items (e2e)', () => {
       'title',
     ]);
 
-    // A reader whose permissions leave out the text asks for it: still left out.
+    // A reader whose permissions leave out the text: left out of every item,
+    // and asking for it is refused (field-level: docs/permissions.md).
     const role = await node
       .admin()
       .post('/v1/access/roles')
@@ -644,13 +645,28 @@ describe('the advanced list query on GET /v1/test-items (e2e)', () => {
       })
       .expect(201);
     const reader = await node.user([role.body.id]);
-    const asked = await reader.agent
+    const refused = await reader.agent
       .get('/v1/test-items')
       .query({ fields: 'title,body', limit: '5' })
+      .expect(403);
+    expect(refused.body).toMatchObject({
+      code: 'field_forbidden',
+      fields: ['body'],
+    });
+    const asked = await reader.agent
+      .get('/v1/test-items')
+      .query({ fields: 'title', limit: '5' })
       .expect(200);
     expect(asked.body.items.length).toBeGreaterThan(0);
     for (const item of asked.body.items) {
       expect(Object.keys(item).sort()).toEqual(['id', 'title']);
+    }
+    const all = await reader.agent
+      .get('/v1/test-items')
+      .query({ limit: '5' })
+      .expect(200);
+    for (const item of all.body.items) {
+      expect(item).not.toHaveProperty('body');
     }
   });
 

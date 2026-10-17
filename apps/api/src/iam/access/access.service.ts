@@ -5,6 +5,7 @@ import {
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import {
+  ForbiddenException,
   Inject,
   Injectable,
   type OnApplicationShutdown,
@@ -14,6 +15,7 @@ import type { Redis } from 'ioredis';
 import { IAM_OPTIONS, type IamOptions } from '../iam.options.js';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { REDIS, closeRedis } from '../../core/redis/redis.js';
+import { type ListQuery, queryReads } from '../../core/http/list-query.js';
 import {
   AbilityBuilder,
   createMongoAbility,
@@ -241,6 +243,42 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     }
     const { ability } = await this.load(principal);
     return declared.filter((field) => !ability.can(action, subject, field));
+  }
+
+  /**
+   * A 403 `field_forbidden` when a validated list query (`listQuery()`)
+   * filters, searches, sorts or selects by a field `deniedFields()` hides:
+   * `redact()` takes it out of the items, and a filter on it would still
+   * tell its values, one probe at a time. Every list of a subject with
+   * declared fields calls it after validating the query, and so do the
+   * exports, bulk runs and reports that take the list's filters. A field
+   * allowed on some records only (a rule with conditions) passes: whether
+   * a record shows it is decided per record, and a filter on it may still
+   * match records whose value the caller can't see (docs/permissions.md).
+   */
+  async assertQueryFields(
+    principal: Principal,
+    subject: string,
+    query: ListQuery,
+  ): Promise<void> {
+    // A subject with no declared fields hides none: nothing to check, whatever
+    // validated the query. Otherwise only a listQuery() query (queryReads throws).
+    if (this.catalog.declaredFields(subject).length === 0) {
+      return;
+    }
+    const reads = queryReads(query);
+    if (reads.length === 0) {
+      return;
+    }
+    const denied = await this.deniedFields(principal, 'read', subject);
+    const forbidden = reads.filter((field) => denied.includes(field));
+    if (forbidden.length) {
+      throw new ForbiddenException({
+        code: 'field_forbidden',
+        message: `You may not filter, search, sort or select by: ${forbidden.join(', ')}.`,
+        fields: forbidden,
+      });
+    }
   }
 
   /** The principal's permissions, as stored (an administrator's is ALL). */

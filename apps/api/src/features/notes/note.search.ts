@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { and, desc, getTableColumns } from 'drizzle-orm';
-import { headline, matches, rank } from '../../core/database/search.js';
+import {
+  headline,
+  matches,
+  rank,
+  vectorOf,
+} from '../../core/database/search.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
@@ -33,11 +38,17 @@ export class NoteSearch implements SearchSource {
     q: string,
     limit: number,
   ): Promise<SearchHit[]> {
+    // Field-level: without the text, the title alone is matched (a hit
+    // would tell what the text holds): a vector made now, without the index.
+    const denied = await this.access.deniedFields(principal, 'read', 'Note');
+    const vector = denied.includes('body')
+      ? vectorOf([notes.title])
+      : notes.search;
     const where = and(
       await this.access.sqlFilter(principal, 'Note', 'read'),
-      matches(notes.search, q),
+      matches(vector, q),
     );
-    const score = rank(notes.search, q);
+    const score = rank(vector, q);
     const rows = await this.notes.query((db) =>
       db
         // The whole row: the permission conditions (`mine`) read it.

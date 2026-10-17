@@ -121,7 +121,7 @@ export class TestItemsController {
   @ApiOperation({
     summary: 'The test items you may read, newest first',
     description:
-      'Filter flat or with `filter`, sort with `sort`, pick fields with `fields`; each parameter lists what it takes.',
+      'Filter flat or with `filter`, sort with `sort`, pick fields with `fields`; each parameter lists what it takes. A field your permissions hide is a 403 (field_forbidden).',
   })
   @ApiOkResponse({ standardSchema: pageSchema(SCHEMAS.response) })
   @ApiListQuery(TEST_ITEM_LIST, recordListDocs(TEST_ITEM))
@@ -129,9 +129,12 @@ export class TestItemsController {
     @CurrentUser() user: RequestPrincipal,
     @Query() raw: Record<string, unknown>,
   ) {
-    // The list with the custom fields defined now (custom): validated per request.
-    const list = await this.presenter.list(TEST_ITEM_LIST);
-    const query = list.parse(raw);
+    // Validated against the custom fields defined now (custom), and no filter, search, sort or `fields` on what the caller may not read.
+    const { list, query } = await this.presenter.query(
+      user,
+      TEST_ITEM_LIST,
+      raw,
+    );
     const page = await this.testItems.findPage(
       and(
         // The recycle bin (?deleted=true, with softDelete) is for those who may restore.

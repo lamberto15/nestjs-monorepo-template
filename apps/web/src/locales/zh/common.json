@@ -1,8 +1,11 @@
 {
-  "app": { "name": "App" },
+  "app": {
+    "name": "App"
+  },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "notes": "笔记"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -237,5 +240,33 @@
     "ar": "العربية",
     "zh": "中文",
     "ms": "Bahasa Melayu"
+  },
+  "list": {
+    "loading": "加载中",
+    "search": "搜索",
+    "empty": {
+      "title": "暂无内容",
+      "description": "有记录后会显示在这里。"
+    },
+    "error": {
+      "title": "无法加载列表",
+      "generic": "出了点问题，请重试。",
+      "retry": "重试"
+    }
+  },
+  "notes": {
+    "title": "笔记",
+    "columns": {
+      "number": "编号",
+      "title": "标题",
+      "status": "状态",
+      "tags": "标签",
+      "createdAt": "创建时间",
+      "publishedAt": "发布时间"
+    },
+    "status": {
+      "draft": "草稿",
+      "published": "已发布"
+    }
   }
 }

@@ -1,12 +1,17 @@
-import { i18n } from '@/i18n';
+export function formatDate(
+  date: Date | string | number | undefined,
+  opts: Intl.DateTimeFormatOptions = {},
+) {
+  if (!date) return '';
 
-/** A date and time in the UI's language (the API's are ISO 8601, UTC). */
-export function formatDateTime(value: string | null | undefined): string {
-  if (!value) {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      month: opts.month ?? 'long',
+      day: opts.day ?? 'numeric',
+      year: opts.year ?? 'numeric',
+      ...opts,
+    }).format(new Date(date));
+  } catch {
     return '';
   }
-  return new Intl.DateTimeFormat(i18n.language, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
 }

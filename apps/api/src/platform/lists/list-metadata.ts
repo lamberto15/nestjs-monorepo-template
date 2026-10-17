@@ -53,7 +53,8 @@ export function listMetadata(
     recycleBin?: boolean;
   } = {},
 ): ListMetadata {
-  const search = 'q' in list.fields;
+  // `q` reads the search document's fields: hidden with any of them.
+  const search = 'q' in list.fields && !hidden('q');
   const fields: ListField[] = [];
   for (const [name, field] of Object.entries(list.fields)) {
     if (

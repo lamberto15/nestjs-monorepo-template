@@ -7,13 +7,8 @@ import type { List } from '../../core/http/list-query.js';
  */
 export interface ListSource {
   readonly subject: string;
+  /** Which record fields each list field reveals: its `reads` (`fieldsRead()`). */
   readonly list: List;
-  /**
-   * The field-level permission field a list field reads, when it isn't its
-   * own name (a money field's `totalCurrency` reads `total`). Default: the
-   * name, and for `custom.<key>` also `custom`.
-   */
-  readonly fieldOf?: (name: string) => string;
 }
 
 /**
@@ -46,15 +41,11 @@ export class ListsRegistry {
  * A provider that registers a subject's list (GET /v1/lists/{subject}),
  * for a feature module's providers: `listSource('Note', NOTE_LIST)`.
  */
-export function listSource(
-  subject: string,
-  list: List,
-  options: Pick<ListSource, 'fieldOf'> = {},
-): Type {
+export function listSource(subject: string, list: List): Type {
   @Injectable()
   class RegisteredList {
     constructor(registry: ListsRegistry) {
-      registry.register({ subject, list, ...options });
+      registry.register({ subject, list });
     }
   }
   Object.defineProperty(RegisteredList, 'name', {

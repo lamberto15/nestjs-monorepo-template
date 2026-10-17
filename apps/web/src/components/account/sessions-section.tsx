@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
 import { api } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime } from '@/lib/date-time';
 import { useSignOut } from '@/lib/sign-out';
 
 export const sessionsQuery = queryOptions({

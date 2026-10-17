@@ -1485,6 +1485,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "You may not export it (forbidden), or its filters use a field your permissions hide (field_forbidden, naming it)."
           }
         },
         "security": [
@@ -7800,6 +7803,9 @@
           },
           "401": {
             "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Its filters use a field your permissions hide (field_forbidden, naming it)."
           }
         },
         "security": [
@@ -8403,6 +8409,9 @@
           "401": {
             "description": "No valid API key or session."
           },
+          "403": {
+            "description": "Its filters use a field your permissions hide (field_forbidden, naming it)."
+          },
           "404": {
             "description": ""
           }
@@ -8511,6 +8520,9 @@
           },
           "401": {
             "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Its filters use a field your permissions hide (field_forbidden, naming it)."
           },
           "404": {
             "description": ""
@@ -22225,7 +22237,7 @@
         ]
       },
       "get": {
-        "description": "Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter.",
+        "description": "Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).",
         "operationId": "NotesController_list_v1",
         "parameters": [
           {

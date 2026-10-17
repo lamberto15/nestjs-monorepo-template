@@ -1,8 +1,11 @@
 {
-  "app": { "name": "App" },
+  "app": {
+    "name": "App"
+  },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "notes": "Nota"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -237,5 +240,33 @@
     "ar": "العربية",
     "zh": "中文",
     "ms": "Bahasa Melayu"
+  },
+  "list": {
+    "loading": "Memuatkan",
+    "search": "Cari",
+    "empty": {
+      "title": "Belum ada apa-apa",
+      "description": "Rekod akan muncul di sini setelah wujud."
+    },
+    "error": {
+      "title": "Senarai tidak dapat dimuatkan",
+      "generic": "Sesuatu telah berlaku. Cuba lagi.",
+      "retry": "Cuba lagi"
+    }
+  },
+  "notes": {
+    "title": "Nota",
+    "columns": {
+      "number": "Nombor",
+      "title": "Tajuk",
+      "status": "Status",
+      "tags": "Tag",
+      "createdAt": "Dicipta",
+      "publishedAt": "Diterbitkan"
+    },
+    "status": {
+      "draft": "Draf",
+      "published": "Diterbitkan"
+    }
   }
 }

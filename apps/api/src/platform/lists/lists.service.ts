@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { fieldsRead } from '../../core/http/list-query.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
@@ -48,10 +49,9 @@ export class ListsService {
         : false,
     ]);
     const hiddenFields = new Set(denied);
+    // The list routes refuse the same names (AccessService.assertQueryFields).
     const hidden = (name: string) =>
-      [name, name.split('.')[0], source.fieldOf?.(name)].some(
-        (field) => field !== undefined && hiddenFields.has(field),
-      );
+      fieldsRead(list.fields, name).some((field) => hiddenFields.has(field));
     return listMetadata(subject, list, {
       hidden,
       labels: new Map(definitions.map((field) => [field.key, field.label])),
