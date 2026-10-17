@@ -22,6 +22,7 @@ its work to the packages:
 | `pnpm client:generate`, `pnpm client:check` | the API's dump, then the client's generator |
 | `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes` | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md)) |
 | `pnpm services:up` / `services:down`, `pnpm format` | at the root |
+| `pnpm setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys) |
 
 - **One package:** `pnpm --filter <name> <script>`, e.g. `pnpm --filter
   @nestjs-monorepo-template/api test src/core/http/route-key.spec.ts`.

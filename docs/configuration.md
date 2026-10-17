@@ -5,7 +5,10 @@ Every variable is validated at startup (`apps/api/src/env.ts` merges each group'
 value. Every secret can come from a file instead ([Secrets](#secrets)). Read
 them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`).
 
-- Production: `.env` is Docker Compose's file (`cp env.example .env`, then
+- First run: `pnpm setup` asks a few questions and writes either file below
+  with the secrets generated ([First setup](#first-setup-pnpm-setup)).
+- Production: `.env` is Docker Compose's file (`pnpm setup --target production`,
+  or by hand `cp env.example .env`, then
   fill it: `env.example` marks what is required); the containers get their variables from `compose.prod.yaml`.
 - Development: `apps/api/.env.development` (`cp
   apps/api/env.development.example apps/api/.env.development`), optional.
