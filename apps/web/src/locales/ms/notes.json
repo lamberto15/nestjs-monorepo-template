@@ -1,0 +1,79 @@
+{
+  "title": "Nota",
+  "columns": {
+    "number": "Nombor",
+    "title": "Tajuk",
+    "status": "Status",
+    "tags": "Tag",
+    "createdAt": "Dicipta",
+    "publishedAt": "Diterbitkan"
+  },
+  "status": {
+    "draft": "Draf",
+    "published": "Diterbitkan"
+  },
+  "fields": {
+    "body": "Teks",
+    "tags": "Tag",
+    "updatedAt": "Dikemas kini",
+    "deletedAt": "Dipadam",
+    "noTags": "Tiada tag",
+    "empty": "—"
+  },
+  "new": {
+    "action": "Nota baharu",
+    "title": "Nota baharu"
+  },
+  "edit": {
+    "title": "Edit nota"
+  },
+  "form": {
+    "title": "Tajuk",
+    "body": "Teks",
+    "titleRequired": "Masukkan tajuk.",
+    "titleTooLong": "Tajuk paling panjang 200 aksara.",
+    "create": "Cipta nota",
+    "save": "Simpan perubahan",
+    "cancel": "Batal",
+    "created": "Nota dicipta",
+    "saved": "Nota disimpan"
+  },
+  "detail": {
+    "back": "Kembali ke nota"
+  },
+  "actions": {
+    "open": "Tindakan untuk nota ini",
+    "view": "Lihat",
+    "edit": "Edit nota",
+    "delete": "Padam",
+    "restore": "Pulihkan"
+  },
+  "delete": {
+    "title": "Padam nota ini?",
+    "description": "Nota dialihkan ke tong kitar semula dan boleh dipulihkan di sana sehingga dihapuskan.",
+    "confirm": "Padam",
+    "done": "Nota dipadam",
+    "undo": "Buat asal"
+  },
+  "restore": {
+    "done": "Nota dipulihkan"
+  },
+  "bin": {
+    "label": "Tong kitar semula",
+    "showing": "Menunjukkan nota yang dipadam"
+  },
+  "conflict": {
+    "title": "Orang lain telah mengubah nota ini",
+    "description": "Muat semula untuk melihat versi terkini. Perubahan anda yang belum disimpan akan dibuang.",
+    "reload": "Muat semula nota"
+  },
+  "notFound": {
+    "title": "Nota tidak ditemui",
+    "description": "Nota mungkin telah dipadam, atau anda tiada akses kepadanya."
+  },
+  "error": {
+    "title": "Nota tidak dapat dimuatkan",
+    "generic": "Sesuatu telah berlaku. Cuba lagi.",
+    "retry": "Cuba lagi"
+  }
+}

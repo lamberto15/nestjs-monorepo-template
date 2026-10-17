@@ -1,0 +1,79 @@
+{
+  "title": "笔记",
+  "columns": {
+    "number": "编号",
+    "title": "标题",
+    "status": "状态",
+    "tags": "标签",
+    "createdAt": "创建时间",
+    "publishedAt": "发布时间"
+  },
+  "status": {
+    "draft": "草稿",
+    "published": "已发布"
+  },
+  "fields": {
+    "body": "正文",
+    "tags": "标签",
+    "updatedAt": "更新时间",
+    "deletedAt": "删除时间",
+    "noTags": "没有标签",
+    "empty": "—"
+  },
+  "new": {
+    "action": "新建笔记",
+    "title": "新建笔记"
+  },
+  "edit": {
+    "title": "编辑笔记"
+  },
+  "form": {
+    "title": "标题",
+    "body": "正文",
+    "titleRequired": "请输入标题。",
+    "titleTooLong": "标题最多 200 个字符。",
+    "create": "创建笔记",
+    "save": "保存更改",
+    "cancel": "取消",
+    "created": "笔记已创建",
+    "saved": "笔记已保存"
+  },
+  "detail": {
+    "back": "返回笔记"
+  },
+  "actions": {
+    "open": "此笔记的操作",
+    "view": "查看",
+    "edit": "编辑笔记",
+    "delete": "删除",
+    "restore": "恢复"
+  },
+  "delete": {
+    "title": "删除这条笔记？",
+    "description": "它会移到回收站，在彻底清除前可以从那里恢复。",
+    "confirm": "删除",
+    "done": "笔记已删除",
+    "undo": "撤销"
+  },
+  "restore": {
+    "done": "笔记已恢复"
+  },
+  "bin": {
+    "label": "回收站",
+    "showing": "正在显示已删除的笔记"
+  },
+  "conflict": {
+    "title": "其他人修改了这条笔记",
+    "description": "重新加载以查看最新版本。你在此处未保存的更改将被丢弃。",
+    "reload": "重新加载笔记"
+  },
+  "notFound": {
+    "title": "未找到笔记",
+    "description": "它可能已被删除，或者你没有访问权限。"
+  },
+  "error": {
+    "title": "无法加载笔记",
+    "generic": "出了点问题，请重试。",
+    "retry": "重试"
+  }
+}

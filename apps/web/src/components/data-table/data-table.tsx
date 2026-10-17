@@ -39,11 +39,14 @@ interface DataTableProps<
 > extends React.ComponentProps<'div'> {
   table: ReactTable<DataTableFeatures, TData, unknown>;
   actionBar?: React.ReactNode;
+  /** A click on a row (not on a link, button or menu inside it). */
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData extends RowData>({
   table,
   actionBar,
+  onRowClick,
   children,
   className,
   'aria-label': ariaLabel,
@@ -67,7 +70,7 @@ export function DataTable<TData extends RowData>({
           aria-labelledby={ariaLabelledBy}
         >
           <DataTableHeader table={table} />
-          <DataTableBody table={table} />
+          <DataTableBody table={table} onRowClick={onRowClick} />
         </DataTableLayout>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -179,10 +182,12 @@ function DataTableHeadCell<TData extends RowData>({
 
 interface DataTableBodyProps<TData extends RowData> {
   table: ReactTable<DataTableFeatures, TData, unknown>;
+  onRowClick?: (row: TData) => void;
 }
 
 function DataTableBody<TData extends RowData>({
   table,
+  onRowClick,
 }: DataTableBodyProps<TData>) {
   const { t } = useTranslation();
   const rows = table.getRowModel().rows;
@@ -209,7 +214,7 @@ function DataTableBody<TData extends RowData>({
   return (
     <TableBody>
       {rows.map((row) => (
-        <DataTableRow key={row.id} row={row} />
+        <DataTableRow key={row.id} row={row} onRowClick={onRowClick} />
       ))}
     </TableBody>
   );
@@ -217,12 +222,14 @@ function DataTableBody<TData extends RowData>({
 
 interface DataTableRowProps<TData extends RowData> {
   row: Row<DataTableFeatures, TData>;
+  onRowClick?: (row: TData) => void;
 }
 
 const DataTableRow = React.memo(DataTableRowImpl) as typeof DataTableRowImpl;
 
 function DataTableRowImpl<TData extends RowData>({
   row,
+  onRowClick,
 }: DataTableRowProps<TData>) {
   return (
     <Subscribe
@@ -237,7 +244,23 @@ function DataTableRowImpl<TData extends RowData>({
       {({ isSelected }) => (
         <TableRow
           data-state={isSelected ? 'selected' : undefined}
-          className="group/row"
+          className={cn('group/row', onRowClick && 'cursor-pointer')}
+          onClick={
+            onRowClick
+              ? (event) => {
+                  // React events bubble through portals (a menu's popup):
+                  // only a click on the row's own DOM counts, not on a
+                  // link, button or menu item within it.
+                  const target = event.target as HTMLElement;
+                  if (
+                    event.currentTarget.contains(target) &&
+                    !target.closest('a, button, [role="menuitem"]')
+                  ) {
+                    onRowClick(row.original);
+                  }
+                }
+              : undefined
+          }
         >
           {row.getVisibleCells().map((cell) => (
             <DataTableCell
