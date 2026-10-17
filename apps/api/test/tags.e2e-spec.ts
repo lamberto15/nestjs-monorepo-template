@@ -281,4 +281,51 @@ describe('tags (e2e)', () => {
       },
     });
   });
+
+  it('exports the tags of each test item', async () => {
+    const editor = await node.user(['editor']);
+    const urgent = await tag('Urgent');
+    const later = await tag('Later');
+    const id = (
+      await node.writeItem(editor.agent, { title: 'Tagged', body: '' })
+    ).body.id as string;
+    await node
+      .writeItem(editor.agent, { title: 'Untagged', body: '' })
+      .expect(201);
+    await editor.agent
+      .put(`/v1/test-items/${id}/tags`)
+      .send({ tagIds: [urgent.id, later.id] })
+      .expect(200);
+
+    const started = await editor.agent
+      .post('/v1/data/exports')
+      .send({ name: 'test-items', format: 'csv' })
+      .expect(202);
+    let done: { status: string; result: { url: string } } | undefined;
+    for (let tries = 0; tries < 100 && done?.status !== 'completed'; tries++) {
+      done = (
+        await editor.agent
+          .get(`/v1/data/transfers/${started.body.id}`)
+          .expect(200)
+      ).body;
+      expect(done!.status).not.toBe('failed');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(done?.status).toBe('completed');
+    const { pathname, search } = new URL(done!.result.url);
+    const file = await node
+      .http()
+      .get(pathname + search)
+      .expect(200);
+    const [header, ...rows] = file.text.trim().split(/\r?\n/);
+    expect(header).toContain('tags');
+    expect(
+      rows.find((row) => row.includes('Tagged') && !row.includes('Untagged')),
+    ).toContain('"Later, Urgent"');
+    // An import ignores the column: the template has none.
+    const template = await editor.agent
+      .get('/v1/data/imports/test-items/template')
+      .expect(200);
+    expect(template.text).not.toContain('tags');
+  });
 });
