@@ -425,6 +425,36 @@ export const QUESTIONS = [
     write: (v) => ({ MICROSOFT_TENANT_ID: v }),
   },
   {
+    id: 'authMfa',
+    label: 'Let users set up two-factor sign-in (TOTP, recovery codes)?',
+    type: 'bool',
+    keys: ['AUTH_MFA'],
+    fresh: () => true,
+    read: (env) => isOn(env.AUTH_MFA),
+    write: (v) => ({ AUTH_MFA: flag(v) }),
+  },
+  {
+    id: 'apiClients',
+    label: 'API clients and their keys (sk_...)?',
+    hint: 'Off: their routes answer 404 and keys stop working (docs/auth.md).',
+    type: 'bool',
+    keys: ['API_CLIENTS'],
+    fresh: () => true,
+    read: (env) => isOn(env.API_CLIENTS),
+    write: (v) => ({ API_CLIENTS: flag(v) }),
+  },
+  {
+    id: 'impersonation',
+    label: 'Support impersonation (an administrator acts as a user)?',
+    hint: 'WARNING: a privileged support tool; an administrator can act as any user (audited). Leave off unless support needs it.',
+    type: 'bool',
+    keys: ['IMPERSONATION'],
+    // The template's value is the default (development's turns it on to try it).
+    fresh: (ctx) => ctx.tpl?.get('IMPERSONATION') === 'on',
+    read: (env) => isOn(env.IMPERSONATION),
+    write: (v) => ({ IMPERSONATION: flag(v) }),
+  },
+  {
     id: 'exchangeRates',
     label: "Fetch the ECB's exchange rates every working day?",
     type: 'bool',
@@ -460,6 +490,39 @@ export const QUESTIONS = [
     // On: the token is a generated secret (SECRETS). Off: empty.
     write: (v) => (v ? {} : { METRICS_TOKEN: null }),
   },
+  {
+    id: 'idempotency',
+    label: 'Idempotency-Key on writes',
+    hint: 'required: a write without the header is refused, so a retry never creates twice; optional: the header is honoured when sent.',
+    type: 'choice',
+    choices: ['required', 'optional'],
+    keys: ['IDEMPOTENCY'],
+    fresh: () => 'required',
+    read: (env) => env.IDEMPOTENCY,
+    write: (v) => ({ IDEMPOTENCY: v }),
+  },
+  ...[
+    ['webhooks', 'WEBHOOKS', 'Outgoing webhooks (endpoints, deliveries)?'],
+    ['reports', 'REPORTS', 'Scheduled reports?'],
+    ['usage', 'USAGE', "API clients' usage metering and daily quotas?"],
+    ['realtime', 'REALTIME', 'Realtime socket.io gateway (/realtime)?'],
+  ].map(([id, key, label], index) => ({
+    id,
+    label,
+    // Said once, before the group: off leaves a module's routes, workers and jobs out.
+    hint:
+      index === 0
+        ? 'Optional platform services (docs/configuration.md, "Deployment switches"): off leaves a module\'s routes, workers and jobs out.'
+        : undefined,
+    type: 'bool',
+    keys: [key],
+    fresh: () => true,
+    read: (env) => isOn(env[key]),
+    // Development's template has these only as commented examples: on (the
+    // default) leaves them alone, off writes the line.
+    write: (v, a, ctx) =>
+      v && !ctx.current.has(key) ? {} : { [key]: flag(v) },
+  })),
   {
     id: 'removeNotes',
     label: 'Remove the example feature (notes)?',
@@ -559,7 +622,12 @@ export function writableKeys(ctx) {
   for (const answers of probes) {
     for (const q of QUESTIONS) {
       if (!applies(q, answers, ctx)) continue;
-      for (const key of Object.keys(q.write('x', answers, ctx))) keys.add(key);
+      // A bool is probed both ways: some answers write nothing (on, by default).
+      for (const probe of q.type === 'bool' ? ['x', false] : ['x']) {
+        for (const key of Object.keys(q.write(probe, answers, ctx))) {
+          keys.add(key);
+        }
+      }
     }
   }
   for (const secret of SECRETS) {

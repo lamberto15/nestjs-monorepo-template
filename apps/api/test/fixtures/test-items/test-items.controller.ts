@@ -52,6 +52,7 @@ import {
   sentFields,
 } from '../../../src/platform/records/record.js';
 import { RecordPresenter } from '../../../src/platform/records/record-contract.js';
+import { deleteDocs } from '../../../src/platform/records/record-restore.routes.js';
 import { TEST_ITEM_LIST } from './test-item.list.js';
 import { TestItemPolicy } from './test-item.policy.js';
 import { TEST_ITEM } from './test-item.record.js';
@@ -67,7 +68,8 @@ const SCHEMAS = TEST_ITEM_SCHEMAS;
 
 /**
  * Test items: the HTTP routes, nothing else (test-items.service.ts does the work).
- * The capabilities' routes (tags, comments…) come from test-item.record.ts (test-items.module.ts).
+ * The recycle bin's restore route and the capabilities' routes (tags, comments…) come
+ * from test-item.record.ts (test-items.module.ts).
  */
 @ApiTags('test-items')
 @ApiBearerAuth('api-key')
@@ -132,7 +134,7 @@ export class TestItemsController {
     const query = list.parse(raw);
     const page = await this.testItems.findPage(
       and(
-        // The recycle bin (?deleted=true) is for those who may restore.
+        // The recycle bin (?deleted=true, with softDelete) is for those who may restore.
         await this.access.sqlFilter(
           user,
           'TestItem',
@@ -201,37 +203,10 @@ export class TestItemsController {
     );
   }
 
-  @Post(':id/restore')
-  @HttpCode(HttpStatus.OK)
-  @Can.Anyone() // Checked below, on the record itself.
-  @ApiOperation({
-    summary: 'Restore a test item from the recycle bin',
-    description:
-      'Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).',
-  })
-  @ApiOkResponse({ standardSchema: SCHEMAS.response })
-  @ApiNotFoundResponse({ description: 'Not in the recycle bin (or purged).' })
-  async restore(
-    @CurrentUser() user: RequestPrincipal,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Ip() ip: string,
-  ) {
-    const row = await this.testItems.findOne(id, undefined, { deleted: true });
-    await this.authorization.authorize(TestItemPolicy, 'restore', user, row);
-    return this.presenter.one(
-      user,
-      await this.testItems.restore(user, row, ip),
-    );
-  }
-
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Can.Anyone() // Checked below, on the record itself.
-  @ApiOperation({
-    summary: 'Delete a test item (to the recycle bin)',
-    description:
-      'POST /v1/test-items/{id}/restore brings it back until it is purged.',
-  })
+  @ApiOperation(deleteDocs(TEST_ITEM))
   @ApiHeader(ifMatchHeader())
   @ApiNoContentResponse()
   @ApiNotFoundResponse()

@@ -88,7 +88,12 @@ template's text, keeping its comments, order and unknown keys).
   (`STORAGE_DRIVER`, S3), bot protection (`CAPTCHA_MODE` and the Turnstile keys,
   only when chosen), passkeys (`PASSKEYS`; the relying party id defaults to
   the web app's host and can never change), social sign-in, exchange rates,
-  PDF documents, metrics; in production also `APP_DOMAIN`, `ACME_EMAIL`,
+  PDF documents, metrics, the deployment switches ([below](#deployment-switches)):
+  `IDEMPOTENCY` (`required` or `optional`), the optional platform services
+  `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (asked in a row, default on), and the
+  security switches `AUTH_MFA`, `API_CLIENTS` (default on) and `IMPERSONATION`
+  (a privileged support tool, default off; development's template turns it on and
+  that is its default); in production also `APP_DOMAIN`, `ACME_EMAIL`,
   `CLOUDFLARE_API_TOKEN`, `WEB_URL`, `CORS_ORIGINS`, the administrator and the
   first tenant. It asks only what the target's template has variables for.
 - **Secrets are generated** as `env.example` says (passwords `openssl rand
