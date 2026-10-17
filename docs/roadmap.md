@@ -30,8 +30,8 @@ first project is built on the template; until then they report only.
 | 0. First-boot seeding race | **Done** (#29): one transaction, `pg_advisory_xact_lock`, re-checks under the lock, one `user.seeded` audit entry (actor `system:seed` since #38), breach warning after commit. Seeding stays in every role (safe under the lock). |
 | Approvals | **Done** (#27), so tenancy no longer lands on a half-built module. |
 | 18. System principal | **Done** (#38): `system:<job>` principals of declared jobs (`defineSystemJob()`, never `all.manage`), `SystemContext.run()` (CLS context + transaction; 1a adds the tenant), the seeder, every cron job, the notification delivery and the workflows' steps moved onto it; `PrincipalGuard` refuses it over HTTP and sockets. docs/permissions.md, "The system principal". |
-| 1a, part 1. Database roles | **Done** (#36): `migrate` connects as the owner (`DATABASE_OWNER_URL`), api and worker as `app_runtime` (NOSUPERUSER NOBYPASSRLS, owns nothing, DML only, no role memberships), created and checked by `roles.ts` on every migrate. Tests run as the app role over scram. Next in 1a: the tenant column, RLS policies and the request setting. |
-| 10, part 1. Git hooks | **Done** (#33): lefthook (Prettier, oxlint, commitlint) and the PR-title check in CI. Demo seed and devcontainer still open. |
+| 1a, part 1. Database roles | **Done** (#36): `migrate` connects as the owner (`DATABASE_OWNER_URL`), api and worker as `app_runtime` (NOSUPERUSER NOBYPASSRLS, owns nothing, DML only, no role memberships), created and checked by `roles.ts` on every migrate. Tests run as the app role over scram. The rest of 1a: the next row. |
+| 10, part 1. Git hooks | **Done** (#33): lefthook (Prettier, oxlint, commitlint) and the PR-title check in CI. Demo seed and devcontainer: the 10 row below. |
 | 16a. Dead-man's switch and certificate probe | **Done** (#32). Off until the owner sets `ALERT_WATCHDOG_URL_FILE` (healthchecks.io ping URL). |
 | 19. Secrets | **Done** (#35): every secret can come from `X_FILE`; Docker secrets in production Compose; Redis' password never on a command line. Follow-up: a `pg_monitor` role for the exporter. |
 | 20. Expand/contract migrations | **Done** (#34): the policy in docs/pitfalls.md and squawk's lint in CI (report-only until `MIGRATION_LINT_FAIL` is set; changed merged migrations always fail). |
@@ -43,9 +43,52 @@ first project is built on the template; until then they report only.
 | 22. Email deliverability | **Done** (#3 here): `POST /v1/webhooks/mail/ses` verifies SNS notifications (signature versions 1 and 2, certificate URL and `SubscribeURL` restricted to SNS hosts, `SES_SNS_TOPIC_ARNS` allow-list, replay-safe), a queue job as `system:mail-intake` keeps the suppression list (hard/soft bounces with a threshold, complaints, manual entries; `GET/POST/DELETE /v1/mail/suppressions`, audited); the mail worker skips listed recipients (`@EssentialMail()` still reaches an address that complained); entries in the data export and erased with the account; SPF/DKIM/DMARC and the SNS setup in docs/deliverability.md; `MailBounceRateHigh`, `MailComplaints` alerts. Pluggable: Postmark, SendGrid… as adapters later. |
 | 13. PDF generation | **Done** (#5 here): `platform/documents`; features register a `DocumentSource`, `POST /v1/notes/{id}/pdf` answers 202 and `GET /v1/documents/{id}` follows it; the worker renders a template with @nestjs/mail's escaping `FileTemplateEngine` (RTL, Noto fonts for Arabic and CJK, CSP `default-src 'none'`) through a pinned Gotenberg on an `internal: true` network (no JavaScript, private and public IPs denied, read-only, `cap_drop: ALL`), and one transaction adds the `locked` attachment and completes the document; per-run claims make duplicate runs safe; the attachment records the fields it shows, and a reader must see all of them; realtime `document.ready` and `document.failed`; off (503 `documents_unavailable`) without `GOTENBERG_URL`; the scanned image is published to GHCR. docs/documents.md. |
 | Password-hash OOM fix | **Done** (#4 here): `PasswordHashLimiter` (a `BulkheadPolicy` of @nestjs/resilience) caps the scrypt hashes in flight (`PASSWORD_HASH_CONCURRENCY`, default 2; then a queue bounded by `PASSWORD_HASH_MAX_QUEUE` and `PASSWORD_HASH_QUEUE_TIMEOUT_MS`, then 503 `server_busy` with `Retry-After`); re-entrant, so a busy password reset leaves its link working; `API_MEMORY` 768M; `password_hashes_*` metrics and the `PasswordHashingSaturated` alert. Hash parameters unchanged. docs/deployment.md, "Resource limits". |
+| 1a. Tenancy core | **Done** (#14 here): `tenants`, global users with `memberships`; `tenant_id NOT NULL` (no default) on every other table, per-tenant uniques, composite `(tenant_id, x)` keys; RLS declared in Drizzle on 28 tables (four policies each, FORCE and the policy set checked by `roles.ts` on every migrate); `TenantPool` sends `set_config(…, true)` with each `begin`, wraps tenant-table reads outside a transaction, refuses a statement without a tenant before a connection is taken; the tenant from the session (`POST /v1/auth/tenant` switches, refused while impersonating), the token's `tid`, the API client, `TenantEnvelope` on jobs, outbox and workflows; cron through `forEachTenant()`; sweeps across tenants only as `app_maintenance` (BYPASSRLS, worker and migrate only, never the api); per-tenant idempotency, rooms, caches, sequences, usage, settings scope and `tenants/<id>/` storage; adding people is invite-only (decision below); verify-first sign-up; the operator tenant guards ops, suppressions and `/v1/tenants`. Load test: list +33 %, create +27 % on the median, under the 2× bar. docs/tenancy.md. |
+| 3. Passkeys | **Done** (#12 here): @simplewebauthn/server; register, list, rename, remove (`/v1/auth/passkeys`); sign-in with or without an email, by session or token (`tid`); one-time challenges bound to ceremony, user, session and origin; user verification required, which also completes a pending second factor; forward-only counter, synced passkeys at 0; decoys for unknown addresses; own throttles and `@Captcha()`; the last-sign-in-method check under a row lock; verify-first; refused while impersonating; account-level audit and notifications; `/.well-known/` files for native apps. docs/auth.md, "Passkeys". |
+| 9. Release automation | **Done** (#8 here): template releases on `v*` tags with generated notes (breaking changes, images by digest, the migrations since the last tag with the expand/contract lint, rollback, changed variables); changesets for `packages/api-client` (version PR on main, npm publish off); docs/upgrading.md for projects pulling template updates. docs/releases.md. |
+| 10. Demo seed and devcontainer | **Done** (#11 here): `pnpm db:seed:demo` makes the "Demo Company" tenant through the services as `system:demo-seed` (generated passwords printed once; refused unless `NODE_ENV` is development or test and the database carries the dev marker); `.devcontainer/` with PostgreSQL (scram), Redis, Mailpit and Gotenberg, e2e reusing them. docs/development.md. |
+| 23. Log redaction | **Done** (#9 here): one registry (`core/logging/redaction.ts`) of secret headers, fields and text patterns, fed to Nest's logger `redact`, NestJS Observe and a pass over every line; `secret()` variables and the API key shape declared into it; item 5's column registry extends it. docs/deployment.md, "Log redaction". |
+| CodeQL findings | **Done** (#10 here): custom-field patterns run on RE2 (linear time; lookaround and backreferences refused at save), string-only OIDC query parameters, a linear trailing-slash trim in the client. The SHA-1 (Pwned Passwords) and SHA-256 (API keys) alerts are dismissed as false positives, the demo seed's password print as intended. |
+| Auth follow-ups | **Done** (#13 here): wrong MFA codes count as sign-in failures for bot protection; Redis 7.0 or newer checked at start; a no-sign-in cancel link in the deletion mail (its own JWT key and type, single use, the nightly job claims a deletion under the account lock); OIDC step-up with `prompt=login`, `max_age=0` and `auth_time`; the exporter connects as a `pg_monitor`-only role. |
 | Everything else | Not started. |
 
+### Open follow-ups
+
+- **Tenancy (1b):** per-tenant senders for incoming webhooks; `TENANT_SIGN_UP`
+  (decision below); sign-ins visible to tenant administrators; the platform super
+  tenant; a membership still active in a deactivated tenant exports that tenant's
+  records; the migrate-time wall check compares policy names and commands, not their
+  expressions.
+- **Passkeys:** renaming needs no recent sign-in; a token sign-in naming a tenant the
+  user isn't in writes no failure entry; `crossOrigin`/`topOrigin` aren't checked.
+  Token clients with two-factor still send a code with a passkey until
+  @nestjs/authentication can take a verified external factor (ask upstream).
+- **Guard order:** at start, @nestjs/authorization warns that its global guard runs
+  before `RecentAuthenticationGuard` on six admin routes. Present since the first
+  release; check whether `@Can()` there sees the right principal.
+- **Load-test anchor:** `main` has none yet; run the Load test workflow on `main` once
+  to set it.
+- **Owner actions (from #8):** squash commits titled by the PR (`PR_TITLE`); allow
+  GitHub Actions to create pull requests; push the first tag, `v0.1.0`.
+- **Cleanup (owner's call):** the old checkout `nestjs-backend-template` and the
+  `nestjs-template_*` volumes are no longer used by app10.
+
 ## Decisions for the owner (recommendation first)
+
+**Answered by the owner, 2026-10-17:** all as recommended.
+- Adding people to a tenant is **invite-only**: administrators never set passwords
+  or names; an invitation is accepted by its owner (closes the account-sharing
+  findings of #14's review).
+- An account's export includes only personal data (membership, audit about them)
+  from tenants the person has left.
+- Who creates tenants: a `TENANT_SIGN_UP` switch in 1b; operators only until then.
+- Token clients with two-factor keep sending a code with a passkey; ask
+  @nestjs/authentication upstream.
+- Releases: a tag per roadmap item or batch, `v0.x` from `v0.1.0`; 1.0.0 with the
+  first adopter.
+- The typed client stays unpublished until something outside the repository needs it.
+- The demo seed prints its generated passwords once (CodeQL alert dismissed as
+  intended).
 
 **Answered by the owner, 2026-10-16:** all as recommended.
 - 1: one origin, with the active tenant on the session.
