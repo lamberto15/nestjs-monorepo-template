@@ -151,6 +151,44 @@ then does nothing, and webhook deliveries to endpoints created earlier wait
 in the queue); a feature that calls the reports or usage services directly
 should not (nothing else in the template does).
 
+## Which switches are on: `GET /v1/features`
+
+A client (the web app) hides what a deployment turned off by asking
+`GET /v1/features`: any signed-in caller (session, token or API client), no
+permission needed. It answers what the routes do, because each value is read
+the way its module reads it (`FeaturesService`, `platform/features/`):
+
+```json
+{
+  "realtime": true,
+  "webhooks": true,
+  "reports": true,
+  "usage": true,
+  "impersonation": false,
+  "mfa": true,
+  "apiClients": true,
+  "passkeys": true,
+  "signUp": false,
+  "magicLink": true,
+  "documents": false,
+  "tenancy": "multi",
+  "locales": ["en", "de", "ar", "zh", "ms"]
+}
+```
+
+| Key                                        | Variable                                                                   | Off means                                                                                              |
+| ------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `realtime`, `webhooks`, `reports`, `usage` | `REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE` ([above](#deployment-switches)) | the module's routes are absent (404)                                                                   |
+| `impersonation`, `mfa`, `apiClients`       | `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`                                 | their routes answer 404 `feature_off`                                                                  |
+| `passkeys`, `signUp`, `magicLink`          | `PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`                              | as in `GET /v1/auth/methods` (which also lists the providers and bot protection, and needs no sign-in) |
+| `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
+| `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
+| `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |
+
+The values are fixed at startup (a change needs a restart). A new switch
+adds its key to `features.schemas.ts` and `FeaturesService`, reading it the
+way its module does.
+
 ## Secrets
 
 The variables that hold secrets are declared with `secret()` in their group's

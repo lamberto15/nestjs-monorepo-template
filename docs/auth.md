@@ -13,6 +13,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Name, language, time zone | `PATCH /v1/auth/me` |
 | Sign-up (when `AUTH_SIGN_UP=on`) | `POST /v1/auth/sign-up` |
 | Sign-in options for the page | `GET /v1/auth/methods` |
+| Which switches are on (a signed-in client) | `GET /v1/features`: [configuration](configuration.md#which-switches-are-on-get-v1features) |
 | Forgot / reset password | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset` |
 | Change password | `POST /v1/auth/password/change` (others signed out; [step-up](#step-up-recent-authentication)) |
 | Verify email | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` |
