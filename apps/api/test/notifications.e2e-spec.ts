@@ -602,4 +602,151 @@ describe('notifications (e2e)', () => {
     expect(ops.body.deadLetters).toEqual([]);
     expect(ops.body.notifications).toEqual({ undelivered: 0 });
   });
+
+  it('shows and takes preferences in their typed shape; a value the channel does not take is a 400', async () => {
+    const editor = await node.user(['editor']);
+    const types = (
+      await editor.agent.get('/v1/notifications/types').expect(200)
+    ).body.items as { type: string; channels: object }[];
+    // A user is offered `email` alone, every default one of its values.
+    for (const item of types) {
+      expect(Object.keys(item.channels)).toEqual(['email']);
+      expect([false, 'immediate', 'hourly', 'daily']).toContain(
+        (item.channels as { email: unknown }).email,
+      );
+    }
+    const put = await editor.agent
+      .put('/v1/notifications/preferences')
+      .send({ 'testItem.commented': { email: 'hourly' } })
+      .expect(200);
+    expect(put.body.types['testItem.commented']).toEqual({ email: 'hourly' });
+    const get = await editor.agent
+      .get('/v1/notifications/preferences')
+      .expect(200);
+    expect(get.body).toEqual(put.body);
+
+    // Not one of the values, nor a boolean `true`, nor a string for a flag.
+    for (const email of ['often', true, 1, null]) {
+      const response = await editor.agent
+        .put('/v1/notifications/preferences')
+        .send({ 'testItem.commented': { email } })
+        .expect(400);
+      expect(response.body.code).toBe('validation_failed');
+      expect(paths(response.body)).toEqual(['testItem.commented.email']);
+    }
+    const client = await node.client();
+    const refused = await node
+      .http()
+      .put('/v1/notifications/preferences')
+      .set('Authorization', client.auth)
+      .send({ 'testItem.commented': { webhook: 'yes' } })
+      .expect(400);
+    expect(paths(refused.body)).toEqual(['testItem.commented.webhook']);
+    // Unchanged by the refused ones.
+    expect(
+      (await editor.agent.get('/v1/notifications/preferences').expect(200)).body
+        .types['testItem.commented'],
+    ).toEqual({ email: 'hourly' });
+  });
+
+  describe('POST /v1/notifications/test (development and tests only)', () => {
+    it('sends the caller a test notification, in app and by mail, and nobody else', async () => {
+      const editor = await node.user(['editor']);
+      const other = await node.user(['editor']);
+      const email = await emailOf(editor.agent);
+      const otherEmail = await emailOf(other.agent);
+      await editor.agent
+        .patch('/v1/auth/me')
+        .send({ locale: 'de' })
+        .expect(200);
+
+      const sent = await editor.agent
+        .post('/v1/notifications/test')
+        .expect(200);
+      expect(sent.body).toEqual({ id: expect.any(String) });
+      await deliver();
+
+      const items = (await editor.agent.get('/v1/notifications').expect(200))
+        .body.items;
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({
+        id: sent.body.id,
+        type: 'system.test',
+        title: 'Testbenachrichtigung',
+        read: false,
+        count: 1,
+        data: { at: expect.any(String) },
+      });
+      expect(noticesTo(email)).toHaveLength(1);
+      expect(noticesTo(otherEmail)).toEqual([]);
+      expect(
+        (await other.agent.get('/v1/notifications').expect(200)).body.items,
+      ).toEqual([]);
+      // Each call is its own notification.
+      await editor.agent.post('/v1/notifications/test').expect(200);
+      expect(
+        (await editor.agent.get('/v1/notifications').expect(200)).body.items,
+      ).toHaveLength(2);
+    });
+
+    it("respects the caller's preferences: no mail when they switched it off", async () => {
+      const editor = await node.user(['editor']);
+      const email = await emailOf(editor.agent);
+      await editor.agent
+        .put('/v1/notifications/preferences')
+        .send({ 'system.test': { email: false } })
+        .expect(200);
+      await editor.agent.post('/v1/notifications/test').expect(200);
+      await deliver();
+      expect(
+        (await editor.agent.get('/v1/notifications').expect(200)).body.items,
+      ).toHaveLength(1);
+      expect(noticesTo(email)).toEqual([]);
+    });
+
+    it('tells an API client live and by webhook', async () => {
+      const receiver = await webhookReceiver();
+      try {
+        const client = await node.client();
+        await node
+          .http()
+          .post('/v1/webhook-endpoints')
+          .set('Authorization', client.auth)
+          .send({ url: receiver.url, eventTypes: ['notification.created'] })
+          .expect(201);
+        const socket = await connect(node, client.key);
+        sockets.push(socket);
+        const live = new Promise<{ type: string }>((resolve) =>
+          socket.once('notification', resolve),
+        );
+        await node
+          .http()
+          .post('/v1/notifications/test')
+          .set('Authorization', client.auth)
+          .expect(200);
+        await deliver();
+        await node.deliverWebhooks();
+        expect((await live).type).toBe('system.test');
+        expect(receiver.received.map((w) => w.body.type)).toEqual([
+          'notification.created',
+        ]);
+      } finally {
+        await receiver.close();
+      }
+    });
+
+    it('needs a sign-in', async () => {
+      await node.http().post('/v1/notifications/test').expect(401);
+    });
+
+    it('is refused to an administrator acting as someone', async () => {
+      const editor = await node.user(['editor']);
+      const admin = await node.signIn(
+        process.env.ADMIN_EMAIL!,
+        process.env.ADMIN_PASSWORD!,
+      );
+      await admin.post(`/v1/access/users/${editor.id}/impersonate`).expect(204);
+      await admin.post('/v1/notifications/test').expect(403);
+    });
+  });
 });

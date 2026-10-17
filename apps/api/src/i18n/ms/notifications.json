@@ -114,5 +114,12 @@
       "title": "Permintaan ditarik balik",
       "body": "{by} telah menarik balik \"{title}\": keputusan tidak diperlukan lagi."
     }
+  },
+  "system": {
+    "test": {
+      "label": "Pemberitahuan ujian",
+      "title": "Pemberitahuan ujian",
+      "body": "Ini ialah pemberitahuan ujian, dihantar pada {at}. Ia melalui setiap saluran yang anda hidupkan."
+    }
   }
 }
