@@ -99,7 +99,7 @@ describe('notifications (e2e)', () => {
   const emailOf = async (agent: request.Agent) =>
     (await agent.get('/v1/auth/me').expect(200)).body.user.email as string;
 
-  it('tells a user in-app, and by mail; they read and mark it', async () => {
+  it('tells a user in-app, in their language, and by mail; they read and mark it', async () => {
     const editor = await node.user(['editor']);
     await editor.agent
       .patch('/v1/auth/me')
@@ -118,8 +118,8 @@ describe('notifications (e2e)', () => {
     const item = page.body.items[0];
     expect(item).toMatchObject({
       type: 'testItem.commented',
-      title: 'New comment',
-      body: 'Administrator commented on "Hello": Looks good.',
+      title: 'Neuer Kommentar',
+      body: 'Administrator hat „Hello“ kommentiert: Looks good.',
       data: {
         recordId: record.id,
         title: 'Hello',
@@ -148,9 +148,9 @@ describe('notifications (e2e)', () => {
     // The mail, in German, with the link into the web app.
     const mail = await node.waitForMail({
       to: email,
-      subject: /New comment/,
+      subject: /Neuer Kommentar/,
     });
-    expect(mail.html).toContain('commented on &quot;Hello&quot;');
+    expect(mail.html).toContain('hat „Hello“ kommentiert');
     expect(mail.html).toContain(
       `https://web.example.com/test-items/${record.id}`,
     );
@@ -389,6 +389,13 @@ describe('notifications (e2e)', () => {
       read: false,
       body: '2 new comments on "Two"; the latest by Ada: Looks good.',
     });
+    // The counted text is plural, in the request's language.
+    const german = await editor.agent
+      .get('/v1/notifications?key=batch&lang=de')
+      .expect(200);
+    expect(german.body.items[0].body).toBe(
+      '2 neue Kommentare zu „Two“; der neueste von Ada: Looks good.',
+    );
     await editor.agent.post(`/v1/notifications/${first}/read`).expect(404);
     // The outbox message of the one collapsed away finds nothing: no error.
     await deliver();

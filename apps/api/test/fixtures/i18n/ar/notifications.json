@@ -1,15 +1,15 @@
 {
   "testItem": {
     "commented": {
-      "label": "Comment on a test item you watch",
-      "title": "New comment",
+      "label": "تعليق على عنصر اختبار تتابعه",
+      "title": "تعليق جديد",
       "body": {
-        "zero": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}",
-        "one": "{by} commented on \"{title}\": {excerpt}",
-        "two": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}",
-        "few": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}",
-        "many": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}",
-        "other": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}"
+        "zero": "لا تعليقات جديدة على \"{title}\".",
+        "one": "علّق {by} على \"{title}\": {excerpt}",
+        "two": "تعليقان جديدان على \"{title}\"؛ أحدثهما من {by}: {excerpt}",
+        "few": "{count} تعليقات جديدة على \"{title}\"؛ أحدثها من {by}: {excerpt}",
+        "many": "{count} تعليقاً جديداً على \"{title}\"؛ أحدثها من {by}: {excerpt}",
+        "other": "{count} تعليق جديد على \"{title}\"؛ أحدثها من {by}: {excerpt}"
       }
     }
   }

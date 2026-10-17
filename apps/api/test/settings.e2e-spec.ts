@@ -1,13 +1,17 @@
 import { randomUUID } from 'node:crypto';
+import { rolloutBucket } from '../src/platform/settings/setting-resolution.js';
 import { bootApp, type TestApp } from './support.js';
 
 /**
- * The platform's settings, on a key the platform itself declares
+ * The platform's settings: on a key the platform itself declares
  * (`approvals.maxDelegationDays`: a number, tenant scope, shown to managers
- * only). Flags, team and user scopes and rollouts need a feature's declared
- * key: the feature's own spec (test/features/<feature>/).
+ * only), and on the test-only feature's keys (test/fixtures/test-items/
+ * test-item-settings.ts), declared as a feature declares them: a flag with
+ * every scope (team, user, rollouts) and a value with team and user scopes.
  */
 const KEY = 'approvals.maxDelegationDays';
+const FLAG = 'testItems.richPreview';
+const VIEW = 'testItems.view';
 
 describe('settings (e2e)', () => {
   let node: TestApp;
@@ -138,5 +142,263 @@ describe('settings (e2e)', () => {
           .expect(200)
       ).body.items,
     ).toHaveLength(1);
+  });
+
+  /** The test-only feature's keys of a listing, in their declared order. */
+  const testItemKeys = (body: { items: { key: string }[] }) =>
+    body.items.map((i) => i.key).filter((key) => key.startsWith('testItems.'));
+
+  it('shows a feature’s settings with their defaults; managers set values for everyone or a team, audited', async () => {
+    const manager = await node.user([await role(['Access', 'manageSettings'])]);
+    const editor = await node.user(['editor']);
+    const other = await node.user(['editor']);
+
+    // The public ones to everyone; the page limit only to managers.
+    const list = await editor.agent.get('/v1/settings').expect(200);
+    expect(testItemKeys(list.body)).toEqual([
+      'testItems.richPreview',
+      VIEW,
+      'testItems.publishApproval',
+    ]);
+    expect(
+      testItemKeys((await manager.agent.get('/v1/settings')).body),
+    ).toEqual([
+      'testItems.richPreview',
+      VIEW,
+      'testItems.pageLimit',
+      'testItems.publishApproval',
+    ]);
+    expect(settingOf(list.body, VIEW)).toMatchObject({
+      label: 'List view',
+      value: 'table',
+      source: 'default',
+      default: 'table',
+      scopes: ['tenant', 'team', 'user'],
+      flag: false,
+      public: true,
+    });
+    expect(settingOf(list.body, FLAG)).toMatchObject({
+      value: false,
+      source: 'default',
+      scopes: ['tenant', 'team', 'user'],
+      flag: true,
+    });
+    expect(settingOf(list.body, 'testItems.publishApproval')).toMatchObject({
+      scopes: ['tenant', 'team'],
+      flag: true,
+    });
+
+    // Only managers set shared values; what they send is checked.
+    await editor.agent
+      .put(`/v1/settings/${VIEW}`)
+      .send({ value: 'cards' })
+      .expect(403);
+    const bad = await manager.agent
+      .put(`/v1/settings/${VIEW}`)
+      .send({ value: 'soon' })
+      .expect(400);
+    expect(paths(bad.body)).toEqual(['value']);
+    await manager.agent
+      .put('/v1/settings/testItems.nope')
+      .send({ value: 1 })
+      .expect(404);
+    const rollout = await manager.agent
+      .put(`/v1/settings/${VIEW}`)
+      .send({ value: 'cards', rollout: 10 })
+      .expect(400);
+    expect(paths(rollout.body)).toEqual(['rollout']);
+
+    // For everyone.
+    const set = await manager.agent
+      .put(`/v1/settings/${VIEW}`)
+      .send({ value: 'cards' })
+      .expect(200);
+    expect(set.body).toMatchObject({
+      key: VIEW,
+      scope: 'tenant',
+      scopeId: '',
+      value: 'cards',
+      rollout: null,
+      updatedBy: `user:${manager.id}`,
+    });
+    expect(
+      (await editor.agent.get(`/v1/settings/${VIEW}`).expect(200)).body,
+    ).toMatchObject({ value: 'cards', source: 'tenant' });
+
+    // For a team: its users, not the others.
+    const team = (
+      await node
+        .admin()
+        .post('/v1/access/teams')
+        .send({ name: 'Team A' })
+        .expect(201)
+    ).body as { id: string };
+    await node
+      .admin()
+      .patch(`/v1/access/users/${editor.id}`)
+      .send({ teamIds: [team.id] })
+      .expect(204);
+    await manager.agent
+      .put(`/v1/settings/${FLAG}`)
+      .send({ scope: 'team', scopeId: team.id, value: true })
+      .expect(200);
+    expect(
+      (await editor.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+    ).toMatchObject({ value: true, source: 'team' });
+    expect(
+      (await other.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+    ).toMatchObject({ value: false, source: 'default' });
+    await manager.agent
+      .put(`/v1/settings/${FLAG}`)
+      .send({ scope: 'team', scopeId: randomUUID(), value: true })
+      .expect(404);
+    // A team's value beats the tenant's.
+    await manager.agent
+      .put(`/v1/settings/${VIEW}`)
+      .send({ scope: 'team', scopeId: team.id, value: 'table' })
+      .expect(200);
+    expect(
+      (await editor.agent.get(`/v1/settings/${VIEW}`).expect(200)).body,
+    ).toMatchObject({ value: 'table', source: 'team' });
+    expect(
+      (await other.agent.get(`/v1/settings/${VIEW}`).expect(200)).body,
+    ).toMatchObject({ value: 'cards', source: 'tenant' });
+    await manager.agent
+      .delete(`/v1/settings/${VIEW}?scope=team&scopeId=${team.id}`)
+      .expect(204);
+
+    // The stored values, and back to the default.
+    const overrides = await manager.agent
+      .get(`/v1/settings/${FLAG}/overrides`)
+      .expect(200);
+    expect(overrides.body.items).toHaveLength(1);
+    expect(overrides.body.items[0]).toMatchObject({
+      scope: 'team',
+      scopeId: team.id,
+      value: true,
+    });
+    await editor.agent.get(`/v1/settings/${FLAG}/overrides`).expect(403);
+    await manager.agent
+      .delete(`/v1/settings/${FLAG}?scope=team&scopeId=${team.id}`)
+      .expect(204);
+    expect(
+      (await editor.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+    ).toMatchObject({ value: false, source: 'default' });
+
+    const audit = await node
+      .admin()
+      .get('/v1/access/audit?action=setting.updated')
+      .expect(200);
+    expect(
+      audit.body.items.some(
+        (entry: { targetId: string; details: { to: { value: unknown } } }) =>
+          entry.targetId === VIEW && entry.details.to.value === 'cards',
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await node
+          .admin()
+          .get('/v1/access/audit?action=setting.reset')
+          .expect(200)
+      ).body.items,
+    ).toHaveLength(2);
+  });
+
+  it('rolls a flag out to a stable share of principals, which each may override for themselves', async () => {
+    const manager = await node.user([await role(['Access', 'manageSettings'])]);
+    const editor = await node.user(['editor']);
+    const other = await node.user(['editor']);
+    const mine = () => editor.agent.get(`/v1/settings/${FLAG}`).expect(200);
+
+    const all = await manager.agent
+      .put(`/v1/settings/${FLAG}`)
+      .send({ rollout: 100 })
+      .expect(200);
+    expect(all.body).toMatchObject({ value: null, rollout: 100 });
+    expect((await mine()).body).toMatchObject({
+      value: true,
+      source: 'rollout',
+    });
+    await manager.agent
+      .put(`/v1/settings/${FLAG}`)
+      .send({ rollout: 0 })
+      .expect(200);
+    expect((await mine()).body).toMatchObject({
+      value: false,
+      source: 'rollout',
+    });
+    await manager.agent
+      .put(`/v1/settings/${FLAG}`)
+      .send({ rollout: 50 })
+      .expect(200);
+    const bucket = rolloutBucket(FLAG, node.tenantId, `user:${editor.id}`);
+    expect((await mine()).body).toMatchObject({
+      value: bucket < 50,
+      source: 'rollout',
+    });
+    // Twice the same answer.
+    expect((await mine()).body.value).toBe(bucket < 50);
+
+    // Their own choice beats the rollout; dropping it goes back.
+    const own = await editor.agent
+      .put(`/v1/settings/${FLAG}/mine`)
+      .send({ value: true })
+      .expect(200);
+    expect(own.body).toMatchObject({ value: true, source: 'user' });
+    const invalid = await editor.agent
+      .put(`/v1/settings/${FLAG}/mine`)
+      .send({ value: 'yes' })
+      .expect(400);
+    expect(paths(invalid.body)).toEqual(['value']);
+    // A value of the user scope is a preference too.
+    const view = await editor.agent
+      .put(`/v1/settings/${VIEW}/mine`)
+      .send({ value: 'cards' })
+      .expect(200);
+    expect(view.body).toMatchObject({ value: 'cards', source: 'user' });
+    // Not one of the tenant scope only (the page limit), nor one an approval hangs on.
+    const notMine = await editor.agent
+      .put('/v1/settings/testItems.pageLimit/mine')
+      .send({ value: 10 })
+      .expect(400);
+    expect(paths(notMine.body)).toEqual(['key']);
+    const approval = await editor.agent
+      .put('/v1/settings/testItems.publishApproval/mine')
+      .send({ value: false })
+      .expect(400);
+    expect(paths(approval.body)).toEqual(['key']);
+    const dropped = await editor.agent
+      .delete(`/v1/settings/${FLAG}/mine`)
+      .expect(200);
+    expect(dropped.body).toMatchObject({
+      value: bucket < 50,
+      source: 'rollout',
+    });
+
+    // A manager sets one principal's value by key; the principal must exist.
+    await manager.agent
+      .put(`/v1/settings/${FLAG}`)
+      .send({ scope: 'user', scopeId: `user:${other.id}`, value: false })
+      .expect(200);
+    expect(
+      (await other.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+    ).toMatchObject({ value: false, source: 'user' });
+    await manager.agent
+      .put(`/v1/settings/${FLAG}`)
+      .send({ scope: 'user', scopeId: `user:${randomUUID()}`, value: false })
+      .expect(404);
+
+    // An API client reads its values too, and is a principal of its own in a rollout.
+    const client = await node.client();
+    const forClient = await node
+      .http()
+      .get('/v1/settings')
+      .set('Authorization', client.auth)
+      .expect(200);
+    expect(settingOf(forClient.body, FLAG)).toMatchObject({
+      value: rolloutBucket(FLAG, node.tenantId, `client:${client.id}`) < 50,
+      source: 'rollout',
+    });
   });
 });

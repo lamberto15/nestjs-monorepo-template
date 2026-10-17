@@ -1,4 +1,6 @@
 import { defineFeature } from '../../../src/features/feature.js';
+import { TEST_ITEM_PUBLISH_APPROVAL } from './test-item-approvals.js';
+import { TEST_ITEM_SETTINGS } from './test-item-settings.js';
 import { TEST_ITEM_PERMISSIONS } from './test-item.policy.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { TEST_ITEM_RESOURCE } from './test-item.resource.js';
@@ -14,4 +16,7 @@ export const TEST_ITEMS_FEATURE = defineFeature({
   permissions: TEST_ITEM_PERMISSIONS,
   resources: [TEST_ITEM_RESOURCE],
   record: TEST_ITEM,
+  // What the platform's tests work on: settings and flags, an action that needs approval.
+  settings: TEST_ITEM_SETTINGS,
+  approvals: [TEST_ITEM_PUBLISH_APPROVAL],
 });
