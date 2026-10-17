@@ -22,7 +22,12 @@ export interface ApiClientOptions {
   /** The API's origin, `https://api.example.com` (paths carry `/v1`). */
   baseUrl: string;
   credentials?: Credentials;
-  /** A fetch of your own (tests, a polyfill, an instrumented one). */
+  /**
+   * A fetch of your own (a polyfill, an instrumented one, a test double).
+   * Default: `globalThis.fetch`, looked up on every request (openapi-fetch
+   * itself keeps the one it sees at creation), so a fetch replaced later
+   * (msw, instrumentation) is used.
+   */
   fetch?: typeof globalThis.fetch;
   /** Sent as `Accept-Language`: used when the user saved no language. */
   language?: string;
@@ -138,6 +143,10 @@ export function conventionsMiddleware(options: ApiClientOptions): Middleware {
   };
 }
 
+/** `globalThis.fetch`, looked up at each call rather than when the client is made. */
+const lateBoundFetch: typeof globalThis.fetch = (input, init) =>
+  globalThis.fetch(input, init);
+
 /**
  * A typed client of the API (openapi-fetch on the generated `paths`).
  *
@@ -151,7 +160,8 @@ export function conventionsMiddleware(options: ApiClientOptions): Middleware {
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const client = createClient<paths>({
     baseUrl: options.baseUrl,
-    ...(options.fetch && { fetch: options.fetch }),
+    // Late-bound: createClient() would capture globalThis.fetch as it is now.
+    fetch: options.fetch ?? lateBoundFetch,
     ...(options.credentials === 'include' && { credentials: 'include' }),
   });
   client.use(conventionsMiddleware(options));
@@ -184,19 +194,26 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   return Object.assign(client, { pages, items }) as unknown as ApiClient;
 }
 
-/** The data of a call; throws an ApiError when there is none (a 304, or an empty answer). */
+/**
+ * The data of a call. A 2xx without a body (204: sign-out, deletes, `POST
+ * /v1/auth/tenant`) gives `undefined`, which is also what openapi-fetch
+ * types the data of such an operation as, so `unwrap()` of it is
+ * `Promise<undefined>` and needs no second function. A 304 throws
+ * `not_modified` (see {@link notModified}); an answer that is not 2xx never
+ * gets here, the client throws its {@link ApiError} first.
+ */
 export async function unwrap<T>(
   call: Promise<{ data?: T; response: Response }>,
 ): Promise<T> {
   const { data, response } = await call;
-  if (data === undefined) {
+  if (data === undefined && !response.ok) {
     throw new ApiError({
       status: response.status,
       code: response.status === 304 ? 'not_modified' : 'empty_response',
       detail: `No body (HTTP ${response.status}).`,
     });
   }
-  return data;
+  return data as T;
 }
 
 /** A response's `ETag`: send it back as `If-Match` (writes) or `If-None-Match` (reads). */

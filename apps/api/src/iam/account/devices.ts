@@ -25,6 +25,16 @@ export function deviceOf(userAgent: unknown, ip: string) {
   return { hash, summary: summarize(agent), ip: address };
 }
 
+/**
+ * "Chrome on macOS" for people (the sessions list), or null when no user
+ * agent was recorded. The same summary the security alerts use.
+ */
+export function deviceLabel(userAgent: unknown): string | null {
+  return typeof userAgent === 'string' && userAgent
+    ? summarize(userAgent.slice(0, 512))
+    : null;
+}
+
 /** The address as people know it: an IPv4 address mapped into IPv6 (`::ffff:10.0.0.1`) as IPv4. */
 export const normalizeIp = (ip: string) =>
   ip.replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, '');
