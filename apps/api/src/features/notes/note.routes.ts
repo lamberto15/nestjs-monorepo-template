@@ -12,3 +12,26 @@ export const NOTE_ROUTES: RecordRouteSpec = {
   className: 'Note',
   noun: 'note',
 };
+
+/** What notes' revisions hold and a restore sets: a note's own words. */
+export const NOTE_REVISION_DOCS = {
+  list: {
+    description:
+      'Revision 1 is the note as written; each change adds one, with what changed (`changes`, from → to). Cursor pages; `?changedBy=user:<id>`, `?number.gte=`. The text and custom values only when your permissions include them.',
+  },
+  restore: {
+    description:
+      "Its title, text and custom values become the revision's, as a PATCH would set them (the same permissions, field-level ones too): audited `note.updated`, and a new revision with `restoredFrom`. With If-Match (the note's ETag), refused (412) if the note changed since you read it. Answers the note.",
+  },
+};
+
+/** What a note's PDF holds. */
+export const NOTE_DOCUMENT_DOCS = {
+  pdf: {
+    description: [
+      "Whoever may read the note. Answers at once with the document id; a worker renders the PDF in the request's language (`?lang=`, `X-Lang`, your saved language; right to left in Arabic) and your time zone, and adds it to the note's attachments (`locked`: it never changes and cannot be removed; asking again issues a new one). The text is in it only if you may read it.",
+      '',
+      'Follow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).',
+    ].join('\n'),
+  },
+};

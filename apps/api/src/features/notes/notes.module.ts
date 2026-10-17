@@ -13,13 +13,18 @@ import { attachmentRoutes } from '../../platform/attachments/attachment.routes.j
 import { NoteComments } from './note-comments.js';
 import { commentRoutes } from '../../platform/comments/comment.routes.js';
 import { NoteTags } from './note-tags.js';
-import { NOTE_ROUTES } from './note.routes.js';
+import {
+  NOTE_DOCUMENT_DOCS,
+  NOTE_REVISION_DOCS,
+  NOTE_ROUTES,
+} from './note.routes.js';
 import { tagRoutes } from '../../platform/tags/tag.routes.js';
 import { NoteRevisions } from './note-revisions.js';
-import { NoteRevisionsController } from './note-revisions.controller.js';
+import { revisionRoutes } from '../../platform/revisions/revision.routes.js';
+import { noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
 import { NoteDocuments } from './note-documents.js';
-import { NoteDocumentsController } from './note-documents.controller.js';
+import { documentRoutes } from '../../platform/documents/document.routes.js';
 
 /**
  * The example feature, showing every tool in use: a policy with conditions
@@ -40,8 +45,11 @@ import { NoteDocumentsController } from './note-documents.controller.js';
     commentRoutes(NOTE_ROUTES),
     attachmentRoutes(NOTE_ROUTES),
     tagRoutes(NOTE_ROUTES),
-    NoteRevisionsController,
-    NoteDocumentsController,
+    revisionRoutes(NOTE_ROUTES, {
+      restored: noteSchema,
+      docs: NOTE_REVISION_DOCS,
+    }),
+    documentRoutes(NOTE_ROUTES, { source: 'note', docs: NOTE_DOCUMENT_DOCS }),
   ],
   providers: [
     NotesService,
