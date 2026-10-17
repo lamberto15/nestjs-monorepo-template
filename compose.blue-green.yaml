@@ -1,0 +1,71 @@
+# Blue-green deploys on one host (docs/deploy-blue-green.md): two api colours,
+# each from its own image, one of them live. Added to COMPOSE_FILE after
+# compose.yaml and compose.prod.yaml:
+#
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.blue-green.yaml
+#
+# and driven by `pnpm deploy:blue-green` (tools/deploy/blue-green.mjs), which
+# starts, tests and switches the colours. Do not `docker compose up -d` the
+# colours by hand: the script passes each one's image and its network alias.
+#
+# How the traffic moves, with caddy/Caddyfile as it is: Caddy resolves the
+# name `api` through Docker's DNS every 5 s. Here Caddy sits on the `edge`
+# network alone, and a colour answers to `api` on `edge` only while it is
+# live (the script connects its containers with `--alias api`). The idle
+# colour is on `edge` too, under its own name (api-blue, api-green), so Caddy
+# never sees it. Both colours share the default network (PostgreSQL, Redis),
+# where the idle one answers as api-blue / api-green for the smoke checks.
+
+services:
+  # compose.prod.yaml's single api: kept as the template the colours extend,
+  # but never started here.
+  api:
+    profiles: [single-colour]
+
+  api-blue:
+    extends: { file: compose.prod.yaml, service: api }
+    # APP_IMAGE_BLUE: set by the script (the image the live blue runs, or the
+    # one it deploys). Unset: the image `docker compose build api-blue` makes.
+    image: ${APP_IMAGE_BLUE:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-app:blue}
+    labels:
+      bluegreen.colour: blue
+    networks:
+      default: {}
+      edge:
+        # `api` while live (API_BLUE_EDGE_ALIAS=api, set by the script).
+        aliases: ['${API_BLUE_EDGE_ALIAS:-api-blue}']
+    # A readiness probe every 5 s instead of 30 s: the script waits for it.
+    healthcheck:
+      interval: 5s
+      start_period: 30s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  api-green:
+    extends: { file: compose.prod.yaml, service: api }
+    image: ${APP_IMAGE_GREEN:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-app:green}
+    labels:
+      bluegreen.colour: green
+    networks:
+      default: {}
+      edge:
+        aliases: ['${API_GREEN_EDGE_ALIAS:-api-green}']
+    healthcheck:
+      interval: 5s
+      start_period: 30s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # Behind `edge` only; it waits for no api (the colours come and go).
+  caddy:
+    depends_on: !reset []
+    networks: [edge]
+
+networks:
+  edge: {}
