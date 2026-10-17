@@ -5635,6 +5635,11 @@ export interface operations {
                              *     ]
                              */
                             operators: ("eq" | "ne" | "in" | "notIn" | "contains" | "notContains" | "startsWith" | "endsWith" | "gt" | "gte" | "lt" | "lte" | "between" | "isNull")[];
+                            /**
+                             * @description What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `team` (GET /v1/access/teams), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`) or a record's subject (`Invoice`: GET its list). Absent for any other field.
+                             * @example tag
+                             */
+                            ref?: string;
                             /** @description `sort` may name it. */
                             sortable: boolean;
                             /** @description A custom field of the caller's tenant (GET /v1/custom-fields). */

@@ -23,6 +23,13 @@ export const listFieldSchema = z.object({
     .array(z.enum(FILTER_OPS))
     .describe('The operators it may be filtered with; empty: none.')
     .meta({ example: ['eq', 'ne', 'in', 'notIn'] }),
+  ref: z
+    .string()
+    .optional()
+    .describe(
+      "What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `team` (GET /v1/access/teams), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`) or a record's subject (`Invoice`: GET its list). Absent for any other field.",
+    )
+    .meta({ example: 'tag' }),
   sortable: z.boolean().describe('`sort` may name it.'),
   custom: z
     .boolean()

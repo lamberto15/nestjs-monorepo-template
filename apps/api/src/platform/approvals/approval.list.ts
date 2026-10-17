@@ -84,7 +84,12 @@ export function approvalList(principal: Principal | null) {
       subject: { column: r.subject, type: 'string', ops: ['eq', 'in'] },
       action: { column: r.action, type: 'string', ops: ['eq', 'in'] },
       recordId: { column: r.recordId, type: 'string', ops: ['eq'] },
-      requester: { column: r.requester, type: 'string', ops: ['eq'] },
+      requester: {
+        column: r.requester,
+        type: 'string',
+        ops: ['eq'],
+        ref: 'principal',
+      },
       dueAt: {
         column: r.dueAt,
         type: 'datetime',

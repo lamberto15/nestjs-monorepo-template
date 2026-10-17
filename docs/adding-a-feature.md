@@ -62,7 +62,7 @@ export const INVOICE = defineRecord({
 - **Field types:** `string`, `text`, `int`, `decimal`, `money` (minor units and
   currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
   `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, a key
-  within the tenant). `?` makes a field optional, `!unique` (string, int)
+  within the tenant; its list filter is `ref: '<Subject>'` in the list metadata). `?` makes a field optional, `!unique` (string, int)
   unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
 - **Options:** `--team` (records carry their creator's team: `team: true`),

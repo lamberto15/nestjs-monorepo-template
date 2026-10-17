@@ -16,8 +16,27 @@ import {
   fieldView,
 } from './fields.js';
 import { fieldList } from './fields.list.js';
+import { defineRecord, recordTable } from '../records/record.js';
 
-const customers = pgTable('test_customers', {
+// A record's table knows its subject: a reference to it lists as ids of Customer.
+const customers = recordTable(
+  defineRecord({
+    subject: 'Customer',
+    path: 'customers',
+    apiTag: 'customers',
+    className: 'Customer',
+    noun: 'customer',
+    table: 'test_customers',
+    softDelete: false,
+    team: false,
+    clientAccess: false,
+    grants: 'standard',
+    fields: { name: field.string() },
+    capabilities: [],
+  }),
+);
+// A hand-written table is named by the field.
+const places = pgTable('test_places', {
   id: uuidPk(),
   tenantId: tenantColumn(),
 });
@@ -216,5 +235,27 @@ describe('fields', () => {
       values: ['draft', 'sent', 'paid'],
     });
     expect(list.meta).toBeUndefined();
+  });
+
+  it("says what a reference lists: its record's subject, or the one the field names", () => {
+    const list = fieldList(FIELDS, invoices as never) as Record<
+      string,
+      { ref?: string }
+    >;
+    expect(list.customerId).toMatchObject({ type: 'uuid', ref: 'Customer' });
+    // Plain fields say nothing.
+    expect(list.title).not.toHaveProperty('ref');
+    const named = fieldList(
+      { placeId: field.ref(() => places, 'Place').optional() },
+      invoices as never,
+    ) as Record<string, { ref?: string }>;
+    expect(named.placeId).toMatchObject({ ref: 'Place' });
+    // A table that is neither: no guess.
+    expect(() =>
+      fieldList(
+        { placeId: field.ref(() => places).optional() },
+        invoices as never,
+      ),
+    ).toThrow(/field\.ref\(\(\) => table, 'Subject'\)/);
   });
 });

@@ -57,6 +57,22 @@ export interface Referenced {
   id: AnyPgColumn;
 }
 
+/** The subjects of the tables `recordTable()` made, by table: what a `ref` field's list entry says its values are ids of. */
+const SUBJECTS = new WeakMap<object, string>();
+
+/** Remembers that `table` holds the records of `subject` (recordTable). */
+export const tableHolds = (table: object, subject: string) =>
+  void SUBJECTS.set(table, subject);
+
+/**
+ * The subject of a `ref` field's target: a record's table knows its own; a
+ * hand-written table is named in `field.ref(() => notes, 'Note')`.
+ */
+export function referencedSubject(f: AnyField): string | undefined {
+  const target = f.options.ref?.();
+  return f.options.refSubject ?? (target && SUBJECTS.get(target));
+}
+
 /**
  * One field. `C` the column builder (before NOT NULL), `I` the input schema
  * and `O` the output one (both for a value present), `Opt` optional (null
@@ -84,6 +100,8 @@ export class Field<
       searchable?: boolean;
       values?: readonly string[];
       ref?: () => Referenced;
+      /** The subject the referenced table holds, when it isn't a record's table. */
+      refSubject?: string;
     },
   ) {}
 
@@ -263,9 +281,15 @@ export const field = {
       z.record(z.string(), z.unknown()),
       z.record(z.string(), z.unknown()),
     ),
-  /** A record of another feature, in the same tenant (a composite key: never another tenant's). */
-  ref: (target: () => Referenced) =>
+  /**
+   * A record of another feature, in the same tenant (a composite key: never
+   * another tenant's). Its list entry says the values are ids of that
+   * record's subject; `subject` names it when the target is a hand-written
+   * table, not a record's (`field.ref(() => notes, 'Note')`).
+   */
+  ref: (target: () => Referenced, subject?: string) =>
     plain('ref', (name) => uuid(columnName(name)), z.uuid(), z.uuid(), {
       ref: target,
+      ...(subject && { refSubject: subject }),
     }),
 };

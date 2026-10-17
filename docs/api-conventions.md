@@ -242,6 +242,8 @@ repeating the declaration:
   "fields": [
     { "name": "status", "type": "enum", "options": ["draft", "published"],
       "operators": ["eq", "ne", "in", "notIn"], "sortable": true, "custom": false },
+    { "name": "tag", "type": "uuid", "operators": ["eq", "in"], "sortable": false,
+      "custom": false, "ref": "tag" },
     { "name": "custom.region", "type": "enum", "options": ["eu", "us"],
       "operators": ["eq", "ne", "in", "notIn", "isNull"], "sortable": true,
       "custom": true, "label": "Region" }
@@ -265,6 +267,19 @@ repeating the declaration:
 - **Custom fields:** the caller's tenant's active ones (`custom.<key>`,
   `custom: true`, their `label`), as the list takes them now; never another
   tenant's.
+- **References:** a field whose values are ids of something has `ref`
+  (absent on any other field, the record's own `id` included), so a client
+  shows a picker instead of a text box and sends the id as the filter value.
+  `tag`: tag ids (`GET /v1/tags`; the `tag` filter, `tagFilter()`); `team`:
+  team ids (`GET /v1/access/teams`; `teamId`); `principal`: a user's or an
+  API client's key, `user:<id>` or `client:<id>` (`ownerId`, as the creator
+  is stored; not a bare user id); a record's subject (`Invoice`): the ids of
+  that record's list, for a `field.ref(() => invoices)` of a generated
+  record. It is declared with the filter (`ref` of a `listQuery()` field),
+  so a new reference field says it where it is declared:
+  `fieldList()` sets it for a `field.ref`, from the referenced record's
+  subject (a hand-written table: `field.ref(() => notes, 'Note')`).
+  A field shown on some records only keeps its `ref`.
 - **Permissions:** for whoever may read the subject (the list route's
   permission), else 403; an unknown subject is a 404 (`not_found`). A field
   the caller may read on no record (field-level permissions) is left out of
