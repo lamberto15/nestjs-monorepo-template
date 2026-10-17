@@ -1,6 +1,6 @@
 // What `--with …` means to the generator (tools/feature/add.mjs): the
-// capabilities' names, the texts they need in every locale, and the tests
-// the generated e2e spec gets. The capabilities themselves are the
+// capabilities' names and the texts they need in every locale (their tests
+// are apps/api/test/record-capabilities.ts). The capabilities themselves are the
 // platform's (platform/records: generic targets and routes), declared in
 // the feature's `<item>.record.ts`.
 
@@ -51,98 +51,6 @@ export const titleField = (fields) =>
   fields.find((f) => f.type === 'string') ?? null;
 /** `invoiceLine`: notification types, i18n keys, audit actions. */
 export const lowerFirst = (word) => word[0].toLowerCase() + word.slice(1);
-
-/** The tests each capability adds to the generated e2e spec. */
-export function e2eTests({ t, has, path, title }) {
-  const tests = [];
-  const make = `const id = (await create(node.admin()).expect(201)).body.id as string;`;
-  if (has('tags')) {
-    tests.push(
-      `  it('takes tags, and lists by them', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    const tag = (await admin.post('/v1/tags').send({ subject: '${t.Singular}', name: 'Urgent' }).expect(201)).body.id as string;`,
-      `    await admin.put(\`${path}/\${id}/tags\`).send({ tagIds: [tag] }).expect(200);`,
-      `    expect((await admin.get(\`${path}/\${id}\`).expect(200)).body.tags).toEqual([expect.objectContaining({ id: tag })]);`,
-      `    expect((await admin.get(\`${path}?tag=\${tag}\`).expect(200)).body.items.map((item: { id: string }) => item.id)).toEqual([id]);`,
-      `  });`,
-    );
-  }
-  if (has('comments')) {
-    tests.push(
-      `  it('takes comments', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    await admin.post(\`${path}/\${id}/comments\`).send({ body: 'Looks good.' }).expect(201);`,
-      `    expect((await admin.get(\`${path}/\${id}/comments\`).expect(200)).body.items).toHaveLength(1);`,
-      `  });`,
-    );
-  }
-  if (has('attachments')) {
-    tests.push(
-      `  it('takes attachments', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    await admin.post(\`${path}/\${id}/attachments\`).attach('file', Buffer.from('Minutes.\\n'), { filename: 'minutes.txt', contentType: 'text/plain' }).expect(201);`,
-      `    expect((await admin.get(\`${path}/\${id}/attachments\`).expect(200)).body.items).toHaveLength(1);`,
-      `  });`,
-    );
-  }
-  if (has('revisions')) {
-    tests.push(
-      `  it('keeps its revisions', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    await admin.patch(\`${path}/\${id}\`).send(changed).expect(200);`,
-      `    const revisions = (await admin.get(\`${path}/\${id}/revisions\`).expect(200)).body.items;`,
-      `    expect(revisions).toHaveLength(2);`,
-      `    await admin.post(\`${path}/\${id}/revisions/1/restore\`).expect(200);`,
-      `  });`,
-    );
-  }
-  if (has('pdf')) {
-    tests.push(
-      `  it('asks for a PDF (unavailable without Gotenberg: GOTENBERG_URL)', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    const res = await admin.post(\`${path}/\${id}/pdf\`).set('Idempotency-Key', randomUUID()).expect(503);`,
-      `    expect(res.body.code).toBe('documents_unavailable');`,
-      `  });`,
-    );
-  }
-  if (has('bulk')) {
-    tests.push(
-      `  it('deletes many at once', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    const res = await admin.post('${path}/bulk').set('Idempotency-Key', randomUUID()).send({ action: 'delete', ids: [id] }).expect(200);`,
-      `    expect(res.body.done).toBe(1);`,
-      `    await admin.get(\`${path}/\${id}\`).expect(404);`,
-      `  });`,
-    );
-  }
-  if (has('watch')) {
-    tests.push(
-      `  it('is watched, and unwatched', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    expect((await admin.post(\`${path}/\${id}/watch\`).expect(200)).body).toEqual({ watching: true });`,
-      `    await admin.delete(\`${path}/\${id}/watch\`).expect(204);`,
-      `  });`,
-    );
-  }
-  if (has('search') && title) {
-    tests.push(
-      `  it('is found by its words', async () => {`,
-      `    const admin = node.admin();`,
-      `    ${make}`,
-      `    const found = (await admin.get('${path}?q=${title.name}').expect(200)).body.items.map((item: { id: string }) => item.id);`,
-      `    expect(found).toContain(id);`,
-      `  });`,
-    );
-  }
-  return tests;
-}
 
 /**
  * The texts the capabilities need, by namespace and key path (English; the

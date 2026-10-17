@@ -1,6 +1,6 @@
 ---
 name: add-feature
-description: Add a new feature (a resource with its routes, permissions, table and tests) to this template the standard way. Asks what the feature is, runs `pnpm feature:add` with the right fields and capabilities, then writes only the business logic. Use whenever the user wants to add a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
+description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search or export), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
 ---
 
 # Add a feature
@@ -80,6 +80,28 @@ the user they are to translate.
   extra filters in `<item>.list.ts`; field-level permissions and conditions
   in `<item>.policy.ts`.
 - Add tests for each rule to the generated `test/<x>.e2e-spec.ts`.
+
+## Changing an existing feature
+
+When the feature exists ("add a due date to invoices", "add tags to
+tickets"), don't regenerate it and don't edit its table, schemas, list or
+module: its `features/<x>/<item>.record.ts` declares its fields and
+capabilities, and everything else derives from it.
+
+1. Ask only what's missing (the field's type, optional or a default; which
+   capability).
+2. Edit the declaration: a field line (`dueOn: field.date().optional()`), or a
+   name in `capabilities` (search: mark searched fields `.searchable()`; pdf
+   needs attachments).
+3. `pnpm feature:sync`: it writes the texts and OpenAPI paths, and its guard
+   refuses a new required field without `.default(…)`, an optional field made
+   required, or a removed field. Follow what it says (expand/contract for
+   removals: docs/pitfalls.md); never force past it.
+4. `pnpm db:generate` and `pnpm client:generate` when it says so; review the
+   SQL.
+5. Business rules for the new field or capability go in the service as in
+   step 4 below; the capability's tests come with it
+   (`describeCapabilities` in the feature's e2e spec).
 
 ## 5. Check and hand back
 

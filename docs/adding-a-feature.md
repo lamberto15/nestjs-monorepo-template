@@ -80,14 +80,27 @@ export const INVOICE = defineRecord({
 
 ## Changing a feature
 
-- **A field:** a line in `fields` (`reference: field.string().optional()`),
-  then `pnpm db:generate` (review the SQL) and `pnpm client:generate`. A new
-  **required** field on a table with rows needs `.default(…)`, or the
-  migration fails there; renaming or removing one follows expand/contract
+Edit its `<item>.record.ts`, then:
+
+```bash
+pnpm feature:sync      # texts (comments, pdf) in every locale, the OpenAPI test's paths, the migration guard
+pnpm db:generate       # when it says the table changes (review the SQL)
+pnpm client:generate   # when it says the routes change
+```
+
+- **A field:** a line in `fields` (`reference: field.string().optional()`).
+  The guard refuses a new **required** field without `.default(…)` (the
+  migration would fail on a table with rows), an optional field made
+  required, and a removed field: those follow expand/contract
   ([pitfalls](pitfalls.md)).
-- **A capability:** its name in `capabilities`; then its texts (comments,
-  pdf) and its paths in `test/openapi.e2e-spec.ts`, `pnpm db:generate` (search
-  adds a column) and `pnpm client:generate`.
+- **A capability:** its name in `capabilities` (search: mark the fields it
+  searches `.searchable()`; pdf: with attachments). Its routes, target and
+  tests come with it: the feature's e2e spec runs
+  `describeCapabilities(() => node, RECORD)` (test/record-capabilities.ts).
+- **Removing a capability** takes its paths out of the OpenAPI test; its texts
+  stay (harmless) until removed by hand.
+- `pnpm feature:sync --check` fails when anything is out of line (CI's
+  feature-smoke job runs it after changing a feature this way).
 
 - **Not generated:** custom fields, approvals, settings, workflows and
   outgoing webhook events: add them as the sections below say, notes as the
