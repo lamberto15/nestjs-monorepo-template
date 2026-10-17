@@ -1,3 +1,4 @@
+import type { NotificationType } from '../src/platform/notifications/notification.types.js';
 import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { OutboxRelay } from '@nestjs/outbox';
@@ -72,7 +73,8 @@ describe('notifications (e2e)', () => {
     const [id] = await node.inTenant(() =>
       inTransaction(txHost, (tx) =>
         service.notify(tx, {
-          type: 'testItem.commented',
+          // The test-only feature's type: not among the app's catalog keys.
+          type: 'testItem.commented' as NotificationType,
           to,
           data: commentData('Direct'),
           ...input,
