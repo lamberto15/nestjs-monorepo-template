@@ -10429,6 +10429,8 @@ export interface operations {
                             /** Format: date-time */
                             lastActiveAt: string;
                             userAgent: string | null;
+                            /** @description A readable summary of the user agent ("Chrome on macOS"); null when none was recorded. */
+                            device: string | null;
                             /**
                              * @description How it was signed in (`impersonation`: an administrator acting as you); null: before this was recorded.
                              * @enum {string|null}

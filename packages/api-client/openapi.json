@@ -16869,6 +16869,11 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "device": {
+                            "nullable": true,
+                            "description": "A readable summary of the user agent (\"Chrome on macOS\"); null when none was recorded.",
+                            "type": "string"
+                          },
                           "method": {
                             "nullable": true,
                             "description": "How it was signed in (`impersonation`: an administrator acting as you); null: before this was recorded.",
@@ -16907,6 +16912,7 @@
                           "createdAt",
                           "lastActiveAt",
                           "userAgent",
+                          "device",
                           "method",
                           "provider",
                           "mfa",

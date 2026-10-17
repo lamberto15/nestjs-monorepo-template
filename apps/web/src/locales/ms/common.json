@@ -1,16 +1,225 @@
 {
-  "app": { "name": "App" },
+  "app": {
+    "name": "App"
+  },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "notes": "Nota"
   },
   "dashboard": {
     "title": "Dashboard",
     "description": "Your overview will appear here."
   },
-  "signIn": {
-    "title": "Sign in",
-    "description": "Sign-in arrives with the next change."
+  "auth": {
+    "signIn": {
+      "title": "Sign in",
+      "description": "Welcome back",
+      "submit": "Sign in",
+      "forgot": "Forgot your password?",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "orContinueWith": "Or continue with",
+      "withProvider": "Continue with {{provider}}",
+      "withPasskey": "Sign in with a passkey",
+      "withMagicLink": "Email me a sign-in link",
+      "withPassword": "Sign in with a password",
+      "terms": "By continuing, you agree to the terms of service and the privacy policy.",
+      "errors": {
+        "generic": "That sign-in didn't work. Try again.",
+        "reauthentication_required": "For this, confirm it's you: sign in again.",
+        "reauthentication_failed": "That confirmation didn't work. Try again.",
+        "access_denied": "The sign-in was cancelled.",
+        "email_unverified": "Prove your address first: open the link we emailed you."
+      }
+    },
+    "signOut": "Sign out",
+    "signUp": {
+      "title": "Create an account",
+      "description": "Enter your details to get started",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "done": "Check your mailbox: open the link we sent to verify your address, then sign in."
+    },
+    "fields": {
+      "email": "Email",
+      "emailInvalid": "Enter a valid email address.",
+      "password": "Password",
+      "passwordRequired": "Enter your password.",
+      "passwordHint": "At least 12 characters. Passwords found in data breaches are refused.",
+      "passwordTooShort": "At least {{min}} characters.",
+      "passwordMismatch": "The passwords don't match.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm the password",
+      "name": "Name",
+      "nameRequired": "Enter a name."
+    },
+    "mfa": {
+      "hint": "Enter the 6-digit code from your authenticator app.",
+      "recoveryHint": "Enter one of your recovery codes. Each works once.",
+      "code": "Authentication code",
+      "codeInvalid": "Enter the 6 digits.",
+      "recoveryCode": "Recovery code",
+      "recoveryRequired": "Enter a recovery code.",
+      "verify": "Verify",
+      "useRecovery": "Use a recovery code",
+      "useCode": "Use an authentication code",
+      "restart": "Start over"
+    },
+    "magicLink": {
+      "title": "Sign in by email link",
+      "hint": "We'll email you a link that signs you in.",
+      "send": "Send the link",
+      "sent": "If the address has an account, a sign-in link is on its way. It works once, for a short time.",
+      "landing": "Continue to sign in with this link.",
+      "continue": "Sign in"
+    },
+    "forgot": {
+      "title": "Forgot your password?",
+      "description": "We'll email you a link to choose a new one",
+      "submit": "Send the link",
+      "done": "If the address has an account, a reset link is on its way."
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "description": "The link works once, for a short time",
+      "submit": "Change the password",
+      "done": "Your password was changed. Sign in with it."
+    },
+    "verify": {
+      "title": "Verify your address",
+      "description": "Enter the password you signed up with",
+      "submit": "Verify",
+      "done": "{{email}} is verified. You can sign in now."
+    },
+    "invitation": {
+      "title": "Accept the invitation",
+      "description": "You were invited to join",
+      "signedInAs": "Join as {{email}}.",
+      "accept": "Accept and join",
+      "notYou": "Not you? Sign out",
+      "create": "Create the account and join",
+      "haveAccount": "Already have an account?",
+      "created": "Your account is ready. Sign in to start.",
+      "signInFirst": "This address already has an account: sign in, then open the invitation again."
+    },
+    "cancelDeletion": {
+      "title": "Keep your account",
+      "description": "Cancel the deletion you asked for",
+      "submit": "Cancel the deletion",
+      "done": "The deletion is cancelled: your account stays."
+    },
+    "links": {
+      "missingToken": "This link is incomplete. Open it again from the email.",
+      "backToSignIn": "Back to sign in"
+    },
+    "reauth": {
+      "title": "Confirm it's you",
+      "description": "This needs a recent sign-in.",
+      "confirm": "Confirm",
+      "code": "Authentication or recovery code",
+      "codeHint": "From your authenticator app, or one of your recovery codes.",
+      "codeRequired": "Enter a code.",
+      "or": "Or",
+      "withPasskey": "Use a passkey",
+      "withMagicLink": "Email me a sign-in link"
+    },
+    "tenants": {
+      "title": "Organizations",
+      "switch": "Switch organization"
+    },
+    "impersonation": {
+      "banner": "You are acting as {{user}} (signed in as {{administrator}}).",
+      "stop": "Stop"
+    },
+    "errors": {
+      "network": "The server can't be reached. Check your connection and try again."
+    }
+  },
+  "account": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "impersonating": "While acting as someone, their account settings stay theirs.",
+    "profile": {
+      "title": "Profile",
+      "description": "Your name, language and time zone.",
+      "emailHint": "Your sign-in address.",
+      "timezone": "Time zone",
+      "saved": "Profile saved."
+    },
+    "security": {
+      "title": "Security"
+    },
+    "password": {
+      "title": "Password",
+      "description": "Changing it signs out your other sessions.",
+      "current": "Current password",
+      "currentHint": "Leave empty if your account has no password yet.",
+      "submit": "Change the password",
+      "changed": "Password changed. Your other sessions were signed out."
+    },
+    "mfa": {
+      "title": "Two-factor authentication",
+      "description": "A code from an authenticator app at each sign-in.",
+      "on": "On",
+      "off": "Off",
+      "enable": "Set up two-factor",
+      "unavailable": "Two-factor can't be set up on this deployment.",
+      "scan": "Scan the code with your authenticator app, or enter the key by hand, then enter the 6-digit code it shows.",
+      "secret": "Key:",
+      "qr": "QR code for your authenticator app",
+      "confirm": "Turn on",
+      "remaining_one": "{{count}} recovery code left.",
+      "remaining_other": "{{count}} recovery codes left.",
+      "newCodes": "New recovery codes",
+      "disable": "Turn off",
+      "disableTitle": "Turn two-factor off?",
+      "disableDescription": "Signing in will take your password alone.",
+      "disabled": "Two-factor is off.",
+      "codesTitle": "Your recovery codes",
+      "codesHint": "Keep them somewhere safe: each signs you in once if you lose your authenticator. They are shown only now.",
+      "copy": "Copy",
+      "copied": "Copied.",
+      "saved": "I've saved them",
+      "requiredTitle": "Two-factor is required",
+      "required": "Your organization asks for two-factor authentication: set it up to continue."
+    },
+    "passkeys": {
+      "title": "Passkeys",
+      "description": "Sign in with your fingerprint, face or device PIN.",
+      "none": "No passkeys yet.",
+      "add": "Add a passkey",
+      "added": "Passkey added.",
+      "defaultName": "My passkey",
+      "name": "Name",
+      "rename": "Rename",
+      "remove": "Remove",
+      "removeTitle": "Remove this passkey?",
+      "removeDescription": "{{name}} will no longer sign you in.",
+      "synced": "Synced",
+      "lastUsed": "Last used {{date}}",
+      "neverUsed": "Never used",
+      "unsupported": "This browser doesn't support passkeys."
+    },
+    "sessions": {
+      "title": "Sessions",
+      "description": "Where your account is signed in.",
+      "current": "This device",
+      "revoke": "Sign out",
+      "unknownDevice": "Unknown device",
+      "lastActive": "active {{date}}",
+      "everywhere": "Sign out everywhere",
+      "everywhereTitle": "Sign out everywhere?",
+      "everywhereDescription": "Every session ends, this one too.",
+      "methods": {
+        "password": "Password",
+        "magic-link": "Email link",
+        "oidc": "{{provider}}",
+        "sso": "Single sign-on",
+        "passkey": "Passkey",
+        "impersonation": "Support access"
+      }
+    }
   },
   "notFound": {
     "title": "Page not found",
@@ -31,5 +240,33 @@
     "ar": "العربية",
     "zh": "中文",
     "ms": "Bahasa Melayu"
+  },
+  "list": {
+    "loading": "Memuatkan",
+    "search": "Cari",
+    "empty": {
+      "title": "Belum ada apa-apa",
+      "description": "Rekod akan muncul di sini setelah wujud."
+    },
+    "error": {
+      "title": "Senarai tidak dapat dimuatkan",
+      "generic": "Sesuatu telah berlaku. Cuba lagi.",
+      "retry": "Cuba lagi"
+    }
+  },
+  "notes": {
+    "title": "Nota",
+    "columns": {
+      "number": "Nombor",
+      "title": "Tajuk",
+      "status": "Status",
+      "tags": "Tag",
+      "createdAt": "Dicipta",
+      "publishedAt": "Diterbitkan"
+    },
+    "status": {
+      "draft": "Draf",
+      "published": "Diterbitkan"
+    }
   }
 }

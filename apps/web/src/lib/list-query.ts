@@ -1,0 +1,506 @@
+import {
+  filterParam,
+  sortParam,
+  unwrap,
+  type Filter,
+  type FilterCondition,
+  type FilterOperator as ApiOperator,
+  type GetResponse,
+  type paths,
+} from '@nestjs-monorepo-template/api-client';
+import {
+  keepPreviousData,
+  useQuery,
+  type UseQueryResult,
+} from '@tanstack/react-query';
+import type { ColumnDef, RowData } from '@tanstack/react-table';
+import {
+  parseAsInteger,
+  parseAsString,
+  useQueryState,
+  useQueryStates,
+} from 'nuqs';
+import { useCallback, useMemo } from 'react';
+import { api } from '@/lib/api';
+import type { DataTableFeatures } from '@/lib/data-table-features';
+import {
+  getColumnFilterParser,
+  getColumnFilters,
+  getSortingStateParser,
+} from '@/lib/data-table-parsers';
+import type {
+  ColumnFilterItem,
+  FilterOperator,
+  FilterOption,
+  FilterVariant,
+  JoinOperator,
+} from '@/lib/data-table-types';
+import { getActiveFilters, parseFilterDate } from '@/lib/data-table-utils';
+
+/**
+ * GET /v1/lists/{subject} turned into what a data table needs, and the
+ * data-table state (the URL, through nuqs) turned into the list route's
+ * query (docs/api-conventions.md, "Using it from a data table"). Custom code
+ * because the registry has no server mode for this API's filters; the
+ * mapping is the one that doc describes.
+ */
+
+export type ListDescription = GetResponse<'/v1/lists/{subject}'>;
+export type ListField = ListDescription['fields'][number];
+export type ListColumn<TData extends RowData> = ColumnDef<
+  DataTableFeatures,
+  TData
+>;
+
+/** The paths whose GET pages by number: `{ items, pageCount }`. */
+export type ListPath = {
+  [P in keyof paths]: GetResponse<P> extends {
+    items: unknown[];
+    pageCount?: number;
+  }
+    ? P
+    : never;
+}[keyof paths];
+
+export type ListRow<P extends ListPath> =
+  GetResponse<P> extends { items: (infer R extends RowData)[] } ? R : never;
+
+/** What a list route answers with, page by number. */
+export interface ListPageData<TRow> {
+  items: TRow[];
+  page?: number;
+  nextPage?: number | null;
+  pageCount?: number;
+  total?: number;
+  totalCapped?: boolean;
+}
+
+export const DEFAULT_PER_PAGE = 20;
+export const SEARCH_KEY = 'q';
+
+// ---------------------------------------------------------------- metadata
+
+export interface FilterSpec {
+  variant: FilterVariant;
+  /** The registry's operators this field's API operators can express. */
+  operators: FilterOperator[];
+  options?: FilterOption[];
+}
+
+/**
+ * The filter menu's variant and operators for a field, from the operators the
+ * API lists for it; undefined when it can't be filtered (sort only), or only
+ * with operators the menu has no equivalent for (`startsWith`, `endsWith`).
+ * The menu's "relative to today" is never offered: the API has no such operator.
+ */
+export function filterSpec(field: ListField): FilterSpec | undefined {
+  const has = new Set<ApiOperator>(field.operators);
+  const operators: FilterOperator[] = [];
+  const add = (condition: boolean, operator: FilterOperator) => {
+    if (condition) operators.push(operator);
+  };
+  const empty = () => {
+    add(has.has('isNull'), 'isEmpty');
+    add(has.has('isNull'), 'isNotEmpty');
+  };
+  let variant: FilterVariant;
+  let options: FilterOption[] | undefined;
+
+  switch (field.type) {
+    case 'enum':
+      options = (field.options ?? []).map((value) => ({
+        label: value,
+        value,
+      }));
+      if (has.has('in')) {
+        variant = 'multiSelect';
+        add(true, 'inArray');
+        add(has.has('notIn'), 'notInArray');
+      } else {
+        variant = 'select';
+        add(has.has('eq'), 'eq');
+        add(has.has('ne'), 'ne');
+      }
+      empty();
+      break;
+    case 'number':
+      variant = 'number';
+      for (const op of ['eq', 'ne', 'lt', 'lte', 'gt', 'gte'] as const) {
+        add(has.has(op), op);
+      }
+      add(has.has('between'), 'isBetween');
+      empty();
+      break;
+    case 'datetime':
+    case 'date': {
+      variant = 'date';
+      // A datetime filtered by a day is a range of instants (dateCondition).
+      const day = field.type === 'datetime';
+      add(day ? has.has('gte') && has.has('lt') : has.has('eq'), 'eq');
+      add(day ? has.has('gte') && has.has('lt') : has.has('ne'), 'ne');
+      add(has.has('lt'), 'lt');
+      add(day ? has.has('lt') || has.has('lte') : has.has('lte'), 'lte');
+      add(day ? has.has('gte') || has.has('gt') : has.has('gt'), 'gt');
+      add(has.has('gte'), 'gte');
+      add(has.has('between'), 'isBetween');
+      empty();
+      break;
+    }
+    case 'boolean':
+      variant = 'boolean';
+      add(has.has('eq'), 'eq');
+      add(has.has('ne'), 'ne');
+      break;
+    default:
+      variant = 'text';
+      add(has.has('contains'), 'iLike');
+      add(has.has('notContains'), 'notILike');
+      add(has.has('eq'), 'eq');
+      add(has.has('ne'), 'ne');
+      empty();
+  }
+  return operators.length > 0
+    ? { variant, operators, ...(options && { options }) }
+    : undefined;
+}
+
+/**
+ * The caller's columns (cells, headers) completed from the list's metadata:
+ * which are filterable (variant, operators, options) and sortable. A column
+ * the list doesn't know is neither. `meta.label` stays the caller's.
+ */
+export function withListMeta<TData extends RowData>(
+  columns: ListColumn<TData>[],
+  description: ListDescription,
+): ListColumn<TData>[] {
+  const fields = new Map(description.fields.map((f) => [f.name, f]));
+  return columns.map((column) => {
+    const field = column.id ? fields.get(column.id) : undefined;
+    const spec = field && filterSpec(field);
+    return {
+      ...column,
+      enableSorting: field?.sortable ?? false,
+      enableColumnFilter: spec !== undefined,
+      meta: {
+        ...column.meta,
+        ...(field?.label && !column.meta?.label && { label: field.label }),
+        ...(spec && {
+          variant: spec.variant,
+          operators: spec.operators,
+          ...(spec.options && { options: spec.options }),
+        }),
+      },
+    } as ListColumn<TData>;
+  });
+}
+
+/** `-createdAt` (the list's defaultSort) as the table's sorting state. */
+export function defaultSorting(description: ListDescription) {
+  return description.defaultSort
+    ? [
+        {
+          id: description.defaultSort.replace(/^-/, ''),
+          desc: description.defaultSort.startsWith('-'),
+        },
+      ]
+    : [];
+}
+
+// ------------------------------------------------------------------- state
+
+export interface ListState {
+  page: number;
+  perPage: number;
+  sorting: { id: string; desc: boolean }[];
+  filters: ColumnFilterItem[];
+  joinOperator: JoinOperator;
+  /** The visible columns; left out: all fields. */
+  fields?: string[];
+  q?: string;
+}
+
+function startOfDay(value: string): Date | undefined {
+  const date = parseFilterDate(value);
+  if (!date) return undefined;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function nextDay(date: Date): Date {
+  // Calendar arithmetic, not +24h, so a DST change doesn't shift it.
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+}
+
+function ymd(d: Date): string {
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+/** A day the user picked is their local day, as instants (docs/api-conventions.md). */
+function dateCondition(
+  field: string,
+  operator: FilterOperator,
+  value: string | string[],
+  type: ListField['type'],
+): Filter | undefined {
+  const first = startOfDay(Array.isArray(value) ? (value[0] ?? '') : value);
+  if (!first) return undefined;
+  const last = startOfDay(Array.isArray(value) ? (value[1] ?? '') : '');
+  const cond = (op: FilterCondition['op'], v: string | string[]): Filter => ({
+    field,
+    op,
+    value: v,
+  });
+
+  if (type === 'date') {
+    // A calendar date, no time: compared as YYYY-MM-DD.
+    if (operator === 'isBetween') {
+      return last ? cond('between', [ymd(first), ymd(last)]) : undefined;
+    }
+    const direct = {
+      eq: 'eq',
+      ne: 'ne',
+      lt: 'lt',
+      lte: 'lte',
+      gt: 'gt',
+      gte: 'gte',
+    } as const;
+    const op = direct[operator as keyof typeof direct];
+    return op ? cond(op, ymd(first)) : undefined;
+  }
+
+  const from = first.toISOString();
+  const to = nextDay(first).toISOString();
+  switch (operator) {
+    case 'eq':
+      return { and: [cond('gte', from), cond('lt', to)] };
+    case 'ne':
+      return { or: [cond('lt', from), cond('gte', to)] };
+    case 'lt':
+      return cond('lt', from);
+    case 'lte':
+      return cond('lt', to);
+    case 'gt':
+      return cond('gte', to);
+    case 'gte':
+      return cond('gte', from);
+    case 'isBetween':
+      // `between` includes both ends: the last day ends 1 ms before the next.
+      return last
+        ? cond('between', [
+            from,
+            new Date(nextDay(last).getTime() - 1).toISOString(),
+          ])
+        : undefined;
+    default:
+      return undefined;
+  }
+}
+
+const SIMPLE: Partial<Record<FilterOperator, ApiOperator>> = {
+  iLike: 'contains',
+  notILike: 'notContains',
+  eq: 'eq',
+  ne: 'ne',
+  inArray: 'in',
+  notInArray: 'notIn',
+  lt: 'lt',
+  lte: 'lte',
+  gt: 'gt',
+  gte: 'gte',
+  isBetween: 'between',
+};
+
+/** One filter item as an API condition; undefined when it can't be one. */
+export function toCondition(
+  item: ColumnFilterItem,
+  type: ListField['type'] = 'string',
+): Filter | undefined {
+  const { id: field, operator, value, variant } = item;
+  if (operator === 'isEmpty') return { field, op: 'isNull', value: true };
+  if (operator === 'isNotEmpty') return { field, op: 'isNull', value: false };
+
+  if (variant === 'date' || variant === 'dateRange') {
+    return dateCondition(field, operator, value, type);
+  }
+  const op = SIMPLE[operator];
+  if (!op) return undefined; // isRelativeToToday: the API has no such thing
+  const list = Array.isArray(value) ? value : [value];
+
+  if (variant === 'number' || variant === 'range') {
+    const numbers = list.map((v) => (v === '' ? Number.NaN : Number(v)));
+    if (numbers.some(Number.isNaN)) return undefined;
+    return {
+      field,
+      op,
+      value: op === 'between' ? numbers : (numbers[0] as number),
+    };
+  }
+  if (variant === 'boolean') {
+    return { field, op, value: list[0] === 'true' };
+  }
+  if (op === 'in' || op === 'notIn' || op === 'between') {
+    return { field, op, value: list };
+  }
+  return { field, op, value: list[0] ?? '' };
+}
+
+/** The list route's query for a data-table state. */
+export function listParams(
+  state: ListState,
+  fields: readonly ListField[],
+): Record<string, string> {
+  const types = new Map(fields.map((f) => [f.name, f.type]));
+  const conditions = getActiveFilters(state.filters)
+    .map((item) => toCondition(item, types.get(item.id)))
+    .filter((c): c is Filter => c !== undefined);
+
+  const params: Record<string, string> = {
+    page: String(state.page),
+    limit: String(state.perPage),
+    count: 'true',
+  };
+  if (state.sorting.length > 0) {
+    params.sort = sortParam(
+      ...state.sorting.map((s) => (s.desc ? '-' : '') + s.id),
+    );
+  }
+  if (state.fields && state.fields.length > 0) {
+    params.fields = state.fields.join(',');
+  }
+  if (conditions.length > 0) {
+    params.filter = filterParam(
+      state.joinOperator === 'or' ? { or: conditions } : { and: conditions },
+    );
+  }
+  if (state.q) params.q = state.q;
+  return params;
+}
+
+// ------------------------------------------------------------------- hooks
+
+/** The list's metadata, fetched once: it changes with permissions and custom fields only. */
+export function useListDescription(subject: string) {
+  return useQuery({
+    queryKey: ['lists', subject],
+    queryFn: () =>
+      unwrap(api.GET('/v1/lists/{subject}', { params: { path: { subject } } })),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+async function fetchPage<P extends ListPath>(
+  path: P,
+  query: Record<string, string>,
+): Promise<ListPageData<ListRow<P>>> {
+  // openapi-fetch types its query per path; this one is generic over paths.
+  const get = api.GET as unknown as (
+    path: string,
+    init: { params: { query: Record<string, string> } },
+  ) => Promise<{ data?: ListPageData<ListRow<P>>; response: Response }>;
+  return unwrap(get(path, { params: { query } }));
+}
+
+/**
+ * The page of a list for the data table's URL state (the same nuqs keys
+ * `useDataTable` writes: page, perPage, sort, joinOperator, one per filtered
+ * column, and `q`), with the previous page kept while the next one loads.
+ * `columns` are those from `withListMeta`; `fields` the visible ones.
+ */
+export function useListQuery<P extends ListPath>(
+  path: P,
+  description: ListDescription,
+  columns: ListColumn<ListRow<P>>[],
+  fields?: string[],
+) {
+  const sortableIds = useMemo(
+    () =>
+      columns.flatMap((c) => (c.id && c.enableSorting !== false ? [c.id] : [])),
+    [columns],
+  );
+  const filterable = useMemo(
+    () =>
+      columns.flatMap((c) =>
+        c.id && c.enableColumnFilter
+          ? [[c.id, c.meta?.variant ?? 'text'] as const]
+          : [],
+      ),
+    [columns],
+  );
+  const filterIds = useMemo(() => filterable.map(([id]) => id), [filterable]);
+
+  const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
+  const [perPage] = useQueryState(
+    'perPage',
+    parseAsInteger.withDefault(DEFAULT_PER_PAGE),
+  );
+  const [sorting] = useQueryState(
+    'sort',
+    getSortingStateParser(sortableIds).withDefault(defaultSorting(description)),
+  );
+  const [joinOperator] = useQueryState(
+    'joinOperator',
+    parseAsString.withDefault('and'),
+  );
+  const [filterParams] = useQueryStates(
+    Object.fromEntries(
+      filterable.map(([id, variant]) => [
+        id,
+        getColumnFilterParser(id, variant),
+      ]),
+    ),
+  );
+  const [q, setQ] = useQueryState(
+    SEARCH_KEY,
+    parseAsString.withDefault('').withOptions({ throttleMs: 300 }),
+  );
+
+  const filters = useMemo(
+    () => getColumnFilters(filterIds, (id) => filterParams[id] ?? []),
+    [filterIds, filterParams],
+  );
+
+  const selectable = useMemo(() => new Set(description.select), [description]);
+  const params = useMemo(
+    () =>
+      listParams(
+        {
+          page,
+          perPage,
+          sorting,
+          filters,
+          joinOperator: joinOperator === 'or' ? 'or' : 'and',
+          fields: fields?.filter((f) => selectable.has(f)),
+          q: description.search ? q : '',
+        },
+        description.fields,
+      ),
+    [
+      page,
+      perPage,
+      sorting,
+      filters,
+      joinOperator,
+      fields,
+      selectable,
+      q,
+      description,
+    ],
+  );
+
+  const result: UseQueryResult<ListPageData<ListRow<P>>> = useQuery({
+    queryKey: ['list', path, params],
+    queryFn: () => fetchPage(path, params),
+    placeholderData: keepPreviousData,
+  });
+
+  const search = useCallback(
+    (value: string) => {
+      void setPage(1);
+      void setQ(value || null);
+    },
+    [setPage, setQ],
+  );
+
+  return { ...result, params, q, search };
+}

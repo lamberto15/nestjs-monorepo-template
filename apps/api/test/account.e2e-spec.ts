@@ -309,6 +309,22 @@ describe('accounts (e2e)', () => {
     );
     await user.agent.delete(`/v1/auth/sessions/${otherSession.id}`).expect(204);
     await other.get('/v1/auth/me').expect(401);
+    // The readable device comes from the recorded user agent; null with none.
+    const chrome =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    await browser()
+      .post('/v1/auth/sign-in')
+      .set('User-Agent', chrome)
+      .send({ email: user.email, password: user.password })
+      .expect(200);
+    const listed = (await user.agent.get('/v1/auth/sessions').expect(200)).body
+      .items as { userAgent: string | null; device: string | null }[];
+    expect(listed.find((item) => item.userAgent === chrome)?.device).toBe(
+      'Chrome on macOS',
+    );
+    expect(
+      listed.every((item) => item.device === null || item.userAgent !== null),
+    ).toBe(true);
     await user.agent.post('/v1/auth/sign-out-everywhere').expect(204);
     await user.agent.get('/v1/auth/me').expect(401);
   });
