@@ -8,6 +8,7 @@ import {
   type RecordDeclaration,
   recordKey,
 } from '../src/platform/records/record.js';
+import { recordSchemas } from '../src/platform/records/record.schemas.js';
 import { type TestApp, webhookReceiver } from './support.js';
 
 const lowerFirst = (text: string) =>
@@ -37,6 +38,115 @@ export function describeCapabilities(
         .send(samples.body())
         .expect(201)
     ).body.id as string;
+
+  // What a record page needs (a client's form, its buttons): the same
+  // representation and ETag from every route that answers the record, and
+  // what the reader may do with it.
+  describe('its record page', () => {
+    const response = recordSchemas(record).response.strict();
+    /** The answer is the documented schema, no more (no tenantId): strict. */
+    const conforms = (body: unknown) => {
+      const parsed = response.safeParse(body);
+      expect(parsed.error?.issues ?? []).toEqual([]);
+    };
+    const STRONG = /^"[\w-]+"$/;
+
+    it('answers a create with the strong ETag GET sends: If-Match on the next write needs no read', async () => {
+      const admin = node().admin();
+      const created = await admin
+        .post(path)
+        .set('Idempotency-Key', randomUUID())
+        .send(samples.body())
+        .expect(201);
+      const id = created.body.id as string;
+      const etag = created.headers.etag as string;
+      expect(etag).toMatch(STRONG);
+      conforms(created.body);
+      expect(created.body).not.toHaveProperty('tenantId');
+      const shown = await admin.get(`${path}/${id}`).expect(200);
+      expect(shown.headers.etag).toBe(etag);
+      expect(shown.body).toEqual(created.body);
+      conforms(shown.body);
+      await admin
+        .patch(`${path}/${id}`)
+        .set('If-Match', etag)
+        .send(samples.changed)
+        .expect(200);
+      if (record.softDelete) {
+        await admin.delete(`${path}/${id}`).expect(204);
+        const restored = await admin.post(`${path}/${id}/restore`).expect(200);
+        expect(restored.headers.etag).toBe(
+          (await admin.get(`${path}/${id}`).expect(200)).headers.etag,
+        );
+      }
+    });
+
+    it('says what the reader may do with each record (?include=can), as its routes decide', async () => {
+      const admin = node().admin();
+      const id = await make();
+      const plain = await admin.get(`${path}/${id}`).expect(200);
+      expect(plain.body).not.toHaveProperty('can');
+      const withCan = await admin.get(`${path}/${id}?include=can`).expect(200);
+      conforms(withCan.body);
+      expect(withCan.body.can).toEqual({
+        update: true,
+        delete: true,
+        ...(record.softDelete && { restore: false }),
+      });
+      // `can` is about the reader, not the record: the same ETag, good for If-Match.
+      expect(withCan.headers.etag).toBe(plain.headers.etag);
+      // A list's too, whatever `fields` picks.
+      const page = await admin
+        .get(`${path}?include=can&fields=createdAt`)
+        .expect(200);
+      expect(
+        page.body.items.find((item: { id: string }) => item.id === id),
+      ).toEqual({
+        id,
+        createdAt: expect.any(String),
+        can: withCan.body.can,
+      });
+      expect(
+        (await admin.get(path).expect(200)).body.items[0],
+      ).not.toHaveProperty('can');
+      await admin.get(`${path}/${id}?include=everything`).expect(400);
+
+      if (record.grants !== 'none') {
+        // Another editor's record: the reader's own conditions (mine), as the 403s.
+        const editor = await node().user(['editor']);
+        const viewer = await node().user(['viewer']);
+        const own = (
+          await editor.agent
+            .post(path)
+            .set('Idempotency-Key', randomUUID())
+            .send(samples.body())
+            .expect(201)
+        ).body.id as string;
+        expect(
+          (await editor.agent.get(`${path}/${own}?include=can`).expect(200))
+            .body.can,
+        ).toMatchObject({ update: true, delete: true });
+        expect(
+          (await viewer.agent.get(`${path}/${own}?include=can`).expect(200))
+            .body.can,
+        ).toMatchObject({ update: false, delete: false });
+        await viewer.agent
+          .patch(`${path}/${own}`)
+          .send(samples.changed)
+          .expect(403);
+      }
+
+      if (record.softDelete) {
+        await admin.delete(`${path}/${id}`).expect(204);
+        const bin = await admin
+          .get(`${path}?deleted=true&include=can`)
+          .expect(200);
+        expect(
+          bin.body.items.find((item: { id: string }) => item.id === id).can,
+        ).toEqual({ update: false, delete: false, restore: true });
+      }
+    });
+  });
 
   if (record.softDelete) {
     it('goes to the recycle bin, and comes back until the purge', async () => {

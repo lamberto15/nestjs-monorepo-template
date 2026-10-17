@@ -55,5 +55,9 @@ export const NOTE_LIST = listQuery(
       sortable: true,
     },
   },
-  { select: Object.keys(noteSchema.shape), softDelete: true },
+  {
+    // `can` (?include=can) is no field to pick.
+    select: Object.keys(noteSchema.shape).filter((key) => key !== 'can'),
+    softDelete: true,
+  },
 );

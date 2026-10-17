@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, type Type } from '@nestjs/common';
+import { AuthorizationService } from '@nestjs/authorization';
 import { Webhooks } from '@nestjs/webhooks';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
@@ -21,6 +22,12 @@ import {
   takes,
 } from './record.js';
 import type { RecordList } from './record-list.js';
+import {
+  recordCan,
+  recordCanActions,
+  type RecordInclude,
+  withCan,
+} from './record-can.js';
 import type { RecordSchemas } from './record.schemas.js';
 
 /** A feature module's record declaration (record-parts.ts provides it). */
@@ -29,6 +36,8 @@ export const RECORD_DECLARATION = Symbol('RECORD_DECLARATION');
 export const RECORD_TABLE = Symbol('RECORD_TABLE');
 /** A feature module's record contract: its service, policy, table, list and schemas. */
 export const RECORD_CONTRACT = Symbol('RECORD_CONTRACT');
+/** A feature module's policy class (record-parts.ts provides it): the checks a record's `can` repeats. */
+export const RECORD_POLICY = Symbol('RECORD_POLICY');
 
 /** A row of a record's table, as the generic targets handle it. */
 export type RecordRow = { id: string; ownerId: string } & Record<
@@ -246,14 +255,17 @@ export class RecordLifecycle {
 
 /**
  * Records as a caller reads them: the API's view (money as objects), their
- * tags (tags), their active custom values (custom), less the fields the caller may not see. The controller
- * always calls it (and its ETags cover what it returns).
+ * tags (tags), their active custom values (custom), less the fields the caller may not see,
+ * and with `?include=can` what the caller may do with each (record-can.ts). The controller
+ * always calls it (and its ETags cover what it returns, `can` aside).
  */
 @Injectable()
 export class RecordPresenter {
   constructor(
     @Inject(RECORD_DECLARATION) private readonly declaration: RecordDeclaration,
+    @Inject(RECORD_POLICY) private readonly policy: Type,
     private readonly access: AccessService,
+    private readonly authorization: AuthorizationService,
     private readonly tags: TagsService,
     private readonly customFields: CustomFieldsService,
   ) {}
@@ -275,7 +287,9 @@ export class RecordPresenter {
     const extended = takes(this.declaration, 'custom')
       ? await this.customFields.extendList(list, this.declaration.subject)
       : list;
-    const query = extended.parse(raw);
+    // `include` is no filter: the route reads it (`@Query('include', IncludePipe)`).
+    const { include: _include, ...filters } = raw;
+    const query = extended.parse(filters);
     // Matched among the rows the list reaches: the recycle bin's
     // (?deleted=true) are those the caller may restore, as the list route's
     // sqlFilter() reads them.
@@ -285,17 +299,67 @@ export class RecordPresenter {
     return { list: extended, query };
   }
 
-  /** One record, as the caller may see it. */
-  async one(user: Principal, row: Record<string, unknown>) {
+  /** One record, as the caller may see it (with `include.can`, its `can`). */
+  async one(
+    user: Principal,
+    row: Record<string, unknown>,
+    include?: RecordInclude,
+  ) {
     const [shown] = await this.many(user, [row]);
-    return shown!;
+    return include?.can ? withCan(shown!, await this.can(user, [row])) : shown!;
+  }
+
+  /**
+   * A list's page as the caller may see it: each record shown, then only
+   * the `?fields=` asked for (`list.pick`, after redaction), then with
+   * `include.can` each one's `can` (whatever `fields` picked).
+   */
+  async page<P extends { items: Record<string, unknown>[] }>(
+    user: Principal,
+    page: P,
+    {
+      list,
+      query,
+      include,
+    }: { list: List; query: ListQuery; include?: RecordInclude },
+  ) {
+    const picked = list.pick(
+      { ...page, items: await this.many(user, page.items) },
+      query,
+    );
+    if (!include?.can) {
+      return picked;
+    }
+    const can = await this.can(user, page.items);
+    return {
+      ...picked,
+      items: picked.items.map((item) =>
+        withCan(item as Record<string, unknown>, can),
+      ),
+    };
+  }
+
+  /** Each row's `can`, by id (record-can.ts): its policy's checks, in memory. */
+  private can(user: Principal, rows: Record<string, unknown>[]) {
+    return recordCan(
+      this.authorization,
+      this.policy,
+      user,
+      rows as { id: string }[],
+      recordCanActions(this.declaration.softDelete),
+    );
   }
 
   /** Records, as the caller may see them (one tag query for them all). */
   async many(user: Principal, rows: Record<string, unknown>[]) {
-    let views: Record<string, unknown>[] = rows.map((row) =>
-      recordView(this.declaration, row),
-    );
+    // The tenant is the request's own (docs/tenancy.md): not in a record's representation.
+    let views: Record<string, unknown>[] = rows.map((row) => {
+      const { tenantId: _tenantId, ...view } = recordView(
+        this.declaration,
+        row,
+      ) as Record<string, unknown>;
+      return view;
+    });
     if (takes(this.declaration, 'tags')) {
       const tags = await this.tags.tagsOf(
         this.declaration.subject,

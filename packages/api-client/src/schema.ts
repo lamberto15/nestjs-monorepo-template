@@ -2452,7 +2452,7 @@ export interface paths {
         put?: never;
         /**
          * Write a note
-         * @description Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry.
+         * @description Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.
          */
         post: operations["NotesController_create_v1"];
         delete?: never;
@@ -13032,6 +13032,8 @@ export interface operations {
     NotesController_list_v1: {
         parameters: {
             query?: {
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                include?: string;
                 limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
@@ -13169,6 +13171,15 @@ export interface operations {
                                 name: string;
                                 color: string | null;
                             }[];
+                            /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                            can?: {
+                                /** @description PATCH would be allowed. */
+                                update: boolean;
+                                /** @description DELETE would be allowed. */
+                                delete: boolean;
+                                /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                                restore: boolean;
+                            };
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -13279,6 +13290,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -13321,7 +13341,10 @@ export interface operations {
     };
     NotesController_get_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                include?: string;
+            };
             header?: {
                 /** @description The ETag you have: 304 and no body when it is still current. */
                 "If-None-Match"?: string;
@@ -13377,6 +13400,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -13527,6 +13559,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -13614,6 +13655,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -14568,6 +14618,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };

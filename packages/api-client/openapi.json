@@ -22049,7 +22049,7 @@
     },
     "/v1/notes": {
       "post": {
-        "description": "Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry.",
+        "description": "Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.",
         "operationId": "NotesController_create_v1",
         "parameters": [
           {
@@ -22196,6 +22196,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -22250,6 +22274,16 @@
         "description": "Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).",
         "operationId": "NotesController_list_v1",
         "parameters": [
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`.",
+            "schema": {
+              "example": "can",
+              "type": "string"
+            }
+          },
           {
             "name": "limit",
             "required": false,
@@ -22740,6 +22774,30 @@
                               "additionalProperties": false
                             },
                             "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                          },
+                          "can": {
+                            "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                            "type": "object",
+                            "properties": {
+                              "update": {
+                                "type": "boolean",
+                                "description": "PATCH would be allowed."
+                              },
+                              "delete": {
+                                "type": "boolean",
+                                "description": "DELETE would be allowed."
+                              },
+                              "restore": {
+                                "type": "boolean",
+                                "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                              }
+                            },
+                            "required": [
+                              "update",
+                              "delete",
+                              "restore"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -22834,6 +22892,16 @@
             "required": true,
             "in": "path",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`.",
+            "schema": {
+              "example": "can",
               "type": "string"
             }
           },
@@ -22946,6 +23014,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -23142,6 +23234,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -23355,6 +23471,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -25478,6 +25618,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [

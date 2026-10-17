@@ -56,7 +56,10 @@ export function recordList(
       },
     },
     {
-      select: Object.keys(schemas.response.shape),
+      // `can` (?include=can) is no field to pick.
+      select: Object.keys(schemas.response.shape).filter(
+        (key) => key !== 'can',
+      ),
       softDelete: declaration.softDelete,
     },
   );
