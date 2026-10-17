@@ -85,6 +85,19 @@ export const INVOICE = defineRecord({
   | `search` | a search vector over the `.searchable()` fields: `?q=` on the list, GET /v1/search |
   | `transfer` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
   | `custom` | administrators' runtime fields ([custom fields](custom-fields.md)): `custom` in bodies and responses, `custom.<key>` in lists, exports and imports, snapshots and the audit; the `custom` column and its GIN index (run `pnpm db:generate`), the field-level `custom` permission |
+  | `events` | webhooks `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle bin), declared as event types and sent in the write's transaction through the outbox |
+  | `numbered` | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only |
+
+  `events`: the data of each webhook is the record as the API shows it
+  (less the fields its receiver may not read), sent to the API client that
+  owns the record (endpoints belong to clients, so a user's records send
+  none: [webhooks](webhooks-and-realtime.md)); it needs no endpoint to
+  exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
+  perYear: true, width: 5 }` (default: the subject's initials, per year, 5
+  digits; one counter per tenant, [sequences](sequences.md)); the column is
+  nullable, so the capability can be added to a table with rows (those
+  records stay without a number). Both are done by `RecordLifecycle`, so the
+  generated service changes with neither.
 
   Texts go to every locale in English (each locale's plural forms); the
   command lists the keys to translate.
@@ -105,7 +118,8 @@ pnpm client:generate   # when it says the routes change
   required, and a removed field: those follow expand/contract
   ([pitfalls](pitfalls.md)).
 - **A capability:** its name in `capabilities` (search: mark the fields it
-  searches `.searchable()`; pdf: with attachments). Its routes, target and
+  searches `.searchable()`; pdf: with attachments; numbered: a
+  `number: { prefix: 'INV' }` line for the format). Its routes, target and
   tests come with it: the feature's e2e spec runs
   `describeCapabilities(() => node, RECORD)` (test/record-capabilities.ts).
 - **Removing a capability** takes its paths out of the OpenAPI test; its texts
@@ -125,7 +139,7 @@ pnpm client:generate   # when it says the routes change
   feature-smoke job runs it after changing a feature this way).
 
 - **Not generated:** approvals, settings, workflows and
-  outgoing webhook events: add them as the sections below say, notes as the
+  webhook events beyond the record's own changes (`events`): add them as the sections below say, notes as the
   example.
 - **Adding seed roles to an existing database:** the roles are written when a
   tenant is made; an existing tenant's administrators grant the new

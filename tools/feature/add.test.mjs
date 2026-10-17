@@ -19,7 +19,7 @@ import { after, before, describe, it } from 'node:test';
 import { addFeature, MARKERS } from './add.mjs';
 import { format } from './format.mjs';
 import { readRecord, syncFeature } from './sync.mjs';
-import { parseCapabilities } from './capabilities.mjs';
+import { numberPrefix, parseCapabilities } from './capabilities.mjs';
 import { parseField, parseFields } from './fields.mjs';
 import { names, singularize } from './names.mjs';
 
@@ -94,6 +94,15 @@ describe('capabilities', () => {
       'tags',
     ]);
     assert.equal(parseCapabilities(undefined, fields).size, 0);
+  });
+
+  it('takes events and numbered, and derives the number prefix', () => {
+    assert.deepEqual([...parseCapabilities('events,numbered', fields)].sort(), [
+      'events',
+      'numbered',
+    ]);
+    assert.equal(numberPrefix('Invoice'), 'INV');
+    assert.equal(numberPrefix('InvoiceLine'), 'IL');
   });
 
   it('refuses an unknown one, and search without text to search', () => {
@@ -270,6 +279,34 @@ describe('addFeature', () => {
     assert.ok(result.translate.includes('de/documents.json: ticket'));
     const spec = readFileSync(api('test/openapi.e2e-spec.ts'), 'utf8');
     assert.ok(spec.includes("'/v1/tickets/{id}/revisions/{a}/diff/{b}'"));
+  });
+
+  it('declares events and numbered: the number format, and the number in the PDF labels', async () => {
+    await addFeature(root, {
+      name: 'quotes',
+      fields: 'title:string',
+      with: 'events,numbered,pdf',
+    });
+    const record = readFileSync(
+      api('src/features/quotes/quote.record.ts'),
+      'utf8',
+    );
+    assert.match(
+      record,
+      /number: \{ prefix: 'QUO', perYear: true, width: 5 \},/,
+    );
+    assert.match(record, /'events', 'numbered'/);
+    const documents = JSON.parse(
+      readFileSync(api('src/i18n/en/documents.json'), 'utf8'),
+    );
+    assert.equal(documents.quote.fields.number, 'Number');
+    // The service takes the number and deletes through RecordStore.
+    const service = readFileSync(
+      api('src/features/quotes/quotes.service.ts'),
+      'utf8',
+    );
+    assert.match(service, /lifecycle\.creating\(tx\)/);
+    assert.match(service, /records\.delete\(tx/);
   });
 
   it('writes the same code whatever softDelete and team say: only the declaration holds them', async () => {

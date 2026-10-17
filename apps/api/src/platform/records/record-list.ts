@@ -23,6 +23,14 @@ export function recordList(
       ...(takes(declaration, 'search') && searchFields(table.search!)),
       ...(takes(declaration, 'tags') &&
         tagFilter(declaration.subject, table.id!)),
+      ...(takes(declaration, 'numbered') && {
+        number: {
+          column: table.number!,
+          type: 'string',
+          ops: ['eq', 'in', 'contains', 'startsWith'],
+          sortable: true,
+        },
+      }),
       ...fieldList(declaration.fields, table),
       ownerId: { column: table.ownerId!, type: 'string', ops: ['eq'] },
       ...(declaration.team && {

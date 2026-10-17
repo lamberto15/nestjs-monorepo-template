@@ -38,6 +38,7 @@ const BASE_COLUMNS = new Set([
   'owner_id',
   'created_at',
   'updated_at',
+  'number',
   'search',
   'custom',
 ]);
@@ -408,6 +409,9 @@ function guard(api, record) {
     }
   }
   if (record.capabilities.has('search') !== Boolean(columns.search))
+    generate = true;
+  // Taken later: the column is empty (nullable) for the records already there.
+  if (record.capabilities.has('numbered') !== Boolean(columns.number))
     generate = true;
   if (record.capabilities.has('custom') !== Boolean(columns.custom)) {
     generate = true;
