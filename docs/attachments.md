@@ -2,7 +2,7 @@
 
 Files people attach to a feature's records: a contract on an order, photos
 on a ticket. `apps/api/src/platform/attachments/`; notes take attachments as the
-example (`features/notes/note-attachments.ts`, `note-attachments.controller.ts`).
+example (`features/notes/note-attachments.ts`, `attachmentRoutes()` in `notes.module.ts`).
 
 | Route | Does |
 | --- | --- |

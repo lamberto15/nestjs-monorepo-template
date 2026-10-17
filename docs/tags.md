@@ -3,7 +3,7 @@
 `Urgent`, `Q3`, `Waiting on client`: labels administrators define per
 subject, which records carry, show and are filtered by.
 `apps/api/src/platform/tags/`; notes carry tags as the example
-(`features/notes/note-tags.ts`, `note-tags.controller.ts`).
+(`features/notes/note-tags.ts`, `tagRoutes()` in `notes.module.ts`).
 
 ```ts
 // features/notes/note-tags.ts: the feature registers its records

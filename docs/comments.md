@@ -3,7 +3,7 @@
 Conversations on any feature's records: people comment, mention each
 other, and the record's watchers hear of it. `apps/api/src/platform/comments/`;
 notes take comments as the example (`features/notes/note-comments.ts`,
-`note-comments.controller.ts`).
+`commentRoutes()` in `notes.module.ts`).
 
 ```ts
 // features/notes/note-comments.ts: the feature registers its records
