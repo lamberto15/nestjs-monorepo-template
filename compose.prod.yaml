@@ -86,6 +86,12 @@ x-app: &app
     PASSKEY_APPLE_APPS: ${PASSKEY_APPLE_APPS:-}
     AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-400}
     SOFT_DELETE_RETENTION_DAYS: ${SOFT_DELETE_RETENTION_DAYS:-30}
+    # Deployment switches (docs/configuration.md): platform modules a
+    # project may not need; off leaves routes, workers and jobs out.
+    WEBHOOKS: ${WEBHOOKS:-on}
+    REPORTS: ${REPORTS:-on}
+    USAGE: ${USAGE:-on}
+    REALTIME: ${REALTIME:-on}
     # New passwords against Pwned Passwords (docs/auth.md, "Passwords")
     PASSWORD_BREACH_CHECK: ${PASSWORD_BREACH_CHECK:-on}
     PASSWORD_BREACH_API_URL: ${PASSWORD_BREACH_API_URL:-https://api.pwnedpasswords.com}

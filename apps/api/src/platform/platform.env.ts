@@ -35,6 +35,19 @@ export const platformEnv = z.object({
   OUTBOX_RELAY: flag('on'),
   WEBHOOKS_WORKER: flag('on'),
 
+  /**
+   * Deployment switches (docs/configuration.md): platform modules a project
+   * may not need. `off` leaves the module's routes, workers and jobs out.
+   */
+  /** Outgoing webhooks: the endpoint and delivery API and the delivery worker. */
+  WEBHOOKS: flag('on'),
+  /** Scheduled reports: the API and the hourly runner. */
+  REPORTS: flag('on'),
+  /** API clients' usage metering, daily quotas, the usage API and its roll-up. */
+  USAGE: flag('on'),
+  /** The socket.io gateway at /realtime and its Redis adapter. */
+  REALTIME: flag('on'),
+
   /** The hour (0–23, in each user's time zone) daily notification digests are mailed. */
   NOTIFICATIONS_DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   /** Read notifications older than this many days are deleted every night. */
