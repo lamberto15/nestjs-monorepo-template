@@ -204,7 +204,10 @@ export class TenantsController {
       'The tenant gets the built-in and declared roles; the administrator is the account at `administratorEmail` (made and invited when there is none).',
   })
   @ApiCreatedResponse({ standardSchema: tenantSchema })
-  @ApiConflictResponse({ description: '`tenant_slug_taken`.' })
+  @ApiConflictResponse({
+    description:
+      '`tenant_slug_taken`; `single_tenant`: the deployment has its one tenant (TENANCY=single).',
+  })
   create(
     @CurrentUser() user: UserPrincipal,
     @Body({ schema: createTenantSchema })

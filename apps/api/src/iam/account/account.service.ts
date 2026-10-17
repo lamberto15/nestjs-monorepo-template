@@ -34,6 +34,7 @@ import { signInOptions, tokenClaims } from '../auth/authentication-method.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
+import { SingleTenant } from '../access/single-tenant.js';
 import { CredentialsService } from './credentials.service.js';
 import {
   ProviderReauthentications,
@@ -86,6 +87,7 @@ export class AccountService {
     private readonly emailVerification: EmailVerificationService,
     private readonly providerReauthentications: ProviderReauthentications,
     private readonly tenancy: Tenancy,
+    private readonly singleTenant: SingleTenant,
   ) {}
 
   /** A new account with a password (not one found in data breaches), audited. */
@@ -102,7 +104,8 @@ export class AccountService {
     const { password, ...fields } = input;
     await this.breachedPasswords.assertNotBreached(password, 'password');
     const passwordHash = await this.passwordHasher.hash(password);
-    return inTransaction(this.txHost, async (tx) => {
+    // TENANCY=single: the account joins the tenant in the same transaction.
+    return this.singleTenant.newAccount(async (tx) => {
       const user = await this.users.create(tx, { ...fields, passwordHash });
       await this.audit.record(
         user,
@@ -115,7 +118,7 @@ export class AccountService {
         tx,
       );
       return user;
-    });
+    }, ip);
   }
 
   updateProfile(userId: string, changes: ProfileChanges) {

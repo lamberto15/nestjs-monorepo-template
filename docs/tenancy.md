@@ -233,6 +233,31 @@ tenants, each with its first administrator: `Access.manageTenants`). Roadmap
 1b replaces this with the platform's super tenant, and adds tenant settings,
 deactivation, export and deletion.
 
+## Single-tenant deployments
+
+A project that serves one customer sets `TENANCY=single`. The wall, the
+tenant columns and the policies stay as they are (nothing to strip out, and
+a project can move to `multi` later); what changes is who joins and what
+can be made (`iam/access/single-tenant.ts`):
+
+- **One tenant.** The first start makes it (`ADMIN_TENANT_NAME`); making
+  another is refused with 409 `single_tenant` in `TenantsService.create()`,
+  so `POST /v1/tenants` and the demo seed (`pnpm db:seed:demo`, which makes a
+  tenant of its own: run it with `TENANCY=multi`) alike.
+- **Sign-ups join it.** With `AUTH_SIGN_UP=on`, an account made by
+  `POST /v1/auth/sign-up` or by a first sign-in with a provider becomes a
+  member of the tenant in the transaction that makes it, with the roles in
+  `SIGN_UP_ROLES` (seed role keys; none by default, so an open sign-up sees
+  nothing until an administrator grants a role), audited as `user.joined`
+  (`details.via: 'sign-up'`). Verify first still holds: the member signs in
+  once the address is proved. Invitations work as in `multi`.
+- **Checked at start:** `SIGN_UP_ROLES` names declared seed roles only (never
+  `administrator`); more than one tenant (a deployment switched from
+  `multi`) is a warning, sign-ups then join the operator tenant. Accounts
+  made before the switch keep the memberships they have.
+
+`test/single-tenant.e2e-spec.ts` runs the deployment this way.
+
 ## Adding a tenant table
 
 ```ts

@@ -20,6 +20,19 @@ export const iamEnv = z.object({
    * operator tenant (docs/tenancy.md). Its handle (`slug`) comes from the name.
    */
   ADMIN_TENANT_NAME: withDefault('Default'),
+  /**
+   * `multi`: operators make more tenants (POST /v1/tenants), and people join
+   * one by invitation. `single`: the first tenant is the only one (making
+   * another is refused), and a self sign-up (AUTH_SIGN_UP) joins it
+   * (docs/tenancy.md, "Single-tenant deployments").
+   */
+  TENANCY: z.enum(['multi', 'single']).default('multi'),
+  /**
+   * TENANCY=single: the roles a self sign-up gets in the tenant (seed role
+   * keys, comma-separated: `editor,viewer`; never `administrator`). Unset:
+   * none, until an administrator grants some.
+   */
+  SIGN_UP_ROLES: list(),
   /** Off only for tests over plain HTTP; the cookie is then named "sid". */
   SESSION_COOKIE_SECURE: flag('on'),
 

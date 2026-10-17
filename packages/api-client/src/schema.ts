@@ -12731,7 +12731,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `tenant_slug_taken`. */
+            /** @description `tenant_slug_taken`; `single_tenant`: the deployment has its one tenant (TENANCY=single). */
             409: {
                 headers: {
                     [name: string]: unknown;
