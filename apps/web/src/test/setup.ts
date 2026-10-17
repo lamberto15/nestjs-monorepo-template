@@ -36,3 +36,12 @@ document.elementFromPoint = () => null;
 // Nor pointer capture, which sonner's toasts (swipe to dismiss) call on press.
 Element.prototype.setPointerCapture = () => {};
 Element.prototype.releasePointerCapture = () => {};
+// Dice UI's mention asks whether the pointer is captured before it picks an item.
+Element.prototype.hasPointerCapture = () => false;
+
+// Nor ResizeObserver, which Dice UI's mention (and its popover) observes with.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};

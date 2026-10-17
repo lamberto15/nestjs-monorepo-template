@@ -30,6 +30,7 @@ import {
   ApiPreconditionFailedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
@@ -48,11 +49,20 @@ import { principalScope } from '../../platform/idempotency/idempotency.scopes.js
 import {
   createNoteSchema,
   noteSchema,
+  noteView,
   type CreateNoteDto,
   type Note,
   updateNoteSchema,
   type UpdateNoteDto,
 } from './note.schemas.js';
+import {
+  IncludePipe,
+  includeQuery,
+  recordCan,
+  recordCanActions,
+  type RecordInclude,
+  withCan,
+} from '../../platform/records/record-can.js';
 import { NotesService } from './notes.service.js';
 import { pageSchema } from '../../core/http/pagination.js';
 import { ApiListQuery } from '../../core/http/list-docs.js';
@@ -80,13 +90,15 @@ export class NotesController {
   ) {}
 
   @Post()
+  // The ETag GET /notes/{id} would send: If-Match on the next write needs no read first.
+  @Etag()
   // A retry with the same key gets the first note back instead of a second note.
   @Idempotent({ scope: principalScope })
   @Can(NotePolicy, 'create')
   @ApiOperation({
     summary: 'Write a note',
     description:
-      'Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry.',
+      'Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.',
   })
   @ApiHeader(idempotencyKeyHeader(true))
   @ApiCreatedResponse({ standardSchema: noteSchema })
@@ -151,13 +163,17 @@ export class NotesController {
     NOTE_LIST,
     'Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`.',
   )
+  @ApiQuery(includeQuery())
   async list(
     @CurrentUser() user: RequestPrincipal,
     @Query() raw: Record<string, unknown>,
+    @Query('include', IncludePipe) include: RecordInclude,
   ) {
     // The list with the custom fields defined now: validated per request.
     const list = await this.customFields.extendList(NOTE_LIST, 'Note');
-    const query = list.parse(raw);
+    // `include` is no filter: read above.
+    const { include: _include, ...filters } = raw;
+    const query = list.parse(filters);
     // Field-level: no filter, search, sort or `fields` on what the caller may not read.
     // Matched among the rows the list reaches: the recycle bin's are those the caller may restore.
     await this.access.assertQueryFields(user, 'Note', query, {
@@ -179,7 +195,7 @@ export class NotesController {
     );
     // Field-level: the text only for those whose permissions include it.
     // Then `fields`: after redaction, so what it hid stays hidden.
-    return list.pick(
+    const picked = list.pick(
       {
         ...page,
         items: await this.access.redactAll(
@@ -188,12 +204,21 @@ export class NotesController {
           'Note',
           await this.customFields.visible(
             'Note',
-            await this.notes.withTags(page.items.map(view)),
+            await this.notes.withTags(page.items.map(noteView)),
           ),
         ),
       },
       query,
     );
+    if (!include.can) {
+      return picked;
+    }
+    // Each note's `can`, from the stored rows (whatever `fields` picked).
+    const can = await this.can(user, page.items);
+    return {
+      ...picked,
+      items: picked.items.map((item) => withCan(item, can)),
+    };
   }
 
   @Get(':id')
@@ -205,15 +230,18 @@ export class NotesController {
       'With an ETag: send it back as If-None-Match to get 304 while unchanged, or as If-Match on a write to be refused if it changed.',
   })
   @ApiHeader(ifNoneMatchHeader())
+  @ApiQuery(includeQuery())
   @ApiOkResponse({ standardSchema: noteSchema })
   @ApiNotFoundResponse()
   async get(
     @CurrentUser() user: RequestPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('include', IncludePipe) include: RecordInclude,
   ) {
     const note = await this.notes.findOne(id);
     await this.authorization.authorize(NotePolicy, 'read', user, note);
-    return this.shown(user, note);
+    const shown = await this.shown(user, note);
+    return include.can ? withCan(shown, await this.can(user, [note])) : shown;
   }
 
   @Patch(':id')
@@ -259,6 +287,7 @@ export class NotesController {
   }
 
   @Post(':id/restore')
+  @Etag()
   @Can.Anyone() // Checked below, on the note itself.
   @ApiOperation({
     summary: 'Restore a note from the recycle bin',
@@ -307,11 +336,19 @@ export class NotesController {
   private async shown(user: RequestPrincipal, note: Note) {
     const [shown] = await this.customFields.visible(
       'Note',
-      await this.notes.withTags([view(note)]),
+      await this.notes.withTags([noteView(note)]),
     );
     return this.access.redact(user, 'read', 'Note', shown!);
   }
-}
 
-/** A note as the API shows it: without the search vector the database keeps. */
-const view = ({ search: _search, ...note }: Note) => note;
+  /** Each note's `can` (?include=can), by id: NotePolicy's checks, as the routes make them. */
+  private can(user: RequestPrincipal, notes: Note[]) {
+    return recordCan(
+      this.authorization,
+      NotePolicy,
+      user,
+      notes,
+      recordCanActions(true),
+    );
+  }
+}

@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw/http';
+import { panelHandlers } from '@/test/panels-api';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 // The notes API as the record pages see it, in memory (msw): enough of
@@ -71,6 +72,8 @@ export function useNotesApi(options: { can: string[]; notes: TestNote[] }) {
   };
 
   server.use(
+    // The detail page mounts the record panels: empty ones unless a test sets them.
+    ...panelHandlers().handlers,
     http.get('/v1/auth/me', () =>
       HttpResponse.json({
         ...signedInUser,

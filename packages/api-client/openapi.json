@@ -3693,8 +3693,33 @@
                           },
                           "channels": {
                             "type": "object",
-                            "additionalProperties": {},
-                            "description": "The defaults of the channels you may set: `email` (false | immediate | hourly | daily) for users, `webhook` (boolean) for API clients."
+                            "properties": {
+                              "email": {
+                                "description": "Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest.",
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "immediate",
+                                      "hourly",
+                                      "daily"
+                                    ]
+                                  },
+                                  {
+                                    "type": "boolean",
+                                    "enum": [
+                                      false
+                                    ]
+                                  }
+                                ]
+                              },
+                              "webhook": {
+                                "description": "API clients only: whether the `notification.created` webhook is sent.",
+                                "type": "boolean"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "description": "The defaults of the channels you may set (in-app and realtime are always on)."
                           }
                         },
                         "required": [
@@ -3756,7 +3781,32 @@
                       "type": "object",
                       "additionalProperties": {
                         "type": "object",
-                        "additionalProperties": {}
+                        "properties": {
+                          "email": {
+                            "description": "Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest.",
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "immediate",
+                                  "hourly",
+                                  "daily"
+                                ]
+                              },
+                              {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              }
+                            ]
+                          },
+                          "webhook": {
+                            "description": "API clients only: whether the `notification.created` webhook is sent.",
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
                       },
                       "example": {
                         "note.published": {
@@ -3808,6 +3858,31 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "object",
+                  "properties": {
+                    "email": {
+                      "description": "Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest.",
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "immediate",
+                            "hourly",
+                            "daily"
+                          ]
+                        },
+                        {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      ]
+                    },
+                    "webhook": {
+                      "description": "API clients only: whether the `notification.created` webhook is sent.",
+                      "type": "boolean"
+                    }
+                  },
                   "additionalProperties": {}
                 },
                 "example": {
@@ -3832,7 +3907,32 @@
                       "type": "object",
                       "additionalProperties": {
                         "type": "object",
-                        "additionalProperties": {}
+                        "properties": {
+                          "email": {
+                            "description": "Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest.",
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "immediate",
+                                  "hourly",
+                                  "daily"
+                                ]
+                              },
+                              {
+                                "type": "boolean",
+                                "enum": [
+                                  false
+                                ]
+                              }
+                            ]
+                          },
+                          "webhook": {
+                            "description": "API clients only: whether the `notification.created` webhook is sent.",
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
                       },
                       "example": {
                         "note.published": {
@@ -4038,6 +4138,58 @@
           }
         ],
         "summary": "Remove one of your notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/v1/notifications/test": {
+      "post": {
+        "description": "Sends the caller a `system.test` notification the way a real one goes: stored for the bell, pushed to your open connections, mailed per your preference (users), sent as a `notification.created` webhook (API clients). Only in development and tests; in production the route does not exist (404).",
+        "operationId": "NotificationTestController_test_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "description": "The notification, delivered to you shortly."
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "An administrator acting as someone."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Send yourself a test notification (development only)",
         "tags": [
           "notifications"
         ]
@@ -23199,7 +23351,7 @@
     },
     "/v1/notes": {
       "post": {
-        "description": "Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry.",
+        "description": "Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.",
         "operationId": "NotesController_create_v1",
         "parameters": [
           {
@@ -23346,6 +23498,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -23400,6 +23576,16 @@
         "description": "Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).",
         "operationId": "NotesController_list_v1",
         "parameters": [
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`.",
+            "schema": {
+              "example": "can",
+              "type": "string"
+            }
+          },
           {
             "name": "limit",
             "required": false,
@@ -23890,6 +24076,30 @@
                               "additionalProperties": false
                             },
                             "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                          },
+                          "can": {
+                            "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                            "type": "object",
+                            "properties": {
+                              "update": {
+                                "type": "boolean",
+                                "description": "PATCH would be allowed."
+                              },
+                              "delete": {
+                                "type": "boolean",
+                                "description": "DELETE would be allowed."
+                              },
+                              "restore": {
+                                "type": "boolean",
+                                "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                              }
+                            },
+                            "required": [
+                              "update",
+                              "delete",
+                              "restore"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -23984,6 +24194,16 @@
             "required": true,
             "in": "path",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`.",
+            "schema": {
+              "example": "can",
               "type": "string"
             }
           },
@@ -24096,6 +24316,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -24292,6 +24536,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -24505,6 +24773,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -26628,6 +26920,30 @@
                         "additionalProperties": false
                       },
                       "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [

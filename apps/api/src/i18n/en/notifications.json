@@ -118,5 +118,12 @@
       "title": "Request withdrawn",
       "body": "{by} withdrew \"{title}\": no decision is needed any more."
     }
+  },
+  "system": {
+    "test": {
+      "label": "Test notification",
+      "title": "Test notification",
+      "body": "This is a test notification, sent at {at}. It went through every channel you have on."
+    }
   }
 }

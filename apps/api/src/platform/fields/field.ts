@@ -10,6 +10,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
+import { MAX_TEXT_LENGTH } from '../../core/http/body-limit.js';
 import {
   decimalSchema,
   moneyResponseSchema,
@@ -173,22 +174,35 @@ const plain = <
 export const columnName = (name: string) =>
   name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
+/**
+ * A text field's `max`, refused over MAX_TEXT_LENGTH (core/http/body-limit.ts):
+ * a longer one would pass its schema's `maxLength` and still be a 413.
+ */
+function textMax(kind: string, max: number) {
+  if (!Number.isInteger(max) || max < 1 || max > MAX_TEXT_LENGTH) {
+    throw new Error(
+      `field.${kind}(${max}): the max is a whole number of characters, 1 to ${MAX_TEXT_LENGTH} (the request body limit leaves no more: core/http/body-limit.ts).`,
+    );
+  }
+  return max;
+}
+
 /** The field types. Each one's column, input and output, in one place. */
 export const field = {
-  /** Short text, trimmed, 1 to `max` characters (200). */
+  /** Short text, trimmed, 1 to `max` characters (200; at most MAX_TEXT_LENGTH). */
   string: (max = 200) =>
     plain(
       'string',
       (name) => text(columnName(name)),
-      z.string().trim().min(1).max(max),
+      z.string().trim().min(1).max(textMax('string', max)),
       z.string(),
     ),
-  /** Long text, up to `max` characters (10 000). */
+  /** Long text, up to `max` characters (10 000; at most MAX_TEXT_LENGTH, 30 000). */
   text: (max = 10_000) =>
     plain(
       'text',
       (name) => text(columnName(name)),
-      z.string().max(max),
+      z.string().max(textMax('text', max)),
       z.string(),
     ),
   /** A whole number. */

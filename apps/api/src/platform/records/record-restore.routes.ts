@@ -16,6 +16,7 @@ import {
   ApiOkResponse,
   ApiOperation,
 } from '@nestjs/swagger';
+import { Etag } from '../../core/http/etag.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import type { RecordDeclaration } from './record.js';
 import {
@@ -55,6 +56,8 @@ export function restoreRoutes(
 
     @Post(':id/restore')
     @HttpCode(HttpStatus.OK)
+    // The ETag GET /{id} would send for the restored record.
+    @Etag()
     @Can.Anyone() // Checked below, on the record itself.
     @ApiOperation({
       summary: `Restore ${a} from the recycle bin`,

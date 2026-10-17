@@ -568,6 +568,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send yourself a test notification (development only)
+         * @description Sends the caller a `system.test` notification the way a real one goes: stored for the bell, pushed to your open connections, mailed per your preference (users), sent as a `notification.created` webhook (API clients). Only in development and tests; in production the route does not exist (404).
+         */
+        post: operations["NotificationTestController_test_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/settings": {
         parameters: {
             query?: never;
@@ -2472,7 +2492,7 @@ export interface paths {
         put?: never;
         /**
          * Write a note
-         * @description Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry.
+         * @description Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.
          */
         post: operations["NotesController_create_v1"];
         delete?: never;
@@ -4509,9 +4529,12 @@ export interface operations {
                             label: string;
                             /** @description Its channels cannot be switched off (their frequency may change). */
                             mandatory: boolean;
-                            /** @description The defaults of the channels you may set: `email` (false | immediate | hourly | daily) for users, `webhook` (boolean) for API clients. */
+                            /** @description The defaults of the channels you may set (in-app and realtime are always on). */
                             channels: {
-                                [key: string]: unknown;
+                                /** @description Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest. */
+                                email?: ("immediate" | "hourly" | "daily") | false;
+                                /** @description API clients only: whether the `notification.created` webhook is sent. */
+                                webhook?: boolean;
                             };
                         }[];
                     };
@@ -4557,7 +4580,10 @@ export interface operations {
                          */
                         types: {
                             [key: string]: {
-                                [key: string]: unknown;
+                                /** @description Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest. */
+                                email?: ("immediate" | "hourly" | "daily") | false;
+                                /** @description API clients only: whether the `notification.created` webhook is sent. */
+                                webhook?: boolean;
                             };
                         };
                     };
@@ -4590,6 +4616,11 @@ export interface operations {
             content: {
                 "application/json": {
                     [key: string]: {
+                        /** @description Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest. */
+                        email?: ("immediate" | "hourly" | "daily") | false;
+                        /** @description API clients only: whether the `notification.created` webhook is sent. */
+                        webhook?: boolean;
+                    } & {
                         [key: string]: unknown;
                     };
                 };
@@ -4611,7 +4642,10 @@ export interface operations {
                          */
                         types: {
                             [key: string]: {
-                                [key: string]: unknown;
+                                /** @description Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest. */
+                                email?: ("immediate" | "hourly" | "daily") | false;
+                                /** @description API clients only: whether the `notification.created` webhook is sent. */
+                                webhook?: boolean;
                             };
                         };
                     };
@@ -4739,6 +4773,45 @@ export interface operations {
             };
             /** @description Not yours, or gone. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationTestController_test_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description The notification, delivered to you shortly.
+                         */
+                        id: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An administrator acting as someone. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13408,6 +13481,8 @@ export interface operations {
     NotesController_list_v1: {
         parameters: {
             query?: {
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                include?: string;
                 limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
@@ -13545,6 +13620,15 @@ export interface operations {
                                 name: string;
                                 color: string | null;
                             }[];
+                            /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                            can?: {
+                                /** @description PATCH would be allowed. */
+                                update: boolean;
+                                /** @description DELETE would be allowed. */
+                                delete: boolean;
+                                /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                                restore: boolean;
+                            };
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -13655,6 +13739,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -13697,7 +13790,10 @@ export interface operations {
     };
     NotesController_get_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                include?: string;
+            };
             header?: {
                 /** @description The ETag you have: 304 and no body when it is still current. */
                 "If-None-Match"?: string;
@@ -13753,6 +13849,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -13903,6 +14008,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -13990,6 +14104,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };
@@ -14944,6 +15067,15 @@ export interface operations {
                             name: string;
                             color: string | null;
                         }[];
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                        };
                     };
                 };
             };

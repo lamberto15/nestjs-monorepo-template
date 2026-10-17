@@ -172,6 +172,23 @@ export class NotificationsService {
     return ids;
   }
 
+  /**
+   * A test notification to the caller (`system.test`, development only: the
+   * route and the type are left out elsewhere), through the normal path:
+   * stored, then delivered by the worker to every channel the caller has on.
+   */
+  async sendTest(principal: Principal) {
+    const [id] = await inTransaction(this.txHost, (tx) =>
+      this.notify(tx, {
+        type: 'system.test',
+        to: principal,
+        data: { at: new Date().toISOString() },
+      }),
+    );
+    this.deliverNow();
+    return { id: id! };
+  }
+
   /** Wakes the outbox relay: call after the transaction that notified committed. */
   deliverNow() {
     this.outbox.notify();

@@ -156,6 +156,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/notifications',
         '/v1/notifications/preferences',
         '/v1/notifications/read-all',
+        '/v1/notifications/test',
         '/v1/notifications/types',
         '/v1/notifications/unread-count',
         '/v1/notifications/{id}',

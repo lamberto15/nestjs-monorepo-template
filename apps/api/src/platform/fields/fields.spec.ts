@@ -1,6 +1,11 @@
 import { getTableConfig, pgTable, text } from 'drizzle-orm/pg-core';
 import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
 import { uuidPk } from '../../core/database/columns.js';
+import { z } from 'zod';
+import {
+  JSON_BODY_LIMIT,
+  MAX_TEXT_LENGTH,
+} from '../../core/http/body-limit.js';
 import { field } from './field.js';
 import {
   fieldColumns,
@@ -159,6 +164,27 @@ describe('fields', () => {
     type Create = ReturnType<typeof create.parse>;
     expectTypeOf<Create['notes']>().toEqualTypeOf<string | null | undefined>();
     expectTypeOf<Create['total']['amount']>().toEqualTypeOf<string>();
+  });
+
+  it('bounds every text field under the request body limit, as maxLength in the schema', () => {
+    const { create } = fieldSchemas(FIELDS);
+    const json = z.toJSONSchema(create, { io: 'input' }) as {
+      properties: Record<string, { maxLength?: number }>;
+    };
+    expect(json.properties.title!.maxLength).toBe(200);
+    expect(json.properties.code!.maxLength).toBe(200);
+    // `notes` is optional: null or a string, the string bounded.
+    expect(JSON.stringify(json.properties.notes)).toContain(
+      '"maxLength":10000',
+    );
+    expect(() => field.text(MAX_TEXT_LENGTH)).not.toThrow();
+    expect(() => field.text(MAX_TEXT_LENGTH + 1)).toThrow(/body limit/);
+    expect(() => field.string(MAX_TEXT_LENGTH + 1)).toThrow(/body limit/);
+    expect(() => field.text(0)).toThrow(/1 to/);
+    // One field at its longest, in a 3-byte script, still fits the body.
+    expect(
+      Buffer.byteLength(JSON.stringify({ body: '€'.repeat(MAX_TEXT_LENGTH) })),
+    ).toBeLessThan(JSON_BODY_LIMIT);
   });
 
   it('writes money as minor units and currency, a datetime as a Date, and shows them back', () => {

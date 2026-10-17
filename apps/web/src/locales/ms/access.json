@@ -1,0 +1,191 @@
+{
+  "nav": {
+    "users": "Users",
+    "roles": "Roles",
+    "teams": "Teams"
+  },
+  "actions": "Actions",
+  "cancel": "Cancel",
+  "previous": "Previous",
+  "next": "Next",
+  "users": {
+    "title": "Users",
+    "tabs": {
+      "members": "Members",
+      "invitations": "Invitations"
+    },
+    "search": "Search by email",
+    "empty": "No members found.",
+    "columns": {
+      "member": "Member",
+      "roles": "Roles",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Removed",
+      "unverified": "Email not verified"
+    },
+    "pageOf": "Page {{page}} of {{pages}} · {{total}} members",
+    "you": "You",
+    "since": "Member since {{date}}",
+    "roles": "Roles",
+    "selfRoles": "These are your own roles. You can't give yourself more than you hold, and the last administrator stays.",
+    "selfTeams": "Nobody changes their own teams: another administrator does.",
+    "saveRoles": "Save roles",
+    "rolesSaved": "Roles saved.",
+    "saveTeams": "Save teams",
+    "teamsSaved": "Teams saved.",
+    "reactivate": "Restore access",
+    "reactivated": "Access restored.",
+    "remove": {
+      "button": "Remove from this workspace",
+      "title": "Remove {{email}}?",
+      "description": "Their membership here ends: they are signed out of this workspace and lose its roles. Their account and other workspaces stay. You can restore their access later.",
+      "confirm": "Remove",
+      "done": "Member removed."
+    },
+    "impersonate": {
+      "button": "Impersonate",
+      "title": "Act as {{email}}?",
+      "description": "Your session becomes theirs for a limited time, and everything you do is recorded as you acting as them. Stop from the banner to get your own session back.",
+      "confirm": "Impersonate"
+    }
+  },
+  "grants": {
+    "roles": "Roles",
+    "hint": "Each role may end at a date and time (temporary access); leave it empty for no end.",
+    "until": "Until (optional)",
+    "untilHint": "Your local time.",
+    "untilPast": "Pick a time in the future.",
+    "untilShort": "until {{date}}",
+    "ended": "Ended grants (no longer count): {{roles}}"
+  },
+  "invitations": {
+    "invite": "Invite",
+    "inviteTitle": "Invite someone",
+    "inviteDescription": "They get an email with a link. Their membership, with these roles and teams, starts when they accept.",
+    "fields": {
+      "email": "Email",
+      "name": "Name (optional)",
+      "nameHint": "Only for a new account; its owner can change it."
+    },
+    "errors": {
+      "email": "Enter a valid email address."
+    },
+    "send": "Send invitation",
+    "sent": "Invitation sent to {{email}}.",
+    "empty": "No pending invitations.",
+    "columns": {
+      "email": "Invited",
+      "roles": "Roles",
+      "expires": "Expires"
+    },
+    "by": "Invited by {{who}}",
+    "expired": "Expired",
+    "resend": "Resend",
+    "resendTitle": "Send {{email}} a new link?",
+    "resendDescription": "The current link stops working and a new one is emailed, with the same roles and teams. End dates of roles aren't kept.",
+    "resent": "A new link was sent to {{email}}.",
+    "revoke": "Revoke",
+    "revokeTitle": "Revoke the invitation to {{email}}?",
+    "revokeDescription": "Its link stops working.",
+    "revoked": "Invitation to {{email}} revoked."
+  },
+  "roles": {
+    "title": "Roles",
+    "new": "New role",
+    "newTitle": "New role",
+    "editTitle": "Role",
+    "notFound": "This role doesn't exist (any more).",
+    "columns": {
+      "name": "Role",
+      "permissions": "Permissions",
+      "members": "Members"
+    },
+    "permissionCount_one": "{{count}} permission",
+    "permissionCount_other": "{{count}} permissions",
+    "everything": "Everything, including access control",
+    "builtInBadge": "Built in",
+    "builtIn": "This role is built in: it can't be changed or deleted.",
+    "unknown": "These permissions are no longer offered and will be dropped when you save:",
+    "unknownReadOnly": "This role grants:",
+    "fields": {
+      "name": "Name",
+      "description": "Description",
+      "permissions": "Permissions"
+    },
+    "create": "Create role",
+    "created": "Role created.",
+    "save": "Save role",
+    "saved": "Role saved.",
+    "delete": "Delete",
+    "deleteTitle": "Delete the role {{name}}?",
+    "deleteDescription_one": "{{count}} person has it: they lose its permissions.",
+    "deleteDescription_other": "{{count}} people have it: they lose its permissions.",
+    "deleted": "Role {{name}} deleted.",
+    "errors": {
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "At most 80 characters.",
+      "descriptionTooLong": "At most 500 characters.",
+      "params": "Some conditions need a value.",
+      "paramRequired": "Enter a value.",
+      "paramCents": "A whole number of cents."
+    },
+    "editor": {
+      "hint": "Tick what this role may do. A rule with conditions covers only the records that meet all of them; add another rule to cover more.",
+      "notHeld": "You don't hold this permission, so you can't grant it.",
+      "rule": "Rule {{n}}",
+      "addRule": "Add a rule",
+      "removeRule": "Remove this rule",
+      "everyRecord": "Applies to every record. Tick conditions to narrow it:",
+      "allOf": "Applies only to records that meet all of:",
+      "cents": "An amount in cents (minor units).",
+      "allFields": "All fields",
+      "allFieldsHint": "Restrictable fields: {{fields}}. Untick to choose.",
+      "noFields": "None of the restrictable fields.",
+      "sensitive": "Sensitive"
+    }
+  },
+  "teams": {
+    "title": "Teams",
+    "new": "New team",
+    "none": "No teams yet.",
+    "newTitle": "New team",
+    "editTitle": "Rename or move team",
+    "dialogDescription": "Moving a team moves every team under it. Members of a team see what its teams below own (\"in my teams\").",
+    "fields": {
+      "name": "Name",
+      "parent": "Under"
+    },
+    "topLevel": "Top level",
+    "errors": {
+      "nameRequired": "Enter a name."
+    },
+    "create": "Create team",
+    "created": "Team created.",
+    "save": "Save",
+    "saved": "Team saved.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteTitle": "Delete the team {{name}}?",
+    "deleteDescription": "Only an empty team can be deleted: no members and no teams under it.",
+    "deleted": "Team {{name}} deleted.",
+    "columns": {
+      "name": "Team",
+      "members": "Members"
+    },
+    "notFound": "This team doesn't exist (any more).",
+    "back": "Back to teams",
+    "needsManageUsers": "Adding and removing members changes their membership: it needs the permission to manage users.",
+    "addMember": "Add a member",
+    "pickMember": "Choose a member",
+    "add": "Add",
+    "memberAdded": "{{email}} added.",
+    "noMembers": "Nobody is in this team directly.",
+    "remove": "Remove",
+    "removeTitle": "Remove {{email}} from {{team}}?",
+    "removeDescription": "They lose what this team gives them.",
+    "memberRemoved": "{{email}} removed."
+  }
+}

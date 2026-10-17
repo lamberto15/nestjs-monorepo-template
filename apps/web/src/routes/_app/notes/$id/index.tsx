@@ -12,11 +12,20 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeftIcon, EllipsisIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DetailItem, DetailList } from '@/components/records/detail-list';
+import { RecordPanels } from '@/components/records/panels/record-panels';
 import { RecordState } from '@/components/records/record-state';
 import { noteQuery, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { useCan } from '@/lib/features';
+
+/** What notes keep (note-comments/-attachments/-tags/-revisions.ts in the API). */
+const NOTE_PANELS = {
+  comments: true,
+  attachments: true,
+  tags: true,
+  revisions: true,
+};
 
 export const Route = createFileRoute('/_app/notes/$id/')({
   component: NoteDetail,
@@ -129,27 +138,6 @@ function NoteView({ note }: { note: Note }) {
           }
         />
         <DetailItem
-          label={t('fields.tags')}
-          value={
-            note.tags.length > 0 ? (
-              <ul className="flex flex-wrap gap-1.5">
-                {note.tags.map((tag) => (
-                  <li key={tag.id}>
-                    <Badge
-                      variant="secondary"
-                      style={tag.color ? { borderColor: tag.color } : undefined}
-                    >
-                      {tag.name}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              t('fields.noTags')
-            )
-          }
-        />
-        <DetailItem
           label={t('columns.createdAt')}
           value={date(note.createdAt)}
         />
@@ -162,6 +150,13 @@ function NoteView({ note }: { note: Note }) {
           value={date(note.publishedAt)}
         />
       </DetailList>
+      <RecordPanels
+        subject="Note"
+        path="/v1/notes/{id}"
+        id={note.id}
+        capabilities={NOTE_PANELS}
+        tags={note.tags}
+      />
       {dialog}
     </>
   );
