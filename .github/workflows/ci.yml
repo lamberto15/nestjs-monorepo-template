@@ -150,6 +150,34 @@ jobs:
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
 
+  # The Swarm stack (docs/deploy-swarm.md): the deploy script's tests, then
+  # compose.swarm.yaml rendered over the Compose files with dummy values and
+  # accepted by `docker stack config` (which needs no Swarm).
+  swarm-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm and Node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+      - name: The deploy script's tests
+        run: node --test 'tools/deploy/*.test.mjs'
+      - name: The stack file renders and is valid
+        env:
+          APP_DOMAIN: app.example.test
+          ACME_EMAIL: ops@example.test
+          APP_IMAGE: ghcr.io/example/app:0000000000000000000000000000000000000000
+          GOTENBERG_IMAGE: ghcr.io/example/app/gotenberg:0000000000000000000000000000000000000000
+          CADDY_IMAGE: ghcr.io/example/app/caddy:1
+          BACKUP_IMAGE: ghcr.io/example/app/backup:1
+          POSTGRES_PASSWORD: ci
+          POSTGRES_APP_PASSWORD: ci
+          POSTGRES_MAINTENANCE_PASSWORD: ci
+          CLOUDFLARE_API_TOKEN: ci
+        run: node tools/deploy/swarm.mjs check --stack ci
+
   # Lint, build, the typed client, migrations and unit tests. The e2e tests
   # run beside it (the e2e job), not after it.
   check:
