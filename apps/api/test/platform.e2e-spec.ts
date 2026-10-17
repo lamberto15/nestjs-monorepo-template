@@ -374,7 +374,9 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     const limited = await agent
       .get('/v1/data/imports/test-items/template')
       .expect(200);
-    expect(limited.text.replace(/^\uFEFF/, '')).toMatch(/^title,code\n/);
+    const header = limited.text.replace(/^\uFEFF/, '').split('\n')[0]!;
+    expect(header).toMatch(/^title/);
+    expect(header).not.toContain('body');
     const refused = await agent
       .post('/v1/data/imports')
       .field('name', 'test-items')

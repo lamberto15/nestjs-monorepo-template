@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { eq, type SQL } from 'drizzle-orm';
+import { and, eq, isNull, type SQL } from 'drizzle-orm';
 import type {
   Database,
   Transaction,
@@ -16,7 +16,11 @@ import {
 } from '../../../src/core/database/transactions.js';
 import type { PageQuery } from '../../../src/core/http/pagination.js';
 import { AuditService } from '../../../src/iam/audit/audit.service.js';
-import type { Principal } from '../../../src/iam/auth/principal.js';
+import type {
+  Principal,
+  RequestPrincipal,
+} from '../../../src/iam/auth/principal.js';
+import { ApprovalsService } from '../../../src/platform/approvals/approvals.service.js';
 import { recordView } from '../../../src/platform/records/record.js';
 import { RecordLifecycle } from '../../../src/platform/records/record-contract.js';
 import { RecordStore } from '../../../src/platform/records/record-store.js';
@@ -42,6 +46,7 @@ export class TestItemsService {
     private readonly audit: AuditService,
     private readonly lifecycle: RecordLifecycle,
     private readonly records: RecordStore,
+    private readonly approvals: ApprovalsService,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -122,6 +127,8 @@ export class TestItemsService {
     }
     // Business logic: what a change must respect, here.
     return inTransaction(this.txHost, async (tx) => {
+      // Not while an approver decides on it (409 approval_pending): sent back for changes, it may change.
+      await this.approvals.assertNotPending('TestItem', row.id);
       const [updated] = await tx
         .update(testItems)
         .set(changes)
@@ -154,6 +161,9 @@ export class TestItemsService {
   async delete(by: Principal, row: TestItem, ip?: string) {
     // Business logic: what a delete must respect, here.
     await inTransaction(this.txHost, async (tx) => {
+      // Not while an approver decides on it; a request sent back for changes is withdrawn with the item.
+      await this.approvals.assertNotPending('TestItem', row.id);
+      await this.approvals.withdraw(tx, by, 'TestItem', row.id);
       await this.records.delete(tx, by, row);
       await this.audit.recordChange(
         by,
@@ -162,6 +172,63 @@ export class TestItemsService {
         tx,
         ip,
       );
+    });
+  }
+
+  /**
+   * Publishes one, or asks for approval first (with testItems.publishApproval
+   * on for the requester): `approvalId` is the request, when one was made.
+   */
+  async requestPublication(by: RequestPrincipal, row: TestItem) {
+    const result = await this.approvals.request(by, {
+      subject: 'TestItem',
+      recordId: row.id,
+      action: 'publish',
+    });
+    if (result.required) {
+      return { published: false, approvalId: result.request.id };
+    }
+    return { published: await this.publish(row.id, by), approvalId: null };
+  }
+
+  /**
+   * Sets `publishedAt`, once: `false` when it was deleted or already
+   * published. `by` is the audit's actor (`system:approvals` after an approval).
+   */
+  async publish(id: string, by: Principal): Promise<boolean> {
+    return inTransaction(this.txHost, async (tx) => {
+      const [before] = await tx
+        .select()
+        .from(testItems)
+        .where(
+          and(
+            eq(testItems.id, id),
+            isNull(testItems.publishedAt),
+            isNull(testItems.deletedAt),
+          ),
+        )
+        .for('update');
+      if (!before) {
+        return false;
+      }
+      const [after] = await tx
+        .update(testItems)
+        .set({ publishedAt: new Date() })
+        .where(eq(testItems.id, id))
+        .returning();
+      await this.lifecycle.updated(tx, { before, after: after!, by });
+      await this.audit.recordChange(
+        by,
+        TEST_ITEM_RESOURCE,
+        {
+          action: 'updated',
+          id,
+          before: recordView(TEST_ITEM, before),
+          after: recordView(TEST_ITEM, after!),
+        },
+        tx,
+      );
+      return true;
     });
   }
 

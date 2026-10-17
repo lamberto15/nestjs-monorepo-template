@@ -1,5 +1,5 @@
 {
-  "id": "8ef6f68e-0a5f-4227-829b-b1ea6388eb1b",
+  "id": "0f1acd5d-0580-4c23-82e2-feaf60f626d6",
   "prevId": "c4727376-b391-4d5a-aab3-c03dc1026fc4",
   "version": "7",
   "dialect": "postgresql",
@@ -45,9 +45,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "code": {
-          "name": "code",
-          "type": "text",
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -147,28 +147,6 @@
           "method": "gin",
           "with": {}
         },
-        "test_items_code_idx": {
-          "name": "test_items_code_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "deleted_at is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "test_items_number_idx": {
           "name": "test_items_number_idx",
           "columns": [
@@ -211,12 +189,8 @@
           "name": "test_items_tenant_id_tenants_id_fk",
           "tableFrom": "test_items",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -224,14 +198,8 @@
           "name": "test_items_team_fk",
           "tableFrom": "test_items",
           "tableTo": "teams",
-          "columnsFrom": [
-            "tenant_id",
-            "team_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "team_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "set null (\"team_id\")",
           "onUpdate": "no action"
         }
@@ -241,10 +209,7 @@
         "test_items_tenant_id_id_key": {
           "name": "test_items_tenant_id_id_key",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "policies": {
@@ -252,27 +217,21 @@
           "name": "test_items_tenant_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "using": "(\"test_items\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "test_items_tenant_insert": {
           "name": "test_items_tenant_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "withCheck": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
         "test_items_tenant_update": {
           "name": "test_items_tenant_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
           "withCheck": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
@@ -280,9 +239,7 @@
           "name": "test_items_tenant_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
