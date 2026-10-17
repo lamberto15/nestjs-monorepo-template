@@ -8,7 +8,10 @@
 {$APP_DOMAIN} {
 	# Prometheus scrapes /metrics inside the Compose network (api:3000): never from outside.
 	# Path matchers ignore case (/METRICS too) and /metrics* covers /metrics/ as well.
-	respond /metrics* 404
+	# A handle of its own: the web app's catch-all below would answer it otherwise.
+	handle /metrics* {
+		respond 404
+	}
 
 	tls {
 		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
@@ -16,28 +19,50 @@
 		resolvers 1.1.1.1 1.0.0.1
 	}
 
-	# Every api replica (API_REPLICAS): Docker's DNS lists them under "api".
-	reverse_proxy {
-		dynamic a {
-			name api
-			port 3000
-			refresh 5s
+	# The API's paths (versioned routes, realtime, health, Swagger UI and its
+	# document, stored files, .well-known); every other path is the web app.
+	@api path /v1/* /socket.io/* /health* /api* /files* /.well-known/*
+	handle @api {
+		# Every api replica (API_REPLICAS): Docker's DNS lists them under "api".
+		reverse_proxy {
+			dynamic a {
+				name api
+				port 3000
+				refresh 5s
+			}
+			# socket.io's long-polling needs one replica per client: a cookie keeps it there.
+			lb_policy cookie lb_replica
+			# A deploy recreates the replicas and none answers for 30-60 s: hold the
+			# request and try again every 250 ms (for up to 30 s) instead of
+			# answering 503 at once. The replicas are chosen anew at each try, so a
+			# request pinned (cookie) to a replica that is gone falls over to a live
+			# one. No lb_retries: a count would cap the tries (2 at 250 ms is 0.5 s)
+			# before the duration does. A connection that fails is always retried;
+			# once connected, only GET requests are (lb_retry_match).
+			lb_try_duration 30s
+			lb_try_interval 250ms
+			# A replica that stops answering (or shuts down) is skipped for a while.
+			fail_duration 10s
+			# No active health checks: Caddy doesn't run them for dynamic upstreams
+			# (reverse_proxy docs, "Dynamic upstreams"); the passive fail_duration
+			# and lb_try_duration above do that work.
 		}
-		# socket.io's long-polling needs one replica per client: a cookie keeps it there.
-		lb_policy cookie lb_replica
-		# A deploy recreates the replicas and none answers for 30-60 s: hold the
-		# request and try again every 250 ms (for up to 30 s) instead of
-		# answering 503 at once. The replicas are chosen anew at each try, so a
-		# request pinned (cookie) to a replica that is gone falls over to a live
-		# one. No lb_retries: a count would cap the tries (2 at 250 ms is 0.5 s)
-		# before the duration does. A connection that fails is always retried;
-		# once connected, only GET requests are (lb_retry_match).
-		lb_try_duration 30s
-		lb_try_interval 250ms
-		# A replica that stops answering (or shuts down) is skipped for a while.
-		fail_duration 10s
-		# No active health checks: Caddy doesn't run them for dynamic upstreams
-		# (reverse_proxy docs, "Dynamic upstreams"); the passive fail_duration
-		# and lb_try_duration above do that work.
+	}
+
+	# The web app (apps/web, built into /srv/web by caddy/Dockerfile): files
+	# by path, index.html for the app's own routes.
+	handle {
+		root * /srv/web
+		# Hashed file names: they never change. A missing one is a 404, not the page.
+		handle /assets/* {
+			header Cache-Control "public, max-age=31536000, immutable"
+			file_server
+		}
+		# index.html names the current assets: always fetched again.
+		handle {
+			header Cache-Control "no-cache"
+			try_files {path} /index.html
+			file_server
+		}
 	}
 }
