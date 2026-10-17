@@ -16,6 +16,9 @@ export const TEST_ITEM = defineRecord({
   table: 'test_items',
   softDelete: true,
   team: true,
+  // Many platform tests act as an API client on test items.
+  clientAccess: 'own',
+  grants: 'standard',
   // Its number, gapless per tenant: TI-2026-00001 (perYear: false drops the year).
   number: { prefix: 'TI', perYear: true, width: 5 },
   fields: {

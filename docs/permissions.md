@@ -31,6 +31,20 @@ export const NOTE_PERMISSIONS = definePermissions({
 Add it to `IamModule.forRoot({ permissions })`. `GET /v1/access/catalog` lists
 everything, for the roles screen.
 
+**Generated features** (`recordPermissions(RECORD, table)`) make both lists a
+choice of the feature's `<item>.record.ts`, not code. `clientAccess: 'own'`
+gives every API client its own records (create, read, change, delete);
+the default, `clientAccess: false`, **denies clients by default**: they reach
+the feature only through a role an administrator grants them. `grants:
+'none'` leaves the seed roles (editor, team lead, viewer) without the
+feature, so only administrators have it until someone grants it; the default
+`'standard'` is editors their own, team leads their teams' (with `team`),
+viewers read all. A client's permissions are code (a change reaches every
+tenant on deploy); the seed roles are written when a tenant is made, so a
+changed `grants` reaches only new tenants (docs/adding-a-feature.md,
+"Changing a feature"). The hand-written notes example grants its clients as
+before.
+
 ## Checking
 
 | Where | How |
