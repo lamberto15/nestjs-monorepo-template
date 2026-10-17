@@ -87,6 +87,27 @@ describe('fields', () => {
     );
   });
 
+  it('makes the unique index partial on live rows when the table has soft delete, plain otherwise', () => {
+    const table = (name: string, softDelete: boolean) =>
+      pgTable(
+        name,
+        {
+          id: uuidPk(),
+          tenantId: tenantColumn(),
+          ...fieldColumns({ code: FIELDS.code }),
+        },
+        (t) => fieldExtras(name, t, { code: FIELDS.code }, softDelete),
+      );
+    const code = (softDelete: boolean) =>
+      getTableConfig(table(`t_${softDelete}`, softDelete)).indexes.find((i) =>
+        i.config.name?.endsWith('_code_idx'),
+      )!.config;
+    expect(code(false).unique).toBe(true);
+    expect(code(false).where).toBeUndefined();
+    expect(code(true).unique).toBe(true);
+    expect(code(true).where).toBeDefined();
+  });
+
   it('types the row and the insert exactly', () => {
     type Row = typeof invoices.$inferSelect;
     type Insert = typeof invoices.$inferInsert;

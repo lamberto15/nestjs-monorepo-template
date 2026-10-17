@@ -182,7 +182,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
       ...(takes(declaration, 'search')
         ? [index(`${name}_search_idx`).using('gin', t.search)]
         : []),
-      ...fieldExtras(name, t, declaration.fields),
+      ...fieldExtras(name, t, declaration.fields, declaration.softDelete),
       ...tenantTable(name, t, { referenced: true }),
       ...(declaration.team
         ? [

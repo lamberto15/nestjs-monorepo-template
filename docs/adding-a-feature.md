@@ -209,7 +209,9 @@ the controller (`notes.*`); singular for what describes one record
      (SOFT_DELETE_RETENTION_DAYS, 30), and with the records, in the same
      transaction, the platform's data about them: comments, tag links,
      watchers, revisions (each registers into `RecordPurgeRegistry`;
-     attachments keep their nightly sweep). A unique column of such a table needs a
+     attachments keep their nightly sweep). A `.unique()` field of a record
+     does it for you (the index is partial on live rows, a restore into a taken
+     value is a 409 `<item>_taken`); a hand-written unique column of such a table needs a
      partial index (``.where(sql`deleted_at is null`)``), or a deleted record
      keeps its value taken.
    Not for link tables, logs, or records with a real "inactive" state (users

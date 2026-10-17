@@ -19,6 +19,7 @@ export const TEST_ITEM = defineRecord({
   fields: {
     title: field.string().searchable(),
     body: field.text().optional().searchable(),
+    code: field.string().optional().unique(),
   },
   capabilities: [
     'tags',

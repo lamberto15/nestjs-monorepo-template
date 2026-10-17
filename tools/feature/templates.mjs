@@ -346,7 +346,7 @@ export function service({ t, fields, softDelete, team }) {
           `  /** Out of the recycle bin. */`,
           `  async restore(by: Principal, row: ${S}, ip?: string) {`,
           `    return inTransaction(this.txHost, async (tx) => {`,
-          `      const [restored] = await tx.update(${table}).set({ deletedAt: null, deletedBy: null }).where(eq(${table}.id, row.id)).returning();`,
+          `      const [restored] = await tx.update(${table}).set({ deletedAt: null, deletedBy: null }).where(eq(${table}.id, row.id)).returning()${uniques.length ? '.catch(taken)' : ''};`,
           `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'restored', id: row.id, after: recordView(${t.SINGULAR}, restored!) }, tx, ip);`,
           `      return restored!;`,
           `    });`,

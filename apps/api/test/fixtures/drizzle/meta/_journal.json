@@ -15,6 +15,13 @@
       "when": 1792230561878,
       "tag": "0001_bizarre_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792233741423,
+      "tag": "0002_windy_ma_gnuci",
+      "breakpoints": true
     }
   ]
 }

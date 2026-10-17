@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { ColumnBuilderBase, HasDefault, NotNull } from 'drizzle-orm';
+import {
+  sql,
+  type ColumnBuilderBase,
+  type HasDefault,
+  type NotNull,
+} from 'drizzle-orm';
 import { bigint, char, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
@@ -102,14 +107,19 @@ export function fieldExtras(
   tableName: string,
   table: Record<string, AnyPgColumn>,
   fields: Fields,
+  softDelete = false,
 ) {
   const extras = [];
   for (const [name, f] of Object.entries(fields)) {
     const column = `${tableName}_${columnName(name)}`;
     if (f.options.unique) {
-      extras.push(
-        uniqueIndex(`${column}_idx`).on(table.tenantId!, table[name]!),
+      const unique = uniqueIndex(`${column}_idx`).on(
+        table.tenantId!,
+        table[name]!,
       );
+      // A record in the recycle bin keeps its row but not its value: only
+      // live rows are unique (docs/adding-a-feature.md, soft delete).
+      extras.push(softDelete ? unique.where(sql`deleted_at is null`) : unique);
     }
     if (f.options.ref) {
       const target = f.options.ref;
