@@ -26,13 +26,11 @@ import {
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
-import {
-  authenticationOf,
-  SIGN_IN_METHODS,
-} from '../auth/authentication-method.js';
+import { SIGN_IN_METHODS } from '../auth/authentication-method.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
+import { AccountService } from './account.service.js';
 import { notWhileImpersonating } from './account.schemas.js';
 
 const sessionSchema = z.object({
@@ -40,6 +38,12 @@ const sessionSchema = z.object({
   createdAt: z.iso.datetime(),
   lastActiveAt: z.iso.datetime(),
   userAgent: z.string().nullable(),
+  device: z
+    .string()
+    .nullable()
+    .describe(
+      'A readable summary of the user agent ("Chrome on macOS"); null when none was recorded.',
+    ),
   method: z
     .enum(SIGN_IN_METHODS)
     .nullable()
@@ -67,6 +71,7 @@ const sessionSchema = z.object({
 @Controller('auth')
 export class SessionsController {
   constructor(
+    private readonly account: AccountService,
     private readonly sessions: SessionService,
     private readonly signInService: SignInService,
   ) {}
@@ -81,25 +86,7 @@ export class SessionsController {
     @CurrentUser() user: UserPrincipal,
     @CurrentSession() current: SessionRecord | undefined,
   ) {
-    // While impersonating, only this session: the person's others (their
-    // devices, their other tenants) are theirs, not the administrator's.
-    const sessions = (await this.sessions.list(user.id)).filter(
-      (session) => !user.impersonator || session.id === current?.id,
-    );
-    const items = sessions.map((session) => {
-      const authentication = authenticationOf(session);
-      return {
-        id: session.id,
-        createdAt: session.createdAt.toISOString(),
-        lastActiveAt: session.lastActiveAt.toISOString(),
-        userAgent: (session.metadata?.userAgent as string | undefined) ?? null,
-        method: authentication?.method ?? null,
-        provider: authentication?.provider ?? null,
-        mfa: authentication?.mfa ?? false,
-        authenticatedAt: authentication?.authenticatedAt?.toISOString() ?? null,
-        current: session.id === current?.id,
-      };
-    });
+    const items = await this.account.listSessions(user, current);
     return { items };
   }
 

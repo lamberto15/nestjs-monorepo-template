@@ -1,4 +1,4 @@
-import { deviceOf } from './devices.js';
+import { deviceLabel, deviceOf } from './devices.js';
 
 const chrome = (version: string) =>
   `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${version} Safari/537.36`;
@@ -47,5 +47,14 @@ describe('deviceOf', () => {
     ).toBe('Edge on Windows');
     expect(summary('curl/8.7.1')).toBe('curl');
     expect(summary(undefined)).toBe('unknown');
+  });
+});
+
+describe('deviceLabel', () => {
+  it('is the readable summary of a user agent, null when there is none', () => {
+    expect(deviceLabel(chrome('131.0.0.0'))).toBe('Chrome on macOS');
+    expect(deviceLabel('curl/8.7.1')).toBe('curl');
+    expect(deviceLabel(undefined)).toBeNull();
+    expect(deviceLabel('')).toBeNull();
   });
 });

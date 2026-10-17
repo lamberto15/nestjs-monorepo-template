@@ -16869,6 +16869,11 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "device": {
+                            "nullable": true,
+                            "description": "A readable summary of the user agent (\"Chrome on macOS\"); null when none was recorded.",
+                            "type": "string"
+                          },
                           "method": {
                             "nullable": true,
                             "description": "How it was signed in (`impersonation`: an administrator acting as you); null: before this was recorded.",
@@ -16907,6 +16912,7 @@
                           "createdAt",
                           "lastActiveAt",
                           "userAgent",
+                          "device",
                           "method",
                           "provider",
                           "mfa",
@@ -17261,8 +17267,9 @@
                   },
                   "redirectTo": {
                     "type": "string",
-                    "maxLength": 512,
-                    "pattern": "^\\/(?!\\/)"
+                    "maxLength": 2048,
+                    "pattern": "^\\/(?![/\\\\])[\\x21-\\x5b\\x5d-\\x7e]*$",
+                    "example": "/inbox"
                   }
                 },
                 "required": [
@@ -17384,10 +17391,13 @@
             "name": "redirectTo",
             "required": false,
             "in": "query",
-            "description": "A path of the web app to land on.",
+            "description": "A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.",
             "schema": {
-              "description": "A path of the web app to land on.",
-              "type": "string"
+              "description": "A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.",
+              "type": "string",
+              "maxLength": 2048,
+              "pattern": "^\\/(?![/\\\\])[\\x21-\\x5b\\x5d-\\x7e]*$",
+              "example": "/inbox"
             }
           },
           {
