@@ -10664,6 +10664,7 @@ export interface operations {
                 "application/json": {
                     /** @example ada@example.com */
                     email: string;
+                    /** @example /inbox */
                     redirectTo?: string;
                 };
             };
@@ -10729,7 +10730,7 @@ export interface operations {
     OidcController_login_v1: {
         parameters: {
             query?: {
-                /** @description A path of the web app to land on. */
+                /** @description A path of the web app to land on (one leading `/`, printable ASCII, no `\`); anything else is ignored. */
                 redirectTo?: string;
                 /** @description `true`: connect the provider to the signed-in account. */
                 link?: string;
