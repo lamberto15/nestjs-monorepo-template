@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
 import { languages } from '@/i18n';
 import { RealtimeProvider } from '@/lib/realtime';
@@ -51,7 +52,8 @@ function AppLayout() {
                 orientation="vertical"
                 className="me-2 data-[orientation=vertical]:h-4"
               />
-              <div className="ms-auto">
+              <div className="ms-auto flex items-center gap-1">
+                <SearchPalette />
                 <NotificationsBell />
               </div>
             </header>
