@@ -5,20 +5,20 @@ import {
 } from './core/config/core.env.js';
 import { secretNames, withSecretFiles } from './core/config/secret-files.js';
 import { logRedaction } from './core/logging/redaction.js';
-import { notesEnv } from './features/notes/notes.env.js';
+import { featuresEnv } from './features/env.js';
 import { passkeyEnvIssues } from './iam/account/passkeys.config.js';
 import { iamEnv } from './iam/iam.env.js';
 import { platformEnv } from './platform/platform.env.js';
 
 /**
  * Every variable. Each group declares its own next to its code
- * (`*.env.ts`); a feature adds its schema here.
+ * (`*.env.ts`); features through features/env.ts.
  */
 const variables = coreEnv
   .extend(iamEnv.shape)
   .extend(platformEnv.shape)
   // Features
-  .extend(notesEnv.shape)
+  .extend(featuresEnv.shape)
   // Rules across variables, once every group is in.
   .refine(rateLimitMultiplierAllowed, RATE_LIMIT_MULTIPLIER_REFUSED)
   // The passkey relying party must be consistent before a credential is

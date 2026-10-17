@@ -7,6 +7,7 @@ installed `@nestjs/*` packages first: use what they offer before writing it.
 
 ```
 features/notes/
+  notes.feature.ts                      what the groups take (defineFeature): listed in features/index.ts
   notes.module.ts                       the module
   notes.tables.ts                       tables
   notes.env.ts                          environment
@@ -65,7 +66,7 @@ the controller (`notes.*`); singular for what describes one record
    - Snake_case column names, camelCase properties; moments are `at()`
      (timestamptz, UTC), never `timestamp()` without a zone.
    - An index for every foreign key and for what lists filter or sort by.
-   - Export it from `apps/api/src/schema.ts`, run `pnpm db:generate`, commit
+   - Export it from `apps/api/src/features/tables.ts`, run `pnpm db:generate`, commit
      `apps/api/drizzle/`. Never write a migration by hand.
 2. **Schemas** (`<item>.schemas.ts`): Zod for bodies and responses, which
    validates and documents at once.
@@ -220,7 +221,7 @@ the controller (`notes.*`); singular for what describes one record
    timestamp columns `type: 'datetime'`: exported in the reader's zone; the
    importer's schema and `write()` reuse the create route's schema and
    service call, so an imported row is checked as a `POST` is).
-13. **Environment** (`<x>.env.ts`): a Zod schema merged in `apps/api/src/env.ts`, a
+13. **Environment** (`<x>.env.ts`): a Zod schema merged in `apps/api/src/features/env.ts`, a
     line in `env.example` and in docs/configuration.md.
 14. **Texts**: messages in `apps/api/src/i18n/<locale>/<x>.json` for every locale,
     typed in `translations.ts`.
@@ -236,5 +237,6 @@ the controller (`notes.*`); singular for what describes one record
 Rename it (`name` in the root `package.json` and the `@nestjs-monorepo-template/`
 scope of the packages, `API_TITLE` in `apps/api/src/openapi.ts`,
 `API_KEY_PREFIX`), then delete `features/notes/` and its lines in
-`app.module.ts`, `schema.ts` and `env.ts`, `apps/api/test/notes.e2e-spec.ts`, and run
+`features/index.ts`, `features/tables.ts` and `features/env.ts`,
+`apps/api/test/notes.e2e-spec.ts`, and run
 `pnpm db:generate`.

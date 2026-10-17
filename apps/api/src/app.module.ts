@@ -4,24 +4,22 @@ import { CoreModule } from './core/core.module.js';
 import { DEMO_PERMISSIONS } from './demo/demo.jobs.js';
 import { DEV_ENV_FILE, ignoreDevEnvFile } from './dev-env.js';
 import { envSchema } from './env.js';
-import { EXAMPLE_SENDER } from './features/notes/example-sender-webhook.controller.js';
-import { NOTE_EVENT_TYPES } from './features/notes/note-events.js';
-import { NOTE_PUBLISH_APPROVAL } from './features/notes/note-approvals.js';
-import { NOTE_NOTIFICATIONS } from './features/notes/note-notifications.js';
-import { NOTE_SETTINGS } from './features/notes/note-settings.js';
-import { NOTE_PERMISSIONS } from './features/notes/note.policy.js';
-import { NOTE, NOTE_CUSTOM_FIELDS } from './features/notes/note.resource.js';
-import { NotesModule } from './features/notes/notes.module.js';
+import { featureDeclarations } from './features/feature.js';
+import { FEATURES } from './features/index.js';
 import { IAM_NOTIFICATIONS } from './iam/iam-notifications.js';
 import { IamModule } from './iam/iam.module.js';
 import { PlatformModule } from './platform/platform.module.js';
 import { PLATFORM_PERMISSIONS } from './platform/ops/ops.policy.js';
 
+/** What the features declare (features/index.ts), merged for the groups. */
+const features = featureDeclarations(FEATURES);
+
 /**
  * The composition root: the three groups every project keeps, then the
  * features. Groups never import features; features hand them what they
  * declare (permissions, event types, incoming senders, custom fields,
- * approvable actions) here.
+ * approvable actions) through their `<x>.feature.ts`, listed in
+ * features/index.ts.
  *
  *   core/      database, rate limiting, health, HTTP setup
  *   iam/       user sign-in, API keys, roles and permissions, audit log
@@ -50,24 +48,29 @@ import { PLATFORM_PERMISSIONS } from './platform/ops/ops.policy.js';
     // authentication) again. Module order only orders global enhancers; the
     // providers resolve whatever the order.
     PlatformModule.forRoot({
-      eventTypes: [...NOTE_EVENT_TYPES],
-      incomingWebhooks: [EXAMPLE_SENDER],
-      customFields: [NOTE_CUSTOM_FIELDS],
-      notifications: [...IAM_NOTIFICATIONS, ...NOTE_NOTIFICATIONS],
-      settings: [...NOTE_SETTINGS],
+      eventTypes: features.eventTypes,
+      incomingWebhooks: features.incomingWebhooks,
+      queues: features.queues,
+      customFields: features.customFields,
+      notifications: [...IAM_NOTIFICATIONS, ...features.notifications],
+      settings: features.settings,
       // Actions that need approval: docs/approvals.md.
-      approvals: [NOTE_PUBLISH_APPROVAL],
+      approvals: features.approvals,
     }),
     // Before IamModule: the rate limit guards before authentication does.
     CoreModule,
     IamModule.forRoot({
       // DEMO_PERMISSIONS: the demo seed's system job (src/demo, pnpm db:seed:demo).
-      permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS, DEMO_PERMISSIONS],
+      permissions: [
+        PLATFORM_PERMISSIONS,
+        ...features.permissions,
+        DEMO_PERMISSIONS,
+      ],
       // Resources the platform acts on (soft delete: the recycle bin, the purge).
-      resources: [NOTE],
+      resources: features.resources,
     }),
-    // Features
-    NotesModule,
+    // Features (features/index.ts)
+    ...features.modules,
   ],
 })
 export class AppModule {}

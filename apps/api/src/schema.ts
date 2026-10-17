@@ -1,7 +1,7 @@
 /**
  * Every table of the app, for Drizzle's typed queries and for drizzle-kit,
  * which generates the migrations from it (`pnpm db:generate`). Each group
- * keeps its tables next to its code; a new feature adds its file here.
+ * keeps its tables next to its code; features list theirs in features/tables.ts.
  */
 export * from './core/database/core.tables.js';
 export * from './core/tenancy/tenancy.tables.js';
@@ -24,4 +24,4 @@ export * from './platform/approvals/approvals.tables.js';
 export * from './platform/money/money.tables.js';
 export * from './platform/deliverability/deliverability.tables.js';
 // Features
-export * from './features/notes/notes.tables.js';
+export * from './features/tables.js';

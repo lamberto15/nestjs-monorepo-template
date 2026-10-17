@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { FEATURES } from './features/index.js';
 import { swaggerRequestInterceptor } from './platform/idempotency/idempotency.openapi.js';
 
 /** Your API's name, in the document and Swagger UI's title. */
@@ -26,7 +27,7 @@ export function setupOpenApi(app: INestApplication) {
  * `pnpm openapi:dump` writes for the typed client (packages/api-client).
  */
 export function buildOpenApiDocument(app: INestApplication) {
-  const config = new DocumentBuilder()
+  const builder = new DocumentBuilder()
     .setTitle(API_TITLE)
     .setDescription(
       [
@@ -46,8 +47,12 @@ export function buildOpenApiDocument(app: INestApplication) {
     .addTag(
       'data',
       'Exports and imports (CSV, JSON, Excel), as background jobs',
-    )
-    .addTag('notes', 'The example feature: replace it with yours')
+    );
+  // Each feature's tag (its `<x>.feature.ts`), in the features' order.
+  for (const { apiTag } of FEATURES) {
+    builder.addTag(apiTag.name, apiTag.description);
+  }
+  const config = builder
     .addTag('webhooks', "An API client's subscriptions and delivery log")
     .addTag('incoming webhooks', 'Signed webhooks this API receives')
     .addBearerAuth(
