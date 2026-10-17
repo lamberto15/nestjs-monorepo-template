@@ -1,3 +1,6 @@
+import { TransactionHost } from '@nestjs-cls/transactional';
+import { inTransaction } from '../src/core/database/transactions.js';
+import { Tenancy } from '../src/core/tenancy/tenancy.service.js';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { getDrizzleToken } from '@nestjs/drizzle';
@@ -46,26 +49,20 @@ describe('tenancy (e2e)', () => {
     };
   }
 
-  /** An account that belongs to both tenants: invited by each, its own password, its address proved. */
+  /** An account that belongs to both tenants: invited by each, accepted each time (the second signed in). */
   async function memberOfBoth() {
-    const email = `${randomUUID().slice(0, 8)}@example.com`;
-    await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email, name: 'Both', roleIds: await node.roleIds('editor') })
-      .expect(201);
-    const password = await node.acceptInvitation(email);
+    const mine = await node.user(['editor']);
     const editor = (await other.admin.get('/v1/access/roles').expect(200)).body
       .items as { id: string; key: string | null }[];
-    const added = await other.admin
-      .post('/v1/access/users')
-      .send({
-        email,
-        name: 'Both',
-        roleIds: [editor.find((role) => role.key === 'editor')!.id],
-      })
-      .expect(201);
-    return { id: added.body.id as string, email, password };
+    const token = await node.invite(other.admin, {
+      email: mine.email,
+      roleIds: [editor.find((role) => role.key === 'editor')!.id],
+    });
+    await mine.agent
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(200);
+    return { id: mine.id, email: mine.email, password: mine.password };
   }
 
   describe('as the app role, in SQL', () => {
@@ -194,6 +191,26 @@ describe('tenancy (e2e)', () => {
     expect(rows.map((row) => row.id)).toEqual([a]);
   });
 
+  it('refuses to move work to another tenant inside an open transaction', async () => {
+    const tenancy = node.app.get(Tenancy);
+    const txHost = node.app.get(TransactionHost);
+    await expect(
+      node.inTenant(() =>
+        inTransaction(txHost as never, () =>
+          tenancy.run(other.id, async () => 'moved'),
+        ),
+      ),
+    ).rejects.toThrow(/must start its own, outside it/);
+    // The same tenant's work joins it.
+    expect(
+      await node.inTenant(() =>
+        inTransaction(txHost as never, () =>
+          tenancy.run(node.tenantId, async () => 'joined'),
+        ),
+      ),
+    ).toBe('joined');
+  });
+
   it('keeps an API client in its own tenant', async () => {
     const { mine, theirs, a, b } = await noteInEach();
     const listed = await node
@@ -231,44 +248,70 @@ describe('tenancy (e2e)', () => {
     expect(own.body.items.map((note: { id: string }) => note.id)).toEqual([a]);
   });
 
-  it('lists only its own members, and an unclaimed account loses its ways in when another tenant adds it', async () => {
+  it('lists only its own members, and adds anyone only by an invitation its owner accepts', async () => {
     const ours = await node.user(['viewer']);
     const members = (await other.admin.get('/v1/access/users').expect(200)).body
       .items as { id: string }[];
     expect(members.map((user) => user.id)).not.toContain(ours.id);
-    await other.admin.get(`/v1/access/users`).expect(200);
     await other.admin
       .patch(`/v1/access/users/${ours.id}`)
       .send({ active: false })
       .expect(404);
 
-    // The seeded administrator made this account with a password they know
-    // (never claimed by its owner). Another tenant adding the address takes
-    // that password away and invites its owner: whoever set it can't follow
-    // the account into the other tenant.
-    const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    await node
-      .admin()
+    // Inviting an existing account and a new address: the same answer,
+    // nothing about the account, and no password ever.
+    const fresh = `${randomUUID().slice(0, 8)}@example.com`;
+    const toExisting = await other.admin
       .post('/v1/access/users')
-      .send({ email, name: 'Pre-made', password, roleIds: [] })
-      .expect(201);
-    await node.signIn(email, password);
+      .send({ email: ours.email, roleIds: [] })
+      .expect(202);
+    const toNew = await other.admin
+      .post('/v1/access/users')
+      .send({ email: fresh, roleIds: [] })
+      .expect(202);
+    expect(Object.keys(toExisting.body).sort()).toEqual(
+      Object.keys(toNew.body).sort(),
+    );
+    expect(toExisting.body).not.toHaveProperty('name');
     await other.admin
       .post('/v1/access/users')
-      .send({ email, name: 'Pre-made', password: newPassword(), roleIds: [] })
-      .expect(409)
-      .expect(({ body }) => expect(body.code).toBe('account_exists'));
+      .send({ email: fresh, password: newPassword(), roleIds: [] })
+      .expect(400);
     await other.admin
-      .post('/v1/access/users')
-      .send({ email, name: 'Pre-made', roleIds: [] })
-      .expect(201);
+      .patch(`/v1/access/users/${ours.id}`)
+      .send({ password: newPassword() })
+      .expect(400);
+
+    // Until accepted, the account is untouched and not a member.
+    const token = await node.invite(other.admin, { email: ours.email });
+    await node.signIn(ours.email, ours.password);
+    const before = (await other.admin.get('/v1/access/users').expect(200)).body
+      .items as { id: string }[];
+    expect(before.map((user) => user.id)).not.toContain(ours.id);
+    // Accepting takes the account's owner, signed in as it.
     await node
       .http()
-      .post('/v1/auth/sign-in')
-      .send({ email, password })
-      .expect(401);
-    await node.waitForMail({ to: email, subject: /invited/ });
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(401)
+      .expect(({ body }) => expect(body.code).toBe('sign_in_required'));
+    const someoneElse = await node.user([]);
+    await someoneElse.agent
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('invitation_other_account'));
+    await ours.agent
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(200);
+    await ours.agent
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(400);
+    const after = (await other.admin.get('/v1/access/users').expect(200)).body
+      .items as { id: string }[];
+    expect(after.map((user) => user.id)).toContain(ours.id);
   });
 
   it('switches the session between the user’s tenants, and nowhere else', async () => {
@@ -317,12 +360,11 @@ describe('tenancy (e2e)', () => {
       .get('/v1/auth/me')
       .set('Cookie', stale.join('; '))
       .expect(401);
-    // Its name and password are its own: neither tenant's administrator changes them now.
+    // Its name is its own: no tenant's administrator changes it.
     await other.admin
       .patch(`/v1/access/users/${both.id}`)
       .send({ name: 'Renamed' })
-      .expect(409)
-      .expect(({ body }) => expect(body.code).toBe('account_shared'));
+      .expect(400);
   });
 
   it('never replays one tenant’s idempotent response in another', async () => {
@@ -429,6 +471,44 @@ describe('tenancy (e2e)', () => {
         tenantId: outsider.id,
       })
       .expect(401);
+  });
+
+  it('disconnects a member’s sockets in a tenant when that membership is deactivated', async () => {
+    const both = await memberOfBoth();
+    const token = (
+      await node
+        .http()
+        .post('/v1/auth/token')
+        .send({
+          email: both.email,
+          password: both.password,
+          tenantId: node.tenantId,
+        })
+        .expect(200)
+    ).body.accessToken as string;
+    const { port } = node.app.getHttpServer().address() as AddressInfo;
+    const socket: Socket = io(`http://127.0.0.1:${port}/realtime`, {
+      auth: { token },
+      transports: ['websocket'],
+      reconnection: false,
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once('connect', resolve);
+        socket.once('connect_error', reject);
+      });
+      const gone = new Promise<string>((resolve) =>
+        socket.once('disconnect', resolve),
+      );
+      await node
+        .admin()
+        .patch(`/v1/access/users/${both.id}`)
+        .send({ active: false })
+        .expect(204);
+      expect(await gone).toBe('io server disconnect');
+    } finally {
+      socket.disconnect();
+    }
   });
 
   it('runs a cron job under row-level security, doing real work in every tenant', async () => {

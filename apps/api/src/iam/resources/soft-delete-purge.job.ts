@@ -66,6 +66,8 @@ export class SoftDeletePurgeJob {
         const perTenant = await this.tenancy.forEachTenant(
           SOFT_DELETE_PURGE_JOB.key,
           (tenant) => this.purge(system, tenant.id),
+          // Deactivated tenants' bins empty too: nobody restores from them.
+          { includeInactive: true },
         );
         for (const counts of perTenant.values()) {
           for (const [subject, count] of Object.entries(counts)) {

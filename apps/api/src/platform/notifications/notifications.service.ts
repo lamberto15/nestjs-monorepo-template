@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Outbox, type NewOutboxMessage } from '@nestjs/outbox';
-import { and, eq, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import {
@@ -141,6 +141,11 @@ export class NotificationsService {
             and(
               eq(notifications.recipient, recipient),
               eq(notifications.key, key),
+              // This tenant's (or the account's own): a person's null-tenant
+              // rows are writable from any tenant, and must not go here.
+              tenantId
+                ? eq(notifications.tenantId, tenantId)
+                : isNull(notifications.tenantId),
             ),
           )
           .returning({ count: notifications.count });
@@ -176,6 +181,7 @@ export class NotificationsService {
   async page(principal: Principal, query: ListQuery, locale?: string) {
     const where = and(
       eq(notifications.recipient, principalKey(principal)),
+      shownTo(principal),
       NOTIFICATION_LIST.where(query),
     );
     const [rows, total] = await Promise.all([
@@ -223,6 +229,7 @@ export class NotificationsService {
       .where(
         and(
           eq(notifications.recipient, principalKey(principal)),
+          shownTo(principal),
           isNull(notifications.readAt),
         ),
       );
@@ -256,6 +263,7 @@ export class NotificationsService {
         and(
           eq(notifications.id, id),
           eq(notifications.recipient, principalKey(principal)),
+          shownTo(principal),
         ),
       );
     if (!row) {
@@ -434,4 +442,16 @@ export class NotificationsService {
       ),
     };
   }
+}
+
+/**
+ * What of a recipient's notifications this principal is shown: all of
+ * them, but to an administrator acting as the person (impersonation): then
+ * only the tenant's, never the account's own (security notifications: the
+ * person's, across their tenants).
+ */
+function shownTo(principal: Pick<Principal, 'kind' | 'id'>) {
+  return (principal as { impersonator?: unknown }).impersonator
+    ? isNotNull(notifications.tenantId)
+    : undefined;
 }

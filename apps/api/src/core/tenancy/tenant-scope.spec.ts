@@ -18,13 +18,12 @@ const A = '0199a000-0000-7000-8000-00000000000a';
 const B = '0199a000-0000-7000-8000-00000000000b';
 
 describe('the tenant scope', () => {
-  it('sets the three settings as literals, local to the transaction', () => {
+  it('sets the two settings as literals, local to the transaction', () => {
     expect(tenantSettingsStatement(tenantScope(A))).toBe(
-      `select set_config('app.tenant_id', '${A}', true), set_config('app.read_tenants', '${A}', true), set_config('app.bypass_rls', '', true)`,
+      `select set_config('app.tenant_id', '${A}', true), set_config('app.read_tenants', '${A}', true)`,
     );
-    expect(tenantSettingsStatement(BYPASS)).toContain(
-      "set_config('app.bypass_rls', 'on', true)",
-    );
+    // No bypass setting: the bypass is the maintenance role, not a value.
+    expect(tenantSettingsStatement(BYPASS)).not.toContain('bypass');
     expect(tenantSettingsStatement(NO_TENANT)).toContain(
       "set_config('app.tenant_id', '', true)",
     );

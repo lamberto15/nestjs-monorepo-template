@@ -108,7 +108,7 @@ export const approvalRequests = pgTable(
       t.tenantId,
       t.idempotencyKey,
     ),
-    ...tenantTable('approval_requests', t),
+    ...tenantTable('approval_requests', t, { referenced: true }),
   ],
 ).enableRLS();
 

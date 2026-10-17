@@ -12,10 +12,9 @@ import { tenants } from './tenancy.tables.js';
 
 /**
  * The tenant the current work runs for (docs/tenancy.md): what the pool
- * hands PostgreSQL as `app.tenant_id`, `app.read_tenants` and
- * `app.bypass_rls` at the start of every transaction (`set_config(…, true)`:
- * gone at its end), and what the row-level security policies of every
- * tenant table read.
+ * hands PostgreSQL as `app.tenant_id` and `app.read_tenants` at the start
+ * of every transaction (`set_config(…, true)`: gone at its end), and what
+ * the row-level security policies of every tenant table read.
  *
  * - `tenantId`: the one tenant writes go to (`WITH CHECK`), and the one
  *   reads see unless `readTenants` widens it.
@@ -23,6 +22,8 @@ import { tenants } from './tenancy.tables.js';
  *   only for a consolidated read (roadmap 1b's tenant tree).
  * - `bypass`: every tenant, reads and writes: maintenance jobs that sweep
  *   every tenant's rows at once, in a worker only (`Tenancy.bypass()`).
+ *   Not a setting: the pool runs such work as the maintenance role
+ *   (BYPASSRLS), which only workers can connect as.
  */
 export interface TenantScope {
   readonly tenantId: string | null;
@@ -62,10 +63,11 @@ export const BYPASS: TenantScope = Object.freeze({
 });
 
 /**
- * Every tenant, read only: the deployment-wide counts of the metrics
- * (`MetricsService.collect()`: open approvals, suppressed addresses…).
- * Each transaction is `READ ONLY`, so nothing in it can write any tenant's
- * rows; what it returns is an aggregate, never a tenant's rows.
+ * Every tenant, read only: the deployment-wide gauges of the metrics
+ * (`MetricsService.collect(…, { acrossTenants: true })`: open approvals).
+ * As the maintenance role, so only where it is (workers); each transaction
+ * is `READ ONLY`, so nothing in it can write any tenant's rows, and what it
+ * returns is an aggregate, never a tenant's rows.
  */
 export const AGGREGATES: TenantScope = Object.freeze({
   tenantId: null,
@@ -98,7 +100,7 @@ export function currentTenantScope(): TenantScope | undefined {
 /** The tenant of the current context, or null (none, or the bypass). */
 export const currentTenantId = () => currentTenantScope()?.tenantId ?? null;
 
-/** Whether the scope sets anything the policies read: a tenant, or the bypass. */
+/** Whether the scope opens any tenant: one (settings the policies read), or every one (the bypass). */
 export const scopeOpensTenants = (scope: TenantScope | undefined) =>
   !!scope && (scope.bypass || !!scope.tenantId || scope.readTenants.length > 0);
 
@@ -136,17 +138,16 @@ export function assertUuid(value: string) {
 }
 
 /**
- * The statement that sets the three settings for the rest of the
- * transaction (`set_config(…, true)` is `SET LOCAL`: gone at commit or
- * rollback, never left on a pooled connection). Literal values, so it can
- * follow `begin` in one simple-protocol round trip; each is a UUID checked
- * here (or `on`), never text from outside.
+ * The statement that sets the two settings for the rest of the transaction
+ * (`set_config(…, true)` is `SET LOCAL`: gone at commit or rollback, never
+ * left on a pooled connection). Literal values, so it can follow `begin` in
+ * one simple-protocol round trip; each is a UUID checked here, never text
+ * from outside.
  */
 export function tenantSettingsStatement(scope: TenantScope) {
   const tenantId = scope.tenantId ? assertUuid(scope.tenantId) : '';
   const readTenants = scope.readTenants.map(assertUuid).join(',');
-  const bypass = scope.bypass ? 'on' : '';
-  return `select set_config('app.tenant_id', '${tenantId}', true), set_config('app.read_tenants', '${readTenants}', true), set_config('app.bypass_rls', '${bypass}', true)`;
+  return `select set_config('app.tenant_id', '${tenantId}', true), set_config('app.read_tenants', '${readTenants}', true)`;
 }
 
 /**
@@ -182,8 +183,6 @@ export const optionalTenantColumn = () =>
     // Null (no tenant) is what the column allows; Drizzle's type wants a value.
     .$defaultFn(() => currentTenantId() as string);
 
-/** The bypass, read once per statement (an InitPlan), absent: off. */
-const bypassOn = sql`(select current_setting('app.bypass_rls', true)) = 'on'`;
 /** The tenant writes go to, null when unset or empty. */
 const writeTenant = sql`(select nullif(current_setting('app.tenant_id', true), '')::uuid)`;
 /**
@@ -211,8 +210,9 @@ export type NullRows = 'outside' | 'everywhere';
  *
  * Reads see the rows of `app.read_tenants`; writes go to `app.tenant_id`
  * alone (an update may not move a row to another tenant: its `WITH CHECK`
- * reads the same setting); a delete takes `app.tenant_id`'s rows. The
- * worker's bypass opens all four. Every setting is read once per statement
+ * reads the same setting); a delete takes `app.tenant_id`'s rows. There
+ * is no bypass clause: the worker's sweeps across tenants run as the
+ * maintenance role, which has BYPASSRLS. Every setting is read once per statement
  * through a `(select current_setting(…))` subquery. Unset or empty
  * settings match nothing: a connection without a tenant reads and writes
  * no row of these tables (the pool refuses such a query before sending it,
@@ -231,8 +231,8 @@ export function tenantPolicies(
       : nullable === 'outside'
         ? sql`(${column} is null and ${writeTenant} is null)`
         : undefined;
-  const read = sql`(${bypassOn} or ${column} = any(${readTenants})${readNull ? sql` or ${readNull}` : sql``})`;
-  const write = sql`(${bypassOn} or ${column} = ${writeTenant})`;
+  const read = sql`(${column} = any(${readTenants})${readNull ? sql` or ${readNull}` : sql``})`;
+  const write = sql`(${column} = ${writeTenant})`;
   // Rows of no tenant are written where they are read: outside a tenant
   // (the audit log's), or anywhere (a person's own notifications, marked
   // read from whichever tenant they are in).
@@ -240,7 +240,7 @@ export function tenantPolicies(
     nullable === 'everywhere'
       ? sql`${column} is null`
       : sql`(${column} is null and ${writeTenant} is null)`;
-  const nullableWrite = sql`(${bypassOn} or ${column} = ${writeTenant} or ${writeNull})`;
+  const nullableWrite = sql`(${column} = ${writeTenant} or ${writeNull})`;
   const own = nullable ? nullableWrite : write;
   return [
     pgPolicy(`${table}_tenant_select`, { for: 'select', using: read }),
@@ -255,19 +255,23 @@ export function tenantPolicies(
 }
 
 /**
- * What every tenant table declares in its extras: its policies and a
- * unique `(tenant_id, id)`, which the composite foreign keys of the tables
- * referring to it need (`tenantReference()`). A table without an `id`
- * (a link table) passes `{ id: false }`.
+ * What every tenant table declares in its extras: its policies, and, for a
+ * table other tenant tables' keys point at (`{ referenced: true }`), a
+ * unique `(tenant_id, id)`, which their composite foreign keys need
+ * (`tenantReference()`). Only those: a unique index elsewhere would cost
+ * every insert for nothing.
  */
 export function tenantTable(
   table: string,
   columns: { tenantId: AnyPgColumn; id?: AnyPgColumn },
-  options: { nullRows?: NullRows } = {},
+  options: { nullRows?: NullRows; referenced?: boolean } = {},
 ) {
+  if (options.referenced && !columns.id) {
+    throw new Error(`${table}: a referenced tenant table needs an id column.`);
+  }
   return [
     ...tenantPolicies(table, columns.tenantId, options),
-    ...(columns.id
+    ...(options.referenced && columns.id
       ? [unique(`${table}_tenant_id_id_key`).on(columns.tenantId, columns.id)]
       : []),
   ];

@@ -1576,7 +1576,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Your browser sessions */
+        /**
+         * Your browser sessions
+         * @description While an administrator acts as you: only that session.
+         */
         get: operations["SessionsController_list_v1"];
         put?: never;
         post?: never;
@@ -1939,8 +1942,8 @@ export interface paths {
         get: operations["AccessController_users_v1"];
         put?: never;
         /**
-         * Create a user, or invite one
-         * @description Without a password, the user is emailed an invitation to choose one (WEB_URL/reset-password?token=…, valid an hour).
+         * Invite someone to this tenant
+         * @description The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.
          */
         post: operations["AccessController_createUser_v1"];
         delete?: never;
@@ -1963,10 +1966,44 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a user; only what is sent changes
-         * @description A new password or a deactivation signs them out everywhere. The last active administrator stays.
+         * Change a member's membership; only what is sent changes
+         * @description Its activation, roles and org units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.
          */
         patch: operations["AccessController_updateUser_v1"];
+        trace?: never;
+    };
+    "/v1/access/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This tenant's invitations not accepted yet */
+        get: operations["AccessController_invitations_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/invitations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Withdraw an invitation: its link stops working */
+        delete: operations["AccessController_revokeInvitation_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/access/users/{id}/impersonate": {
@@ -2123,7 +2160,7 @@ export interface paths {
         };
         /**
          * The tenants you belong to
-         * @description The active memberships of active tenants, the last chosen first. `current` is the one this session acts in.
+         * @description The active memberships of active tenants, the last chosen first. `current` is the one this session acts in. While impersonating, only that one.
          */
         get: operations["TenantSwitchController_tenants_v1"];
         put?: never;
@@ -2148,6 +2185,26 @@ export interface paths {
          * @description Re-issues the session (a new cookie) in that tenant. Never while impersonating. Realtime connections reconnect to hear the new tenant.
          */
         post: operations["TenantSwitchController_switch_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an invitation to a tenant
+         * @description 400 `password_required`: a new address, send `password` (and `name`). 401 `sign_in_required`: the address has an account, sign in to it and accept again. 403 `invitation_other_account`: you are signed in as another account. 400 `invitation_invalid`: unknown, used or expired. A new account signs in afterwards (POST /auth/sign-in); a signed-in one switches to the tenant (POST /auth/tenant).
+         */
+        post: operations["TenantSwitchController_acceptInvitation_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10849,9 +10906,8 @@ export interface operations {
                 "application/json": {
                     /** Format: email */
                     email: string;
-                    name: string;
-                    /** @description Leave it out to invite the user: they get an email to choose one. */
-                    password?: string;
+                    /** @description The name a new account starts with; its owner changes it. */
+                    name?: string;
                     /** @default [] */
                     roleIds?: string[];
                     /** @description When each grant ends, by role id (temporary access); the others never do. */
@@ -10864,12 +10920,19 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `password_breached`: the password is in known data breaches. */
-            400: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        email: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -10880,13 +10943,6 @@ export interface operations {
             };
             /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A user with this email exists. */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10906,7 +10962,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    name?: string;
+                    /** @description The membership in this tenant, not the account. */
                     active?: boolean;
                     roleIds?: string[];
                     /** @description When each grant ends, by role id (temporary access); the others never do. */
@@ -10914,19 +10970,11 @@ export interface operations {
                         [key: string]: string;
                     };
                     orgUnitIds?: string[];
-                    password?: string;
                 };
             };
         };
         responses: {
             204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `password_breached`: the password is in known data breaches. */
-            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10954,6 +11002,93 @@ export interface operations {
             };
             /** @description Deactivating yourself, or removing the last administrator. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_invitations_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            email: string;
+                            /** Format: date-time */
+                            expiresAt: string;
+                            name: string | null;
+                            roleIds: string[];
+                            orgUnitIds: string[];
+                            invitedBy: string;
+                            expired: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_revokeInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11682,6 +11817,45 @@ export interface operations {
             };
             /** @description Not one of your tenants. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantSwitchController_acceptInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                    /** @description A new address: the password its account starts with. */
+                    password?: string;
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        tenantId: string;
+                        accountCreated: boolean;
+                    };
+                };
+            };
+            /** @description `invitation_invalid`, `password_required`, `password_breached`. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

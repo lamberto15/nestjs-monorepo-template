@@ -48,7 +48,7 @@ export const attachments = pgTable(
   (table) => [
     index('attachments_record_idx').on(table.subject, table.recordId),
     index('attachments_uploaded_by_idx').on(table.uploadedBy),
-    ...tenantTable('attachments', table),
+    ...tenantTable('attachments', table, { referenced: true }),
   ],
 ).enableRLS();
 

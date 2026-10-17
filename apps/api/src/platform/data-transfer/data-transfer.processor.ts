@@ -22,7 +22,7 @@ import {
   DATA_TRANSFERS,
   readerZone,
   TRANSFER_LINK_TTL,
-  transferKey,
+  jobFileKey,
 } from './data-transfer.service.js';
 import type {
   ImportRowError,
@@ -186,6 +186,8 @@ export class DataTransferProcessor extends TenantWorkerHost<
       job.data.principal,
       this.users,
       this.db,
+      // An account export runs in no tenant: the account itself must be active.
+      { account: job.data.tenantId === null },
     );
     if (!principal) {
       throw new Error(
@@ -209,7 +211,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
   ): Promise<TransferResult> {
     const exporter = this.registry.exporter(job.data.name)!;
     const action = exporter.action ?? 'read';
-    const key = transferKey(job.data.tenantId, `${job.id}.${job.data.format}`);
+    const key = jobFileKey(job.data, `${job.id}.${job.data.format}`);
     // Parsed here, not at enqueue: the job is JSON, so parsed values (dates)
     // would arrive as strings. The request already checked them.
     const filters = exporter.filters
@@ -299,7 +301,10 @@ export class DataTransferProcessor extends TenantWorkerHost<
     };
     // The upload was stored under the tenant's prefix: a payload naming
     // another key (another tenant's file) is refused, neither read nor deleted.
-    if (!isTenantFileKey(job.data.tenantId, job.data.key)) {
+    if (
+      !job.data.tenantId ||
+      !isTenantFileKey(job.data.tenantId, job.data.key)
+    ) {
       throw new Error('The upload is not one of this tenant’s files.');
     }
     try {
@@ -375,7 +380,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
     }
     let errorsKey: string | undefined;
     if (errors.length) {
-      errorsKey = transferKey(job.data.tenantId, `${job.id}-errors.csv`);
+      errorsKey = jobFileKey(job.data, `${job.id}-errors.csv`);
       await this.writeFile(
         errorsKey,
         'csv',

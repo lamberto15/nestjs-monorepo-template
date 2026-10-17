@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { AccountService } from '../src/iam/account/account.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import { sessions, userIdentities, users } from '../src/iam/iam.tables.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 /**
  * The rules that keep one account from gaining rights through another:
@@ -40,10 +40,10 @@ describe('security (e2e)', () => {
   it('lets nobody act on an account that holds more than they do', async () => {
     const support = await node.user([await role(['Access', 'manageUsers'])]);
     const admin = await adminId();
-    // Not the administrator's password, nor their activation…
+    // Not the administrator's roles, nor their activation…
     const refused = await support.agent
       .patch(`/v1/access/users/${admin}`)
-      .send({ password: newPassword() })
+      .send({ roleIds: [] })
       .expect(403);
     expect(refused.body.code).toBe('authority_required');
     await support.agent

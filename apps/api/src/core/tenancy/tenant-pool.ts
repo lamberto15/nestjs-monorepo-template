@@ -27,16 +27,29 @@ export function registerTenantTables(strict: string[], optional: string[]) {
 const TABLE =
   /\b(?:from|join|into|update)\s+"(?:[a-z0-9_]+"\.")?([a-z0-9_]+)"/gi;
 
-/** The strict tenant tables a statement names: what may not run without a tenant. */
-export function tenantTablesIn(text: string): string[] {
+/** The tables of row-level security a statement names: `strict` ones (never without a tenant), and all. */
+export function tenantTablesIn(text: string): string[];
+export function tenantTablesIn(text: string, which: 'strict' | 'any'): string[];
+export function tenantTablesIn(
+  text: string,
+  which: 'strict' | 'any' = 'strict',
+): string[] {
   const found: string[] = [];
   for (const match of text.matchAll(TABLE)) {
-    if (registry.strict.has(match[1])) {
-      found.push(match[1]);
+    const table = match[1]!;
+    if (
+      registry.strict.has(table) ||
+      (which === 'any' && registry.optional.has(table))
+    ) {
+      found.push(table);
     }
   }
   return found;
 }
+
+/** Whether this process has the maintenance role's pool: `Tenancy.bypass()` and the metrics across tenants work here. */
+let maintenanceInProcess = false;
+export const maintenanceAvailable = () => maintenanceInProcess;
 
 const BEGIN = /^\s*(?:begin|start\s+transaction)\b/i;
 const END = /^\s*(?:commit|rollback|end|abort)\s*;?\s*$/i;
@@ -68,7 +81,7 @@ const STATE = Symbol('tenancy.client');
  * settings, and every transaction, the transaction host's and a store's
  * own `db.transaction()` alike, must carry the tenant (docs/tenancy.md).
  *
- * The pool of api and worker. Two things on top of node-postgres' pool:
+ * The pool of api and worker, the app role's. On top of node-postgres' pool:
  *
  * - **Every transaction starts with the tenant's settings.** A client's
  *   `begin` is sent together with `set_config('app.tenant_id' | …, …, true)`
@@ -76,66 +89,138 @@ const STATE = Symbol('tenancy.client');
  *   job's envelope, `SystemContext.run(…, { tenantId })`): one round trip,
  *   local to that transaction, gone at its end, so a pooled connection
  *   never carries a tenant into its next use.
- * - **A query outside a transaction, in a tenant's scope, gets one of its
- *   own**: `begin` with the settings, the query, `commit`. Reads through
- *   `database(txHost)` outside `inTransaction()` keep working, each in a
- *   short transaction (two extra round trips), never with a connection
- *   held across a request's other awaits.
- *
- * And one refusal, in every environment: a statement naming a tenant table
- * with no tenant in its context (outside a transaction, or in one that
- * started without a tenant) fails with TenantScopeMissingError before it
- * is sent. The policies would read nothing and write nothing (fail
- * closed); this says why, loudly.
+ * - **A query outside a transaction that names a tenant table, in a
+ *   tenant's scope, gets a transaction of its own**: `begin` with the
+ *   settings, the query, `commit`. A query on global tables alone goes
+ *   straight through, as it would without tenancy.
+ * - **No tenant, no tenant table**: a statement naming one with no tenant
+ *   in its context is refused (TenantScopeMissingError) before a client is
+ *   checked out, so the refusal never costs a connection. The policies
+ *   would read nothing and write nothing (fail closed); this says why.
+ * - **The bypass is another role.** In `Tenancy.bypass()`'s scope, queries
+ *   and transactions go to the maintenance role's pool (BYPASSRLS,
+ *   DATABASE_MAINTENANCE_URL, workers only): no setting of the app role's
+ *   connections opens every tenant, so nothing injected into a request's
+ *   SQL can. Without that pool here, the bypass is refused.
  */
 export class TenantPool extends pg.Pool {
-  constructor(config?: pg.PoolConfig) {
+  private readonly maintenance?: pg.Pool;
+
+  constructor(config?: pg.PoolConfig, maintenance?: pg.PoolConfig) {
     super(config);
     this.on('connect', (client) => tenantAware(client));
+    if (maintenance) {
+      this.maintenance = new pg.Pool(maintenance);
+      this.maintenance.on('connect', (client) => readOnlyAware(client));
+      // A dropped idle connection is the pool's to replace, not a crash.
+      this.maintenance.on('error', () => undefined);
+      maintenanceInProcess = true;
+    }
+  }
+
+  /** Whether this pool can serve the bypass (the maintenance role's pool is configured). */
+  get bypassAvailable() {
+    return !!this.maintenance;
   }
 
   // The promise form, as Drizzle calls it; the callback form goes through
-  // the clients' own wrapper (the check, without a transaction of its own).
+  // the clients' own wrapper (the refusal, without a transaction of its own).
   override query(...args: unknown[]): never {
     const [config, values, callback] = args as QueryArgs;
     if (typeof values === 'function' || typeof callback === 'function') {
       return (super.query as (...a: unknown[]) => never)(...args);
     }
     const scope = currentTenantScope();
-    if (!scopeOpensTenants(scope)) {
+    if (scope?.bypass) {
+      const pool = this.maintenancePool();
+      return (
+        scope.readOnly
+          ? inTransaction(() => pool.connect(), config, values)
+          : pool.query(config as string, values as [])
+      ) as never;
+    }
+    const text = textOf(config);
+    if (tenantTablesIn(text, 'any').length === 0) {
+      // Global tables only: no settings to give, nothing to refuse.
       return (super.query as (...a: unknown[]) => never)(config, values);
     }
-    return this.inTransaction(config, values) as never;
+    if (!scopeOpensTenants(scope)) {
+      const strict = tenantTablesIn(text);
+      if (strict.length > 0) {
+        return Promise.reject(refusal(strict, false)) as never;
+      }
+      // An optional table (rows of no tenant): as it is, without settings.
+      return (super.query as (...a: unknown[]) => never)(config, values);
+    }
+    return inTransaction(
+      () => super.connect() as Promise<pg.PoolClient>,
+      config,
+      values,
+    ) as never;
   }
 
-  private async inTransaction(config: unknown, values: unknown) {
-    const client = await this.connect();
-    let broken: Error | undefined;
-    try {
-      await client.query('begin');
-      try {
-        const result = await client.query(config as string, values as []);
-        await client.query('commit');
-        return result;
-      } catch (error) {
-        await client.query('rollback').catch((rollback: Error) => {
-          broken = rollback;
-        });
-        throw error;
-      }
-    } finally {
-      client.release(broken);
+  // Drizzle's `db.transaction()` checks a client out here: in the bypass's
+  // scope, the maintenance role's.
+  override connect(...args: unknown[]): never {
+    if (currentTenantScope()?.bypass) {
+      return (this.maintenancePool().connect as (...a: unknown[]) => never)(
+        ...args,
+      );
     }
+    return (super.connect as (...a: unknown[]) => never)(...args);
+  }
+
+  override async end() {
+    await Promise.all([super.end(), this.maintenance?.end()]);
+  }
+
+  private maintenancePool() {
+    if (!this.maintenance) {
+      throw new Error(
+        'Work across every tenant needs the maintenance role, and this process has none: DATABASE_MAINTENANCE_URL, given to workers only (docs/tenancy.md, "The bypass").',
+      );
+    }
+    return this.maintenance;
   }
 }
 
+/** `begin`, the query, `commit` (or `rollback`) on a client `connect` checks out. */
+async function inTransaction(
+  connect: () => Promise<pg.PoolClient>,
+  config: unknown,
+  values: unknown,
+) {
+  const client = await connect();
+  let broken: Error | undefined;
+  try {
+    await client.query('begin');
+    try {
+      const result = await client.query(config as string, values as []);
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback').catch((rollback: Error) => {
+        broken = rollback;
+      });
+      throw error;
+    }
+  } finally {
+    client.release(broken);
+  }
+}
+
+const refusal = (tables: string[], outsideTransaction: boolean) =>
+  new TenantScopeMissingError(
+    `A query on ${[...new Set(tables)].join(', ')} ran without a tenant in its context${outsideTransaction ? ' (outside a transaction, on a client of its own)' : ''}: run it in a request of a tenant, a job restored from its envelope, or SystemContext.run(job, work, { tenantId }) (docs/tenancy.md).`,
+  );
+
 /** Wraps a new connection's `query()`: the settings after `begin`, the refusal. */
 function tenantAware(client: pg.PoolClient) {
-  const state: TenantClientState = {};
   const target = client as pg.PoolClient & { [STATE]?: TenantClientState };
   if (target[STATE]) {
     return;
   }
+  const state: TenantClientState = {};
   target[STATE] = state;
   const query = client.query.bind(client) as (...args: unknown[]) => unknown;
   (client as { query: unknown }).query = (...args: unknown[]) => {
@@ -149,6 +234,14 @@ function tenantAware(client: pg.PoolClient) {
           : undefined;
     if (BEGIN.test(text)) {
       const scope = currentTenantScope();
+      if (scope?.bypass) {
+        // Never on the app role's connections: TenantPool.connect() hands
+        // the bypass the maintenance role's.
+        return fail(
+          new Error('The bypass runs on the maintenance role, not here.'),
+          done,
+        );
+      }
       state.transaction = scope ?? null;
       if (scopeOpensTenants(scope)) {
         // `begin` takes no parameters, so it is a simple-protocol query, and
@@ -161,6 +254,7 @@ function tenantAware(client: pg.PoolClient) {
       return query(...args);
     }
     if (END.test(text)) {
+      // Reset before the statement runs: a failed commit still ends the transaction.
       state.transaction = undefined;
       return query(...args);
     }
@@ -170,16 +264,39 @@ function tenantAware(client: pg.PoolClient) {
     if (!scopeOpensTenants(state.transaction ?? undefined)) {
       const tables = tenantTablesIn(text);
       if (tables.length > 0) {
-        const error = new TenantScopeMissingError(
-          `A query on ${[...new Set(tables)].join(', ')} ran without a tenant in its context${state.transaction === undefined && scopeOpensTenants(currentTenantScope()) ? ' (outside a transaction, on a client of its own)' : ''}: run it in a request of a tenant, a job restored from its envelope, or SystemContext.run(job, work, { tenantId }) (docs/tenancy.md).`,
+        return fail(
+          refusal(
+            tables,
+            state.transaction === undefined &&
+              scopeOpensTenants(currentTenantScope()),
+          ),
+          done,
         );
-        if (done) {
-          queueMicrotask(() => done(error));
-          return undefined;
-        }
-        return Promise.reject(error);
       }
     }
     return query(...args);
   };
+}
+
+/** The maintenance role's connections: read-only transactions in the aggregates' scope. */
+function readOnlyAware(client: pg.PoolClient) {
+  const query = client.query.bind(client) as (...args: unknown[]) => unknown;
+  (client as { query: unknown }).query = (...args: unknown[]) => {
+    const text = textOf(args[0]);
+    if (BEGIN.test(text) && currentTenantScope()?.readOnly) {
+      args[0] = withText(
+        args[0],
+        `${text.replace(/;\s*$/, '')}; set transaction read only`,
+      );
+    }
+    return query(...args);
+  };
+}
+
+function fail(error: Error, done: Callback | undefined) {
+  if (done) {
+    queueMicrotask(() => done(error));
+    return undefined;
+  }
+  return Promise.reject(error);
 }

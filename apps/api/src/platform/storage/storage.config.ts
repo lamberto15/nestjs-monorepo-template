@@ -34,6 +34,17 @@ export function tenantFileKey(tenantId: string, path: string) {
   return `tenants/${tenantId}/${path.replace(/^\/+/, '')}`;
 }
 
+/**
+ * Where an account's own files live (`accounts/<user id>/…`): a person's
+ * data export, which spans their tenants and belongs to none of them.
+ */
+export function accountFileKey(userId: string, path: string) {
+  if (!UUID.test(userId)) {
+    throw new TypeError(`Not a user id: ${JSON.stringify(userId)}`);
+  }
+  return `accounts/${userId}/${path.replace(/^\/+/, '')}`;
+}
+
 /** Whether `key` is one of this tenant's files (a key read back from a job's payload). */
 export const isTenantFileKey = (tenantId: string, key: string) =>
   key.startsWith(`tenants/${tenantId}/`) && !key.includes('..');

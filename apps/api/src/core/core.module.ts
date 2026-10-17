@@ -70,6 +70,10 @@ import {
         db: await createDatabase({
           url: config.get('DATABASE_URL', { infer: true }),
           ownerUrl: config.get('DATABASE_OWNER_URL', { infer: true }),
+          // Workers only (Compose gives it to them alone): the bypass's pool.
+          maintenanceUrl: runsWorkers()
+            ? config.get('DATABASE_MAINTENANCE_URL', { infer: true })
+            : undefined,
           migrate: config.get('MIGRATE_ON_START', { infer: true }),
           pool: {
             max: config.get('DATABASE_POOL_MAX', { infer: true }),

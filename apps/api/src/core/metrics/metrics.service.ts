@@ -1,3 +1,4 @@
+import { maintenanceAvailable } from '../tenancy/tenant-pool.js';
 import { acrossTenantsReadOnly } from '../tenancy/tenant-scope.js';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { getHeapStatistics } from 'node:v8';
@@ -66,7 +67,18 @@ export class MetricsService {
     help: string,
     read: () => Promise<MetricSample<Label>[]> | MetricSample<Label>[],
     labelNames: readonly Label[] = [],
+    /**
+     * `acrossTenants`: a deployment-wide gauge over tenant tables, read as
+     * the maintenance role in read-only transactions (docs/tenancy.md, "The
+     * bypass"): only where that role is, the workers; elsewhere (api
+     * replicas) the gauge isn't registered, and Prometheus takes it from
+     * the workers' scrape.
+     */
+    options: { acrossTenants?: boolean } = {},
   ) {
+    if (options.acrossTenants && !maintenanceAvailable()) {
+      return;
+    }
     const logger = this.logger;
     new Gauge<Label>({
       name,
@@ -77,9 +89,7 @@ export class MetricsService {
         this.reset();
         try {
           const samples = await Promise.race([
-            // Deployment-wide gauges: every tenant's rows, read only
-            // (docs/tenancy.md, "The bypass").
-            acrossTenantsReadOnly(read),
+            options.acrossTenants ? acrossTenantsReadOnly(read) : read(),
             sleep(COLLECT_TIMEOUT_MS, TIMED_OUT, { ref: false }),
           ]);
           if (samples === TIMED_OUT) {

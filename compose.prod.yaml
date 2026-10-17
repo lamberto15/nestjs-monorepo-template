@@ -69,6 +69,7 @@ x-app: &app
     JWT_SECRET: ${JWT_SECRET:-}
     MFA_ENCRYPTION_KEYS: ${MFA_ENCRYPTION_KEYS:-}
     MFA_ISSUER: ${MFA_ISSUER:-}
+    INVITATION_TTL_HOURS: ${INVITATION_TTL_HOURS:-168}
     IMPERSONATION_TTL_MINUTES: ${IMPERSONATION_TTL_MINUTES:-60}
     REAUTHENTICATION_MAX_AGE_MINUTES: ${REAUTHENTICATION_MAX_AGE_MINUTES:-10}
     AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-400}
@@ -190,11 +191,18 @@ services:
       # URL comes from DATABASE_OWNER_URL_FILE instead. Neither set: exits 1.
       DATABASE_OWNER_URL: ${DATABASE_OWNER_URL:-${POSTGRES_PASSWORD:+postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}}}
       DATABASE_OWNER_URL_FILE: ${DATABASE_OWNER_URL_FILE:+/run/secrets/database_owner_url}
-    # Only the two URLs it reads (not x-app's list): the owner's credential is
+      # The maintenance role (BYPASSRLS: docs/tenancy.md, "The bypass"):
+      # migrate makes it, the worker's sweeps across tenants connect as it;
+      # api never gets it. Built from POSTGRES_MAINTENANCE_PASSWORD, or the
+      # whole URL from DATABASE_MAINTENANCE_URL_FILE.
+      DATABASE_MAINTENANCE_URL: ${DATABASE_MAINTENANCE_URL:-${POSTGRES_MAINTENANCE_PASSWORD:+postgres://${POSTGRES_MAINTENANCE_USER:-app_maintenance}:${POSTGRES_MAINTENANCE_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}}}
+      DATABASE_MAINTENANCE_URL_FILE: ${DATABASE_MAINTENANCE_URL_FILE:+/run/secrets/database_maintenance_url}
+    # Only the URLs it reads (not x-app's list): the owner's credential is
     # mounted here and nowhere else; api and worker never see it.
     secrets:
       - database_url
       - database_owner_url
+      - database_maintenance_url
     deploy:
       resources:
         limits:
@@ -244,6 +252,12 @@ services:
     environment:
       <<: *app-env
       APP_ROLE: worker
+      # The maintenance role (BYPASSRLS: docs/tenancy.md, "The bypass"):
+      # migrate makes it, the worker's sweeps across tenants connect as it;
+      # api never gets it. Built from POSTGRES_MAINTENANCE_PASSWORD, or the
+      # whole URL from DATABASE_MAINTENANCE_URL_FILE.
+      DATABASE_MAINTENANCE_URL: ${DATABASE_MAINTENANCE_URL:-${POSTGRES_MAINTENANCE_PASSWORD:+postgres://${POSTGRES_MAINTENANCE_USER:-app_maintenance}:${POSTGRES_MAINTENANCE_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}}}
+      DATABASE_MAINTENANCE_URL_FILE: ${DATABASE_MAINTENANCE_URL_FILE:+/run/secrets/database_maintenance_url}
       # Workflow steps (10), exports (2), mail (5), the relay and deliveries run at once.
       DATABASE_POOL_MAX: ${WORKER_DATABASE_POOL_MAX:-20}
       NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-768}
@@ -252,6 +266,26 @@ services:
       # and hashes the first administrator's password. One at a time:
       # 768 + 128 + 1 × 128 = 1024, within WORKER_MEMORY (1G).
       PASSWORD_HASH_CONCURRENCY: ${WORKER_PASSWORD_HASH_CONCURRENCY:-1}
+    # x-app's, and the maintenance role's URL: the worker's alone.
+    secrets:
+      - database_url
+      - redis_password
+      - admin_password
+      - jwt_secret
+      - mfa_encryption_keys
+      - google_client_secret
+      - microsoft_client_secret
+      - github_client_secret
+      - turnstile_secret_key
+      - smtp_url
+      - mail_api_key
+      - storage_signing_keys
+      - aws_secret_access_key
+      - idempotency_keys
+      - webhooks_encryption_keys
+      - observe_app_secret
+      - example_sender_webhook_secret
+      - database_maintenance_url
     deploy:
       replicas: ${WORKER_REPLICAS:-1}
       resources:
@@ -448,6 +482,8 @@ secrets:
   # The owner's URL: mounted on `migrate` only.
   database_owner_url:
     file: ${DATABASE_OWNER_URL_FILE:-./secret.empty}
+  database_maintenance_url:
+    file: ${DATABASE_MAINTENANCE_URL_FILE:-./secret.empty}
   redis_password:
     file: ${REDIS_PASSWORD_FILE:-./secret.empty}
   admin_password:

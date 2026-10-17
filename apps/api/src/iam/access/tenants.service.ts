@@ -1,6 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { PasswordResetService } from '@nestjs/authentication';
 import { asc, eq, sql } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
@@ -14,7 +13,7 @@ import { AuditService } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import { rolePermissions, roles, userRoles } from '../iam.tables.js';
-import { AccessService } from './access.service.js';
+import { InvitationsService } from './invitations.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import { ALL, type SeedRole } from './permissions.js';
 
@@ -55,8 +54,7 @@ export class TenantsService {
     private readonly catalog: PermissionCatalog,
     private readonly audit: AuditService,
     private readonly accounts: UsersRepository,
-    private readonly passwordReset: PasswordResetService,
-    private readonly access: AccessService,
+    private readonly invitations: InvitationsService,
   ) {}
 
   /** Every tenant, oldest first (the operators' list). */
@@ -121,40 +119,32 @@ export class TenantsService {
   }
 
   /**
-   * The operators' way: a tenant whose first administrator is the account
-   * at `email` (made, and invited to choose a password, when there is none;
-   * an unclaimed one loses its credentials first, as when any tenant adds
-   * it). Audited in the new tenant and in the operator's own.
+   * The operators' way: a tenant whose first administrator is invited at
+   * `email` (docs/tenancy.md, "Invitations"): the tenant, its roles, the
+   * invitation (the Administrator role) and its audit entry in one
+   * transaction, so a refused slug leaves nothing behind; the mail after
+   * the commit. Nothing about an account at that address is read or
+   * changed: its owner accepts (or, new, chooses a password) with the link.
+   * Audited in the new tenant and in the operator's own.
    */
   async createWithAdministrator(
     operator: Principal,
     input: NewTenant & { administratorEmail: string },
     ip?: string,
   ) {
-    let account = await this.accounts.findByEmail(input.administratorEmail);
-    if (account && !account.active) {
-      throw new ConflictException('This account is closed.');
-    }
-    let invite = false;
-    if (!account) {
-      account = await inTransaction(this.txHost, (tx) =>
-        this.accounts.create(tx, {
-          email: input.administratorEmail,
-          name: input.administratorEmail,
-          passwordHash: null,
-        }),
-      );
-      invite = true;
-    }
-    const administrator = account;
-    const unclaimed = !administrator.emailVerified;
-    const { tenant } = await this.create(
+    const { tenant, result } = await this.create(
       { name: input.name, slug: input.slug },
-      administrator.id,
+      null,
       async (tx, created) => {
-        if (unclaimed && !invite) {
-          await this.accounts.resetCredentials(tx, administrator.id);
-        }
+        const [administrator] = await tx
+          .select({ id: roles.id })
+          .from(roles)
+          .where(eq(roles.key, ADMINISTRATOR_ROLE));
+        const invited = await this.invitations.create(
+          tx,
+          { email: input.administratorEmail, roleIds: [administrator!.id] },
+          operator,
+        );
         await this.audit.record(
           operator,
           {
@@ -163,25 +153,25 @@ export class TenantsService {
             targetId: created.id,
             details: {
               slug: created.slug,
-              administrator: administrator.email,
+              administrator: invited.invitation.email,
             },
             ip,
           },
           tx,
         );
+        return invited;
       },
     );
     await this.audit.record(operator, {
       action: 'tenant.created',
       targetType: 'tenant',
       targetId: tenant.id,
-      details: { slug: tenant.slug, administrator: administrator.email },
+      details: { slug: tenant.slug, administrator: result!.invitation.email },
       ip,
     });
-    if (invite || unclaimed) {
-      this.passwordReset.request(administrator.email);
-    }
-    this.access.invalidate();
+    await this.tenancy.run(tenant.id, () =>
+      this.invitations.send(result!.invitation, result!.token, operator),
+    );
     return tenant;
   }
 

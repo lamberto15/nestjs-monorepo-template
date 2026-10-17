@@ -50,6 +50,13 @@ export interface DataExporter<
    * records (their notifications): `subject` then only names them.
    */
   allowed?(principal: Principal): Promise<boolean> | boolean;
+  /**
+   * `account`: a person's own export across their tenants (the account
+   * export): queued with no tenant (`tenantId: null`), its file under
+   * `accounts/<user id>/`, visible to that user in any tenant or none
+   * (docs/tenancy.md). Users only. Unset: the caller's tenant's.
+   */
+  readonly scope?: 'account';
   readonly columns: readonly TransferColumn[];
   /**
    * The columns of one export, when they change at runtime (custom fields):
@@ -136,9 +143,11 @@ export interface DataImporter<Row = Record<string, unknown>> {
 /**
  * What a transfer job carries: the tenant it was started in, by type
  * (TenantEnvelope, docs/tenancy.md; the worker restores it before any
- * query), and the work.
+ * query), and the work. `null` only for an account export
+ * (`DataExporter.scope: 'account'`): a person's, in no tenant.
  */
-export type TransferJob = TenantEnvelope & { readonly tenantId: string } & (
+export type TransferJob = TenantEnvelope &
+  (
     | {
         kind: 'export';
         name: string;

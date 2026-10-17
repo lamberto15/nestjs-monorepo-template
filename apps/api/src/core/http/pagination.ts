@@ -1,4 +1,12 @@
-import { count, desc, lt, sql, type AnyColumn, type SQL } from 'drizzle-orm';
+import {
+  count,
+  desc,
+  lt,
+  sql,
+  type AnyColumn,
+  type SQL,
+  type Subquery,
+} from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import type { Database, Transaction } from '../database/drizzle.js';
@@ -173,6 +181,27 @@ export type PageTotal = { total: number; totalCapped: boolean };
  * so a large table costs no more than `cap` index entries. Run it next to
  * the page's query (Promise.all).
  */
+/**
+ * `countPage()` for a query of its own (a join): the matching rows, capped,
+ * as `select 1 … limit cap + 1`.
+ */
+export async function countMatching(
+  db: Database | Transaction,
+  matching: { limit(n: number): { as(alias: string): Subquery } },
+  query: PageQuery,
+  cap = COUNT_CAP,
+): Promise<PageTotal | undefined> {
+  if (!query.count) {
+    return undefined;
+  }
+  const [{ rows }] = await db
+    .select({ rows: count() })
+    .from(matching.limit(cap + 1).as('matching'));
+  return rows > cap
+    ? { total: cap, totalCapped: true }
+    : { total: rows, totalCapped: false };
+}
+
 export async function countPage(
   db: Database | Transaction,
   table: PgTable,

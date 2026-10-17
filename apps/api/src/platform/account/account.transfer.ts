@@ -8,6 +8,7 @@ import {
   isNotNull,
   isNull,
   lt as lessThan,
+  type SQL,
 } from 'drizzle-orm';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { tenants as tenants_ } from '../../core/tenancy/tenancy.tables.js';
@@ -70,6 +71,8 @@ const row = (kind: string, record: Record<string, unknown>): PersonalRow => ({
 export class AccountTransfer implements DataExporter<PersonalRow> {
   readonly name = 'account';
   readonly subject = 'Account';
+  /** The person's, across their tenants: queued in none, filed under `accounts/<id>/`. */
+  readonly scope = 'account' as const;
   readonly columns: readonly TransferColumn[] = [
     { key: 'kind' },
     { key: 'id' },
@@ -101,7 +104,11 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
    * preferences, their account-level notifications and audit entries),
    * then, for each tenant they belong to (every membership, active or
    * not), what that tenant holds about them, read in that tenant's scope.
-   * Never the row-level security bypass: each read is one tenant's.
+   * A tenant they left (an inactive membership) gives only what is
+   * personal (the membership, the audit entries about them), never
+   * that tenant's business records (notes, comments, attachments,
+   * approvals…), which are no longer theirs to take. Never the row-level
+   * security bypass: each read is one tenant's.
    */
   async *batches(principal: Principal): AsyncIterable<PersonalRow[]> {
     if (principal.kind !== 'user') return;
@@ -123,9 +130,12 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
     );
     for (const membership of tenants) {
       yield [row('membership', { id: membership.tenantId, ...membership })];
+      const member = { ...user, tenantId: membership.tenantId };
       yield* this.inScope(
         membership.tenantId,
-        this.tenantRows({ ...user, tenantId: membership.tenantId }),
+        membership.active
+          ? this.tenantRows(member)
+          : this.formerTenantRows(member),
       );
     }
   }
@@ -222,7 +232,7 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
           .limit(1000),
       'notification',
     );
-    yield* this.auditEntries(key);
+    yield* this.auditEntries(eq(auditLog.actor, key));
   }
 
   /** What the current tenant holds about the person. */
@@ -285,7 +295,7 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
           .limit(1000),
       'notification',
     );
-    yield* this.auditEntries(key);
+    yield* this.auditEntries(eq(auditLog.actor, key));
     for (const source of this.personalData.all()) {
       for await (const batch of source.rows(user)) {
         yield batch.map((record) => row(source.name, record));
@@ -293,19 +303,26 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
     }
   }
 
-  /** The person's audit entries the current scope sees. */
-  private auditEntries(key: string) {
+  /**
+   * What a tenant the person left holds that is personal: the audit entries
+   * about them (their membership: joined, changed, deactivated). Not those
+   * they made on the tenant's records, which carry the records' values (a
+   * note's text): business records, the tenant's now.
+   */
+  private formerTenantRows(user: UserPrincipal): AsyncIterable<PersonalRow[]> {
+    return this.auditEntries(
+      and(eq(auditLog.targetType, 'user'), eq(auditLog.targetId, user.id))!,
+    );
+  }
+
+  /** The audit entries the current scope sees that `which` selects (default: the person's own). */
+  private auditEntries(which: SQL) {
     return this.pages(
       (cursor) =>
         this.db
           .select()
           .from(auditLog)
-          .where(
-            and(
-              eq(auditLog.actor, key),
-              cursor ? lessThan(auditLog.id, cursor) : undefined,
-            ),
-          )
+          .where(and(which, cursor ? lessThan(auditLog.id, cursor) : undefined))
           .orderBy(desc(auditLog.id))
           .limit(1000),
       'auditEntry',

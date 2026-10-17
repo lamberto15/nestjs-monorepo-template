@@ -42,6 +42,11 @@ export type PoolSettings = {
 export async function createDatabase(options: {
   url: string;
   ownerUrl?: string;
+  /**
+   * DATABASE_MAINTENANCE_URL (workers only): the BYPASSRLS role whose small
+   * pool serves `Tenancy.bypass()` and the metrics across tenants.
+   */
+  maintenanceUrl?: string;
   migrate?: boolean;
   pool?: PoolSettings;
 }): Promise<Database> {
@@ -52,21 +57,42 @@ export async function createDatabase(options: {
         'MIGRATE_ON_START is on, so DATABASE_OWNER_URL is required: the migrations run as the owner of the tables, not as the app (docs/deployment.md, "Database roles"). Or set MIGRATE_ON_START=off and run `node dist/migrate`.',
       );
     }
-    await migrateAll({ ownerUrl: options.ownerUrl, appUrl: options.url });
+    await migrateAll({
+      ownerUrl: options.ownerUrl,
+      appUrl: options.url,
+      maintenanceUrl: options.maintenanceUrl,
+    });
   }
   registerTenantTables(...tenantTableNames());
-  const client = new TenantPool({
-    connectionString: options.url,
+  const settings = {
     // Fail fast when the pool is exhausted (503 database_busy), never hang.
-    max: pool?.max,
     connectionTimeoutMillis: pool?.timeoutMs,
-    // Server-side limits, so a slow query or a forgotten transaction
-    // can't hold a connection for ever.
     statement_timeout: pool?.statementTimeoutMs || undefined,
     idle_in_transaction_session_timeout: pool?.idleTxTimeoutMs || undefined,
-    // Which process holds a connection, in pg_stat_activity.
-    application_name: pool?.applicationName,
-  });
+  };
+  const client = new TenantPool(
+    {
+      connectionString: options.url,
+      // Fail fast when the pool is exhausted (503 database_busy), never hang.
+      max: pool?.max,
+      connectionTimeoutMillis: pool?.timeoutMs,
+      // Server-side limits, so a slow query or a forgotten transaction
+      // can't hold a connection for ever.
+      statement_timeout: pool?.statementTimeoutMs || undefined,
+      idle_in_transaction_session_timeout: pool?.idleTxTimeoutMs || undefined,
+      // Which process holds a connection, in pg_stat_activity.
+      application_name: pool?.applicationName,
+    },
+    // A few connections: retention sweeps and metrics, one at a time each.
+    options.maintenanceUrl
+      ? {
+          ...settings,
+          connectionString: options.maintenanceUrl,
+          max: 3,
+          application_name: `${pool?.applicationName ?? 'app'}:maintenance`,
+        }
+      : undefined,
+  );
   // Every transaction carries the tenant of its context (core/tenancy/tenant-pool.ts).
   const db = drizzleNodePg({ client, schema });
   return db;

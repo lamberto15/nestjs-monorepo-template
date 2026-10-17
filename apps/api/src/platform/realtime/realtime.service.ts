@@ -1,3 +1,4 @@
+import { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.registry.js';
 import { Logger, UseInterceptors } from '@nestjs/common';
 import { ClsInterceptor } from 'nestjs-cls';
 import { CurrentUser, WsAuthenticator } from '@nestjs/authentication';
@@ -72,7 +73,28 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
   @WebSocketServer()
   private readonly server: Namespace;
 
-  constructor(private readonly wsAuth: WsAuthenticator) {}
+  constructor(
+    private readonly wsAuth: WsAuthenticator,
+    lifecycle: UserLifecycleRegistry,
+  ) {
+    // A membership deactivated: that user's connections in that tenant end
+    // at once (a socket is authenticated at its handshake; its tenant room
+    // would keep hearing the tenant's events). Called in the tenant's scope,
+    // in the deactivation's transaction: a rollback leaves the user
+    // reconnecting to the room they still have. Every instance's sockets,
+    // through the Redis adapter.
+    lifecycle.register({
+      name: 'realtime',
+      deactivated: async (_tx, userId) => {
+        const tenantId = currentTenantId();
+        if (tenantId && this.server) {
+          this.server
+            .in(principalRoom({ kind: 'user', id: userId }, tenantId))
+            .disconnectSockets(true);
+        }
+      },
+    });
+  }
 
   /**
    * To every connection of a user or an API client in the current
@@ -149,7 +171,11 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     if (user && user.kind !== 'system') {
       const rooms = [
         ...(user.tenantId ? [principalRoom(user, user.tenantId)] : []),
-        ...(user.kind === 'user' ? [principalRoom(user, null)] : []),
+        // The account room (the person's own events, across tenants): never
+        // for an administrator acting as them in one tenant.
+        ...(user.kind === 'user' && !user.impersonator
+          ? [principalRoom(user, null)]
+          : []),
       ];
       void client.join(rooms);
       this.logger.debug(`Connected: ${principalKey(user)}`);

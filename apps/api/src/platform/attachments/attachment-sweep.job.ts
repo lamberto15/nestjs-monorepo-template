@@ -55,9 +55,11 @@ export class AttachmentSweepJob {
   @OnOneInstance({ key: 'platform:attachment-sweep' })
   @WithoutOverlapping()
   async run() {
+    // Deactivated tenants too: their orphans' files still go.
     const swept = await this.tenancy.forEachTenant(
       ATTACHMENT_SWEEP_JOB.key,
       (tenant) => this.sweep(tenant.id),
+      { includeInactive: true },
     );
     return [...swept.values()].reduce((sum, deleted) => sum + deleted, 0);
   }

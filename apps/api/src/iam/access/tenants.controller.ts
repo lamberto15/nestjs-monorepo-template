@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   Ip,
-  NotFoundException,
   Post,
   Res,
   UnauthorizedException,
@@ -13,10 +12,10 @@ import {
   CurrentSession,
   CurrentUser,
   type SessionRecord,
-  SessionService,
 } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
+  ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
@@ -29,15 +28,13 @@ import {
 import type { Response } from 'express';
 import { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
-import { Tenancy } from '../../core/tenancy/tenancy.service.js';
-import { tenantScope } from '../../core/tenancy/tenant-scope.js';
-import { notWhileImpersonating } from '../account/account.schemas.js';
-import { AuditService } from '../audit/audit.service.js';
+import { newPassword } from '../account/account.schemas.js';
 import { OperatorOnly } from '../auth/operator-only.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
-import { UsersRepository } from '../auth/users.repository.js';
+import { InvitationsService } from './invitations.service.js';
 import { AccessPolicy } from './policies.js';
+import { TenantSwitchService } from './tenant-switch.service.js';
 import { TenantsService } from './tenants.service.js';
 
 const myTenantSchema = z.object({
@@ -49,6 +46,19 @@ const myTenantSchema = z.object({
 
 const switchSchema = z.object({
   tenantId: z.uuid().describe('One of GET /auth/tenants.'),
+});
+
+const acceptSchema = z.object({
+  token: z.string().min(1).max(200),
+  password: newPassword
+    .optional()
+    .describe('A new address: the password its account starts with.'),
+  name: z.string().trim().min(1).max(120).optional(),
+});
+
+const acceptedInvitationSchema = z.object({
+  tenantId: z.uuid(),
+  accountCreated: z.boolean(),
 });
 
 const tenantSchema = z.object({
@@ -86,10 +96,8 @@ const createTenantSchema = z.object({
 @Controller('auth')
 export class TenantSwitchController {
   constructor(
-    private readonly accounts: UsersRepository,
-    private readonly sessions: SessionService,
-    private readonly tenancy: Tenancy,
-    private readonly audit: AuditService,
+    private readonly switcher: TenantSwitchService,
+    private readonly invitations: InvitationsService,
   ) {}
 
   @UserOnly()
@@ -99,19 +107,11 @@ export class TenantSwitchController {
   @ApiOperation({
     summary: 'The tenants you belong to',
     description:
-      'The active memberships of active tenants, the last chosen first. `current` is the one this session acts in.',
+      'The active memberships of active tenants, the last chosen first. `current` is the one this session acts in. While impersonating, only that one.',
   })
   @ApiOkResponse({ standardSchema: listSchema(myTenantSchema) })
   async tenants(@CurrentUser() user: UserPrincipal) {
-    const rows = await this.accounts.memberships(user.id);
-    return {
-      items: rows.map((row) => ({
-        id: row.id,
-        slug: row.slug,
-        name: row.name,
-        current: row.id === user.tenantId,
-      })),
-    };
+    return { items: await this.switcher.tenantsOf(user) };
   }
 
   @SessionOnly()
@@ -133,36 +133,47 @@ export class TenantSwitchController {
     @Res({ passthrough: true }) res: Response,
     @Ip() ip: string,
   ) {
-    // An impersonation stays in the tenant it began in.
-    notWhileImpersonating(user);
-    if (!(await this.accounts.isMember(user.id, body.tenantId))) {
-      throw new NotFoundException({
-        code: 'tenant_not_found',
-        message: 'You are not a member of this tenant.',
-      });
-    }
-    // A new session id for the new tenant, as for any change of privilege.
-    const issued = await this.sessions.rotate(session, {
-      metadata: { ...session.metadata, tenantId: body.tenantId },
-    });
+    const issued = await this.switcher.switch(user, session, body.tenantId, ip);
     if (!issued) {
       throw new UnauthorizedException(); // signed out meanwhile
     }
-    await this.accounts.selectTenant(user.id, body.tenantId);
-    // Audited in the tenant entered (the request's scope is the one left).
-    await this.tenancy.run(tenantScope(body.tenantId), () =>
-      this.audit.record(
-        { ...user, tenantId: body.tenantId },
-        {
-          action: 'auth.tenant-switched',
-          targetType: 'tenant',
-          targetId: body.tenantId,
-          details: { from: user.tenantId },
-          ip,
-        },
-      ),
-    );
     res.append('Set-Cookie', issued.cookie);
+  }
+
+  /**
+   * An invitation's link (WEB_URL/accept-invitation?token=…) posts here. A
+   * new address chooses its password (`password`, and a `name`); an existing
+   * account accepts while signed in as itself. Either way the membership
+   * comes now, with the invitation's roles and units.
+   */
+  @UserOnly({ optional: true })
+  @Can.Anyone()
+  // The global limit only: a token is 256 random bits (nothing to guess),
+  // and the one hash a new account costs waits in PasswordHashLimiter.
+  @Post('invitations/accept')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Accept an invitation to a tenant',
+    description:
+      '400 `password_required`: a new address, send `password` (and `name`). 401 `sign_in_required`: the address has an account, sign in to it and accept again. 403 `invitation_other_account`: you are signed in as another account. 400 `invitation_invalid`: unknown, used or expired. A new account signs in afterwards (POST /auth/sign-in); a signed-in one switches to the tenant (POST /auth/tenant).',
+  })
+  @ApiOkResponse({ standardSchema: acceptedInvitationSchema })
+  @ApiBadRequestResponse({
+    description:
+      '`invitation_invalid`, `password_required`, `password_breached`.',
+  })
+  async acceptInvitation(
+    @CurrentUser() user: UserPrincipal | null,
+    @Body({ schema: acceptSchema }) body: z.infer<typeof acceptSchema>,
+    @Ip() ip: string,
+  ) {
+    const { tenantId, accountCreated } = await this.invitations.accept(
+      body.token,
+      { password: body.password, name: body.name },
+      user,
+      ip,
+    );
+    return { tenantId, accountCreated };
   }
 }
 

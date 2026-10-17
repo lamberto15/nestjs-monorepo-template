@@ -4,10 +4,10 @@ import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
-import { and, asc, count, eq, type SQL, sql } from 'drizzle-orm';
+import { and, asc, eq, type SQL, sql } from 'drizzle-orm';
 import {
   afterCursor,
-  countPage,
+  countMatching,
   pageOffset,
   pageOrder,
   type PageQuery,
@@ -138,8 +138,8 @@ export class UsersRepository {
   }
 
   /** Records that the user chose this tenant (a switch): the next sign-in starts there. */
-  async selectTenant(userId: string, tenantId: string) {
-    await this.db
+  async selectTenant(userId: string, tenantId: string, db: Db = this.db) {
+    await db
       .update(memberships)
       .set({ selectedAt: new Date() })
       .where(
@@ -156,6 +156,7 @@ export class UsersRepository {
    * keeps pointing at an account that is nobody's.
    */
   async anonymize(tx: Transaction, id: string) {
+    await this.lockAccount(tx, id);
     await tx
       .update(users)
       .set({
@@ -191,18 +192,47 @@ export class UsersRepository {
     return row ? toView(row) : null;
   }
 
-  /** How many tenants the account belongs to (memberships, active or not). */
-  async membershipCount(id: string, db: Db = this.db) {
-    const [row] = await db
-      .select({ count: count() })
-      .from(memberships)
-      .where(eq(memberships.userId, id));
-    return row?.count ?? 0;
-  }
-
   /** Adds the user to the tenant (an active membership). */
   async addMembership(db: Db, tenantId: string, userId: string) {
     await db.insert(memberships).values({ tenantId, userId });
+  }
+
+  /** Makes the user an active member of the tenant: a new membership, or one deactivated before. */
+  async joinTenant(db: Db, tenantId: string, userId: string) {
+    await db
+      .insert(memberships)
+      .values({ tenantId, userId })
+      .onConflictDoUpdate({
+        target: [memberships.tenantId, memberships.userId],
+        set: { active: true, updatedAt: new Date() },
+      });
+  }
+
+  /**
+   * The account's lock, until the transaction ends, and whether the account
+   * is still active under it: its deletion (anonymize) and an invitation's
+   * acceptance never interleave, so no membership outlives the account.
+   */
+  async lockAccount(tx: Transaction, userId: string) {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`account:${userId}`}, 0))`,
+    );
+    const [row] = await tx
+      .select({ active: users.active })
+      .from(users)
+      .where(eq(users.id, userId));
+    return row?.active === true;
+  }
+
+  /**
+   * One change to a user's membership in a tenant at a time, until the
+   * transaction ends: an invitation's acceptance and a deactivation never
+   * interleave (both read and write the membership and its roles).
+   */
+  async lockMembership(tx: Transaction, tenantId: string, userId: string) {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`membership:${tenantId}:${userId}`}, 0))`,
+    );
   }
 
   /** Activates or deactivates the user's membership in the tenant: their access to it, not their account. */
@@ -245,26 +275,6 @@ export class UsersRepository {
       );
   }
 
-  /**
-   * Takes every way in away from an account nobody claimed (its address
-   * never proved, `emailVerified` false: an administrator made it, or set
-   * its password), before it joins another tenant: no password, two-factor,
-   * linked providers, sessions or refresh tokens. Whoever set them (the
-   * other tenant's administrator) can't follow it into this tenant; its
-   * owner sets a password with the invitation link.
-   */
-  async resetCredentials(tx: Transaction, id: string) {
-    await tx.update(users).set({ passwordHash: null }).where(eq(users.id, id));
-    await tx.delete(userIdentities).where(eq(userIdentities.userId, id));
-    await tx.delete(mfaAuthenticators).where(eq(mfaAuthenticators.userId, id));
-    await tx.delete(mfaRecoveryCodes).where(eq(mfaRecoveryCodes.userId, id));
-    await tx.delete(sessions).where(eq(sessions.userId, id));
-    await tx
-      .update(refreshTokens)
-      .set({ revoked: true })
-      .where(eq(refreshTokens.userId, id));
-  }
-
   async findView(id: string, db: Db = this.db) {
     const [row] = await db.select().from(users).where(eq(users.id, id));
     return row ? toView(row) : null;
@@ -288,17 +298,26 @@ export class UsersRepository {
    * account's together.
    */
   async page(tenantId: string, query: PageQuery, where?: SQL) {
-    const scoped = and(memberOf(tenantId), where);
+    // The list's filters read the membership too (`active`): the page and
+    // its count both join it.
     const [rows, total] = await Promise.all([
       this.db
         .select({ user: users, membership: memberships.active })
         .from(users)
         .innerJoin(memberships, memberJoin(tenantId))
-        .where(and(scoped, afterCursor(users.id, query)))
+        .where(and(where, afterCursor(users.id, query)))
         .orderBy(...pageOrder(users.id, query))
         .limit(query.limit + 1)
         .offset(pageOffset(query)),
-      countPage(this.db, users, scoped, query),
+      countMatching(
+        this.db,
+        this.db
+          .select({ one: sql`1` })
+          .from(users)
+          .innerJoin(memberships, memberJoin(tenantId))
+          .where(where),
+        query,
+      ),
     ]);
     return toPage(
       rows.map((row) => toView(row.user, row.membership)),
@@ -366,8 +385,12 @@ export class UsersRepository {
   }
 
   /** Only while `email` is still the user's address: a link sent to an old one verifies nothing. */
-  async markEmailVerified(id: string, email: string): Promise<boolean> {
-    const rows = await this.db
+  async markEmailVerified(
+    id: string,
+    email: string,
+    db: Db = this.db,
+  ): Promise<boolean> {
+    const rows = await db
       .update(users)
       .set({ emailVerified: true })
       .where(and(eq(users.id, id), eq(users.email, normalizeEmail(email))))
@@ -396,8 +419,6 @@ const toPrincipal = (row: Row): UserPrincipal => ({
 /** Users who are members of `tenantId` (the `memberships` join's condition and the filter). */
 const memberJoin = (tenantId: string) =>
   and(eq(memberships.userId, users.id), eq(memberships.tenantId, tenantId));
-const memberOf = (tenantId: string) =>
-  sql`exists (select 1 from ${memberships} where ${memberships.userId} = ${users.id} and ${memberships.tenantId} = ${tenantId})`;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

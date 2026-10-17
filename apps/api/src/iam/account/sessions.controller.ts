@@ -71,13 +71,20 @@ export class SessionsController {
   ) {}
 
   @Get('sessions')
-  @ApiOperation({ summary: 'Your browser sessions' })
+  @ApiOperation({
+    summary: 'Your browser sessions',
+    description: 'While an administrator acts as you: only that session.',
+  })
   @ApiOkResponse({ standardSchema: listSchema(sessionSchema) })
   async list(
     @CurrentUser() user: UserPrincipal,
     @CurrentSession() current: SessionRecord | undefined,
   ) {
-    const sessions = await this.sessions.list(user.id);
+    // While impersonating, only this session: the person's others (their
+    // devices, their other tenants) are theirs, not the administrator's.
+    const sessions = (await this.sessions.list(user.id)).filter(
+      (session) => !user.impersonator || session.id === current?.id,
+    );
     const items = sessions.map((session) => {
       const authentication = authenticationOf(session);
       return {

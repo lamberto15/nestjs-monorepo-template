@@ -17,6 +17,7 @@ import {
   tenantScope,
 } from './tenant-scope.js';
 import { type Tenant, tenants } from './tenancy.tables.js';
+import { maintenanceAvailable } from './tenant-pool.js';
 
 /**
  * The tenant of the current work (docs/tenancy.md): set by PrincipalGuard
@@ -82,14 +83,21 @@ export class Tenancy {
   }
 
   /**
-   * Runs `work` across every tenant at once (`app.bypass_rls`): for a
-   * worker's maintenance job that sweeps a table whole by age (retention),
-   * never for a request. Refused in a process that runs no workers and
-   * inside a request's context, so a route can't reach it by mistake; a
-   * job that acts per tenant (and audits it) iterates them instead
-   * (`forEachTenant()`). Logged with the job.
+   * Runs `work` across every tenant at once: for a worker's maintenance job
+   * that sweeps a table whole by age (retention), never for a request. Its
+   * queries run as the maintenance role (BYPASSRLS, DATABASE_MAINTENANCE_URL),
+   * which only workers hold (TenantPool): no setting of the app role opens
+   * every tenant. Refused in a process that runs no workers or has no
+   * maintenance role, and inside a request's context, so a route can't reach
+   * it by mistake: a job that acts per tenant (and audits it) iterates them
+   * instead (`forEachTenant()`). Logged with the job.
    */
   bypass<T>(job: string, work: () => Promise<T>): Promise<T> {
+    if (!maintenanceAvailable()) {
+      throw new Error(
+        `${job}: work across every tenant needs the maintenance role, and this process has none (DATABASE_MAINTENANCE_URL, workers only: docs/tenancy.md, "The bypass").`,
+      );
+    }
     if (!runsWorkers()) {
       throw new Error(
         `${job}: the row-level security bypass runs in a worker only (APP_ROLE worker or all).`,
@@ -100,7 +108,7 @@ export class Tenancy {
         `${job}: the row-level security bypass never runs inside a request.`,
       );
     }
-    this.logger.log(`${job}: across every tenant (row-level security bypass)`);
+    this.logger.log(`${job}: across every tenant (the maintenance role)`);
     return this.run(BYPASS, work);
   }
 
@@ -110,6 +118,14 @@ export class Tenancy {
       .select()
       .from(tenants)
       .where(eq(tenants.active, true))
+      .orderBy(asc(tenants.createdAt), asc(tenants.id));
+  }
+
+  /** Every tenant, active or not, oldest first. */
+  all(): Promise<Tenant[]> {
+    return database(this.txHost)
+      .select()
+      .from(tenants)
       .orderBy(asc(tenants.createdAt), asc(tenants.id));
   }
 
@@ -127,16 +143,43 @@ export class Tenancy {
    * when it opens one, its own transaction), and logs which tenant each run
    * was for: how maintenance jobs act per tenant (account deletions, the
    * recycle bins, the attachment sweep, scheduled reports). A tenant's
-   * failure is logged and the others still run; then the first error is
-   * thrown.
+   * failure is logged and the others still run; then a TenantRunsFailed
+   * names every tenant that failed (with their errors), so the job's own
+   * passes after it (a no-tenant pass) still run when the job awaits
+   * `settle()` instead.
    */
   async forEachTenant<T>(
     job: string,
     work: (tenant: Tenant) => Promise<T>,
+    /**
+     * `includeInactive`: deactivated tenants too (retention: their old
+     * rows still age out, while nobody acts in them).
+     */
+    { includeInactive = false }: { includeInactive?: boolean } = {},
   ): Promise<Map<string, T>> {
+    const { results, failures } = await this.settle(job, work, {
+      includeInactive,
+    });
+    if (failures.length > 0) {
+      throw new TenantRunsFailed(job, failures);
+    }
+    return results;
+  }
+
+  /**
+   * `forEachTenant()` without the throw: every tenant's result, and the
+   * failures, for a job that has more to do after the walk (a no-tenant
+   * pass) before it reports them (`TenantRunsFailed`).
+   */
+  async settle<T>(
+    job: string,
+    work: (tenant: Tenant) => Promise<T>,
+    { includeInactive = false }: { includeInactive?: boolean } = {},
+  ) {
     const results = new Map<string, T>();
-    let failure: unknown;
-    for (const tenant of await this.active()) {
+    const failures: { tenant: Tenant; error: unknown }[] = [];
+    const walked = includeInactive ? await this.all() : await this.active();
+    for (const tenant of walked) {
       try {
         const result = await this.run(tenant.id, () => work(tenant));
         results.set(tenant.id, result);
@@ -144,17 +187,32 @@ export class Tenancy {
           tenant: tenant.id,
         });
       } catch (error) {
-        failure ??= error;
+        failures.push({ tenant, error });
         this.logger.error(`${job}: failed for tenant ${tenant.slug}`, {
           tenant: tenant.id,
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
-    if (failure) {
-      throw failure;
-    }
-    return results;
+    return { results, failures };
+  }
+}
+
+/** Some tenants' runs of a job failed (each logged); the others ran. */
+export class TenantRunsFailed extends AggregateError {
+  constructor(
+    job: string,
+    readonly failures: { tenant: Tenant; error: unknown }[],
+  ) {
+    super(
+      failures.map((failure) => failure.error),
+      `${job} failed for ${failures.length} tenant(s): ${failures
+        .map(
+          ({ tenant, error }) =>
+            `${tenant.slug} (${error instanceof Error ? error.message : String(error)})`,
+        )
+        .join('; ')}`,
+    );
   }
 }
 

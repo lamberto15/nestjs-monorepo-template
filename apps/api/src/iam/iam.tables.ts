@@ -39,7 +39,7 @@ export const apiClients = pgTable(
     ...timestamps(),
   },
   (table) => [
-    ...tenantTable('api_clients', table),
+    ...tenantTable('api_clients', table, { referenced: true }),
     uniqueIndex('api_clients_tenant_name_idx').on(table.tenantId, table.name),
   ],
 ).enableRLS();
@@ -138,6 +138,49 @@ export const memberships = pgTable(
 );
 
 /**
+ * Invitations to a tenant (docs/tenancy.md, "Invitations"): an address, the
+ * roles and units its membership will have, and the link's token (only its
+ * SHA-256). Nothing about an account is read or changed until the person
+ * accepts: a new address chooses a password with the link; an existing
+ * account accepts while signed in. A tenant table: the token names its
+ * tenant, so it is looked up in that tenant's scope.
+ */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    /** Normalized, as `users.email`. */
+    email: text('email').notNull(),
+    /** The name a new account starts with (its owner changes it). */
+    name: text('name'),
+    roleIds: jsonb('role_ids').$type<string[]>().notNull().default([]),
+    /** When each grant ends, by role id. */
+    roleExpiresAt: jsonb('role_expires_at')
+      .$type<Record<string, string>>()
+      .notNull()
+      .default({}),
+    orgUnitIds: jsonb('org_unit_ids').$type<string[]>().notNull().default([]),
+    /** The SHA-256 of the link's secret, base64url. */
+    tokenHash: text('token_hash').notNull(),
+    /** `user:<id>` of who invited. */
+    invitedBy: text('invited_by').notNull(),
+    expiresAt: at('expires_at').notNull(),
+    acceptedAt: at('accepted_at'),
+    acceptedBy: uuid('accepted_by'),
+    ...timestamps(),
+  },
+  (table) => [
+    ...tenantTable('invitations', table),
+    uniqueIndex('invitations_tenant_token_idx').on(
+      table.tenantId,
+      table.tokenHash,
+    ),
+    index('invitations_tenant_email_idx').on(table.tenantId, table.email),
+  ],
+).enableRLS();
+
+/**
  * Accounts at OAuth / OpenID Connect providers, linked to a user: by
  * (provider, subject), never by email.
  */
@@ -198,7 +241,7 @@ export const roles = pgTable(
     ...timestamps(),
   },
   (table) => [
-    ...tenantTable('roles', table),
+    ...tenantTable('roles', table, { referenced: true }),
     uniqueIndex('roles_tenant_key_idx').on(table.tenantId, table.key),
     uniqueIndex('roles_tenant_name_idx').on(table.tenantId, table.name),
   ],
@@ -450,7 +493,7 @@ export const orgUnits = pgTable(
   },
   (table) => [
     index('org_units_parent_id_idx').on(table.parentId),
-    ...tenantTable('org_units', table),
+    ...tenantTable('org_units', table, { referenced: true }),
     tenantReference(
       'org_units_parent_fk',
       [table.tenantId, table.parentId],

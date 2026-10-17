@@ -37,7 +37,7 @@ export const tags = pgTable(
       table.subject,
       sql`lower(${table.name})`,
     ),
-    ...tenantTable('tags', table),
+    ...tenantTable('tags', table, { referenced: true }),
   ],
 ).enableRLS();
 

@@ -50,7 +50,7 @@ if [ ! -f "$env_file" ]; then
       echo ADMIN_EMAIL=load-test-admin@example.com
       echo PASSWORD_BREACH_CHECK=off
       echo "APP_IMAGE=${APP_IMAGE:-}"
-      for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD LOADTEST_USER_PASSWORD; do
+      for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD POSTGRES_MAINTENANCE_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD LOADTEST_USER_PASSWORD; do
         echo "$name=$(openssl rand -hex 24)"
       done
     } > "$env_file"

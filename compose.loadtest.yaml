@@ -13,6 +13,9 @@
 services:
   api:
     environment:
+      GOTENBERG_URL: ''
+      # The scenarios' users sign up themselves (loadtest/scenarios.js).
+      AUTH_SIGN_UP: 'on'
       # Names this stack in logs, and lets it raise the rate limits: under
       # NODE_ENV=production the app refuses RATE_LIMIT_MULTIPLIER above 1
       # without it.
@@ -29,6 +32,9 @@ services:
   worker:
     environment:
       APP_ENV: loadtest
+      # No PDFs in the scenarios: documents off, and no Gotenberg image to
+      # build or pull (it is in no request path).
+      GOTENBERG_URL: ''
   migrate:
     environment:
       APP_ENV: loadtest
@@ -49,3 +55,5 @@ services:
   # Not in the request path; its image would only lengthen the run.
   backup:
     profiles: [backup]
+  gotenberg:
+    profiles: [documents]

@@ -19,7 +19,18 @@ export async function stillActive(
   principal: RequestPrincipal,
   users: UsersRepository,
   db: Database | Transaction,
+  /**
+   * `account`: a job of the account itself, in no tenant (a person's data
+   * export): the user's account must be active, whatever tenant they act in.
+   */
+  { account = false }: { account?: boolean } = {},
 ): Promise<RequestPrincipal | null> {
+  if (account) {
+    if (principal.kind !== 'user' || principal.impersonator) {
+      return null;
+    }
+    return users.findActive(principal.id);
+  }
   const tenantId = currentTenantId();
   if (!tenantId || principal.tenantId !== tenantId) {
     return null; // a payload whose principal acted elsewhere: never run

@@ -46,6 +46,7 @@ import {
   users,
 } from '../iam.tables.js';
 import { ApiClientsService } from './api-clients.service.js';
+import { InvitationsService } from './invitations.service.js';
 import { OrgUnitsService } from './org-units.service.js';
 import { AccessService } from './access.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
@@ -59,9 +60,8 @@ export interface RoleInput {
 
 export interface UserInput {
   email: string;
-  name: string;
-  /** Unset: the user is invited by email to set one. */
-  password?: string;
+  /** The name a new account starts with (its owner changes it). */
+  name?: string;
   roleIds: string[];
   /** When grants end, by role id (temporary access); the others never do. */
   roleExpiresAt?: Record<string, string>;
@@ -69,13 +69,12 @@ export interface UserInput {
   orgUnitIds?: string[];
 }
 
+/** What an administrator changes of a membership: never the account (its name, its password). */
 export interface UserChanges {
-  name?: string;
   active?: boolean;
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
   orgUnitIds?: string[];
-  password?: string;
 }
 
 export interface ClientInput {
@@ -127,6 +126,7 @@ export class AccessAdminService {
     private readonly breachedPasswords: BreachedPasswordsService,
     private readonly lifecycle: UserLifecycleRegistry,
     private readonly tenancy: Tenancy,
+    private readonly invitations: InvitationsService,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -293,138 +293,46 @@ export class AccessAdminService {
   }
 
   /**
-   * Adds someone to the tenant. Users are global (docs/tenancy.md): a new
-   * address makes an account (with the password given, or an invitation to
-   * choose one); an address that has an account adds that account, with
-   * these roles and units, and never touches its credentials, which are its
-   * owner's: a password for it is refused (409 `account_exists`). An
-   * account nobody claimed yet (its address never proved: another tenant's
-   * administrator made it) loses every way in first and gets the invitation,
-   * so whoever made it can't follow it here.
+   * Invites someone to the tenant (docs/tenancy.md, "Invitations"): the
+   * address gets a link; the membership, with these roles and units, comes
+   * when its owner accepts. Nothing about an account is read, changed or
+   * returned here, so the answer is the same whether or not the address
+   * has one, and no administrator sets anyone's password.
    */
   async createUser(actor: UserPrincipal, input: UserInput, ip?: string) {
-    const tenantId = this.tenancy.tenantId();
     await this.checkRoleGrant(actor, input.roleIds);
-    const existing = await this.accounts.findByEmail(input.email);
-    if (existing) {
-      return this.addExisting(actor, tenantId, existing, input, ip);
-    }
-    if (input.password) {
-      await this.breachedPasswords.assertNotBreached(
-        input.password,
-        'password',
-      );
-    }
-    const passwordHash = input.password
-      ? await this.passwordHasher.hash(input.password)
-      : null;
-    const user = await this.db
-      .transaction(async (tx) => {
-        const created = await this.accounts.create(tx, {
-          email: input.email,
-          name: input.name,
-          passwordHash,
-        });
-        await this.accounts.addMembership(tx, tenantId, created.id);
-        await this.writeRoles(
-          tx,
-          userRoles,
-          created.id,
-          input.roleIds,
-          input.roleExpiresAt,
-        );
-        await this.orgUnits.setUserUnits(
-          tx,
-          created.id,
-          input.orgUnitIds ?? [],
-        );
+    await this.orgUnits.assertExist(input.orgUnitIds ?? []);
+    this.checkExpiries(input.roleIds, input.roleExpiresAt);
+    const { invitation, token } = await inTransaction(
+      this.txHost,
+      async (tx) => {
+        const created = await this.invitations.create(tx, input, actor);
         await this.audit.record(
           actor,
           {
-            action: 'user.created',
-            targetType: 'user',
-            targetId: created.id,
+            action: 'user.invited',
+            targetType: 'invitation',
+            targetId: created.invitation.id,
             details: {
-              email: created.email,
-              roleIds: input.roleIds,
+              email: created.invitation.email,
+              roleIds: created.invitation.roleIds,
               ...(input.roleExpiresAt && {
                 roleExpiresAt: input.roleExpiresAt,
               }),
-              invited: !input.password,
             },
             ip,
           },
           tx,
         );
         return created;
-      })
-      .catch(rethrowUnique('A user with this email already exists.'));
-    // No password: the invitation is a link to set one (the reset flow, for an
-    // account without a password), sent after the commit.
-    if (!input.password) {
-      this.passwordReset.request(user.email);
-    }
-    this.access.invalidate();
-    return user;
-  }
-
-  /** `createUser()` for an address that has an account already. */
-  private async addExisting(
-    actor: UserPrincipal,
-    tenantId: string,
-    account: NonNullable<Awaited<ReturnType<UsersRepository['findByEmail']>>>,
-    input: UserInput,
-    ip?: string,
-  ) {
-    if (input.password !== undefined) {
-      throw new ConflictException({
-        code: 'account_exists',
-        message:
-          'This address has an account: it is added without a password, which only its owner sets.',
-      });
-    }
-    if (!account.active) {
-      throw new ConflictException('A user with this email already exists.');
-    }
-    const unclaimed = !account.emailVerified;
-    await inTransaction(this.txHost, async (tx) => {
-      await this.accounts
-        .addMembership(tx, tenantId, account.id)
-        .catch(rethrowUnique('This user is a member already.'));
-      if (unclaimed) {
-        await this.accounts.resetCredentials(tx, account.id);
-      }
-      await this.writeRoles(
-        tx,
-        userRoles,
-        account.id,
-        input.roleIds,
-        input.roleExpiresAt,
-      );
-      await this.orgUnits.setUserUnits(tx, account.id, input.orgUnitIds ?? []);
-      await this.audit.record(
-        actor,
-        {
-          action: 'user.created',
-          targetType: 'user',
-          targetId: account.id,
-          details: {
-            email: account.email,
-            roleIds: input.roleIds,
-            ...(input.roleExpiresAt && { roleExpiresAt: input.roleExpiresAt }),
-            existingAccount: true,
-            invited: unclaimed,
-          },
-          ip,
-        },
-        tx,
-      );
-    });
-    if (unclaimed) {
-      this.passwordReset.request(account.email);
-    }
-    this.access.invalidate();
-    return (await this.accounts.findMember(tenantId, account.id))!;
+      },
+    );
+    await this.invitations.send(invitation, token, actor);
+    return {
+      id: invitation.id,
+      email: invitation.email,
+      expiresAt: invitation.expiresAt,
+    };
   }
 
   async updateUser(
@@ -437,19 +345,6 @@ export class AccessAdminService {
     const before = await this.accounts.findMember(tenantId, id);
     if (!before) {
       throw new NotFoundException(`User ${id} not found.`);
-    }
-    // The account (its name, its password) is its owner's and spans their
-    // tenants: an administrator changes it only while it belongs to this
-    // tenant alone, or they would reach into the others (docs/tenancy.md).
-    if (
-      (changes.name !== undefined || changes.password !== undefined) &&
-      (await this.accounts.membershipCount(id)) > 1
-    ) {
-      throw new ConflictException({
-        code: 'account_shared',
-        message:
-          'This account belongs to other tenants too: only its owner changes its name or password.',
-      });
     }
     if (changes.active === false && id === actor.id) {
       throw new ConflictException('You can’t deactivate yourself.');
@@ -474,26 +369,10 @@ export class AccessAdminService {
       ];
       await this.checkRoleGrant(actor, changed);
     }
-    if (changes.password) {
-      await this.breachedPasswords.assertNotBreached(
-        changes.password,
-        'password',
-      );
-    }
-    const passwordHash = changes.password
-      ? await this.passwordHasher.hash(changes.password)
-      : undefined;
-
-    const fields = {
-      ...(changes.name !== undefined && { name: changes.name }),
-      // A password an administrator chose makes the account unclaimed again:
-      // its owner must prove the address before it joins another tenant.
-      ...(passwordHash && { passwordHash, emailVerified: false }),
-    };
     await inTransaction(this.txHost, async (tx) => {
-      if (Object.keys(fields).length) {
-        await this.accounts.update(tx, id, fields);
-      }
+      // An invitation's acceptance waits (or ran first): one change to the
+      // membership at a time.
+      await this.accounts.lockMembership(tx, tenantId, id);
       if (changes.active !== undefined) {
         // The membership, not the account: access to this tenant alone.
         await this.accounts.setMembershipActive(
@@ -529,7 +408,6 @@ export class AccessAdminService {
           targetId: id,
           details: {
             email: before.email,
-            ...(changes.name !== undefined && { name: changes.name }),
             ...(changes.active !== undefined && { active: changes.active }),
             ...(changes.roleIds !== undefined && {
               roleIds: { from: currentRoleIds, to: changes.roleIds },
@@ -538,19 +416,16 @@ export class AccessAdminService {
               }),
             }),
             ...(changes.orgUnitIds && { orgUnitIds: changes.orgUnitIds }),
-            ...(passwordHash && { passwordReset: true }),
           },
           ip,
         },
         tx,
       );
     });
-    // A new password signs the account out everywhere; a deactivation ends
-    // its sessions and tokens in this tenant (the others go on; the
-    // membership check would refuse them on their next request anyway).
-    if (passwordHash) {
-      await this.signInService.signOutEverywhere(id);
-    } else if (changes.active === false) {
+    // A deactivation ends its sessions and tokens in this tenant (the
+    // others go on; the membership check would refuse them on their next
+    // request anyway).
+    if (changes.active === false) {
       await this.accounts.endTenantSessions(id, tenantId);
     }
     this.access.invalidate();
@@ -772,18 +647,14 @@ export class AccessAdminService {
     );
   }
 
-  /** A user's or a client's role grants, each with its end (none: never). */
-  private async writeRoles(
-    tx: Transaction,
-    grants: typeof userRoles | typeof apiClientRoles,
-    holderId: string,
+  /** Each grant's end names one of the roles, and is still to come. */
+  private checkExpiries(
     roleIds: string[],
     expiresAt: Record<string, string> = {},
   ) {
-    const unique = [...new Set(roleIds)];
     const now = Date.now();
     for (const [roleId, when] of Object.entries(expiresAt)) {
-      if (!unique.includes(roleId)) {
+      if (!roleIds.includes(roleId)) {
         throw new BadRequestException(
           `roleExpiresAt names ${roleId}, which isn't in roleIds.`,
         );
@@ -794,6 +665,18 @@ export class AccessAdminService {
         );
       }
     }
+  }
+
+  /** A user's or a client's role grants, each with its end (none: never). */
+  private async writeRoles(
+    tx: Transaction,
+    grants: typeof userRoles | typeof apiClientRoles,
+    holderId: string,
+    roleIds: string[],
+    expiresAt: Record<string, string> = {},
+  ) {
+    const unique = [...new Set(roleIds)];
+    this.checkExpiries(unique, expiresAt);
     if (!unique.length) {
       return;
     }

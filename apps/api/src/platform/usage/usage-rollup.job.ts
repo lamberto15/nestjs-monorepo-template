@@ -80,12 +80,17 @@ export class UsageRollupJob {
           ? [day]
           : [...new Set(keys.map((key) => key.day))].filter((d) => d < today);
         let written = 0;
+        const failed: unknown[] = [];
         for (const each of days) {
-          written += await this.rollUp(
-            each,
-            keys.filter((key) => key.day === each),
-            now,
-          );
+          try {
+            written += await this.rollUp(
+              each,
+              keys.filter((key) => key.day === each),
+              now,
+            );
+          } catch (error) {
+            failed.push(error); // the other days and the retention still run
+          }
         }
         const retentionDays = this.config.get('USAGE_RETENTION_DAYS', {
           infer: true,
@@ -102,6 +107,11 @@ export class UsageRollupJob {
           deleted: deleted.length,
           retentionDays,
         });
+        if (failed.length > 0) {
+          throw failed.length === 1
+            ? failed[0]
+            : new AggregateError(failed, 'usage-rollup failed for some days');
+        }
         return written;
       },
       { transaction: false },
@@ -117,16 +127,34 @@ export class UsageRollupJob {
       (key) => key.day === day,
     );
     let written = 0;
+    // A tenant's failure never stops the others: its counters stay in Redis
+    // for the next run; every failure is logged, then reported together.
+    const failures: { tenantId: string; error: unknown }[] = [];
     for (const tenantId of new Set(found.map((key) => key.tenantId))) {
       const ofTenant = found.filter((key) => key.tenantId === tenantId);
-      written += await this.tenancy.run(tenantId, () =>
-        this.rollUpTenant(day, ofTenant, now),
+      try {
+        written += await this.tenancy.run(tenantId, () =>
+          this.rollUpTenant(day, ofTenant, now),
+        );
+        this.logger.debug('Usage rolled up for a tenant', {
+          tenant: tenantId,
+          day,
+          clients: ofTenant.length,
+        });
+      } catch (error) {
+        failures.push({ tenantId, error });
+        this.logger.error('Usage not rolled up for a tenant', {
+          tenant: tenantId,
+          day,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures.map((failure) => failure.error),
+        `usage-rollup failed for ${failures.length} tenant(s) on ${day}: ${failures.map((failure) => failure.tenantId).join(', ')}`,
       );
-      this.logger.debug('Usage rolled up for a tenant', {
-        tenant: tenantId,
-        day,
-        clients: ofTenant.length,
-      });
     }
     return written;
   }

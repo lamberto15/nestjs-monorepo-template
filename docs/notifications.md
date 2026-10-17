@@ -74,6 +74,11 @@ the account's own (stored outside any tenant, `tenant_id` null: the
 security notifications of a sign-in), which row-level security gives
 ([tenancy](tenancy.md)); another tenant's never show, even the same
 person's. Preferences are the person's, the same in every tenant.
+While an administrator impersonates the person, they see the tenant's
+notifications only (never the account's own), and nothing changes: marking
+read, removing and the preferences answer 403 (the preferences are not even
+shown). A collapsed notification replaces the older one of its key in the
+same tenant only (or among the account's own).
 
 | Route | Does |
 | --- | --- |

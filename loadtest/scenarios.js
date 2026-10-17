@@ -173,15 +173,16 @@ export function setup() {
     'daily quota',
   );
 
-  // The users who sign in (no roles: signing in is what is measured).
+  // The users who sign in (no roles, no tenant: signing in is what is
+  // measured). They sign up themselves (AUTH_SIGN_UP=on in the stack):
+  // administrators invite, and never set anyone's password (docs/tenancy.md).
   for (let i = 0; i < USERS; i++) {
     expect(
-      request(
-        'POST',
-        '/v1/access/users',
-        { email: userEmail(i), name: `Load test ${i}`, password: USER_PASSWORD },
-        admin,
-      ),
+      request('POST', '/v1/auth/sign-up', {
+        email: userEmail(i),
+        name: `Load test ${i}`,
+        password: USER_PASSWORD,
+      }),
       [200, 201, 409],
       `user ${i}`,
     );

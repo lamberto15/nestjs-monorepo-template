@@ -85,14 +85,18 @@ imports, bulk) are different: they act for the user or client that asked
 tenant tables are out of its reach until it picks one. A job that acts on
 tenants' data walks them, `Tenancy.forEachTenant(job, work)` (each tenant
 in its own scope and transactions, logged with the tenant; one tenant's
-failure doesn't stop the others), so what it records lands in that
+failure doesn't stop the others, nor the job's pass outside any tenant: the
+failures are reported together at the end, `TenantRunsFailed`; retention
+sweeps pass `{ includeInactive: true }`, so a deactivated tenant's old rows
+still go), so what it records lands in that
 tenant's audit log: the recycle bin purge (`records.purged`), the audit
 retention (`audit.pruned` per tenant, then a pass outside any tenant for
 the account-level entries), the account deletion (a person's data in each
 tenant they belonged to, then the account). `Tenancy.bypass(job, work)`
-(`app.bypass_rls`) sweeps every tenant at once, for a whole-table delete
-by age that records nothing per tenant; it runs only in a worker and
-never inside a request. A job on global tables only (the mail events'
+sweeps every tenant at once, as the maintenance role (`BYPASSRLS`,
+`DATABASE_MAINTENANCE_URL`, workers only: [tenancy](tenancy.md), "The
+bypass"), for a whole-table delete by age that records nothing per tenant;
+it runs only in a worker and never inside a request. A job on global tables only (the mail events'
 retention, the exchange rates) says so: `system.run(job, work, { tenantId: null })`.
 
 **Workflows carry their tenant by type**: an instance's input and every

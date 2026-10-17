@@ -20,7 +20,9 @@ import { migrateAll } from './core/database/migrate-all.js';
  */
 const owner = secretValue(process.env, 'DATABASE_OWNER_URL');
 const app = secretValue(process.env, 'DATABASE_URL');
-const problems = [...owner.problems, ...app.problems];
+// Optional: the worker's maintenance role (BYPASSRLS), made or checked when set.
+const maintenance = secretValue(process.env, 'DATABASE_MAINTENANCE_URL');
+const problems = [...owner.problems, ...app.problems, ...maintenance.problems];
 for (const { variable, message } of problems) {
   console.error(`${variable}: ${message}`);
 }
@@ -33,6 +35,11 @@ if (problems.length > 0 || !owner.value || !app.value) {
   process.exit(1);
 }
 
-await migrateAll({ ownerUrl: owner.value, appUrl: app.value }, (line) =>
-  console.log(line),
+await migrateAll(
+  {
+    ownerUrl: owner.value,
+    appUrl: app.value,
+    maintenanceUrl: maintenance.value || undefined,
+  },
+  (line) => console.log(line),
 );

@@ -124,8 +124,11 @@ export async function testDatabase() {
   );
   const url = databaseUrl(inject('appUrl'), name);
   const ownerUrl = databaseUrl(inject('ownerUrl'), name);
+  const maintenanceUrl = databaseUrl(inject('maintenanceUrl'), name);
   const db = await createDatabase({
     url,
+    // As a worker has it (APP_ROLE=all in the tests): the bypass's pool.
+    maintenanceUrl,
     migrate: false,
     pool: {
       max: 10,
@@ -145,6 +148,7 @@ export async function testDatabase() {
     db,
     url,
     ownerUrl,
+    maintenanceUrl,
     /** Runs `statement` as the owner of the tables: a fixture table, a change to the schema. */
     asOwner: async (statement: string) => {
       const owner = new Client({ connectionString: ownerUrl });
@@ -284,19 +288,53 @@ export async function bootApp(
     return mailbox.assertSent(query);
   };
 
-  /** Sets the password of an invited account with its invitation's link. */
-  const acceptInvitation = async (email: string) => {
-    const mail = await waitForMail({ to: email, subject: /invited/ });
+  /** The invitations to a tenant mailed to `email` (docs/tenancy.md, "Invitations"), oldest first. */
+  const invitationsTo = (email: string) =>
+    (app.get(MailTransport) as InMemoryMailTransport).filter({
+      to: email,
+      subject: /invited you to/,
+    });
+  const tokenOf = (mail: { link: (match?: string) => URL }) =>
+    mail.link('/accept-invitation').searchParams.get('token')!;
+
+  /**
+   * `by` (an administrator's agent) invites `body.email` to their tenant;
+   * the link's token, once its mail left (mail leaves after the answer).
+   */
+  const invite = async (
+    by: request.Agent,
+    body: { email: string; roleIds?: string[]; name?: string },
+  ) => {
+    const before = invitationsTo(body.email).length;
+    await by
+      .post('/v1/access/users')
+      .send({ roleIds: [], ...body })
+      .expect(202);
+    for (let tries = 0; tries < 100; tries++) {
+      const sent = invitationsTo(body.email);
+      if (sent.length > before) {
+        return tokenOf(sent.at(-1)!);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`No invitation reached ${body.email}`);
+  };
+
+  /** A new address accepts an invitation: it chooses its password. */
+  const acceptAsNew = async (token: string, name?: string) => {
     const password = newPassword();
     await http()
-      .post('/v1/auth/password/reset')
-      .send({
-        token: mail.link('/reset-password').searchParams.get('token'),
-        password,
-      })
-      .expect(204);
+      .post('/v1/auth/invitations/accept')
+      .send({ token, password, ...(name && { name }) })
+      .expect(200);
     return password;
   };
+
+  /** A new address accepts the (first) invitation mailed to it: its password. */
+  const acceptInvitation = async (email: string) =>
+    acceptAsNew(
+      tokenOf(await waitForMail({ to: email, subject: /invited you to/ })),
+    );
 
   /**
    * Another tenant (docs/tenancy.md), made by the operators (the seeded
@@ -320,25 +358,24 @@ export async function bootApp(
       email,
       password,
       admin: tenantAdmin,
-      /** A user of this tenant with these roles (by key), signed in. */
+      /** A user of this tenant with these roles (by key), who accepted, signed in. */
       async user(roleKeys: string[]) {
         const address = `${randomUUID().slice(0, 8)}@example.com`;
-        const userPassword = newPassword();
-        const user = await tenantAdmin
-          .post('/v1/access/users')
-          .send({
-            email: address,
-            name: address,
-            password: userPassword,
-            roleIds: roleKeys.map(
-              (key) => roles.find((role) => role.key === key)!.id,
-            ),
-          })
-          .expect(201);
-        return {
-          id: user.body.id as string,
+        const token = await invite(tenantAdmin, {
           email: address,
-          agent: await signIn(address, userPassword),
+          name: address,
+          roleIds: roleKeys.map(
+            (key) => roles.find((role) => role.key === key)!.id,
+          ),
+        });
+        const userPassword = await acceptAsNew(token);
+        const agent = await signIn(address, userPassword);
+        const me = await agent.get('/v1/auth/me').expect(200);
+        return {
+          id: me.body.user.id as string,
+          email: address,
+          password: userPassword,
+          agent,
         };
       },
       /** A new API client of this tenant: its id and `Authorization` header. */
@@ -357,16 +394,14 @@ export async function bootApp(
   };
 
   /**
-   * A test's own view of the database, past row-level security: the app
-   * role on a pool of its own whose connections set `app.bypass_rls` (the
-   * maintenance jobs' bypass) for the session. Fixtures read and age rows
-   * of any tenant through it; an insert into a tenant table names its
+   * A test's own view of the database, past row-level security: the
+   * maintenance role (BYPASSRLS) on a pool of its own. Fixtures read and age
+   * rows of any tenant through it; an insert into a tenant table names its
    * `tenantId`. Never the app's pool, which stays as production runs it.
    */
   const testPool = new Pool({
-    connectionString: database.url,
+    connectionString: database.maintenanceUrl,
     max: 3,
-    options: '-c app.bypass_rls=on',
   });
   const db = drizzleNodePg({ client: testPool, schema }) as unknown as Database;
 
@@ -415,6 +450,8 @@ export async function bootApp(
     http,
     signIn,
     acceptInvitation,
+    invite,
+    acceptAsNew,
     otherTenant,
     tenantId,
     inTenant,
@@ -430,23 +467,22 @@ export async function bootApp(
 
     roleIds,
 
-    /** A user with these roles (by key, `editor`, or by id), signed in. */
+    /**
+     * A user with these roles (by key, `editor`, or by id), invited by the
+     * seeded administrator, who accepted (their own password) and is
+     * signed in.
+     */
     async user(roleKeys: string[]) {
       const email = `${randomUUID().slice(0, 8)}@example.com`;
-      const password = newPassword();
-      const created = await admin
-        .post('/v1/access/users')
-        .send({
-          email,
-          name: email,
-          password,
-          roleIds: await roleIds(...roleKeys),
-        })
-        .expect(201);
-      return {
-        id: created.body.id as string,
-        agent: await signIn(email, password),
-      };
+      const token = await invite(admin, {
+        email,
+        name: email,
+        roleIds: await roleIds(...roleKeys),
+      });
+      const password = await acceptAsNew(token);
+      const agent = await signIn(email, password);
+      const me = await agent.get('/v1/auth/me').expect(200);
+      return { id: me.body.user.id as string, email, password, agent };
     },
 
     /** A new API client: its id and `Authorization` header. */

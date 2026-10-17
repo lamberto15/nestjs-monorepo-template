@@ -62,9 +62,6 @@ const pwned = await vi.hoisted(async () => {
   };
 });
 
-const tokenOf = (mail: { link: (match?: string) => URL }, path: string) =>
-  mail.link(path).searchParams.get('token')!;
-
 describe('breached passwords (e2e)', () => {
   let node: TestApp;
 
@@ -109,39 +106,30 @@ describe('breached passwords (e2e)', () => {
       .expect(201);
   });
 
-  it('refuses a breached password on a reset (invitation) link, which still works for a fresh one', async () => {
+  it('refuses a breached password when an invitation is accepted, and the link still works for a fresh one', async () => {
     const address = email();
-    await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email: address, name: 'Ada' })
-      .expect(201);
-    const mail = await node.waitForMail({ to: address, subject: /invited/ });
-    const token = tokenOf(mail, '/reset-password');
+    const token = await node.invite(node.admin(), { email: address });
 
     const refused = await node
       .http()
-      .post('/v1/auth/password/reset')
+      .post('/v1/auth/invitations/accept')
       .send({ token, password: pwned.breached });
     expectBreached(refused, 'password');
 
     const password = newPassword();
     await node
       .http()
-      .post('/v1/auth/password/reset')
+      .post('/v1/auth/invitations/accept')
       .send({ token, password })
-      .expect(204);
+      .expect(200);
     await node.signIn(address, password);
   });
 
   it('refuses a breached new password on a change, after the current one is checked', async () => {
     const address = email();
-    const current = newPassword();
-    await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email: address, name: 'Ada', password: current })
-      .expect(201);
+    const current = await node.acceptAsNew(
+      await node.invite(node.admin(), { email: address }),
+    );
     const agent = await node.signIn(address, current);
 
     // A wrong current password is a 403 first, whatever the new one.
@@ -162,32 +150,20 @@ describe('breached passwords (e2e)', () => {
     await node.signIn(address, next);
   });
 
-  it('refuses a breached password an administrator sets, on create and on update', async () => {
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email: email(), name: 'Ada', password: pwned.breached });
-    expectBreached(created, 'password');
-
-    const address = email();
-    const user = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email: address, name: 'Ada', password: newPassword() })
-      .expect(201);
-    const updated = await node
-      .admin()
-      .patch(`/v1/access/users/${user.body.id}`)
-      .send({ password: pwned.breached });
-    expectBreached(updated, 'password');
-
-    const password = newPassword();
+  it('lets no administrator set a password, breached or not (docs/tenancy.md, "Invitations")', async () => {
     await node
       .admin()
-      .patch(`/v1/access/users/${user.body.id}`)
-      .send({ password })
-      .expect(204);
-    await node.signIn(address, password);
+      .post('/v1/access/users')
+      .send({ email: email(), name: 'Ada', password: newPassword() })
+      .expect(400);
+    const user = await node.user([]);
+    await node
+      .admin()
+      .patch(`/v1/access/users/${user.id}`)
+      .send({ password: newPassword() })
+      .expect(400);
+    // Checked once, when the owner chose theirs (the invitation's acceptance).
+    expect(pwned.requests).toHaveLength(1);
   });
 
   it('sends only a 5-character hash prefix, with Add-Padding, never the password or its hash', async () => {
@@ -226,8 +202,8 @@ describe('breached passwords (e2e)', () => {
 
   it('accepts a long random password the corpus has never seen', async () => {
     await node
-      .admin()
-      .post('/v1/access/users')
+      .http()
+      .post('/v1/auth/sign-up')
       .send({
         email: email(),
         name: 'Ada',

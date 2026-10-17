@@ -12,7 +12,12 @@ import {
   SignInContext,
   signInMetadata,
 } from '../src/iam/auth/sign-in-context.js';
-import { sessions, userIdentities, users } from '../src/iam/iam.tables.js';
+import {
+  memberships,
+  sessions,
+  userIdentities,
+  users,
+} from '../src/iam/iam.tables.js';
 import { bootApp, newPassword, totp, type TestApp } from './support.js';
 
 /** The token in an email's link. */
@@ -60,26 +65,17 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
     return agent;
   }
 
-  /** A user with these roles and a password the test knows, signed in. */
+  /** A user with these roles who accepted the invitation (their own password), signed in. */
   async function person(roleKeys: string[] = ['editor']): Promise<Person> {
     const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({
-        email,
-        name: email,
-        password,
-        roleIds: await node.roleIds(...roleKeys),
-      })
-      .expect(201);
-    return {
-      id: created.body.id,
+    const token = await node.invite(node.admin(), {
       email,
-      password,
-      agent: await signIn(email, password),
-    };
+      roleIds: await node.roleIds(...roleKeys),
+    });
+    const password = await node.acceptAsNew(token, email);
+    const agent = await signIn(email, password);
+    const me = await agent.get('/v1/auth/me').expect(200);
+    return { id: me.body.user.id, email, password, agent };
   }
 
   const current = async (agent: request.Agent) =>
@@ -241,17 +237,6 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
       ok: 200,
     },
     {
-      name: 'create a user with a password',
-      admin: true,
-      act: ({ me }) => {
-        const email = `${randomUUID().slice(0, 8)}@example.com`;
-        return me.agent
-          .post('/v1/access/users')
-          .send({ email, name: email, password: newPassword(), roleIds: [] });
-      },
-      ok: 201,
-    },
-    {
       name: 'invite a user with roles',
       admin: true,
       act: async ({ me }) => {
@@ -260,16 +245,7 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
           .post('/v1/access/users')
           .send({ email, name: email, roleIds: await node.roleIds('viewer') });
       },
-      ok: 201,
-    },
-    {
-      name: "set another user's password",
-      admin: true,
-      act: ({ me, other }) =>
-        me.agent
-          .patch(`/v1/access/users/${other.id}`)
-          .send({ password: newPassword() }),
-      ok: 204,
+      ok: 202,
     },
     {
       name: "change another user's roles",
@@ -368,7 +344,8 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
       expect(stale.body).toMatchObject({
         code: 'reauthentication_required',
         maxAge: 600,
-        methods: ['password'],
+        // An invitation's link proved the address: email links work too.
+        methods: ['password', 'magic-link'],
         mfaRequired: !!c.me.recoveryCodes,
       });
       expect(
@@ -392,13 +369,13 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
     await age(me.agent);
     await me.agent
       .patch(`/v1/access/users/${other.id}`)
-      .send({ name: 'Renamed', active: false })
+      .send({ active: false })
       .expect(204);
     const email = `${randomUUID().slice(0, 8)}@example.com`;
     await me.agent
       .post('/v1/access/users')
       .send({ email, name: email, roleIds: [] })
-      .expect(201);
+      .expect(202);
     await me.agent
       .patch(`/v1/access/clients/${client}`)
       .send({ dailyQuota: 100, active: false })
@@ -649,7 +626,7 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
       const status = (await me.agent.get('/v1/auth/reauthenticate').expect(200))
         .body;
       expect(status).toMatchObject({
-        methods: ['password'],
+        methods: ['password', 'magic-link'],
         mfaRequired: false,
         maxAge: 600,
       });
@@ -699,7 +676,7 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
       const status = (await me.agent.get('/v1/auth/reauthenticate').expect(200))
         .body;
       expect(status).toMatchObject({
-        methods: ['password'],
+        methods: ['password', 'magic-link'],
         mfaRequired: true,
       });
       const noCode = await me.agent
@@ -807,18 +784,21 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
   });
 
   describe('an account without a password', () => {
-    /** An invited user (no password, address verified), signed in by email link. */
+    /**
+     * An account without a password (one that signs in by link or with a
+     * provider; made here directly, as an invitation's acceptance always
+     * sets one), its address verified, a member of the seeded tenant,
+     * signed in by email link.
+     */
     async function passwordless() {
       const email = `${randomUUID().slice(0, 8)}@example.com`;
-      const created = await node
-        .admin()
-        .post('/v1/access/users')
-        .send({ email, name: email, roleIds: [] })
-        .expect(201);
+      const [created] = await db()
+        .insert(users)
+        .values({ email, name: email, emailVerified: true })
+        .returning({ id: users.id });
       await db()
-        .update(users)
-        .set({ emailVerified: true })
-        .where(eq(users.id, created.body.id));
+        .insert(memberships)
+        .values({ tenantId: node.tenantId, userId: created!.id });
       const agent = request.agent(node.app.getHttpServer());
       let links = 0;
       const viaLink = async () => {
@@ -843,7 +823,7 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
           .expect(200);
       };
       await viaLink();
-      return { id: created.body.id as string, email, agent, viaLink };
+      return { id: created!.id, email, agent, viaLink };
     }
 
     it('re-authenticates by signing in again with a link', async () => {

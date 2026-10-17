@@ -296,6 +296,7 @@ table's owner, and the postgres image's `POSTGRES_USER` is both.
 | --- | --- | --- | --- |
 | **owner** | `migrate`, `backup`, the postgres-exporter; the app itself when `MIGRATE_ON_START` is on (development) | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser) | owns every schema, table and sequence; runs the migrations |
 | **app** | `api`, `worker` | `DATABASE_URL` (Compose: `POSTGRES_APP_USER`, default `app_runtime`, with `POSTGRES_APP_PASSWORD`) | `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`; a member of no other role; owns nothing; `USAGE` on the schemas, `SELECT, INSERT, UPDATE, DELETE` on every table, `USAGE` on every sequence; never `CREATE` |
+| **maintenance** | `worker` (and `migrate`, which creates it) | `DATABASE_MAINTENANCE_URL` (Compose: `POSTGRES_MAINTENANCE_USER`, default `app_maintenance`, with `POSTGRES_MAINTENANCE_PASSWORD`) | the app role's grants, and `BYPASSRLS`: the worker's sweeps across tenants and the metrics over every tenant ([tenancy](tenancy.md), "The bypass"); never on api |
 
 `node dist/migrate` (`apps/api/src/core/database/roles.ts`) makes it so on
 every deploy, after the migrations, as the owner: it creates the app role
@@ -356,6 +357,14 @@ deployment, not to the schema.
   sequences, advisory locks and transaction-scoped settings work; and every
   other e2e test boots the app on that role. The `check` job runs `pnpm migrate`
   twice as a deploy does (a superuser owner, as in Compose).
+- **The maintenance role** (`BYPASSRLS`) is made by the same run when
+  `DATABASE_MAINTENANCE_URL` is set, with the app role's grants and checks (no
+  superuser, owns nothing, a member of nothing). Only a superuser, or a role
+  with `BYPASSRLS`, may create such a role: Compose's owner is the superuser;
+  on a managed PostgreSQL whose admin account may not, create it once as one
+  that may (`CREATE ROLE app_maintenance LOGIN BYPASSRLS PASSWORD '…'`), and
+  `migrate` then checks and grants it. Without it, the worker's sweeps across
+  tenants refuse to run (and say why).
 - **Row-level security** ([tenancy](tenancy.md)): the same run sets `FORCE
   ROW LEVEL SECURITY` on every tenant table (drizzle-kit emits only
   `ENABLE` and the policies) and refuses to finish when a table with a
@@ -363,7 +372,8 @@ deployment, not to the schema.
   owner too, unless it is a superuser (Compose's owner is): the owner never
   serves a request, and the app role, which does, is neither.
 - **Upgrading to tenancy (1a)** is a reset, not a migration of data (the
-  owner's call for app10): the tenancy migration adds `tenant_id NOT NULL`
+  owner's call for app10). Add `POSTGRES_MAINTENANCE_PASSWORD=$(openssl rand -hex 24)`
+  to `.env` first: the tenancy migration adds `tenant_id NOT NULL`
   with no default, which fails on tables that hold rows. Back up, then start
   from an empty database (`docker compose down`, remove the `postgres_data`
   volume, `docker compose up -d --build --remove-orphans`); the first start

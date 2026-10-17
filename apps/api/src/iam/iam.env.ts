@@ -125,6 +125,13 @@ export const iamEnv = z.object({
   MFA_ENCRYPTION_KEYS: secret(optional()),
   /** The name authenticator apps show; default SERVICE_NAME. */
   MFA_ISSUER: optional(),
+  /** How long a tenant's invitation link works (docs/tenancy.md, "Invitations"). */
+  INVITATION_TTL_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(30 * 24)
+    .default(7 * 24),
   /** How long an administrator may act as another user. */
   IMPERSONATION_TTL_MINUTES: z.coerce
     .number()

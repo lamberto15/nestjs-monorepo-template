@@ -162,16 +162,13 @@ describe('authentication (e2e)', () => {
       .expect(403);
   });
 
-  it('signs a user out everywhere when deactivated or given a new password', async () => {
-    const { id, agent } = await node.user(['viewer']);
-    await agent.get('/v1/auth/me').expect(200);
-
+  it('signs a user out of the tenant when deactivated (no administrator sets a password)', async () => {
+    const { id } = await node.user(['viewer']);
     await node
       .admin()
       .patch(`/v1/access/users/${id}`)
       .send({ password: newPassword() })
-      .expect(204);
-    await agent.get('/v1/auth/me').expect(401);
+      .expect(400);
 
     const again = await node.user(['viewer']);
     await node

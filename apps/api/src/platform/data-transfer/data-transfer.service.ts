@@ -11,7 +11,9 @@ import { I18nService } from '@nestjs/i18n';
 import { StorageDisk } from '@nestjs/storage';
 import type { Queue } from 'bullmq';
 import type { CoreEnv } from '../../core/config/core.env.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
+  currentTenantId,
   requireTenantId,
   TenantScopeMissingError,
 } from '../../core/tenancy/tenant-scope.js';
@@ -23,7 +25,7 @@ import {
   type Principal,
   type RequestPrincipal,
 } from '../../iam/auth/principal.js';
-import { tenantFileKey } from '../storage/storage.config.js';
+import { accountFileKey, tenantFileKey } from '../storage/storage.config.js';
 import { DataTransferRegistry } from './data-transfer.registry.js';
 import {
   TRANSFER_FORMATS,
@@ -75,6 +77,16 @@ export const readerZone = (
 export const transferKey = (tenantId: string, name: string) =>
   tenantFileKey(tenantId, `transfers/${name}`);
 
+/**
+ * Where a transfer's files go: its tenant's (`tenants/<id>/transfers/…`),
+ * or, for an account export (no tenant), the person's own
+ * (`accounts/<user id>/transfers/…`).
+ */
+export const jobFileKey = (job: TransferJob, name: string) =>
+  job.tenantId
+    ? transferKey(job.tenantId, name)
+    : accountFileKey(job.principal.id, `transfers/${name}`);
+
 /** The tenant a principal acts in, or TenantScopeMissingError (403 tenant_required) without one. */
 export const principalTenant = (principal: RequestPrincipal) => {
   if (!principal.tenantId) {
@@ -113,6 +125,7 @@ export class DataTransferService {
     private readonly disk: StorageDisk,
     private readonly config: ConfigService<CoreEnv, true>,
     private readonly i18n: I18nService,
+    private readonly tenancy: Tenancy,
   ) {}
 
   /** What the caller may export and import. */
@@ -190,7 +203,10 @@ export class DataTransferService {
       principal,
       {
         kind: 'export',
-        tenantId: transferTenant(principal),
+        // An account export is the person's, across their tenants: queued
+        // in none (docs/tenancy.md), so a user with no tenant has one too.
+        tenantId:
+          exporter.scope === 'account' ? null : transferTenant(principal),
         name: exporter.name,
         format: input.format,
         filters: input.filters ?? {},
@@ -359,13 +375,14 @@ export class DataTransferService {
   /**
    * A transfer of this principal in this tenant: its state, progress and
    * result (with links). Another tenant's transfer is a 404, even the same
-   * person's (a user who belongs to both): the job names its tenant.
+   * person's (a user who belongs to both): the job names its tenant. An
+   * account export (no tenant) is its user's in any tenant, or none.
    */
   async status(principal: Principal, id: string) {
     let job = await this.queue.getJob(id);
     if (
       !job ||
-      job.data.tenantId !== requireTenantId('A transfer') ||
+      (job.data.tenantId !== null && job.data.tenantId !== currentTenantId()) ||
       principalKey(job.data.principal) !== principalKey(principal)
     ) {
       throw new NotFoundException(`Transfer ${id} not found.`);
@@ -427,7 +444,12 @@ export class DataTransferService {
     { id, details }: { id?: string; details?: Record<string, unknown> } = {},
   ) {
     assertRequestPrincipal(job.principal, 'A queued transfer');
-    if (
+    if (job.tenantId === null) {
+      // An account export: a user's, and an export only.
+      if (job.kind !== 'export' || job.principal.kind !== 'user') {
+        throw new Error("Only a user's account export is queued in no tenant.");
+      }
+    } else if (
       job.tenantId !== requireTenantId('A transfer') ||
       job.principal.tenantId !== job.tenantId
     ) {
@@ -440,17 +462,20 @@ export class DataTransferService {
       attempts: 1,
       removeOnComplete: { age: 7 * 24 * 3600 },
     });
-    await this.audit.record(principal, {
-      action: `data.${job.kind}-started`,
-      targetType: 'data-transfer',
-      targetId: added.id!,
-      details: {
-        name: job.name,
-        format: job.format,
-        ...(job.kind === 'import' && { dryRun: job.dryRun }),
-        ...details,
-      },
-    });
+    const started = () =>
+      this.audit.record(principal, {
+        action: `data.${job.kind}-started`,
+        targetType: 'data-transfer',
+        targetId: added.id!,
+        details: {
+          name: job.name,
+          format: job.format,
+          ...(job.kind === 'import' && { dryRun: job.dryRun }),
+          ...details,
+        },
+      });
+    // An account export's entry is the account's, in no tenant's log.
+    await (job.tenantId === null ? this.tenancy.none(started) : started());
     return { id: added.id!, status: 'queued' as const };
   }
 }

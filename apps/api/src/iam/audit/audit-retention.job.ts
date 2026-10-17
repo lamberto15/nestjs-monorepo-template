@@ -8,7 +8,10 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
-import { Tenancy } from '../../core/tenancy/tenancy.service.js';
+import {
+  Tenancy,
+  TenantRunsFailed,
+} from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../access/system-context.js';
 import type { SystemPrincipal } from '../auth/principal.js';
 import type { IamEnv } from '../iam.env.js';
@@ -53,7 +56,10 @@ export class AuditRetentionJob {
       AUDIT_RETENTION_JOB,
       async (system) => {
         let total = 0;
-        const perTenant = await this.tenancy.forEachTenant(
+        // Every tenant, deactivated ones too (their entries age out as
+        // well); a tenant's failure doesn't stop the others nor the
+        // account-level pass, and is reported after it.
+        const { results: perTenant, failures } = await this.tenancy.settle(
           AUDIT_RETENTION_JOB.key,
           async (tenant) => {
             const count = await this.prune(system, before, days);
@@ -66,6 +72,7 @@ export class AuditRetentionJob {
             }
             return count;
           },
+          { includeInactive: true },
         );
         for (const count of perTenant.values()) {
           total += count;
@@ -76,6 +83,9 @@ export class AuditRetentionJob {
           () => this.prune(system, before, days),
           { transaction: false, tenantId: null },
         );
+        if (failures.length > 0) {
+          throw new TenantRunsFailed(AUDIT_RETENTION_JOB.key, failures);
+        }
         return total;
       },
       { transaction: false },

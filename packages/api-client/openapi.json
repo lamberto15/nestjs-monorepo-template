@@ -16386,6 +16386,7 @@
     },
     "/v1/auth/sessions": {
       "get": {
+        "description": "While an administrator acts as you: only that session.",
         "operationId": "SessionsController_list_v1",
         "parameters": [],
         "responses": {
@@ -18171,7 +18172,7 @@
         ]
       },
       "post": {
-        "description": "Without a password, the user is emailed an invitation to choose one (WEB_URL/reset-password?token=…, valid an hour).",
+        "description": "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
         "operationId": "AccessController_createUser_v1",
         "parameters": [],
         "requestBody": {
@@ -18187,15 +18188,10 @@
                     "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                   },
                   "name": {
+                    "description": "The name a new account starts with; its owner changes it.",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 120
-                  },
-                  "password": {
-                    "description": "Leave it out to invite the user: they get an email to choose one.",
-                    "type": "string",
-                    "minLength": 12,
-                    "maxLength": 128
                   },
                   "roleIds": {
                     "default": [],
@@ -18226,25 +18222,50 @@
                   }
                 },
                 "required": [
-                  "email",
-                  "name"
-                ]
+                  "email"
+                ],
+                "additionalProperties": false
               }
             }
           }
         },
         "responses": {
-          "400": {
-            "description": "`password_breached`: the password is in known data breaches."
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "expiresAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
           },
           "403": {
             "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
-          },
-          "409": {
-            "description": "A user with this email exists."
           }
         },
         "security": [
@@ -18255,7 +18276,7 @@
             "user-session": []
           }
         ],
-        "summary": "Create a user, or invite one",
+        "summary": "Invite someone to this tenant",
         "tags": [
           "access"
         ]
@@ -18263,7 +18284,7 @@
     },
     "/v1/access/users/{id}": {
       "patch": {
-        "description": "A new password or a deactivation signs them out everywhere. The last active administrator stays.",
+        "description": "Its activation, roles and org units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
         "operationId": "AccessController_updateUser_v1",
         "parameters": [
           {
@@ -18282,12 +18303,8 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 120
-                  },
                   "active": {
+                    "description": "The membership in this tenant, not the account.",
                     "type": "boolean"
                   },
                   "roleIds": {
@@ -18314,13 +18331,9 @@
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     }
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 12,
-                    "maxLength": 128
                   }
-                }
+                },
+                "additionalProperties": false
               }
             }
           }
@@ -18328,9 +18341,6 @@
         "responses": {
           "204": {
             "description": ""
-          },
-          "400": {
-            "description": "`password_breached`: the password is in known data breaches."
           },
           "401": {
             "description": "No session."
@@ -18353,7 +18363,154 @@
             "user-session": []
           }
         ],
-        "summary": "Change a user; only what is sent changes",
+        "summary": "Change a member's membership; only what is sent changes",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/invitations": {
+      "get": {
+        "operationId": "AccessController_invitations_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "name": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "roleIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          },
+                          "orgUnitIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          },
+                          "invitedBy": {
+                            "type": "string"
+                          },
+                          "expired": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "expiresAt",
+                          "name",
+                          "roleIds",
+                          "orgUnitIds",
+                          "invitedBy",
+                          "expired",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "This tenant's invitations not accepted yet",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/invitations/{id}": {
+      "delete": {
+        "operationId": "AccessController_revokeInvitation_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Withdraw an invitation: its link stops working",
         "tags": [
           "access"
         ]
@@ -19828,7 +19985,7 @@
     },
     "/v1/auth/tenants": {
       "get": {
-        "description": "The active memberships of active tenants, the last chosen first. `current` is the one this session acts in.",
+        "description": "The active memberships of active tenants, the last chosen first. `current` is the one this session acts in. While impersonating, only that one.",
         "operationId": "TenantSwitchController_tenants_v1",
         "parameters": [],
         "responses": {
@@ -19930,6 +20087,78 @@
           }
         ],
         "summary": "Act in another of your tenants",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/invitations/accept": {
+      "post": {
+        "description": "400 `password_required`: a new address, send `password` (and `name`). 401 `sign_in_required`: the address has an account, sign in to it and accept again. 403 `invitation_other_account`: you are signed in as another account. 400 `invitation_invalid`: unknown, used or expired. A new account signs in afterwards (POST /auth/sign-in); a signed-in one switches to the tenant (POST /auth/tenant).",
+        "operationId": "TenantSwitchController_acceptInvitation_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "password": {
+                    "description": "A new address: the password its account starts with.",
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tenantId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "accountCreated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "tenantId",
+                    "accountCreated"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invitation_invalid`, `password_required`, `password_breached`."
+          }
+        },
+        "summary": "Accept an invitation to a tenant",
         "tags": [
           "auth"
         ]

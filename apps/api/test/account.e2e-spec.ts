@@ -1,3 +1,5 @@
+import { eq } from 'drizzle-orm';
+import { users } from '../src/iam/iam.tables.js';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { bootApp, newPassword, totp, type TestApp } from './support.js';
@@ -21,29 +23,8 @@ describe('accounts (e2e)', () => {
 
   /** A user who accepted an invitation: verified address, own password, signed in. */
   async function invitedUser(roleKeys: string[] = []) {
-    const address = email();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({
-        email: address,
-        name: 'Ada',
-        roleIds: await node.roleIds(...roleKeys),
-      })
-      .expect(201);
-    const mail = await node.waitForMail({ to: address, subject: /invited/ });
-    const password = newPassword();
-    await node
-      .http()
-      .post('/v1/auth/password/reset')
-      .send({ token: tokenOf(mail, '/reset-password'), password })
-      .expect(204);
-    return {
-      id: created.body.id as string,
-      email: address,
-      password,
-      agent: await node.signIn(address, password),
-    };
+    const user = await node.user(roleKeys);
+    return { ...user, agent: user.agent };
   }
 
   it('says how users can sign in', async () => {
@@ -68,12 +49,12 @@ describe('accounts (e2e)', () => {
     const user = await invitedUser();
     const invitation = node.mailbox.assertSent({
       to: user.email,
-      subject: /invited/,
+      subject: /invited you to/,
     });
     expect(invitation.subject).toBe(
-      "You're invited to nestjs-monorepo-template",
+      'admin@example.com invited you to Default on nestjs-monorepo-template',
     );
-    expect(invitation.link('/reset-password').origin).toBe(
+    expect(invitation.link('/accept-invitation').origin).toBe(
       'https://web.example.com',
     );
 
@@ -238,6 +219,12 @@ describe('accounts (e2e)', () => {
 
   it('verifies an address with the link the user asks for', async () => {
     const { agent, id } = await node.user([]);
+    // An address not proved (an invitation's acceptance proves it: undone
+    // here, as for an account that signed up).
+    await node.db
+      .update(users)
+      .set({ emailVerified: false })
+      .where(eq(users.id, id));
     const me = await agent.get('/v1/auth/me').expect(200);
     expect(me.body.user.emailVerified).toBe(false);
     await agent.post('/v1/auth/email/verification').expect(202);
@@ -442,18 +429,7 @@ describe('accounts (e2e)', () => {
       process.env.ADMIN_EMAIL!,
       process.env.ADMIN_PASSWORD!,
     );
-    const other = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({
-        email: email(),
-        name: 'Other admin',
-        password: newPassword(),
-        roleIds: await node.roleIds('administrator'),
-      })
-      .expect(201);
-    await admin
-      .post(`/v1/access/users/${other.body.id}/impersonate`)
-      .expect(403);
+    const other = await node.user(['administrator']);
+    await admin.post(`/v1/access/users/${other.id}/impersonate`).expect(403);
   });
 });

@@ -35,6 +35,12 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   of that tenant. Its files (the upload, the export, the error report) are
   under `tenants/<id>/transfers/`. `GET /v1/data/transfers/{id}` answers 404
   for another tenant's transfer, even the same person's.
+- **The account export** (an exporter with `scope: 'account'`: `POST
+  /v1/account/export`) is the person's, across their tenants: queued with
+  `tenantId: null`, run in no tenant (it reads each tenant in turn, as
+  docs/tenancy.md says), filed under `accounts/<user id>/transfers/`, and
+  shown to that user in any tenant or none. Users only, never while
+  impersonating.
 
 - A column marked `type: 'date'` (a day, `2026-10-15`) is a date cell in
   Excel, text in CSV and JSON; a date cell under a `date` column of the

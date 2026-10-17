@@ -8,7 +8,7 @@ import { revisions as revisionsTable } from '../src/platform/revisions/revisions
 import { recordSubscriptions } from '../src/platform/subscriptions/subscriptions.tables.js';
 import { recordTags } from '../src/platform/tags/tags.tables.js';
 import { RevisionRetentionJob } from '../src/platform/revisions/revision-retention.job.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 type Agent = ReturnType<TestApp['admin']>;
 interface Revision {
@@ -273,19 +273,8 @@ describe('record revisions of notes (e2e)', () => {
   });
 
   it('anonymizes who made a change when their account is deleted', async () => {
-    const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({
-        email,
-        name: 'Ada',
-        password,
-        roleIds: await node.roleIds('editor'),
-      })
-      .expect(201);
-    const ada = await node.signIn(email, password);
+    const { id: adaId, password, agent: ada } = await node.user(['editor']);
+    const created = { body: { id: adaId } };
     const id = await writeNote(ada);
     await patch(ada, id, { title: 'Plan' });
     expect(

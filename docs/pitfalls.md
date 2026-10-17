@@ -199,7 +199,7 @@
 
 - **Tests and row-level security:** `database.db` in a test is the app's
   pool, so a fixture's query on a tenant table is refused without a tenant.
-  Use `node.db` (the app role with the bypass, for fixtures),
+  Use `node.db` (the maintenance role, BYPASSRLS, for fixtures),
   `node.inTenant()`, or, with no app, `testTenant()` / `bypassingTenants()`
   (test/support.ts). Account-level audit entries (sign-ins) are in no
   tenant's `GET /v1/access/audit`: read them with `node.auditEntries()`.

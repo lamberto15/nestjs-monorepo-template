@@ -28,6 +28,8 @@ import {
   TenantSwitchController,
 } from './access/tenants.controller.js';
 import { TenantsService } from './access/tenants.service.js';
+import { TenantSwitchService } from './access/tenant-switch.service.js';
+import { InvitationsService } from './access/invitations.service.js';
 import { OperatorGuard } from './auth/operator-only.js';
 import {
   EmailVerificationMailer,
@@ -38,6 +40,7 @@ import {
 import {
   InvitationMail,
   MagicLinkMail,
+  TenantInvitationMail,
   ResetPasswordMail,
   VerifyEmailMail,
 } from './account/account.mails.js';
@@ -323,6 +326,7 @@ export class IamModule {
         OidcAccounts,
         ResetPasswordMail,
         InvitationMail,
+        TenantInvitationMail,
         VerifyEmailMail,
         MagicLinkMail,
         ImpersonationService,
@@ -340,6 +344,8 @@ export class IamModule {
         ApiClientsService,
         AccessSeeder,
         TenantsService,
+        TenantSwitchService,
+        InvitationsService,
         OperatorGuard,
         AuditService,
         SystemContext,

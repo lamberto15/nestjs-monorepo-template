@@ -38,7 +38,7 @@ import { AccountService } from './account.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
-import { notWhileImpersonating } from './account.schemas.js';
+import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 
 const identitySchema = z.object({
@@ -135,6 +135,7 @@ export class OidcController {
         throw new UnauthorizedException();
       }
       notWhileImpersonating(user);
+      verifiedEmailOnly(user);
       if (!this.reauthentication.isRecent(session)) {
         return {
           url: this.backToWebApp(redirectTo, 'reauthentication_required'),

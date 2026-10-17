@@ -39,8 +39,7 @@ belong to one tenant; their roles, keys and usage too.
 
 ```sql
 select set_config('app.tenant_id', '<uuid>', true),
-       set_config('app.read_tenants', '<uuid>[,<uuid>…]', true),
-       set_config('app.bypass_rls', '' | 'on', true)
+       set_config('app.read_tenants', '<uuid>[,<uuid>…]', true)
 ```
 
 `true` is `SET LOCAL`: the values end with the transaction and never stay on a
@@ -57,34 +56,41 @@ statement through a `(select current_setting(…))` subquery:
 | --- | --- |
 | `SELECT` | `tenant_id = any(app.read_tenants)` |
 | `INSERT`, `UPDATE` (both sides), `DELETE` | `tenant_id = app.tenant_id` |
-| all four | `app.bypass_rls = 'on'` (the worker's maintenance jobs) |
+
+There is no bypass clause: work across tenants runs as another role (below,
+"The bypass").
 
 An unset or empty setting matches no row: a connection without a tenant reads
 nothing and writes nothing. `FORCE ROW LEVEL SECURITY` (which drizzle-kit
 can't emit) is set by the role bootstrap (`core/database/roles.ts`, every
 migrate), which also refuses to finish when a table with a `tenant_id` lacks
-RLS, FORCE or its policies (the two global ones excepted:
-`core/tenancy/global-tables.ts`).
+RLS, FORCE, or exactly its four policies (by name and command) with no other
+permissive one (the two global tables excepted: `core/tenancy/global-tables.ts`).
 
-**Outside a transaction.** A query through the pool outside a transaction, in
-a tenant's scope, runs in one of its own (`begin` with the settings, the query,
-`commit`): reads through `database(txHost)` keep working, each in a short
-transaction, and no connection is held across a request's other awaits.
+**Outside a transaction.** A query through the pool outside a transaction that
+names a tenant table, in a tenant's scope, runs in one of its own (`begin` with
+the settings, the query, `commit`): reads through `database(txHost)` keep
+working, each in a short transaction, and no connection is held across a
+request's other awaits. A query on global tables alone goes straight through.
 
 **Without a tenant.** A statement naming a tenant table with no tenant in its
-scope is refused before it is sent (`TenantScopeMissingError`, in every
-environment); over HTTP it is 403 `tenant_required`. The policies would have
-answered with nothing (fail closed); the refusal says why.
+scope is refused before it is sent, and before a client is checked out
+(`TenantScopeMissingError`, in every environment); over HTTP it is 403
+`tenant_required`. The policies would have answered with nothing (fail
+closed); the refusal says why.
 
-**Keys.** Every tenant table has a unique `(tenant_id, id)`, and keys between
-tenant tables are composite (`tenantReference()`): PostgreSQL checks keys as
-the owner, past RLS, so a plain `x_id → id` could point at another tenant's
-row. Uniques are per tenant (`(tenant_id, …)`), except the global account
+**Keys.** Keys between tenant tables are composite (`tenantReference()`):
+PostgreSQL checks keys as the owner, past RLS, so a plain `x_id → id` could
+point at another tenant's row. A table such a key points at declares
+`tenantTable(…, { referenced: true })`, which adds the unique `(tenant_id, id)`
+the key needs (only those: an index elsewhere would cost every insert). Uniques are per tenant (`(tenant_id, …)`), except the global account
 identity (`users.email`).
 
 **Roles.** `migrate` runs as the owner; api and worker as the app role, which is
 no superuser, has no `BYPASSRLS`, owns nothing (docs/deployment.md, "Database
-roles"). With FORCE, the owner is bound too.
+roles"). With FORCE, the owner is bound too (unless it is a superuser, as
+Compose's is: it never serves a request). The worker also holds the
+maintenance role (below).
 
 ## The tenant of the work
 
@@ -111,18 +117,33 @@ own, always.
 
 **Async carries the tenant by type.** `TenantEnvelope` (`tenantId: string |
 null`) is a required field of job data, outbox payloads, workflow inputs and
-signals: `withTenant(data)` on the producer's side, `inTenantOf(envelope, work)`
-or `TenantWorkerHost` on the consumer's. A payload without it is refused, never
-run without a tenant. A queued principal must act in the envelope's tenant, and
-is checked again (`stillActive()`: still a member).
+signals. The producer fills it from the scope: `withTenant(data)` where the
+job's tenant is simply the context's; the record's own `tenantId` where the
+work is about a record (a workflow's input, a document, a notification's
+delivery); the principal's, checked against the scope, for a data transfer;
+`null` only for an account's own work (a security notification, the account
+export). The consumer restores it first (`inTenantOf(envelope, work)`, or a
+`TenantWorkerHost` processor). A payload without it is refused, never run
+without a tenant. A queued principal must act in the envelope's tenant, and is
+checked again (`stillActive()`: still a member; for the account export, the
+account still active).
 
-**The bypass** (`Tenancy.bypass(job, work)`, `app.bypass_rls`) opens every
-tenant's rows: only in a process that runs workers, never inside a request's
-context, logged. It is for maintenance that sweeps a table whole by age
-(notification, revision, usage retention); jobs that act per tenant, and audit
-what they did, walk the tenants instead (`forEachTenant()`, which logs each
-run's tenant). `app.bypass_rls` is a setting any connection could set: the code
-is the guard, as it is for `app.tenant_id`.
+**The bypass** (`Tenancy.bypass(job, work)`) opens every tenant's rows. It is not
+a setting: its queries run as the **maintenance role** (`BYPASSRLS`,
+`DATABASE_MAINTENANCE_URL`), on a small pool of its own that `TenantPool`
+routes to in the bypass's scope. Only workers (and `migrate`, which creates the
+role) hold its URL; an api process has none, so nothing a request runs, nor any
+SQL injected into one, can read past its tenant. It runs only in a process that
+runs workers and has the role, never inside a request's context, logged. It is
+for maintenance that sweeps a table whole by age (notification, revision,
+usage retention); jobs that act per tenant, and audit what they did, walk the
+tenants instead (`forEachTenant()`, which logs each run's tenant, carries on
+past a failed tenant and reports every failure at the end: `TenantRunsFailed`;
+`{ includeInactive: true }` walks deactivated tenants too, for retention).
+
+**Metrics across tenants** (`MetricsService.collect(…, { acrossTenants: true })`:
+the approvals' gauges) read as the maintenance role in read-only transactions,
+so only where it is: the workers' `/metrics`; api replicas don't register them.
 
 ## Per-principal keys carry the tenant
 
@@ -147,23 +168,48 @@ Built in the platform code, never at call sites (`tenantKey()`):
   in another (a new cookie; realtime connections reconnect). Token clients ask
   for a tenant when they sign in (`POST /v1/auth/token { tenantId }`); the
   tenant is the token family's `tid` claim.
-- **Users are global; administrators manage memberships.** `POST
-  /v1/access/users` with an address that has an account adds that account
-  (its roles, units); a password for it is refused (409 `account_exists`). An
-  account whose address its owner never proved (`emailVerified` false: an
-  administrator made it, or set its password) loses every way in (password,
-  two-factor, linked providers, sessions, tokens) when another tenant adds it,
-  and its owner gets the invitation: whoever set the password can't follow the
-  account into the other tenant. `PATCH /v1/access/users/{id}` changes the
-  membership (`active`, roles, units); the account's name or password only while
-  it belongs to this tenant alone (else 409 `account_shared`), and a password
-  set there makes the account unclaimed again.
+- **Invitations: adding people is invite-only.** `POST /v1/access/users
+  { email, name?, roleIds, roleExpiresAt?, orgUnitIds? }` (202) stores an
+  invitation (a tenant table; the link's token, `inv_<tenant id>_<secret>`,
+  only as its SHA-256) and mails a link (`WEB_URL/accept-invitation?token=…`,
+  `INVITATION_TTL_HOURS`). Nothing about an account is read, changed or
+  returned, and the answer is the same whether or not the address has one.
+  `POST /v1/auth/invitations/accept { token, password?, name? }`: a new
+  address chooses its password (its address proved by the link; 400
+  `password_required` without one); an existing account must be signed in as
+  itself (401 `sign_in_required`, 403 `invitation_other_account`). The
+  membership, with the invitation's roles and units (those still there), comes
+  then, in one transaction under the account's and the membership's locks (an
+  acceptance never interleaves with the account's deletion or the membership's
+  deactivation). `GET /v1/access/invitations`, `DELETE
+  /v1/access/invitations/{id}`. Administrators never set or change anyone's
+  password or name: `PATCH /v1/access/users/{id}` changes the membership
+  (`active`, roles, units) only, and a `password` or `name` is refused (400).
+  Linking a provider and enrolling two-factor want a proved address (403
+  `email_unverified`).
 - **Impersonation never crosses tenants.** Only a member of the administrator's
   current tenant; the impersonation session is pinned to that tenant (no
-  switching, no profile changes) and ends when either membership does.
-- **Your own account** (`/v1/account`: export, deletion) spans your tenants:
-  the export reads each tenant you belong to in turn, plus the account-level
-  rows; the deletion job erases you in each.
+  switching, no profile, notification or preference changes) and ends when
+  either membership does. While impersonating, account-wide reads show only
+  what belongs to that tenant: the sessions list (only this one), the tenants
+  list (only this one), notifications (not the account's own); consents and
+  `GET /v1/account` are refused.
+- **A membership deactivated** ends its sessions and token families in that
+  tenant and disconnects its sockets there; the account's other tenants go on.
+- **Your own account** (`/v1/account`: export, deletion) spans your tenants.
+  The export is queued in no tenant (a person with no membership has one too),
+  filed under `accounts/<user id>/`, and followed at `GET /v1/data/transfers/{id}`
+  by that user in any tenant or none. It holds the account-level rows, then
+  each tenant: an active membership's tenant gives what it holds about you; a
+  tenant you left (an inactive membership) only what is personal (the
+  membership, the audit entries about you), never its business records.
+  The deletion job erases you in each tenant; a tenant that fails leaves the
+  account open for the next night, and the others still run. While an
+  administrator impersonates you, account-wide data stays hidden: your
+  account's notifications, consents, preferences and deletion state.
+- **Cron jobs that walk tenants** carry on past a tenant that fails (logged),
+  then report every failure together (`TenantRunsFailed`); retention sweeps
+  include deactivated tenants (their rows still age out).
 
 ## Operators
 
@@ -190,7 +236,7 @@ export const invoices = pgTable(
     ...timestamps(),
   },
   (t) => [
-    ...tenantTable('invoices', t),      // the policies, unique (tenant_id, id)
+    ...tenantTable('invoices', t),      // the policies (`{ referenced: true }`: + unique (tenant_id, id))
     uniqueIndex('invoices_number_idx').on(t.tenantId, t.number),   // per tenant
     tenantReference('invoices_customer_fk', [t.tenantId, t.customerId], [customers.tenantId, customers.id]),
   ],
@@ -199,8 +245,8 @@ export const invoices = pgTable(
 
 Then `pnpm db:generate`. Inserts leave `tenantId` out: the column takes the
 scope's (and refuses without one); the `WITH CHECK` policy proves it. A
-composite key added to an **existing** table needs that table's unique
-`(tenant_id, id)` first: drizzle-kit writes foreign keys before unique
+composite key added to an **existing** table needs the referenced table's
+unique `(tenant_id, id)` first: drizzle-kit writes foreign keys before unique
 constraints in one migration, so generate the uniques in one migration and the
 keys in the next (`0025_tenancy`, `0026_tenancy_keys`). New tables don't need
 this (their constraints are in `CREATE TABLE`).
@@ -209,9 +255,16 @@ this (their constraints are in `CREATE TABLE`).
 
 `apps/api/test/tenancy.e2e-spec.ts`: as the app role in SQL (another tenant's
 rows unreadable, inserts and moves refused, the owner bound by FORCE, every
-tenant table walled), the pool's refusal, API clients, member lists, the
-unclaimed account, sessions and the switch, idempotency replays, impersonation,
-realtime rooms, operators, and a cron job purging in two tenants under RLS.
+tenant table walled), the pool's refusal, a tenant switch refused inside an
+open transaction, API clients, member lists and invitations (the same answer
+for an existing account, acceptance only by its owner), sessions and the
+switch, idempotency replays, impersonation, realtime rooms (and sockets
+disconnected with a membership), operators, and a cron job purging in two
+tenants under RLS. `tenant-pool.e2e-spec.ts`: the pool on one connection
+(the wrapper and the straight path, the refusal before a checkout, the
+settings forgotten at commit and rollback, the bypass as the maintenance
+role). `account-export.e2e-spec.ts`: a person's export with no tenant and
+across two.
 Test helpers: `node.otherTenant()` (a second tenant, its administrator signed
 in), `node.inTenant(work, tenantId?)` and `node.acrossTenants(work)` for a
 test's own queries (`database.db` is the app's pool: no tenant, no rows).

@@ -18,8 +18,10 @@ export interface NoteEvent {
 
 /**
  * Sent by the example sender's webhook: publish now instead of waiting. The
- * note id is its key; it names its tenant, as every signal does
- * (docs/tenancy.md), and the workflow ignores one of another tenant.
+ * note id is its key (one publication per note, and note ids are unique
+ * across tenants); it names its tenant, as every signal does
+ * (docs/tenancy.md). NotesService sends it only after finding the note in
+ * that tenant's scope, so it reaches that tenant's publication alone.
  */
 export const publishNow = new WorkflowSignal<
   { eventId: string } & TenantEnvelope

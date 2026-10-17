@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { users as usersTable } from '../src/iam/iam.tables.js';
 import { randomUUID } from 'node:crypto';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
 const local = (url: string) => {
@@ -20,26 +20,18 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
     await node.close();
   });
 
-  /** An editor whose password the test knows, signed in. */
+  /** An editor whose password the test knows (invited, then accepted), signed in. */
   async function person() {
     const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({
-        email,
-        name: 'Ada',
-        password,
-        roleIds: await node.roleIds('editor'),
-      })
-      .expect(201);
-    return {
-      id: created.body.id as string,
+    const token = await node.invite(node.admin(), {
       email,
-      password,
-      agent: await node.signIn(email, password),
-    };
+      name: 'Ada',
+      roleIds: await node.roleIds('editor'),
+    });
+    const password = await node.acceptAsNew(token, 'Ada');
+    const agent = await node.signIn(email, password);
+    const me = await agent.get('/v1/auth/me').expect(200);
+    return { id: me.body.user.id as string, email, password, agent };
   }
   const paths = (body: { errors?: { path: string }[] }) =>
     (body.errors ?? []).map((error) => error.path);

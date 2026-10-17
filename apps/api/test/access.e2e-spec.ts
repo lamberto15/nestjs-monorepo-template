@@ -1,4 +1,4 @@
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 describe('access control (e2e)', () => {
   let node: TestApp;
@@ -86,7 +86,6 @@ describe('access control (e2e)', () => {
         .send({
           email: 'new@example.com',
           name: 'New',
-          password: newPassword(),
           roleIds: await node.roleIds('viewer'),
         })
         .expect(403);
@@ -147,7 +146,8 @@ describe('access control (e2e)', () => {
       expect(actions).toEqual(
         expect.arrayContaining([
           'role.created',
-          'user.created',
+          'user.invited',
+          'user.joined',
           'client.created',
           'client.key-rotated',
           'user.seeded',
@@ -159,7 +159,7 @@ describe('access control (e2e)', () => {
       const { id } = await node.user(['viewer']);
       const created = await node
         .admin()
-        .get('/v1/access/audit?action=user.created&targetId=' + id)
+        .get('/v1/access/audit?action=user.joined&targetId=' + id)
         .expect(200);
       expect(created.body.items).toHaveLength(1);
       const byPrefix = await node

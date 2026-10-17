@@ -30,14 +30,17 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 - **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
   one account per address, in every tenant it belongs to; a session acts in
   one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
-  tenant's administrators manage its memberships (`POST /v1/access/users`
-  adds an existing account; `PATCH` deactivates the membership, never the
-  account), and change an account's name or password only while it belongs
-  to their tenant alone (409 `account_shared`; a password they set makes the
-  address unproved again, and the account loses its credentials when another
-  tenant adds it).
-- **Invitations:** an administrator creates a user without a password
-  (`POST /v1/access/users`); the user gets an email to choose one.
+  tenant's administrators manage its memberships (`PATCH` deactivates the
+  membership, never the account) and never set or change anyone's password
+  or name.
+- **Invitations (invite-only):** `POST /v1/access/users` (202) mails the
+  address a link (`WEB_URL/accept-invitation`); nothing about an account is
+  read, changed or returned until its owner accepts at
+  `POST /v1/auth/invitations/accept`: a new address chooses its password
+  there, an existing account accepts signed in as itself
+  ([tenancy](tenancy.md), "Accounts and sessions").
+- **A proved address** (`emailVerified`) is wanted to link a provider or
+  enrol two-factor (403 `email_unverified`).
 - **Account linking** by verified email only, or from a signed-in session
   (`?link=true`): never by an unverified address.
 - **Two-factor** secrets are encrypted at rest (`MFA_ENCRYPTION_KEYS`); a code
@@ -54,9 +57,9 @@ NIST SP 800-63B: length, no composition rules, and no password from a
 breach corpus. Every place a password is **set** checks it against Have I
 Been Pwned's [Pwned Passwords](https://haveibeenpwned.com/API/v3#PwnedPasswords)
 (`BreachedPasswordsService`, `iam/account/breached-passwords.service.ts`):
-sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
-`POST /v1/auth/password/change`, and an administrator's
-`POST /v1/access/users` and `PATCH /v1/access/users/{id}`.
+sign-up, a reset link (`POST /v1/auth/password/reset`), an invitation's
+acceptance (`POST /v1/auth/invitations/accept`) and
+`POST /v1/auth/password/change`. Administrators set no passwords.
 
 - **k-anonymity:** the password's SHA-1 is computed here; only its first 5
   hex characters go to `GET <PASSWORD_BREACH_API_URL>/range/{prefix}`, with
@@ -125,8 +128,13 @@ the system principal `system:account-deletion`. Never while impersonating.
 **Across tenants** ([tenancy](tenancy.md)): the account is the person's,
 not a tenant's. Its entries above are account-level (no tenant: no
 tenant's administrator reads them), whichever tenant the session is in.
-The export reads each tenant the person belongs to in that tenant's
-scope, every membership, active or not; the deletion erases their data in
+The export (queued in no tenant, so an account with none has one too,
+filed under `accounts/<user id>/`) reads each tenant the person belongs to
+in that tenant's scope: everything it holds about them for an active
+membership, only what is personal (the membership, audit entries
+about them) for a tenant they left, never its business records. Account
+data (`GET /v1/account`, consents, notification preferences, the
+account's own notifications) stays hidden while impersonating. The deletion erases their data in
 each of those tenants (`PersonalDataSource.erase` per tenant, one
 transaction each), then anonymizes the account outside any tenant. A run
 cut short leaves the request open, and the next night finishes it.
@@ -239,8 +247,8 @@ with the password.
 | `POST /v1/account/deletion` | irreversible after the grace period. The password stays required too (when the account has one): within the window a stolen session can enrol its own authenticator, and re-authenticating with that must not be enough to lock the owner out of "sign in and cancel". Passwordless accounts: step-up alone |
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
 | `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
-| `POST /v1/access/users`, only with `password` or non-empty `roleIds` | a stale stolen administrator session must not create an account it can sign in to with privileges (an invitation without either isn't asked) |
-| `PATCH /v1/access/users/{id}`, only with `password`, `roleIds` or `active: true` | setting someone's password takes their account; roles are privileges; reactivating brings their sign-in back (a name change, a deactivation aren't asked) |
+| `POST /v1/access/users`, only with non-empty `roleIds` | an invitation with privileges (one without roles isn't asked) |
+| `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
 
 Not protected, on purpose: signing out (sessions, everywhere), data export

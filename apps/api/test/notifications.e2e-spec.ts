@@ -73,6 +73,12 @@ describe('notifications (e2e)', () => {
       await db().select().from(notifications).where(eq(notifications.id, id))
     )[0]!;
 
+  /** The mail a user got but their invitation: what notifications sent them. */
+  const noticesTo = (email: string) =>
+    node.mailbox
+      .filter({ to: email })
+      .filter((mail) => !/invited you to/.test(mail.message.subject));
+
   /** A user's address, for the mailbox. */
   const emailOf = async (agent: request.Agent) =>
     (await agent.get('/v1/auth/me').expect(200)).body.user.email as string;
@@ -293,7 +299,7 @@ describe('notifications (e2e)', () => {
     expect(
       (await editor.agent.get('/v1/notifications').expect(200)).body.items,
     ).toHaveLength(1);
-    expect(node.mailbox.find({ to: email })).toBeUndefined();
+    expect(noticesTo(email)).toEqual([]);
 
     // Invalid settings, each named.
     const invalid = async (body: object, path: string) => {
@@ -451,7 +457,7 @@ describe('notifications (e2e)', () => {
     expect(due.getUTCHours()).toBe(4);
     expect(due.getTime()).toBeGreaterThan(Date.now());
     expect(due.getTime() - Date.now()).toBeLessThanOrEqual(86_400_000);
-    expect(node.mailbox.find({ to: email })).toBeUndefined();
+    expect(noticesTo(email)).toEqual([]);
 
     expect(await job.run(new Date(due.getTime() - 1000))).toEqual({
       mails: 0,
@@ -576,7 +582,7 @@ describe('notifications (e2e)', () => {
       .expect(204);
     await deliver();
     expect((await row(id)).deliveredAt).toBeTruthy();
-    expect(node.mailbox.find({ to: email })).toBeUndefined();
+    expect(noticesTo(email)).toEqual([]);
     const ops = await node.admin().get('/v1/ops/outbox').expect(200);
     expect(ops.body.deadLetters).toEqual([]);
     expect(ops.body.notifications).toEqual({ undelivered: 0 });

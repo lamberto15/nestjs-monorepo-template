@@ -93,6 +93,14 @@ export class AccountDeletionJob {
         ),
       );
     let deleted = 0;
+    // One account's failure in one tenant never stops the others: that
+    // account stays open (its request too) and the next night tries again;
+    // every failure is logged here and reported at the end.
+    const failures: {
+      userId: string;
+      tenantId: string | null;
+      error: unknown;
+    }[] = [];
     for (const request of due) {
       const user = await this.users.findView(request.userId);
       if (!user) {
@@ -104,65 +112,100 @@ export class AccountDeletionJob {
         .select({ tenantId: memberships.tenantId })
         .from(memberships)
         .where(eq(memberships.userId, user.id));
+      let erased = true;
       for (const { tenantId } of tenants) {
-        await this.system.run(
-          ACCOUNT_DELETION_JOB,
-          async (_system, tx) => {
-            const member = { ...user, tenantId };
-            for (const source of this.personalData.all()) {
-              await source.erase?.(tx, member);
-            }
-            await tx
-              .delete(notifications)
-              .where(eq(notifications.recipient, key));
-            await tx
-              .delete(settingOverrides)
-              .where(
-                and(
-                  eq(settingOverrides.scope, 'user'),
-                  eq(settingOverrides.scopeId, key),
-                ),
-              );
-            await this.subscriptions.erase(tx, member);
-            await relabel(tx, key);
-          },
-          { tenantId },
-        );
-        this.logger.log('Account erased in a tenant', {
-          tenant: tenantId,
+        try {
+          await this.system.run(
+            ACCOUNT_DELETION_JOB,
+            async (_system, tx) => {
+              const member = { ...user, tenantId };
+              for (const source of this.personalData.all()) {
+                await source.erase?.(tx, member);
+              }
+              await tx
+                .delete(notifications)
+                .where(eq(notifications.recipient, key));
+              await tx
+                .delete(settingOverrides)
+                .where(
+                  and(
+                    eq(settingOverrides.scope, 'user'),
+                    eq(settingOverrides.scopeId, key),
+                  ),
+                );
+              await this.subscriptions.erase(tx, member);
+              await relabel(tx, key);
+            },
+            { tenantId },
+          );
+          this.logger.log('Account erased in a tenant', {
+            tenant: tenantId,
+            userId: user.id,
+          });
+        } catch (error) {
+          erased = false;
+          failures.push({ userId: user.id, tenantId, error });
+          this.logger.error('Account not erased in a tenant', {
+            tenant: tenantId,
+            userId: user.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+      if (!erased) {
+        continue; // anonymized only once every tenant erased it
+      }
+      try {
+        await inTransaction(this.txHost, async (tx) => {
+          // The account's own (no tenant): its security notifications, its
+          // preferences, its sign-in and sign-up entries.
+          await tx
+            .delete(notifications)
+            .where(eq(notifications.recipient, key));
+          await tx
+            .delete(notificationPreferences)
+            .where(eq(notificationPreferences.recipient, key));
+          await relabel(tx, key);
+          await this.users.anonymize(tx, user.id);
+          await tx
+            .update(accountDeletions)
+            .set({ completedAt: now })
+            .where(eq(accountDeletions.id, request.id));
+          await this.audit.record(
+            system,
+            {
+              action: 'account.deleted',
+              targetType: 'user',
+              targetId: user.id,
+              details: {
+                requestedAt: request.requestedAt.toISOString(),
+                tenants: tenants.length,
+              },
+            },
+            tx,
+          );
+        });
+        deleted++;
+      } catch (error) {
+        failures.push({ userId: user.id, tenantId: null, error });
+        this.logger.error('Account not anonymized', {
           userId: user.id,
+          error: error instanceof Error ? error.message : String(error),
         });
       }
-      await inTransaction(this.txHost, async (tx) => {
-        // The account's own (no tenant): its security notifications, its
-        // preferences, its sign-in and sign-up entries.
-        await tx.delete(notifications).where(eq(notifications.recipient, key));
-        await tx
-          .delete(notificationPreferences)
-          .where(eq(notificationPreferences.recipient, key));
-        await relabel(tx, key);
-        await this.users.anonymize(tx, user.id);
-        await tx
-          .update(accountDeletions)
-          .set({ completedAt: now })
-          .where(eq(accountDeletions.id, request.id));
-        await this.audit.record(
-          system,
-          {
-            action: 'account.deleted',
-            targetType: 'user',
-            targetId: user.id,
-            details: {
-              requestedAt: request.requestedAt.toISOString(),
-              tenants: tenants.length,
-            },
-          },
-          tx,
-        );
-      });
-      deleted++;
     }
     this.logger.log('Accounts deleted', { deleted });
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures.map((failure) => failure.error),
+        `account-deletion failed for ${failures.length} step(s): ${failures
+          .map(
+            (failure) =>
+              `user ${failure.userId} in ${failure.tenantId ?? 'no tenant'}`,
+          )
+          .join('; ')}`,
+      );
+    }
     return deleted;
   }
 }
