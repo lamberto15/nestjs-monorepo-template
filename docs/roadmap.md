@@ -112,8 +112,8 @@ carried over.
    re-issues the session. API clients and tokens belong to exactly one tenant. There
    are no subdomains. This keeps `__Host-sid`, one CSRF origin list and one passkey RP
    ID. Tenant subdomains or custom domains can come later as their own item.
-2. **Frontend (7):** Vite SPA (React Router, TanStack Query, the existing client) served
-   by Caddy. Next.js is not recommended, because it adds an SSR process.
+2. **Frontend (7):** Vite SPA (TanStack Router and Query, the existing client, shadcn/ui
+   and Dice UI) served by Caddy. Next.js is not recommended, because it adds an SSR process.
 3. **What encrypted values are bound to (5):** AAD = `table.column` + `tenant_id`. This
    blocks swapping values across tenants and columns, but accepts swaps between rows of
    the same tenant. Binding to the row needs the id before the insert, i.e. app-side
@@ -414,7 +414,11 @@ Planned as:
 
 ## 7. Frontend starter (`apps/web`)
 
-After 8; it grows with each auth item.
+After 8; it grows with each auth item. **Started:** the scaffold is in (`apps/web`,
+`packages/ui`; [monorepo](monorepo.md), "Adding a frontend app"): Vite, TanStack Router
+(file routes, not React Router) and Query, nuqs, react-i18next with the five locales,
+shadcn/ui on Base UI and Dice UI, the `sidebar-07` shell, Caddy serving it. Sign-in and
+the rest of the list below are still to do.
 
 - Decision 2 above sets the framework (Vite SPA recommended).
 - Decision 1 settles cookies. With the single-origin recommendation, the SPA is

@@ -1,0 +1,17 @@
+# The context of caddy/Dockerfile is the repository root: only the web app's
+# build goes in, with what it depends on. (apps/api/package.json: the
+# lockfile lists the API as a project, so pnpm needs it.)
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!apps/api/package.json
+!apps/web
+!packages/api-client
+!packages/ui
+!caddy/entrypoint.sh
+**/node_modules
+**/dist
+**/.turbo
+**/*.tsbuildinfo
+**/.env*

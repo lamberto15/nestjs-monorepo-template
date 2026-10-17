@@ -20,3 +20,6 @@ docs
 monitoring
 tools
 apps/*/test
+# The frontend is built into the Caddy image (caddy/Dockerfile), not this one.
+apps/web
+packages/ui
