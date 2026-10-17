@@ -104,6 +104,10 @@ import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
 import { SubscriptionsRegistry } from './subscriptions/subscriptions.registry.js';
 import { SearchController } from './search/search.controller.js';
 import { SearchRegistry } from './search/search.registry.js';
+import { ListsController } from './lists/lists.controller.js';
+import { ListPolicy } from './lists/list.policy.js';
+import { ListsRegistry } from './lists/lists.registry.js';
+import { ListsService } from './lists/lists.service.js';
 import { SequencesService } from './sequences/sequences.service.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
@@ -314,6 +318,7 @@ export class PlatformModule {
         AccountDeletionLinkController,
         SubscriptionsController,
         SearchController,
+        ListsController,
         AttachmentsController,
         DocumentsController,
         TagsController,
@@ -434,6 +439,10 @@ export class PlatformModule {
         SubscriptionsRegistry,
         // Global search: features register a SearchSource.
         SearchRegistry,
+        // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
+        ListsRegistry,
+        ListsService,
+        ListPolicy,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,
         // Files attached to records: features register an AttachmentTarget.
@@ -512,6 +521,7 @@ export class PlatformModule {
         SubscriptionsService,
         SubscriptionsRegistry,
         SearchRegistry,
+        ListsRegistry,
         SequencesService,
         AttachmentsRegistry,
         AttachmentsService,

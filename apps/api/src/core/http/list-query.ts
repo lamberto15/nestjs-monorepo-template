@@ -95,7 +95,7 @@ export type FilterField = {
 export const MAX_CONDITIONS = 30;
 export const MAX_DEPTH = 3;
 /** At most this many values in `in`, `notIn`. */
-const MAX_VALUES = 50;
+export const MAX_VALUES = 50;
 const TEXT_OPS: readonly FilterOp[] = [
   'contains',
   'notContains',
@@ -571,6 +571,8 @@ export function listQuery(
     },
     /** The declared fields, to `extend()` or read. */
     fields,
+    /** What it declares besides its fields (`select`, `softDelete`), to read. */
+    options: { ...options, select: selectable } as Readonly<ListOptions>,
     /** The filters of a validated query (flat ones and `filter`), and its cursor, as one SQL condition. */
     where(query: ListQuery, id?: AnyColumn): SQL | undefined {
       return and(

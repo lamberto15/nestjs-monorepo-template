@@ -147,6 +147,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/data/transfers/{id}',
         '/v1/documents/{id}',
         '/v1/features',
+        '/v1/lists/{subject}',
         '/v1/mail/suppressions',
         '/v1/mail/suppressions/{id}',
         '/v1/money/convert',

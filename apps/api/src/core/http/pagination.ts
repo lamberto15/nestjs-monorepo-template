@@ -17,6 +17,10 @@ import {
   sortOrder,
 } from './list-sort.js';
 
+/** Rows a page holds without `limit`, and at most. */
+export const DEFAULT_LIMIT = 50;
+export const MAX_LIMIT = 100;
+
 /**
  * Cursor pagination, the same on every growing list: `?limit=50&cursor=<id>`
  * answers `{ items, nextCursor }`, newest first. Pass `nextCursor` back for
@@ -38,7 +42,7 @@ import {
  * the next page, the known trade-off of page numbers.
  */
 export const pageQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
   cursor: z
     .string()
     .min(1)
