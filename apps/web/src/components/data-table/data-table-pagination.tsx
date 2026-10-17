@@ -3,6 +3,8 @@
 import type { ReactTable, RowData } from '@tanstack/react-table';
 
 import { cn } from 'cn';
+// Patched in (not in the registry): the texts go through react-i18next (`list.table.*`).
+import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -84,6 +86,7 @@ function DataTablePaginationContent<TData extends RowData>({
   className,
   ...props
 }: DataTablePaginationContentProps<TData>) {
+  const { t } = useTranslation();
   const pageSizeLabelId = React.useId();
   const pageCount = table.getPageCount();
   const canPreviousPage = table.getCanPreviousPage();
@@ -103,11 +106,10 @@ function DataTablePaginationContent<TData extends RowData>({
         role="status"
         className="flex-1 text-sm whitespace-nowrap text-muted-foreground"
       >
-        {selectedRowCount} {selectedRowCount === 1 ? 'row' : 'rows'} selected
+        {t('list.table.rowsSelected', { count: selectedRowCount })}
         {selectedRowCount > visibleSelectedRowCount
-          ? ` (${selectedRowCount - visibleSelectedRowCount} not shown)`
+          ? ` (${t('list.table.notShown', { count: selectedRowCount - visibleSelectedRowCount })})`
           : ''}
-        .
       </div>
       <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
         <div className="flex items-center gap-2">
@@ -115,7 +117,7 @@ function DataTablePaginationContent<TData extends RowData>({
             id={pageSizeLabelId}
             className="text-sm font-medium whitespace-nowrap"
           >
-            Rows per page
+            {t('list.table.rowsPerPage')}
           </p>
           <Select
             value={`${pageSize}`}
@@ -142,11 +144,11 @@ function DataTablePaginationContent<TData extends RowData>({
           role="status"
           className="flex items-center justify-center text-sm font-medium"
         >
-          Page {pageIndex + 1} of {pageCount}
+          {t('list.table.pageOf', { page: pageIndex + 1, count: pageCount })}
         </div>
         <div className="flex items-center gap-2">
           <Button
-            aria-label="Go to first page"
+            aria-label={t('list.table.firstPage')}
             variant="outline"
             size="icon"
             className="hidden lg:flex"
@@ -156,7 +158,7 @@ function DataTablePaginationContent<TData extends RowData>({
             <ChevronsLeft className="rtl:rotate-180" />
           </Button>
           <Button
-            aria-label="Go to previous page"
+            aria-label={t('list.table.previousPage')}
             variant="outline"
             size="icon"
             onClick={() => table.previousPage()}
@@ -165,7 +167,7 @@ function DataTablePaginationContent<TData extends RowData>({
             <ChevronLeft className="rtl:rotate-180" />
           </Button>
           <Button
-            aria-label="Go to next page"
+            aria-label={t('list.table.nextPage')}
             variant="outline"
             size="icon"
             onClick={() => table.nextPage()}
@@ -174,7 +176,7 @@ function DataTablePaginationContent<TData extends RowData>({
             <ChevronRight className="rtl:rotate-180" />
           </Button>
           <Button
-            aria-label="Go to last page"
+            aria-label={t('list.table.lastPage')}
             variant="outline"
             size="icon"
             className="hidden lg:flex"
