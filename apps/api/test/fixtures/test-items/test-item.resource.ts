@@ -1,10 +1,9 @@
-import { defineResource } from '../../../src/iam/resources/resource.js';
+import { recordResource } from '../../../src/platform/records/record-resource.js';
+import { TEST_ITEM } from './test-item.record.js';
 import { testItems } from './test-items.tables.js';
 
-/** Test items: every change audited (testItem.created, testItem.updated…); deleted ones go to a recycle bin. */
-export const TEST_ITEM_RESOURCE = defineResource({
-  subject: 'TestItem',
-  // The search vector follows the text: not a change of its own.
-  audit: { ignore: ['search'] },
-  softDelete: { table: testItems },
-});
+/**
+ * Test items: every change audited (testItem.created, testItem.updated…),
+ * deleted ones in a recycle bin when test-item.record.ts says softDelete (recordResource).
+ */
+export const TEST_ITEM_RESOURCE = recordResource(TEST_ITEM, testItems);

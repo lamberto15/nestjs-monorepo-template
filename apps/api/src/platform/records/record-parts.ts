@@ -11,11 +11,14 @@ import { type Capability, type RecordDeclaration, takes } from './record.js';
 import {
   RECORD_CONTRACT,
   RECORD_DECLARATION,
+  RECORD_TABLE,
   type RecordContract,
   RecordLifecycle,
   RecordPresenter,
 } from './record-contract.js';
 import type { RecordList } from './record-list.js';
+import { restoreRoutes } from './record-restore.routes.js';
+import { RecordStore } from './record-store.js';
 import type { RecordSchemas } from './record.schemas.js';
 import {
   recordKey,
@@ -44,11 +47,13 @@ const TARGETS: Record<Capability, Type> = {
 };
 
 /**
- * What a feature's module adds for its records (record.ts): the record
- * routes of its capabilities (in notes' order: the OpenAPI document's), and
- * the providers: its declaration and contract, RecordLifecycle and
- * RecordPresenter (the service and controller call them), and each
- * capability's target. `override` replaces a target with the feature's own.
+ * What a feature's module adds for its records (record.ts): the recycle
+ * bin's restore route (softDelete) and the record routes of its
+ * capabilities (in notes' order: the OpenAPI document's), and the
+ * providers: its declaration, table and contract, RecordStore,
+ * RecordLifecycle and RecordPresenter (the service and controller call
+ * them), and each capability's target. `override` replaces a target with
+ * the feature's own.
  *
  * ```ts
  * const parts = recordParts(INVOICE, { service: InvoicesService, policy: InvoicePolicy, table: invoices, list: INVOICE_LIST, schemas: INVOICE_SCHEMAS });
@@ -68,6 +73,14 @@ export function recordParts(
 ) {
   const has = (capability: Capability) => takes(declaration, capability);
   const controllers: Type[] = [
+    ...(declaration.softDelete
+      ? [
+          restoreRoutes(declaration, {
+            policy: options.policy,
+            schemas: options.schemas,
+          }),
+        ]
+      : []),
     ...(has('comments') ? [commentRoutes(declaration)] : []),
     ...(has('attachments') ? [attachmentRoutes(declaration)] : []),
     ...(has('tags') ? [tagRoutes(declaration)] : []),
@@ -94,6 +107,7 @@ export function recordParts(
   ];
   const providers: Provider[] = [
     { provide: RECORD_DECLARATION, useValue: declaration },
+    { provide: RECORD_TABLE, useValue: options.table },
     {
       provide: RECORD_CONTRACT,
       useFactory: (
@@ -109,6 +123,7 @@ export function recordParts(
       }),
       inject: [options.service, options.policy],
     },
+    RecordStore,
     RecordLifecycle,
     RecordPresenter,
     ...declaration.capabilities.map(

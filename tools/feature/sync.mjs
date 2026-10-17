@@ -12,8 +12,12 @@
 //
 // The guard compares the declaration with the table in the latest drizzle
 // snapshot (apps/api/drizzle/meta): a new required field without a
-// default, an optional field made required, or a field removed, would fail
-// or lose data on a table with rows (docs/pitfalls.md, expand/contract).
+// default, an optional field made required, a field removed, or
+// `softDelete` or `team` turned off (their columns dropped), would fail or
+// lose data on a table with rows (docs/pitfalls.md, expand/contract).
+// Turning them on adds nullable columns: a migration, nothing to fix. What
+// the flags change in the code the platform derives (platform/records): a
+// generated file that still codes them by hand fails the sync.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,13 +35,94 @@ const BASE_COLUMNS = new Set([
   'id',
   'tenant_id',
   'owner_id',
-  'team_id',
   'created_at',
   'updated_at',
-  'deleted_at',
-  'deleted_by',
   'search',
 ]);
+
+/**
+ * The columns a declaration's flag adds (record.ts: softDelete's recycle
+ * bin, team's team), and what dropping them loses.
+ */
+const FLAG_COLUMNS = {
+  softDelete: {
+    columns: ['deleted_at', 'deleted_by'],
+    off: 'records in the recycle bin would come back as live ones, and who deleted them is lost: restore or purge them first, and drop the columns a release after the code stops reading them',
+    on: null,
+  },
+  team: {
+    columns: ['team_id'],
+    off: 'which team each record belongs to is lost (with what team leads see): stop using it first, drop it a release later',
+    on: 'existing records get no team (team_id empty): team leads see only those created from now on',
+  },
+};
+
+/**
+ * Code a generated file would hold only if written for one value of a flag:
+ * the platform does it from the declaration now (platform/records:
+ * RecordStore, recordPermissions, RecordPolicy, recordResource, the restore
+ * route, record-capabilities.ts), so a match is code to bring to the
+ * generated shape (docs/adding-a-feature.md, "Changing a feature").
+ */
+const HAND_WRITTEN = [
+  {
+    file: (t) => `src/features/${t.plural}/${t.plural}.service.ts`,
+    flag: 'softDelete',
+    pattern: /\bdeletedAt\b/,
+    what: "the recycle bin's columns (RecordStore)",
+  },
+  {
+    file: (t) => `src/features/${t.plural}/${t.plural}.service.ts`,
+    flag: 'team',
+    pattern: /\bteamsOf\(|\bteamId\b/,
+    what: "the owner's team (RecordStore.owner())",
+  },
+  {
+    file: (t) => `src/features/${t.plural}/${t.plural}.controller.ts`,
+    flag: 'softDelete',
+    pattern: /:id\/restore'|to the recycle bin\)'/,
+    what: "the restore route or the delete route's text (record-restore.routes.ts)",
+  },
+  {
+    file: (t) => `src/features/${t.plural}/${t.singular}.policy.ts`,
+    flag: 'team',
+    pattern: /\binMyTeams\(|'team-lead'/,
+    what: 'the inMyTeams condition or the team lead grant (recordPermissions)',
+  },
+  {
+    file: (t) => `src/features/${t.plural}/${t.singular}.policy.ts`,
+    flag: 'softDelete',
+    pattern: /action: 'restore'|\brestore: \{|\brestore\(user/,
+    what: 'the restore action (recordPermissions, RecordPolicy)',
+  },
+  {
+    file: (t) => `src/features/${t.plural}/${t.singular}.resource.ts`,
+    flag: 'softDelete',
+    pattern: /\bsoftDelete:/,
+    what: 'the recycle bin (recordResource)',
+  },
+  {
+    file: (t) => `test/${t.plural}.e2e-spec.ts`,
+    flag: 'softDelete',
+    pattern: /\/restore`/,
+    what: 'the recycle bin test (record-capabilities.ts)',
+  },
+];
+
+/** The generated files that still code a flag by hand: one error each. */
+export function handWritten(api, record) {
+  const errors = [];
+  for (const { file, flag, pattern, what } of HAND_WRITTEN) {
+    const name = file(record.t);
+    const full = path.join(api, name);
+    if (!existsSync(full) || !pattern.test(readFileSync(full, 'utf8')))
+      continue;
+    errors.push(
+      `${name} codes ${what} by hand: the platform derives it from ${record.t.singular}.record.ts (${flag}: ${record[flag]}), so flipping ${flag} would leave it stale. Bring the file to the shape \`pnpm feature:add\` writes now (docs/adding-a-feature.md, "Changing a feature").`,
+    );
+  }
+  return errors;
+}
 
 /** `InvoiceLine` → `invoice-line`. */
 const kebab = (pascal) =>
@@ -273,9 +358,24 @@ const columnsOf = (f) =>
  */
 function guard(api, record) {
   const columns = snapshotTable(api, record.table);
-  if (!columns) return { errors: [], generate: true }; // a new table
+  if (!columns) return { errors: [], warnings: [], generate: true }; // a new table
   const errors = [];
+  const warnings = [];
   let generate = false;
+  for (const [flag, { columns: added, off, on }] of Object.entries(
+    FLAG_COLUMNS,
+  )) {
+    const present = added.filter((column) => columns[column]);
+    if (record[flag] && present.length < added.length) {
+      generate = true;
+      if (on) warnings.push(`${flag} turned on: ${on}.`);
+    } else if (!record[flag] && present.length) {
+      generate = true;
+      errors.push(
+        `${flag} turned off drops ${present.join(' and ')}; ${off} (docs/pitfalls.md, expand/contract).`,
+      );
+    }
+  }
   const declared = new Set();
   for (const f of record.fields) {
     for (const column of columnsOf(f)) {
@@ -298,7 +398,10 @@ function guard(api, record) {
     }
   }
   for (const column of Object.keys(columns)) {
-    if (!BASE_COLUMNS.has(column) && !declared.has(column)) {
+    const flagged = Object.values(FLAG_COLUMNS).some((flag) =>
+      flag.columns.includes(column),
+    );
+    if (!BASE_COLUMNS.has(column) && !flagged && !declared.has(column)) {
       errors.push(
         `${record.plural}: the column ${column} has no field any more; dropping it loses data: stop using it first, drop it a release later (docs/pitfalls.md, expand/contract).`,
       );
@@ -306,7 +409,7 @@ function guard(api, record) {
   }
   if (record.capabilities.has('search') !== Boolean(columns.search))
     generate = true;
-  return { errors, generate };
+  return { errors, warnings, generate };
 }
 
 /** One feature: its texts and OpenAPI paths in line (unless `check`), its migration guarded. */
@@ -317,12 +420,13 @@ export function syncFeature(api, plural, { check = false } = {}) {
   const record = readRecord(path.join(dir, file));
   const texts = syncTexts(api, record, check);
   const paths = syncPaths(api, record, check);
-  const { errors, generate } = guard(api, record);
+  const { errors, warnings, generate } = guard(api, record);
   return {
     plural,
     changes: [...texts.changes, ...paths],
     translate: texts.translate,
-    errors,
+    errors: [...errors, ...handWritten(api, record)],
+    warnings,
     generate,
     client: paths.length > 0,
   };
@@ -364,6 +468,8 @@ async function main() {
         `${plural}: ${values.check ? 'out of line' : 'synced'}: ${change}`,
       );
     for (const error of result.errors) console.error(`${plural}: ${error}`);
+    for (const warning of result.warnings)
+      console.warn(`${plural}: ${warning}`);
     if (result.translate.length) {
       console.log(`${plural}: to translate (English for now):`);
       for (const key of result.translate) console.log(`  ${key}`);

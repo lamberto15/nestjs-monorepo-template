@@ -1,11 +1,13 @@
 // The files `pnpm feature:add` writes (tools/feature/add.mjs). The feature's
-// records are declared once (`<item>.record.ts`: fields and capabilities);
-// the table, schemas, list, capability targets and routes are derived from
-// that declaration by the platform (platform/fields, platform/records), so
-// these files are short and stay the same when a field or a capability is
-// added. Each function takes the context (`t` the names, `fields`,
-// `softDelete`, `team`, `capabilities`, `description`) and returns a file's
-// text; Prettier formats it after.
+// records are declared once (`<item>.record.ts`: fields, capabilities, the
+// recycle bin, teams); the table, schemas, list, permissions, capability
+// targets and routes, and what the recycle bin and teams change in the
+// service and the routes, are derived from that declaration by the platform
+// (platform/fields, platform/records), so these files are short and stay the
+// same when a field or a capability is added, or `softDelete` or `team`
+// flips: only record() reads those. Each function takes the context (`t` the
+// names, `fields`, `softDelete`, `team`, `capabilities`, `description`) and
+// returns a file's text; Prettier formats it after.
 import { lowerFirst } from './capabilities.mjs';
 import { builderOf, camelOf, pascalOf } from './fields.mjs';
 
@@ -24,9 +26,9 @@ export function record({ t, fields, softDelete, team, capabilities }) {
     '',
     `/**`,
     ` * ${pascalOf(t.nouns)}: their fields and capabilities, declared once. The table,`,
-    ` * schemas, list, capability routes and targets are derived from it`,
-    ` * (platform/records). Add a field or a capability here, then`,
-    ` * \`pnpm feature:sync\` and \`pnpm db:generate\` (docs/adding-a-feature.md).`,
+    ` * schemas, list, permissions, capability routes and targets are derived from it`,
+    ` * (platform/records). Add a field or a capability, or flip softDelete or team,`,
+    ` * here, then \`pnpm feature:sync\` and \`pnpm db:generate\` (docs/adding-a-feature.md).`,
     ` */`,
     `export const ${t.SINGULAR} = defineRecord({`,
     `  subject: '${t.Singular}',`,
@@ -84,132 +86,53 @@ export function list({ t }) {
   ].join('\n');
 }
 
-export function resource({ t, softDelete }) {
+export function resource({ t }) {
   return [
-    `import { defineResource } from '../../iam/resources/resource.js';`,
-    ...(softDelete
-      ? [`import { ${t.pluralCamel} } from './${t.plural}.tables.js';`]
-      : []),
+    `import { recordResource } from '../../platform/records/record-resource.js';`,
+    `import { ${t.SINGULAR} } from './${t.singular}.record.js';`,
+    `import { ${t.pluralCamel} } from './${t.plural}.tables.js';`,
     '',
-    `/** ${pascalOf(t.nouns)}: every change audited (${lowerFirst(t.Singular)}.created, ${lowerFirst(t.Singular)}.updated…)${softDelete ? '; deleted ones go to a recycle bin' : ''}. */`,
-    `export const ${t.SINGULAR}_RESOURCE = defineResource({`,
-    `  subject: '${t.Singular}',`,
-    `  // The search vector follows the text: not a change of its own.`,
-    `  audit: { ignore: ['search'] },`,
-    ...(softDelete ? [`  softDelete: { table: ${t.pluralCamel} },`] : []),
-    `});`,
+    `/**`,
+    ` * ${pascalOf(t.nouns)}: every change audited (${lowerFirst(t.Singular)}.created, ${lowerFirst(t.Singular)}.updated…),`,
+    ` * deleted ones in a recycle bin when ${t.singular}.record.ts says softDelete (recordResource).`,
+    ` */`,
+    `export const ${t.SINGULAR}_RESOURCE = recordResource(${t.SINGULAR}, ${t.pluralCamel});`,
   ].join('\n');
 }
 
-export function policy({ t, softDelete, team }) {
+export function policy({ t }) {
   const S = t.Singular;
-  const read = team ? `['mine', 'inMyTeams']` : `['mine']`;
-  const actions = [
-    'read',
-    'create',
-    'update',
-    'delete',
-    ...(softDelete ? ['restore'] : []),
-  ];
-  const own = (action) =>
-    action === 'create'
-      ? `{ subject: '${S}', action: 'create', conditions: [] }`
-      : `{ subject: '${S}', action: '${action}', conditions: [{ key: 'mine' }] }`;
-  const fieldsType = [
-    'ownerId',
-    ...(team ? ['teamId'] : []),
-    ...(softDelete ? ['deletedAt'] : []),
-  ];
   return [
     `import { Policy } from '@nestjs/authorization';`,
-    `import { AccessService } from '../../iam/access/access.service.js';`,
-    `import { createdBy, definePermissions${team ? ', inMyTeams' : ''} } from '../../iam/access/permissions.js';`,
-    `import type { Principal } from '../../iam/auth/principal.js';`,
-    `import type { ${S} } from './${t.singular}.schemas.js';`,
+    `import { recordPermissions, RecordPolicy } from '../../platform/records/record-policy.js';`,
+    `import { ${t.SINGULAR} } from './${t.singular}.record.js';`,
     `import { ${t.pluralCamel} } from './${t.plural}.tables.js';`,
     '',
     `/**`,
     ` * What can be done with ${t.nouns}, and the conditions an administrator may attach`,
-    ` * (GET /v1/access/catalog). ${GENERATED('add fields (field-level permissions) and conditions as the feature needs.')}`,
+    ` * (GET /v1/access/catalog): the standard actions, conditions and seed roles' grants,`,
+    ` * from ${t.singular}.record.ts (recordPermissions: the recycle bin and teams as it says).`,
+    ` * ${GENERATED('field-level permissions, conditions and actions of its own go in a third argument.')}`,
     ` */`,
-    `export const ${t.SINGULAR}_PERMISSIONS = definePermissions({`,
-    `  subjects: {`,
-    `    ${S}: {`,
-    `      label: '${pascalOf(t.nouns)}',`,
-    `      fields: {},`,
-    `      conditions: {`,
-    `        mine: createdBy('ownerId', ${t.pluralCamel}.ownerId),`,
-    ...(team
-      ? [`        inMyTeams: inMyTeams('teamId', ${t.pluralCamel}.teamId),`]
-      : []),
-    `      },`,
-    `      actions: {`,
-    `        read: { label: 'See ${t.nouns}', conditions: ${read} },`,
-    `        create: { label: 'Create ${t.nouns}', conditions: [] },`,
-    `        update: { label: 'Change ${t.nouns}', conditions: ['mine'] },`,
-    `        delete: { label: 'Delete ${t.nouns}', conditions: ['mine'] },`,
-    ...(softDelete
-      ? [
-          `        restore: { label: 'See deleted ${t.nouns} and restore them', conditions: ${read} },`,
-        ]
-      : []),
-    `      },`,
-    `    },`,
-    `  },`,
-    `  // What every API client may do, on top of its roles: its own ${t.nouns}.`,
-    `  clientPermissions: [`,
-    ...actions.map((action) => `    ${own(action)},`),
-    `  ],`,
-    `  // Added to the roles every tenant starts with (same key: merged with the other features').`,
-    `  seedRoles: [`,
-    `    {`,
-    `      key: 'editor',`,
-    `      name: 'Editor',`,
-    `      description: 'Writes records and changes their own.',`,
-    `      permissions: [`,
-    ...actions.map((action) => `        ${own(action)},`),
-    `      ],`,
-    `    },`,
-    `    {`,
-    `      key: 'viewer',`,
-    `      name: 'Viewer',`,
-    `      description: 'Sees every record, changes nothing.',`,
-    `      permissions: [{ subject: '${S}', action: 'read', conditions: [] }],`,
-    `    },`,
-    `  ],`,
-    `});`,
+    `export const ${t.SINGULAR}_PERMISSIONS = recordPermissions(${t.SINGULAR}, ${t.pluralCamel});`,
     '',
-    `/** The fields of ${t.aNoun} its conditions read. */`,
-    `type ${S}Fields = Pick<${S}, ${fieldsType.map((f) => `'${f}'`).join(' | ')}>;`,
-    `const ${t.singularCamel}Fields = ({ ${fieldsType.join(', ')} }: ${S}Fields) => ({ ${fieldsType.join(', ')} });`,
-    '',
+    `/**`,
+    ` * Who may do what with ${t.aNoun}: each action checked against its fields (RecordPolicy).`,
+    ` * Business logic: a rule of the feature's overrides an action here.`,
+    ` */`,
     `@Policy()`,
-    `export class ${S}Policy {`,
-    `  constructor(private readonly access: AccessService) {}`,
-    '',
-    `  create(user: Principal | null) {`,
-    `    return this.access.can(user, 'create', '${S}');`,
-    `  }`,
-    ...actions
-      .filter((action) => action !== 'create')
-      .flatMap((action) => [
-        '',
-        `  ${action}(user: Principal | null, ${t.singularCamel}: ${S}Fields) {`,
-        `    return this.access.can(user, '${action}', '${S}', ${t.singularCamel}Fields(${t.singularCamel}));`,
-        `  }`,
-      ]),
-    `}`,
+    `export class ${S}Policy extends RecordPolicy {}`,
   ].join('\n');
 }
 
-export function service({ t, fields, softDelete, team }) {
+export function service({ t, fields }) {
   const S = t.Singular;
   const table = t.pluralCamel;
   const uniques = fields.filter((f) => f.unique);
   return [
-    `import { ${uniques.length ? 'ConflictException, ' : ''}Injectable, NotFoundException } from '@nestjs/common';`,
+    `import { ${uniques.length ? 'ConflictException, ' : ''}Injectable } from '@nestjs/common';`,
     `import { TransactionHost } from '@nestjs-cls/transactional';`,
-    `import { and, eq, getTableColumns, ${softDelete ? 'isNotNull, isNull, ' : ''}type SQL } from 'drizzle-orm';`,
+    `import { eq, type SQL } from 'drizzle-orm';`,
     `import type { Database, Transaction } from '../../core/database/drizzle.js';`,
     ...(uniques.length
       ? [
@@ -217,14 +140,12 @@ export function service({ t, fields, softDelete, team }) {
         ]
       : []),
     `import { database, type DrizzleTransactions, inTransaction } from '../../core/database/transactions.js';`,
-    `import { afterCursor, countPage, pageOffset, pageOrder, type PageQuery, toPage } from '../../core/http/pagination.js';`,
-    ...(team
-      ? [`import { TeamsService } from '../../iam/access/teams.service.js';`]
-      : []),
+    `import type { PageQuery } from '../../core/http/pagination.js';`,
     `import { AuditService } from '../../iam/audit/audit.service.js';`,
-    `import { type Principal, principalKey } from '../../iam/auth/principal.js';`,
+    `import type { Principal } from '../../iam/auth/principal.js';`,
     `import { recordValues, recordView } from '../../platform/records/record.js';`,
     `import { RecordLifecycle } from '../../platform/records/record-contract.js';`,
+    `import { RecordStore } from '../../platform/records/record-store.js';`,
     `import { ${t.SINGULAR} } from './${t.singular}.record.js';`,
     `import { ${t.SINGULAR}_RESOURCE } from './${t.singular}.resource.js';`,
     `import type { Create${S}Dto, ${S}, Update${S}Dto } from './${t.singular}.schemas.js';`,
@@ -232,7 +153,8 @@ export function service({ t, fields, softDelete, team }) {
     '',
     `/**`,
     ` * ${pascalOf(t.nouns)}: the writes and the reads. Each write, its audit entry and what its`,
-    ` * capabilities do (RecordLifecycle: watchers, revisions) commit in one transaction.`,
+    ` * capabilities do (RecordLifecycle: watchers, revisions) commit in one transaction;`,
+    ` * what ${t.singular}.record.ts decides (the recycle bin, teams) RecordStore does.`,
     ` * ${GENERATED('the business logic goes where the comments say "Business logic".')}`,
     ` */`,
     `@Injectable()`,
@@ -241,7 +163,7 @@ export function service({ t, fields, softDelete, team }) {
     `    private readonly txHost: TransactionHost<DrizzleTransactions>,`,
     `    private readonly audit: AuditService,`,
     `    private readonly lifecycle: RecordLifecycle,`,
-    ...(team ? [`    private readonly teams: TeamsService,`] : []),
+    `    private readonly records: RecordStore,`,
     `  ) {}`,
     '',
     `  /** The current transaction, or the database outside one (core/database/transactions.ts). */`,
@@ -256,13 +178,8 @@ export function service({ t, fields, softDelete, team }) {
     `      const [row] = await tx`,
     `        .insert(${table})`,
     `        .values({`,
-    `          ownerId: principalKey(owner),`,
-    ...(team
-      ? [
-          `          // A user's record belongs to their (first) team.`,
-          `          teamId: owner.kind === 'user' ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null) : null,`,
-        ]
-      : []),
+    `          // Its owner, and with teams the owner's team.`,
+    `          ...(await this.records.owner(owner, tx)),`,
     `          ...recordValues(${t.SINGULAR}, dto),`,
     `        } as typeof ${table}.$inferInsert)`,
     `        .returning()${uniques.length ? '.catch(taken)' : ''};`,
@@ -273,38 +190,17 @@ export function service({ t, fields, softDelete, team }) {
     `    });`,
     `  }`,
     '',
-    `  /** One, or a 404${softDelete ? ' (deleted ones with `deleted`: the recycle bin)' : ''}. */`,
-    `  async findOne(id: string, db: Database | Transaction = this.db${softDelete ? ', { deleted = false }: { deleted?: boolean } = {}' : ''}): Promise<${S}> {`,
-    `    const [row] = await db`,
-    `      .select()`,
-    `      .from(${table})`,
-    softDelete
-      ? `      .where(and(eq(${table}.id, id), deleted ? isNotNull(${table}.deletedAt) : isNull(${table}.deletedAt)));`
-      : `      .where(eq(${table}.id, id));`,
-    `    if (!row) {`,
-    `      throw new NotFoundException(\`${pascalOf(t.noun)} \${id} not found.\`);`,
-    `    }`,
-    `    return row;`,
+    `  /** One, or a 404 (with \`deleted\`, one in the recycle bin). */`,
+    `  findOne(id: string, db: Database | Transaction = this.db, options: { deleted?: boolean } = {}) {`,
+    `    return this.records.findOne<${S}>(id, db, options);`,
     `  }`,
     '',
-    `  /** A page of those matching \`where\` (the caller's read filter, from AccessService), newest first. */`,
-    `  async findPage(`,
-    `    where: SQL | undefined,`,
-    `    query: PageQuery,`,
-    `    /** Sort values that aren't columns (the search rank), for the cursor: the list's sortSelect(query). */`,
-    `    extra: Record<string, SQL.Aliased> = {},`,
-    `  ) {`,
-    `    const [rows, total] = await Promise.all([`,
-    `      this.db`,
-    `        .select({ ...getTableColumns(${table}), ...extra })`,
-    `        .from(${table})`,
-    `        .where(and(where, afterCursor(${table}.id, query)))`,
-    `        .orderBy(...pageOrder(${table}.id, query))`,
-    `        .limit(query.limit + 1)`,
-    `        .offset(pageOffset(query)),`,
-    `      countPage(this.db, ${table}, where, query),`,
-    `    ]);`,
-    `    return toPage(rows, query, total);`,
+    `  /**`,
+    `   * A page of those matching \`where\` (the caller's read filter, from AccessService), newest`,
+    `   * first; \`extra\`: sort values that aren't columns (the list's sortSelect(query)).`,
+    `   */`,
+    `  findPage(where: SQL | undefined, query: PageQuery, extra: Record<string, SQL.Aliased> = {}) {`,
+    `    return this.records.findPage<${S}>(where, query, extra);`,
     `  }`,
     '',
     `  /** Runs a read of your own on its table (exports, bulk actions, search). */`,
@@ -327,34 +223,23 @@ export function service({ t, fields, softDelete, team }) {
     `    });`,
     `  }`,
     '',
-    ...(softDelete
-      ? [
-          `  /** To the recycle bin (soft delete): hidden everywhere, restorable until purged. */`,
-          `  async delete(by: Principal, row: ${S}, ip?: string) {`,
-          `    await inTransaction(this.txHost, async (tx) => {`,
-          `      await tx.update(${table}).set({ deletedAt: new Date(), deletedBy: principalKey(by) }).where(eq(${table}.id, row.id));`,
-          `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'deleted', id: row.id, before: recordView(${t.SINGULAR}, row) }, tx, ip);`,
-          `    });`,
-          `  }`,
-          '',
-          `  /** Out of the recycle bin. */`,
-          `  async restore(by: Principal, row: ${S}, ip?: string) {`,
-          `    return inTransaction(this.txHost, async (tx) => {`,
-          `      const [restored] = await tx.update(${table}).set({ deletedAt: null, deletedBy: null }).where(eq(${table}.id, row.id)).returning();`,
-          `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'restored', id: row.id, after: recordView(${t.SINGULAR}, restored!) }, tx, ip);`,
-          `      return restored!;`,
-          `    });`,
-          `  }`,
-        ]
-      : [
-          `  /** Deletes one for good. */`,
-          `  async delete(by: Principal, row: ${S}, ip?: string) {`,
-          `    await inTransaction(this.txHost, async (tx) => {`,
-          `      await tx.delete(${table}).where(eq(${table}.id, row.id));`,
-          `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'deleted', id: row.id, before: recordView(${t.SINGULAR}, row) }, tx, ip);`,
-          `    });`,
-          `  }`,
-        ]),
+    `  /** Deletes one: to the recycle bin (restorable until purged) when it has one, else for good. */`,
+    `  async delete(by: Principal, row: ${S}, ip?: string) {`,
+    `    // Business logic: what a delete must respect, here.`,
+    `    await inTransaction(this.txHost, async (tx) => {`,
+    `      await this.records.delete(tx, by, row);`,
+    `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'deleted', id: row.id, before: recordView(${t.SINGULAR}, row) }, tx, ip);`,
+    `    });`,
+    `  }`,
+    '',
+    `  /** Out of the recycle bin (POST /v1/${t.plural}/{id}/restore, a bulk restore). */`,
+    `  async restore(by: Principal, row: ${S}, ip?: string) {`,
+    `    return inTransaction(this.txHost, async (tx) => {`,
+    `      const restored = await this.records.restore<${S}>(tx, row);`,
+    `      await this.audit.recordChange(by, ${t.SINGULAR}_RESOURCE, { action: 'restored', id: row.id, after: recordView(${t.SINGULAR}, restored) }, tx, ip);`,
+    `      return restored;`,
+    `    });`,
+    `  }`,
     `}`,
     ...(uniques.length
       ? [
@@ -371,7 +256,7 @@ export function service({ t, fields, softDelete, team }) {
   ].join('\n');
 }
 
-export function controller({ t, fields, softDelete }) {
+export function controller({ t, fields }) {
   const S = t.Singular;
   const svc = t.pluralCamel;
   const uniques = fields.filter((f) => f.unique);
@@ -390,8 +275,10 @@ export function controller({ t, fields, softDelete }) {
     `import { idempotencyKeyHeader } from '../../platform/idempotency/idempotency.openapi.js';`,
     `import { principalScope } from '../../platform/idempotency/idempotency.scopes.js';`,
     `import { RecordPresenter } from '../../platform/records/record-contract.js';`,
+    `import { deleteDocs } from '../../platform/records/record-restore.routes.js';`,
     `import { ${t.SINGULAR}_LIST } from './${t.singular}.list.js';`,
     `import { ${S}Policy } from './${t.singular}.policy.js';`,
+    `import { ${t.SINGULAR} } from './${t.singular}.record.js';`,
     `import { type Create${S}Dto, type ${S}, ${t.SINGULAR}_SCHEMAS, type Update${S}Dto } from './${t.singular}.schemas.js';`,
     `import { ${t.Plural}Service } from './${t.plural}.service.js';`,
     '',
@@ -399,7 +286,8 @@ export function controller({ t, fields, softDelete }) {
     '',
     `/**`,
     ` * ${pascalOf(t.nouns)}: the HTTP routes, nothing else (${t.plural}.service.ts does the work).`,
-    ` * The capabilities' routes (tags, comments…) come from ${t.singular}.record.ts (${t.plural}.module.ts).`,
+    ` * The recycle bin's restore route and the capabilities' routes (tags, comments…) come`,
+    ` * from ${t.singular}.record.ts (${t.plural}.module.ts).`,
     ` */`,
     `@ApiTags('${t.plural}')`,
     `@ApiBearerAuth('api-key')`,
@@ -441,9 +329,8 @@ export function controller({ t, fields, softDelete }) {
     `    const query = ${t.SINGULAR}_LIST.parse(raw);`,
     `    const page = await this.${svc}.findPage(`,
     `      and(`,
-    softDelete
-      ? `        // The recycle bin (?deleted=true) is for those who may restore.\n        await this.access.sqlFilter(user, '${S}', query.deleted ? 'restore' : 'read', { deleted: query.deleted === true }),`
-      : `        await this.access.sqlFilter(user, '${S}', 'read'),`,
+    `        // The recycle bin (?deleted=true, with softDelete) is for those who may restore.`,
+    `        await this.access.sqlFilter(user, '${S}', query.deleted ? 'restore' : 'read', { deleted: query.deleted === true }),`,
     `        ${t.SINGULAR}_LIST.where(query),`,
     `      ),`,
     `      query,`,
@@ -486,27 +373,11 @@ export function controller({ t, fields, softDelete }) {
     `    await this.assertFields(user, 'update', dto, row);`,
     `    return this.presenter.one(user, await this.${svc}.update(user, row, dto, ip));`,
     `  }`,
-    ...(softDelete
-      ? [
-          '',
-          `  @Post(':id/restore')`,
-          `  @HttpCode(HttpStatus.OK)`,
-          `  @Can.Anyone() // Checked below, on the record itself.`,
-          `  @ApiOperation({ summary: 'Restore ${t.aNoun} from the recycle bin', description: 'Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).' })`,
-          `  @ApiOkResponse({ standardSchema: SCHEMAS.response })`,
-          `  @ApiNotFoundResponse({ description: 'Not in the recycle bin (or purged).' })`,
-          `  async restore(@CurrentUser() user: RequestPrincipal, @Param('id', ParseUUIDPipe) id: string, @Ip() ip: string) {`,
-          `    const row = await this.${svc}.findOne(id, undefined, { deleted: true });`,
-          `    await this.authorization.authorize(${S}Policy, 'restore', user, row);`,
-          `    return this.presenter.one(user, await this.${svc}.restore(user, row, ip));`,
-          `  }`,
-        ]
-      : []),
     '',
     `  @Delete(':id')`,
     `  @HttpCode(HttpStatus.NO_CONTENT)`,
     `  @Can.Anyone() // Checked below, on the record itself.`,
-    `  @ApiOperation({ summary: 'Delete ${t.aNoun}${softDelete ? ' (to the recycle bin)' : ''}'${softDelete ? `, description: 'POST /v1/${t.plural}/{id}/restore brings it back until it is purged.'` : ''} })`,
+    `  @ApiOperation(deleteDocs(${t.SINGULAR}))`,
     `  @ApiHeader(ifMatchHeader())`,
     `  @ApiNoContentResponse()`,
     `  @ApiNotFoundResponse()`,
@@ -584,7 +455,7 @@ export function feature({ t, description }) {
   ].join('\n');
 }
 
-export function e2e({ t, softDelete }) {
+export function e2e({ t }) {
   const path = `/v1/${t.plural}`;
   const audit = lowerFirst(t.Singular);
   return [
@@ -633,13 +504,6 @@ export function e2e({ t, softDelete }) {
     '',
     `    await admin.delete(\`${path}/\${id}\`).expect(204);`,
     `    await admin.get(\`${path}/\${id}\`).expect(404);`,
-    ...(softDelete
-      ? [
-          `    // The recycle bin: back until the purge.`,
-          `    await admin.post(\`${path}/\${id}/restore\`).expect(200);`,
-          `    await admin.get(\`${path}/\${id}\`).expect(200);`,
-        ]
-      : []),
     `  });`,
     '',
     `  it('refuses a body that fails the schema', async () => {`,
@@ -672,7 +536,7 @@ export function e2e({ t, softDelete }) {
     `    expect(page.body.items).toHaveLength(2);`,
     `  });`,
     '',
-    `  // Each capability ${t.singular}.record.ts declares (record-capabilities.ts).`,
+    `  // Each capability ${t.singular}.record.ts declares, its recycle bin and teams (record-capabilities.ts).`,
     `  describeCapabilities(() => node, ${t.SINGULAR});`,
     `});`,
   ].join('\n');
