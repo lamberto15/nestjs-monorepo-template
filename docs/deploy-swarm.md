@@ -61,6 +61,20 @@ pnpm deploy:swarm
 ```
 
 Stop the Compose stack first if it runs on the same host (ports 80 and 443).
+
+**Never `docker swarm init` or `docker swarm leave` on a host where a Compose
+stack keeps running.** It happened on the template's own instance: after
+Swarm was turned on and off, Docker's embedded DNS no longer answered for the
+containers already on the Compose networks (`nslookup postgres` → NXDOMAIN).
+The next `docker compose up` recreated the app, its migration failed with
+`getaddrinfo ENOTFOUND postgres`, and the site was down. Move to Swarm as a
+cut-over (stop Compose, init, deploy, restore), and try Swarm out on another
+machine or VM. Repair, if it happens: reconnect each running container to its
+network under its service name (`docker network disconnect <net> <c>`, then
+`docker network connect --alias <service> <net> <c>`), or restart Docker; then
+`docker compose up -d`. A second `docker swarm init` on Docker Desktop may also
+fail with `error creating vxlan interface: file exists` (a device the last
+swarm left): restart Docker Desktop.
 Swarm names its volumes `<stack>_postgres_data` and so on: a Compose
 deployment's data is not found under those names (restore a backup into the
 new PostgreSQL, [deployment.md](deployment.md), "Backups and restore").
