@@ -19,7 +19,7 @@ function report(result: DemoSeedResult) {
     return;
   }
   console.log(
-    `Demo data in the tenant "${result.tenant}": ${result.users.length} users, ${result.notes} notes. Their passwords, shown once:\n`,
+    `Demo data in the tenant "${result.tenant}": ${[`${result.users.length} users`, ...Object.entries(result.data).map(([kind, count]) => `${count} ${kind}`)].join(', ')}. Their passwords, shown once:\n`,
   );
   const width = Math.max(...result.users.map((user) => user.email.length));
   for (const user of result.users) {

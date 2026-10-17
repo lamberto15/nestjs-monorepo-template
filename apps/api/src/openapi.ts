@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { FEATURES } from './features/index.js';
+import { APP_FEATURES } from './app.tokens.js';
+import type { FeatureDefinition } from './features/feature.js';
 import { swaggerRequestInterceptor } from './platform/idempotency/idempotency.openapi.js';
 
 /** Your API's name, in the document and Swagger UI's title. */
@@ -49,7 +50,9 @@ export function buildOpenApiDocument(app: INestApplication) {
       'Exports and imports (CSV, JSON, Excel), as background jobs',
     );
   // Each feature's tag (its `<x>.feature.ts`), in the features' order.
-  for (const { apiTag } of FEATURES) {
+  for (const { apiTag } of app.get<FeatureDefinition[]>(APP_FEATURES, {
+    strict: false,
+  })) {
     builder.addTag(apiTag.name, apiTag.description);
   }
   const config = builder

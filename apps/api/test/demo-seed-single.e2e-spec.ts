@@ -3,7 +3,11 @@ import { sql } from 'drizzle-orm';
 import { Client } from 'pg';
 import { inject } from 'vitest';
 import type { Database } from '../src/core/database/drizzle.js';
-import { DEMO_NOTES, DEMO_USERS } from '../src/demo/demo-data.js';
+import { DEMO_USERS } from '../src/demo/demo-data.js';
+import {
+  DEMO_NOTES,
+  DEMO_TAGS,
+} from '../src/features/notes/notes.demo-data.js';
 import { DemoSeedModule } from '../src/demo/demo-seed.module.js';
 import { type DemoCredentials, DemoSeeder } from '../src/demo/demo-seeder.js';
 import { bootApp, type TestApp } from './support.js';
@@ -61,7 +65,10 @@ describe('demo seed, single tenant (e2e)', () => {
     expect(result.tenant).toBe(process.env.ADMIN_TENANT_NAME ?? 'Default');
     expect(result.operators).toBe(true);
     expect(result.users).toHaveLength(DEMO_USERS.length);
-    expect(result.notes).toBe(DEMO_NOTES.length);
+    expect(result.data).toEqual({
+      notes: DEMO_NOTES.length,
+      tags: DEMO_TAGS.length,
+    });
 
     // Still one tenant, and the demo users act in it.
     const tenants = (await node.admin().get('/v1/tenants').expect(200)).body

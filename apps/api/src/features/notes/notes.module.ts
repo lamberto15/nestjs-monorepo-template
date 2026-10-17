@@ -5,6 +5,7 @@ import { NotePublisher } from './note-publisher.service.js';
 import { NotePolicy } from './note.policy.js';
 import { NotesController } from './notes.controller.js';
 import { NotesService } from './notes.service.js';
+import { NotesDemo } from './notes.demo.js';
 import { NoteSearch } from './note.search.js';
 import { NoteTransfer } from './note.transfer.js';
 import { NoteBulk } from './note.bulk.js';
@@ -63,6 +64,7 @@ import { documentRoutes } from '../../platform/documents/document.routes.js';
     watchRoutes(NOTE_ROUTES, { docs: NOTE_WATCH_DOCS }),
   ],
   providers: [
+    NotesDemo,
     NotesService,
     NotePublisher,
     NotePolicy,
@@ -79,6 +81,6 @@ import { documentRoutes } from '../../platform/documents/document.routes.js';
     NoteDocuments,
   ],
   // The demo seed (src/demo) writes notes through it.
-  exports: [NotesService],
+  exports: [NotesService, NotesDemo],
 })
 export class NotesModule {}
