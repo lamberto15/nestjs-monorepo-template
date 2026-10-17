@@ -1,0 +1,129 @@
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
+import { api } from '@/lib/api';
+
+export type Client = GetResponse<'/v1/access/clients'>['items'][number];
+export type Usage = GetResponse<'/v1/access/clients/{id}/usage'>;
+
+/** Every API-clients query starts with this key (one invalidation covers all). */
+export const clientsKey = ['api-clients'] as const;
+
+export const clientsQuery = queryOptions({
+  queryKey: [...clientsKey, 'list'],
+  queryFn: () => unwrap(api.GET('/v1/access/clients')),
+});
+
+/** Per UTC day and route, `from` to `to` included (yyyy-mm-dd). */
+export const usageQuery = (id: string, from: string, to: string) =>
+  queryOptions({
+    queryKey: [...clientsKey, 'usage', id, from, to],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/access/clients/{id}/usage', {
+          params: { path: { id }, query: { from, to } },
+        }),
+      ),
+  });
+
+/** Whether the key's expiry has passed. */
+export function isExpired(key: { expiresAt: string | null }, now = Date.now()) {
+  return key.expiresAt !== null && Date.parse(key.expiresAt) <= now;
+}
+
+/** A key is active until revoked or expired. */
+export function activeKeys(client: Client) {
+  return client.keys.filter((key) => !key.revokedAt && !isExpired(key));
+}
+
+/** The latest `lastUsedAt` over a client's keys. */
+export function lastUsed(client: Client): string | null {
+  return (
+    client.keys
+      .map((key) => key.lastUsedAt)
+      .filter((value): value is string => value !== null)
+      .toSorted()
+      .at(-1) ?? null
+  );
+}
+
+function useRefresh() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: clientsKey });
+}
+
+/**
+ * Creating returns the key, this once. `gcTime: 0` drops the result from
+ * the mutation cache as soon as nothing observes it, and the dialog that
+ * shows it calls `reset()` on close: the key is in no cache afterwards.
+ * (The list is refetched; it never carries a key.)
+ */
+export function useCreateClient() {
+  const refresh = useRefresh();
+  return useMutation({
+    gcTime: 0,
+    meta: { errorToast: false },
+    mutationFn: async (input: { name: string; dailyQuota?: number }) => {
+      const created = await unwrap(
+        api.POST('/v1/access/clients', { body: { name: input.name } }),
+      );
+      if (input.dailyQuota !== undefined) {
+        // The create route has no quota: it is set on the client right after.
+        const updated = await unwrap(
+          api.PATCH('/v1/access/clients/{id}', {
+            params: { path: { id: created.id } },
+            body: { dailyQuota: input.dailyQuota },
+          }),
+        );
+        return { ...created, dailyQuota: updated.dailyQuota };
+      }
+      return created;
+    },
+    onSettled: refresh,
+  });
+}
+
+/** A new key (shown once, as in {@link useCreateClient}). */
+export function useRotateKey(id: string) {
+  const refresh = useRefresh();
+  return useMutation({
+    gcTime: 0,
+    mutationFn: (graceSeconds: number) =>
+      unwrap(
+        api.POST('/v1/access/clients/{id}/rotate', {
+          params: { path: { id } },
+          body: { graceSeconds },
+        }),
+      ),
+    onSettled: refresh,
+  });
+}
+
+export function useUpdateClient(id: string) {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (body: { active?: boolean; dailyQuota?: number | null }) =>
+      unwrap(
+        api.PATCH('/v1/access/clients/{id}', {
+          params: { path: { id } },
+          body,
+        }),
+      ),
+    onSuccess: refresh,
+  });
+}
+
+export function useRevokeKey(id: string) {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: async (keyId: string) => {
+      await api.DELETE('/v1/access/clients/{id}/keys/{keyId}', {
+        params: { path: { id, keyId } },
+      });
+    },
+    onSuccess: refresh,
+  });
+}

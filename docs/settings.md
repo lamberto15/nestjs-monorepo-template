@@ -72,7 +72,7 @@ through its `AUTH_POLICY` port under the environment's ceiling
 GET    /v1/settings                     every setting, with your value and its source (also for anyone, public ones)
 GET    /v1/settings/{key}/overrides     the stored values, every scope
 PUT    /v1/settings/{key}               { scope?: tenant|team|user, scopeId?, value?, rollout? }
-DELETE /v1/settings/{key}?scope=&scopeId=
+DELETE /v1/settings/{key}?scope=&scopeId=          204, no body
 ```
 
 - `scope` defaults to `tenant` (before tenancy it was `global`, which is
@@ -90,6 +90,48 @@ DELETE /v1/settings/{key}?scope=&scopeId=
   A value, when set, beats the rollout.
 - Every change is audited (`setting.updated` with from → to,
   `setting.reset`).
+
+## What each setting takes, and who may set it
+
+`GET /v1/settings` and `GET /v1/settings/{key}` describe each value, so a
+client renders the right input and checks it before PUT. All of it is
+generated from the declaration's Zod schema (`setting-value-schema.ts`,
+with Zod's `z.toJSONSchema()`, the input side), once at start: nothing to
+declare twice, nothing to drift from what PUT checks.
+
+| Field | When | What |
+| --- | --- | --- |
+| `type` | always | `boolean`, `number`, `string`, `enum`, or `json` for anything else (an object, an array, a union, a nullable value) |
+| `options` | `enum` | the values (`z.enum([...])`, or a union of literals) |
+| `min`, `max` | `number`, when declared | inclusive bounds (`.min()`, `.max()`; exclusive ones, `.positive()`, are in `schema` only) |
+| `integer` | `number` | `true` for `.int()` |
+| `maxLength` | `string`, when declared | `.max()` |
+| `schema` | always | the value's JSON Schema (draft 2020-12): patterns, exclusive bounds, an object's shape |
+
+`type` is for simple forms; `schema` says the rest, for a generic JSON
+editor or a validator. What JSON Schema can't say (a `refine()`, a
+transform's output) is left out of `schema` and still checked on PUT (400
+`validation_failed`); `SettingsService.restrict()`'s deployment ceiling
+too (400 `setting_not_allowed`).
+
+Two booleans say what the caller may do:
+
+- `canEdit`: they may set and remove the shared values, `PUT` and
+  `DELETE /v1/settings/{key}`, at every scope the setting takes. It is the
+  routes' own check (`AccessPolicy.manageSettings`: `Access.manageSettings`,
+  a user, not while impersonating), evaluated for the caller; the scopes
+  never differ in who may set them, so one answer holds for all.
+- `canSetMine`: they may set their own value (`PUT` and
+  `DELETE /v1/settings/{key}/mine`): the setting's scopes include `user`.
+  Anyone may, users and API clients.
+
+There is no `editableBy`: a declaration names no role (roles are each
+tenant's own), only the permission above. Don't infer either from
+`public: false` or the `auth.` prefix.
+
+Picking whom a `user` scope's value is for: `GET /v1/access/principals?q=`
+([permissions.md](permissions.md#picking-users-and-api-clients)) answers
+each user's and API client's `key`, the `scopeId` to send.
 
 ## For users and clients
 

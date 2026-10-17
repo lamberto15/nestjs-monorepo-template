@@ -287,7 +287,8 @@ export class AccessAdminService {
       : [[], []];
     return {
       ...page,
-      items: page.items.map((user) => ({
+      // A view's `tenantId` (the principal's, always null here) says nothing in a tenant's list.
+      items: page.items.map(({ tenantId: _tenantId, ...user }) => ({
         ...user,
         roleIds: assignments
           .filter((assignment) => assignment.userId === user.id)

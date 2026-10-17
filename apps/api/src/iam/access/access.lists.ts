@@ -1,4 +1,5 @@
-import { listQuery } from '../../core/http/list-query.js';
+import { type AnyColumn, ilike, or, sql } from 'drizzle-orm';
+import { escapeLike, listQuery } from '../../core/http/list-query.js';
 import { auditLog, memberships, users } from '../iam.tables.js';
 
 /** What GET /access/users can be filtered, sorted and narrowed by. */
@@ -98,4 +99,51 @@ export const AUDIT_LIST = listQuery(
       'ip',
     ],
   },
+);
+
+/** The union's alias: the list's fields name its columns. */
+const PRINCIPALS = sql.identifier('principals');
+const column = (name: string) => sql`${PRINCIPALS}.${sql.identifier(name)}`;
+const label = column('label');
+const email = column('email');
+/** The union's id, for the cursor and the order (a uuid: users' and clients' never meet). */
+export const PRINCIPALS_ID = column('id') as unknown as AnyColumn;
+
+/**
+ * What GET /access/principals can be searched, filtered and sorted by: the
+ * tenant's members and API clients as one list (a union), for the pickers
+ * of whom a setting's override, a rollout or a filter is for. `q` matches
+ * a part of the name or of the address, whatever the case, its `%` and `_`
+ * as the characters (escaped, as `contains` does).
+ */
+export const PRINCIPAL_LIST = listQuery(
+  {
+    q: {
+      column: label,
+      type: 'string',
+      ops: ['eq'],
+      conditions: {
+        eq: (value) => {
+          const pattern = `%${escapeLike(value as string)}%`;
+          return or(ilike(label, pattern), ilike(email, pattern))!;
+        },
+      },
+    },
+    kind: {
+      column: column('kind'),
+      type: 'enum',
+      values: ['user', 'client'],
+      ops: ['eq'],
+    },
+    active: { column: column('active'), type: 'boolean', ops: ['eq'] },
+    label: {
+      column: label,
+      type: 'string',
+      ops: ['contains', 'startsWith'],
+      sortable: true,
+      // Whatever the case; its own key in the rows, so `label` stays as it is.
+      sort: sql`lower(${label})`,
+    },
+  },
+  { select: ['id', 'key', 'kind', 'label', 'email', 'active'] },
 );
