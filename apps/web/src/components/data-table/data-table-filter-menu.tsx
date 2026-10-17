@@ -3,12 +3,17 @@
 import type { Column, ReactTable, RowData } from '@tanstack/react-table';
 
 import { cn } from 'cn';
+// Patched in (not in the registry): the texts go through react-i18next (`list.table.*`).
+import { useTranslation } from 'react-i18next';
 import * as React from 'react';
 
 import type { DataTableFeatures } from '@/lib/data-table-features';
+import type { TFunction } from 'i18next';
 import type {
   ColumnFilterItem,
   FilterOperator,
+  FilterOperatorOption,
+  FilterVariant,
   JoinOperator,
 } from '@/lib/data-table-types';
 
@@ -125,6 +130,7 @@ function DataTableFilterMenuContent<TData extends RowData>({
   disabled,
   ...props
 }: DataTableFilterMenuContentProps<TData>) {
+  const { t } = useTranslation();
   const dir = useDirection();
   const id = React.useId();
   const labelId = React.useId();
@@ -207,7 +213,7 @@ function DataTableFilterMenuContent<TData extends RowData>({
           }
         >
           <ListFilter className="text-muted-foreground" />
-          Filter
+          {t('list.table.filter')}
           {hasFilters && (
             <Badge
               variant="secondary"
@@ -226,7 +232,7 @@ function DataTableFilterMenuContent<TData extends RowData>({
         >
           <div className="flex flex-col gap-1">
             <h4 id={labelId} className="leading-none font-medium">
-              {hasFilters ? 'Filters' : 'No filters applied'}
+              {hasFilters ? t('list.table.filters') : t('list.table.noFilters')}
             </h4>
             <p
               id={descriptionId}
@@ -236,8 +242,8 @@ function DataTableFilterMenuContent<TData extends RowData>({
               )}
             >
               {hasFilters
-                ? 'Modify filters to refine your rows.'
-                : 'Add filters to refine your rows.'}
+                ? t('list.table.modifyFilters')
+                : t('list.table.addFiltersHint')}
             </p>
           </div>
           {hasFilters && (
@@ -266,11 +272,11 @@ function DataTableFilterMenuContent<TData extends RowData>({
           )}
           <div className="flex w-full items-center gap-2">
             <Button ref={addButtonRef} onClick={onFilterAdd}>
-              Add filter
+              {t('list.table.addFilter')}
             </Button>
             {hasFilters && (
               <Button variant="outline" onClick={onFiltersReset}>
-                Reset filters
+                {t('list.table.resetFilters')}
               </Button>
             )}
           </div>
@@ -314,6 +320,7 @@ function DataTableFilterItem<TData extends RowData>({
   onFilterUpdate,
   onFilterRemove,
 }: DataTableFilterItemProps<TData>) {
+  const { t } = useTranslation();
   const [activeSelector, setActiveSelector] =
     React.useState<FilterSelector | null>(null);
 
@@ -387,7 +394,7 @@ function DataTableFilterItem<TData extends RowData>({
       <Button
         aria-controls={filterItemId}
 
-        aria-label={`Remove ${label} filter`}
+        aria-label={t('list.table.removeFilter', { label })}
         variant="outline"
         size="icon"
         onClick={() => onFilterRemove(filter.filterId)}
@@ -395,7 +402,7 @@ function DataTableFilterItem<TData extends RowData>({
         <Trash2 />
       </Button>
       <SortableItemHandle
-        aria-label={`Reorder ${label} filter`}
+        aria-label={t('list.table.reorderFilter', { label })}
         render={<Button variant="outline" size="icon" />}
       >
         <GripVertical />
@@ -417,14 +424,21 @@ function FilterJoinOperator({
   listboxId,
   onJoinOperatorChange,
 }: FilterJoinOperatorProps) {
+  const { t } = useTranslation();
   const dir = useDirection();
   if (index === 0) {
-    return <span className="text-sm text-muted-foreground">Where</span>;
+    return (
+      <span className="text-sm text-muted-foreground">
+        {t('list.table.where')}
+      </span>
+    );
   }
 
   if (index > 1) {
     return (
-      <span className="text-sm text-muted-foreground">{joinOperator}</span>
+      <span className="text-sm text-muted-foreground">
+        {t(`list.table.join.${joinOperator}`)}
+      </span>
     );
   }
 
@@ -437,11 +451,13 @@ function FilterJoinOperator({
       }}
     >
       <SelectTrigger
-        aria-label="Select join operator"
+        aria-label={t('list.table.selectJoin')}
         aria-controls={listboxId}
         className="lowercase"
       >
-        <SelectValue placeholder={joinOperator} />
+        <SelectValue placeholder={joinOperator}>
+          {(value: string) => t(`list.table.join.${value}`)}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent
         dir={dir}
@@ -452,7 +468,7 @@ function FilterJoinOperator({
         <SelectGroup>
           {JOIN_OPERATORS.map((joinOperator) => (
             <SelectItem key={joinOperator} value={joinOperator}>
-              {joinOperator}
+              {t(`list.table.join.${joinOperator}`)}
             </SelectItem>
           ))}
         </SelectGroup>
@@ -485,6 +501,7 @@ function FilterFieldSelector<TData extends RowData>({
   onOpenChange,
   onFilterUpdate,
 }: FilterFieldSelectorProps<TData>) {
+  const { t } = useTranslation();
   const dir = useDirection();
   return (
     <Faceted
@@ -508,14 +525,14 @@ function FilterFieldSelector<TData extends RowData>({
         }
       >
         <span className="truncate">
-          {column.columnDef.meta?.label ?? 'Select field'}
+          {column.columnDef.meta?.label ?? t('list.table.selectField')}
         </span>
         <ChevronsUpDown className="opacity-50" />
       </FacetedTrigger>
       <FacetedContent dir={dir} id={listboxId} className="w-40">
-        <FacetedInput placeholder="Search fields..." />
+        <FacetedInput placeholder={t('list.table.searchFields')} />
         <FacetedList>
-          <FacetedEmpty>No fields found.</FacetedEmpty>
+          <FacetedEmpty>{t('list.table.noFields')}</FacetedEmpty>
           <FacetedGroup>
             {columns.map((column) => (
               <FacetedItem key={column.id} value={column.id}>
@@ -527,6 +544,24 @@ function FilterFieldSelector<TData extends RowData>({
         </FacetedList>
       </FacetedContent>
     </Faceted>
+  );
+}
+
+/**
+ * An operator's text, translated: `list.table.operators.<operator>`, and the
+ * date wording (before, after...) for the dates' ordered operators.
+ */
+function operatorLabel(
+  t: TFunction,
+  variant: FilterVariant,
+  operator: FilterOperatorOption,
+) {
+  const date =
+    (variant === 'date' || variant === 'dateRange') &&
+    ['lt', 'lte', 'gt', 'gte'].includes(operator.value);
+  return t(
+    `list.table.${date ? 'dateOperators' : 'operators'}.${operator.value}`,
+    { defaultValue: operator.label },
   );
 }
 
@@ -545,6 +580,7 @@ function FilterOperatorSelector({
   onOpenChange,
   onFilterUpdate,
 }: FilterOperatorSelectorProps) {
+  const { t } = useTranslation();
   const dir = useDirection();
   return (
     <Select
@@ -561,11 +597,18 @@ function FilterOperatorSelector({
     >
       <SelectTrigger
         aria-controls={listboxId}
-        aria-label={`${label} filter operator`}
+        aria-label={t('list.table.operatorAria', { label })}
         className="w-32 lowercase"
       >
         <div className="truncate">
-          <SelectValue placeholder={filter.operator} />
+          <SelectValue placeholder={filter.operator}>
+            {(value: FilterOperator) => {
+              const option = getFilterOperators(filter.variant, allowed).find(
+                (o) => o.value === value,
+              );
+              return option ? operatorLabel(t, filter.variant, option) : value;
+            }}
+          </SelectValue>
         </div>
       </SelectTrigger>
       <SelectContent dir={dir} id={listboxId}>
@@ -576,7 +619,7 @@ function FilterOperatorSelector({
               value={operator.value}
               className="lowercase"
             >
-              {operator.label}
+              {operatorLabel(t, filter.variant, operator)}
             </SelectItem>
           ))}
         </SelectGroup>
@@ -595,6 +638,7 @@ interface FilterValueInputProps<
 function FilterValueInput<TData extends RowData>(
   props: FilterValueInputProps<TData>,
 ) {
+  const { t } = useTranslation();
   const { filter, column, inputId, onFilterUpdate } = props;
   const columnMeta = column.columnDef.meta;
 
@@ -603,9 +647,12 @@ function FilterValueInput<TData extends RowData>(
       <div
         id={inputId}
         role="status"
-        aria-label={`${columnMeta?.label} filter is ${
-          filter.operator === 'isEmpty' ? 'empty' : 'not empty'
-        }`}
+        aria-label={t(
+          filter.operator === 'isEmpty'
+            ? 'list.table.filterIsEmpty'
+            : 'list.table.filterIsNotEmpty',
+          { label: columnMeta?.label },
+        )}
         aria-live="polite"
         className="h-8 w-full rounded-lg border border-dashed border-input bg-transparent dark:bg-input/30"
       />
@@ -631,9 +678,9 @@ function FilterValueInput<TData extends RowData>(
         <Input
           id={inputId}
           type={filter.variant === 'text' ? 'text' : 'number'}
-          aria-label={`${columnMeta?.label} filter value`}
+          aria-label={t('list.table.valueAria', { label: columnMeta?.label })}
           inputMode={filter.variant === 'text' ? undefined : 'numeric'}
-          placeholder={columnMeta?.placeholder ?? 'Enter a value...'}
+          placeholder={columnMeta?.placeholder ?? t('list.table.enterValue')}
           defaultValue={
             typeof filter.value === 'string' ? filter.value : undefined
           }
@@ -667,6 +714,7 @@ function BooleanFilterValue<TData extends RowData>({
   onOpenChange,
   onFilterUpdate,
 }: FilterValueInputProps<TData>) {
+  const { t } = useTranslation();
   const dir = useDirection();
   const listboxId = `${inputId}-listbox`;
 
@@ -683,15 +731,21 @@ function BooleanFilterValue<TData extends RowData>({
       <SelectTrigger
         id={inputId}
         aria-controls={listboxId}
-        aria-label={`${column.columnDef.meta?.label} boolean filter`}
+        aria-label={t('list.table.booleanAria', {
+          label: column.columnDef.meta?.label,
+        })}
         className="w-full"
       >
-        <SelectValue placeholder="Select value" />
+        <SelectValue placeholder={t('list.table.selectValue')}>
+          {(value: string | null) =>
+            value ? t(`list.table.${value}`) : t('list.table.selectValue')
+          }
+        </SelectValue>
       </SelectTrigger>
       <SelectContent dir={dir} id={listboxId}>
         <SelectGroup>
-          <SelectItem value="true">True</SelectItem>
-          <SelectItem value="false">False</SelectItem>
+          <SelectItem value="true">{t('list.table.true')}</SelectItem>
+          <SelectItem value="false">{t('list.table.false')}</SelectItem>
         </SelectGroup>
       </SelectContent>
     </Select>
@@ -706,6 +760,7 @@ function SelectFilterValue<TData extends RowData>({
   onOpenChange,
   onFilterUpdate,
 }: FilterValueInputProps<TData>) {
+  const { t } = useTranslation();
   const dir = useDirection();
   const listboxId = `${inputId}-listbox`;
   const columnMeta = column.columnDef.meta;
@@ -727,7 +782,7 @@ function SelectFilterValue<TData extends RowData>({
           <Button
             id={inputId}
             aria-controls={listboxId}
-            aria-label={`${columnMeta?.label} filter value${multiple ? 's' : ''}`}
+            aria-label={t('list.table.valueAria', { label: columnMeta?.label })}
             variant="outline"
             className="w-full hover:bg-muted/50 aria-expanded:bg-background dark:aria-expanded:bg-input/30"
           />
@@ -735,17 +790,20 @@ function SelectFilterValue<TData extends RowData>({
       >
         <FacetedValue
           placeholder={
-            columnMeta?.placeholder ?? `Select option${multiple ? 's' : ''}...`
+            columnMeta?.placeholder ??
+            t(multiple ? 'list.table.selectOptions' : 'list.table.selectOption')
           }
         />
       </FacetedTrigger>
       <FacetedContent dir={dir} id={listboxId} className="w-50">
         <FacetedInput
-          aria-label={`Search ${columnMeta?.label} options`}
-          placeholder={columnMeta?.placeholder ?? 'Search options...'}
+          aria-label={t('list.table.searchOptionsAria', {
+            label: columnMeta?.label,
+          })}
+          placeholder={columnMeta?.placeholder ?? t('list.table.searchOptions')}
         />
         <FacetedList>
-          <FacetedEmpty>No options found.</FacetedEmpty>
+          <FacetedEmpty>{t('list.table.noOptions')}</FacetedEmpty>
           <FacetedGroup>
             {columnMeta?.options?.map((option) => (
               <FacetedItem key={option.value} value={option.value}>
@@ -769,6 +827,7 @@ function DateFilterValue<TData extends RowData>({
   onOpenChange,
   onFilterUpdate,
 }: FilterValueInputProps<TData>) {
+  const { t } = useTranslation();
   const dir = useDirection();
   const listboxId = `${inputId}-listbox`;
   const label = column.columnDef.meta?.label;
@@ -781,7 +840,7 @@ function DateFilterValue<TData extends RowData>({
           <Button
             id={inputId}
             aria-controls={listboxId}
-            aria-label={`${label} date filter`}
+            aria-label={t('list.table.dateAria', { label })}
             variant="outline"
             className={cn(
               'w-full justify-start text-start',
@@ -792,7 +851,7 @@ function DateFilterValue<TData extends RowData>({
       >
         <CalendarIcon />
         <span className="truncate">
-          {getDateFilterLabel(filter) ?? 'Pick a date'}
+          {getDateFilterLabel(filter) ?? t('list.table.pickDate')}
         </span>
       </PopoverTrigger>
       <PopoverContent
@@ -803,7 +862,7 @@ function DateFilterValue<TData extends RowData>({
       >
         {filter.operator === 'isBetween' ? (
           <Calendar
-            aria-label={`Select ${label} date range`}
+            aria-label={t('list.table.selectDateRange', { label })}
             autoFocus
             captionLayout="dropdown"
             mode="range"
@@ -821,7 +880,7 @@ function DateFilterValue<TData extends RowData>({
           />
         ) : (
           <Calendar
-            aria-label={`Select ${label} date`}
+            aria-label={t('list.table.selectDate', { label })}
             autoFocus
             captionLayout="dropdown"
             mode="single"

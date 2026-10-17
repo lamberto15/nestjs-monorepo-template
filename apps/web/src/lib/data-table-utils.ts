@@ -30,6 +30,9 @@ export const FILTER_VARIANTS = [
 export const FILTER_OPERATORS = {
   iLike: 'ilike',
   notILike: 'not.ilike',
+  // Patched in (not in the registry): the API's text operators `startsWith`, `endsWith`.
+  startsWith: 'starts',
+  endsWith: 'ends',
   eq: 'eq',
   ne: 'neq',
   inArray: 'in',
@@ -56,6 +59,9 @@ const TEXT_OPERATORS = [
   { label: 'Does not contain', value: 'notILike' },
   { label: 'Is', value: 'eq' },
   { label: 'Is not', value: 'ne' },
+  // Patched in, after `Is` so a field without `contains` still defaults to it.
+  { label: 'Starts with', value: 'startsWith' },
+  { label: 'Ends with', value: 'endsWith' },
   { label: 'Is empty', value: 'isEmpty' },
   { label: 'Is not empty', value: 'isNotEmpty' },
 ] satisfies FilterOperatorOption[];

@@ -224,6 +224,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
         principal,
         exporter.subject,
         filters as ListQuery,
+        { reach: action },
       );
     }
     let rows = 0;

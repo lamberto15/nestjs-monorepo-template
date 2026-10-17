@@ -20,8 +20,10 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppNotesRouteImport } from './routes/_app/notes'
+import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
+import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
 import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account/preferences'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
@@ -80,6 +82,11 @@ const AppNotesRoute = AppNotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -88,6 +95,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
   id: '/account/',
   path: '/account/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountNotificationsRoute = AppAccountNotificationsRouteImport.update({
+  id: '/account/notifications',
+  path: '/account/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccountPreferencesRoute = AppAccountPreferencesRouteImport.update({
@@ -117,7 +129,9 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/notes': typeof AppNotesRoute
+  '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
+  '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
@@ -133,8 +147,10 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/notes': typeof AppNotesRoute
+  '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
+  '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
@@ -152,8 +168,10 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/notes': typeof AppNotesRoute
+  '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/account/notifications': typeof AppAccountNotificationsRoute
   '/_app/account/preferences': typeof AppAccountPreferencesRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
@@ -172,7 +190,9 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/notes'
+    | '/notifications'
     | '/settings'
+    | '/account/notifications'
     | '/account/preferences'
     | '/account/profile'
     | '/account/security'
@@ -188,8 +208,10 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/notes'
+    | '/notifications'
     | '/settings'
     | '/'
+    | '/account/notifications'
     | '/account/preferences'
     | '/account/profile'
     | '/account/security'
@@ -206,8 +228,10 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/verify-email'
     | '/_app/notes'
+    | '/_app/notifications'
     | '/_app/settings'
     | '/_app/'
+    | '/_app/account/notifications'
     | '/_app/account/preferences'
     | '/_app/account/profile'
     | '/_app/account/security'
@@ -305,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -317,6 +348,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account/'
       preLoaderRoute: typeof AppAccountIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/notifications': {
+      id: '/_app/account/notifications'
+      path: '/account/notifications'
+      fullPath: '/account/notifications'
+      preLoaderRoute: typeof AppAccountNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/account/preferences': {
@@ -345,8 +383,10 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppNotesRoute: typeof AppNotesRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
   AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
@@ -355,8 +395,10 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppNotesRoute: AppNotesRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAccountNotificationsRoute: AppAccountNotificationsRoute,
   AppAccountPreferencesRoute: AppAccountPreferencesRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,

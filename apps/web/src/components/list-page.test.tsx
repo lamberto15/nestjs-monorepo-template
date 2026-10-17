@@ -1,10 +1,12 @@
 import { createApiClient } from '@nestjs-monorepo-template/api-client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import i18next from 'i18next';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import de from '@/locales/de/common.json';
 import en from '@/locales/en/common.json';
 import { ListPage } from './list-page';
 import type { ListColumn, ListRow } from '@/lib/list-query';
@@ -72,11 +74,11 @@ const columns: ListColumn<Row>[] = [
   },
 ];
 
-async function renderList(searchParams = '') {
+async function renderList(searchParams = '', lng: 'en' | 'de' = 'en') {
   const i18n = i18next.createInstance();
   await i18n.use(initReactI18next).init({
-    lng: 'en',
-    resources: { en: { common: en } },
+    lng,
+    resources: { en: { common: en }, de: { common: de } },
     defaultNS: 'common',
   });
   const client = new QueryClient({
@@ -188,5 +190,119 @@ describe('ListPage', () => {
     expect(
       screen.getByRole('button', { name: 'Try again' }),
     ).toBeInTheDocument();
+  });
+
+  const respond = (list: unknown, extra: Record<string, unknown> = {}) =>
+    mocks.fetch.mockImplementation(async (request?: Request) => {
+      const url = request?.url ?? '';
+      if (url.includes('/v1/lists/')) return json(list);
+      if (url.includes('/v1/tags')) return json(extra.tags);
+      return json({
+        items: [
+          {
+            id: '1',
+            title: 'First',
+            status: 'draft',
+            custom: { region: 'eu' },
+          },
+        ],
+        nextCursor: null,
+        page: 1,
+        pageCount: 1,
+        total: 1,
+      });
+    });
+
+  it('adds the custom fields as hidden columns, and sends custom.<key>', async () => {
+    const custom = {
+      name: 'custom.region',
+      type: 'enum',
+      options: ['eu', 'us'],
+      operators: ['eq', 'in'],
+      sortable: true,
+      custom: true,
+      label: 'Region',
+    };
+    respond({
+      ...description,
+      fields: [...description.fields, custom],
+      select: [...description.select, 'custom.region'],
+    });
+    await renderList('?custom.region=in.eu&sort=custom.region.asc');
+
+    expect(await screen.findByText('First')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: /Region/ }),
+    ).not.toBeInTheDocument();
+    const list = urls().find((url) => url.pathname === '/v1/notes');
+    expect(list?.searchParams.get('fields')).toBe('title,status');
+    expect(list?.searchParams.get('sort')).toBe('custom.region');
+    expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
+      and: [{ field: 'custom.region', op: 'in', value: ['eu'] }],
+    });
+
+    // jsdom has neither, and the popover and the list measure and scroll.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    Element.prototype.scrollIntoView = () => {};
+    await userEvent.click(screen.getByRole('button', { name: 'View columns' }));
+    await userEvent.click(await screen.findByText('Region'));
+    await waitFor(() => {
+      const last = urls()
+        .filter((url) => url.pathname === '/v1/notes')
+        .at(-1);
+      expect(last?.searchParams.get('fields')).toBe(
+        'title,status,custom.region',
+      );
+    });
+  });
+
+  it("filters by the tenant's tags through the tag picker", async () => {
+    respond(
+      {
+        ...description,
+        fields: [
+          ...description.fields,
+          {
+            name: 'tag',
+            type: 'uuid',
+            operators: ['eq', 'in'],
+            sortable: false,
+            custom: false,
+          },
+        ],
+      },
+      { tags: { items: [{ id: 't1', name: 'Urgent', color: '#ef4444' }] } },
+    );
+    await renderList('?tag=in.t1');
+
+    expect(await screen.findByText('First')).toBeInTheDocument();
+    const tags = urls().find((url) => url.pathname === '/v1/tags');
+    expect(tags?.searchParams.get('subject')).toBe('Note');
+    const list = urls().find((url) => url.pathname === '/v1/notes');
+    expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
+      and: [{ field: 'tag', op: 'in', value: ['t1'] }],
+    });
+    // Never a column of its own, never asked for.
+    expect(list?.searchParams.get('fields')).toBe('title,status');
+  });
+
+  it("translates the table's texts", async () => {
+    respond(description);
+    await renderList('', 'de');
+
+    expect(await screen.findByText('First')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Spalten anzeigen' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Zeilen pro Seite')).toBeInTheDocument();
+    expect(screen.getByText('Seite 1 von 1')).toBeInTheDocument();
+    expect(screen.getByText('0 Zeilen ausgewählt.')).toBeInTheDocument();
   });
 });

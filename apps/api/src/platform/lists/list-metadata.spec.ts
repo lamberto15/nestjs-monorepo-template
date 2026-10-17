@@ -147,6 +147,26 @@ describe('listMetadata', () => {
     expect(names).not.toContain('rank');
   });
 
+  it('keeps a field shown on some records only selectable, neither filtered nor sorted by, and no search on it', () => {
+    const conditional = new Set(['body']);
+    const metadata = listMetadata('Thing', LIST, {
+      unmatchable: (name) =>
+        fieldsRead(LIST.fields, name).some((field) => conditional.has(field)),
+    });
+    expect(
+      metadata.fields.find((field) => field.name === 'body'),
+    ).toMatchObject({ operators: [], sortable: false });
+    expect(metadata.select).toContain('body');
+    expect(metadata.search).toBe(false);
+    const names = metadata.fields.map((field) => field.name);
+    expect(names).not.toContain('q');
+    expect(names).not.toContain('rank');
+    // The other fields as before.
+    expect(
+      metadata.fields.find((field) => field.name === 'title')?.operators.length,
+    ).toBeGreaterThan(0);
+  });
+
   it('marks the custom fields, with their labels, and keeps them out when hidden', () => {
     const { fields, select } = customFilterFields(
       [

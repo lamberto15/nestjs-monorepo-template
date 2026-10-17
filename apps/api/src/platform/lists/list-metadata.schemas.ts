@@ -39,7 +39,7 @@ export const listMetadataSchema = z.object({
   fields: z
     .array(listFieldSchema)
     .describe(
-      'The fields the list may be filtered or sorted by, as this caller may read them: a field their permissions hide is not here.',
+      'The fields the list may be filtered or sorted by, as this caller may read them: a field their permissions hide is not here; one they may read on some records only has no operators and is not sortable (still in `select`).',
     ),
   select: z
     .array(z.string())
@@ -48,7 +48,7 @@ export const listMetadataSchema = z.object({
   search: z
     .boolean()
     .describe(
-      '`q=` searches the text, and `sort=-rank` puts the best match first.',
+      '`q=` searches the text, and `sort=-rank` puts the best match first. False when the search reads a field this caller may not read on every record.',
     ),
   recycleBin: z
     .boolean()
