@@ -1,0 +1,143 @@
+{
+  "nav": {
+    "title": "API 客户端",
+    "usage": "API 用量"
+  },
+  "list": {
+    "title": "API 客户端",
+    "description": "使用密钥调用 API 的系统。密钥仅在创建时显示一次。",
+    "empty": "还没有 API 客户端。",
+    "create": "新建客户端",
+    "columns": {
+      "name": "名称",
+      "status": "状态",
+      "quota": "每日配额",
+      "keys": "有效密钥",
+      "lastUsed": "最后使用"
+    },
+    "open": "打开",
+    "never": "从未",
+    "noQuota": "无"
+  },
+  "status": {
+    "active": "有效",
+    "revoked": "已撤销"
+  },
+  "create": {
+    "title": "新建 API 客户端",
+    "description": "创建后会显示其第一个密钥，仅此一次。",
+    "name": "名称",
+    "namePlaceholder": "账单导出",
+    "nameRequired": "请为客户端命名。",
+    "quota": "每日配额（可选）",
+    "quotaHint": "每天（UTC）的请求数；超过后 API 返回 429。留空表示不限。",
+    "quotaInvalid": "不小于 1 的整数。",
+    "submit": "创建客户端",
+    "cancel": "取消"
+  },
+  "secret": {
+    "createdTitle": "复制 {{name}} 的密钥",
+    "rotatedTitle": "复制 {{name}} 的新密钥",
+    "warning": "此密钥不会再次显示。请立即复制并妥善保管。",
+    "usage": "以 Authorization: Bearer <key> 发送。",
+    "copy": "复制",
+    "copied": "已复制到剪贴板。",
+    "copyFailed": "无法复制。请选中密钥后手动复制。",
+    "done": "我已复制",
+    "label": "API 密钥"
+  },
+  "detail": {
+    "back": "所有客户端",
+    "notFound": "没有这个客户端。",
+    "created": "创建于 {{date}}",
+    "viewUsage": "查看用量",
+    "quota": {
+      "title": "每日配额",
+      "description": "每天（UTC）的请求数。超过后，API 在 UTC 午夜前返回 429 quota_exceeded。",
+      "label": "每日请求数",
+      "save": "保存配额",
+      "saved": "配额已保存。",
+      "remove": "移除配额",
+      "none": "没有配额。"
+    },
+    "state": {
+      "title": "访问",
+      "activeDescription": "撤销期间，该客户端的所有密钥都会被拒绝。",
+      "revoke": "撤销客户端",
+      "revokeTitle": "撤销 {{name}}？",
+      "revokeDescription": "该客户端的所有密钥从下一个请求起失效。你之后可以重新启用。",
+      "revokeConfirm": "撤销",
+      "reactivate": "重新启用客户端",
+      "revoked": "客户端已撤销。",
+      "reactivated": "客户端已重新启用。"
+    },
+    "keys": {
+      "title": "密钥",
+      "empty": "没有密钥。",
+      "columns": {
+        "key": "密钥",
+        "created": "创建时间",
+        "expires": "到期",
+        "lastUsed": "最后使用",
+        "status": "状态"
+      },
+      "never": "从未",
+      "revokedAt": "撤销于 {{date}}",
+      "expired": "已过期",
+      "active": "有效",
+      "revoke": "撤销",
+      "revokeTitle": "撤销此密钥？",
+      "revokeDescription": "密钥 {{keyId}} 立即失效。使用它的系统将被拒绝。",
+      "revokeConfirm": "撤销密钥",
+      "revokedToast": "密钥已撤销。"
+    },
+    "rotate": {
+      "title": "轮换密钥",
+      "description": "生成新密钥。当前密钥在宽限期内继续有效，方便系统切换。",
+      "grace": "当前密钥继续有效",
+      "graces": {
+        "0": "不继续：立即停止",
+        "3600": "1 小时",
+        "86400": "1 天",
+        "604800": "7 天"
+      },
+      "submit": "轮换密钥",
+      "confirmTitle": "轮换 {{name}} 的密钥？",
+      "confirmDescription": "将生成新密钥并显示一次。当前密钥在你选择的宽限期后失效。"
+    }
+  },
+  "usage": {
+    "title": "API 用量",
+    "description": "API 客户端按 UTC 日和路由统计的请求数。",
+    "client": "客户端",
+    "selectClient": "选择客户端",
+    "range": "时间段",
+    "ranges": {
+      "7": "最近 7 天",
+      "30": "最近 30 天",
+      "90": "最近 90 天"
+    },
+    "noClients": "还没有 API 客户端。",
+    "stats": {
+      "total": "时间段内的请求",
+      "today": "今天",
+      "quota": "每日配额",
+      "remaining_other": "今天还剩 {{count}}",
+      "overQuota": "已达配额：UTC 午夜前请求将被拒绝",
+      "noQuota": "无配额",
+      "usedOf": "已用 {{used}} / {{quota}}"
+    },
+    "chart": {
+      "title": "每日请求",
+      "series": "请求",
+      "empty": "此时间段内没有请求。"
+    },
+    "routes": {
+      "title": "按路由",
+      "route": "路由",
+      "requests": "请求",
+      "share": "占比",
+      "empty": "此时间段内没有请求。"
+    }
+  }
+}

@@ -27,6 +27,9 @@ import { Route as AppAccountNotificationsRouteImport } from './routes/_app/accou
 import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account/preferences'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
+import { Route as AppApiClientsIndexRouteImport } from './routes/_app/api-clients/index'
+import { Route as AppApiClientsIdRouteImport } from './routes/_app/api-clients/$id'
+import { Route as AppApiClientsUsageRouteImport } from './routes/_app/api-clients/usage'
 import { Route as AppApprovalsIndexRouteImport } from './routes/_app/approvals/index'
 import { Route as AppApprovalsIdRouteImport } from './routes/_app/approvals/$id'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
@@ -128,6 +131,21 @@ const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
   path: '/account/security',
   getParentRoute: () => AppRoute,
 } as any)
+const AppApiClientsIndexRoute = AppApiClientsIndexRouteImport.update({
+  id: '/api-clients/',
+  path: '/api-clients/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppApiClientsIdRoute = AppApiClientsIdRouteImport.update({
+  id: '/api-clients/$id',
+  path: '/api-clients/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppApiClientsUsageRoute = AppApiClientsUsageRouteImport.update({
+  id: '/api-clients/usage',
+  path: '/api-clients/usage',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppApprovalsIndexRoute = AppApprovalsIndexRouteImport.update({
   id: '/approvals/',
   path: '/approvals/',
@@ -201,9 +219,12 @@ export interface FileRoutesByFullPath {
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/api-clients/$id': typeof AppApiClientsIdRoute
+  '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/account/': typeof AppAccountIndexRoute
+  '/api-clients/': typeof AppApiClientsIndexRoute
   '/approvals/': typeof AppApprovalsIndexRoute
   '/notes/': typeof AppNotesIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
@@ -231,9 +252,12 @@ export interface FileRoutesByTo {
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/api-clients/$id': typeof AppApiClientsIdRoute
+  '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/account': typeof AppAccountIndexRoute
+  '/api-clients': typeof AppApiClientsIndexRoute
   '/approvals': typeof AppApprovalsIndexRoute
   '/notes': typeof AppNotesIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
@@ -263,9 +287,12 @@ export interface FileRoutesById {
   '/_app/account/preferences': typeof AppAccountPreferencesRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
+  '/_app/api-clients/$id': typeof AppApiClientsIdRoute
+  '/_app/api-clients/usage': typeof AppApiClientsUsageRoute
   '/_app/approvals/$id': typeof AppApprovalsIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/account/': typeof AppAccountIndexRoute
+  '/_app/api-clients/': typeof AppApiClientsIndexRoute
   '/_app/approvals/': typeof AppApprovalsIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
   '/_app/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
@@ -295,9 +322,12 @@ export interface FileRouteTypes {
     | '/account/preferences'
     | '/account/profile'
     | '/account/security'
+    | '/api-clients/$id'
+    | '/api-clients/usage'
     | '/approvals/$id'
     | '/notes/new'
     | '/account/'
+    | '/api-clients/'
     | '/approvals/'
     | '/notes/'
     | '/access/roles/$roleId'
@@ -325,9 +355,12 @@ export interface FileRouteTypes {
     | '/account/preferences'
     | '/account/profile'
     | '/account/security'
+    | '/api-clients/$id'
+    | '/api-clients/usage'
     | '/approvals/$id'
     | '/notes/new'
     | '/account'
+    | '/api-clients'
     | '/approvals'
     | '/notes'
     | '/access/roles/$roleId'
@@ -356,9 +389,12 @@ export interface FileRouteTypes {
     | '/_app/account/preferences'
     | '/_app/account/profile'
     | '/_app/account/security'
+    | '/_app/api-clients/$id'
+    | '/_app/api-clients/usage'
     | '/_app/approvals/$id'
     | '/_app/notes/new'
     | '/_app/account/'
+    | '/_app/api-clients/'
     | '/_app/approvals/'
     | '/_app/notes/'
     | '/_app/access/roles/$roleId'
@@ -510,6 +546,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountSecurityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/api-clients/': {
+      id: '/_app/api-clients/'
+      path: '/api-clients'
+      fullPath: '/api-clients/'
+      preLoaderRoute: typeof AppApiClientsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/api-clients/$id': {
+      id: '/_app/api-clients/$id'
+      path: '/api-clients/$id'
+      fullPath: '/api-clients/$id'
+      preLoaderRoute: typeof AppApiClientsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/api-clients/usage': {
+      id: '/_app/api-clients/usage'
+      path: '/api-clients/usage'
+      fullPath: '/api-clients/usage'
+      preLoaderRoute: typeof AppApiClientsUsageRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/approvals/': {
       id: '/_app/approvals/'
       path: '/approvals'
@@ -599,9 +656,12 @@ interface AppRouteChildren {
   AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
+  AppApiClientsIdRoute: typeof AppApiClientsIdRoute
+  AppApiClientsUsageRoute: typeof AppApiClientsUsageRoute
   AppApprovalsIdRoute: typeof AppApprovalsIdRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
+  AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
   AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
   AppAccessRolesRoleIdRoute: typeof AppAccessRolesRoleIdRoute
@@ -622,9 +682,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountPreferencesRoute: AppAccountPreferencesRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
+  AppApiClientsIdRoute: AppApiClientsIdRoute,
+  AppApiClientsUsageRoute: AppApiClientsUsageRoute,
   AppApprovalsIdRoute: AppApprovalsIdRoute,
   AppNotesNewRoute: AppNotesNewRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
+  AppApiClientsIndexRoute: AppApiClientsIndexRoute,
   AppApprovalsIndexRoute: AppApprovalsIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
   AppAccessRolesRoleIdRoute: AppAccessRolesRoleIdRoute,
