@@ -4,7 +4,7 @@ Each saved state of a record, numbered 1, 2, 3… per record: its changeable
 fields after the change (`snapshot`, custom values included) and what
 changed (`changes`, from → to, the audit log's diff: `custom.<key>` per
 custom value). `apps/api/src/platform/revisions/`; notes keep revisions as the
-example (`features/notes/note-revisions.ts`, `note-revisions.controller.ts`).
+example (`features/notes/note-revisions.ts`, `revisionRoutes()` in `notes.module.ts`).
 
 ```ts
 // features/notes/note-revisions.ts: the feature registers its records

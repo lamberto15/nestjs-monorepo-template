@@ -22839,334 +22839,6 @@
         ]
       }
     },
-    "/v1/notes/bulk": {
-      "post": {
-        "description": "Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.\n\n- `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.\n- `filter` (the list's filters, `{ \"title.startsWith\": \"Old\" }`): always 202.\n\nA 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.",
-        "operationId": "NotesController_runBulk_v1",
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "description": "A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.\n\nIn Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "generate"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "action": {
-                    "type": "string",
-                    "enum": [
-                      "delete",
-                      "restore",
-                      "update"
-                    ]
-                  },
-                  "ids": {
-                    "maxItems": 500,
-                    "description": "These records (1 to 500); those you may not act on are skipped. Send ids or filter.",
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    }
-                  },
-                  "filter": {
-                    "description": "Every record matching these list filters, as on the list route: { \"status\": \"draft\", \"title.startsWith\": \"Old\" }. Always a background job.",
-                    "type": "object",
-                    "additionalProperties": {}
-                  },
-                  "input": {
-                    "description": "What the action takes (update: the PATCH body).",
-                    "type": "object",
-                    "properties": {
-                      "title": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200,
-                        "example": "Hello"
-                      },
-                      "body": {
-                        "type": "string",
-                        "maxLength": 10000,
-                        "example": "My first note."
-                      },
-                      "custom": {
-                        "type": "object",
-                        "additionalProperties": {},
-                        "example": {
-                          "region": "eu"
-                        },
-                        "description": "Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one."
-                      }
-                    }
-                  }
-                },
-                "required": [
-                  "action"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "done": {
-                      "type": "number"
-                    },
-                    "failed": {
-                      "type": "number"
-                    },
-                    "skipped": {
-                      "type": "number",
-                      "description": "Ids not found, or not yours to act on (code not_found)."
-                    },
-                    "results": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "done",
-                              "failed",
-                              "skipped"
-                            ]
-                          },
-                          "error": {
-                            "description": "Why it failed: the problem the record's own route would have answered.",
-                            "type": "object",
-                            "properties": {
-                              "code": {
-                                "type": "string",
-                                "example": "field_forbidden"
-                              },
-                              "message": {
-                                "type": "string"
-                              },
-                              "errors": {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "path": {
-                                      "type": "string"
-                                    },
-                                    "message": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": [
-                                    "path",
-                                    "message"
-                                  ],
-                                  "additionalProperties": false
-                                }
-                              }
-                            },
-                            "required": [
-                              "code",
-                              "message"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "status"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "truncated": {
-                      "description": "A background job keeps 10000 results; true when there were more.",
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "done",
-                    "failed",
-                    "skipped",
-                    "results"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "queued"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "status"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The body is invalid (validation_failed: ids and filter both or neither, an unknown action, a bad filter or input), more than 500 ids (bulk_too_many), or the Idempotency-Key is missing."
-          },
-          "401": {
-            "description": "No valid API key or session."
-          },
-          "403": {
-            "description": "Not allowed by your permissions."
-          },
-          "409": {
-            "description": "A request with this Idempotency-Key is still running."
-          },
-          "422": {
-            "description": "This Idempotency-Key was used for a different request."
-          }
-        },
-        "security": [
-          {
-            "user-session": []
-          },
-          {
-            "api-key": []
-          }
-        ],
-        "summary": "Delete, restore or change many notes at once",
-        "tags": [
-          "notes"
-        ]
-      }
-    },
-    "/v1/notes/{id}/watch": {
-      "post": {
-        "description": "Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).",
-        "operationId": "NotesController_watch_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "watching": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "watching"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid API key or session."
-          },
-          "403": {
-            "description": "Not allowed by your permissions."
-          },
-          "404": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "user-session": []
-          },
-          {
-            "api-key": []
-          }
-        ],
-        "summary": "Watch a note: be told when it changes or is published",
-        "tags": [
-          "notes"
-        ]
-      },
-      "delete": {
-        "operationId": "NotesController_unwatch_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "401": {
-            "description": "No valid API key or session."
-          },
-          "403": {
-            "description": "Not allowed by your permissions."
-          },
-          "404": {
-            "description": "You were not watching it."
-          }
-        },
-        "security": [
-          {
-            "user-session": []
-          },
-          {
-            "api-key": []
-          }
-        ],
-        "summary": "Stop watching a note",
-        "tags": [
-          "notes"
-        ]
-      }
-    },
     "/v1/notes/{id}/restore": {
       "post": {
         "description": "Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).",
@@ -25537,6 +25209,334 @@
           }
         ],
         "summary": "Issue a PDF of a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/bulk": {
+      "post": {
+        "description": "Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.\n\n- `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.\n- `filter` (the list's filters, `{ \"title.startsWith\": \"Old\" }`): always 202.\n\nA 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.",
+        "operationId": "NotesController_runBulk_v1",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.\n\nIn Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "generate"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "delete",
+                      "restore",
+                      "update"
+                    ]
+                  },
+                  "ids": {
+                    "maxItems": 500,
+                    "description": "These records (1 to 500); those you may not act on are skipped. Send ids or filter.",
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "filter": {
+                    "description": "Every record matching these list filters, as on the list route: { \"status\": \"draft\", \"title.startsWith\": \"Old\" }. Always a background job.",
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "input": {
+                    "description": "What the action takes (update: the PATCH body).",
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "example": "Hello"
+                      },
+                      "body": {
+                        "type": "string",
+                        "maxLength": 10000,
+                        "example": "My first note."
+                      },
+                      "custom": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "example": {
+                          "region": "eu"
+                        },
+                        "description": "Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one."
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "done": {
+                      "type": "number"
+                    },
+                    "failed": {
+                      "type": "number"
+                    },
+                    "skipped": {
+                      "type": "number",
+                      "description": "Ids not found, or not yours to act on (code not_found)."
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "done",
+                              "failed",
+                              "skipped"
+                            ]
+                          },
+                          "error": {
+                            "description": "Why it failed: the problem the record's own route would have answered.",
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string",
+                                "example": "field_forbidden"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "errors": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "path": {
+                                      "type": "string"
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "path",
+                                    "message"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "truncated": {
+                      "description": "A background job keeps 10000 results; true when there were more.",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "done",
+                    "failed",
+                    "skipped",
+                    "results"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid (validation_failed: ids and filter both or neither, an unknown action, a bad filter or input), more than 500 ids (bulk_too_many), or the Idempotency-Key is missing."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "A request with this Idempotency-Key is still running."
+          },
+          "422": {
+            "description": "This Idempotency-Key was used for a different request."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete, restore or change many notes at once",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/watch": {
+      "post": {
+        "description": "Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).",
+        "operationId": "NotesController_watch_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "watching": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "watching"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Watch a note: be told when it changes or is published",
+        "tags": [
+          "notes"
+        ]
+      },
+      "delete": {
+        "operationId": "NotesController_unwatch_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "You were not watching it."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Stop watching a note",
         "tags": [
           "notes"
         ]

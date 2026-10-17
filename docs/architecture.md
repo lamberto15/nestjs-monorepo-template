@@ -83,8 +83,12 @@ src/
   - what goes when a record is purged from its recycle bin: platform
     services register into `RecordPurgeRegistry` (iam), and
     SoftDeletePurgeJob calls them in the purge's transaction;
-  - bulk operations register themselves (`BulkRegistry`), the feature's
-    `POST /<x>/bulk` calls `BulkService.run()`.
+  - bulk operations register themselves (`BulkRegistry`);
+  - record-level routes (tags, comments, attachments, revisions, PDF, watch,
+    bulk) are built by the platform from the feature's `RecordRouteSpec`
+    (`platform/records/record-routes.ts`, each module's `<module>.routes.ts`):
+    the feature module lists `tagRoutes(SPEC)` and the others among its
+    controllers, its targets decide who may.
 - **Tenancy** ([tenancy](tenancy.md)): every feature table is a tenant
   table behind row-level security; a request, job, workflow step or cron
   run acts in one tenant, and per-principal keys carry it.
