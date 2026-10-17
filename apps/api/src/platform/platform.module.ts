@@ -16,6 +16,8 @@ import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
 import { DrizzleIdempotencyStore } from './idempotency/drizzle-idempotency.store.js';
 import { principalScope } from './idempotency/idempotency.scopes.js';
 import { OpsController } from './ops/ops.controller.js';
+import { FeaturesController } from './features/features.controller.js';
+import { FeaturesService } from './features/features.service.js';
 import { OpsPolicy } from './ops/ops.policy.js';
 import { OpsQueues } from './ops/ops-queues.service.js';
 import { OpsMetrics } from './ops/ops-metrics.js';
@@ -301,6 +303,7 @@ export class PlatformModule {
           WebhookDeliveriesController,
         ),
         OpsController,
+        FeaturesController,
         FilesController,
         DataTransferController,
         BulkController,
@@ -379,6 +382,8 @@ export class PlatformModule {
         // Idempotency records in idempotency_keys; registers itself with IdempotencyStorage.
         DrizzleIdempotencyStore,
         OpsPolicy,
+        // Which switches are on, for clients (GET /v1/features).
+        FeaturesService,
         // socket.io gateway at /realtime; features inject it to push events.
         // REALTIME=off: the same token, pushes that do nothing, no gateway.
         switchedOn('REALTIME')

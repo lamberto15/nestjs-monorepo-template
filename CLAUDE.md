@@ -12,12 +12,19 @@ Details live in `docs/`: read the file a task needs, not all of them.
   request to `origin` (GitHub) and green CI; then the worktree is removed and
   the PR squash-merged with its branch deleted. Never rebase or force-push:
   update a branch with `git merge origin/main`. See docs/development.md, "Git workflow".
-- **Check the NestJS docs before building anything.** Look up the NestJS docs
-  (Context7, docs.nestjs.com, or the markdown in github.com/nestjs/docs.nestjs.com)
-  and the installed `@nestjs/*` packages first, so nothing NestJS offers gets
-  rebuilt by hand. Write custom code only when nothing fits, and say why in a comment.
-- **Library questions:** fetch current docs with Context7 (`resolve-library-id`,
-  then `query-docs`) before answering or coding.
+- **Docs first, every time: backend, frontend, CI, infra.** Before starting
+  anything, even adding one component, a dependency or a CI step, look up the
+  tool's documented way. Use Context7 (`resolve-library-id`, then `query-docs`),
+  then the official docs. For NestJS that is docs.nestjs.com, or the markdown in
+  github.com/nestjs/docs.nestjs.com, plus the installed `@nestjs/*` packages.
+  Then follow that way, so nothing a library already offers gets rebuilt by hand.
+  Write custom code only when nothing fits, and say why in a comment.
+- **Generate, never hand-write what a command produces.** Use the official CLI or
+  generator, then edit only what the task needs. Examples: `pnpm create vite`,
+  `shadcn init`/`shadcn add` (components, blocks, `@diceui/*`), `pnpm add`,
+  `pnpm feature:add`/`feature:sync`, `pnpm db:generate`, `pnpm client:generate`,
+  and the router's generated route tree. In the frontend, check Dice UI first,
+  then shadcn, before writing any component.
 - **REST only, no HTML.** The only page is Swagger UI at `/api`.
 - **Never hand-write migrations or DDL.** Change a `*.tables.ts`, run
   `pnpm db:generate`, commit `apps/api/drizzle/`.
