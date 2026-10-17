@@ -85,7 +85,7 @@ export class InvoiceDocuments implements DocumentSource {
 
 @Post(':id/pdf')
 @HttpCode(HttpStatus.ACCEPTED)
-@Idempotent({ required: true, scope: principalScope })
+@Idempotent({ scope: principalScope })  // required unless IDEMPOTENCY=optional
 @Can.Anyone() // DocumentsService checks the record
 pdf(@CurrentUser() user, @Param('id', ParseUUIDPipe) id, @Ip() ip) {
   return this.documents.request(user, { source: 'invoice', recordId: id, locale: this.i18n.locale, ip });

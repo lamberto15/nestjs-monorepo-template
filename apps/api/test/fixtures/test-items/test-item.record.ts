@@ -30,5 +30,6 @@ export const TEST_ITEM = defineRecord({
     'watch',
     'search',
     'transfer',
+    'custom',
   ],
 });

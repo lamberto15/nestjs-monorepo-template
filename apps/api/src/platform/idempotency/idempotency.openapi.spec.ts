@@ -1,4 +1,5 @@
 import {
+  applyIdempotencyMode,
   GENERATE_KEY,
   swaggerRequestInterceptor,
 } from './idempotency.openapi.js';
@@ -36,5 +37,38 @@ describe('swaggerRequestInterceptor', () => {
     )() as typeof swaggerRequestInterceptor;
     const request = shipped({ headers: { 'Idempotency-Key': GENERATE_KEY } });
     expect(request.headers['Idempotency-Key']).not.toBe(GENERATE_KEY);
+  });
+});
+
+const documented = () => ({
+  paths: {
+    '/v1/things': {
+      post: {
+        parameters: [
+          { in: 'header', name: 'Idempotency-Key', required: true },
+          { in: 'header', name: 'If-Match', required: true },
+          { in: 'query', name: 'Idempotency-Key', required: true },
+        ],
+      },
+      get: {},
+    },
+  },
+});
+
+describe('applyIdempotencyMode', () => {
+  it('leaves the document as the decorators wrote it under required', () => {
+    const document = documented();
+    applyIdempotencyMode(document, 'required');
+    expect(document).toEqual(documented());
+  });
+
+  it('marks only the Idempotency-Key header optional under optional', () => {
+    const document = documented();
+    applyIdempotencyMode(document, 'optional');
+    expect(document.paths['/v1/things'].post.parameters).toEqual([
+      { in: 'header', name: 'Idempotency-Key', required: false },
+      { in: 'header', name: 'If-Match', required: true },
+      { in: 'query', name: 'Idempotency-Key', required: true },
+    ]);
   });
 });

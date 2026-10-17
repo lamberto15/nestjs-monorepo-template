@@ -47,9 +47,14 @@ import { AccessService } from '../../../src/iam/access/access.service.js';
 import type { RequestPrincipal } from '../../../src/iam/auth/principal.js';
 import { idempotencyKeyHeader } from '../../../src/platform/idempotency/idempotency.openapi.js';
 import { principalScope } from '../../../src/platform/idempotency/idempotency.scopes.js';
+import {
+  recordListDocs,
+  sentFields,
+} from '../../../src/platform/records/record.js';
 import { RecordPresenter } from '../../../src/platform/records/record-contract.js';
 import { TEST_ITEM_LIST } from './test-item.list.js';
 import { TestItemPolicy } from './test-item.policy.js';
+import { TEST_ITEM } from './test-item.record.js';
 import {
   type CreateTestItemDto,
   type TestItem,
@@ -80,7 +85,7 @@ export class TestItemsController {
 
   @Post()
   // A retry with the same key gets the first answer instead of a second record.
-  @Idempotent({ required: true, scope: principalScope })
+  @Idempotent({ scope: principalScope })
   @Can(TestItemPolicy, 'create')
   @ApiOperation({
     summary: 'Create a test item',
@@ -117,12 +122,14 @@ export class TestItemsController {
       'Filter flat or with `filter`, sort with `sort`, pick fields with `fields`; each parameter lists what it takes.',
   })
   @ApiOkResponse({ standardSchema: pageSchema(SCHEMAS.response) })
-  @ApiListQuery(TEST_ITEM_LIST)
+  @ApiListQuery(TEST_ITEM_LIST, recordListDocs(TEST_ITEM))
   async list(
     @CurrentUser() user: RequestPrincipal,
     @Query() raw: Record<string, unknown>,
   ) {
-    const query = TEST_ITEM_LIST.parse(raw);
+    // The list with the custom fields defined now (custom): validated per request.
+    const list = await this.presenter.list(TEST_ITEM_LIST);
+    const query = list.parse(raw);
     const page = await this.testItems.findPage(
       and(
         // The recycle bin (?deleted=true) is for those who may restore.
@@ -132,12 +139,12 @@ export class TestItemsController {
           query.deleted ? 'restore' : 'read',
           { deleted: query.deleted === true },
         ),
-        TEST_ITEM_LIST.where(query),
+        list.where(query),
       ),
       query,
-      TEST_ITEM_LIST.sortSelect(query),
+      list.sortSelect(query),
     );
-    return TEST_ITEM_LIST.pick(
+    return list.pick(
       { ...page, items: await this.presenter.many(user, page.items) },
       query,
     );
@@ -254,7 +261,7 @@ export class TestItemsController {
       user,
       action,
       'TestItem',
-      dto as Record<string, unknown>,
+      sentFields(dto),
       row,
     );
     if (forbidden.length) {

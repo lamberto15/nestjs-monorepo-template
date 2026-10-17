@@ -78,7 +78,8 @@ export class ReportsController {
   }
 
   @Post()
-  @Idempotent()
+  // Optional whatever IDEMPOTENCY says, as it always was.
+  @Idempotent({ required: false })
   @ApiOperation({
     summary: 'Schedule a report',
     description:

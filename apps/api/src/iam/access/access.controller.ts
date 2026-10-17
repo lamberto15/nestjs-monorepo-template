@@ -40,6 +40,7 @@ import { AUDIT_LIST, USER_LIST } from './access.lists.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
+import { RequiresSwitch } from '../auth/deployment-switch.js';
 import { ImpersonationService } from '../account/impersonation.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessAdminService } from './access-admin.service.js';
@@ -398,6 +399,7 @@ export class AccessController {
    * POST /auth/impersonation/stop.
    */
   @Post('users/:id/impersonate')
+  @RequiresSwitch('IMPERSONATION')
   @SessionOnly()
   @Can(AccessPolicy, 'impersonate')
   @RecentAuthentication()
@@ -422,6 +424,7 @@ export class AccessController {
   }
 
   @Get('clients')
+  @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'open')
   @ApiOperation({ summary: 'The API clients (never their keys)' })
   @ApiOkResponse({ standardSchema: listSchema(clientViewSchema) })
@@ -430,6 +433,7 @@ export class AccessController {
   }
 
   @Post('clients')
+  @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'manageClients')
   @RecentAuthentication()
   @ApiOperation({
@@ -446,6 +450,7 @@ export class AccessController {
   }
 
   @Post('clients/:id/rotate')
+  @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'manageClients')
   @RecentAuthentication()
   @HttpCode(200)
@@ -464,6 +469,7 @@ export class AccessController {
   }
 
   @Delete('clients/:id/keys/:keyId')
+  @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'manageClients')
   @HttpCode(204)
   @ApiOperation({ summary: 'Revoke one key now' })
@@ -479,6 +485,7 @@ export class AccessController {
   }
 
   @Patch('clients/:id')
+  @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'manageClients')
   // Roles are privileges; reactivating brings its keys back (revoking isn't asked).
   @RecentAuthentication({

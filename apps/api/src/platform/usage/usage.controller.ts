@@ -19,6 +19,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { RequiresSwitch } from '../../iam/auth/deployment-switch.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
@@ -40,6 +41,7 @@ export class UsageController {
   constructor(private readonly usage: UsageService) {}
 
   @Get('access/clients/:id/usage')
+  @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'manageClients')
   @ApiTags('access')
   @ApiBearerAuth('user-token')
