@@ -17267,8 +17267,9 @@
                   },
                   "redirectTo": {
                     "type": "string",
-                    "maxLength": 512,
-                    "pattern": "^\\/(?!\\/)"
+                    "maxLength": 2048,
+                    "pattern": "^\\/(?![/\\\\])[\\x21-\\x5b\\x5d-\\x7e]*$",
+                    "example": "/inbox"
                   }
                 },
                 "required": [
@@ -17390,10 +17391,13 @@
             "name": "redirectTo",
             "required": false,
             "in": "query",
-            "description": "A path of the web app to land on.",
+            "description": "A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.",
             "schema": {
-              "description": "A path of the web app to land on.",
-              "type": "string"
+              "description": "A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.",
+              "type": "string",
+              "maxLength": 2048,
+              "pattern": "^\\/(?![/\\\\])[\\x21-\\x5b\\x5d-\\x7e]*$",
+              "example": "/inbox"
             }
           },
           {
