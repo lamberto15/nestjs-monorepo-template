@@ -13,7 +13,8 @@ import { NoteAttachmentsController } from './note-attachments.controller.js';
 import { NoteComments } from './note-comments.js';
 import { NoteCommentsController } from './note-comments.controller.js';
 import { NoteTags } from './note-tags.js';
-import { NoteTagsController } from './note-tags.controller.js';
+import { NOTE_ROUTES } from './note.routes.js';
+import { tagRoutes } from '../../platform/tags/tag.routes.js';
 import { NoteRevisions } from './note-revisions.js';
 import { NoteRevisionsController } from './note-revisions.controller.js';
 import { NotePublishApproval } from './note-approvals.js';
@@ -38,7 +39,7 @@ import { NoteDocumentsController } from './note-documents.controller.js';
     ExampleSenderWebhookController,
     NoteCommentsController,
     NoteAttachmentsController,
-    NoteTagsController,
+    tagRoutes(NOTE_ROUTES),
     NoteRevisionsController,
     NoteDocumentsController,
   ],
