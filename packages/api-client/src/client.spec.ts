@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApiClient, etagOf, notModified, unwrap } from './client.js';
 import { filterParam } from './filter.js';
 import { ApiError, parseProblem } from './problem.js';
@@ -123,6 +123,71 @@ describe('createApiClient', () => {
     expect(
       requests.map((request) => request.headers.get('idempotency-key')),
     ).toEqual(['key-1', 'key-2', 'mine', null]);
+  });
+
+  describe('fetch', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('uses a global fetch replaced after the client was created (msw, instrumentation)', async () => {
+      const api = createApiClient({ baseUrl: BASE });
+      const replacement = fakeFetch(() => json({ unread: 7 }));
+      vi.stubGlobal('fetch', replacement.fetch);
+      const data = await unwrap(api.GET('/v1/notifications/unread-count'));
+      expect(data).toEqual({ unread: 7 });
+      expect(replacement.requests).toHaveLength(1);
+    });
+
+    it('prefers the fetch it was given', async () => {
+      const given = fakeFetch(() => json({ unread: 1 }));
+      const api = createApiClient({ baseUrl: BASE, fetch: given.fetch });
+      const replacement = fakeFetch(() => json({ unread: 2 }));
+      vi.stubGlobal('fetch', replacement.fetch);
+      await api.GET('/v1/notifications/unread-count');
+      expect(given.requests).toHaveLength(1);
+      expect(replacement.requests).toHaveLength(0);
+    });
+  });
+
+  describe('unwrap', () => {
+    it('is undefined for a 2xx without a body, typed undefined for such operations', async () => {
+      const { fetch } = fakeFetch(() => new Response(null, { status: 204 }));
+      const api = createApiClient({ baseUrl: BASE, fetch });
+      const switched: undefined = await unwrap(
+        api.POST('/v1/auth/tenant', { body: { tenantId: 't1' } }),
+      );
+      const revoked: undefined = await unwrap(
+        api.DELETE('/v1/auth/sessions/{id}', { params: { path: { id: 's' } } }),
+      );
+      expect(switched).toBeUndefined();
+      expect(revoked).toBeUndefined();
+      // A 200 with an empty body counts as no content too.
+      const empty = createApiClient({
+        baseUrl: BASE,
+        fetch: fakeFetch(() => new Response('', { status: 200 })).fetch,
+      });
+      await expect(
+        unwrap(empty.GET('/v1/notifications/unread-count')),
+      ).resolves.toBeUndefined();
+    });
+
+    it('still throws on a 304 and on a real error', async () => {
+      const notChanged = createApiClient({
+        baseUrl: BASE,
+        fetch: fakeFetch(() => new Response(null, { status: 304 })).fetch,
+      });
+      await expect(
+        unwrap(notChanged.GET('/v1/notifications/unread-count')),
+      ).rejects.toMatchObject({ status: 304, code: 'not_modified' });
+      const failing = createApiClient({
+        baseUrl: BASE,
+        fetch: fakeFetch(() =>
+          json({ status: 403, code: 'forbidden' }, { status: 403 }),
+        ).fetch,
+      });
+      await expect(
+        unwrap(failing.POST('/v1/auth/tenant', { body: { tenantId: 't1' } })),
+      ).rejects.toMatchObject({ status: 403, code: 'forbidden' });
+    });
   });
 
   it('throws the problem of an answer that is not 2xx', async () => {

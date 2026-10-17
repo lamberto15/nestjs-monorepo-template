@@ -17,7 +17,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Forgot / reset password | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset` |
 | Change password | `POST /v1/auth/password/change` (others signed out; [step-up](#step-up-recent-authentication)) |
 | Verify email | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` |
-| Sessions (each with how it was signed in) | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `POST /v1/auth/sign-out-everywhere` |
+| Sessions (each with how it was signed in, and its device) | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `POST /v1/auth/sign-out-everywhere` |
 | Re-authenticate for a sensitive action | `GET /v1/auth/reauthenticate` (how, until when), `POST /v1/auth/reauthenticate`: see [Step-up](#step-up-recent-authentication) |
 | Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
@@ -228,7 +228,10 @@ signInOptions('passkey'))` (or `sso:<id>`), or runs the package's call in
   in to it.
 
 `GET /v1/auth/sessions` lists `method`, `provider`, `mfa` and
-`authenticatedAt` per session; `GET /v1/auth/me` has the current
+`authenticatedAt` per session, and a readable `device` ("Chrome on macOS",
+null when no user agent was recorded) next to the raw `userAgent`; it is the
+summary the security alerts use (`deviceLabel()`, `iam/account/devices.ts`),
+so clients don't parse user agents; `GET /v1/auth/me` has the current
 credential's `authentication` (`via`: `session` or `token`) and
 `recentUntil`.
 
