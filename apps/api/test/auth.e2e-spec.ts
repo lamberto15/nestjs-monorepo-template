@@ -85,7 +85,7 @@ describe('authentication (e2e)', () => {
       requestId: 'req-problem-0001',
     });
 
-    const unauthorized = await node.http().get('/v1/notes').expect(401);
+    const unauthorized = await node.http().get('/v1/test-items').expect(401);
     expect(unauthorized.body).toMatchObject({
       status: 401,
       title: 'Unauthorized',
@@ -97,17 +97,20 @@ describe('authentication (e2e)', () => {
       code: 'not_found',
       instance: '/v1/nowhere',
     });
-    const badId = await node.admin().get('/v1/notes/not-a-uuid').expect(400);
+    const badId = await node
+      .admin()
+      .get('/v1/test-items/not-a-uuid')
+      .expect(400);
     expect(badId.body).toMatchObject({ status: 400, code: 'bad_request' });
   });
 
   it('serves the API under /v1', async () => {
     await node.http().get('/notes').expect(404);
-    await node.http().get('/v1/notes').expect(401);
+    await node.http().get('/v1/test-items').expect(401);
   });
 
   it('closes every data route to guests: 401', async () => {
-    await node.http().get('/v1/notes').expect(401);
+    await node.http().get('/v1/test-items').expect(401);
     await node.http().get('/v1/auth/me').expect(401);
     await node.http().get('/v1/access/roles').expect(401);
     await node.http().get('/v1/webhook-endpoints').expect(401);
@@ -194,23 +197,23 @@ describe('authentication (e2e)', () => {
       // During the grace period, both keys work: the system can switch without downtime.
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', client.auth)
         .expect(200);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', fresh)
         .expect(200);
       await wait(1200);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', client.auth)
         .expect(401);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', fresh)
         .expect(200);
 
@@ -227,7 +230,7 @@ describe('authentication (e2e)', () => {
         .expect(204);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', fresh)
         .expect(401);
 
@@ -241,13 +244,13 @@ describe('authentication (e2e)', () => {
         .expect(201);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', `Bearer ${shortLived.body.key}`)
         .expect(200);
       await wait(1200);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', `Bearer ${shortLived.body.key}`)
         .expect(401);
     });
@@ -255,12 +258,16 @@ describe('authentication (e2e)', () => {
     it('gives clients roles on top of what every client may do', async () => {
       const writer = await node.client();
       await node
-        .writeNote(writer.auth, { title: 'From writer', body: 'x' })
+        .writeItem(writer.auth, { title: 'From writer', body: 'x' })
         .expect(201);
       const reader = await node.client();
       expect(
-        (await node.http().get('/v1/notes').set('Authorization', reader.auth))
-          .body.items,
+        (
+          await node
+            .http()
+            .get('/v1/test-items')
+            .set('Authorization', reader.auth)
+        ).body.items,
       ).toHaveLength(0);
       await node
         .admin()
@@ -268,15 +275,19 @@ describe('authentication (e2e)', () => {
         .send({ roleIds: await node.roleIds('viewer') })
         .expect(200);
       expect(
-        (await node.http().get('/v1/notes').set('Authorization', reader.auth))
-          .body.items,
+        (
+          await node
+            .http()
+            .get('/v1/test-items')
+            .set('Authorization', reader.auth)
+        ).body.items,
       ).toHaveLength(1);
     });
 
     it('ends a temporary role grant on time', async () => {
       const writer = await node.client();
       await node
-        .writeNote(writer.auth, { title: 'Visible for a while', body: 'x' })
+        .writeItem(writer.auth, { title: 'Visible for a while', body: 'x' })
         .expect(201);
       const [viewer] = await node.roleIds('viewer');
       const { agent, id } = await node.user([]);
@@ -291,11 +302,11 @@ describe('authentication (e2e)', () => {
         })
         .expect(204);
       expect(
-        (await agent.get('/v1/notes').expect(200)).body.items,
+        (await agent.get('/v1/test-items').expect(200)).body.items,
       ).toHaveLength(1);
       await wait(1700);
       expect(
-        (await agent.get('/v1/notes').expect(200)).body.items,
+        (await agent.get('/v1/test-items').expect(200)).body.items,
       ).toHaveLength(0);
       await node
         .admin()
@@ -313,14 +324,14 @@ describe('authentication (e2e)', () => {
       const client = await node.client();
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', client.auth)
         .expect(200);
       const altered =
         client.key.slice(0, -1) + (client.key.endsWith('A') ? 'B' : 'A');
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', `Bearer ${altered}`)
         .expect(401);
     });
@@ -333,13 +344,13 @@ describe('authentication (e2e)', () => {
         .expect(200);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', client.auth)
         .expect(401);
       const newAuth = `Bearer ${rotated.body.key}`;
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', newAuth)
         .expect(200);
 
@@ -350,7 +361,7 @@ describe('authentication (e2e)', () => {
         .expect(200);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', newAuth)
         .expect(401);
     });

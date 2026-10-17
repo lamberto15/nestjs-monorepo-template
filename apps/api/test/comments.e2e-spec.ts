@@ -18,7 +18,7 @@ const local = (url: string) => {
   return pathname + search;
 };
 
-describe('comments and mentions on notes (e2e)', () => {
+describe('comments and mentions on test items (e2e)', () => {
   let node: TestApp;
 
   beforeEach(async () => {
@@ -43,13 +43,13 @@ describe('comments and mentions on notes (e2e)', () => {
       .id as string;
     return { id, key: `user:${id}`, email, password, agent };
   }
-  const writeNote = async (agent: Agent, title = 'Plan') =>
-    (await node.writeNote(agent, { title, body: 'x' }).expect(201)).body
+  const writeItem = async (agent: Agent, title = 'Plan') =>
+    (await node.writeItem(agent, { title, body: 'x' }).expect(201)).body
       .id as string;
-  const comment = async (agent: Agent, noteId: string, body: string) =>
+  const comment = async (agent: Agent, itemId: string, body: string) =>
     (
       await agent
-        .post(`/v1/notes/${noteId}/comments`)
+        .post(`/v1/test-items/${itemId}/comments`)
         .send({ body })
         .expect(201)
     ).body as Comment;
@@ -61,23 +61,23 @@ describe('comments and mentions on notes (e2e)', () => {
     const owner = await person(['editor'], 'Owen');
     const viewer = await person(['viewer'], 'Vera');
     const outsider = await person(['editor'], 'Otto');
-    const noteId = await writeNote(owner.agent);
+    const itemId = await writeItem(owner.agent);
 
-    const first = await comment(owner.agent, noteId, '  First!  ');
+    const first = await comment(owner.agent, itemId, '  First!  ');
     expect(first).toMatchObject({
-      subject: 'Note',
-      recordId: noteId,
+      subject: 'TestItem',
+      recordId: itemId,
       author: owner.key,
       body: 'First!',
       mentions: [],
       editedAt: null,
     });
-    const second = await comment(viewer.agent, noteId, 'Second');
-    const third = await comment(owner.agent, noteId, 'Third');
+    const second = await comment(viewer.agent, itemId, 'Second');
+    const third = await comment(owner.agent, itemId, 'Third');
 
     // Oldest first, cursor pages; newest first on request.
     const page1 = await viewer.agent
-      .get(`/v1/notes/${noteId}/comments?limit=2&count=true`)
+      .get(`/v1/test-items/${itemId}/comments?limit=2&count=true`)
       .expect(200);
     expect(page1.body.items.map((c: Comment) => c.id)).toEqual([
       first.id,
@@ -86,13 +86,13 @@ describe('comments and mentions on notes (e2e)', () => {
     expect(page1.body.total).toBe(3);
     const page2 = await viewer.agent
       .get(
-        `/v1/notes/${noteId}/comments?limit=2&cursor=${page1.body.nextCursor}`,
+        `/v1/test-items/${itemId}/comments?limit=2&cursor=${page1.body.nextCursor}`,
       )
       .expect(200);
     expect(page2.body.items.map((c: Comment) => c.id)).toEqual([third.id]);
     expect(page2.body.nextCursor).toBeNull();
     const newest = await viewer.agent
-      .get(`/v1/notes/${noteId}/comments?sort=-createdAt&limit=2`)
+      .get(`/v1/test-items/${itemId}/comments?sort=-createdAt&limit=2`)
       .expect(200);
     expect(newest.body.items.map((c: Comment) => c.id)).toEqual([
       third.id,
@@ -100,68 +100,70 @@ describe('comments and mentions on notes (e2e)', () => {
     ]);
     const rest = await viewer.agent
       .get(
-        `/v1/notes/${noteId}/comments?sort=-createdAt&limit=2&cursor=${encodeURIComponent(newest.body.nextCursor)}`,
+        `/v1/test-items/${itemId}/comments?sort=-createdAt&limit=2&cursor=${encodeURIComponent(newest.body.nextCursor)}`,
       )
       .expect(200);
     expect(rest.body.items.map((c: Comment) => c.id)).toEqual([first.id]);
     const byViewer = await owner.agent
-      .get(`/v1/notes/${noteId}/comments?author=${viewer.key}&fields=body`)
+      .get(`/v1/test-items/${itemId}/comments?author=${viewer.key}&fields=body`)
       .expect(200);
     expect(byViewer.body.items).toEqual([{ id: second.id, body: 'Second' }]);
 
     // Who may not read the note sees none of it, nor writes.
-    await outsider.agent.get(`/v1/notes/${noteId}/comments`).expect(403);
+    await outsider.agent.get(`/v1/test-items/${itemId}/comments`).expect(403);
     await outsider.agent
-      .post(`/v1/notes/${noteId}/comments`)
+      .post(`/v1/test-items/${itemId}/comments`)
       .send({ body: 'Hi' })
       .expect(403);
-    await owner.agent.get(`/v1/notes/${randomUUID()}/comments`).expect(404);
+    await owner.agent
+      .get(`/v1/test-items/${randomUUID()}/comments`)
+      .expect(404);
 
     // Validation: empty, too long.
     for (const body of ['   ', 'x'.repeat(10_001)]) {
       const refused = await owner.agent
-        .post(`/v1/notes/${noteId}/comments`)
+        .post(`/v1/test-items/${itemId}/comments`)
         .send({ body })
         .expect(400);
       expect(refused.body.code).toBe('validation_failed');
     }
     await owner.agent
-      .post(`/v1/notes/${noteId}/comments`)
+      .post(`/v1/test-items/${itemId}/comments`)
       .send({ body: 'x'.repeat(10_000) })
       .expect(201);
 
     // Only the author edits.
     const edited = await owner.agent
-      .patch(`/v1/notes/${noteId}/comments/${first.id}`)
+      .patch(`/v1/test-items/${itemId}/comments/${first.id}`)
       .send({ body: 'First, edited' })
       .expect(200);
     expect(edited.body).toMatchObject({ body: 'First, edited' });
     expect(edited.body.editedAt).not.toBeNull();
     await viewer.agent
-      .patch(`/v1/notes/${noteId}/comments/${first.id}`)
+      .patch(`/v1/test-items/${itemId}/comments/${first.id}`)
       .send({ body: 'Hijacked' })
       .expect(403);
     await owner.agent
-      .patch(`/v1/notes/${noteId}/comments/${randomUUID()}`)
+      .patch(`/v1/test-items/${itemId}/comments/${randomUUID()}`)
       .send({ body: 'Nope' })
       .expect(404);
 
-    // The viewer (no Note.update) can't remove the owner's; the owner (a moderator) removes the viewer's.
+    // The viewer (no TestItem.update) can't remove the owner's; the owner (a moderator) removes the viewer's.
     await viewer.agent
-      .delete(`/v1/notes/${noteId}/comments/${third.id}`)
+      .delete(`/v1/test-items/${itemId}/comments/${third.id}`)
       .expect(403);
     await owner.agent
-      .delete(`/v1/notes/${noteId}/comments/${second.id}`)
+      .delete(`/v1/test-items/${itemId}/comments/${second.id}`)
       .expect(204);
     await owner.agent
-      .delete(`/v1/notes/${noteId}/comments/${second.id}`)
+      .delete(`/v1/test-items/${itemId}/comments/${second.id}`)
       .expect(404);
     // The author removes their own.
     await owner.agent
-      .delete(`/v1/notes/${noteId}/comments/${third.id}`)
+      .delete(`/v1/test-items/${itemId}/comments/${third.id}`)
       .expect(204);
     const left = await owner.agent
-      .get(`/v1/notes/${noteId}/comments`)
+      .get(`/v1/test-items/${itemId}/comments`)
       .expect(200);
     expect(left.body.items.map((c: Comment) => c.id)).toEqual([
       first.id,
@@ -182,7 +184,10 @@ describe('comments and mentions on notes (e2e)', () => {
         audit.body.items.find((e: { targetId: string }) => e.targetId === id),
       ).toMatchObject({
         targetType: 'comment',
-        details: expect.objectContaining({ subject: 'Note', recordId: noteId }),
+        details: expect.objectContaining({
+          subject: 'TestItem',
+          recordId: itemId,
+        }),
       });
     }
   });
@@ -192,12 +197,12 @@ describe('comments and mentions on notes (e2e)', () => {
     const viewer = await person(['viewer'], 'Vera');
     const outsider = await person(['editor'], 'Otto');
     const colleague = await person(['viewer'], 'Cleo');
-    const noteId = await writeNote(owner.agent, 'Budget');
+    const itemId = await writeItem(owner.agent, 'Budget');
 
     // The viewer mentions the colleague (by address), the outsider (who can't read the note) and nobody real.
     const mentioning = await comment(
       viewer.agent,
-      noteId,
+      itemId,
       `@${colleague.email.toUpperCase()}, @${outsider.email} and @nobody@example.com: please check.`,
     );
     expect(mentioning.mentions).toEqual([colleague.key]);
@@ -207,10 +212,10 @@ describe('comments and mentions on notes (e2e)', () => {
     expect(mentioned).toEqual([
       expect.objectContaining({
         body: expect.stringContaining('Vera mentioned you on "Budget"'),
-        link: `/notes/${noteId}`,
+        link: `/test-items/${itemId}`,
         data: expect.objectContaining({
-          subject: 'Note',
-          recordId: noteId,
+          subject: 'TestItem',
+          recordId: itemId,
           commentId: mentioning.id,
         }),
       }),
@@ -218,42 +223,42 @@ describe('comments and mentions on notes (e2e)', () => {
     await node.waitForMail({ to: colleague.email, subject: /mentioned/ });
     expect(await inbox(outsider.agent, 'comment.mentioned')).toEqual([]);
     // Mentioned, not told twice; the colleague doesn't watch the note.
-    expect(await inbox(colleague.agent, 'note.commented')).toEqual([]);
+    expect(await inbox(colleague.agent, 'testItem.commented')).toEqual([]);
 
     // The owner watches their note: told of the comment; the author isn't.
-    expect(await inbox(owner.agent, 'note.commented')).toEqual([
+    expect(await inbox(owner.agent, 'testItem.commented')).toEqual([
       expect.objectContaining({
         body: expect.stringContaining('Vera commented on "Budget"'),
-        link: `/notes/${noteId}`,
+        link: `/test-items/${itemId}`,
       }),
     ]);
-    expect(await inbox(viewer.agent, 'note.commented')).toEqual([]);
+    expect(await inbox(viewer.agent, 'testItem.commented')).toEqual([]);
 
     // The author now watches the note: the owner's answer reaches them, not the owner.
     const watching = await viewer.agent.get('/v1/subscriptions').expect(200);
     expect(watching.body.items).toEqual([
-      expect.objectContaining({ subject: 'Note', recordId: noteId }),
+      expect.objectContaining({ subject: 'TestItem', recordId: itemId }),
     ]);
-    await comment(owner.agent, noteId, 'Thanks!');
+    await comment(owner.agent, itemId, 'Thanks!');
     await deliver();
-    expect(await inbox(viewer.agent, 'note.commented')).toHaveLength(1);
-    expect(await inbox(owner.agent, 'note.commented')).toHaveLength(1);
+    expect(await inbox(viewer.agent, 'testItem.commented')).toHaveLength(1);
+    expect(await inbox(owner.agent, 'testItem.commented')).toHaveLength(1);
 
     // Having stopped watching, a later comment of theirs doesn't make them watch again.
-    await viewer.agent.delete(`/v1/notes/${noteId}/watch`).expect(204);
-    await comment(viewer.agent, noteId, 'Again');
+    await viewer.agent.delete(`/v1/test-items/${itemId}/watch`).expect(204);
+    await comment(viewer.agent, itemId, 'Again');
     expect(
       (await viewer.agent.get('/v1/subscriptions').expect(200)).body.items,
     ).toEqual([]);
 
     // Mentioned by `@user:<id>` in an edit: told then, once.
-    const plain = await comment(owner.agent, noteId, 'Later');
+    const plain = await comment(owner.agent, itemId, 'Later');
     await owner.agent
-      .patch(`/v1/notes/${noteId}/comments/${plain.id}`)
+      .patch(`/v1/test-items/${itemId}/comments/${plain.id}`)
       .send({ body: `Later, @user:${colleague.id}` })
       .expect(200);
     await owner.agent
-      .patch(`/v1/notes/${noteId}/comments/${plain.id}`)
+      .patch(`/v1/test-items/${itemId}/comments/${plain.id}`)
       .send({ body: `Later still, @user:${colleague.id}` })
       .expect(200);
     await deliver();
@@ -263,22 +268,22 @@ describe('comments and mentions on notes (e2e)', () => {
   it("exports a person's comments with their data; their account's deletion anonymizes them", async () => {
     const owner = await person(['editor'], 'Owen');
     const ada = await person(['viewer'], 'Ada');
-    const noteId = await writeNote(owner.agent);
-    const mine = await comment(ada.agent, noteId, 'Written by Ada');
+    const itemId = await writeItem(owner.agent);
+    const mine = await comment(ada.agent, itemId, 'Written by Ada');
     const aboutAda = await comment(
       owner.agent,
-      noteId,
+      itemId,
       `Asking @${ada.email} and @user:${ada.id}.`,
     );
     expect(aboutAda.mentions).toEqual([ada.key]);
     // Otto can't read Owen's draft: the mention is dropped, the address stays in the text.
     const otto = await person(['editor'], 'Otto');
-    const aboutOtto = await comment(owner.agent, noteId, `Ask @${otto.email}.`);
+    const aboutOtto = await comment(owner.agent, itemId, `Ask @${otto.email}.`);
     expect(aboutOtto.mentions).toEqual([]);
     // Someone else's note is not this one: 404.
-    const otherNoteId = await writeNote(owner.agent);
+    const otherItemId = await writeItem(owner.agent);
     await ada.agent
-      .patch(`/v1/notes/${otherNoteId}/comments/${mine.id}`)
+      .patch(`/v1/test-items/${otherItemId}/comments/${mine.id}`)
       .send({ body: 'Moved?' })
       .expect(404);
 
@@ -316,7 +321,7 @@ describe('comments and mentions on notes (e2e)', () => {
     expect(await job.run(new Date(Date.now() + 15 * 86_400_000))).toBe(2);
 
     const after = (
-      await owner.agent.get(`/v1/notes/${noteId}/comments`).expect(200)
+      await owner.agent.get(`/v1/test-items/${itemId}/comments`).expect(200)
     ).body.items as Comment[];
     expect(after.find((c) => c.id === mine.id)).toMatchObject({
       author: 'anonymous',

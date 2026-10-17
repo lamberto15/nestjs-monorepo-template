@@ -1,3 +1,4 @@
+import { AppModule } from '../src/app.module.js';
 import { bootApp, type TestApp } from './support.js';
 
 describe('OpenAPI document (e2e)', () => {
@@ -8,7 +9,8 @@ describe('OpenAPI document (e2e)', () => {
   };
 
   beforeAll(async () => {
-    node = await bootApp();
+    // The app's document: without the test-only features (test/fixtures).
+    node = await bootApp(undefined, undefined, { module: AppModule });
     document = (await node.http().get('/api-json').expect(200)).body;
   });
 

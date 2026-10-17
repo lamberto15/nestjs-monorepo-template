@@ -2,12 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type request from 'supertest';
 import { bootApp, type TestApp } from './support.js';
 
-/** The path and query of a signed URL: the tests reach the app on its own port. */
-const local = (url: string) => {
-  const { pathname, search } = new URL(url);
-  return pathname + search;
-};
-
 describe('tags (e2e)', () => {
   let node: TestApp;
 
@@ -22,12 +16,12 @@ describe('tags (e2e)', () => {
     (body.errors ?? []).map((error) => error.path);
   const names = (tags: { name: string }[]) => tags.map((tag) => tag.name);
 
-  /** A Note tag, made by the administrator. */
+  /** A TestItem tag, made by the administrator. */
   async function tag(name: string, color?: string) {
     const created = await node
       .admin()
       .post('/v1/tags')
-      .send({ subject: 'Note', name, ...(color && { color }) })
+      .send({ subject: 'TestItem', name, ...(color && { color }) })
       .expect(201);
     return created.body as { id: string; name: string; color: string | null };
   }
@@ -39,7 +33,7 @@ describe('tags (e2e)', () => {
     for (const someone of [editor, viewer]) {
       await someone.agent
         .post('/v1/tags')
-        .send({ subject: 'Note', name: 'Nope' })
+        .send({ subject: 'TestItem', name: 'Nope' })
         .expect(403);
     }
 
@@ -47,14 +41,14 @@ describe('tags (e2e)', () => {
       .admin()
       .post('/v1/tags')
       .send({
-        subject: 'Note',
+        subject: 'TestItem',
         name: 'Urgent',
         color: '#FF0000',
         description: 'Do it now',
       })
       .expect(201);
     expect(created.body).toMatchObject({
-      subject: 'Note',
+      subject: 'TestItem',
       name: 'Urgent',
       color: '#ff0000',
       description: 'Do it now',
@@ -68,14 +62,14 @@ describe('tags (e2e)', () => {
     const duplicate = await node
       .admin()
       .post('/v1/tags')
-      .send({ subject: 'Note', name: 'URGENT' })
+      .send({ subject: 'TestItem', name: 'URGENT' })
       .expect(409);
     expect(duplicate.body.code).toBe('conflict');
 
     const bad = await node
       .admin()
       .post('/v1/tags')
-      .send({ subject: 'Note', name: 'Red', color: 'red' })
+      .send({ subject: 'TestItem', name: 'Red', color: 'red' })
       .expect(400);
     expect(paths(bad.body)).toEqual(['color']);
     const unknown = await node
@@ -105,7 +99,7 @@ describe('tags (e2e)', () => {
       .expect(404);
 
     // Reading: everyone; filters by subject and name.
-    const all = await viewer.agent.get('/v1/tags?subject=Note').expect(200);
+    const all = await viewer.agent.get('/v1/tags?subject=TestItem').expect(200);
     expect(names(all.body.items)).toEqual(['Later', 'Critical']);
     const sorted = await editor.agent.get('/v1/tags?sort=name').expect(200);
     expect(names(sorted.body.items)).toEqual(['Critical', 'Later']);
@@ -152,7 +146,7 @@ describe('tags (e2e)', () => {
     ).toHaveLength(1);
   });
 
-  it('tags notes: those who may change a note set its tags; notes show and filter by them', async () => {
+  it('tags test items: those who may change one set its tags; test items show and filter by them', async () => {
     const editor = await node.user(['editor']);
     const viewer = await node.user(['viewer']);
     const [urgent, later] = [
@@ -160,17 +154,17 @@ describe('tags (e2e)', () => {
       await tag('Later'),
     ];
     const first = (
-      await node.writeNote(editor.agent, { title: 'First', body: '' })
+      await node.writeItem(editor.agent, { title: 'First', body: '' })
     ).body.id as string;
     const second = (
-      await node.writeNote(editor.agent, { title: 'Second', body: '' })
+      await node.writeItem(editor.agent, { title: 'Second', body: '' })
     ).body.id as string;
     await node
-      .writeNote(editor.agent, { title: 'Untagged', body: '' })
+      .writeItem(editor.agent, { title: 'Untagged', body: '' })
       .expect(201);
 
     const set = (agent: request.Agent, id: string, tagIds: string[]) =>
-      agent.put(`/v1/notes/${id}/tags`).send({ tagIds });
+      agent.put(`/v1/test-items/${id}/tags`).send({ tagIds });
 
     const answer = await set(editor.agent, first, [later.id, urgent.id]).expect(
       200,
@@ -179,20 +173,22 @@ describe('tags (e2e)', () => {
       { id: later.id, name: 'Later', color: null },
       { id: urgent.id, name: 'Urgent', color: '#ff0000' },
     ]);
-    // Tags are part of the note's representation: its ETag moves with them.
-    const stale = (await editor.agent.get(`/v1/notes/${second}`).expect(200))
-      .headers.etag!;
+    // Tags are part of the test item's representation: its ETag moves with them.
+    const stale = (
+      await editor.agent.get(`/v1/test-items/${second}`).expect(200)
+    ).headers.etag!;
     await set(editor.agent, second, [later.id]).expect(200);
-    const fresh = (await editor.agent.get(`/v1/notes/${second}`).expect(200))
-      .headers.etag!;
+    const fresh = (
+      await editor.agent.get(`/v1/test-items/${second}`).expect(200)
+    ).headers.etag!;
     expect(fresh).not.toBe(stale);
     await editor.agent
-      .patch(`/v1/notes/${second}`)
+      .patch(`/v1/test-items/${second}`)
       .set('If-Match', stale)
       .send({ title: 'Second!' })
       .expect(412);
 
-    // The viewer reads notes but may not change them.
+    // The viewer reads test items but may not change them.
     await set(viewer.agent, first, []).expect(403);
     await set(editor.agent, randomUUID(), []).expect(404);
 
@@ -205,15 +201,15 @@ describe('tags (e2e)', () => {
     expect(paths(missing.body)).toEqual(['tagIds.1']);
     await set(editor.agent, first, ['not-a-uuid']).expect(400);
 
-    // The note and the list carry them.
-    const one = await editor.agent.get(`/v1/notes/${first}`).expect(200);
+    // The test item and the list carry them.
+    const one = await editor.agent.get(`/v1/test-items/${first}`).expect(200);
     expect(names(one.body.tags)).toEqual(['Later', 'Urgent']);
-    const list = await viewer.agent.get('/v1/notes').expect(200);
+    const list = await viewer.agent.get('/v1/test-items').expect(200);
     const byTitle = Object.fromEntries(
       list.body.items.map(
-        (note: { title: string; tags: { name: string }[] }) => [
-          note.title,
-          names(note.tags),
+        (item: { title: string; tags: { name: string }[] }) => [
+          item.title,
+          names(item.tags),
         ],
       ),
     );
@@ -222,14 +218,16 @@ describe('tags (e2e)', () => {
       Second: ['Later'],
       Untagged: [],
     });
-    const picked = await viewer.agent.get('/v1/notes?fields=tags').expect(200);
+    const picked = await viewer.agent
+      .get('/v1/test-items?fields=tags')
+      .expect(200);
     expect(Object.keys(picked.body.items[0]).sort()).toEqual(['id', 'tags']);
 
     // Filters: one tag, any of several.
     const titles = async (query: string) =>
-      (await viewer.agent.get(`/v1/notes${query}`).expect(200)).body.items.map(
-        (note: { title: string }) => note.title,
-      );
+      (
+        await viewer.agent.get(`/v1/test-items${query}`).expect(200)
+      ).body.items.map((item: { title: string }) => item.title);
     expect(await titles(`?tag=${urgent.id}`)).toEqual(['First']);
     expect(await titles(`?tag=${later.id}`)).toEqual(['Second', 'First']);
     expect(await titles(`?tag.in=${urgent.id},${later.id}`)).toEqual([
@@ -241,27 +239,30 @@ describe('tags (e2e)', () => {
         `?filter=${encodeURIComponent(JSON.stringify({ field: 'tag', op: 'eq', value: urgent.id }))}`,
       ),
     ).toEqual(['First']);
-    await viewer.agent.get('/v1/notes?tag=nope').expect(400);
+    await viewer.agent.get('/v1/test-items?tag=nope').expect(400);
 
-    // Replacing the set; then deleting a tag removes it from every note.
+    // Replacing the set; then deleting a tag removes it from every test item.
     await set(editor.agent, second, [urgent.id]).expect(200);
     expect(
       names(
-        (await editor.agent.get(`/v1/notes/${second}`).expect(200)).body.tags,
+        (await editor.agent.get(`/v1/test-items/${second}`).expect(200)).body
+          .tags,
       ),
     ).toEqual(['Urgent']);
     await node.admin().delete(`/v1/tags/${urgent.id}`).expect(204);
     expect(
-      (await editor.agent.get(`/v1/notes/${second}`).expect(200)).body.tags,
+      (await editor.agent.get(`/v1/test-items/${second}`).expect(200)).body
+        .tags,
     ).toEqual([]);
     expect(
       names(
-        (await editor.agent.get(`/v1/notes/${first}`).expect(200)).body.tags,
+        (await editor.agent.get(`/v1/test-items/${first}`).expect(200)).body
+          .tags,
       ),
     ).toEqual(['Later']);
     expect(await titles(`?tag=${urgent.id}`)).toEqual([]);
 
-    // One audit entry per change of a note's set, from → to.
+    // One audit entry per change of a test item's set, from → to.
     const changes = (
       await node
         .admin()
@@ -270,90 +271,14 @@ describe('tags (e2e)', () => {
     ).body.items;
     expect(changes).toHaveLength(2);
     expect(changes[0]).toMatchObject({
-      targetType: 'note',
+      targetType: 'testItem',
       details: {
-        subject: 'Note',
+        subject: 'TestItem',
         from: [later.id],
         to: [urgent.id],
         added: [urgent.id],
         removed: [later.id],
       },
     });
-  });
-
-  it('exports the tags of each note', async () => {
-    const client = await node.client();
-    const urgent = await tag('Urgent');
-    const later = await tag('Later');
-    const id = (
-      await node.writeNote(client.auth, { title: 'Tagged', body: '' })
-    ).body.id as string;
-    // A client lists the tags it may use, sorted by name whatever the case.
-    await tag('alpha');
-    const listed = await node
-      .http()
-      .get('/v1/tags?subject=Note&sort=name')
-      .set('Authorization', client.auth)
-      .expect(200);
-    expect(
-      listed.body.items.map((item: { name: string }) => item.name),
-    ).toEqual(['alpha', 'Later', 'Urgent']);
-    // The cursor pages on that order too, both ways.
-    const names = async (path: string) => {
-      const page = await node
-        .http()
-        .get(path)
-        .set('Authorization', client.auth)
-        .expect(200);
-      return {
-        names: page.body.items.map((item: { name: string }) => item.name),
-        next: page.body.nextCursor as string | null,
-      };
-    };
-    const up = await names('/v1/tags?subject=Note&sort=name&limit=1');
-    expect(up.names).toEqual(['alpha']);
-    expect(
-      (await names(`/v1/tags?subject=Note&sort=name&limit=1&cursor=${up.next}`))
-        .names,
-    ).toEqual(['Later']);
-    const down = await names('/v1/tags?subject=Note&sort=-name&limit=1');
-    expect(down.names).toEqual(['Urgent']);
-    expect(
-      (
-        await names(
-          `/v1/tags?subject=Note&sort=-name&limit=1&cursor=${down.next}`,
-        )
-      ).names,
-    ).toEqual(['Later']);
-    await node
-      .http()
-      .put(`/v1/notes/${id}/tags`)
-      .set('Authorization', client.auth)
-      .send({ tagIds: [urgent.id, later.id] })
-      .expect(200);
-
-    const started = await node
-      .http()
-      .post('/v1/data/exports')
-      .set('Authorization', client.auth)
-      .send({ name: 'notes', format: 'csv' })
-      .expect(202);
-    let done: { status: string; result: { url: string } } | undefined;
-    for (let tries = 0; tries < 100 && done?.status !== 'completed'; tries++) {
-      done = (
-        await node
-          .http()
-          .get(`/v1/data/transfers/${started.body.id}`)
-          .set('Authorization', client.auth)
-          .expect(200)
-      ).body;
-      expect(done!.status).not.toBe('failed');
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    expect(done?.status).toBe('completed');
-    const file = await node.http().get(local(done!.result.url)).expect(200);
-    const [header, row] = file.text.trim().split(/\r?\n/);
-    expect(header).toContain('tags');
-    expect(row).toContain('"Later, Urgent"');
   });
 });

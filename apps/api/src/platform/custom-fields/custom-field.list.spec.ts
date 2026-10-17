@@ -1,9 +1,10 @@
-import { PgDialect } from 'drizzle-orm/pg-core';
-import { notes } from '../../features/notes/notes.tables.js';
+import { jsonb, PgDialect, pgTable } from 'drizzle-orm/pg-core';
 import type { SQL } from 'drizzle-orm';
 import { customFilterFields } from './custom-field.list.js';
 import type { CustomFieldDefinition } from './custom-field.types.js';
 import { coerceImported } from './custom-field.values.js';
+
+const invoices = pgTable('invoices', { custom: jsonb('custom').notNull() });
 
 const dialect = new PgDialect();
 const render = (query: Parameters<PgDialect['sqlToQuery']>[0]) =>
@@ -15,7 +16,7 @@ const field = (
   extra: Partial<CustomFieldDefinition> = {},
 ): CustomFieldDefinition => ({
   id: key,
-  subject: 'Note',
+  subject: 'Invoice',
   key,
   label: key,
   description: null,
@@ -42,7 +43,7 @@ describe('customFilterFields', () => {
       field('note', 'text', { filterable: false, sortable: false }),
       field('old', 'text', { active: false }),
     ],
-    notes.custom,
+    invoices.custom,
   );
 
   it('declares active fields with typed expressions; every active one can be selected', () => {
@@ -62,13 +63,13 @@ describe('customFilterFields', () => {
       'custom.note',
     ]);
     expect(render(fields['custom.region'].column as SQL).sql).toBe(
-      `("notes"."custom"->>'region')`,
+      `("invoices"."custom"->>'region')`,
     );
     expect(render(fields['custom.amount'].column as SQL).sql).toBe(
-      `(("notes"."custom"->>'amount')::numeric)`,
+      `(("invoices"."custom"->>'amount')::numeric)`,
     );
     expect(render(fields['custom.due'].column as SQL).sql).toBe(
-      `(("notes"."custom"->>'due')::date)`,
+      `(("invoices"."custom"->>'due')::date)`,
     );
     expect(fields['custom.due'].type).toBe('date');
     expect(fields['custom.region']).toMatchObject({
@@ -80,13 +81,15 @@ describe('customFilterFields', () => {
 
   it('gives a multiSelect "holds any of" on the GIN index', () => {
     const any = render(fields['custom.tags'].conditions!.in!(['a', 'b']));
-    expect(any.sql).toBe(`("notes"."custom"->'tags') ?| array[$1, $2]::text[]`);
+    expect(any.sql).toBe(
+      `("invoices"."custom"->'tags') ?| array[$1, $2]::text[]`,
+    );
     expect(any.params).toEqual(['a', 'b']);
   });
 
   it('refuses a key that is not a slug (it is inlined in SQL)', () => {
     expect(() =>
-      customFilterFields([field("x'; drop", 'text')], notes.custom),
+      customFilterFields([field("x'; drop", 'text')], invoices.custom),
     ).toThrow('Invalid custom field key');
   });
 });

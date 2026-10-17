@@ -4,7 +4,7 @@ import { createDatabase, type Database } from '../src/core/database/drizzle.js';
 import { inTenantOf } from '../src/core/tenancy/tenant-job.js';
 import { TenantScopeMissingError } from '../src/core/tenancy/tenant-scope.js';
 import { tenants } from '../src/core/tenancy/tenancy.tables.js';
-import { notes } from '../src/features/notes/notes.tables.js';
+import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { bypassingTenants, testDatabase } from './support.js';
 
 /**
@@ -41,11 +41,10 @@ describe('TenantPool', () => {
       .returning({ id: tenants.id });
     tenantId = tenant!.id;
     await inTenantOf({ tenantId }, () =>
-      db.insert(notes).values({
+      db.insert(testItems).values({
         ownerId: 'client:x',
         title: 'A',
         body: '',
-        status: 'draft',
       }),
     );
   });
@@ -60,14 +59,14 @@ describe('TenantPool', () => {
   const rowsOf = <T>(result: unknown) => (result as { rows: T[] }).rows;
 
   /** The tenant setting a statement saw, in the order it ran. */
-  const settingIn = (from: 'notes' | 'tenants') =>
+  const settingIn = (from: 'testItems' | 'tenants') =>
     db.execute<{ t: string | null }>(
-      sql`select current_setting('app.tenant_id', true) as t from ${from === 'notes' ? notes : tenants} limit 1`,
+      sql`select current_setting('app.tenant_id', true) as t from ${from === 'testItems' ? testItems : tenants} limit 1`,
     );
 
   it('wraps a statement on a tenant table in a transaction with the settings, and passes global ones straight', async () => {
-    const onNotes = await inTenant(() => settingIn('notes'));
-    expect(rowsOf(onNotes)).toEqual([{ t: tenantId }]);
+    const onItems = await inTenant(() => settingIn('testItems'));
+    expect(rowsOf(onItems)).toEqual([{ t: tenantId }]);
     // A global table, in the same scope: no transaction, no settings (the
     // connection's own value: empty after the last transaction's end).
     const onTenants = await inTenant(() => settingIn('tenants'));
@@ -91,7 +90,7 @@ describe('TenantPool', () => {
     try {
       const refused = await fresh
         .select()
-        .from(notes)
+        .from(testItems)
         .catch((error: { cause?: unknown }) => error.cause);
       expect(refused).toBeInstanceOf(TenantScopeMissingError);
       expect(freshPool.totalCount).toBe(0);
@@ -117,46 +116,48 @@ describe('TenantPool', () => {
   it('forgets a transaction’s tenant at its commit and at its rollback', async () => {
     await inTenant(() =>
       db.transaction(async (tx) => {
-        expect(await tx.select({ id: notes.id }).from(notes)).toHaveLength(1);
+        expect(
+          await tx.select({ id: testItems.id }).from(testItems),
+        ).toHaveLength(1);
       }),
     );
     // The same (only) connection, no tenant: refused, not run in the last one.
     const afterCommit = await db
-      .transaction((tx) => tx.select().from(notes))
+      .transaction((tx) => tx.select().from(testItems))
       .catch((error: { cause?: unknown }) => error.cause ?? error);
     expect(afterCommit).toBeInstanceOf(TenantScopeMissingError);
 
     await inTenant(() =>
       db
         .transaction(async (tx) => {
-          await tx.select().from(notes);
+          await tx.select().from(testItems);
           throw new Error('rolled back');
         })
         .catch(() => undefined),
     );
     const afterRollback = await db
-      .transaction((tx) => tx.select().from(notes))
+      .transaction((tx) => tx.select().from(testItems))
       .catch((error: { cause?: unknown }) => error.cause ?? error);
     expect(afterRollback).toBeInstanceOf(TenantScopeMissingError);
     // And the connection is healthy: a tenant's transaction reads again.
     expect(
-      await inTenant(() => db.select({ id: notes.id }).from(notes)),
+      await inTenant(() => db.select({ id: testItems.id }).from(testItems)),
     ).toHaveLength(1);
   });
 
   it('runs the bypass as the maintenance role, past every tenant, never as the app role', async () => {
     const seen = await bypassingTenants(() =>
-      db.execute<{ role: string; notes: number }>(
-        sql`select current_user as role, (select count(*) from ${notes})::int as notes`,
+      db.execute<{ role: string; items: number }>(
+        sql`select current_user as role, (select count(*) from ${testItems})::int as items`,
       ),
     );
     expect(rowsOf(seen)[0]).toMatchObject({
       role: expect.stringMatching(/^maint_/),
-      notes: 1,
+      items: 1,
     });
     const app = await inTenant(() =>
       db.execute<{ role: string }>(
-        sql`select current_user as role from ${notes} limit 1`,
+        sql`select current_user as role from ${testItems} limit 1`,
       ),
     );
     expect(rowsOf<{ role: string }>(app)[0]?.role).toMatch(/^app_/);

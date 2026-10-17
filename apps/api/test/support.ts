@@ -34,11 +34,19 @@ import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
 import * as schema from '../src/schema.js';
 import type { Database } from '../src/core/database/drizzle.js';
 import { inject } from 'vitest';
-import { AppModule } from '../src/app.module.js';
+import { TestAppModule } from './fixtures/test-app.module.js';
+import { FixtureI18nLoader } from './fixtures/i18n.js';
+import * as fixtureTables from './fixtures/tables.js';
+import { tenantTableNames } from '../src/core/database/drizzle.js';
+import { addTenantTables } from '../src/core/tenancy/tenant-pool.js';
+import { I18nLoader } from '@nestjs/i18n';
 import { createDatabase } from '../src/core/database/drizzle.js';
 import { configureApp } from '../src/configure-app.js';
 import { PASSWORD_HASHER_PARAMS } from '../src/iam/account/password-hashing.js';
 import { databaseUrl } from './global-setup.js';
+
+// The test-only features' tables are tenant tables too (test/fixtures).
+addTenantTables(...tenantTableNames(fixtureTables));
 
 /** A TOTP code for a base32 secret, as an authenticator app computes it (RFC 6238). */
 export function totp(secret: string, at = Date.now()) {
@@ -213,7 +221,8 @@ export async function bootApp(
   override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (
     builder,
   ) => builder,
-  { module = AppModule }: { module?: Type } = {},
+  // The app's features and the test-only ones (test/fixtures).
+  { module = TestAppModule }: { module?: Type } = {},
 ) {
   await clearRedis();
   const database = await testDatabase();
@@ -233,7 +242,10 @@ export async function bootApp(
     // (its PasswordHasher docs). Same code path (the app's bounded hasher,
     // under PASSWORD_HASH_CONCURRENCY), a hash 128 times cheaper.
     .overrideProvider(PASSWORD_HASHER_PARAMS)
-    .useValue({ logN: 10 });
+    .useValue({ logN: 10 })
+    // The app's texts and the test-only features' (test/fixtures/i18n).
+    .overrideProvider(I18nLoader)
+    .useValue(new FixtureI18nLoader());
   const moduleRef = await override(builder).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     // TEST_LOGS=1 shows the application's errors while debugging a test.
@@ -531,6 +543,22 @@ export async function bootApp(
         typeof auth === 'string'
           ? http().post('/v1/notes').set('Authorization', auth)
           : auth.post('/v1/notes');
+      return req.set('Idempotency-Key', key).send(body);
+    },
+
+    /**
+     * Creates a test item (test/fixtures: the platform's tests' record, there
+     * whatever features a project keeps) as a bearer token or an agent.
+     */
+    writeItem(
+      auth: string | request.Agent,
+      body: Record<string, unknown> = { title: 'Hello', body: 'World' },
+      key: string = randomUUID(),
+    ) {
+      const req =
+        typeof auth === 'string'
+          ? http().post('/v1/test-items').set('Authorization', auth)
+          : auth.post('/v1/test-items');
       return req.set('Idempotency-Key', key).send(body);
     },
 

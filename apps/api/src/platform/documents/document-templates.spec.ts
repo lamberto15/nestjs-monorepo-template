@@ -12,36 +12,29 @@ const templates = new DocumentTemplates({
   get: () => 'test',
 } as unknown as ConfigService<CoreEnv, true>);
 
-/** The note template with these values, as NoteDocuments fills it. */
+/** The shared `record` template with these values, as a record's document fills it. */
 const note = (
   values: Partial<Record<string, string | null>> = {},
   locale = 'en',
 ) =>
   templates.render(
-    'note',
+    'record',
     {
-      labels: {
-        document: 'Note',
-        number: 'Number',
-        status: 'Status',
-        created: 'Created',
-        published: 'Published',
-        issued: 'Issued today',
-      },
-      note: {
-        title: 'Hello',
-        number: 'NOTE-2026-00001',
+      labels: { document: 'Record', issued: 'Issued today' },
+      title: values.title ?? 'Hello',
+      rows: Object.entries({
+        number: 'INV-2026-00001',
         status: 'Draft',
         body: 'World',
-        createdAt: 'today',
-        publishedAt: null,
         ...values,
-      },
+      })
+        .filter(([key, value]) => key !== 'title' && value != null)
+        .map(([key, value]) => ({ label: key, value })),
     },
     { locale, title: values.title ?? 'Hello' },
   );
 
-/** The page's body: what the note template put in it, without the layout. */
+/** The page's body: what the record template put in it, without the layout. */
 const body = (html: string) => html.slice(html.indexOf('<body>'));
 
 describe('document templates', () => {
@@ -67,7 +60,6 @@ describe('document templates', () => {
       status: payload,
       body: payload,
       createdAt: payload,
-      publishedAt: payload,
     });
     const page = body(html);
     // Nothing the values carried became markup: no tag, no attribute.
@@ -97,11 +89,11 @@ describe('document templates', () => {
     expect(body(html)).toContain('{{{ dir }}}');
   });
 
-  it('leaves out an empty text and an unpublished date', async () => {
+  it('leaves out the rows without a value', async () => {
     const html = await note({ body: null, number: null });
-    expect(html).not.toContain('class="text"');
-    expect(html).not.toContain('NOTE-2026');
-    expect(html).not.toContain('Published');
+    expect(html).not.toContain('INV-2026');
+    expect(html).not.toContain('<th>number</th>');
+    expect(html).toContain('<th>status</th>');
   });
 
   it('writes Arabic right to left, with its language on the page', async () => {
@@ -136,7 +128,7 @@ describe('document templates', () => {
 
     it('exist', () => {
       expect(files).toEqual(
-        expect.arrayContaining(['layout.html', 'note.html']),
+        expect.arrayContaining(['layout.html', 'record.html']),
       );
     });
 

@@ -66,18 +66,18 @@ describe('GET /metrics (e2e)', () => {
 
   it('times requests by route pattern, never by URL', async () => {
     const id = randomUUID();
-    const limited = await node.admin().get('/v1/notes').expect(200);
+    const limited = await node.admin().get('/v1/test-items').expect(200);
     expect(limited.headers['x-ratelimit-limit']).toBeDefined();
-    await node.admin().get(`/v1/notes/${id}`).expect(404);
+    await node.admin().get(`/v1/test-items/${id}`).expect(404);
     await node.http().get('/no-such-route').expect(404);
     await node.http().get('/health').expect(200);
 
     const text = (await scrape().expect(200)).text;
     expect(text).toContain(
-      'http_request_duration_seconds_bucket{le="0.005",method="GET",route="GET /v1/notes",status="200"}',
+      'http_request_duration_seconds_bucket{le="0.005",method="GET",route="GET /v1/test-items",status="200"}',
     );
     expect(text).toMatch(
-      /^http_request_duration_seconds_count\{method="GET",route="GET \/v1\/notes\/\{id\}",status="404"\} 1$/m,
+      /^http_request_duration_seconds_count\{method="GET",route="GET \/v1\/test-items\/\{id\}",status="404"\} 1$/m,
     );
     expect(text).toContain('route="unmatched",status="404"');
     expect(text).not.toContain(id);

@@ -38,9 +38,9 @@ describe('single-tenant deployment (e2e)', () => {
     expect(mine.body.items).toEqual([
       expect.objectContaining({ id: node.tenantId, current: true }),
     ]);
-    // Editor: notes of their own, in the tenant.
-    await node.writeNote(member).expect(201);
-    await member.get('/v1/notes').expect(200);
+    // Editor: test items of their own, in the tenant.
+    await node.writeItem(member).expect(201);
+    await member.get('/v1/test-items').expect(200);
 
     const [joined] = await node.auditEntries({
       action: 'user.joined',

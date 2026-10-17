@@ -23,11 +23,11 @@ describe('API usage and quotas (e2e)', () => {
   /** A client that wrote a note and read it twice: 3 requests on 2 routes. */
   async function busyClient() {
     const client = await node.client();
-    const note = await node.writeNote(client.auth).expect(201);
+    const note = await node.writeItem(client.auth).expect(201);
     for (let i = 0; i < 2; i++) {
       await node
         .http()
-        .get(`/v1/notes/${note.body.id}`)
+        .get(`/v1/test-items/${note.body.id}`)
         .set('Authorization', client.auth)
         .expect(200);
     }
@@ -37,7 +37,7 @@ describe('API usage and quotas (e2e)', () => {
   const expectedToday = () => ({
     day: utcDay(),
     total: 3,
-    routes: { 'GET /v1/notes/{id}': 2, 'POST /v1/notes': 1 },
+    routes: { 'GET /v1/test-items/{id}': 2, 'POST /v1/test-items': 1 },
   });
 
   it('counts a client’s requests per route pattern, today included, for the client and its administrators', async () => {
@@ -114,7 +114,7 @@ describe('API usage and quotas (e2e)', () => {
       .expect(200);
     const answers = await Promise.all(
       Array.from({ length: 12 }, () =>
-        node.http().get('/v1/notes').set('Authorization', client.auth),
+        node.http().get('/v1/test-items').set('Authorization', client.auth),
       ),
     );
     const statuses = answers
@@ -150,20 +150,20 @@ describe('API usage and quotas (e2e)', () => {
 
     const firstKey = randomUUID();
     const first = await node
-      .writeNote(client.auth, undefined, firstKey)
+      .writeItem(client.auth, undefined, firstKey)
       .expect(201);
     expect(first.headers['x-quota-limit']).toBe('2');
     expect(first.headers['x-quota-remaining']).toBe('1');
     const second = await node
       .http()
-      .get(`/v1/notes/${first.body.id}`)
+      .get(`/v1/test-items/${first.body.id}`)
       .set('Authorization', client.auth)
       .expect(200);
     expect(second.headers['x-quota-remaining']).toBe('0');
 
     const refused = await node
       .http()
-      .get(`/v1/notes/${first.body.id}`)
+      .get(`/v1/test-items/${first.body.id}`)
       .set('Authorization', client.auth)
       .expect(429);
     expect(refused.body.code).toBe('quota_exceeded');
@@ -176,14 +176,14 @@ describe('API usage and quotas (e2e)', () => {
 
     // Metering runs before idempotency: past the quota, even a replay is refused.
     const replay = await node
-      .writeNote(client.auth, undefined, firstKey)
+      .writeItem(client.auth, undefined, firstKey)
       .expect(429);
     expect(replay.body.code).toBe('quota_exceeded');
 
     // A refused write isn't kept for its Idempotency-Key: the retry runs.
     const retryKey = randomUUID();
     await node
-      .writeNote(client.auth, { title: 'Later', body: 'x' }, retryKey)
+      .writeItem(client.auth, { title: 'Later', body: 'x' }, retryKey)
       .expect(429);
 
     // Refused requests aren't counted.
@@ -210,7 +210,7 @@ describe('API usage and quotas (e2e)', () => {
       .send({ dailyQuota: null })
       .expect(200);
     const free = await node
-      .writeNote(client.auth, { title: 'Later', body: 'x' }, retryKey)
+      .writeItem(client.auth, { title: 'Later', body: 'x' }, retryKey)
       .expect(201);
     expect(free.headers['x-quota-limit']).toBeUndefined();
     await node
@@ -240,7 +240,7 @@ describe('API usage and quotas (e2e)', () => {
     expect(fromTable.body.days).toEqual([expectedToday()]);
 
     // A run without a day leaves today's counters alone.
-    await node.writeNote(client.auth).expect(201);
+    await node.writeItem(client.auth).expect(201);
     await job.run();
     const live = await node
       .admin()
@@ -270,7 +270,7 @@ describe('API usage and quotas (e2e)', () => {
       tenantId: node.tenantId,
       clientId: client.id,
       day: old,
-      route: 'GET /v1/notes',
+      route: 'GET /v1/test-items',
       count: 7,
     });
     await job.run();

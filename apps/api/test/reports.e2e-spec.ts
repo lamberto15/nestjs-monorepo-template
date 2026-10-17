@@ -45,8 +45,8 @@ describe('scheduled reports (e2e)', () => {
   });
 
   const daily = {
-    name: 'Daily notes',
-    exporter: 'notes',
+    name: 'Daily items',
+    exporter: 'test-items',
     format: 'csv',
     timezone: 'Asia/Manila',
     schedule: { every: 'daily', hour: 8 },
@@ -97,8 +97,8 @@ describe('scheduled reports (e2e)', () => {
     const before = Date.now();
     const created = await ada.agent.post('/v1/reports').send(daily).expect(201);
     expect(created.body).toMatchObject({
-      name: 'Daily notes',
-      exporter: 'notes',
+      name: 'Daily items',
+      exporter: 'test-items',
       format: 'csv',
       filters: {},
       timezone: 'Asia/Manila',
@@ -150,13 +150,13 @@ describe('scheduled reports (e2e)', () => {
     // A change of name alone leaves the next run as it was.
     const renamed = await ada.agent
       .patch(`/v1/reports/${id}`)
-      .send({ name: 'Weekly notes' })
+      .send({ name: 'Weekly items' })
       .expect(200);
     expect(renamed.body.nextRunAt).toBe(updated.body.nextRunAt);
 
     expect(await audit('report.created', id)).toHaveLength(1);
     expect((await audit('report.updated', id))[1]!.details).toMatchObject({
-      changes: { name: { from: 'Daily notes', to: 'Weekly' } },
+      changes: { name: { from: 'Daily items', to: 'Weekly' } },
     });
     await ada.agent.delete(`/v1/reports/${id}`).expect(204);
     await ada.agent.get(`/v1/reports/${id}`).expect(404);
@@ -175,8 +175,8 @@ describe('scheduled reports (e2e)', () => {
         ).body,
       );
     expect(await refused({ exporter: 'nothing' })).toEqual(['exporter']);
-    expect(await refused({ filters: { status: 'bogus' } })).toEqual([
-      'filters.status',
+    expect(await refused({ filters: { 'createdAt.gte': 'bogus' } })).toEqual([
+      'filters.createdAt.gte',
     ]);
     expect(await refused({ timezone: 'Mars/Olympus' })).toEqual(['timezone']);
     expect(
@@ -197,7 +197,7 @@ describe('scheduled reports (e2e)', () => {
       /^recipients/,
     );
 
-    // Someone without Note.read may not schedule the notes.
+    // Someone without TestItem.read may not schedule the test items.
     const nobody = await node.user([]);
     const forbidden = await nobody.agent
       .post('/v1/reports')
@@ -209,9 +209,9 @@ describe('scheduled reports (e2e)', () => {
     const created = await ada.agent.post('/v1/reports').send(daily).expect(201);
     const patched = await ada.agent
       .patch(`/v1/reports/${created.body.id}`)
-      .send({ filters: { status: 'bogus' } })
+      .send({ filters: { 'createdAt.gte': 'bogus' } })
       .expect(400);
-    expect(paths(patched.body)).toEqual(['filters.status']);
+    expect(paths(patched.body)).toEqual(['filters.createdAt.gte']);
 
     // At most 20 active reports per owner (Ada has one).
     for (let i = 0; i < 19; i++) {
@@ -235,7 +235,7 @@ describe('scheduled reports (e2e)', () => {
   it('runs a report now: the recipients get a link that downloads the file', async () => {
     const ada = await editor();
     await node
-      .writeNote(ada.agent, { title: 'In the report', body: 'x' })
+      .writeItem(ada.agent, { title: 'In the report', body: 'x' })
       .expect(201);
     const created = await ada.agent
       .post('/v1/reports')
@@ -248,8 +248,8 @@ describe('scheduled reports (e2e)', () => {
       await finished((path) => ada.agent.get(path).expect(200), ran.body.id),
     ).toBe('completed');
 
-    const mail = await mailTo('boss@example.com', /Daily notes/);
-    expect(mail.subject).toBe('Report ready: Daily notes');
+    const mail = await mailTo('boss@example.com', /Daily items/);
+    expect(mail.subject).toBe('Report ready: Daily items');
     // The owner is the To; the others are in Bcc, unseen by each other.
     expect(mail.to.map((to) => to.address)).toEqual([ada.email]);
     expect(mail.bcc.map((to) => to.address)).toEqual(['boss@example.com']);
@@ -278,16 +278,16 @@ describe('scheduled reports (e2e)', () => {
     });
     expect(
       (await audit('data.export-started', ran.body.id))[0]!.details,
-    ).toMatchObject({ name: 'notes', report: id, trigger: 'manual' });
+    ).toMatchObject({ name: 'test-items', report: id, trigger: 'manual' });
     // Once per transfer.
-    expect(node.mailbox.filter({ subject: /Daily notes/ })).toHaveLength(1);
+    expect(node.mailbox.filter({ subject: /Daily items/ })).toHaveLength(1);
   });
 
   it('mails the failure when the export fails, and keeps the status', async () => {
     // An export that fails on the worker, every time.
     node.app.get(DataTransferRegistry).registerExporter({
       name: 'broken',
-      subject: 'Note',
+      subject: 'TestItem',
       allowed: () => true,
       columns: [{ key: 'id' }],
       // oxlint-disable-next-line require-yield
@@ -325,7 +325,7 @@ describe('scheduled reports (e2e)', () => {
     const ada = await editor();
     const started = await ada.agent
       .post('/v1/data/exports')
-      .send({ name: 'notes', format: 'csv' })
+      .send({ name: 'test-items', format: 'csv' })
       .expect(202);
     const id = started.body.id as string;
     await finished((path) => ada.agent.get(path).expect(200), id);
@@ -417,7 +417,7 @@ describe('scheduled reports (e2e)', () => {
         after.lastTransferId,
       ),
     ).toBe('completed');
-    await mailTo(ada.email, /Daily notes/);
+    await mailTo(ada.email, /Daily items/);
 
     const untouched = (
       await ada.agent.get(`/v1/reports/${paused.id}`).expect(200)

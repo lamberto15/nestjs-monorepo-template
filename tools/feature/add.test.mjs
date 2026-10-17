@@ -119,7 +119,6 @@ describe('addFeature', () => {
       'src/features/index.ts',
       'src/features/tables.ts',
       'test/openapi.e2e-spec.ts',
-      'src/features/notes/notes.tables.ts',
       ...['ar', 'de', 'en', 'ms', 'zh'].flatMap((locale) => [
         `src/i18n/${locale}/notifications.json`,
         `src/i18n/${locale}/documents.json`,
@@ -128,6 +127,12 @@ describe('addFeature', () => {
       mkdirSync(path.dirname(api(file)), { recursive: true });
       copyFileSync(path.join(REPO, 'apps/api', file), api(file));
     }
+    // A table the generator may not reference: no `referenced: true`.
+    mkdirSync(api('src/features/ledgers'), { recursive: true });
+    writeFileSync(
+      api('src/features/ledgers/ledgers.tables.ts'),
+      "export const ledgers = pgTable('ledgers', {});\n",
+    );
   });
   after(() => rmSync(root, { recursive: true, force: true }));
 
@@ -152,7 +157,9 @@ describe('addFeature', () => {
     }
     assert.ok(existsSync(api('test/invoices.e2e-spec.ts')));
     assert.ok(result.changed.includes('apps/api/src/features/index.ts'));
-    assert.ok(result.changed.includes('OpenAPI test: + /v1/invoices/{id}/restore'));
+    assert.ok(
+      result.changed.includes('OpenAPI test: + /v1/invoices/{id}/restore'),
+    );
 
     const index = readFileSync(api('src/features/index.ts'), 'utf8');
     assert.equal(index.match(/INVOICES_FEATURE,/g)?.length, 1);
@@ -252,7 +259,7 @@ describe('addFeature', () => {
 
   it("refuses a reference to a table others can't point at", async () => {
     await assert.rejects(
-      addFeature(root, { name: 'receipts', fields: 'noteId:ref(notes)?' }),
+      addFeature(root, { name: 'receipts', fields: 'ledgerId:ref(ledgers)?' }),
       /referenced: true/,
     );
     await assert.rejects(
@@ -274,7 +281,10 @@ describe('feature:sync', () => {
 
   before(async () => {
     root = mkdtempSync(path.join(tmpdir(), 'feature-sync-'));
-    copyFileSync(path.join(REPO, '.prettierrc'), path.join(root, '.prettierrc'));
+    copyFileSync(
+      path.join(REPO, '.prettierrc'),
+      path.join(root, '.prettierrc'),
+    );
     for (const file of [
       'src/features/index.ts',
       'src/features/tables.ts',
@@ -287,10 +297,16 @@ describe('feature:sync', () => {
       mkdirSync(path.dirname(api(file)), { recursive: true });
       copyFileSync(path.join(REPO, 'apps/api', file), api(file));
     }
-    await addFeature(root, { name: 'orders', fields: 'title:string,total:money' });
+    await addFeature(root, {
+      name: 'orders',
+      fields: 'title:string,total:money',
+    });
     // The table as a migration made it: what the guard compares with.
     mkdirSync(api('drizzle/meta'), { recursive: true });
-    writeFileSync(api('drizzle/meta/_journal.json'), JSON.stringify({ entries: [{ idx: 0 }] }));
+    writeFileSync(
+      api('drizzle/meta/_journal.json'),
+      JSON.stringify({ entries: [{ idx: 0 }] }),
+    );
     const column = (notNull) => ({ notNull });
     writeFileSync(
       api('drizzle/meta/0000_snapshot.json'),
@@ -331,9 +347,18 @@ describe('feature:sync', () => {
   });
 
   it('refuses a new required field without a default, takes one with', () => {
-    edit('    total: field.money(),\n', '    total: field.money(),\n    dueOn: field.date(),\n');
-    assert.match(syncFeature(api(), 'orders').errors.join('\n'), /orders\.dueOn: a new required field/);
-    edit('    dueOn: field.date(),\n', '    dueOn: field.date().optional(),\n    rank: field.int().default(1),\n');
+    edit(
+      '    total: field.money(),\n',
+      '    total: field.money(),\n    dueOn: field.date(),\n',
+    );
+    assert.match(
+      syncFeature(api(), 'orders').errors.join('\n'),
+      /orders\.dueOn: a new required field/,
+    );
+    edit(
+      '    dueOn: field.date(),\n',
+      '    dueOn: field.date().optional(),\n    rank: field.int().default(1),\n',
+    );
     const result = syncFeature(api(), 'orders');
     assert.deepEqual(result.errors, []);
     assert.equal(result.generate, true);
@@ -341,19 +366,31 @@ describe('feature:sync', () => {
 
   it('refuses a removed field (expand/contract)', () => {
     edit('    title: field.string(),\n', '');
-    assert.match(syncFeature(api(), 'orders').errors.join('\n'), /the column title has no field any more/);
+    assert.match(
+      syncFeature(api(), 'orders').errors.join('\n'),
+      /the column title has no field any more/,
+    );
     edit('  fields: {\n', '  fields: {\n    title: field.string(),\n');
   });
 
   it("adds a capability's paths and texts, and takes them away when it goes", () => {
     edit('  capabilities: [],', "  capabilities: ['comments', 'watch'],");
     const added = syncFeature(api(), 'orders');
-    assert.ok(added.changes.includes('OpenAPI test: + /v1/orders/{id}/comments'));
+    assert.ok(
+      added.changes.includes('OpenAPI test: + /v1/orders/{id}/comments'),
+    );
     assert.ok(added.changes.includes('en/notifications.json: + order'));
-    assert.equal(syncFeature(api(), 'orders', { check: true }).changes.length, 0);
-    edit("  capabilities: ['comments', 'watch'],", "  capabilities: ['watch'],");
+    assert.equal(
+      syncFeature(api(), 'orders', { check: true }).changes.length,
+      0,
+    );
+    edit(
+      "  capabilities: ['comments', 'watch'],",
+      "  capabilities: ['watch'],",
+    );
     const removed = syncFeature(api(), 'orders');
-    assert.ok(removed.changes.includes('OpenAPI test: - /v1/orders/{id}/comments'));
+    assert.ok(
+      removed.changes.includes('OpenAPI test: - /v1/orders/{id}/comments'),
+    );
   });
 });
-
