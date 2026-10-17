@@ -42,6 +42,7 @@ src/
   main.ts          boots the API (APP_ROLE api | worker | all)
   worker.ts        the same app as a worker (APP_ROLE=worker)
   migrate.ts       applies every migration once per deploy
+  seed-demo.ts     the demo seed (pnpm db:seed:demo), development databases only
   configure-app.ts what main.ts and the tests apply (HTTP setup, realtime, OpenAPI)
   app.module.ts    the composition root: groups, then features
   env.ts           every group's environment schema, validated at startup
@@ -54,6 +55,7 @@ src/
   iam/        identity and access
   platform/   services features call
   features/   your code (notes/ is the example)
+  demo/       the demo seed's data and seeder (it knows the features, like app.module.ts)
 ```
 
 | Group | Holds |

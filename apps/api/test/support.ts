@@ -8,6 +8,7 @@ import { auditLog } from '../src/iam/iam.tables.js';
 import { and, desc, eq } from 'drizzle-orm';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type { Type } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import {
@@ -204,17 +205,19 @@ export function testTenant() {
 /**
  * Boots the app as main.ts does, on a free port, with a manual workflow
  * clock, on a database of its own. `override` replaces more providers
- * (a test's own credential provider, say).
+ * (a test's own credential provider, say); `module` boots another root
+ * that imports AppModule (the demo seed's, DemoSeedModule).
  */
 export async function bootApp(
   clock = new ManualWorkflowClock(),
   override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (
     builder,
   ) => builder,
+  { module = AppModule }: { module?: Type } = {},
 ) {
   await clearRedis();
   const database = await testDatabase();
-  const builder = Test.createTestingModule({ imports: [AppModule] })
+  const builder = Test.createTestingModule({ imports: [module] })
     // Only the exported token can be overridden (the module's options token
     // isn't public), so CoreModule's factory still makes a pool on
     // DATABASE_URL (the server's `postgres` database) for every app. It never

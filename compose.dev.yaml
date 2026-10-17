@@ -16,6 +16,11 @@ services:
   postgres:
     ports:
       - '127.0.0.1:5432:5432'
+    volumes:
+      # Marks the database it creates as a development one, so the demo seed
+      # may run on it (dev/postgres/10-dev-database.sql; `pnpm db:mark-dev`
+      # for a volume made before).
+      - ./dev/postgres:/docker-entrypoint-initdb.d:ro
 
   redis:
     ports:

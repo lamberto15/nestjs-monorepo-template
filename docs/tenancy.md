@@ -193,7 +193,10 @@ Built in the platform code, never at call sites (`tenantKey()`):
   password or name: `PATCH /v1/access/users/{id}` changes the membership
   (`active`, roles, units) only, and a `password` or `name` is refused (400).
   Linking a provider and enrolling two-factor want a proved address (403
-  `email_unverified`).
+  `email_unverified`). The only accounts made with a password are made by
+  system jobs, never a request: the first start's administrator
+  (AccessSeeder) and the demo seed's members (`AccessAdminService.seedUser()`,
+  development databases only: [development](development.md), "Demo data").
 - **Impersonation never crosses tenants.** Only a member of the administrator's
   current tenant; the impersonation session is pinned to that tenant (no
   switching, no profile, notification or preference changes) and ends when

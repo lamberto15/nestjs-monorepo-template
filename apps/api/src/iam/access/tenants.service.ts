@@ -103,19 +103,29 @@ export class TenantsService {
           });
         await this.seedRoles(tx);
         if (administrator) {
-          await this.accounts.addMembership(tx, id, administrator);
-          const [role] = await tx
-            .select({ id: roles.id })
-            .from(roles)
-            .where(eq(roles.key, ADMINISTRATOR_ROLE));
-          await tx
-            .insert(userRoles)
-            .values({ userId: administrator, roleId: role!.id });
+          await this.addAdministrator(tx, administrator);
         }
         const result = work ? await work(tx, tenant!) : undefined;
         return { tenant: tenant!, result };
       }),
     );
+  }
+
+  /**
+   * Makes the account a member of the tenant being created, with the
+   * Administrator role, in `create()`'s transaction (in its scope): its
+   * first administrator. `create()` does it for the account it is given;
+   * the demo seed (src/demo), for the account it makes in that transaction.
+   * Nothing else grants Administrator without an administrator's request.
+   */
+  async addAdministrator(tx: Transaction, userId: string) {
+    // A member already (the demo seed's), or one now.
+    await this.accounts.joinTenant(tx, this.tenancy.tenantId(), userId);
+    const [role] = await tx
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.key, ADMINISTRATOR_ROLE));
+    await tx.insert(userRoles).values({ userId, roleId: role!.id });
   }
 
   /**

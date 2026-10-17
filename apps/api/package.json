@@ -24,6 +24,7 @@
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
     "migrate": "node dist/migrate",
+    "db:seed:demo": "nest build && node dist/seed-demo",
     "openapi:dump": "nest build && node dist/openapi-dump"
   },
   "dependencies": {
