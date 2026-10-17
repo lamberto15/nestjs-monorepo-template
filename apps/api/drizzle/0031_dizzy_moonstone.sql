@@ -1,0 +1,5 @@
+ALTER TABLE "team_tree" ADD CONSTRAINT "team_tree_ancestor_fk" FOREIGN KEY ("tenant_id","ancestor_id") REFERENCES "public"."teams"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "team_tree" ADD CONSTRAINT "team_tree_descendant_fk" FOREIGN KEY ("tenant_id","descendant_id") REFERENCES "public"."teams"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teams" ADD CONSTRAINT "teams_parent_fk" FOREIGN KEY ("tenant_id","parent_id") REFERENCES "public"."teams"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_teams" ADD CONSTRAINT "user_teams_team_fk" FOREIGN KEY ("tenant_id","team_id") REFERENCES "public"."teams"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notes" ADD CONSTRAINT "notes_team_fk" FOREIGN KEY ("tenant_id","team_id") REFERENCES "public"."teams"("tenant_id","id") ON DELETE set null ("team_id") ON UPDATE no action;

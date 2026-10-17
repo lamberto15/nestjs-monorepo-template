@@ -211,6 +211,20 @@
       "when": 1792220619579,
       "tag": "0029_abnormal_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792220668965,
+      "tag": "0030_silly_mandrill",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792220675838,
+      "tag": "0031_dizzy_moonstone",
+      "breakpoints": true
     }
   ]
 }
