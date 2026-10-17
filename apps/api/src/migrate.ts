@@ -22,9 +22,16 @@ import { migrateAll } from './core/database/migrate-all.js';
  */
 const owner = secretValue(process.env, 'DATABASE_OWNER_URL');
 const app = secretValue(process.env, 'DATABASE_URL');
+// Optional: the worker's maintenance role (BYPASSRLS), made or checked when set.
+const maintenance = secretValue(process.env, 'DATABASE_MAINTENANCE_URL');
 // Named for the role, not its secret: only `problems` (never a value) are printed.
 const monitor = secretValue(process.env, 'POSTGRES_MONITOR_PASSWORD');
-const problems = [...owner.problems, ...app.problems, ...monitor.problems];
+const problems = [
+  ...owner.problems,
+  ...app.problems,
+  ...maintenance.problems,
+  ...monitor.problems,
+];
 for (const { variable, message } of problems) {
   console.error(`${variable}: ${message}`);
 }
@@ -41,6 +48,7 @@ await migrateAll(
   {
     ownerUrl: owner.value,
     appUrl: app.value,
+    maintenanceUrl: maintenance.value || undefined,
     ...(monitor.value && {
       monitor: {
         role: process.env.POSTGRES_MONITOR_USER?.trim() || 'app_monitor',

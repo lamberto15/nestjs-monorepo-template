@@ -1,17 +1,10 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import {
   CurrentUser,
   EmailVerificationService,
   Public,
 } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
-import { t } from '@nestjs/i18n';
 import {
   ApiAcceptedResponse,
   ApiBadRequestResponse,
@@ -26,8 +19,19 @@ import { z } from 'zod';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { acceptedSchema, token } from './account.schemas.js';
+import { AccountService } from './account.service.js';
 
-const verifySchema = z.object({ token });
+const verifySchema = z.object({
+  token,
+  password: z
+    .string()
+    .min(1)
+    .max(256)
+    .optional()
+    .describe(
+      "The account's password, when it was chosen before the address was proved (a sign-up): required then.",
+    ),
+});
 const verifiedSchema = z.object({
   email: z.string(),
   emailVerified: z.literal(true),
@@ -41,7 +45,10 @@ const verifiedSchema = z.object({
 @ApiTags('account')
 @Controller('auth/email')
 export class EmailController {
-  constructor(private readonly emailVerification: EmailVerificationService) {}
+  constructor(
+    private readonly emailVerification: EmailVerificationService,
+    private readonly account: AccountService,
+  ) {}
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: minutes(15) } })
@@ -50,15 +57,13 @@ export class EmailController {
   @ApiOperation({ summary: "Confirm an address with the link's token" })
   @ApiOkResponse({ standardSchema: verifiedSchema })
   @ApiBadRequestResponse({
-    description: 'Unknown, used or expired link, or the address changed since.',
+    description:
+      'Unknown, used or expired link, or the address changed since. `password_required`: the account signed up with a password, send it (a wrong one is 403 `forbidden`; the link stays usable either way).',
   })
   async verify(
     @Body({ schema: verifySchema }) body: z.infer<typeof verifySchema>,
   ) {
-    const verified = await this.emailVerification.verify(body.token);
-    if (!verified) {
-      throw new BadRequestException(t('auth.invalidLink'));
-    }
+    const verified = await this.account.verifyEmail(body.token, body.password);
     return { email: verified.email, emailVerified: true as const };
   }
 

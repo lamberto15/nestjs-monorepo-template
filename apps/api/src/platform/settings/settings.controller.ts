@@ -64,7 +64,7 @@ export class SettingsController {
   @ApiOperation({
     summary: 'Every setting and flag, with your value of each',
     description:
-      "Your value: your own, else your org unit's, else the global one (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
+      "Your value: your own, else your org unit's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
   })
   @ApiOkResponse({ standardSchema: listSchema(settingViewSchema) })
   async list(@CurrentUser() user: Principal) {
@@ -137,12 +137,12 @@ export class SettingsController {
   @ApiOperation({
     summary: 'Set a setting for everyone, an org unit, or one principal',
     description:
-      'Replaces what that scope had. A flag at the global scope may take `rollout` (a percentage) instead of a value. Applies everywhere on the next request. Audited.',
+      "Replaces what that scope had, in the caller's tenant. A flag at the tenant scope may take `rollout` (a percentage) instead of a value. Applies on the next request. Audited.",
   })
   @ApiOkResponse({ standardSchema: settingOverrideSchema })
   @ApiBadRequestResponse({
     description:
-      'A scope the setting does not take, a value its schema refuses, a rollout on something that is not a global flag (validation_failed).',
+      'A scope the setting does not take, a value its schema refuses, a rollout on something that is not a flag at the tenant scope (validation_failed).',
   })
   @ApiNotFoundResponse({
     description: 'No such setting, org unit or principal.',

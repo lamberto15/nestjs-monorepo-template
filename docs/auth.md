@@ -21,13 +21,39 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
 | Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
-| Mobile apps | `POST /v1/auth/token`, `/token/refresh`, `/token/revoke` |
+| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh`, `/token/revoke` |
+| Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
 
 - **Email links** open pages of the web app (`WEB_URL/reset-password`,
   `/verify-email`, `/magic-link`) that POST the token back: mail scanners
   follow GET links. Links are single-use and short-lived.
-- **Invitations:** an administrator creates a user without a password
-  (`POST /v1/access/users`); the user gets an email to choose one.
+- **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
+  one account per address, in every tenant it belongs to; a session acts in
+  one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
+  tenant's administrators manage its memberships (`PATCH` deactivates the
+  membership, never the account) and never set or change anyone's password
+  or name.
+- **Invitations (invite-only):** `POST /v1/access/users` (202) mails the
+  address a link (`WEB_URL/accept-invitation`); nothing about an account is
+  read, changed or returned until its owner accepts at
+  `POST /v1/auth/invitations/accept`: a new address chooses its password
+  there, an existing account accepts signed in as itself
+  ([tenancy](tenancy.md), "Accounts and sessions").
+- **A proved address** (`emailVerified`) is wanted to link a provider or
+  enrol two-factor (403 `email_unverified`).
+- **Sign-up: verify first** (`AUTH_SIGN_UP=on`). `POST /v1/auth/sign-up` makes
+  the account and mails a verification link; it makes no session. Its
+  password signs in (session or token) only once the address is proved:
+  before, the right password gets 403 `email_unverified` (a wrong one the
+  usual 401). Proving it takes the link **and** that password
+  (`POST /v1/auth/email/verify { token, password }`; without it 400
+  `password_required`, a wrong one 403, the link usable again either way):
+  the link proves the mailbox, not who chose the password, so whoever signed
+  up someone else's address can't have its owner verify it for them and
+  sign in as the owner. The owner of such an address uses
+  "forgot password" instead: the reset link proves the address and replaces
+  the password. A provider sign-in that asserts the address is verified
+  already; invitations prove it with their link.
 - **Account linking** by verified email only, or from a signed-in session
   (`?link=true`): never by an unverified address.
 - **Two-factor** secrets are encrypted at rest (`MFA_ENCRYPTION_KEYS`); a code
@@ -44,9 +70,9 @@ NIST SP 800-63B: length, no composition rules, and no password from a
 breach corpus. Every place a password is **set** checks it against Have I
 Been Pwned's [Pwned Passwords](https://haveibeenpwned.com/API/v3#PwnedPasswords)
 (`BreachedPasswordsService`, `iam/account/breached-passwords.service.ts`):
-sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
-`POST /v1/auth/password/change`, and an administrator's
-`POST /v1/access/users` and `PATCH /v1/access/users/{id}`.
+sign-up, a reset link (`POST /v1/auth/password/reset`), an invitation's
+acceptance (`POST /v1/auth/invitations/accept`) and
+`POST /v1/auth/password/change`. Administrators set no passwords.
 
 - **k-anonymity:** the password's SHA-1 is computed here; only its first 5
   hex characters go to `GET <PASSWORD_BREACH_API_URL>/range/{prefix}`, with
@@ -96,13 +122,14 @@ sign-up, a reset or invitation link (`POST /v1/auth/password/reset`),
 | Need | Route |
 | --- | --- |
 | A pending deletion, what you agreed to | `GET /v1/account` |
-| A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`) |
-| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below) |
+| A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's) |
+| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below), until the job starts on it |
 | Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }`, `GET /v1/account/consents` (the latest of each kind; kept as proof) |
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
 placeholder address and name, no password, sign-in methods, sessions,
-tokens, roles or units; its notifications, preferences and settings go;
+tokens, memberships (with their roles and units); its notifications,
+preferences and settings go;
 its audit entries keep the actor key, labelled "Deleted user". Records
 the person created stay, owned by an account that is nobody's. A feature
 holding personal data registers a `PersonalDataSource` (`rows()` for the
@@ -118,13 +145,17 @@ token (`platform/account/deletion-cancel-links.ts`) is a JWT signed with
 it an access token), its own audience and `typ`; it names the user and
 the request, and expires a day after the scheduled date (the job runs
 nightly). It works **once**: the route cancels only a request still
-pending, in one conditional `UPDATE`, so a second use, the link of an
-earlier request, or one after the deletion ran finds nothing (and the job
-re-checks and locks the request before carrying it out, so a cancel that
-won the race wins). Every refusal is the same 400 (`auth.invalidLink`),
-saying neither why nor whether the account exists; 10 attempts per
-address in 15 minutes. Audited as the user's `account.deletion-cancelled`
-with `details.via: link`. The token travels in the mail job's `token`
+pending and not yet started, in one conditional `UPDATE` under the
+account's lock (`UsersRepository.lockAccount()`), so a second use, the link
+of an earlier request, or one after the deletion ran finds nothing. The job
+claims a due request under the same lock (`started_at`) before it erases
+the person tenant by tenant: from then on neither route cancels it, so no
+cancel lands between one tenant's erasure and the next (a run that fails
+part-way carries on the next night). Every refusal is the same 400
+(`auth.invalidLink`), saying neither why nor whether the account exists;
+10 attempts per address in 15 minutes. The route needs no tenant: the
+cancel and its audit entry are account-level (`account.deletion-cancelled`,
+the user's own, `details.via: link`, in no tenant's log). The token travels in the mail job's `token`
 field, which the log redaction masks. Proof:
 `account-lifecycle.e2e-spec.ts`, `security.e2e-spec.ts` ("the deletion
 mail's cancel link"), `deletion-cancel-links.spec.ts`.
@@ -132,6 +163,20 @@ mail's cancel link"), `deletion-cancel-links.spec.ts`.
 All of it is audited (`account.deletion-requested`, `-cancelled`,
 `account.deleted`, `account.consented`); `account.deleted` is the job's,
 the system principal `system:account-deletion`. Never while impersonating.
+
+**Across tenants** ([tenancy](tenancy.md)): the account is the person's,
+not a tenant's. Its entries above are account-level (no tenant: no
+tenant's administrator reads them), whichever tenant the session is in.
+The export (queued in no tenant, so an account with none has one too,
+filed under `accounts/<user id>/`) reads each tenant the person belongs to
+in that tenant's scope: everything it holds about them for an active
+membership, only what is personal (the membership, audit entries
+about them) for a tenant they left, never its business records. Account
+data (`GET /v1/account`, consents, notification preferences, the
+account's own notifications) stays hidden while impersonating. The deletion erases their data in
+each of those tenants (`PersonalDataSource.erase` per tenant, one
+transaction each), then anonymizes the account outside any tenant. A run
+cut short leaves the request open, and the next night finishes it.
 
 ## Step-up (recent authentication)
 
@@ -242,8 +287,8 @@ with the password.
 | `POST /v1/account/deletion` | irreversible after the grace period. The password stays required too (when the account has one): within the window a stolen session can enrol its own authenticator, and re-authenticating with that must not be enough to lock the owner out of "sign in and cancel". Passwordless accounts: step-up alone |
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
 | `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
-| `POST /v1/access/users`, only with `password` or non-empty `roleIds` | a stale stolen administrator session must not create an account it can sign in to with privileges (an invitation without either isn't asked) |
-| `PATCH /v1/access/users/{id}`, only with `password`, `roleIds` or `active: true` | setting someone's password takes their account; roles are privileges; reactivating brings their sign-in back (a name change, a deactivation aren't asked) |
+| `POST /v1/access/users`, only with non-empty `roleIds` | an invitation with privileges (one without roles isn't asked) |
+| `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
 
 Not protected, on purpose: signing out (sessions, everywhere), data export
@@ -301,7 +346,8 @@ its own old session stays stale. Hence the step-up below.
 
 `GET /v1/auth/oidc/{provider}/login?reauthenticate=true` (`redirectTo`
 optional), navigated to from a signed-in session (none: 401; while
-impersonating: 403; with `link=true` too: 400):
+impersonating: 403; an unproved address: 403 `email_unverified`, as for
+linking; with `link=true` too: 400):
 
 - **The provider is asked for a fresh login**: the package's
   authorization URL (`OidcService.start()`: PKCE, `state`, `nonce`) gets
@@ -321,12 +367,15 @@ impersonating: 403; with `link=true` too: 400):
   a provider that omits it despite `max_age`) the login is accepted as now,
   the weaker guarantee above.
 - **Accepted**: the browser gets a new session, recent from `auth_time`
-  (with two-factor on, pending its code as any sign-in), audited
+  (with two-factor on, pending its code as any sign-in), **in the tenant
+  the re-authenticated session acted in** (remembered with the `state`;
+  the user's last chosen tenant if the membership ended meanwhile), audited
   `auth.reauthenticated` (`method: oidc`, `provider`). **Refused**: no
   sign-in happens (the browser keeps its session) and it lands on the web
   app (`redirectTo`, else its root) with
   `?error=reauthentication_failed`, audited
-  `auth.reauthentication-failed` (`reason`: `account` or `stale`).
+  `auth.reauthentication-failed` (`reason`: `account` or `stale`). Both
+  entries are account-level, as every sign-in's: in no tenant's log.
 - `?link=true` keeps the plain login: a link needs a recent session
   already.
 - Proof: `oidc-reauthentication.e2e-spec.ts` (a configured GitHub, whose
@@ -415,7 +464,11 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   the same way, in either mode (the code page renders the widget, action
   `sign-in`, when a 403 asks, or always with `always`). The right password
   is no failure: the browser's 200 `mfaRequired` and the token route's 401
-  `mfa_required` (no code sent) give the attempt back. Sign-up, the magic-link
+  `mfa_required` (no code sent) give the attempt back. The right password
+  of an unproved address (403 `email_unverified`, refused before any second
+  factor) stays counted, like a wrong one: the challenge comes at the same
+  attempt, with the same problem, whether the address is unproved, has an
+  account, or none. Sign-up, the magic-link
   request and forgot password count every request, since their answers
   reveal nothing. The counts live in Redis, keyed by a hash of the address
   or of `email|address` (**the same keys on every guarded route**: a bot
@@ -534,6 +587,10 @@ manual try against Cloudflare, Turnstile's documented test keys (its docs,
 
 ## Impersonation (support)
 
+Within one tenant ([tenancy](tenancy.md)): the administrator's current
+tenant, whose member the user must be; the impersonation session stays in
+it (no switching, no profile change) and ends when either membership does.
+
 `POST /v1/access/users/{id}/impersonate` (the `Access.impersonate`
 permission, a session) replaces the administrator's session with the user's
 for `IMPERSONATION_TTL_MINUTES`. Everything done meanwhile is audited as
@@ -548,6 +605,7 @@ back, with their own sign-in's method and time.
 
 ## API clients
 
+Each belongs to one tenant and acts in it alone ([tenancy](tenancy.md)).
 Systems call the API with keys (`sk_<id>_<secret>`; only the SHA-256 is
 stored). `POST /v1/access/clients` (the key is shown once),
 `POST /v1/access/clients/{id}/rotate { graceSeconds }` (the old key keeps

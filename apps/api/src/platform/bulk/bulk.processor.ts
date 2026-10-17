@@ -1,11 +1,12 @@
 import { Logger } from '@nestjs/common';
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor } from '@nestjs/bullmq';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Job } from 'bullmq';
 import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
+import { TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { stillActive } from '../queues/still-active.js';
 import { Realtime } from '../realtime/realtime.service.js';
@@ -19,13 +20,15 @@ import {
 
 /**
  * Runs the bulk runs too large for a request, on the workers (APP_ROLE
- * worker or all). The principal is checked again when the job starts: a
- * user deactivated in the meantime gets nothing done.
+ * worker or all), in the tenant the run was started in (TenantWorkerHost
+ * restores it from the job). The principal is checked again when the job
+ * starts: a user deactivated in the meantime, or no longer a member of
+ * the tenant, gets nothing done.
  */
 // maxStalledCount 0: a run whose worker was lost (a redeploy mid-way) fails
 // instead of starting over; items done stay done (the audit says which).
 @Processor(BULK, { concurrency: 2, maxStalledCount: 0 })
-export class BulkProcessor extends WorkerHost {
+export class BulkProcessor extends TenantWorkerHost<BulkJob, BulkResult> {
   private readonly logger = new Logger('Bulk');
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -43,7 +46,7 @@ export class BulkProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<BulkJob>): Promise<BulkResult> {
+  async handle(job: Job<BulkJob>): Promise<BulkResult> {
     const principal = await stillActive(
       job.data.principal,
       this.users,

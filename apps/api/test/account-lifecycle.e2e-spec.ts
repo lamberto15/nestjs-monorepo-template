@@ -1,6 +1,11 @@
+import { eq } from 'drizzle-orm';
+import { users as usersTable } from '../src/iam/iam.tables.js';
 import { randomUUID } from 'node:crypto';
+import { getDrizzleToken } from '@nestjs/drizzle';
+import type { Database } from '../src/core/database/drizzle.js';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { accountDeletions } from '../src/platform/account/account.tables.js';
+import { bootApp, type TestApp } from './support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
 const local = (url: string) => {
@@ -18,26 +23,18 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
     await node.close();
   });
 
-  /** An editor whose password the test knows, signed in. */
+  /** An editor whose password the test knows (invited, then accepted), signed in. */
   async function person() {
     const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({
-        email,
-        name: 'Ada',
-        password,
-        roleIds: await node.roleIds('editor'),
-      })
-      .expect(201);
-    return {
-      id: created.body.id as string,
+    const token = await node.invite(node.admin(), {
       email,
-      password,
-      agent: await node.signIn(email, password),
-    };
+      name: 'Ada',
+      roleIds: await node.roleIds('editor'),
+    });
+    const password = await node.acceptAsNew(token, 'Ada');
+    const agent = await node.signIn(email, password);
+    const me = await agent.get('/v1/auth/me').expect(200);
+    return { id: me.body.user.id as string, email, password, agent };
   }
   const paths = (body: { errors?: { path: string }[] }) =>
     (body.errors ?? []).map((error) => error.path);
@@ -122,6 +119,7 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
     expect([...kinds].sort()).toEqual([
       'auditEntry',
       'consent',
+      'membership',
       'notes',
       'profile',
       'role',
@@ -179,12 +177,7 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
       .expect(403);
     expect(wrong.body.code).toBe('forbidden');
     expect(
-      (
-        await node
-          .admin()
-          .get(`/v1/access/audit?action=account.deletion-refused`)
-          .expect(200)
-      ).body.items,
+      await node.auditEntries({ action: 'account.deletion-refused' }),
     ).toMatchObject([{ actor: `user:${ada.id}` }]);
     const requested = await ada.agent
       .post('/v1/account/deletion')
@@ -237,15 +230,20 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
       .admin()
       .get('/v1/access/users?limit=100')
       .expect(200);
-    const user = {
-      body: users.body.items.find((u: { id: string }) => u.id === ada.id),
-    };
-    expect(user.body).toMatchObject({
+    // No longer a member of any tenant; the account row stays, anonymized.
+    expect(
+      users.body.items.find((u: { id: string }) => u.id === ada.id),
+    ).toBeUndefined();
+    const [account] = await node.db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, ada.id));
+    expect(account).toMatchObject({
       name: 'Deleted user',
       active: false,
-      hasPassword: false,
+      passwordHash: null,
     });
-    expect(user.body.email).toMatch(/^deleted-.*@anonymized\.invalid$/);
+    expect(account!.email).toMatch(/^deleted-.*@anonymized\.invalid$/);
     // The note stays, owned by nobody in particular.
     const kept = await node.admin().get(`/v1/notes/${note.id}`).expect(200);
     expect(kept.body.ownerId).toBe(`user:${ada.id}`);
@@ -260,12 +258,10 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
         (e: { actorLabel: string }) => e.actorLabel === 'Deleted user',
       ),
     ).toBe(true);
-    const done = await node
-      .admin()
-      .get(`/v1/access/audit?action=account.deleted`)
-      .expect(200);
-    // The job did it: the system principal, named after the job.
-    expect(done.body.items[0]).toMatchObject({
+    // The job did it: the system principal, named after the job (the
+    // account's own entry, in no tenant).
+    const done = await node.auditEntries({ action: 'account.deleted' });
+    expect(done[0]).toMatchObject({
       targetId: ada.id,
       actor: 'system:account-deletion',
       actorLabel: 'System: Account deletion',
@@ -302,15 +298,21 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
     expect(
       (await ada.agent.get('/v1/account').expect(200)).body.deletion,
     ).toBeNull();
-    const audit = await node
+    // Account-level: in no tenant's log (tenant null), the user's own entry.
+    const [cancelled] = await node.auditEntries({
+      action: 'account.deletion-cancelled',
+      targetId: ada.id,
+    });
+    expect(cancelled).toMatchObject({
+      tenantId: null,
+      actor: `user:${ada.id}`,
+      details: { via: 'link' },
+    });
+    const inTenant = await node
       .admin()
       .get('/v1/access/audit?action=account.deletion-cancelled')
       .expect(200);
-    expect(audit.body.items[0]).toMatchObject({
-      actor: `user:${ada.id}`,
-      targetId: ada.id,
-      details: { via: 'link' },
-    });
+    expect(inTenant.body.items).toEqual([]);
     // Once: used, it is refused, as anything else is.
     const replayed = await cancel(first).expect(400);
 
@@ -334,13 +336,9 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
         .run(new Date(Date.now() + 15 * 86_400_000)),
     ).toBe(1);
     await cancel(third).expect(400);
-    const users = await node
-      .admin()
-      .get('/v1/access/users?limit=100')
-      .expect(200);
     expect(
-      users.body.items.find((u: { id: string }) => u.id === ada.id),
-    ).toMatchObject({ name: 'Deleted user' });
+      await node.auditEntries({ action: 'account.deleted', targetId: ada.id }),
+    ).toHaveLength(1);
   });
 
   it('keeps a request cancelled by its link from being carried out', async () => {
@@ -360,5 +358,32 @@ describe('account lifecycle: data export, deletion, consents (e2e)', () => {
         .run(new Date(Date.now() + 15 * 86_400_000)),
     ).toBe(0);
     await ada.agent.get('/v1/auth/me').expect(200);
+  });
+
+  it('cancels nothing once the job started on the request (claimed under the account lock)', async () => {
+    const ada = await person();
+    await ada.agent
+      .post('/v1/account/deletion')
+      .send({ password: ada.password })
+      .expect(200);
+    const token = await cancelToken(ada.email, 1);
+    // What the job's claim does before it erases tenant by tenant.
+    await node.app
+      .get<Database>(getDrizzleToken())
+      .update(accountDeletions)
+      .set({ startedAt: new Date() })
+      .where(eq(accountDeletions.userId, ada.id));
+    await node
+      .http()
+      .post('/v1/account/deletion/cancel')
+      .send({ token })
+      .expect(400);
+    await ada.agent.delete('/v1/account/deletion').expect(404);
+    // The job carries a claimed request on (a run that stopped part-way).
+    expect(
+      await node.app
+        .get(AccountDeletionJob)
+        .run(new Date(Date.now() + 15 * 86_400_000)),
+    ).toBe(1);
   });
 });

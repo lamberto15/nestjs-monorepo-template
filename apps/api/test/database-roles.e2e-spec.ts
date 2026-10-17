@@ -365,8 +365,14 @@ describe('the app role', () => {
     };
     const lines: string[] = [];
     const bootstrap = (role = monitor, secret = password) =>
-      ensureMonitorRole(database.ownerUrl, { role, password: secret }, (line) =>
-        lines.push(line),
+      ensureMonitorRole(
+        {
+          ownerUrl: database.ownerUrl,
+          appUrl: database.url,
+          maintenanceUrl: database.maintenanceUrl,
+        },
+        { role, password: secret },
+        (line) => lines.push(line),
       );
     afterAll(async () => {
       await asAdmin(
@@ -435,6 +441,20 @@ describe('the app role', () => {
         expect(await refused(`alter role current_user bypassrls`)).toBe(
           INSUFFICIENT_PRIVILEGE,
         );
+        // No privilege on any table of the app's or the stores' schemas: no
+        // row of any tenant (it bypasses no RLS either, above).
+        const readable = await client.query<{ name: string }>(
+          `select n.nspname || '.' || c.relname as name
+           from pg_class c join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname in ('public', 'nest_outbox', 'nest_workflows', 'nest_webhooks')
+             and c.relkind in ('r', 'p', 'v', 'm')
+             and (has_table_privilege(c.oid, 'SELECT') or has_table_privilege(c.oid, 'INSERT')
+                  or has_table_privilege(c.oid, 'UPDATE') or has_table_privilege(c.oid, 'DELETE'))`,
+        );
+        expect(readable.rows).toEqual([]);
+        expect(await refused('select 1 from memberships')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
       });
     });
 
@@ -476,10 +496,25 @@ describe('the app role', () => {
       } finally {
         await database.asOwner(`revoke select on users from "${monitor}"`);
       }
+      // A role that bypasses row-level security is refused, never demoted.
+      await asAdmin(`alter role "${monitor}" bypassrls`);
+      try {
+        await expect(bootstrap()).rejects.toThrow(/NOBYPASSRLS/);
+      } finally {
+        await asAdmin(`alter role "${monitor}" nobypassrls`);
+      }
       await bootstrap();
-      // Never the owner itself.
-      const owner = decodeURIComponent(new URL(database.ownerUrl).username);
-      await expect(bootstrap(owner)).rejects.toThrow(/names the owner/);
+      // Never the owner, the app role or the maintenance role.
+      for (const [url, variable] of [
+        [database.ownerUrl, 'DATABASE_OWNER_URL'],
+        [database.url, 'DATABASE_URL'],
+        [database.maintenanceUrl, 'DATABASE_MAINTENANCE_URL'],
+      ]) {
+        const role = decodeURIComponent(new URL(url).username);
+        await expect(bootstrap(role)).rejects.toThrow(
+          new RegExp(`names the role of ${variable}`),
+        );
+      }
     });
   });
 });

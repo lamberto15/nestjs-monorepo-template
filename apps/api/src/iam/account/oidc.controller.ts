@@ -40,7 +40,7 @@ import { AccountService } from './account.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
-import { notWhileImpersonating } from './account.schemas.js';
+import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
 import { ReauthenticationRefused } from './oidc-reauthentication.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 
@@ -150,6 +150,8 @@ export class OidcController {
         throw new UnauthorizedException();
       }
       notWhileImpersonating(user);
+      // As linking: an address the person proved (an invitation, the link).
+      verifiedEmailOnly(user);
       this.configured(provider);
       return this.account.startReauthenticationWithProvider(
         user,
@@ -162,6 +164,7 @@ export class OidcController {
         throw new UnauthorizedException();
       }
       notWhileImpersonating(user);
+      verifiedEmailOnly(user);
       if (!this.reauthentication.isRecent(session)) {
         return {
           url: this.backToWebApp(redirectTo, 'reauthentication_required'),

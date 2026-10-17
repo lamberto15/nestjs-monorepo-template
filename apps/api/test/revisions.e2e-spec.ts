@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { notes } from '../src/features/notes/notes.tables.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
@@ -10,7 +8,7 @@ import { revisions as revisionsTable } from '../src/platform/revisions/revisions
 import { recordSubscriptions } from '../src/platform/subscriptions/subscriptions.tables.js';
 import { recordTags } from '../src/platform/tags/tags.tables.js';
 import { RevisionRetentionJob } from '../src/platform/revisions/revision-retention.job.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 type Agent = ReturnType<TestApp['admin']>;
 interface Revision {
@@ -275,19 +273,8 @@ describe('record revisions of notes (e2e)', () => {
   });
 
   it('anonymizes who made a change when their account is deleted', async () => {
-    const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({
-        email,
-        name: 'Ada',
-        password,
-        roleIds: await node.roleIds('editor'),
-      })
-      .expect(201);
-    const ada = await node.signIn(email, password);
+    const { id: adaId, password, agent: ada } = await node.user(['editor']);
+    const created = { body: { id: adaId } };
     const id = await writeNote(ada);
     await patch(ada, id, { title: 'Plan' });
     expect(
@@ -382,10 +369,11 @@ describe('record revisions of notes (e2e)', () => {
 
   it('keeps the first state of a note written before revisions were kept', async () => {
     const editor = await node.user(['editor']);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const [old] = await db
       .insert(notes)
       .values({
+        tenantId: node.tenantId,
         ownerId: `user:${editor.id}`,
         title: 'Old',
         body: 'b',
@@ -414,7 +402,7 @@ describe('record revisions of notes (e2e)', () => {
 
   it('purging a note removes its revisions, comments, tags and watchers', async () => {
     const editor = await node.user(['editor']);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const tag = await node
       .admin()
       .post('/v1/tags')

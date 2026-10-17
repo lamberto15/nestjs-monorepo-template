@@ -348,10 +348,18 @@ describe('the example feature: notes (e2e)', () => {
       const note = (await node.writeNote(client.auth).expect(201)).body;
       await node.worker.drain();
 
+      // The route is public: the event names the note's tenant (docs/tenancy.md).
       const payload = {
         type: 'note.publish-requested',
-        data: { noteId: note.id },
+        data: { noteId: note.id, tenantId: note.tenantId as string },
       };
+      // Another tenant's id finds no such note there: 404, nothing recorded.
+      await node
+        .exampleSender({
+          ...payload,
+          data: { noteId: note.id, tenantId: randomUUID() },
+        })
+        .expect(404);
       await node
         .exampleSender(payload, {
           secret: `whsec_${Buffer.from(randomUUID()).toString('base64')}`,

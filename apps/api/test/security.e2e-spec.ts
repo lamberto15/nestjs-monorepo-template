@@ -6,7 +6,7 @@ import { AccountService } from '../src/iam/account/account.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import { sessions, userIdentities, users } from '../src/iam/iam.tables.js';
 import { accountDeletions } from '../src/platform/account/account.tables.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 /**
  * The rules that keep one account from gaining rights through another:
@@ -43,10 +43,10 @@ describe('security (e2e)', () => {
   it('lets nobody act on an account that holds more than they do', async () => {
     const support = await node.user([await role(['Access', 'manageUsers'])]);
     const admin = await adminId();
-    // Not the administrator's password, nor their activation…
+    // Not the administrator's roles, nor their activation…
     const refused = await support.agent
       .patch(`/v1/access/users/${admin}`)
-      .send({ password: newPassword() })
+      .send({ roleIds: [] })
       .expect(403);
     expect(refused.body.code).toBe('authority_required');
     await support.agent
@@ -192,7 +192,7 @@ describe('security (e2e)', () => {
 
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {
     const { id } = await node.user([]);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db.update(users).set({ passwordHash: null }).where(eq(users.id, id));
     await db.insert(userIdentities).values([
       { provider: 'google', subject: `g-${id}`, userId: id },
@@ -225,7 +225,7 @@ describe('security (e2e)', () => {
     // js/type-confusion-through-parameter-tampering). Linking from a stale
     // session is the flow that reads `redirectTo`, to send the browser back.
     const me = await node.user(['editor']);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const current = (
       (await me.agent.get('/v1/auth/sessions').expect(200)).body.items as {
         id: string;
@@ -272,18 +272,11 @@ describe('security (e2e)', () => {
   describe("the deletion mail's cancel link (no sign-in)", () => {
     /** Someone who asked for their account's deletion, and the token of the mail's link. */
     async function pendingDeletion() {
-      const email = `${randomUUID().slice(0, 8)}@example.com`;
-      const password = newPassword();
-      const created = await node
-        .admin()
-        .post('/v1/access/users')
-        .send({ email, name: email, password, roleIds: [] })
-        .expect(201);
-      const agent = await node.signIn(email, password);
+      const { id, email, password, agent } = await node.user([]);
       await agent.post('/v1/account/deletion').send({ password }).expect(200);
       const mail = await node.waitForMail({ to: email, subject: /deleted/ });
       const token = mail.link('/cancel-deletion').searchParams.get('token')!;
-      return { id: created.body.id as string, email, password, agent, token };
+      return { id, email, password, agent, token };
     }
     const address = () =>
       `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250) + 1}`;
@@ -383,16 +376,14 @@ describe('security (e2e)', () => {
       expect(both.map((res) => res.status).sort((a, b) => a - b)).toEqual([
         204, 400,
       ]);
-      const cancelled = await node
-        .admin()
-        .get('/v1/access/audit?action=account.deletion-cancelled')
-        .expect(200);
-      // The first link, the signed-in cancel, and one of the two at once.
-      expect(
-        cancelled.body.items.filter(
-          (entry: { targetId: string }) => entry.targetId === ada.id,
-        ),
-      ).toHaveLength(3);
+      const cancelled = await node.auditEntries({
+        action: 'account.deletion-cancelled',
+        targetId: ada.id,
+      });
+      // The first link, the signed-in cancel, and one of the two at once:
+      // each the user's own, in no tenant.
+      expect(cancelled).toHaveLength(3);
+      expect(cancelled.every((entry) => entry.tenantId === null)).toBe(true);
     });
 
     it('is limited per address', async () => {

@@ -1,9 +1,19 @@
 {
-  "resetPassword": { "subject": "إعادة تعيين كلمة المرور" },
-  "invitation": { "subject": "دعوة للانضمام إلى {app}" },
-  "verifyEmail": { "subject": "أكّد عنوان بريدك الإلكتروني" },
-  "magicLink": { "subject": "رابط تسجيل الدخول الخاص بك" },
-  "notification": { "subject": "{title}" },
+  "resetPassword": {
+    "subject": "إعادة تعيين كلمة المرور"
+  },
+  "invitation": {
+    "subject": "دعوة للانضمام إلى {app}"
+  },
+  "verifyEmail": {
+    "subject": "أكّد عنوان بريدك الإلكتروني"
+  },
+  "magicLink": {
+    "subject": "رابط تسجيل الدخول الخاص بك"
+  },
+  "notification": {
+    "subject": "{title}"
+  },
   "notificationDigest": {
     "subject": {
       "zero": "لا إشعارات جديدة في {app}",
@@ -14,7 +24,16 @@
       "other": "{count} إشعار جديد في {app}"
     }
   },
-  "accountDeletion": { "subject": "سيُحذف حسابك في {app}" },
-  "reportReady": { "subject": "التقرير جاهز: {report}" },
-  "reportFailed": { "subject": "تعذّر إعداد التقرير: {report}" }
+  "accountDeletion": {
+    "subject": "سيُحذف حسابك في {app}"
+  },
+  "reportReady": {
+    "subject": "التقرير جاهز: {report}"
+  },
+  "reportFailed": {
+    "subject": "تعذّر إعداد التقرير: {report}"
+  },
+  "tenantInvitation": {
+    "subject": "دعاك {inviter} للانضمام إلى {tenant} في {app}"
+  }
 }

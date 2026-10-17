@@ -9,6 +9,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import { z } from 'zod';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import {
@@ -142,7 +143,13 @@ export class BulkService {
     // raw (it travels as JSON: parsed dates would arrive as strings).
     const parsed = this.parse(operation, { ...request, ids });
     assertRequestPrincipal(principal, 'A queued bulk operation');
+    const tenantId = requireTenantId('A bulk operation');
+    if (principal.tenantId !== tenantId) {
+      // A bug, never a caller's choice: the run would act in another tenant.
+      throw new Error("A bulk run acts in its principal's tenant only.");
+    }
     const job: BulkJob = {
+      tenantId,
       principal,
       name: operation.name,
       action: request.action,
@@ -268,10 +275,17 @@ export class BulkService {
     return tally.result(selection.ids);
   }
 
-  /** A run of this principal: its state, progress and result. */
+  /**
+   * A run of this principal in this tenant: its state, progress and result.
+   * Another tenant's run is a 404, even the same person's.
+   */
   async status(principal: Principal, id: string) {
     let job = await this.queue.getJob(id);
-    if (!job || principalKey(job.data.principal) !== principalKey(principal)) {
+    if (
+      !job ||
+      job.data.tenantId !== requireTenantId('A bulk run') ||
+      principalKey(job.data.principal) !== principalKey(principal)
+    ) {
       throw new NotFoundException(`Bulk run ${id} not found.`);
     }
     const state = await job.getState();

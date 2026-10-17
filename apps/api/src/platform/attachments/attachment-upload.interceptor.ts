@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   type CallHandler,
@@ -20,7 +19,7 @@ import {
   ATTACHMENT_SAMPLE_BYTES,
   detectAttachmentType,
 } from './attachment-types.js';
-import { AttachmentsService } from './attachments.service.js';
+import { AttachmentsService, attachmentKey } from './attachments.service.js';
 
 /**
  * The upload of an attachment to a record of `subject` (its id in the
@@ -54,9 +53,14 @@ export function AttachmentUpload(
       const Upload = FileInterceptor('file');
       this.multer = new Upload({
         storage: uploadToDisk({
-          key: (file) => {
+          // Under the uploader's tenant (`tenants/<id>/…`): the request's
+          // principal, authenticated before any interceptor runs.
+          key: (file, req) => {
             assertDeclaredType(file.mimetype, file.contentType!);
-            return `attachments/${randomUUID()}${file.extension}`;
+            return attachmentKey(
+              (req as unknown as { user: Principal }).user,
+              file.extension,
+            );
           },
           contentTypes: config.get('ATTACHMENT_ALLOWED_TYPES', {
             infer: true,

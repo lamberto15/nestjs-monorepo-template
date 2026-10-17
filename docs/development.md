@@ -135,10 +135,11 @@ measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
   stops it rather than raising its limits. List and create go through
   a **dedicated API client**, `load-test`, with a daily quota of 10 million
   (the quota is counted on every request, as for any client). `k6`'s
-  `setup()` makes it, the users and 300 notes through the API, as the
-  administrator the stack seeds. The users' password is generated per stack
-  by `run.sh` (`LOADTEST_USER_PASSWORD`; k6 refuses to seed without it), and
-  `setup()` first checks the target's rate limit is raised (only a
+  `setup()` makes it and 300 notes through the API, as the administrator
+  the stack seeds, whose password `run.sh` generates per stack; the
+  sign-in scenario signs that administrator in (an account signs in only
+  once its address is proved, by mail, which a load test can't do for
+  accounts of its own: docs/tenancy.md). `setup()` first checks the target's rate limit is raised (only a
   load-test stack's is), so k6 pointed at a real deployment seeds nothing.
 - **The bot check (roadmap item 4) is off:** the load test measures the
   app, not a captcha, so `compose.loadtest.yaml` sets `CAPTCHA_MODE=off`

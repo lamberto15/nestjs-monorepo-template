@@ -1,13 +1,16 @@
-import { eq } from 'drizzle-orm';
+import { eq, is } from 'drizzle-orm';
 import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
-import type {
-  PgDatabase,
-  PgQueryResultHKT,
-  PgTransaction,
+import {
+  getTableConfig,
+  type PgDatabase,
+  type PgQueryResultHKT,
+  PgTable,
+  type PgTransaction,
 } from 'drizzle-orm/pg-core';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import * as schema from '../../schema.js';
 import { migrateAll } from './migrate-all.js';
+import { registerTenantTables, TenantPool } from '../tenancy/tenant-pool.js';
 
 /** A Drizzle PostgreSQL database (node-postgres). */
 export type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -39,6 +42,11 @@ export type PoolSettings = {
 export async function createDatabase(options: {
   url: string;
   ownerUrl?: string;
+  /**
+   * DATABASE_MAINTENANCE_URL (workers only): the BYPASSRLS role whose small
+   * pool serves `Tenancy.bypass()` and the metrics across tenants.
+   */
+  maintenanceUrl?: string;
   migrate?: boolean;
   pool?: PoolSettings;
 }): Promise<Database> {
@@ -49,10 +57,21 @@ export async function createDatabase(options: {
         'MIGRATE_ON_START is on, so DATABASE_OWNER_URL is required: the migrations run as the owner of the tables, not as the app (docs/deployment.md, "Database roles"). Or set MIGRATE_ON_START=off and run `node dist/migrate`.',
       );
     }
-    await migrateAll({ ownerUrl: options.ownerUrl, appUrl: options.url });
+    await migrateAll({
+      ownerUrl: options.ownerUrl,
+      appUrl: options.url,
+      maintenanceUrl: options.maintenanceUrl,
+    });
   }
-  const db = drizzleNodePg({
-    connection: {
+  registerTenantTables(...tenantTableNames());
+  const settings = {
+    // Fail fast when the pool is exhausted (503 database_busy), never hang.
+    connectionTimeoutMillis: pool?.timeoutMs,
+    statement_timeout: pool?.statementTimeoutMs || undefined,
+    idle_in_transaction_session_timeout: pool?.idleTxTimeoutMs || undefined,
+  };
+  const client = new TenantPool(
+    {
       connectionString: options.url,
       // Fail fast when the pool is exhausted (503 database_busy), never hang.
       max: pool?.max,
@@ -64,8 +83,18 @@ export async function createDatabase(options: {
       // Which process holds a connection, in pg_stat_activity.
       application_name: pool?.applicationName,
     },
-    schema,
-  });
+    // A few connections: retention sweeps and metrics, one at a time each.
+    options.maintenanceUrl
+      ? {
+          ...settings,
+          connectionString: options.maintenanceUrl,
+          max: 3,
+          application_name: `${pool?.applicationName ?? 'app'}:maintenance`,
+        }
+      : undefined,
+  );
+  // Every transaction carries the tenant of its context (core/tenancy/tenant-pool.ts).
+  const db = drizzleNodePg({ client, schema });
   return db;
 }
 
@@ -91,4 +120,26 @@ export async function loadOrCreateSecret(
     .from(schema.appSecrets)
     .where(eq(schema.appSecrets.name, envName));
   return row.value;
+}
+
+/**
+ * The tenant tables of the schema (a `tenant_id` column and row-level
+ * security): the strict ones (NOT NULL, reachable only in a tenant's
+ * scope) and the optional ones (rows of no tenant too).
+ */
+export function tenantTableNames(): [strict: string[], optional: string[]] {
+  const strict: string[] = [];
+  const optional: string[] = [];
+  for (const value of Object.values(schema)) {
+    if (!is(value, PgTable)) {
+      continue;
+    }
+    const config = getTableConfig(value);
+    const column = config.columns.find((c) => c.name === 'tenant_id');
+    if (!column || !config.enableRLS) {
+      continue;
+    }
+    (column.notNull ? strict : optional).push(config.name);
+  }
+  return [strict, optional];
 }

@@ -8,6 +8,11 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
 
 /**
  * Tags (labels) administrators define per subject (`Note`): a name unique
@@ -17,6 +22,7 @@ export const tags = pgTable(
   'tags',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The records' permission subject: `Note`. */
     subject: text('subject').notNull(),
     name: text('name').notNull(),
@@ -27,11 +33,13 @@ export const tags = pgTable(
   },
   (table) => [
     uniqueIndex('tags_subject_name_idx').on(
+      table.tenantId,
       table.subject,
       sql`lower(${table.name})`,
     ),
+    ...tenantTable('tags', table, { referenced: true }),
   ],
-);
+).enableRLS();
 
 /**
  * Which record carries which tag: a link row, added and removed, never
@@ -40,9 +48,8 @@ export const tags = pgTable(
 export const recordTags = pgTable(
   'record_tags',
   {
-    tagId: uuid('tag_id')
-      .notNull()
-      .references(() => tags.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    tagId: uuid('tag_id').notNull(),
     /** The record's permission subject: `Note` (the tag's own). */
     subject: text('subject').notNull(),
     recordId: uuid('record_id').notNull(),
@@ -51,5 +58,11 @@ export const recordTags = pgTable(
   (table) => [
     primaryKey({ columns: [table.tagId, table.recordId] }),
     index('record_tags_record_idx').on(table.subject, table.recordId),
+    ...tenantTable('record_tags', table),
+    tenantReference(
+      'record_tags_tag_fk',
+      [table.tenantId, table.tagId],
+      [tags.tenantId, tags.id],
+    ),
   ],
-);
+).enableRLS();

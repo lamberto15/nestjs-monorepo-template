@@ -10,6 +10,7 @@ const sam: UserPrincipal = {
   id: 'sam',
   email: 'sam@example.com',
   name: 'Sam',
+  tenantId: null,
   emailVerified: true,
   locale: null,
   timezone: null,

@@ -35,6 +35,12 @@ export const userSchema = z.object({
   emailVerified: z.boolean(),
   locale: z.string().nullable(),
   timezone: z.string().nullable(),
+  tenantId: z
+    .string()
+    .nullable()
+    .describe(
+      'The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet).',
+    ),
   impersonator: z
     .object({ id: z.string(), email: z.string() })
     .optional()
@@ -54,6 +60,21 @@ export const signedInSchema = z.object({
 export const acceptedSchema = z.object({ accepted: z.literal(true) });
 
 /** Credentials can't be changed by an administrator acting as the user. */
+/**
+ * Refuses a way in (a second factor, a linked provider) for an account
+ * whose owner never proved the address (403 `email_unverified`): whoever
+ * holds such an account's session may not be its owner, and must not
+ * bind their own authenticator or provider to it (docs/tenancy.md).
+ */
+export function verifiedEmailOnly(user: UserPrincipal) {
+  if (!user.emailVerified) {
+    throw new ForbiddenException({
+      code: 'email_unverified',
+      message: t('auth.emailUnverified'),
+    });
+  }
+}
+
 export function notWhileImpersonating(user: Principal) {
   if (user.kind === 'user' && user.impersonator) {
     throw new ForbiddenException(t('auth.notWhileImpersonating'));

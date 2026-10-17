@@ -41,7 +41,9 @@ export function formatNumber(
  * write's transaction. The counter's row is locked until the commit, so
  * two writes never get the same number and a rollback leaves no gap; a
  * busy series serializes its writes on that row (that is the price of
- * no gaps: a UUID has none to pay).
+ * no gaps: a UUID has none to pay). Every series is a tenant's
+ * (docs/tenancy.md): tenant A's `NOTE-2026-00001` and tenant B's are two
+ * numbers, and neither tenant learns how many the other took.
  *
  * ```ts
  * const { formatted } = await this.sequences.next(tx, 'note', { prefix: 'NOTE', perYear: true, width: 5 });
@@ -69,7 +71,9 @@ export class SequencesService {
       .insert(sequences)
       .values({ name, scope, value: 1 })
       .onConflictDoUpdate({
-        target: [sequences.name, sequences.scope],
+        // Per tenant: each numbers its own series (the row's tenant_id is
+        // the context's, and the policies keep the others' rows apart).
+        target: [sequences.tenantId, sequences.name, sequences.scope],
         set: { value: sql`${sequences.value} + 1` },
       })
       .returning({ value: sequences.value });

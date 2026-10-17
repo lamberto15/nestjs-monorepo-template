@@ -27,6 +27,12 @@ const issueSchema = z.object({
     .optional()
     .describe('With two-factor on: a code from the app.'),
   recoveryCode: z.string().max(64).optional(),
+  tenantId: z
+    .uuid()
+    .optional()
+    .describe(
+      'The tenant the tokens act in (one of GET /auth/tenants); left out: the last one chosen. To act in another, sign in again with it.',
+    ),
 });
 const refreshSchema = z.object({ refreshToken: z.string().min(1).max(512) });
 const tokensSchema = z.object({
@@ -80,6 +86,7 @@ export class TokensController {
         body.password,
         { code: body.code, recoveryCode: body.recoveryCode },
         { ip, userAgent },
+        body.tenantId,
       );
     } catch (error) {
       // The right password, no code sent: the browser's sign-in answers

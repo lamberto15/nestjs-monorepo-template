@@ -1,13 +1,18 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { OidcService } from '@nestjs/authentication';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import type { Redis } from 'ioredis';
 import type request from 'supertest';
 import type { Database } from '../src/core/database/drizzle.js';
 import { REDIS } from '../src/core/redis/redis.js';
+import { ClsService } from 'nestjs-cls';
 import { OidcAccounts } from '../src/iam/account/account.handlers.js';
+import {
+  SignInContext,
+  signInMetadata,
+} from '../src/iam/auth/sign-in-context.js';
 import { userIdentities } from '../src/iam/iam.tables.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 // A configured GitHub (read once, when AppModule loads): an OAuth 2.0
 // provider with fixed endpoints, so the login builds its URL without
@@ -35,19 +40,13 @@ describe('step-up through a provider: prompt=login and auth_time (e2e)', () => {
 
   /** A user with GitHub connected, signed in with their password. */
   async function person() {
-    const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email, name: email, password, roleIds: [] })
-      .expect(201);
-    const id = created.body.id as string;
+    // Invited and accepted: a proved address, in the seeded tenant.
+    const { id, email, agent } = await node.user([]);
     await node.app
       .get<Database>(getDrizzleToken())
       .insert(userIdentities)
       .values({ provider: 'github', subject: `gh-${id}`, userId: id });
-    return { id, email, agent: await node.signIn(email, password) };
+    return { id, email, agent };
   }
 
   /** Starts a step-up; the provider's URL it answers. */
@@ -80,13 +79,12 @@ describe('step-up through a provider: prompt=login and auth_time (e2e)', () => {
       });
   }
 
+  /** The user's audit entries of this kind (account-level: no tenant's log shows them). */
   const audit = async (action: string, userId: string) =>
-    (
-      await node
-        .admin()
-        .get(`/v1/access/audit?action=${action}&actor=user:${userId}`)
-        .expect(200)
-    ).body.items as { details: Record<string, unknown> }[];
+    (await node.auditEntries({ action, actor: `user:${userId}` })) as {
+      tenantId: string | null;
+      details: Record<string, unknown>;
+    }[];
 
   it('asks the provider for a fresh login, and remembers whose step-up it is', async () => {
     const me = await person();
@@ -223,5 +221,43 @@ describe('step-up through a provider: prompt=login and auth_time (e2e)', () => {
       .get(`/v1/auth/oidc/github/callback?state=${state}&code=c`)
       .expect(302);
     expect(done.headers.location).toBe('https://web.example.com/settings');
+  });
+
+  it('keeps the tenant of the session it re-authenticates, while the person is a member of it', async () => {
+    const me = await person();
+    const seeded = (await me.agent.get('/v1/auth/me').expect(200)).body.user
+      .tenantId as string;
+    const elsewhere = (await node.otherTenant()).id;
+    const context = node.app.get(SignInContext);
+    const cls = node.app.get(ClsService);
+    const resolver = node.app.get(OidcAccounts);
+    const stepUp = (tenantId: string) =>
+      context.run(
+        'oidc:github',
+        async () => {
+          await resolver.resolveUser(
+            {
+              provider: 'github',
+              subject: `gh-${me.id}`,
+              emailVerified: true,
+              claims: {},
+            },
+            { accessToken: 'at' },
+            {},
+          );
+          return signInMetadata(cls);
+        },
+        {
+          reauthenticating: {
+            userId: me.id,
+            startedAt: Date.now(),
+            tenantId,
+          },
+        },
+      );
+    expect((await stepUp(seeded)).tenantId).toBe(seeded);
+    // Not (or no longer) a member there: the session store picks the last
+    // chosen tenant, as for any sign-in.
+    expect(await stepUp(elsewhere)).not.toHaveProperty('tenantId');
   });
 });

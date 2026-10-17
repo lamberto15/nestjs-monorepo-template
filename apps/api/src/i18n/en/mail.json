@@ -1,16 +1,35 @@
 {
-  "resetPassword": { "subject": "Reset your password" },
-  "invitation": { "subject": "You're invited to {app}" },
-  "verifyEmail": { "subject": "Confirm your email address" },
-  "magicLink": { "subject": "Your sign-in link" },
-  "notification": { "subject": "{title}" },
+  "resetPassword": {
+    "subject": "Reset your password"
+  },
+  "invitation": {
+    "subject": "You're invited to {app}"
+  },
+  "verifyEmail": {
+    "subject": "Confirm your email address"
+  },
+  "magicLink": {
+    "subject": "Your sign-in link"
+  },
+  "notification": {
+    "subject": "{title}"
+  },
   "notificationDigest": {
     "subject": {
       "one": "{count} new notification in {app}",
       "other": "{count} new notifications in {app}"
     }
   },
-  "accountDeletion": { "subject": "Your {app} account will be deleted" },
-  "reportReady": { "subject": "Report ready: {report}" },
-  "reportFailed": { "subject": "Report failed: {report}" }
+  "accountDeletion": {
+    "subject": "Your {app} account will be deleted"
+  },
+  "reportReady": {
+    "subject": "Report ready: {report}"
+  },
+  "reportFailed": {
+    "subject": "Report failed: {report}"
+  },
+  "tenantInvitation": {
+    "subject": "{inviter} invited you to {tenant} on {app}"
+  }
 }

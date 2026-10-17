@@ -15,7 +15,19 @@ export interface Impersonation {
   authentication?: AuthenticationMetadata;
   startedAt: string;
   endsAt: string;
+  /** The tenant it was started in: it never acts in another (docs/tenancy.md). */
+  tenantId: string;
 }
+
+/**
+ * The tenant a session acts in (`metadata.tenantId`): set when it was
+ * created (the user's last chosen tenant), changed only by re-issuing the
+ * session (`POST /v1/auth/tenant`); undefined or null: none.
+ */
+export const sessionTenant = (session: SessionRecord | undefined) => {
+  const tenantId = session?.metadata?.tenantId;
+  return typeof tenantId === 'string' ? tenantId : null;
+};
 
 /** The impersonation a session carries, if it is one. */
 export const impersonationOf = (session: SessionRecord | undefined) =>

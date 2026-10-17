@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 import type { Principal, RequestPrincipal } from '../../iam/auth/principal.js';
 
 /** The file formats exports write and imports read. */
@@ -49,6 +50,13 @@ export interface DataExporter<
    * records (their notifications): `subject` then only names them.
    */
   allowed?(principal: Principal): Promise<boolean> | boolean;
+  /**
+   * `account`: a person's own export across their tenants (the account
+   * export): queued with no tenant (`tenantId: null`), its file under
+   * `accounts/<user id>/`, visible to that user in any tenant or none
+   * (docs/tenancy.md). Users only. Unset: the caller's tenant's.
+   */
+  readonly scope?: 'account';
   readonly columns: readonly TransferColumn[];
   /**
    * The columns of one export, when they change at runtime (custom fields):
@@ -132,30 +140,37 @@ export interface DataImporter<Row = Record<string, unknown>> {
   write(principal: Principal, row: Row): Promise<void>;
 }
 
-/** What a transfer job carries. */
-export type TransferJob =
-  | {
-      kind: 'export';
-      name: string;
-      format: TransferFormat;
-      /** The filters as the caller sent them; the worker parses them with `exporter.filters`. */
-      filters: Record<string, unknown>;
-      /** The file's time zone, when the caller chose one; else theirs, else APP_TIMEZONE. */
-      timezone?: string;
-      /** Who asked for it in code (`report:<id>`): handed back to `onFinished` listeners. */
-      tag?: string;
-      /** Never the system principal: a queued job's principal is data (docs/permissions.md). */
-      principal: RequestPrincipal;
-    }
-  | {
-      kind: 'import';
-      name: string;
-      format: TransferFormat;
-      /** The uploaded file, on the private disk; deleted once read. */
-      key: string;
-      dryRun: boolean;
-      principal: RequestPrincipal;
-    };
+/**
+ * What a transfer job carries: the tenant it was started in, by type
+ * (TenantEnvelope, docs/tenancy.md; the worker restores it before any
+ * query), and the work. `null` only for an account export
+ * (`DataExporter.scope: 'account'`): a person's, in no tenant.
+ */
+export type TransferJob = TenantEnvelope &
+  (
+    | {
+        kind: 'export';
+        name: string;
+        format: TransferFormat;
+        /** The filters as the caller sent them; the worker parses them with `exporter.filters`. */
+        filters: Record<string, unknown>;
+        /** The file's time zone, when the caller chose one; else theirs, else APP_TIMEZONE. */
+        timezone?: string;
+        /** Who asked for it in code (`report:<id>`): handed back to `onFinished` listeners. */
+        tag?: string;
+        /** Never the system principal: a queued job's principal is data (docs/permissions.md). */
+        principal: RequestPrincipal;
+      }
+    | {
+        kind: 'import';
+        name: string;
+        format: TransferFormat;
+        /** The uploaded file, on the private disk; deleted once read. */
+        key: string;
+        dryRun: boolean;
+        principal: RequestPrincipal;
+      }
+  );
 
 /** One row an import refused. */
 export interface ImportRowError {

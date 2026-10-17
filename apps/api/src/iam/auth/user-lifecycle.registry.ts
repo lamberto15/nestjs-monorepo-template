@@ -12,8 +12,16 @@ import type { Principal } from './principal.js';
 export interface UserLifecycleListener {
   /** For the uniqueness check and the logs: `approvals`. */
   readonly name: string;
-  /** `by`: who deactivated the account (the actor of what follows from it). */
-  deactivated(tx: Transaction, userId: string, by: Principal): Promise<void>;
+  /**
+   * In the deactivation's transaction, in the tenant's scope. `by`: who
+   * deactivated the membership (the actor of what follows from it).
+   */
+  deactivated?(tx: Transaction, userId: string, by: Principal): Promise<void>;
+  /**
+   * After the deactivation committed (never for one that rolled back):
+   * what can't be undone, as ending live connections.
+   */
+  afterDeactivation?(userId: string, tenantId: string): void | Promise<void>;
 }
 
 @Injectable()

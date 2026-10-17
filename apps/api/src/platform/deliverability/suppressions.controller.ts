@@ -39,17 +39,21 @@ import {
   mailSuppressionSchema,
 } from './suppression.schemas.js';
 import { SuppressionsService } from './suppressions.service.js';
+import { OperatorOnly } from '../../iam/auth/operator-only.js';
 
 /**
  * The suppression list: the addresses mail is not sent to, why, and since
  * when (docs/deliverability.md). Reading takes MailSuppression.view,
- * adding and removing MailSuppression.manage; users only.
+ * adding and removing MailSuppression.manage; users only. The list is the
+ * deployment's, every tenant's addresses together: only the operators may
+ * use it (the operator tenant, `@OperatorOnly()`, docs/tenancy.md).
  */
 @ApiTags('mail')
 @ApiBearerAuth('user-token')
 @ApiCookieAuth('user-session')
 @ApiUnauthorizedResponse({ description: 'No valid session or token.' })
 @ApiForbiddenResponse({ description: 'Not allowed by your permissions.' })
+@OperatorOnly()
 @Controller('mail/suppressions')
 export class SuppressionsController {
   constructor(private readonly suppressions: SuppressionsService) {}

@@ -1,16 +1,35 @@
 {
-  "resetPassword": { "subject": "Passwort zurücksetzen" },
-  "invitation": { "subject": "Einladung zu {app}" },
-  "verifyEmail": { "subject": "Bestätigen Sie Ihre E-Mail-Adresse" },
-  "magicLink": { "subject": "Ihr Anmeldelink" },
-  "notification": { "subject": "{title}" },
+  "resetPassword": {
+    "subject": "Passwort zurücksetzen"
+  },
+  "invitation": {
+    "subject": "Einladung zu {app}"
+  },
+  "verifyEmail": {
+    "subject": "Bestätigen Sie Ihre E-Mail-Adresse"
+  },
+  "magicLink": {
+    "subject": "Ihr Anmeldelink"
+  },
+  "notification": {
+    "subject": "{title}"
+  },
   "notificationDigest": {
     "subject": {
       "one": "{count} neue Benachrichtigung in {app}",
       "other": "{count} neue Benachrichtigungen in {app}"
     }
   },
-  "accountDeletion": { "subject": "Ihr {app}-Konto wird gelöscht" },
-  "reportReady": { "subject": "Bericht fertig: {report}" },
-  "reportFailed": { "subject": "Bericht fehlgeschlagen: {report}" }
+  "accountDeletion": {
+    "subject": "Ihr {app}-Konto wird gelöscht"
+  },
+  "reportReady": {
+    "subject": "Bericht fertig: {report}"
+  },
+  "reportFailed": {
+    "subject": "Bericht fehlgeschlagen: {report}"
+  },
+  "tenantInvitation": {
+    "subject": "{inviter} hat Sie zu {tenant} in {app} eingeladen"
+  }
 }

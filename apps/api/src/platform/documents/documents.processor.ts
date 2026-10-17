@@ -1,11 +1,12 @@
 import { Logger } from '@nestjs/common';
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { type Job, UnrecoverableError } from 'bullmq';
 import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
+import { inTenantOf, TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { STALLED_REASON } from '../data-transfer/data-transfer.processor.js';
 import { stillActive } from '../queues/still-active.js';
@@ -19,12 +20,14 @@ import {
 
 /**
  * Renders the documents asked for, on the workers (APP_ROLE worker or all),
- * as the principal who asked, checked again first: a user deactivated in
- * the meantime gets nothing issued. Two at once per worker: each is a
+ * in the tenant it was asked for in (TenantWorkerHost restores it from the
+ * job), as the principal who asked, checked again first: a user
+ * deactivated in the meantime, or no longer a member of the tenant, gets
+ * nothing issued. Two at once per worker: each is a
  * Chromium page in Gotenberg, whose own limits are the real bound.
  */
 @Processor(DOCUMENTS, { concurrency: 2 })
-export class DocumentsProcessor extends WorkerHost {
+export class DocumentsProcessor extends TenantWorkerHost<DocumentJob> {
   private readonly logger = new Logger('Documents');
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -40,7 +43,7 @@ export class DocumentsProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<DocumentJob>) {
+  async handle(job: Job<DocumentJob>) {
     const principal = await stillActive(
       job.data.principal,
       this.users,
@@ -78,13 +81,14 @@ export class DocumentsProcessor extends WorkerHost {
         id: job.data.id,
       });
     }
-    await this.documents
-      .fail(job.data, DOCUMENT_ERRORS.unavailable)
-      .catch((failure: unknown) =>
-        this.logger.error('A failed document could not be marked failed', {
-          id: job.data.id,
-          error: String(failure),
-        }),
-      );
+    // Outside process(): the document is the job's tenant's.
+    await inTenantOf(job.data, () =>
+      this.documents.fail(job.data, DOCUMENT_ERRORS.unavailable),
+    ).catch((failure: unknown) =>
+      this.logger.error('A failed document could not be marked failed', {
+        id: job.data.id,
+        error: String(failure),
+      }),
+    );
   }
 }

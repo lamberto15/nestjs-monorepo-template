@@ -57,6 +57,11 @@ export class AccessPolicy {
     return manager(user) && this.access.can(user, 'manageTags', 'Access');
   }
 
+  /** The deployment's tenants (TenantsController, also @OperatorOnly()). */
+  async manageTenants(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageTenants', 'Access');
+  }
+
   async readAudit(user: Principal | null) {
     return userOnly(user) && this.access.can(user, 'readAudit', 'Access');
   }

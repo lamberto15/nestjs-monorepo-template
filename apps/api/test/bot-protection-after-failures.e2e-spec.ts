@@ -14,6 +14,8 @@ const siteverify = await vi.hoisted(async () => {
   Object.assign(process.env, {
     CAPTCHA_MODE: 'after-failures',
     CAPTCHA_FAILURES: '2',
+    // Self sign-up, for an account whose address is unproved.
+    AUTH_SIGN_UP: 'on',
   });
   return stand;
 });
@@ -240,14 +242,8 @@ describe('bot protection, after failures (e2e)', () => {
   });
   /** An account with two-factor on: its address, password and recovery codes. */
   async function withMfa() {
-    const target = email();
-    const password = newPassword();
-    await node
-      .admin()
-      .post('/v1/access/users')
-      .send({ email: target, name: target, password, roleIds: [] })
-      .expect(201);
-    const agent = await node.signIn(target, password);
+    // Invited and accepted (a proved address), signed in from loopback.
+    const { email: target, password, agent } = await node.user([]);
     const { secret } = (await agent.post('/v1/auth/mfa/enroll').expect(200))
       .body as { secret: string };
     const { recoveryCodes } = (
@@ -397,5 +393,50 @@ describe('bot protection, after failures (e2e)', () => {
     const asked = await verify().expect(403);
     expect(asked.body.code).toBe('captcha_required');
     expect(await failures(address)).toBe(3);
+  });
+  it("counts an unproved address's right password (403 email_unverified) as a failure, on both sign-ins: the challenge comes as for a wrong one", async () => {
+    const target = email();
+    const password = newPassword();
+    await node
+      .http()
+      .post('/v1/auth/sign-up')
+      .set('X-Forwarded-For', ip())
+      .send({ email: target, name: 'Unproved', password })
+      .expect(201);
+    for (const route of ['/v1/auth/sign-in', '/v1/auth/token']) {
+      const address = ip();
+      const attempt = () =>
+        node
+          .http()
+          .post(route)
+          .set('X-Forwarded-For', address)
+          .send({ email: target, password });
+      const first = await attempt().expect(403);
+      expect(first.body.code).toBe('email_unverified');
+      await attempt().expect(403);
+      // Counted like a wrong password: the third wants a token, before the
+      // password is looked at, the same problem as for any account.
+      const asked = await attempt().expect(403);
+      expect(asked.body.code).toBe('captcha_required');
+      expect(await failures(`${target}|${address}`)).toBe(3);
+      // Someone with no account, on the same route: the same problem.
+      const nobody = email();
+      const other = ip();
+      const wrong = () =>
+        node
+          .http()
+          .post(route)
+          .set('X-Forwarded-For', other)
+          .send({ email: nobody, password: newPassword() });
+      await wrong().expect(401);
+      await wrong().expect(401);
+      const { requestId: _a, ...forNobody } = (await wrong().expect(403))
+        .body as Record<string, unknown>;
+      const { requestId: _b, ...forUnproved } = asked.body as Record<
+        string,
+        unknown
+      >;
+      expect(forUnproved).toEqual(forNobody);
+    }
   });
 });

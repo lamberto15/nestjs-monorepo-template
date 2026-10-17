@@ -8,6 +8,8 @@ export interface ProviderReauthentication {
   /** Epoch milliseconds: the ID token's `auth_time` must not be older (less the tolerance). */
   startedAt: number;
   redirectTo?: string;
+  /** The tenant the re-authenticated session acted in: the new one keeps it (while still a member). */
+  tenantId?: string | null;
 }
 
 /** As long as the package keeps the login's transaction (`oidc.transactionTtl`, 10 minutes). */

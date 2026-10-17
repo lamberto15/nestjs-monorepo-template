@@ -9,13 +9,14 @@ import { ConfigService } from '@nestjs/config';
 import { t } from '@nestjs/i18n';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
-import type { Transaction } from '../../core/database/drizzle.js';
 import {
   database,
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
+import type { Transaction } from '../../core/database/drizzle.js';
 import { MailQueue } from '../../core/mail/mail-queue.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { CredentialsService } from '../../iam/account/credentials.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
@@ -29,7 +30,8 @@ import { accountDeletions, consents } from './account.tables.js';
  * What a person may do with their own account beyond signing in: ask for
  * its deletion (carried out after a grace period, cancellable until then),
  * record what they agreed to, and (through the data transfers) take a
- * copy of their data. Each change is one transaction with its audit entry.
+ * copy of their data. Each change is one transaction with its audit entry,
+ * outside any tenant: the account is the person's (docs/tenancy.md).
  */
 @Injectable()
 export class AccountLifecycleService {
@@ -45,6 +47,7 @@ export class AccountLifecycleService {
     private readonly audit: AuditService,
     private readonly mailQueue: MailQueue,
     private readonly config: ConfigService<CoreEnv & PlatformEnv, true>,
+    private readonly tenancy: Tenancy,
     private readonly cancelLinks: DeletionCancelLinks,
   ) {}
 
@@ -120,13 +123,15 @@ export class AccountLifecycleService {
       // 403, not the sign-in's 401 (a web app would read that as signed out),
       // audited as what it was: a deletion refused, by this user.
       if (!(await this.credentials.matches(user.email, password))) {
-        await this.audit.record(user, {
-          action: 'account.deletion-refused',
-          targetType: 'user',
-          targetId: user.id,
-          details: { reason: 'password' },
-          ip,
-        });
+        await this.tenancy.none(() =>
+          this.audit.record(user, {
+            action: 'account.deletion-refused',
+            targetType: 'user',
+            targetId: user.id,
+            details: { reason: 'password' },
+            ip,
+          }),
+        );
         throw new ForbiddenException(t('auth.wrongPassword'));
       }
     }
@@ -134,7 +139,7 @@ export class AccountLifecycleService {
       infer: true,
     });
     const scheduledFor = new Date(Date.now() + days * 86_400_000);
-    const row = await inTransaction(this.txHost, async (tx) => {
+    const row = await this.accountLevel(async (tx) => {
       const [created] = await tx
         .insert(accountDeletions)
         .values({ userId: user.id, scheduledFor })
@@ -171,10 +176,10 @@ export class AccountLifecycleService {
     if (!pending) {
       throw new NotFoundException('No deletion is pending for this account.');
     }
-    await inTransaction(this.txHost, async (tx) => {
+    await this.accountLevel(async (tx) => {
       const [cancelled] = await this.cancelPending(tx, pending.id, user.id);
       if (!cancelled) {
-        // Carried out or cancelled between the read and now.
+        // Carried out, started, or cancelled between the read and now.
         throw new NotFoundException('No deletion is pending for this account.');
       }
       await this.audit.record(
@@ -207,7 +212,9 @@ export class AccountLifecycleService {
     if (!claims) {
       throw invalid();
     }
-    await inTransaction(this.txHost, async (tx) => {
+    // Account-level, as the route has no tenant: the entry is in no
+    // tenant's log (docs/tenancy.md).
+    await this.accountLevel(async (tx) => {
       const [cancelled] = await this.cancelPending(
         tx,
         claims.deletionId,
@@ -231,8 +238,13 @@ export class AccountLifecycleService {
     });
   }
 
-  /** Marks the request cancelled if it is still pending (one atomic UPDATE); the row, or none. */
-  private cancelPending(tx: Transaction, id: string, userId: string) {
+  /**
+   * Marks the request cancelled if it is still pending and the job hasn't
+   * started on it, under the account's lock (the lock the job claims it
+   * under, and the anonymization takes): the row, or none.
+   */
+  private async cancelPending(tx: Transaction, id: string, userId: string) {
+    await this.users.lockAccount(tx, userId);
     return tx
       .update(accountDeletions)
       .set({ cancelledAt: new Date() })
@@ -241,6 +253,7 @@ export class AccountLifecycleService {
           eq(accountDeletions.id, id),
           eq(accountDeletions.userId, userId),
           isNull(accountDeletions.cancelledAt),
+          isNull(accountDeletions.startedAt),
           isNull(accountDeletions.completedAt),
         ),
       )
@@ -254,7 +267,7 @@ export class AccountLifecycleService {
     version: string,
     ip?: string,
   ) {
-    const row = await inTransaction(this.txHost, async (tx) => {
+    const row = await this.accountLevel(async (tx) => {
       const [saved] = await tx
         .insert(consents)
         .values({ userId: user.id, kind, version, acceptedAt: new Date(), ip })
@@ -281,6 +294,15 @@ export class AccountLifecycleService {
       version: row.version,
       acceptedAt: row.acceptedAt.toISOString(),
     };
+  }
+
+  /**
+   * A transaction outside any tenant: the account is the person's, not a
+   * tenant's (docs/tenancy.md), so its audit entries are account-level
+   * (no tenant), whichever tenant the session is in.
+   */
+  private accountLevel<T>(work: (tx: Transaction) => Promise<T>) {
+    return this.tenancy.none(() => inTransaction(this.txHost, work));
   }
 
   private deletionView(row: typeof accountDeletions.$inferSelect) {

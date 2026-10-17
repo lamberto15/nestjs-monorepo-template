@@ -34,6 +34,7 @@ import {
   userOrgUnits,
   userRoles,
 } from '../iam.tables.js';
+import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import {
   type AccessContext,
@@ -281,7 +282,9 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
         ability: this.build(principal, [], { orgUnitIds: [] }),
       };
     }
-    const key = principalKey(principal);
+    // Per tenant: the same person holds other roles in another tenant, and
+    // the system principal's conditions read the job's tenant's rows.
+    const key = `${currentTenantId() ?? '-'}:${principalKey(principal)}`;
     const cached = this.cache.get(key);
     if (
       cached &&
@@ -328,6 +331,10 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
         permissions: this.catalog.systemJob(principal.id)?.permissions ?? [],
       };
     }
+    if (!currentTenantId()) {
+      // Roles are per tenant: without one (a user who has none), none.
+      return { permissions: [] };
+    }
     const now = new Date();
     const grants = principal.kind === 'user' ? userRoles : apiClientRoles;
     const holder =
@@ -370,7 +377,7 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
 
   /** The principal's org units and every unit below them (users only). */
   private async loadContext(principal: Principal): Promise<AccessContext> {
-    if (principal.kind !== 'user') {
+    if (principal.kind !== 'user' || !currentTenantId()) {
       return { orgUnitIds: [] };
     }
     const rows = await this.db

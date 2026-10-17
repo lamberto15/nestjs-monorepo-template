@@ -71,7 +71,7 @@ export async function migrateAll(
   log('Store migrations applied.');
   await ensureAppRole(urls, log);
   if (urls.monitor) {
-    await ensureMonitorRole(urls.ownerUrl, urls.monitor, log);
+    await ensureMonitorRole(urls, urls.monitor, log);
   }
 }
 

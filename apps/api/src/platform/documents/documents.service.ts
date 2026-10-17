@@ -20,6 +20,8 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
+import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import {
   assertRequestPrincipal,
@@ -38,6 +40,7 @@ import {
 } from '../attachments/attachments.service.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { Realtime } from '../realtime/realtime.service.js';
+import { tenantFileKey } from '../storage/storage.config.js';
 import { DocumentTemplates } from './document-templates.js';
 import type { DocumentView } from './document.schemas.js';
 import { DocumentsRegistry } from './documents.registry.js';
@@ -51,8 +54,13 @@ import { PdfRejectedError, PdfRenderer } from './pdf-renderer.js';
 /** The queue of documents to render. */
 export const DOCUMENTS = 'documents';
 
-/** What a queued render carries: the document, and who asked (checked again when it runs). */
-export interface DocumentJob {
+/**
+ * What a queued render carries: the document, who asked (checked again
+ * when it runs), and the tenant both are in (TenantEnvelope,
+ * docs/tenancy.md: the worker renders in it, and nowhere else).
+ */
+export interface DocumentJob extends TenantEnvelope {
+  readonly tenantId: string;
   id: string;
   principal: RequestPrincipal;
 }
@@ -139,6 +147,11 @@ export class DocumentsService implements PersonalDataSource {
       );
     }
     assertRequestPrincipal(principal, 'A queued document');
+    const tenantId = requireTenantId('A document');
+    if (principal.tenantId !== tenantId) {
+      // A bug, never a caller's choice: the render would run in another tenant.
+      throw new Error("A document is rendered in its requester's tenant only.");
+    }
     const timezone =
       request.timezone ??
       (principal.kind === 'user' ? principal.timezone : null) ??
@@ -198,7 +211,7 @@ export class DocumentsService implements PersonalDataSource {
     try {
       await this.queue.add(
         source.name,
-        { id: row.id, principal },
+        { id: row.id, principal, tenantId },
         {
           // The document's id: a job is queued once per document.
           jobId: row.id,
@@ -209,7 +222,10 @@ export class DocumentsService implements PersonalDataSource {
         },
       );
     } catch (error) {
-      await this.fail({ id: row.id, principal }, DOCUMENT_ERRORS.unavailable);
+      await this.fail(
+        { id: row.id, principal, tenantId },
+        DOCUMENT_ERRORS.unavailable,
+      );
       throw error;
     }
     return { id: row.id, status: 'queued' as const };
@@ -243,7 +259,7 @@ export class DocumentsService implements PersonalDataSource {
    *
    * Each run claims the document with a token of its own (queued or
    * rendering → rendering, its token), writes its PDF under its own key
-   * (`documents/<id>/<token>.pdf`), and completes the document only while
+   * (`tenants/<tenant>/documents/<id>/<token>.pdf`), and completes the document only while
    * it still holds the claim. A run started twice (a stalled job picked up
    * again while the first still runs) thus issues one PDF: the later claim
    * wins, the other run finds its claim gone, deletes its own file and
@@ -274,7 +290,7 @@ export class DocumentsService implements PersonalDataSource {
         `Document ${job.id} is ${now ? now.status : 'gone'}: not rendered.`,
       );
     }
-    const key = documentKey(row.id, token);
+    const key = documentKey(row.tenantId, row.id, token);
     let written = false;
     try {
       if (!principal) {
@@ -514,9 +530,12 @@ class ClaimLost extends Error {
   }
 }
 
-/** Where a run's PDF is on the private disk: one key per run, never shared. */
-export const documentKey = (id: string, runToken: string) =>
-  `documents/${id}/${runToken}.pdf`;
+/**
+ * Where a run's PDF is on the private disk: one key per run, never shared,
+ * under its tenant's prefix (`tenants/<id>/documents/…`, docs/tenancy.md).
+ */
+export const documentKey = (tenantId: string, id: string, runToken: string) =>
+  tenantFileKey(tenantId, `documents/${id}/${runToken}.pdf`);
 
 const publicReason = (error: unknown) =>
   error instanceof DocumentFailure

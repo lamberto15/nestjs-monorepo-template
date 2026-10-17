@@ -66,7 +66,7 @@ jobs:
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci
           docker compose config --format json > env.json
           # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
           test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
@@ -80,12 +80,20 @@ jobs:
             test "$(jq -r ".services.$service.environment | has(\"DATABASE_OWNER_URL_FILE\")" env.json)" = false
             test "$(jq -r ".services.$service.secrets | map(.source) | index(\"database_owner_url\")" env.json)" = null
           done
-          test "$(jq -r '.services.migrate.secrets | map(.source) | sort | join(",")' env.json)" = 'database_owner_url,database_url,postgres_monitor_password'
+          test "$(jq -r '.services.migrate.secrets | map(.source) | sort | join(",")' env.json)" = 'database_maintenance_url,database_owner_url,database_url,postgres_monitor_password'
+          # The maintenance role (BYPASSRLS) on migrate and the worker, never api (docs/tenancy.md, "The bypass").
+          test "$(jq -r .services.worker.environment.DATABASE_MAINTENANCE_URL env.json)" = 'postgres://app_maintenance:maint-ci@postgres:5432/app'
+          test "$(jq -r .services.migrate.environment.DATABASE_MAINTENANCE_URL env.json)" = 'postgres://app_maintenance:maint-ci@postgres:5432/app'
+          test "$(jq -r '.services.api.environment | has("DATABASE_MAINTENANCE_URL")' env.json)" = false
+          test "$(jq -r '.services.api.environment | has("DATABASE_MAINTENANCE_URL_FILE")' env.json)" = false
+          test "$(jq -r '.services.api.secrets | map(.source) | index("database_maintenance_url")' env.json)" = null
+          test "$(jq -r '.services.worker.secrets | map(.source) | index("database_maintenance_url") != null' env.json)" = true
           # The monitoring role: migrate makes it, the exporter connects as it; nobody else sees its password.
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD env.json)" = mon-ci
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_USER env.json)" = app_monitor
           for service in api worker; do
             test "$(jq -r ".services.$service.environment | has(\"POSTGRES_MONITOR_PASSWORD\")" env.json)" = false
+            test "$(jq -r ".services.$service.environment | has(\"POSTGRES_MONITOR_PASSWORD_FILE\")" env.json)" = false
             test "$(jq -r ".services.$service.secrets | map(.source) | index(\"postgres_monitor_password\")" env.json)" = null
           done
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
@@ -132,6 +140,11 @@ jobs:
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD files.json)" = ''
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD_FILE files.json)" = /run/secrets/postgres_monitor_password
           test "$(jq -r .secrets.postgres_monitor_password.file files.json)" = "$dir/POSTGRES_MONITOR_PASSWORD"
+          # The monitoring role's secret reaches migrate and the exporter only, never api or worker.
+          for service in api worker; do
+            test "$(jq -r ".services.$service.environment | has(\"POSTGRES_MONITOR_PASSWORD_FILE\")" files.json)" = false
+            test "$(jq -r ".services.$service.secrets | map(.source) | index(\"postgres_monitor_password\")" files.json)" = null
+          done
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
       - name: The shell readers of the files, in their images

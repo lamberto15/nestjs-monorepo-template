@@ -348,6 +348,15 @@ export class OidcAccounts extends OidcAccountResolver {
       throw new ReauthenticationRefused('stale', expected.redirectTo);
     }
     this.recordAuthTime(profile);
+    // The new session acts where the re-authenticated one did, while the
+    // membership is still active; else the last chosen tenant, as any
+    // sign-in.
+    if (
+      expected.tenantId &&
+      (await this.accounts.isMember(known.userId, expected.tenantId))
+    ) {
+      this.signInContext.keepTenant(expected.tenantId);
+    }
     return { id: known.userId };
   }
 

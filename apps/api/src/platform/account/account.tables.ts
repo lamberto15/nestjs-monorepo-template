@@ -17,6 +17,12 @@ export const accountDeletions = pgTable(
     /** When the job may carry it out: the request plus ACCOUNT_DELETION_GRACE_DAYS. */
     scheduledFor: at('scheduled_for').notNull(),
     cancelledAt: at('cancelled_at'),
+    /**
+     * The job began carrying it out (claimed under the account's lock): no
+     * cancel from then on, so none lands between one tenant's erasure and
+     * the next.
+     */
+    startedAt: at('started_at'),
     /** The account was anonymized. */
     completedAt: at('completed_at'),
     ...timestamps(),

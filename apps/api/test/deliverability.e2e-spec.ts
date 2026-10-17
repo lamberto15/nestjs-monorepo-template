@@ -4,9 +4,7 @@ import {
   type KeyObject,
   randomUUID,
 } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import { MailQueue } from '../src/core/mail/mail-queue.js';
 import { mailSuppressions } from '../src/platform/deliverability/deliverability.tables.js';
 import { ResetPasswordMail } from '../src/iam/account/account.mails.js';
@@ -21,7 +19,7 @@ import {
   snsStringToSign,
 } from '../src/platform/deliverability/sns/sns-message.js';
 import { NotificationMail } from '../src/platform/notifications/notification.mails.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { bootApp, type TestApp } from './support.js';
 
 // Read when AppModule loads (imports are hoisted, so this is too): this
 // file's apps accept the test topic and suppress after two soft bounces.
@@ -145,21 +143,26 @@ describe('email deliverability (e2e)', () => {
     return undefined;
   }
 
+  /** The mail sent to `address`, but the invitation that brought the account. */
+  const mailTo = (address: string) =>
+    node.mailbox
+      .filter({ to: address })
+      .filter((mail) => !/invited you to/.test(mail.subject));
+
   /** A user whose address and password the test knows. */
   async function person(roles: string[] = ['viewer']) {
     const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const password = newPassword();
-    const created = await node
+    const token = await node.invite(node.admin(), {
+      email,
+      name: 'Ada',
+      roleIds: await node.roleIds(...roles),
+    });
+    const password = await node.acceptAsNew(token);
+    const listed = await node
       .admin()
-      .post('/v1/access/users')
-      .send({
-        email,
-        name: 'Ada',
-        password,
-        roleIds: await node.roleIds(...roles),
-      })
-      .expect(201);
-    return { id: created.body.id as string, email, password };
+      .get(`/v1/access/users?email=${encodeURIComponent(email)}`)
+      .expect(200);
+    return { id: listed.body.items[0].id as string, email, password };
   }
 
   it('suppresses a hard-bounced address from a signed SNS notification, once, with an audit entry by the intake job', async () => {
@@ -190,14 +193,13 @@ describe('email deliverability (e2e)', () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect((await entry(address))!.events).toBe(1);
 
-    const audit = await node
-      .admin()
-      .get(
-        `/v1/access/audit?action=mailSuppression.created&targetId=${row!.id}`,
-      )
-      .expect(200);
-    expect(audit.body.items).toHaveLength(1);
-    expect(audit.body.items[0]).toMatchObject({
+    // The intake's entry is in no tenant's log (the suppression list is the deployment's).
+    const audit = await node.auditEntries({
+      action: 'mailSuppression.created',
+      targetId: row!.id,
+    });
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({
       actor: 'system:mail-intake',
       actorLabel: 'System: Mail intake',
     });
@@ -266,13 +268,11 @@ describe('email deliverability (e2e)', () => {
     );
     const upgraded = await entry(soft, (row) => row.suppressedAt !== null);
     expect(upgraded).toMatchObject({ reason: 'hard_bounce', softBounces: 0 });
-    const audit = await node
-      .admin()
-      .get(
-        `/v1/access/audit?action=mailSuppression.created&targetId=${upgraded!.id}`,
-      )
-      .expect(200);
-    expect(audit.body.items).toHaveLength(1);
+    const audit = await node.auditEntries({
+      action: 'mailSuppression.created',
+      targetId: upgraded!.id,
+    });
+    expect(audit).toHaveLength(1);
   });
 
   it('refuses what is not a signed SNS message from the configured topic, and confirms a subscription', async () => {
@@ -375,8 +375,8 @@ describe('email deliverability (e2e)', () => {
     expect(
       await entry(complained.email, (row) => row.skipped === 1),
     ).toBeDefined();
-    expect(node.mailbox.find({ to: bounced.email })).toBeUndefined();
-    expect(node.mailbox.find({ to: complained.email })).toBeUndefined();
+    expect(mailTo(bounced.email)).toEqual([]);
+    expect(mailTo(complained.email)).toEqual([]);
 
     // "Forgot my password": asked for by the person, so it reaches the one who complained.
     for (const who of [bounced, complained]) {
@@ -391,7 +391,7 @@ describe('email deliverability (e2e)', () => {
     expect(
       await entry(bounced.email, (row) => row.skipped === 2),
     ).toBeDefined();
-    expect(node.mailbox.find({ to: bounced.email })).toBeUndefined();
+    expect(mailTo(bounced.email)).toEqual([]);
 
     // A mail to a suppressed and a fine recipient at once goes to the fine one alone.
     const fine = `fine-${randomUUID().slice(0, 6)}@example.com`;
@@ -422,7 +422,7 @@ describe('email deliverability (e2e)', () => {
       data: { name: 'V', title: 'Not essential', body: 'x', link: null },
     });
     expect(await entry(victim.email, (row) => row.skipped === 1)).toBeDefined();
-    expect(node.mailbox.find({ to: victim.email })).toBeUndefined();
+    expect(mailTo(victim.email)).toEqual([]);
     await node
       .http()
       .post('/v1/auth/password/forgot')
@@ -432,7 +432,7 @@ describe('email deliverability (e2e)', () => {
 
     // 73 hours later (the row backdated): the suppression has expired; the
     // next mail goes out and the entry is watched-only again.
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db
       .update(mailSuppressions)
       .set({ suppressedAt: new Date(Date.now() - 73 * 3_600_000) })

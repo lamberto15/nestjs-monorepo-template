@@ -64,10 +64,16 @@ deleted rows the principal may restore, under that action's conditions
 
 ## Roles and grants
 
+Roles, grants, org units and the audit log are per tenant ([tenancy](tenancy.md)):
+every tenant gets the built-in Administrator and the declared `seedRoles`
+when it is made; a user's roles are their membership's in the tenant the
+session acts in. `Access.manageTenants` (creating tenants) answers only in
+the operator tenant.
+
 - `/v1/access/roles`: roles of permissions. A permission may carry
   conditions and `fields` (absent: all; `[]`: none of the restrictable ones).
 - You can only grant what you hold without conditions (fields included).
-  `Administrator` is built in (`all.manage`); the last active one stays.
+  `Administrator` is built in (`all.manage`); the last active one of each tenant stays.
 - Grants to users and API clients may end: `roleExpiresAt: { roleId: date }`.
   Expired grants never count; cached abilities never outlive them.
 - Changes apply on the next request, on every instance (the invalidation is
@@ -144,23 +150,24 @@ It opens a CLS context (nestjs-cls' `ClsService.run()`, its way for work
 outside a request) carrying the principal (`system.current()`), and the
 transaction unless `{ transaction: false }`. A nested run sees the inner
 job; the outer context stays as it was. An undeclared job throws.
-Multi-tenancy (1a) adds the tenant to the same call
-(`run(job, work, { tenantId })`), so the transaction adapter sets
-`app.tenant_id` for every query of the job.
+The tenant goes with the same call (`run(job, work, { tenantId })`;
+`null` for no tenant; left out, the current context's), so every
+transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 
-**Where it acts** (and the audit's actor):
+**Where it acts** (the audit's actor, and the tenant it works in):
 
-| Work | Actor | Audit entries |
-| --- | --- | --- |
-| First start (AccessSeeder) | `system:seed` | `user.seeded` |
-| Audit retention | `system:audit-retention` | `audit.pruned` (count, cut-off), when it deleted any |
-| Recycle bin purge | `system:soft-delete-purge` | `records.purged` per batch (the ids), with the purge |
-| Account deletion | `system:account-deletion` | `account.deleted`, with the anonymization |
-| Attachment sweep | `system:attachment-sweep` | `attachments.swept` per round (the ids), with the rows |
-| Scheduled reports | `system:report-runner` | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
-| Approvals workflow | `system:approvals` | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
-| Note publication workflow | `system:note-publication` | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |
-| Notification delivery (outbox), usage roll-up, revision and notification retention, digests | `system:<job>` | none (no change a person would audit) |
+| Work | Actor | Tenant | Audit entries |
+| --- | --- | --- | --- |
+| First start (AccessSeeder) | `system:seed` | the operator tenant it creates | `user.seeded` |
+| Audit retention | `system:audit-retention` | each tenant in turn, then none (account-level entries) | `audit.pruned` (count, cut-off) in the log it pruned, when it deleted any |
+| Recycle bin purge | `system:soft-delete-purge` | each tenant in turn | `records.purged` per batch (the ids), with the purge |
+| Account deletion | `system:account-deletion` | each tenant the person belonged to (their data there), then none (the account) | `account.deleted` (no tenant), with the anonymization |
+| Attachment sweep | `system:attachment-sweep` | each tenant in turn | `attachments.swept` per round (the ids), with the rows |
+| Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
+| Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
+| Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |
+| Mail intake, mail events retention, exchange rates | `system:<job>` | none (global tables) | the intake's suppressions (`mailSuppression.*`, no tenant) |
+| Notification delivery (outbox), usage roll-up, revision and notification retention, digests | `system:<job>` | the event's, or each tenant | none (no change a person would audit) |
 
 The system principal never acts within a request: a request that ends
 approvals for someone (an administrator deactivating an approver, a

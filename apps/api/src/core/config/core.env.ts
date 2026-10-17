@@ -83,6 +83,19 @@ export const coreEnv = z.object({
     ),
   ),
   /**
+   * The maintenance role (docs/tenancy.md, "The bypass"): BYPASSRLS, for
+   * the worker's jobs that sweep every tenant's rows at once (retention)
+   * and the deployment-wide metrics. Only the worker (and `migrate`, which
+   * creates the role) gets it; an api process never holds it, so nothing a
+   * request runs can read past a tenant. Unset: those jobs refuse to run.
+   */
+  DATABASE_MAINTENANCE_URL: secret(
+    optional().refine(
+      (url) => url === undefined || /^postgres(ql)?:\/\//.test(url),
+      'a postgres:// URL',
+    ),
+  ),
+  /**
    * Apply pending migrations at startup (under an advisory lock), as
    * DATABASE_OWNER_URL. Production Compose turns it off and runs
    * `node dist/migrate` once per deploy.
