@@ -74,7 +74,7 @@ describe('PermissionCatalog', () => {
         action: 'delete',
         conditions: [{ key: 'mine' }, { key: 'draft' }],
       },
-      { orgUnitIds: [] },
+      { teamIds: [] },
     );
     expect(canDelete(conditions, note({}))).toBe(true);
     expect(canDelete(conditions, note({ ownerId: 'user:kim' }))).toBe(false);

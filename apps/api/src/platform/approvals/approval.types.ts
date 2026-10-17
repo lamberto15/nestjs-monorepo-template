@@ -126,7 +126,7 @@ export interface ApprovalDeclaration<P extends Record<string, unknown> = any> {
   policy: ApprovalPolicyInput;
   /**
    * A boolean setting (or flag) of the feature that switches approval on
-   * for a requester (org units, users, rollouts). Absent: always on, unless
+   * for a requester (teams, users, rollouts). Absent: always on, unless
    * the policy's `enabled` says otherwise.
    */
   setting?: SettingDeclaration<boolean>;

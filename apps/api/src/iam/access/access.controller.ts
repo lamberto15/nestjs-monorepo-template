@@ -95,10 +95,10 @@ const createUserSchema = z.strictObject({
     .describe('The name a new account starts with; its owner changes it.'),
   roleIds: z.array(z.uuid()).default([]),
   roleExpiresAt,
-  orgUnitIds: z
+  teamIds: z
     .array(z.uuid())
     .optional()
-    .describe('The org units the user belongs to.'),
+    .describe('The teams the user belongs to.'),
 });
 
 const updateUserSchema = z.strictObject({
@@ -108,7 +108,7 @@ const updateUserSchema = z.strictObject({
     .describe('The membership in this tenant, not the account.'),
   roleIds: z.array(z.uuid()).optional(),
   roleExpiresAt,
-  orgUnitIds: z.array(z.uuid()).optional(),
+  teamIds: z.array(z.uuid()).optional(),
 });
 
 const invitationSchema = z.object({
@@ -120,7 +120,7 @@ const invitationSchema = z.object({
 const pendingInvitationSchema = invitationSchema.extend({
   name: z.string().nullable(),
   roleIds: z.array(z.uuid()),
-  orgUnitIds: z.array(z.uuid()),
+  teamIds: z.array(z.uuid()),
   invitedBy: z.string(),
   expired: z.boolean(),
   createdAt: z.iso.datetime(),
@@ -330,7 +330,7 @@ export class AccessController {
   @ApiOperation({
     summary: 'Invite someone to this tenant',
     description:
-      "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and units, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
+      "The address is emailed a link (WEB_URL/accept-invitation?token=…, valid INVITATION_TTL_HOURS). A new address chooses its password with it; an existing account accepts while signed in (POST /auth/invitations/accept). The membership, with these roles and teams, comes then. The answer is the same whether or not the address has an account; nobody sets another person's password.",
   })
   @ApiAcceptedResponse({ standardSchema: invitationSchema })
   createUser(
@@ -353,7 +353,7 @@ export class AccessController {
   @ApiOperation({
     summary: "Change a member's membership; only what is sent changes",
     description:
-      "Its activation, roles and org units in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
+      "Its activation, roles and teams in this tenant: never the account (its name, its password), which is its owner's. A deactivation ends their sessions and tokens in this tenant. The last active administrator stays.",
   })
   @ApiNoContentResponse()
   @ApiNotFoundResponse()

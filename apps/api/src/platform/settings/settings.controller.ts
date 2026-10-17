@@ -43,7 +43,7 @@ import { SettingsService } from './settings.service.js';
 /**
  * Settings and feature flags: what the features declared, with the value
  * each caller gets. Reading is for anyone; setting a value for everyone
- * or an org unit takes Access.manageSettings; a user sets their own
+ * or a team takes Access.manageSettings; a user sets their own
  * preferences (settings scoped `user`) themselves.
  */
 @ApiTags('settings')
@@ -64,7 +64,7 @@ export class SettingsController {
   @ApiOperation({
     summary: 'Every setting and flag, with your value of each',
     description:
-      "Your value: your own, else your org unit's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
+      "Your value: your own, else your team's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
   })
   @ApiOkResponse({ standardSchema: listSchema(settingViewSchema) })
   async list(@CurrentUser() user: Principal) {
@@ -135,7 +135,7 @@ export class SettingsController {
   @Put(':key')
   @Can(AccessPolicy, 'manageSettings')
   @ApiOperation({
-    summary: 'Set a setting for everyone, an org unit, or one principal',
+    summary: 'Set a setting for everyone, a team, or one principal',
     description:
       "Replaces what that scope had, in the caller's tenant. A flag at the tenant scope may take `rollout` (a percentage) instead of a value. Applies on the next request. Audited.",
   })
@@ -145,7 +145,7 @@ export class SettingsController {
       'A scope the setting does not take, a value its schema refuses, a rollout on something that is not a flag at the tenant scope (validation_failed).',
   })
   @ApiNotFoundResponse({
-    description: 'No such setting, org unit or principal.',
+    description: 'No such setting, team or principal.',
   })
   set(
     @CurrentUser() user: Principal,

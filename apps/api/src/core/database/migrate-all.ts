@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate as migratePg } from 'drizzle-orm/node-postgres/migrator';
 import * as schema from '../../schema.js';
+import { STORED_RENAMES } from '../../stored-renames.js';
 import type { Database } from './drizzle.js';
 import {
   type DatabaseUrls,
@@ -13,6 +14,7 @@ import {
   ensureMonitorRole,
   type MonitorRole,
 } from './roles.js';
+import { applyStoredRenames } from './stored-renames.js';
 
 /**
  * Brings the database up to this version, as its owner (`ownerUrl`): the
@@ -37,6 +39,8 @@ export async function migrateAll(
     await db.$client.end();
   }
   log('App migrations applied.');
+  // Names the code renamed, in the rows that store them (stored-renames.ts).
+  await applyStoredRenames(url, STORED_RENAMES, log);
   const require = createRequire(import.meta.url);
   for (const name of ['outbox', 'workflows', 'webhooks']) {
     const pkg = `@nestjs/${name}`;

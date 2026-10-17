@@ -2,7 +2,7 @@
 
 What administrators change at runtime without a deploy, and what users
 set for themselves: typed values declared by the features, with defaults
-in code and overrides in the database, for everyone, for an org unit, or
+in code and overrides in the database, for everyone, for a team, or
 per principal. Feature flags are boolean settings that can also roll out
 to a share of principals. The code is in `apps/api/src/platform/settings/`; notes
 is the example (`features/notes/note-settings.ts`).
@@ -13,7 +13,7 @@ is the example (`features/notes/note-settings.ts`).
 // features/notes/note-settings.ts
 export const NOTE_PUBLISH_DELAY = setting({ key: 'notes.publishDelay', label: 'Publication delay', schema: duration, default: '10s' });
 export const NOTE_RICH_TEXT = flag({ key: 'notes.richText', label: 'Rich text editor', default: false });
-// notes.publishApproval (a flag too, scopes tenant and orgUnit: never per user) switches the approval of publications on: docs/approvals.md
+// notes.publishApproval (a flag too, scopes tenant and team: never per user) switches the approval of publications on: docs/approvals.md
 export const NOTE_SETTINGS = defineSettings([NOTE_PUBLISH_DELAY, NOTE_RICH_TEXT]);
 // app.module.ts
 PlatformModule.forRoot({ …, settings: [...NOTE_SETTINGS] })
@@ -24,11 +24,11 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
 
 - `key`: dotted, the feature first. `schema`: a Zod type the value must
   pass (the default is checked at start). `scopes`: where it may be set,
-  `['tenant']` by default; add `orgUnit` and/or `user` (a `user` scope
+  `['tenant']` by default; add `team` and/or `user` (a `user` scope
   makes it a preference users set for themselves). `public: false` hides
   it from callers who don't manage settings. A `flag()` is a boolean
   setting with every scope and a rollout.
-- Precedence for a principal: their own value → one of their org units'
+- Precedence for a principal: their own value → one of their teams'
   (in the order of their units) → the tenant's value → a flag's rollout →
   the default. `settings.resolve()` also says which.
 - **Every stored value is a tenant's** (`setting_overrides` under
@@ -49,12 +49,12 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
 ```
 GET    /v1/settings                     every setting, with your value and its source (also for anyone, public ones)
 GET    /v1/settings/{key}/overrides     the stored values, every scope
-PUT    /v1/settings/{key}               { scope?: tenant|orgUnit|user, scopeId?, value?, rollout? }
+PUT    /v1/settings/{key}               { scope?: tenant|team|user, scopeId?, value?, rollout? }
 DELETE /v1/settings/{key}?scope=&scopeId=
 ```
 
 - `scope` defaults to `tenant` (before tenancy it was `global`, which is
-  gone: a breaking change). `scopeId`: one of the tenant's org units, or a
+  gone: a breaking change). `scopeId`: one of the tenant's teams, or a
   principal's key (`user:<id>` of a member of the tenant, `client:<id>` of
   its clients; anyone else is a 404); none for the tenant. The scope must be one the setting
   takes; the value must pass its schema (400 `validation_failed`, the
@@ -72,7 +72,7 @@ DELETE /v1/settings/{key}?scope=&scopeId=
 ## For users and clients
 
 ```
-GET    /v1/settings                 your value of each (and `source`: user, orgUnit, tenant, rollout, default)
+GET    /v1/settings                 your value of each (and `source`: user, team, tenant, rollout, default)
 GET    /v1/settings/{key}
 PUT    /v1/settings/{key}/mine      { value }   settings whose scopes include user
 DELETE /v1/settings/{key}/mine

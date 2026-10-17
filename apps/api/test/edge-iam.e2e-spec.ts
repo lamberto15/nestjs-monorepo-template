@@ -2,7 +2,7 @@
  * Edge cases of identity and access (docs/auth.md, docs/permissions.md):
  * sign-in normalization, sessions, tokens, API keys, impersonation, MFA
  * lockout, field-level permissions with conditions, and how fast changes to
- * roles and org units apply.
+ * roles and teams apply.
  */
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
@@ -652,21 +652,21 @@ describe('identity and access, edge cases (e2e)', () => {
         .expect(400);
     });
 
-    it('applies org-unit membership changes on the next request', async () => {
+    it('applies team membership changes on the next request', async () => {
       const admin = node.admin();
-      const unit = async (name: string, parentId?: string) =>
+      const newTeam = async (name: string, parentId?: string) =>
         (
           await admin
-            .post('/v1/access/org-units')
+            .post('/v1/access/teams')
             .send({ name: `${name} ${randomUUID().slice(0, 4)}`, parentId })
             .expect(201)
         ).body.id as string;
-      const team = await unit('Team');
-      const other = await unit('Other');
+      const team = await newTeam('Team');
+      const other = await newTeam('Other');
       const writer = await node.user(['editor']);
       await admin
         .patch(`/v1/access/users/${writer.id}`)
-        .send({ orgUnitIds: [team] })
+        .send({ teamIds: [team] })
         .expect(204);
       await node
         .writeNote(writer.agent, { title: 'Team note', body: 'x' })
@@ -682,17 +682,17 @@ describe('identity and access, edge cases (e2e)', () => {
       expect(await titles()).toEqual([]);
       await admin
         .patch(`/v1/access/users/${lead.id}`)
-        .send({ orgUnitIds: [team] })
+        .send({ teamIds: [team] })
         .expect(204);
       expect(await titles()).toEqual(['Team note']);
       await admin
         .patch(`/v1/access/users/${lead.id}`)
-        .send({ orgUnitIds: [other] })
+        .send({ teamIds: [other] })
         .expect(204);
       expect(await titles()).toEqual([]);
-      // Moving the team under the lead's unit: seen at once, on a cached ability.
+      // Moving the team under the lead's team: seen at once, on a cached ability.
       await admin
-        .patch(`/v1/access/org-units/${team}`)
+        .patch(`/v1/access/teams/${team}`)
         .send({ parentId: other })
         .expect(200);
       expect(await titles()).toEqual(['Team note']);
@@ -701,7 +701,7 @@ describe('identity and access, edge cases (e2e)', () => {
       await lead.agent.get(`/v1/notes/${note.id}`).expect(200);
       // And back to the top: gone again, in the list and the record.
       await admin
-        .patch(`/v1/access/org-units/${team}`)
+        .patch(`/v1/access/teams/${team}`)
         .send({ parentId: null })
         .expect(200);
       expect(await titles()).toEqual([]);

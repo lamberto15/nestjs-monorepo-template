@@ -17,8 +17,8 @@ import { AccessAdminService } from './access/access-admin.service.js';
 import { AccessController } from './access/access.controller.js';
 import { AccessSeeder } from './access/access.seeder.js';
 import { AccessService } from './access/access.service.js';
-import { OrgUnitsController } from './access/org-units.controller.js';
-import { OrgUnitsService } from './access/org-units.service.js';
+import { TeamsController } from './access/teams.controller.js';
+import { TeamsService } from './access/teams.service.js';
 import { ApiClientsService } from './access/api-clients.service.js';
 import { PermissionCatalog } from './access/permission-catalog.js';
 import { AccessPolicy } from './access/policies.js';
@@ -139,7 +139,7 @@ export class IamModule {
       JwtAuth,
       AccessPolicy,
       UsersRepository,
-      OrgUnitsService,
+      TeamsService,
       // Step-up (@RecentAuthentication()) on the routes of every group; a
       // person's own account (platform/account) checks their password again.
       ReauthenticationService,
@@ -286,7 +286,7 @@ export class IamModule {
         PasskeysController,
         WellKnownController,
         AccessController,
-        OrgUnitsController,
+        TeamsController,
         TenantSwitchController,
         TenantsController,
       ],
@@ -358,7 +358,7 @@ export class IamModule {
         PermissionCatalog,
         AccessService,
         AccessAdminService,
-        OrgUnitsService,
+        TeamsService,
         ApiClientsService,
         AccessSeeder,
         TenantsService,

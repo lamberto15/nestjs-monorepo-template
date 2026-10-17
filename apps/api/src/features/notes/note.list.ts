@@ -31,8 +31,8 @@ export const NOTE_LIST = listQuery(
       sortable: true,
     },
     ownerId: { column: notes.ownerId, type: 'string', ops: ['eq'] },
-    orgUnitId: {
-      column: notes.orgUnitId,
+    teamId: {
+      column: notes.teamId,
       type: 'uuid',
       ops: ['eq', 'in', 'isNull'],
     },

@@ -34,7 +34,7 @@ import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
 import type { IamEnv } from '../iam.env.js';
 import { invitations, roles, userRoles } from '../iam.tables.js';
 import { AccessService } from './access.service.js';
-import { OrgUnitsService } from './org-units.service.js';
+import { TeamsService } from './teams.service.js';
 
 /** What an invitation grants once accepted. */
 export interface InvitationInput {
@@ -43,7 +43,7 @@ export interface InvitationInput {
   name?: string;
   roleIds: string[];
   roleExpiresAt?: Record<string, string>;
-  orgUnitIds?: string[];
+  teamIds?: string[];
 }
 
 /** `inv_<tenant id>_<secret>`: the tenant, so the invitation is read in its scope. */
@@ -55,7 +55,7 @@ const hashOf = (token: string) =>
 
 /**
  * Adding people to a tenant (docs/tenancy.md, "Invitations"): invite-only.
- * An administrator invites an address with the roles and units its
+ * An administrator invites an address with the roles and teams its
  * membership will have; the address gets a link. Nothing about an account
  * is read, changed or shown until its owner accepts, and the answer is the
  * same whether or not the address has an account: a new address chooses
@@ -72,7 +72,7 @@ export class InvitationsService {
     private readonly accounts: UsersRepository,
     private readonly audit: AuditService,
     private readonly access: AccessService,
-    private readonly orgUnits: OrgUnitsService,
+    private readonly teams: TeamsService,
     private readonly mailQueue: MailQueue,
     private readonly passwordHasher: PasswordHasher,
     private readonly breachedPasswords: BreachedPasswordsService,
@@ -106,7 +106,7 @@ export class InvitationsService {
         name: input.name ?? null,
         roleIds: [...new Set(input.roleIds)],
         roleExpiresAt: input.roleExpiresAt ?? {},
-        orgUnitIds: input.orgUnitIds ?? [],
+        teamIds: input.teamIds ?? [],
         tokenHash: hashOf(token),
         invitedBy: principalKey(inviter),
         expiresAt,
@@ -141,7 +141,7 @@ export class InvitationsService {
         email: invitations.email,
         name: invitations.name,
         roleIds: invitations.roleIds,
-        orgUnitIds: invitations.orgUnitIds,
+        teamIds: invitations.teamIds,
         invitedBy: invitations.invitedBy,
         expiresAt: invitations.expiresAt,
         createdAt: invitations.createdAt,
@@ -183,7 +183,7 @@ export class InvitationsService {
    * Accepts an invitation with its link's token. A new address makes its
    * account here (`password`, `name`), its address proved by the link; an
    * existing account must be the caller's (signed in as it). The membership
-   * gets the invitation's roles and units, in the invitation's tenant, in
+   * gets the invitation's roles and teams, in the invitation's tenant, in
    * one transaction under the membership's lock (a deactivation racing it
    * waits, or wins first and the acceptance reactivates by design: the
    * invitation is the tenant's newer word).
@@ -326,7 +326,7 @@ export class InvitationsService {
   }
 
   /**
-   * The invitation's roles and units, as they are now: a role or unit
+   * The invitation's roles and teams, as they are now: a role or team
    * deleted since is left out (row-level security keeps it to the tenant).
    */
   private async grant(
@@ -353,8 +353,8 @@ export class InvitationsService {
         .insert(userRoles)
         .values(grants.map((grant) => ({ userId, ...grant })));
     }
-    const units = await this.orgUnits.existing(tx, invitation.orgUnitIds);
-    await this.orgUnits.setUserUnits(tx, userId, units);
+    const teams = await this.teams.existing(tx, invitation.teamIds);
+    await this.teams.setUserTeams(tx, userId, teams);
   }
 }
 

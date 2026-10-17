@@ -5,7 +5,7 @@ import {
   createdBy,
   definePermissions,
   defineSystemJob,
-  inMyUnits,
+  inMyTeams,
 } from '../../iam/access/permissions.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { Note } from './note.schemas.js';
@@ -44,7 +44,7 @@ export const NOTE_PERMISSIONS = definePermissions({
       },
       conditions: {
         mine: createdBy('ownerId', notes.ownerId),
-        inMyUnits: inMyUnits('orgUnitId', notes.orgUnitId),
+        inMyTeams: inMyTeams('teamId', notes.teamId),
         draft: {
           label: 'Still a draft',
           description: 'Only notes not yet published.',
@@ -53,13 +53,13 @@ export const NOTE_PERMISSIONS = definePermissions({
         },
       },
       actions: {
-        read: { label: 'See notes', conditions: ['mine', 'inMyUnits'] },
+        read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
         create: { label: 'Write notes', conditions: [] },
         update: { label: 'Change notes', conditions: ['mine', 'draft'] },
         delete: { label: 'Delete notes', conditions: ['mine', 'draft'] },
         restore: {
           label: 'See deleted notes and restore them',
-          conditions: ['mine', 'inMyUnits'],
+          conditions: ['mine', 'inMyTeams'],
         },
       },
     },
@@ -107,9 +107,9 @@ export const NOTE_PERMISSIONS = definePermissions({
       key: 'team-lead',
       name: 'Team lead',
       description:
-        'Sees the notes of their org units and every unit below them. (Example role: replace with your own.)',
+        'Sees the notes of their teams and every team below them. (Example role: replace with your own.)',
       permissions: [
-        { subject: 'Note', action: 'read', conditions: [{ key: 'inMyUnits' }] },
+        { subject: 'Note', action: 'read', conditions: [{ key: 'inMyTeams' }] },
       ],
     },
     {
@@ -126,11 +126,11 @@ export const NOTE_PERMISSIONS = definePermissions({
 });
 
 /** The fields of a note its conditions read. */
-type NoteFields = Pick<Note, 'ownerId' | 'status' | 'orgUnitId' | 'deletedAt'>;
-const noteFields = ({ ownerId, status, orgUnitId, deletedAt }: NoteFields) => ({
+type NoteFields = Pick<Note, 'ownerId' | 'status' | 'teamId' | 'deletedAt'>;
+const noteFields = ({ ownerId, status, teamId, deletedAt }: NoteFields) => ({
   ownerId,
   status,
-  orgUnitId,
+  teamId,
   deletedAt, // a deleted note can only be restored (AccessService.can)
 });
 

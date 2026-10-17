@@ -48,7 +48,7 @@
   before the handler runs.
 - **Webhook delivery to `http://127.0.0.1`** needs `WEBHOOKS_ALLOW_LOOPBACK=on`.
 - **The access cache** is per process; `access.invalidate()` publishes to
-  every instance. Call it after any change to roles, grants or org units.
+  every instance. Call it after any change to roles, grants or teams.
 - **Express 5 leaves `req.body` undefined** without a body: a schema whose
   fields are all optional goes through `z.preprocess((b) => b ?? {}, …)`.
 - **Local hooks:** `.env*` files can't be written by Claude; `secrets/`

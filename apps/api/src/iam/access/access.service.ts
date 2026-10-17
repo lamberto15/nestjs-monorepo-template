@@ -29,9 +29,9 @@ import {
 } from '../auth/principal.js';
 import {
   apiClientRoles,
-  orgUnitTree,
+  teamTree,
   rolePermissions,
-  userOrgUnits,
+  userTeams,
   userRoles,
 } from '../iam.tables.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
@@ -279,7 +279,7 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       return {
         version: this.version,
         permissions: [],
-        ability: this.build(principal, [], { orgUnitIds: [] }),
+        ability: this.build(principal, [], { teamIds: [] }),
       };
     }
     // Per tenant: the same person holds other roles in another tenant, and
@@ -375,20 +375,17 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     };
   }
 
-  /** The principal's org units and every unit below them (users only). */
+  /** The principal's teams and every unit below them (users only). */
   private async loadContext(principal: Principal): Promise<AccessContext> {
     if (principal.kind !== 'user' || !currentTenantId()) {
-      return { orgUnitIds: [] };
+      return { teamIds: [] };
     }
     const rows = await this.db
-      .selectDistinct({ id: orgUnitTree.descendantId })
-      .from(orgUnitTree)
-      .innerJoin(
-        userOrgUnits,
-        eq(userOrgUnits.orgUnitId, orgUnitTree.ancestorId),
-      )
-      .where(eq(userOrgUnits.userId, principal.id));
-    return { orgUnitIds: rows.map((row) => row.id) };
+      .selectDistinct({ id: teamTree.descendantId })
+      .from(teamTree)
+      .innerJoin(userTeams, eq(userTeams.teamId, teamTree.ancestorId))
+      .where(eq(userTeams.userId, principal.id));
+    return { teamIds: rows.map((row) => row.id) };
   }
 
   private build(

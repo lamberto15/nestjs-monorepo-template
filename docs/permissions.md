@@ -14,11 +14,11 @@ export const NOTE_PERMISSIONS = definePermissions({
       fields: { body: { label: 'The text' } },            // restrictable one by one
       conditions: {
         mine: createdBy('ownerId', notes.ownerId),       // "Created by me"
-        inMyUnits: inMyUnits('orgUnitId', notes.orgUnitId),
+        inMyTeams: inMyTeams('teamId', notes.teamId),
         draft: { label, description, casl: () => ({ status: 'draft' }), sql: () => eq(notes.status, 'draft') },
       },
       actions: {
-        read: { label: 'See notes', conditions: ['mine', 'inMyUnits'] },
+        read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
         update: { label: 'Change notes', conditions: ['mine', 'draft'] },
       },
     },
@@ -64,7 +64,7 @@ deleted rows the principal may restore, under that action's conditions
 
 ## Roles and grants
 
-Roles, grants, org units and the audit log are per tenant ([tenancy](tenancy.md)):
+Roles, grants, teams and the audit log are per tenant ([tenancy](tenancy.md)):
 every tenant gets the built-in Administrator and the declared `seedRoles`
 when it is made; a user's roles are their membership's in the tenant the
 session acts in. `Access.manageTenants` (creating tenants) answers only in
@@ -81,9 +81,9 @@ the operator tenant.
 
 ## Organization hierarchy
 
-Org units form a tree (`/v1/access/org-units`; a closure table, so "under X"
-is one lookup at any depth). Users belong to units (`orgUnitIds`). The
-`inMyUnits(field, column)` condition grants what is in a user's units and
+Teams form a tree (`/v1/access/teams`; a closure table, so "under X"
+is one lookup at any depth). Users belong to units (`teamIds`). The
+`inMyTeams(field, column)` condition grants what is in a user's units and
 every unit below: a lead of "Sales" sees "Sales / North / East". Moving a
 unit moves everything under it.
 
@@ -167,7 +167,7 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
 | Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
 | Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |
-| Demo seed (`pnpm db:seed:demo`, development databases only) | `system:demo-seed` | the demo tenant it creates | everything it writes (`org-unit.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
+| Demo seed (`pnpm db:seed:demo`, development databases only) | `system:demo-seed` | the demo tenant it creates | everything it writes (`team.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
 | Mail intake, mail events retention, exchange rates | `system:<job>` | none (global tables) | the intake's suppressions (`mailSuppression.*`, no tenant) |
 | Notification delivery (outbox), usage roll-up, revision and notification retention, digests | `system:<job>` | the event's, or each tenant | none (no change a person would audit) |
 

@@ -35,9 +35,9 @@ export class AccessPolicy {
     return manager(user) && this.access.can(user, 'manageClients', 'Access');
   }
 
-  /** The org units and their tree: who sees what through `inMyUnits`. */
-  async manageOrgUnits(user: Principal | null) {
-    return manager(user) && this.access.can(user, 'manageOrgUnits', 'Access');
+  /** The teams and their tree: who sees what through `inMyTeams`. */
+  async manageTeams(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageTeams', 'Access');
   }
 
   /** Custom field definitions (platform/custom-fields): what every record of a subject may carry. */
@@ -47,7 +47,7 @@ export class AccessPolicy {
     );
   }
 
-  /** Settings and feature flags (platform/settings): values for everyone, an org unit or a user. */
+  /** Settings and feature flags (platform/settings): values for everyone, a team or a user. */
   async manageSettings(user: Principal | null) {
     return manager(user) && this.access.can(user, 'manageSettings', 'Access');
   }

@@ -6,17 +6,17 @@ import {
 /**
  * The demo seed (`pnpm db:seed:demo`, DemoSeeder), as the system principal
  * `system:demo-seed`: the actor of everything it writes. What it may do is
- * what it does, nothing implicit: users with roles, org units, tags, notes
+ * what it does, nothing implicit: users with roles, teams, tags, notes
  * with their tags, comments and a file.
  */
 export const DEMO_SEED_JOB = defineSystemJob({
   key: 'demo-seed',
   label: 'Demo seed',
   description:
-    'Creates demo users, org units, tags and notes on a development database (pnpm db:seed:demo); refuses any other.',
+    'Creates demo users, teams, tags and notes on a development database (pnpm db:seed:demo); refuses any other.',
   permissions: [
     { subject: 'Access', action: 'manageUsers', conditions: [] },
-    { subject: 'Access', action: 'manageOrgUnits', conditions: [] },
+    { subject: 'Access', action: 'manageTeams', conditions: [] },
     { subject: 'Access', action: 'manageTags', conditions: [] },
     { subject: 'Note', action: 'create', conditions: [] },
     { subject: 'Note', action: 'read', conditions: [] },
