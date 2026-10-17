@@ -107,11 +107,18 @@ conflicted on this line.
 ## Deployed instance
 
 The owner's instance ("app10") runs the Compose production stack on the owner's Mac
-(redeployed 2026-10-15: api ×2, worker, PostgreSQL 18, Redis 8, Caddy with
-a Let's Encrypt certificate). Its `.env` keeps `COMPOSE_PROJECT_NAME=nestjs-template`,
-the template's first name (then `nestjs-backend-template`, now
-`nestjs-monorepo-template`): the volumes carry it. The name
-has no public DNS record: `/etc/hosts` points it at 127.0.0.1. Redeploy with
-`docker compose up -d --build --remove-orphans` (`.env` sets the files).
-The old build's `nestjs-template_app_data` volume is unused; removing it is
-the owner's decision.
+from **this checkout's main** (redeployed 2026-10-17 after tenancy, #14: api ×2,
+worker, Gotenberg, backup, PostgreSQL 18, Redis 8, Caddy with a Let's Encrypt
+certificate). Its `.env` sets `COMPOSE_PROJECT_NAME=nestjs-monorepo-template`, so
+its volumes are `nestjs-monorepo-template_*`; they were made fresh for the tenancy
+reset. The name has no public DNS record: `/etc/hosts` points it at 127.0.0.1.
+Redeploy with `docker compose up -d --build --remove-orphans` from this checkout
+(`.env` sets the files; `compose.monitoring.yaml` isn't among them).
+
+- **Check which checkout a running stack came from** before redeploying:
+  `docker inspect <container> --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`.
+- **Unused, removing them is the owner's decision:** the old checkout
+  `../nestjs-backend-template` (the private archive) and its
+  `nestjs-template_*` volumes, which held app10 before the reset.
+- **Deleting a production volume** is the owner's to run; the permission
+  check refuses it to Claude.
