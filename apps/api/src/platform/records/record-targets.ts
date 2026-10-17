@@ -42,6 +42,7 @@ import {
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
+import { TagsService } from '../tags/tags.service.js';
 import {
   type RecordDeclaration,
   recordKey,
@@ -657,6 +658,7 @@ export class RecordTransfer {
     @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
     private readonly access: AccessService,
     customFields: CustomFieldsService,
+    private readonly tags: TagsService,
     registry: DataTransferRegistry,
     personalData: PersonalDataRegistry,
   ) {
@@ -687,6 +689,20 @@ export class RecordTransfer {
         if (f.kind === 'datetime') return { key: name, type: 'datetime' };
         return { key: name };
       }),
+      // Its tags' names, `Urgent, Q3` (batches() adds them, one query per
+      // batch). Export only: an import's schema doesn't name `tags`, so the
+      // column is ignored there.
+      ...(takes(c.declaration, 'tags')
+        ? [
+            {
+              key: 'tags',
+              value: (row: Record<string, unknown>) =>
+                ((row.tags as { name: string }[] | undefined) ?? [])
+                  .map((tag) => tag.name)
+                  .join(', '),
+            } satisfies TransferColumn,
+          ]
+        : []),
       { key: 'ownerId', header: 'owner' },
       { key: 'createdAt', type: 'datetime' },
     ];
@@ -760,12 +776,27 @@ export class RecordTransfer {
     }
   }
   async *batches(principal: Principal, filters: Record<string, unknown>) {
-    yield* this.pages(
+    const withTags = takes(this.c.declaration, 'tags');
+    for await (const rows of this.pages(
       and(
         await this.access.sqlFilter(principal, this.subject, 'read'),
         this.c.list.where({ limit: 1000, ...filters } as ListQuery),
       ),
-    );
+    )) {
+      if (!withTags) {
+        yield rows;
+        continue;
+      }
+      // One query for the batch's tags, as RecordPresenter does.
+      const tags = await this.tags.tagsOf(
+        this.subject,
+        rows.map((row) => row.id as string),
+      );
+      yield rows.map((row) => ({
+        ...row,
+        tags: tags.get(row.id as string) ?? [],
+      }));
+    }
   }
   async write(principal: Principal, row: Record<string, unknown>) {
     await this.c.service.create(principal, row);

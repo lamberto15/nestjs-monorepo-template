@@ -6,6 +6,14 @@ happened, and how it accepts webhooks from others. Built on
 
 ## Outgoing webhooks
 
+`WEBHOOKS=off` ([configuration.md](configuration.md#deployment-switches)):
+the endpoint and delivery routes answer 404 and the delivery worker does not
+run. The webhooks package stays registered, so incoming webhooks are unchanged
+and the code that dispatches (notifications, approvals, your features) does not
+fail; the outbox relay keeps running because notification delivery uses it.
+Deliveries to endpoints created earlier wait until it is turned on again.
+`REALTIME=off`: no `/realtime` gateway; `Realtime` pushes do nothing.
+
 Per API client: the client is the tenant (`tenant` = its id), so a client
 sees and receives only its own. Every route takes the client's API key.
 

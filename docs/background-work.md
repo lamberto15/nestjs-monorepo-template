@@ -110,7 +110,11 @@ transaction that starts them wrote.
 
 Locks live in PostgreSQL (`DrizzleLockStore`: fencing tokens, the database's
 clock). `Locks.withLock(key, fn)` for your own critical sections.
-`SCHEDULER=off` leaves cron jobs out of a process. A Redis lock store (in
+`SCHEDULER=off` leaves cron jobs out of a process. The deployment switches
+([configuration.md](configuration.md#deployment-switches)) leave a module's
+own workers and jobs out: `WEBHOOKS=off` the webhook delivery worker (the
+outbox relay stays: notification delivery uses it), `REPORTS=off` the report
+runner, `USAGE=off` the usage roll-up, `REALTIME=off` the gateway. A Redis lock store (in
 the NestJS locks docs) is one provider away, for locks on hot request paths.
 
 ## Calling other services
