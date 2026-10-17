@@ -4105,7 +4105,63 @@
                             ],
                             "description": "Where your value comes from."
                           },
-                          "default": {}
+                          "default": {},
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "boolean",
+                              "number",
+                              "string",
+                              "enum",
+                              "json"
+                            ],
+                            "description": "The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what."
+                          },
+                          "options": {
+                            "description": "`enum`: the values it takes.",
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            }
+                          },
+                          "min": {
+                            "description": "`number`: the smallest it takes.",
+                            "type": "number"
+                          },
+                          "max": {
+                            "description": "`number`: the largest it takes.",
+                            "type": "number"
+                          },
+                          "integer": {
+                            "description": "`number`: whole numbers only.",
+                            "type": "boolean"
+                          },
+                          "maxLength": {
+                            "description": "`string`: the most characters it takes.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "schema": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "description": "The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT."
+                          },
+                          "canEdit": {
+                            "type": "boolean",
+                            "description": "You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating."
+                          },
+                          "canSetMine": {
+                            "type": "boolean",
+                            "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                          }
                         },
                         "required": [
                           "key",
@@ -4116,7 +4172,11 @@
                           "public",
                           "value",
                           "source",
-                          "default"
+                          "default",
+                          "type",
+                          "schema",
+                          "canEdit",
+                          "canSetMine"
                         ],
                         "additionalProperties": false
                       }
@@ -4219,7 +4279,63 @@
                       ],
                       "description": "Where your value comes from."
                     },
-                    "default": {}
+                    "default": {},
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "boolean",
+                        "number",
+                        "string",
+                        "enum",
+                        "json"
+                      ],
+                      "description": "The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what."
+                    },
+                    "options": {
+                      "description": "`enum`: the values it takes.",
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    },
+                    "min": {
+                      "description": "`number`: the smallest it takes.",
+                      "type": "number"
+                    },
+                    "max": {
+                      "description": "`number`: the largest it takes.",
+                      "type": "number"
+                    },
+                    "integer": {
+                      "description": "`number`: whole numbers only.",
+                      "type": "boolean"
+                    },
+                    "maxLength": {
+                      "description": "`string`: the most characters it takes.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "schema": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "description": "The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating."
+                    },
+                    "canSetMine": {
+                      "type": "boolean",
+                      "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                    }
                   },
                   "required": [
                     "key",
@@ -4230,7 +4346,11 @@
                     "public",
                     "value",
                     "source",
-                    "default"
+                    "default",
+                    "type",
+                    "schema",
+                    "canEdit",
+                    "canSetMine"
                   ],
                   "additionalProperties": false
                 }
@@ -4547,7 +4667,63 @@
                       ],
                       "description": "Where your value comes from."
                     },
-                    "default": {}
+                    "default": {},
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "boolean",
+                        "number",
+                        "string",
+                        "enum",
+                        "json"
+                      ],
+                      "description": "The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what."
+                    },
+                    "options": {
+                      "description": "`enum`: the values it takes.",
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    },
+                    "min": {
+                      "description": "`number`: the smallest it takes.",
+                      "type": "number"
+                    },
+                    "max": {
+                      "description": "`number`: the largest it takes.",
+                      "type": "number"
+                    },
+                    "integer": {
+                      "description": "`number`: whole numbers only.",
+                      "type": "boolean"
+                    },
+                    "maxLength": {
+                      "description": "`string`: the most characters it takes.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "schema": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "description": "The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating."
+                    },
+                    "canSetMine": {
+                      "type": "boolean",
+                      "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                    }
                   },
                   "required": [
                     "key",
@@ -4558,7 +4734,11 @@
                     "public",
                     "value",
                     "source",
-                    "default"
+                    "default",
+                    "type",
+                    "schema",
+                    "canEdit",
+                    "canSetMine"
                   ],
                   "additionalProperties": false
                 }
@@ -4658,7 +4838,63 @@
                       ],
                       "description": "Where your value comes from."
                     },
-                    "default": {}
+                    "default": {},
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "boolean",
+                        "number",
+                        "string",
+                        "enum",
+                        "json"
+                      ],
+                      "description": "The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what."
+                    },
+                    "options": {
+                      "description": "`enum`: the values it takes.",
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    },
+                    "min": {
+                      "description": "`number`: the smallest it takes.",
+                      "type": "number"
+                    },
+                    "max": {
+                      "description": "`number`: the largest it takes.",
+                      "type": "number"
+                    },
+                    "integer": {
+                      "description": "`number`: whole numbers only.",
+                      "type": "boolean"
+                    },
+                    "maxLength": {
+                      "description": "`string`: the most characters it takes.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "schema": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "description": "The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating."
+                    },
+                    "canSetMine": {
+                      "type": "boolean",
+                      "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                    }
                   },
                   "required": [
                     "key",
@@ -4669,7 +4905,11 @@
                     "public",
                     "value",
                     "source",
-                    "default"
+                    "default",
+                    "type",
+                    "schema",
+                    "canEdit",
+                    "canSetMine"
                   ],
                   "additionalProperties": false
                 }
@@ -19214,7 +19454,216 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "subjects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subject": {
+                            "type": "string",
+                            "example": "Note"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "fields": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "field": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "sensitive": {
+                                  "type": "boolean",
+                                  "description": "Redacted in the audit log and revisions."
+                                }
+                              },
+                              "required": [
+                                "field",
+                                "label",
+                                "sensitive"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The fields a permission may grant one by one."
+                          },
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "example": "read"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "conditions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "input": {
+                                        "nullable": true,
+                                        "description": "The parameter the condition takes, if any.",
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "type": {
+                                            "type": "string",
+                                            "enum": [
+                                              "text",
+                                              "cents"
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "label",
+                                          "type"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "label",
+                                      "description",
+                                      "input"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "action",
+                                "label",
+                                "conditions"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "subject",
+                          "label",
+                          "fields",
+                          "actions"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "systemJobs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "actor": {
+                            "type": "string",
+                            "description": "`system:<key>`: the actor of its audit entries."
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "permissions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "subject": {
+                                  "type": "string"
+                                },
+                                "action": {
+                                  "type": "string"
+                                },
+                                "conditions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "example": "mine"
+                                      },
+                                      "params": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "key"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "fields": {
+                                  "nullable": true,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "subject",
+                                "action",
+                                "conditions",
+                                "fields"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "actor",
+                          "label",
+                          "description",
+                          "permissions"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "subjects",
+                    "systemJobs"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -19243,7 +19692,129 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "tenantId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "key": {
+                            "nullable": true,
+                            "description": "The code's name of a built-in or seeded role (`administrator`, `editor`); null for roles made through the API.",
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "system": {
+                            "type": "boolean",
+                            "description": "Built in: never edited nor deleted."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "permissions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "subject": {
+                                  "type": "string"
+                                },
+                                "action": {
+                                  "type": "string"
+                                },
+                                "conditions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "example": "mine"
+                                      },
+                                      "params": {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    },
+                                    "required": [
+                                      "key"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "fields": {
+                                  "description": "Only these restrictable fields; absent: all of them.",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "subject",
+                                "action",
+                                "conditions"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "members": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "The users who hold it."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tenantId",
+                          "key",
+                          "name",
+                          "description",
+                          "system",
+                          "createdAt",
+                          "updatedAt",
+                          "permissions",
+                          "members"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -19349,7 +19920,25 @@
         },
         "responses": {
           "201": {
-            "description": "The new role id."
+            "description": "The new role id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -19855,7 +20444,169 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "user"
+                            ]
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "emailVerified": {
+                            "type": "boolean"
+                          },
+                          "locale": {
+                            "nullable": true,
+                            "description": "The language they chose, or null.",
+                            "type": "string"
+                          },
+                          "timezone": {
+                            "nullable": true,
+                            "description": "Their IANA time zone, or null (APP_TIMEZONE).",
+                            "type": "string"
+                          },
+                          "active": {
+                            "type": "boolean",
+                            "description": "The membership in this tenant and the account, together."
+                          },
+                          "hasPassword": {
+                            "type": "boolean",
+                            "description": "false: invited, or signs in only with a provider."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "roleIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          },
+                          "roles": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "roleId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "expiresAt": {
+                                  "nullable": true,
+                                  "description": "When the grant ends; null: never.",
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "roleId",
+                                "expiresAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "teamIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "email",
+                          "name",
+                          "emailVerified",
+                          "locale",
+                          "timezone",
+                          "active",
+                          "hasPassword",
+                          "createdAt",
+                          "updatedAt",
+                          "roleIds",
+                          "roles",
+                          "teamIds"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -20262,6 +21013,287 @@
           }
         ],
         "summary": "Act as this user (support)",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/principals": {
+      "get": {
+        "description": "`?q=` matches a part of a user's name or address, or of a client's name, whatever the case (`%` and `_` are the characters); `?kind=user|client`, `?active=true`, `?sort=label`. Cursor pages. Each item's `key` (`user:<id>`, `client:<id>`) is what a setting's user scope takes as `scopeId`. Clients only while API_CLIENTS is on.",
+        "operationId": "AccessController_principalsList_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Filter: q =",
+            "schema": {
+              "description": "Filter: q =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "description": "Filter: kind =",
+            "schema": {
+              "description": "Filter: kind =",
+              "type": "string",
+              "enum": [
+                "user",
+                "client"
+              ]
+            }
+          },
+          {
+            "name": "active",
+            "required": false,
+            "in": "query",
+            "description": "Filter: active =",
+            "schema": {
+              "description": "Filter: active =",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "label.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: label contains",
+            "schema": {
+              "description": "Filter: label contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "label.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: label startsWith",
+            "schema": {
+              "description": "Filter: label startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); kind (eq); active (eq); label (contains, startsWith).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); kind (eq); active (eq); label (contains, startsWith).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -label. Sortable: label.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -label. Sortable: label.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: key,kind. Fields: id, key, kind, label, email, active.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: key,kind. Fields: id, key, kind, label, email, active.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "key": {
+                            "type": "string",
+                            "description": "The principal's key: `user:<id>` or `client:<id>`, as `scopeId` of a setting's user scope and `actor` filters take it.",
+                            "example": "user:0190a1b2-0000-7000-8000-000000000000"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "user",
+                              "client"
+                            ]
+                          },
+                          "label": {
+                            "type": "string",
+                            "description": "The user's name, or the client's."
+                          },
+                          "email": {
+                            "nullable": true,
+                            "description": "A user's address; null for a client.",
+                            "type": "string"
+                          },
+                          "active": {
+                            "type": "boolean",
+                            "description": "A user: the membership in this tenant and the account; a client: not revoked."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "key",
+                          "kind",
+                          "label",
+                          "email",
+                          "active"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Search the tenant's users and API clients, as principal keys",
         "tags": [
           "access"
         ]
@@ -21358,7 +22390,120 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "tenantId": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "actor": {
+                            "type": "string",
+                            "description": "`user:<id>`, `client:<id>`, `system:<key>` or `anonymous`."
+                          },
+                          "actorLabel": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "example": "note.created"
+                          },
+                          "targetType": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "targetId": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "details": {
+                            "nullable": true,
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "ip": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tenantId",
+                          "at",
+                          "actor",
+                          "actorLabel",
+                          "action",
+                          "targetType",
+                          "targetId",
+                          "details",
+                          "ip"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."

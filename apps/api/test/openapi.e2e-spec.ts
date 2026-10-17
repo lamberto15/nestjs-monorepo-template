@@ -70,6 +70,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/clients/{id}/usage',
         '/v1/access/invitations',
         '/v1/access/invitations/{id}',
+        '/v1/access/principals',
         '/v1/access/roles',
         '/v1/access/roles/{id}',
         '/v1/access/teams',
