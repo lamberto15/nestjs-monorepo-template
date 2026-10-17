@@ -52,7 +52,8 @@ provider, and remove `floci` from `compose.dev.yaml`.
 
 `pnpm db:seed:demo` fills a development database with a small, believable
 company in a tenant of its own, **Demo Company** (`demo`, never the
-operators' tenant: [tenancy](tenancy.md)): org units (Sales, Sales North
+operators' tenant: [tenancy](tenancy.md); with `TENANCY=single`, the one
+tenant there is instead, whose administrator then acts as an operator): org units (Sales, Sales North
 under it, Engineering), seven members (its administrator, two team leads,
 three editors, a viewer), four tags, and seven notes owned by those
 members, tagged, two with a comment that mentions a colleague, one with a

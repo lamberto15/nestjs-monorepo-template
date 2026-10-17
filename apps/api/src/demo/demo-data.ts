@@ -6,7 +6,10 @@
  * database gives the ids. Change it to show your own features.
  */
 
-/** The demo's tenant: never the operators' (the first start's). */
+/**
+ * The demo's tenant: never the operators' (the first start's), except with
+ * TENANCY=single, where the seed fills the one tenant there is.
+ */
 export const DEMO_TENANT = { name: 'Demo Company', slug: 'demo' };
 
 /** The demo users' addresses: example.com is reserved, nothing is ever delivered. */

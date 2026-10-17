@@ -28,7 +28,9 @@ function report(result: DemoSeedResult) {
     );
   }
   console.log(
-    "\nThey sign in to the demo tenant (its administrator: the first above). The operators' administrator is the first start's (ADMIN_EMAIL). Swagger UI: /api.",
+    result.operators
+      ? `\nThey sign in to "${result.tenant}", the deployment's one tenant (TENANCY=single), which is the operators': its administrator (the first above) acts as an operator too. Swagger UI: /api.`
+      : "\nThey sign in to the demo tenant (its administrator: the first above). The operators' administrator is the first start's (ADMIN_EMAIL). Swagger UI: /api.",
   );
 }
 
