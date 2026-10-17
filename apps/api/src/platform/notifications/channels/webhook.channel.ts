@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Webhooks } from '@nestjs/webhooks';
-import { z } from 'zod';
 import type { Transaction } from '../../../core/database/drizzle.js';
 import { NotificationChannelRegistry } from '../notification-channel.registry.js';
+import { webhookSettingSchema } from '../notification.schemas.js';
 import {
   NOTIFICATION_WEBHOOK_EVENT,
   type NotificationChannel,
@@ -19,7 +19,7 @@ import { NotificationsService } from '../notifications.service.js';
 @Injectable()
 export class WebhookChannel implements NotificationChannel<boolean> {
   readonly name = 'webhook';
-  readonly settings = { schema: z.boolean(), off: false };
+  readonly settings = { schema: webhookSettingSchema, off: false };
 
   constructor(
     private readonly webhooks: Webhooks<Transaction>,

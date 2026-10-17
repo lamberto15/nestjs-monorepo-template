@@ -1,5 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import {
+  type DynamicModule,
+  Module,
+  type Provider,
+  type Type,
+} from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
@@ -79,6 +84,11 @@ import {
   NotificationMail,
 } from './notifications/notification.mails.js';
 import { NotificationsController } from './notifications/notifications.controller.js';
+import {
+  inDevelopment,
+  TEST_NOTIFICATIONS,
+} from './notifications/notification-test.js';
+import { NotificationTestController } from './notifications/notification-test.controller.js';
 import { NotificationsService } from './notifications/notifications.service.js';
 import { NotificationDeliveryHandler } from './notifications/notification-delivery.handler.js';
 import { NotificationDigestJob } from './notifications/notification-digest.job.js';
@@ -313,6 +323,8 @@ export class PlatformModule {
         BulkController,
         CustomFieldsController,
         NotificationsController,
+        // Development and tests only: POST /v1/notifications/test (production: 404, not in the OpenAPI document).
+        ...inDevelopment<Type>(NotificationTestController),
         SettingsController,
         AccountController,
         AccountDeletionLinkController,
@@ -341,6 +353,8 @@ export class PlatformModule {
             notifications: [
               ...COMMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
+              // Development only, with the route that sends it.
+              ...inDevelopment(...TEST_NOTIFICATIONS),
               ...(options.notifications ?? []),
             ],
             // And its own settings (IAM's auth policies, approvals' delegation limit).

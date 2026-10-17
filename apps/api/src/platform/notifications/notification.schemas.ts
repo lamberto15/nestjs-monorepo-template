@@ -38,6 +38,38 @@ export const readAllSchema = z
 
 export const readAllResultSchema = z.object({ updated: z.int() });
 
+/**
+ * What each channel's setting holds (`NotificationChannelSettings`): the
+ * channels declare these, and the API documents them. In-app and realtime
+ * are always on and not settings.
+ */
+export const emailSettingSchema = z.union([
+  z.enum(['immediate', 'hourly', 'daily']),
+  z.literal(false),
+]);
+export const webhookSettingSchema = z.boolean();
+
+const emailDescription =
+  'Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest.';
+const webhookDescription =
+  'API clients only: whether the `notification.created` webhook is sent.';
+
+/** The channels a caller may set, with their settings: `email` for users, `webhook` for API clients. */
+export const channelSettingsSchema = z.object({
+  email: emailSettingSchema.optional().describe(emailDescription),
+  webhook: webhookSettingSchema.optional().describe(webhookDescription),
+});
+
+/**
+ * The same for the body of PUT. Loose, so a channel this schema doesn't
+ * know (or one the caller's kind can't set) reaches the service, which
+ * refuses it by name (`<type>.<channel>`); the known ones are checked here.
+ */
+export const channelSettingsInputSchema = z.looseObject({
+  email: emailSettingSchema.optional().describe(emailDescription),
+  webhook: webhookSettingSchema.optional().describe(webhookDescription),
+});
+
 /** A declared type, as the catalog shows it to this caller. */
 export const notificationTypeSchema = z.object({
   type: z.string().meta({ example: 'note.published' }),
@@ -47,24 +79,27 @@ export const notificationTypeSchema = z.object({
     .describe(
       'Its channels cannot be switched off (their frequency may change).',
     ),
-  channels: z
-    .record(z.string(), z.unknown())
-    .describe(
-      'The defaults of the channels you may set: `email` (false | immediate | hourly | daily) for users, `webhook` (boolean) for API clients.',
-    ),
+  channels: channelSettingsSchema.describe(
+    'The defaults of the channels you may set (in-app and realtime are always on).',
+  ),
 });
 
 /** Your effective settings, per type, for the channels you may set. */
 export const preferencesViewSchema = z.object({
-  types: z.record(z.string(), z.record(z.string(), z.unknown())).meta({
+  types: z.record(z.string(), channelSettingsSchema).meta({
     example: { 'note.published': { email: 'daily' } },
   }),
 });
 
 /** The body of PUT: the full set of your overrides (checked against the declared types and your channels). */
 export const preferencesInputSchema = z
-  .record(z.string().max(100), z.record(z.string().max(50), z.unknown()))
+  .record(z.string().max(100), channelSettingsInputSchema)
   .meta({ example: { 'note.published': { email: 'daily' } } })
   .describe(
     'Per type, the channels to change: a type or channel left out keeps its default.',
   );
+
+/** What the test notification answers: the stored notification, delivered on its way. */
+export const testNotificationResultSchema = z.object({
+  id: z.uuid().describe('The notification, delivered to you shortly.'),
+});
