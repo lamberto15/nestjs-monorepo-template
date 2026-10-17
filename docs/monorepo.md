@@ -8,6 +8,8 @@ whose tasks [Turborepo](https://turborepo.dev) runs. The layout is in
 | --- | --- | --- |
 | `@nestjs-monorepo-template/api` | `apps/api` | the NestJS app (API, workers, migrations) |
 | `@nestjs-monorepo-template/api-client` | `packages/api-client` | the typed client, for frontends and scripts |
+| `@nestjs-monorepo-template/web` | `apps/web` | the web app: React, Vite, TanStack Router and Query |
+| `@nestjs-monorepo-template/ui` | `packages/ui` | shared components: shadcn/ui (Base UI) and Dice UI, as source |
 | the root (`nestjs-monorepo-template`) | `.` | the scripts, tooling (Turborepo, oxlint, Prettier), Compose, docs |
 
 ## Commands
@@ -18,6 +20,7 @@ its work to the packages:
 | Root script | Runs |
 | --- | --- |
 | `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e` | `turbo run <task>`: the task in every package that has it, dependencies first |
+| `pnpm dev:web` | `turbo run dev --filter=@nestjs-monorepo-template/web` (the client builds first) |
 | `pnpm start:dev`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump` | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api` |
 | `pnpm client:generate`, `pnpm client:check` | the API's dump, then the client's generator |
 | `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes` | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md)) |
@@ -57,15 +60,56 @@ its work to the packages:
   `migrate`) see the whole shell.
 - CI keeps the cache between runs (`actions/cache`, `.github/workflows/ci.yml`).
 
-## Adding a frontend app
+## The web app
 
-No frontend is scaffolded: the framework is the project's choice. Any of
-them fits the same way.
+`apps/web` is a React single-page app; `packages/ui` holds its components.
+Run the API (`pnpm start:dev`) and the app (`pnpm dev:web`,
+http://localhost:5173) side by side.
 
-1. **Create it in `apps/`** with its own tool (`pnpm create vite apps/web`,
-   `pnpm create next-app apps/web`…). Name it `@nestjs-monorepo-template/web`
-   and keep `"private": true`.
-2. **Depend on the client** through the workspace, then `pnpm install`:
+- **Stack:** Vite, TanStack Router (file routes in `src/routes`, code
+  splitting, `routeTree.gen.ts` written by its Vite plugin and committed),
+  TanStack Query, nuqs (URL state), react-i18next, Tailwind 4, zod.
+- **Calls the API** through `src/lib/api.ts`, the typed client with `baseUrl:
+  ''` and `credentials: 'include'`. `server.proxy` in `vite.config.ts` sends
+  `/v1`, `/health` and `/socket.io` (`ws: true`) to `http://localhost:3000`, so
+  the API is same-origin (the `__Host-sid` cookie needs it).
+- **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
+  `_app.tsx` (the signed-in layout, shadcn's `sidebar-07` block), `_app/index.tsx`
+  (dashboard), `sign-in.tsx`. A new page is a file there; the menu is
+  `src/nav.ts` (`to`, an i18n `label`, `icon`, optional `feature` and
+  `permission`).
+- **Languages:** `src/locales/<lng>/common.json` for the API's five locales.
+  `en` is complete; the others are copies of it until translated. `<html lang>`
+  and `dir` (`rtl` for `ar`) follow the language; the theme (light, dark,
+  system) is a class on `<html>`.
+- **Components** come from the CLIs, never by hand: run them in `apps/web`
+  and the files land in `packages/ui/src/components` (imports
+  `@nestjs-monorepo-template/ui/components/<name>`):
+
+  ```bash
+  cd apps/web
+  pnpm dlx shadcn@4.22.0 add button          # shadcn/ui, style base-nova (Base UI)
+  pnpm dlx shadcn@4.22.0 add @diceui/<name>  # Dice UI (https://diceui.com): look here first
+  ```
+
+  Both packages have a `components.json` with the same style, icon library
+  and base colour. Prettier skips `packages/ui` and the lint rules are
+  relaxed there, so a CLI update stays a clean diff.
+- **Scripts:** `build` (`tsc -b && vite build`, to `dist/`), `lint`, `test`
+  (Vitest, jsdom, Testing Library). Turborepo builds the client first.
+- **Production:** `caddy/Dockerfile` builds the app into the Caddy image,
+  which serves it next to the API ([deployment](deployment.md)). The API's
+  image leaves `apps/web` and `packages/ui` out (`.dockerignore`).
+
+## Adding another frontend app
+
+Any framework fits the same way.
+
+1. **Create it in `apps/`** with its own tool (`pnpm create vite apps/admin`,
+   `pnpm create next-app apps/admin`…), `"private": true`, named
+   `@nestjs-monorepo-template/<name>`.
+2. **Depend on the client** (and `@nestjs-monorepo-template/ui` for the
+   components) through the workspace, then `pnpm install`:
 
    ```json
    "dependencies": {
@@ -79,14 +123,10 @@ them fits the same way.
 3. **Scripts:** `build`, `lint`, `test` as the framework names them;
    Turborepo builds the client first (`^build`). Add the framework's output
    to `build.outputs` in `turbo.json` when it isn't `dist/` (Next.js:
-   `".next/**", "!.next/cache/**"`), and a development task:
-
-   ```json
-   "dev": { "dependsOn": ["^build"], "cache": false, "persistent": true }
-   ```
-
-   Then `pnpm turbo run dev --filter=@nestjs-monorepo-template/web` (or a
-   root script for it), next to `pnpm start:dev`.
+   `".next/**", "!.next/cache/**"`). The `dev` task exists
+   (`{ "dependsOn": ["^build"], "cache": false, "persistent": true }`); add a
+   root script like `dev:web`. A build-time variable (`VITE_API_URL`…) goes
+   into the build task's `env`.
 4. **Call the API** with the typed client
    ([its README](../packages/api-client/README.md)):
 
@@ -99,22 +139,19 @@ them fits the same way.
 
    Paths, parameters and answers are checked by TypeScript (`moduleResolution`
    `bundler` or `nodenext`).
-5. **Origins:** in development, either a dev-server proxy (Vite:
-   `server.proxy` for `/v1`, and `/socket.io` with `ws: true` for realtime,
-   to `http://localhost:3000`; then `baseUrl: ''` and `createRealtime({ url:
-   location.origin })`), so the API is same-origin and the session cookie
-   just works; or call `http://localhost:3000` directly, with the app's origin
-   in `CORS_ORIGINS` and `WEB_URL` (`apps/api/.env.development`; the example
-   has `http://localhost:5173`). In production, `CORS_ORIGINS` and `WEB_URL`
-   in `.env`.
+5. **Origins:** in development a dev-server proxy to `http://localhost:3000`
+   (as `apps/web`), or call the API directly with the app's origin in
+   `CORS_ORIGINS` and `WEB_URL` (`apps/api/.env.development`; the example has
+   `http://localhost:5173`). In production, `CORS_ORIGINS` and `WEB_URL` in
+   `.env`, or serve it from Caddy like `apps/web`.
 6. **Keep the client current:** after a route change, `pnpm
    client:generate` (commit `packages/api-client/openapi.json` and
    `src/schema.ts`), then `pnpm build`: the frontend's type check shows what
    the change broke. A running dev server sees the client's new `dist/`
    after `pnpm --filter @nestjs-monorepo-template/api-client build`.
-7. **Deploy it** on its own (its image, a static host, a platform). The
-   API's image is unaffected: `pnpm deploy` takes only the API's
-   dependencies.
+7. **Deploy it** on its own (its image, a static host, a platform), or into
+   Caddy's image as `apps/web` is. The API's image is unaffected: `pnpm
+   deploy` takes only the API's dependencies.
 
 ## A checkout from before the monorepo
 

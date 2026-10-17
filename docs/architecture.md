@@ -15,10 +15,11 @@ apps/
     package.json       the app's dependencies and scripts
     nest-cli.json, tsconfig*.json, vitest.config*.ts, drizzle.config.ts
     env.development.example   → .env.development (development settings)
-  <your frontend>/     added by you: docs/monorepo.md
+  web/                 the web app, a React SPA (@nestjs-monorepo-template/web): docs/monorepo.md
 packages/
   api-client/          the typed client (@nestjs-monorepo-template/api-client)
-caddy/  dev/           the HTTPS proxy's image; the development services' files
+  ui/                  shared components, shadcn/ui and Dice UI as source (@nestjs-monorepo-template/ui)
+caddy/  dev/           the HTTPS proxy's image (it serves the web app too); the development services' files
 gotenberg/             the PDF renderer's image (Gotenberg, thin on the official one)
 compose*.yaml          Docker Compose: shared, development, production, blue-green, Swarm, monitoring, load test
 env.example            → .env, Compose's production settings
