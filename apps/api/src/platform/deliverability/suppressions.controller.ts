@@ -85,7 +85,8 @@ export class SuppressionsController {
   }
 
   @Post()
-  @Idempotent()
+  // Optional whatever IDEMPOTENCY says, as it always was.
+  @Idempotent({ required: false })
   @Can(MailSuppressionPolicy, 'manage')
   @ApiOperation({
     summary: 'Stop mail to an address',

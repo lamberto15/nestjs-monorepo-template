@@ -139,6 +139,8 @@ x-app: &app
     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    # Idempotency-Key demanded (required) or only honoured (optional)
+    IDEMPOTENCY: ${IDEMPOTENCY:-}
     # Keys at rest
     IDEMPOTENCY_KEYS: ${IDEMPOTENCY_KEYS:-}
     WEBHOOKS_ENCRYPTION_KEYS: ${WEBHOOKS_ENCRYPTION_KEYS:-}

@@ -417,7 +417,7 @@ export function controller({ t, fields, softDelete }) {
     '',
     `  @Post()`,
     `  // A retry with the same key gets the first answer instead of a second record.`,
-    `  @Idempotent({ required: true, scope: principalScope })`,
+    `  @Idempotent({ scope: principalScope })`,
     `  @Can(${S}Policy, 'create')`,
     `  @ApiOperation({ summary: 'Create ${t.aNoun}', description: 'Send a new Idempotency-Key per record and the same one on every retry. Audited.' })`,
     `  @ApiHeader(idempotencyKeyHeader(true))`,

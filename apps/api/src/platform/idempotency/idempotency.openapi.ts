@@ -37,3 +37,30 @@ export function swaggerRequestInterceptor(request: {
   }
   return request;
 }
+
+/**
+ * Makes the published document follow IDEMPOTENCY. The decorators document the
+ * header as required (the default mode); under `optional` every
+ * `Idempotency-Key` parameter is marked optional, whatever the route says.
+ */
+export function applyIdempotencyMode(
+  document: { paths?: Record<string, unknown> },
+  mode: 'required' | 'optional',
+) {
+  if (mode === 'required') return;
+  for (const path of Object.values(document.paths ?? {})) {
+    for (const operation of Object.values(path as Record<string, unknown>)) {
+      const parameters = (operation as { parameters?: unknown }).parameters;
+      if (!Array.isArray(parameters)) continue;
+      for (const parameter of parameters as {
+        in?: string;
+        name?: string;
+        required?: boolean;
+      }[]) {
+        if (parameter.in === 'header' && parameter.name === 'Idempotency-Key') {
+          parameter.required = false;
+        }
+      }
+    }
+  }
+}

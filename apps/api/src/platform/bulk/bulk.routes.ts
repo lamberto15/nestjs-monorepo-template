@@ -60,7 +60,7 @@ export function bulkRoutes(
     @Post('bulk')
     @HttpCode(HttpStatus.OK)
     // A retry with the same key gets the first answer instead of acting twice.
-    @Idempotent({ required: true, scope: principalScope })
+    @Idempotent({ scope: principalScope })
     @Can.Anyone() // Checked by BulkService: the action's permission, then each record.
     @ApiOperation({
       ...options.docs,

@@ -54,8 +54,8 @@ export class WebhookEndpointsController {
   @Post()
   // A retried subscribe gets the first endpoint (and its secret) back instead of
   // a second endpoint that would receive every webhook twice. Optional, so the
-  // API stays easy to try; the stored response is encrypted.
-  @Idempotent()
+  // API stays easy to try (whatever IDEMPOTENCY says); the stored response is encrypted.
+  @Idempotent({ required: false })
   @ApiOperation({
     summary: 'Subscribe a URL to events',
     description:

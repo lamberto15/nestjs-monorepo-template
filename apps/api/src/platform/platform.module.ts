@@ -3,6 +3,7 @@ import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
+import { ConfigService } from '@nestjs/config';
 import { IdempotencyModule } from '@nestjs/idempotency';
 import { OutboxModule, OutboxStorage } from '@nestjs/outbox';
 import { PostgresOutboxStore } from '@nestjs/outbox/postgres';
@@ -18,6 +19,7 @@ import { OpsController } from './ops/ops.controller.js';
 import { OpsPolicy } from './ops/ops.policy.js';
 import { OpsQueues } from './ops/ops-queues.service.js';
 import { OpsMetrics } from './ops/ops-metrics.js';
+import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
@@ -221,8 +223,14 @@ export class PlatformModule {
         // before any replay, and a replay is metered. Guards run before every interceptor, so the scope sees the caller.
         IdempotencyModule.forRootAsync({
           imports: [secretsModule],
-          inject: [PLATFORM_SECRETS],
-          useFactory: (platform: PlatformSecrets) => ({
+          inject: [PLATFORM_SECRETS, ConfigService],
+          useFactory: (
+            platform: PlatformSecrets,
+            config: ConfigService<PlatformEnv, true>,
+          ) => ({
+            // IDEMPOTENCY=required|optional: the default of every @Idempotent()
+            // route, which can still say otherwise for itself.
+            required: config.get('IDEMPOTENCY', { infer: true }) === 'required',
             scope: principalScope,
             ttl: '24h', // longer than any client keeps retrying
             lockTtl: '60s', // how long a crashed instance blocks a key
