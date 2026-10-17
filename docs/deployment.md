@@ -35,6 +35,20 @@ Filling `.env` (each step is commented in `env.example`):
   API's routes are the app's origin, so `__Host-sid` works and no CORS is needed. A new
   unversioned API path needs a line in the `@api` matcher. A web change redeploys Caddy
   (`docker compose up -d --build`).
+- **The web app's security headers** are set in the Caddyfile's web-app `handle` only
+  (the API's responses keep helmet's own): `Content-Security-Policy`
+  (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
+  Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
+  `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` sets zod to
+  `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
+  `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
+  off everything but WebAuthn. **A new third-party script, frame, API or font host** needs
+  its origin in the matching directive of that one line (`script-src`, `frame-src`,
+  `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no inline
+  `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
+  build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
+  events: there must be none.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 

@@ -54,6 +54,24 @@
 	# by path, index.html for the app's own routes.
 	handle {
 		root * /srv/web
+		# Security headers of the web app only: the API's responses (the @api
+		# block above) carry their own, from helmet. Extending the policy: docs/deployment.md.
+		header {
+			# Turnstile (challenges.cloudflare.com) is the only third party: its
+			# script, and its iframe. Everything else is this origin: socket.io's
+			# ws/wss included ('self' covers it in current browsers; Safari
+			# before 15.4 didn't, and no template target is that old).
+			# style-src keeps 'unsafe-inline': sonner and the theme provider inject
+			# <style> elements at runtime (checked in the browser; without it the
+			# page logs violations). No 'unsafe-eval': apps/web sets zod to jitless.
+			Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			# frame-ancestors' older twin, for browsers that predate CSP level 2.
+			X-Frame-Options "DENY"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			# WebAuthn (publickey-credentials-*) stays on for this origin; the rest is off.
+			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)"
+		}
 		# Hashed file names: they never change. A missing one is a 404, not the page.
 		handle /assets/* {
 			# Only a file that exists: a 404 must not be cached for a year.
