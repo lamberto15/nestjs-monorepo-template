@@ -230,12 +230,14 @@ describe('without realtime', () => {
 
 describe('the inbox', () => {
   it('removes one', async () => {
-    api();
+    const state = api();
     server.use(
-      http.delete(
-        '/v1/notifications/:id',
-        () => new HttpResponse(null, { status: 204 }),
-      ),
+      // The store forgets it, as the API does: the refetch after the delete
+      // must not bring it back.
+      http.delete('/v1/notifications/:id', ({ params }) => {
+        state.items = state.items.filter((entry) => entry.id !== params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
     );
     const user = userEvent.setup();
     await renderApp('/notifications');
