@@ -200,6 +200,9 @@ jobs:
       # The release notes' generator (tools/release/, docs/releases.md): git only.
       - name: The release notes' tests
         run: node --test tools/release/notes.test.mjs
+      # The rolling deploy's script (tools/deploy/, docs/deploy-rolling.md): a fake docker.
+      - name: The rolling deploy's tests
+        run: node --test tools/deploy/rolling.test.mjs
 
   # The e2e tests in shards, each on its own runner with its own Redis and
   # PostgreSQL: the slowest step of CI, split (Vitest's --shard). They run
