@@ -30,8 +30,8 @@ import {
   RecordTransfer,
 } from './record-targets.js';
 
-/** The generic target of each capability (record-targets.ts). */
-const TARGETS: Record<Capability, Type> = {
+/** The generic target of each capability that has one (record-targets.ts); custom is in the table, the lifecycle and the presenter. */
+const TARGETS: Record<Exclude<Capability, 'custom'>, Type> = {
   tags: RecordTags,
   comments: RecordComments,
   attachments: RecordAttachments,
@@ -111,9 +111,14 @@ export function recordParts(
     },
     RecordLifecycle,
     RecordPresenter,
-    ...declaration.capabilities.map(
-      (capability) => options.override?.[capability] ?? TARGETS[capability],
-    ),
+    ...declaration.capabilities
+      .filter(
+        (capability): capability is Exclude<Capability, 'custom'> =>
+          capability !== 'custom',
+      )
+      .map(
+        (capability) => options.override?.[capability] ?? TARGETS[capability],
+      ),
   ];
   return { controllers, providers };
 }

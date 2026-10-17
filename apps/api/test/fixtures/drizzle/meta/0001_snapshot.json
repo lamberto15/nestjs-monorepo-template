@@ -1,5 +1,5 @@
 {
-  "id": "6232345e-a97a-4dc7-8dc4-b96300ccfb1d",
+  "id": "a1a265cf-8cf1-431a-a4c0-4680aef3c64d",
   "prevId": "7aaba98b-dea6-402d-b187-e885bb00a363",
   "version": "7",
   "dialect": "postgresql",
@@ -45,11 +45,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
+        "custom": {
+          "name": "custom",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -133,6 +134,21 @@
           "concurrently": false,
           "method": "gin",
           "with": {}
+        },
+        "test_items_custom_idx": {
+          "name": "test_items_custom_idx",
+          "columns": [
+            {
+              "expression": "custom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -140,8 +156,12 @@
           "name": "test_items_tenant_id_tenants_id_fk",
           "tableFrom": "test_items",
           "tableTo": "tenants",
-          "columnsFrom": ["tenant_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -149,8 +169,14 @@
           "name": "test_items_team_fk",
           "tableFrom": "test_items",
           "tableTo": "teams",
-          "columnsFrom": ["tenant_id", "team_id"],
-          "columnsTo": ["tenant_id", "id"],
+          "columnsFrom": [
+            "tenant_id",
+            "team_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
           "onDelete": "set null (\"team_id\")",
           "onUpdate": "no action"
         }
@@ -160,7 +186,10 @@
         "test_items_tenant_id_id_key": {
           "name": "test_items_tenant_id_id_key",
           "nullsNotDistinct": false,
-          "columns": ["tenant_id", "id"]
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
         }
       },
       "policies": {
@@ -168,21 +197,27 @@
           "name": "test_items_tenant_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": ["public"],
+          "to": [
+            "public"
+          ],
           "using": "(\"test_items\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "test_items_tenant_insert": {
           "name": "test_items_tenant_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": ["public"],
+          "to": [
+            "public"
+          ],
           "withCheck": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
         "test_items_tenant_update": {
           "name": "test_items_tenant_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": ["public"],
+          "to": [
+            "public"
+          ],
           "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
           "withCheck": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
@@ -190,7 +225,9 @@
           "name": "test_items_tenant_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": ["public"],
+          "to": [
+            "public"
+          ],
           "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },

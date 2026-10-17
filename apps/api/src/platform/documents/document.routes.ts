@@ -67,7 +67,7 @@ export function documentRoutes(
     @Post(':id/pdf')
     @HttpCode(HttpStatus.ACCEPTED)
     // A retry with the same key gets the first answer instead of a second document.
-    @Idempotent({ required: true, scope: principalScope })
+    @Idempotent({ scope: principalScope })
     // Each one is a Chromium render: 10 a minute per user (API clients have their quotas).
     @UserThrottle({ limit: 10, ttl: minutes(1) })
     @ApiOperation({

@@ -16,6 +16,7 @@ export const CAPABILITIES = [
   'watch',
   'search',
   'transfer',
+  'custom',
 ];
 
 /** `--with tags,comments`: the capabilities, checked; pdf brings attachments (a PDF is one). */

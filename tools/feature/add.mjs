@@ -11,7 +11,7 @@
 //   pnpm feature:add invoices --fields "title:string,amount:money,dueOn:date?,status:enum(draft|sent|paid)"
 //   pnpm feature:add invoices --fields "…" --team --no-soft-delete --description "Invoices to customers"
 //   pnpm feature:add people --singular person --fields "name:string"
-//   pnpm feature:add invoices --fields "…" --with tags,comments,attachments,revisions,pdf,bulk,watch,search,transfer
+//   pnpm feature:add invoices --fields "…" --with tags,comments,attachments,revisions,pdf,bulk,watch,search,transfer,custom
 //   node --test tools/feature/add.test.mjs                  # its tests
 //
 // Field types: string, text, int, decimal, money, bool, date, datetime,

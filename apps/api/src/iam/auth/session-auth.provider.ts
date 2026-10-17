@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   AuthenticationRegistry,
   SessionCookieProvider,
   type SessionRecord,
 } from '@nestjs/authentication';
 import type { Principal } from './principal.js';
+import type { IamEnv } from '../iam.env.js';
 import { impersonationOf, sessionTenant } from './impersonation.js';
 import { UsersRepository } from './users.repository.js';
 
@@ -13,6 +15,7 @@ import { UsersRepository } from './users.repository.js';
 export class SessionAuth extends SessionCookieProvider<Principal> {
   constructor(
     private readonly accounts: UsersRepository,
+    private readonly config: ConfigService<IamEnv, true>,
     registry: AuthenticationRegistry,
   ) {
     super();
@@ -31,6 +34,10 @@ export class SessionAuth extends SessionCookieProvider<Principal> {
     const impersonation = impersonationOf(session);
     if (!user || !impersonation) {
       return user;
+    }
+    // IMPERSONATION=off ends the running ones too.
+    if (!this.config.get('IMPERSONATION', { infer: true })) {
+      return null;
     }
     if (Date.now() >= Date.parse(impersonation.endsAt)) {
       return null;

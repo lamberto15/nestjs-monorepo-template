@@ -61,7 +61,7 @@ export const INVOICE = defineRecord({
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
-  (notes does, for custom fields).
+  (notes does, for its hand-written custom fields).
 
   | Capability | Routes and more |
   | --- | --- |
@@ -74,6 +74,7 @@ export const INVOICE = defineRecord({
   | `watch` | `POST`/`DELETE /<x>/{id}/watch`; the owner watches from the start |
   | `search` | a search vector over the `.searchable()` fields: `?q=` on the list, GET /v1/search |
   | `transfer` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
+  | `custom` | administrators' runtime fields ([custom fields](custom-fields.md)): `custom` in bodies and responses, `custom.<key>` in lists, exports and imports, snapshots and the audit; the `custom` column and its GIN index (run `pnpm db:generate`), the field-level `custom` permission |
 
   Texts go to every locale in English (each locale's plural forms); the
   command lists the keys to translate.
@@ -102,7 +103,7 @@ pnpm client:generate   # when it says the routes change
 - `pnpm feature:sync --check` fails when anything is out of line (CI's
   feature-smoke job runs it after changing a feature this way).
 
-- **Not generated:** custom fields, approvals, settings, workflows and
+- **Not generated:** approvals, settings, workflows and
   outgoing webhook events: add them as the sections below say, notes as the
   example.
 - **Adding seed roles to an existing database:** the roles are written when a
@@ -213,7 +214,10 @@ the controller (`notes.*`); singular for what describes one record
      keeps its value taken.
    Not for link tables, logs, or records with a real "inactive" state (users
    and API clients deactivate). Notes is the example.
-6. **Custom fields** (optional): a `custom` JSONB column with a GIN index,
+6. **Custom fields** (optional; a generated record takes them with the
+   `custom` capability and none of this is written: the table, schemas,
+   service step, presenter and the platform's declaration come from the
+   record). By hand: a `custom` JSONB column with a GIN index,
    `defineCustomFields({ subject, table, column })` in the resource file,
    added to `PlatformModule.forRoot({ customFields })`. The service parses
    values with `customFields.parseValues()` and merges them with

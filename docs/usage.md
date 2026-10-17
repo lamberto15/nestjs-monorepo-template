@@ -4,6 +4,11 @@ What each API client calls, per UTC day and route, and an optional daily
 quota per client. `apps/api/src/platform/usage/`; nothing for a feature to declare:
 every route is metered.
 
+**`USAGE=off`** ([configuration.md](configuration.md#deployment-switches))
+turns the module off: nothing is metered, the usage routes answer 404, there is
+no roll-up, and **quotas do not apply**: a client's `dailyQuota` is stored and shown
+but never enforced (no `429 quota_exceeded`, no `X-Quota-*` headers).
+
 | Route | Does |
 | --- | --- |
 | `GET /v1/access/clients/{id}/usage?from=&to=` | `Access.manageClients`; 404 for an unknown client |

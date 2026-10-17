@@ -7,6 +7,8 @@ import {
   inMyTeams,
 } from '../../../src/iam/access/permissions.js';
 import type { Principal } from '../../../src/iam/auth/principal.js';
+import { recordPermissionFields } from '../../../src/platform/records/record.js';
+import { TEST_ITEM } from './test-item.record.js';
 import type { TestItem } from './test-item.schemas.js';
 import { testItems } from './test-items.tables.js';
 
@@ -34,6 +36,7 @@ export const TEST_ITEM_PERMISSIONS = definePermissions({
     TestItem: {
       label: 'Test items',
       fields: {
+        ...recordPermissionFields(TEST_ITEM),
         body: { label: "The test item's text" },
       },
       conditions: {
