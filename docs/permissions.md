@@ -51,10 +51,23 @@ before.
 | --- | --- |
 | The route | `@Can(NotePolicy, 'create')` |
 | One record | `authorization.authorize(NotePolicy, 'read', user, note)` |
+| What a reader may do with records (`?include=can`) | `recordCan(authorization, NotePolicy, user, rows, actions)` (`platform/records/record-can.ts`): the same policy check per record and action, `authorization.can()`, in memory |
 | A list | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide |
 | Fields read | `access.redact(user, 'read', 'Note', note)` / `redactAll()` |
 | Fields written | `access.forbiddenFields(user, 'update', 'Note', changes, note)` → 403 `field_forbidden` |
 | Fields a list query uses | `access.assertQueryFields(user, 'Note', query)` after `list.parse()` → 403 `field_forbidden` (hidden, or shown on some records only and filtered, sorted or searched by) |
+
+`GET /v1/auth/me`'s `can` says what the user may do on some records at
+least (`Note.update`: a note of theirs, say); a record's own `can`
+(`?include=can`, [api-conventions](api-conventions.md), "Resources") says
+it per record: `{ update, delete, restore }`, each the policy the route
+calls (`NotePolicy.update(user, note)`), so the conditions (`mine`,
+`draft`), the recycle bin and the request's tenant and principal (an API
+client's own permissions too) are the route's, and a `false` is the 403 the
+route would answer. The ability is the request's, loaded once (cached per
+tenant and principal): no query per row. Generated features get it from
+`RecordPresenter` (`one(user, row, include)`, `page()`); a policy's own
+rule (an override in `<x>.policy.ts`) is in it with nothing to add.
 
 ### Field-level permissions and lists
 

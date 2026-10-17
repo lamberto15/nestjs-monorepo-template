@@ -64,13 +64,20 @@ export function createSession(queryClient: QueryClient) {
     me: () => queryClient.ensureQueryData(meQuery),
     /**
      * A new session (signed in, switched tenant, re-authenticated as someone
-     * else): nothing cached belongs to it, so everything is dropped.
+     * else): nothing cached belongs to it. `resetQueries` is TanStack Query's
+     * documented tool for that: every query goes back to its initial state
+     * (the old data is dropped) and, unlike `removeQueries`/`clear`, the
+     * mounted observers are notified and the active queries refetch, so the
+     * sidebar, the user menu and the current page show the new session. Call
+     * it before navigating, so no old data is rendered after the switch.
      */
     reset: async () => {
       // Mutations too: their variables and results (a password change,
       // recovery codes, a TOTP secret) must not outlive the session.
       queryClient.getMutationCache().clear();
-      queryClient.removeQueries();
+      await queryClient.resetQueries();
+      // Not mounted anywhere (a sign-in page): fetch it, so the route
+      // guards find the new user. Fresh after the reset's refetch otherwise.
       await queryClient.fetchQuery(meQuery);
     },
     /** Signed out (or the session ended): forget the user and their data. */

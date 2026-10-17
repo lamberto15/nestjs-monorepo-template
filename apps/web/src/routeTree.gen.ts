@@ -21,6 +21,7 @@ import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
 import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account/preferences'
@@ -28,6 +29,11 @@ import { Route as AppAccountProfileRouteImport } from './routes/_app/account/pro
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
+import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
+import { Route as AppAccessRolesRoleIdRouteImport } from './routes/_app/access/roles/$roleId'
+import { Route as AppAccessRolesNewRouteImport } from './routes/_app/access/roles/new'
+import { Route as AppAccessTeamsIndexRouteImport } from './routes/_app/access/teams/index'
+import { Route as AppAccessTeamsTeamIdRouteImport } from './routes/_app/access/teams/$teamId'
 import { Route as AppNotesIdIndexRouteImport } from './routes/_app/notes/$id/index'
 import { Route as AppNotesIdEditRouteImport } from './routes/_app/notes/$id/edit'
 
@@ -90,6 +96,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccessUsersRoute = AppAccessUsersRouteImport.update({
+  id: '/access/users',
+  path: '/access/users',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
   id: '/account/',
   path: '/account/',
@@ -125,6 +136,31 @@ const AppNotesNewRoute = AppNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccessRolesIndexRoute = AppAccessRolesIndexRouteImport.update({
+  id: '/access/roles/',
+  path: '/access/roles/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccessRolesRoleIdRoute = AppAccessRolesRoleIdRouteImport.update({
+  id: '/access/roles/$roleId',
+  path: '/access/roles/$roleId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccessRolesNewRoute = AppAccessRolesNewRouteImport.update({
+  id: '/access/roles/new',
+  path: '/access/roles/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccessTeamsIndexRoute = AppAccessTeamsIndexRouteImport.update({
+  id: '/access/teams/',
+  path: '/access/teams/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccessTeamsTeamIdRoute = AppAccessTeamsTeamIdRouteImport.update({
+  id: '/access/teams/$teamId',
+  path: '/access/teams/$teamId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotesIdIndexRoute = AppNotesIdIndexRouteImport.update({
   id: '/notes/$id/',
   path: '/notes/$id/',
@@ -148,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
+  '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
@@ -155,7 +192,12 @@ export interface FileRoutesByFullPath {
   '/notes/new': typeof AppNotesNewRoute
   '/account/': typeof AppAccountIndexRoute
   '/notes/': typeof AppNotesIndexRoute
+  '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
+  '/access/roles/new': typeof AppAccessRolesNewRoute
+  '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
   '/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/access/roles/': typeof AppAccessRolesIndexRoute
+  '/access/teams/': typeof AppAccessTeamsIndexRoute
   '/notes/$id/': typeof AppNotesIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -170,6 +212,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
+  '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
@@ -177,7 +220,12 @@ export interface FileRoutesByTo {
   '/notes/new': typeof AppNotesNewRoute
   '/account': typeof AppAccountIndexRoute
   '/notes': typeof AppNotesIndexRoute
+  '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
+  '/access/roles/new': typeof AppAccessRolesNewRoute
+  '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
   '/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/access/roles': typeof AppAccessRolesIndexRoute
+  '/access/teams': typeof AppAccessTeamsIndexRoute
   '/notes/$id': typeof AppNotesIdIndexRoute
 }
 export interface FileRoutesById {
@@ -194,6 +242,7 @@ export interface FileRoutesById {
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/access/users': typeof AppAccessUsersRoute
   '/_app/account/notifications': typeof AppAccountNotificationsRoute
   '/_app/account/preferences': typeof AppAccountPreferencesRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
@@ -201,7 +250,12 @@ export interface FileRoutesById {
   '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
+  '/_app/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
+  '/_app/access/roles/new': typeof AppAccessRolesNewRoute
+  '/_app/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
   '/_app/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/_app/access/roles/': typeof AppAccessRolesIndexRoute
+  '/_app/access/teams/': typeof AppAccessTeamsIndexRoute
   '/_app/notes/$id/': typeof AppNotesIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -218,6 +272,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/notifications'
     | '/settings'
+    | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
     | '/account/profile'
@@ -225,7 +280,12 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/account/'
     | '/notes/'
+    | '/access/roles/$roleId'
+    | '/access/roles/new'
+    | '/access/teams/$teamId'
     | '/notes/$id/edit'
+    | '/access/roles/'
+    | '/access/teams/'
     | '/notes/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -240,6 +300,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/settings'
     | '/'
+    | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
     | '/account/profile'
@@ -247,7 +308,12 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/account'
     | '/notes'
+    | '/access/roles/$roleId'
+    | '/access/roles/new'
+    | '/access/teams/$teamId'
     | '/notes/$id/edit'
+    | '/access/roles'
+    | '/access/teams'
     | '/notes/$id'
   id:
     | '__root__'
@@ -263,6 +329,7 @@ export interface FileRouteTypes {
     | '/_app/notifications'
     | '/_app/settings'
     | '/_app/'
+    | '/_app/access/users'
     | '/_app/account/notifications'
     | '/_app/account/preferences'
     | '/_app/account/profile'
@@ -270,7 +337,12 @@ export interface FileRouteTypes {
     | '/_app/notes/new'
     | '/_app/account/'
     | '/_app/notes/'
+    | '/_app/access/roles/$roleId'
+    | '/_app/access/roles/new'
+    | '/_app/access/teams/$teamId'
     | '/_app/notes/$id/edit'
+    | '/_app/access/roles/'
+    | '/_app/access/teams/'
     | '/_app/notes/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -372,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/access/users': {
+      id: '/_app/access/users'
+      path: '/access/users'
+      fullPath: '/access/users'
+      preLoaderRoute: typeof AppAccessUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/account/': {
       id: '/_app/account/'
       path: '/account'
@@ -421,6 +500,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/access/roles/': {
+      id: '/_app/access/roles/'
+      path: '/access/roles'
+      fullPath: '/access/roles/'
+      preLoaderRoute: typeof AppAccessRolesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/access/roles/$roleId': {
+      id: '/_app/access/roles/$roleId'
+      path: '/access/roles/$roleId'
+      fullPath: '/access/roles/$roleId'
+      preLoaderRoute: typeof AppAccessRolesRoleIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/access/roles/new': {
+      id: '/_app/access/roles/new'
+      path: '/access/roles/new'
+      fullPath: '/access/roles/new'
+      preLoaderRoute: typeof AppAccessRolesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/access/teams/': {
+      id: '/_app/access/teams/'
+      path: '/access/teams'
+      fullPath: '/access/teams/'
+      preLoaderRoute: typeof AppAccessTeamsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/access/teams/$teamId': {
+      id: '/_app/access/teams/$teamId'
+      path: '/access/teams/$teamId'
+      fullPath: '/access/teams/$teamId'
+      preLoaderRoute: typeof AppAccessTeamsTeamIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notes/$id/': {
       id: '/_app/notes/$id/'
       path: '/notes/$id'
@@ -442,6 +556,7 @@ interface AppRouteChildren {
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAccessUsersRoute: typeof AppAccessUsersRoute
   AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
   AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
@@ -449,7 +564,12 @@ interface AppRouteChildren {
   AppNotesNewRoute: typeof AppNotesNewRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
+  AppAccessRolesRoleIdRoute: typeof AppAccessRolesRoleIdRoute
+  AppAccessRolesNewRoute: typeof AppAccessRolesNewRoute
+  AppAccessTeamsTeamIdRoute: typeof AppAccessTeamsTeamIdRoute
   AppNotesIdEditRoute: typeof AppNotesIdEditRoute
+  AppAccessRolesIndexRoute: typeof AppAccessRolesIndexRoute
+  AppAccessTeamsIndexRoute: typeof AppAccessTeamsIndexRoute
   AppNotesIdIndexRoute: typeof AppNotesIdIndexRoute
 }
 
@@ -457,6 +577,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAccessUsersRoute: AppAccessUsersRoute,
   AppAccountNotificationsRoute: AppAccountNotificationsRoute,
   AppAccountPreferencesRoute: AppAccountPreferencesRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
@@ -464,7 +585,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotesNewRoute: AppNotesNewRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
+  AppAccessRolesRoleIdRoute: AppAccessRolesRoleIdRoute,
+  AppAccessRolesNewRoute: AppAccessRolesNewRoute,
+  AppAccessTeamsTeamIdRoute: AppAccessTeamsTeamIdRoute,
   AppNotesIdEditRoute: AppNotesIdEditRoute,
+  AppAccessRolesIndexRoute: AppAccessRolesIndexRoute,
+  AppAccessTeamsIndexRoute: AppAccessTeamsIndexRoute,
   AppNotesIdIndexRoute: AppNotesIdIndexRoute,
 }
 

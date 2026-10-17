@@ -12,6 +12,7 @@ import { type Capability, type RecordDeclaration, takes } from './record.js';
 import {
   RECORD_CONTRACT,
   RECORD_DECLARATION,
+  RECORD_POLICY,
   RECORD_TABLE,
   type RecordContract,
   RecordLifecycle,
@@ -113,6 +114,8 @@ export function recordParts(
   const providers: Provider[] = [
     { provide: RECORD_DECLARATION, useValue: declaration },
     { provide: RECORD_TABLE, useValue: options.table },
+    // The policy class: what a record's `can` (?include=can) checks, as its routes do.
+    { provide: RECORD_POLICY, useValue: options.policy },
     {
       provide: RECORD_CONTRACT,
       useFactory: (
