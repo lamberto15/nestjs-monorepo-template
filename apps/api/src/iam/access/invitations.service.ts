@@ -23,6 +23,7 @@ import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { tenantScope } from '../../core/tenancy/tenant-scope.js';
 import { TenantInvitationMail } from '../account/account.mails.js';
 import { BreachedPasswordsService } from '../account/breached-passwords.service.js';
+import { AuthPolicyService } from '../auth/auth-policy.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import {
   actorOf,
@@ -76,6 +77,7 @@ export class InvitationsService {
     private readonly mailQueue: MailQueue,
     private readonly passwordHasher: PasswordHasher,
     private readonly breachedPasswords: BreachedPasswordsService,
+    private readonly authPolicy: AuthPolicyService,
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
   ) {}
 
@@ -241,6 +243,11 @@ export class InvitationsService {
           errors: [{ path: 'password', message: t('auth.required') }],
         });
       }
+      // The joined tenant's minimum length (auth.passwordMinLength): the
+      // new account's only tenant.
+      await this.authPolicy.assertPasswordLength(input.password, 'password', {
+        tenantIds: [tenantId],
+      });
       await this.breachedPasswords.assertNotBreached(
         input.password,
         'password',

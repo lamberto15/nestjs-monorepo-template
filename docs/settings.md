@@ -44,6 +44,28 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
 - In a durable workflow, read a setting inside `ctx.step()` so a replay
   sees the value the instance started with (`note-publication.workflow.ts`).
 
+## IAM's auth policies (`auth.*`)
+
+Declared by the platform (`platform/auth-policy/auth-settings.ts`, merged
+before the features' like approvals' settings) for IAM, which reads them
+through its `AUTH_POLICY` port under the environment's ceiling
+([auth.md](auth.md#policies)). Shown to managers only (`public: false`).
+
+| Key | Value | Scopes | Default |
+| --- | --- | --- | --- |
+| `auth.requireMfa` | boolean | `tenant`, `team` (never `user`: nobody exempts themselves) | `false` |
+| `auth.passwordMinLength` | integer, 12 to 64 | `tenant` | `12` |
+
+- **`true` wins for `auth.requireMfa`**: it applies to a user when the
+  tenant's value or one of their teams' is `true` (`SettingsService.anyOn()`),
+  so a team's `false` exempts nobody from the tenant's `true`, unlike the
+  usual precedence.
+- **The ceiling at set**: a value the deployment doesn't allow is refused
+  with 400 `setting_not_allowed` (`detail` says why; `errors[0].path:
+  value`): `auth.requireMfa: true` with `AUTH_MFA=off`. A value stored
+  before the env changed stays stored and has no effect. Any declaration
+  can be limited so (`SettingsService.restrict(declaration, check)`).
+
 ## For administrators (`Access.manageSettings`)
 
 ```

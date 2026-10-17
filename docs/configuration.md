@@ -70,6 +70,52 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Container logs (Compose) | `DOCKER_LOG_DRIVER` (`local`; `json-file` for a shipper reading Docker's files), `DOCKER_LOG_MAX_SIZE` (20m), `DOCKER_LOG_MAX_FILE` (5): per container |
 | Example feature | `NOTE_PUBLISH_DELAY`, `EXAMPLE_SENDER_WEBHOOK_SECRET` |
 
+## First setup: pnpm setup
+
+`pnpm setup` is the wizard for a new project: it asks the few questions that
+shape it and writes the env file from the template, so most toggles stay off
+and no secret is made by hand (`tools/setup/`: `setup.mjs` asks and writes,
+`plan.mjs` maps answers to variables, `envfile.mjs` merges them into the
+template's text, keeping its comments, order and unknown keys).
+
+- **Target:** `development` writes `apps/api/.env.development` (from
+  `env.development.example`), `production` the root `.env` (from
+  `env.example`, chmod 600).
+- **The deployment shape is chosen here, once:** `TENANCY` (one organization
+  or many; [tenancy.md](tenancy.md), "Single-tenant deployments"), and with
+  `single` and sign-up on, `SIGN_UP_ROLES`. Then self sign-up
+  (`AUTH_SIGN_UP`), mail (`MAIL_TRANSPORT` and its address or key), storage
+  (`STORAGE_DRIVER`, S3), bot protection (`CAPTCHA_MODE` and the Turnstile keys,
+  only when chosen), passkeys (`PASSKEYS`; the relying party id defaults to
+  the web app's host and can never change), social sign-in, exchange rates,
+  PDF documents, metrics, the deployment switches ([below](#deployment-switches)):
+  `IDEMPOTENCY` (`required` or `optional`), the optional platform services
+  `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (asked in a row, default on), and the
+  security switches `AUTH_MFA`, `API_CLIENTS` (default on) and `IMPERSONATION`
+  (a privileged support tool, default off; development's template turns it on and
+  that is its default); in production also `APP_DOMAIN`, `ACME_EMAIL`,
+  `CLOUDFLARE_API_TOKEN`, `WEB_URL`, `CORS_ORIGINS`, the administrator and the
+  first tenant. It asks only what the target's template has variables for.
+- **Secrets are generated** as `env.example` says (passwords `openssl rand
+-hex 24`, keys `-base64 32`) and never printed: the first
+  administrator's password is `ADMIN_PASSWORD` in the file it wrote.
+- **The example feature:** the last question removes `notes`
+  (`pnpm feature:remove notes`; default yes in production); then run `pnpm
+db:generate`.
+- **Re-running** reads the existing file for its defaults, keeps its secrets
+  (`--rotate` makes new ones: keys are put in front of the old ones, so old
+  data stays readable), shows the changes masked, asks before writing and
+  keeps the old file as `<file>.bak`. A changed `TENANCY` or `PASSKEY_RP_ID`
+  is warned about.
+- **Without a terminal:** `--yes` takes the defaults and the flags (one per
+  question, `pnpm setup --help`; a required one missing is an error naming
+  it), `--dry-run` prints the plan and writes nothing.
+
+```bash
+pnpm setup --yes --target production --app-domain api.example.com --acme-email ops@example.com \
+  --cloudflare-api-token <token> --tenancy single --mail smtp --smtp-url <url> --mail-from <from> --no-passkeys
+```
+
 ## Deployment switches
 
 Platform modules not every project needs. Each is `on` by default, so nothing
@@ -85,6 +131,12 @@ route answers the app's ordinary 404 problem.
 | `REPORTS` | No `/v1/reports` and no hourly runner; exports and imports are untouched. The `reports` table stays (migrations are not switched); existing reports stop running and are left out of an account's personal-data export. |
 | `USAGE` | No metering and no quota enforcement: `UsageInterceptor` is not registered, so nothing is counted on the hot path, the nightly roll-up and `GET /v1/access/clients/{id}/usage` are gone, and a client's `dailyQuota` can still be set but **does not apply** (no `429 quota_exceeded`, no `X-Quota-*` headers). |
 | `REALTIME` | No `/realtime` gateway and no socket.io Redis adapter. Everything that pushes (notifications, bulk and export progress, documents, approvals) keeps working: notifications are still stored and mailed, only the live event is dropped. |
+
+The environment is also the **ceiling of the auth policies** a tenant's
+administrators set at runtime (`auth.requireMfa`, `auth.passwordMinLength`):
+a setting only tightens what the env allows, never loosens it
+(`AUTH_MFA=off` and `auth.requireMfa` can't be on). See
+[auth.md](auth.md#policies) and [settings.md](settings.md#iams-auth-policies-auth).
 
 There is no `WORKFLOWS` switch: approvals (and the notes example) start and
 signal workflows unconditionally, so the workflow engine is part of the core

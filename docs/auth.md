@@ -60,8 +60,9 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 - **Two-factor** secrets are encrypted at rest (`MFA_ENCRYPTION_KEYS`); a code
   works once; failures lock out for 15 minutes.
 - **Refresh tokens** rotate; one presented twice revokes its whole family.
-- **New passwords** are 12 to 128 characters and not found in data
-  breaches: see [Passwords](#passwords).
+- **New passwords** are 12 to 128 characters (a tenant may ask for more:
+  [Policies](#policies)) and not found in data breaches: see
+  [Passwords](#passwords).
 - **Account emails** are rendered in the user's language and time zone and
   sent through the mail queue (workers).
 
@@ -751,6 +752,67 @@ and the typed client either way (each lists the 404).
 
 Impersonation is a privileged support tool, so it is opt in: set
 `IMPERSONATION=on` (the development example does).
+
+## Policies
+
+Auth rules a tenant's administrators change at runtime, as settings
+(`PUT /v1/settings/auth.*`, `Access.manageSettings`; the keys:
+[settings.md](settings.md#iams-auth-policies-auth)). **The environment is
+the ceiling:** a setting may only tighten what the deployment allows,
+never loosen it. Unset, every policy is today's behaviour.
+
+| Setting | Scopes | Does | Ceiling |
+| --- | --- | --- | --- |
+| `auth.requireMfa` | tenant, team | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
+| `auth.passwordMinLength` | tenant | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum |
+
+- **Two-factor required.** The first factor signs in as usual (no code
+  is asked: there is no authenticator yet), but the session or token is
+  restricted: every route answers 403 `mfa_enrollment_required` except
+  `GET /v1/auth/me` (its `mfaEnrollmentRequired: true` tells the web app to
+  show the set-up), `/v1/auth/mfa…` (status, `enroll`, `confirm`),
+  `/v1/auth/reauthenticate` (enrolling wants a recent sign-in), signing out
+  (`/sign-out`, `/sign-out-everywhere`), `GET /v1/auth/tenants`,
+  `POST /v1/auth/tenant` (another tenant may not require it) and
+  accepting an invitation. Once `confirm` succeeds the same session is a
+  normal one, and later sign-ins ask for the code as for anyone enrolled.
+  Checked on every request (`MfaEnrollmentGuard`, `iam/auth/mfa-enrollment.guard.ts`,
+  a global guard between authentication and authorization), so turning it
+  on restricts sessions already signed in, and turning it off frees them.
+  Never restricted: API clients, the system principal, an impersonation
+  (the administrator signed in, not the user). The package's second factor
+  covers enrolled users only (a pending session, `@Authenticate({ mfa: true })`)
+  and has no hook to make a user enroll, hence the guard.
+- **Who meets a minimum length.** A password is the account's, in every
+  tenant: the strictest of the tenants it is an active member of; an
+  invitation's new address, the inviting tenant's. A reset link is read
+  without being spent (`UsersRepository.pendingReset()`), so a refused
+  password leaves it working.
+- **Before signing in there is no tenant.** Settings are rows of a tenant,
+  under row-level security, so a pre-authentication flow (sign-up, the
+  sign-in's bot check) has none to read: with `TENANCY=multi` they keep the
+  environment's policy. With `TENANCY=single` the one tenant's settings
+  apply to them too (a sign-up meets its `auth.passwordMinLength`).
+- **Per-tenant sign-up and bot protection** (`auth.signUp`,
+  `auth.captchaMode`) are **deferred**: they could only apply with
+  `TENANCY=single` (both are pre-authentication), where the one tenant's
+  operator also sets the environment (`AUTH_SIGN_UP`, `CAPTCHA_MODE` and
+  the Turnstile keys, which must be there anyway), so a runtime setting
+  that may only tighten the env adds little for the complexity of a
+  second, request-time source for `GET /v1/auth/methods`, the sign-up
+  route and the captcha guard.
+- **How it is built.** IAM can't import the platform, where settings live:
+  `AUTH_POLICY` (`iam/auth/auth-policy.ts`) is a port the platform
+  provides (`SettingsAuthPolicy`, `platform/auth-policy/`), injected
+  optionally by `AuthPolicyService`, which applies the ceiling on what it
+  returns (so a source can't loosen the env) and, without one (IAM alone),
+  answers with the environment alone. Not a default provider under the
+  same token: Nest resolves a module's own provider before a global
+  one's, so IAM's would always win over the platform's.
+- **Proof:** `test/auth-policies.e2e-spec.ts` (a team's requirement until
+  enrolled, off again, a tenant's requirement with a team's `false`, API
+  clients, the `AUTH_MFA=off` ceiling, minimum lengths on change, reset and
+  invitation, per tenant), `iam/auth/auth-policy.spec.ts` (the ceiling).
 
 ## Impersonation (support)
 

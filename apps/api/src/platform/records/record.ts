@@ -6,6 +6,7 @@ import {
   type PgTable,
   pgTable,
   text,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import {
@@ -56,8 +57,20 @@ export const CAPABILITIES = [
   'search',
   'transfer',
   'custom',
+  'events',
+  'numbered',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
+
+/** How a numbered record's number reads (platform/sequences: `NextNumberOptions`). */
+export interface RecordNumber {
+  /** `INV` in `INV-2026-00042`. */
+  prefix?: string;
+  /** Starts over every year, the year in the number. Default: true. */
+  perYear?: boolean;
+  /** Digits, zero-padded. Default: 5. */
+  width?: number;
+}
 
 export interface RecordDeclaration<
   F extends Fields = Fields,
@@ -69,6 +82,11 @@ export interface RecordDeclaration<
   softDelete: boolean;
   /** Records carry their creator's team (`teamId`, the `inMyTeams` condition). */
   team: boolean;
+  /**
+   * With `numbered`: the human-readable number's format (`INV-2026-00042`;
+   * default: the subject's initials as prefix, per year, 5 digits).
+   */
+  number?: RecordNumber;
   fields: F;
   capabilities: C;
 }
@@ -107,6 +125,39 @@ export function defineRecord<
 export const recordKey = (declaration: RecordDeclaration) =>
   declaration.subject[0]!.toLowerCase() + declaration.subject.slice(1);
 
+/** The number's format with its defaults: the subject's initials (`InvoiceLine` → `IL`, `Invoice` → `INV`), per year, 5 digits. */
+export const numberFormat = (declaration: RecordDeclaration) => {
+  const words = declaration.subject.match(/[A-Z][a-z0-9]*/g) ?? [
+    declaration.subject,
+  ];
+  const initials =
+    words.length > 1
+      ? words.map((word) => word[0]).join('')
+      : declaration.subject.slice(0, 3);
+  return {
+    prefix: declaration.number?.prefix ?? initials.toUpperCase(),
+    perYear: declaration.number?.perYear ?? true,
+    width: declaration.number?.width ?? 5,
+  };
+};
+
+/**
+ * The webhook event types a record's `events` capability declares:
+ * `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle
+ * bin). `featureDeclarations` adds them to the platform's `eventTypes`.
+ */
+export const recordEventTypes = (declaration: RecordDeclaration) => {
+  const key = recordKey(declaration);
+  return takes(declaration, 'events')
+    ? [
+        `${key}.created`,
+        `${key}.updated`,
+        `${key}.deleted`,
+        ...(declaration.softDelete ? [`${key}.restored`] : []),
+      ]
+    : [];
+};
+
 /** Whether a record takes a capability. */
 export const takes = (declaration: RecordDeclaration, capability: Capability) =>
   declaration.capabilities.includes(capability);
@@ -119,6 +170,7 @@ const base = () => ({
   ownerId: text('owner_id').notNull(),
 });
 const teamColumns = () => ({ teamId: uuid('team_id') });
+const numberColumns = () => ({ number: text('number') });
 const searchColumns = () => ({ search: searchVector('search', () => sql``) });
 const customColumns = () => ({
   /** Custom field values by key (platform/custom-fields): checked against their definitions on every write. */
@@ -136,6 +188,9 @@ export type RecordColumns<D extends RecordDeclaration> = ReturnType<
   (D['team'] extends true ? ReturnType<typeof teamColumns> : Empty) &
   FieldColumns<D['fields']> &
   ReturnType<typeof timestamps> &
+  ('numbered' extends D['capabilities'][number]
+    ? ReturnType<typeof numberColumns>
+    : Empty) &
   (D['softDelete'] extends true ? ReturnType<typeof softDeletable> : Empty) &
   ('search' extends D['capabilities'][number]
     ? ReturnType<typeof searchColumns>
@@ -157,6 +212,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
     ...base(),
     ...(declaration.team && teamColumns()),
     ...fieldColumns(declaration.fields),
+    ...(takes(declaration, 'numbered') && numberColumns()),
     ...(takes(declaration, 'custom') && customColumns()),
     ...timestamps(),
     ...(declaration.softDelete && softDeletable()),
@@ -183,6 +239,10 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
         ? [index(`${name}_search_idx`).using('gin', t.search)]
         : []),
       ...fieldExtras(name, t, declaration.fields),
+      // Unique per tenant; empty for records from before the capability (a number is never reused).
+      ...(takes(declaration, 'numbered')
+        ? [uniqueIndex(`${name}_number_idx`).on(t.tenantId, t.number)]
+        : []),
       ...tenantTable(name, t, { referenced: true }),
       ...(declaration.team
         ? [

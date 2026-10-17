@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import { addFeature } from './add.mjs';
+import { format } from './format.mjs';
 import { removeFeature } from './remove.mjs';
 
 const REPO = path.resolve(
@@ -107,32 +108,35 @@ C=3
   });
   after(() => rmSync(root, { recursive: true, force: true }));
 
-  it('refuses an unknown feature', () => {
-    assert.throws(
+  it('refuses an unknown feature', async () => {
+    await assert.rejects(
       () => removeFeature(root, { name: 'ghosts' }),
       /no features\/ghosts/,
     );
   });
 
-  it('refuses while another feature refers to it, and lists the files', () => {
+  it('refuses while another feature refers to it, and lists the files', async () => {
     // Payments has a ref(invoices) field.
-    assert.throws(
+    await assert.rejects(
       () => removeFeature(root, { name: 'invoices' }),
       /payment\.record\.ts/,
     );
     assert.ok(existsSync(api('src/features/invoices')));
   });
 
-  it('removes the referring feature first, leaving the rest alone', () => {
-    removeFeature(root, { name: 'payments' });
+  it('removes the referring feature first, leaving the rest alone', async () => {
+    await removeFeature(root, { name: 'payments' });
     assert.ok(!existsSync(api('src/features/payments')));
     assert.ok(!read(api('src/features/index.ts')).includes('PAYMENTS'));
     assert.ok(read(api('src/features/tables.ts')).includes('notes.tables'));
   });
 
-  it('changes nothing on a dry run', () => {
+  it('changes nothing on a dry run', async () => {
     const before = read(api('src/features/index.ts'));
-    const result = removeFeature(root, { name: 'invoices', dryRun: true });
+    const result = await removeFeature(root, {
+      name: 'invoices',
+      dryRun: true,
+    });
     assert.equal(result.item, 'invoice');
     assert.ok(result.deleted.includes('apps/api/src/features/invoices'));
     assert.equal(read(api('src/features/index.ts')), before);
@@ -140,8 +144,8 @@ C=3
     assert.ok(read(path.join(root, 'env.example')).includes('INVOICE_DELAY'));
   });
 
-  it('removes the folder, tests, lines, texts, template and env blocks', () => {
-    const result = removeFeature(root, { name: 'invoices' });
+  it('removes the folder, tests, lines, texts, template and env blocks', async () => {
+    const result = await removeFeature(root, { name: 'invoices' });
     assert.ok(!existsSync(api('src/features/invoices')));
     assert.ok(!existsSync(api('test/invoices.e2e-spec.ts')));
     assert.ok(!existsSync(api('test/features/invoices')));
@@ -153,6 +157,16 @@ C=3
     assert.ok(index.includes('NOTES_FEATURE,'));
     assert.ok(index.includes('// pnpm feature:add: features above this line.'));
     assert.ok(!read(api('src/features/tables.ts')).includes('invoices'));
+    // The TypeScript it edits is formatted as Prettier formats it.
+    for (const file of [
+      'src/features/index.ts',
+      'src/features/tables.ts',
+      'src/features/env.ts',
+      'test/setup-env.ts',
+    ]) {
+      const text = read(api(file));
+      assert.equal(text, await format(api(file), text), file);
+    }
     const env = read(api('src/features/env.ts'));
     assert.ok(!env.includes('invoicesEnv'));
     assert.ok(env.includes('...notesEnv.shape,'));

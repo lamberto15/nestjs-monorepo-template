@@ -29,6 +29,7 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
 import { newPassword } from '../account/account.schemas.js';
+import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
 import { OperatorOnly } from '../auth/operator-only.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
@@ -102,6 +103,7 @@ export class TenantSwitchController {
 
   @UserOnly()
   @Can.Anyone()
+  @DuringMfaEnrollment()
   @Get('tenants')
   @ApiCookieAuth('user-session')
   @ApiOperation({
@@ -116,6 +118,7 @@ export class TenantSwitchController {
 
   @SessionOnly()
   @Can.Anyone()
+  @DuringMfaEnrollment()
   @Post('tenant')
   @HttpCode(204)
   @ApiCookieAuth('user-session')
@@ -150,6 +153,7 @@ export class TenantSwitchController {
   @Can.Anyone()
   // The global limit only: a token is 256 random bits (nothing to guess),
   // and the one hash a new account costs waits in PasswordHashLimiter.
+  @DuringMfaEnrollment()
   @Post('invitations/accept')
   @HttpCode(200)
   @ApiOperation({

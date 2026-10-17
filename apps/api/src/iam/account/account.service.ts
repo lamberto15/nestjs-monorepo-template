@@ -33,6 +33,7 @@ import { userIdentities, users } from '../iam.tables.js';
 import { signInOptions, tokenClaims } from '../auth/authentication-method.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
+import { AuthPolicyService } from '../auth/auth-policy.service.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SingleTenant } from '../access/single-tenant.js';
 import { CredentialsService } from './credentials.service.js';
@@ -88,6 +89,7 @@ export class AccountService {
     private readonly providerReauthentications: ProviderReauthentications,
     private readonly tenancy: Tenancy,
     private readonly singleTenant: SingleTenant,
+    private readonly authPolicy: AuthPolicyService,
   ) {}
 
   /** A new account with a password (not one found in data breaches), audited. */
@@ -102,6 +104,10 @@ export class AccountService {
     ip: string,
   ) {
     const { password, ...fields } = input;
+    // TENANCY=single: the tenant's minimum length (auth.passwordMinLength).
+    await this.authPolicy.assertPasswordLength(password, 'password', {
+      signUp: true,
+    });
     await this.breachedPasswords.assertNotBreached(password, 'password');
     const passwordHash = await this.passwordHasher.hash(password);
     // TENANCY=single: the account joins the tenant in the same transaction.
@@ -171,6 +177,13 @@ export class AccountService {
    * deny resets). Busy now, the link is untouched and the retry works.
    */
   async resetPassword(token: string, password: string, ip: string) {
+    // The account's tenants' minimum length, read without spending the link.
+    const userId = await this.users.pendingReset(token);
+    if (userId) {
+      await this.authPolicy.assertPasswordLength(password, 'password', {
+        userId,
+      });
+    }
     await this.breachedPasswords.assertNotBreached(password, 'password');
     const result = await this.hashLimiter.run(() =>
       this.passwordReset.reset(token, password),
@@ -448,6 +461,11 @@ export class AccountService {
         throw new ForbiddenException(t('auth.wrongPassword'));
       }
     }
+    await this.authPolicy.assertPasswordLength(
+      passwords.newPassword,
+      'newPassword',
+      { userId: user.id },
+    );
     await this.breachedPasswords.assertNotBreached(
       passwords.newPassword,
       'newPassword',

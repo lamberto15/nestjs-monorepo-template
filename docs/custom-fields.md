@@ -82,7 +82,8 @@ derives everything below from the record (`recordTable`, `recordSchemas`,
 `RecordLifecycle.values()` for the service's checks and merge,
 `RecordPresenter` for `visible()` and the extended list,
 `recordCustomFields()` for the declaration `PlatformModule.forRoot` takes,
-the `custom` permission field from `recordPermissionFields()`, `custom` in
+the `custom` permission field in `recordPermissions()` (and the audit's
+`custom.<key>` entries from `recordResource()`), `custom` in
 revisions' snapshots, and `custom.<key>` columns in the record's export and
 import). The steps below are the same thing written by hand, as notes does:
 

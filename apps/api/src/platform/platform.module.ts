@@ -22,6 +22,9 @@ import { OpsMetrics } from './ops/ops-metrics.js';
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
+import { AUTH_POLICY } from '../iam/auth/auth-policy.js';
+import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
+import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
 import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
 // Maps the webhooks package's errors to problem details.
@@ -332,8 +335,12 @@ export class PlatformModule {
               ...APPROVAL_NOTIFICATIONS,
               ...(options.notifications ?? []),
             ],
-            // And its own settings (approvals' delegation limit).
-            settings: [...APPROVAL_SETTINGS, ...(options.settings ?? [])],
+            // And its own settings (IAM's auth policies, approvals' delegation limit).
+            settings: [
+              ...AUTH_SETTINGS,
+              ...APPROVAL_SETTINGS,
+              ...(options.settings ?? []),
+            ],
           },
         },
         OpsQueues,
@@ -406,6 +413,10 @@ export class PlatformModule {
         NotificationTransfer,
         // Settings and flags: features declare them (options.settings) and read them through the service.
         SettingsService,
+        // IAM's auth policies (iam can't import the platform): the tenants'
+        // auth.* settings, which IAM reads under the env's ceiling.
+        SettingsAuthPolicy,
+        { provide: AUTH_POLICY, useExisting: SettingsAuthPolicy },
         // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
         PersonalDataRegistry,
         AccountLifecycleService,
@@ -489,6 +500,7 @@ export class PlatformModule {
         CustomFieldsService,
         NotificationsService,
         IAM_NOTIFIER,
+        AUTH_POLICY,
         NotificationChannelRegistry,
         SettingsService,
         PersonalDataRegistry,

@@ -1,5 +1,5 @@
 {
-  "id": "50f2389e-aec1-4093-abc8-dc1632d3d2cd",
+  "id": "c4727376-b391-4d5a-aab3-c03dc1026fc4",
   "prevId": "a1a265cf-8cf1-431a-a4c0-4680aef3c64d",
   "version": "7",
   "dialect": "postgresql",
@@ -45,9 +45,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
+        "number": {
+          "name": "number",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -139,6 +139,27 @@
           "isUnique": false,
           "concurrently": false,
           "method": "gin",
+          "with": {}
+        },
+        "test_items_number_idx": {
+          "name": "test_items_number_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
           "with": {}
         },
         "test_items_custom_idx": {

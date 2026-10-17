@@ -13,22 +13,31 @@ pnpm client:generate    # the typed client
 ```
 
 It writes the feature's **record declaration**, `<item>.record.ts`: its
-fields (platform/fields) and its capabilities, in one place. Everything else
-is derived from it by the platform, so only the business logic is left to
-write (`<x>.service.ts`, where it says "Business logic"):
+fields (platform/fields), its capabilities, its recycle bin (`softDelete`)
+and teams (`team`), in one place. Everything else is derived from it by the
+platform, so only the business logic is left to write (`<x>.service.ts`,
+where it says "Business logic"):
 
 - the table (`recordTable`: tenant, owner, team, the fields' columns, timestamps,
   recycle bin, search vector, indexes and keys), the schemas
   (`recordSchemas`), the list's filters and sorts (`recordList`);
 - the capabilities' routes and targets (`recordParts` in the module: the
-  platform's generic targets, platform/records), what the service does for
+  platform's generic targets, platform/records), the recycle bin's
+  `POST /<x>/{id}/restore` (with `softDelete`), what the service does for
   them (`RecordLifecycle`: watchers, revisions) and how records are shown
   (`RecordPresenter`: money as objects, tags, field-level redaction);
-- the files it writes around that: the permissions (`mine`, with `--team`
-  `inMyTeams`; added to the `editor` and `viewer` seed roles, which merge
-  across features), the policy, the audited service, the controller
-  (idempotent create, ETags, If-Match, field checks), the module,
-  `<x>.feature.ts` and `test/<x>.e2e-spec.ts` (bodies from the declaration).
+- what the recycle bin and teams change: the service's reads, deletes,
+  restores and a new record's team (`RecordStore`), the permissions
+  (`recordPermissions`: `mine`, with `team` `inMyTeams` and the `team-lead`
+  grant, with `softDelete` the `restore` action; added to the `editor`,
+  `team-lead` and `viewer` seed roles, which merge across features), the
+  policy (`RecordPolicy`), the resource (`recordResource`), the delete
+  route's text and the e2e tests of both (test/record-capabilities.ts);
+- the files it writes around that, the same whatever the flags say: the
+  permissions and the policy (a line each, the feature's own rules added
+  there), the audited service, the controller (idempotent create, ETags,
+  If-Match, field checks), the module, `<x>.feature.ts` and
+  `test/<x>.e2e-spec.ts` (bodies from the declaration).
 
 It appends the feature to `features/index.ts`, `features/tables.ts` and the
 OpenAPI test's path list.
@@ -54,8 +63,9 @@ export const INVOICE = defineRecord({
   within the tenant). `?` makes a field optional, `!unique` (string, int)
   unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
-- **Options:** `--team` (records carry their creator's team),
-  `--no-soft-delete` (deleted for good, no recycle bin), `--singular <name>`
+- **Options:** `--team` (records carry their creator's team: `team: true`),
+  `--no-soft-delete` (deleted for good, no recycle bin: `softDelete: false`),
+  both changeable later in the declaration, `--singular <name>`
   (when it can't be derived: `people` → `--singular person`),
   `--description "…"` (the Swagger tag's).
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
@@ -75,6 +85,19 @@ export const INVOICE = defineRecord({
   | `search` | a search vector over the `.searchable()` fields: `?q=` on the list, GET /v1/search |
   | `transfer` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
   | `custom` | administrators' runtime fields ([custom fields](custom-fields.md)): `custom` in bodies and responses, `custom.<key>` in lists, exports and imports, snapshots and the audit; the `custom` column and its GIN index (run `pnpm db:generate`), the field-level `custom` permission |
+  | `events` | webhooks `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle bin), declared as event types and sent in the write's transaction through the outbox |
+  | `numbered` | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only |
+
+  `events`: the data of each webhook is the record as the API shows it
+  (less the fields its receiver may not read), sent to the API client that
+  owns the record (endpoints belong to clients, so a user's records send
+  none: [webhooks](webhooks-and-realtime.md)); it needs no endpoint to
+  exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
+  perYear: true, width: 5 }` (default: the subject's initials, per year, 5
+  digits; one counter per tenant, [sequences](sequences.md)); the column is
+  nullable, so the capability can be added to a table with rows (those
+  records stay without a number). Both are done by `RecordLifecycle`, so the
+  generated service changes with neither.
 
   Texts go to every locale in English (each locale's plural forms); the
   command lists the keys to translate.
@@ -95,16 +118,28 @@ pnpm client:generate   # when it says the routes change
   required, and a removed field: those follow expand/contract
   ([pitfalls](pitfalls.md)).
 - **A capability:** its name in `capabilities` (search: mark the fields it
-  searches `.searchable()`; pdf: with attachments). Its routes, target and
+  searches `.searchable()`; pdf: with attachments; numbered: a
+  `number: { prefix: 'INV' }` line for the format). Its routes, target and
   tests come with it: the feature's e2e spec runs
   `describeCapabilities(() => node, RECORD)` (test/record-capabilities.ts).
 - **Removing a capability** takes its paths out of the OpenAPI test; its texts
   stay (harmless) until removed by hand.
+- **The recycle bin or teams:** flip `softDelete` or `team`. Their code is
+  the platform's (`RecordStore`, `recordPermissions`, `RecordPolicy`,
+  `recordResource`, the restore route, the e2e tests), so nothing else
+  changes by hand; sync moves the restore path in or out of the OpenAPI
+  test. Turning one on adds nullable columns (`deleted_at`, `deleted_by`;
+  `team_id` and its key: existing records get no team). Turning one off
+  drops them, and the guard refuses it like a removed field: records in the
+  recycle bin would come back as live ones, records lose their team; restore
+  or purge them first, then expand/contract. The guard also fails on a
+  generated file that still codes either by hand (one generated before they
+  moved to the platform): bring it to the shape `pnpm feature:add` writes.
 - `pnpm feature:sync --check` fails when anything is out of line (CI's
   feature-smoke job runs it after changing a feature this way).
 
 - **Not generated:** approvals, settings, workflows and
-  outgoing webhook events: add them as the sections below say, notes as the
+  webhook events beyond the record's own changes (`events`): add them as the sections below say, notes as the
   example.
 - **Adding seed roles to an existing database:** the roles are written when a
   tenant is made; an existing tenant's administrators grant the new
@@ -193,7 +228,8 @@ the controller (`notes.*`); singular for what describes one record
    each write calls `audit.recordChange()` in its transaction (diffs per
    field; `updatedAt` is never diffed; `expand` diffs an object per key).
 5. **Soft delete** (optional: a recycle bin, for records people delete by
-   mistake): the table spreads `...softDeletable()` (`deleted_at`,
+   mistake; a generated feature's `softDelete: true` does all of this
+   through the platform): the table spreads `...softDeletable()` (`deleted_at`,
    `deleted_by`, plus an index on `deleted_at`); the resource declares
    `softDelete: { table }` and is listed in `IamModule.forRoot({ resources })`;
    the subject gets a `restore` action. Then:

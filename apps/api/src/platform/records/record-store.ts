@@ -1,0 +1,165 @@
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import { and, eq, getTableColumns, isNotNull, isNull, SQL } from 'drizzle-orm';
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
+import type { Database, Transaction } from '../../core/database/drizzle.js';
+import {
+  database,
+  type DrizzleTransactions,
+} from '../../core/database/transactions.js';
+import {
+  afterCursor,
+  countPage,
+  pageOffset,
+  pageOrder,
+  type PageQuery,
+  toPage,
+} from '../../core/http/pagination.js';
+import { TeamsService } from '../../iam/access/teams.service.js';
+import { type Principal, principalKey } from '../../iam/auth/principal.js';
+import type { RecordDeclaration } from './record.js';
+import {
+  RECORD_DECLARATION,
+  RECORD_TABLE,
+  RecordLifecycle,
+  type RecordRow,
+} from './record-contract.js';
+
+type RecordTable = PgTable & Record<string, AnyPgColumn>;
+
+/**
+ * The queries of a record's table whose shape its declaration decides
+ * (record.ts: `softDelete`, `team`), for the feature's service: one record
+ * or a page of them (the recycle bin left out, or only it), a new record's
+ * owner and team, a delete (to the recycle bin, or for good), a restore. The
+ * service keeps the transaction, the audit entry and the business logic, and
+ * calls these inside them; flipping `softDelete` or `team` in the
+ * declaration changes no code of the feature's. Provided by recordParts().
+ */
+@Injectable()
+export class RecordStore {
+  constructor(
+    @Inject(RECORD_DECLARATION) private readonly declaration: RecordDeclaration,
+    @Inject(RECORD_TABLE) private readonly table: RecordTable,
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly teams: TeamsService,
+    private readonly lifecycle: RecordLifecycle,
+  ) {}
+
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  /**
+   * The columns a new record's owner sets: `ownerId`, and with teams the
+   * owner's team (a user's first one; none for an API client).
+   */
+  async owner(owner: Principal, tx: Transaction) {
+    return {
+      ownerId: principalKey(owner),
+      ...(this.declaration.team && {
+        teamId:
+          owner.kind === 'user'
+            ? ((await this.teams.teamsOf(owner.id, tx))[0] ?? null)
+            : null,
+      }),
+    };
+  }
+
+  /**
+   * One, or a 404. With a recycle bin, deleted ones are found only with
+   * `deleted` (and only they); without one, `deleted` finds nothing.
+   */
+  async findOne<Row extends RecordRow>(
+    id: string,
+    db: Database | Transaction = this.db,
+    { deleted = false }: { deleted?: boolean } = {},
+  ): Promise<Row> {
+    const table = this.table;
+    const soft = this.declaration.softDelete;
+    const [row] =
+      deleted && !soft
+        ? []
+        : await db
+            .select()
+            .from(table)
+            .where(
+              and(
+                eq(table.id!, id),
+                soft
+                  ? deleted
+                    ? isNotNull(table.deletedAt!)
+                    : isNull(table.deletedAt!)
+                  : undefined,
+              ),
+            );
+    if (!row) {
+      const noun = this.declaration.noun;
+      throw new NotFoundException(
+        `${noun[0]!.toUpperCase()}${noun.slice(1)} ${id} not found.`,
+      );
+    }
+    return row as Row;
+  }
+
+  /**
+   * A page of those matching `where` (the caller's read filter, from
+   * AccessService: it keeps the recycle bin apart), newest first. `extra`:
+   * sort values that aren't columns (the search rank), for the cursor.
+   */
+  async findPage<Row extends RecordRow>(
+    where: SQL | undefined,
+    query: PageQuery,
+    extra: Record<string, SQL.Aliased> = {},
+  ) {
+    const table = this.table;
+    const [rows, total] = await Promise.all([
+      this.db
+        .select({ ...getTableColumns(table), ...extra })
+        .from(table)
+        .where(and(where, afterCursor(table.id!, query)))
+        .orderBy(...pageOrder(table.id!, query))
+        .limit(query.limit + 1)
+        .offset(pageOffset(query)),
+      countPage(this.db, table, where, query),
+    ]);
+    return toPage(rows as Row[], query, total);
+  }
+
+  /** Deletes one: to the recycle bin (restorable until purged) when it has one, else for good; its `events` follow. */
+  async delete(tx: Transaction, by: Principal, row: RecordRow) {
+    const table = this.table;
+    if (this.declaration.softDelete) {
+      const [deleted] = await tx
+        .update(table)
+        .set({ deletedAt: new Date(), deletedBy: principalKey(by) })
+        .where(eq(table.id!, row.id))
+        .returning();
+      await this.lifecycle.deleted(tx, { row: deleted as RecordRow });
+    } else {
+      await tx.delete(table).where(eq(table.id!, row.id));
+      await this.lifecycle.deleted(tx, { row });
+    }
+  }
+
+  /** Out of the recycle bin: the record as it is now. */
+  async restore<Row extends RecordRow>(
+    tx: Transaction,
+    row: RecordRow,
+  ): Promise<Row> {
+    if (!this.declaration.softDelete) {
+      throw new NotFoundException(
+        `${this.declaration.subject} has no recycle bin (softDelete: false).`,
+      );
+    }
+    const table = this.table;
+    const [restored] = await tx
+      .update(table)
+      .set({ deletedAt: null, deletedBy: null })
+      .where(eq(table.id!, row.id))
+      .returning();
+    await this.lifecycle.restored(tx, { row: restored as RecordRow });
+    return restored as Row;
+  }
+}

@@ -19,8 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1792232369789,
-      "tag": "0002_legal_donald_blake",
+      "when": 1792232418499,
+      "tag": "0002_unknown_solo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792234519387,
+      "tag": "0003_rare_boom_boom",
       "breakpoints": true
     }
   ]

@@ -629,7 +629,7 @@ describe('custom fields (e2e)', () => {
     const [header, line] = csv.replace(/^﻿/, '').trim().split('\n');
     expect(header).toBe(
       // A client has no zone of its own: APP_TIMEZONE (UTC here).
-      'id,title,body,publishedAt (UTC),tags,owner,createdAt (UTC),custom.amount,custom.done,custom.tags',
+      'id,number,title,body,publishedAt (UTC),tags,owner,createdAt (UTC),custom.amount,custom.done,custom.tags',
     );
     expect(line).toContain('12.5,true,"[""a"",""b""]"');
 

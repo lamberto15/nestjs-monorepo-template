@@ -2,8 +2,8 @@
 
 ```bash
 pnpm install
+pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
-cp apps/api/env.development.example apps/api/.env.development   # points the app at them
 pnpm start:dev            # the API and the workers, with reload: http://localhost:3000/api
 pnpm db:seed:demo         # optional: demo users, notes, tags (passwords printed once)
 ```
@@ -184,6 +184,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 
 | Command | Does |
 | --- | --- |
+| `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
 | `pnpm start:dev` | API and workers, with reload |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown) |
