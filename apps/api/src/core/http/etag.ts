@@ -26,9 +26,30 @@ import { map } from 'rxjs';
  * returns a record can take part, with no migration.
  */
 
-/** The strong ETag of a representation: a hash of its JSON, as the response carries it. */
+/** Where `untagged()` keeps the keys an object's tag leaves out: a symbol, so never in the JSON. */
+const UNTAGGED = Symbol('keys the ETag leaves out');
+
+/**
+ * Marks keys of `value` its ETag leaves out, though the response carries
+ * them: a record's `can` (`?include=can`) is about the reader's rights, not
+ * the record, so the tag of `GET /{id}?include=can` stays the one a write's
+ * `If-Match` compares (`assertUnchanged()` with the record as shown, no
+ * `can`). At any depth: a list's items too.
+ */
+export function untagged<T extends object>(value: T, keys: readonly string[]) {
+  Object.defineProperty(value, UNTAGGED, { value: keys, enumerable: false });
+  return value;
+}
+
+/** JSON.stringify's replacer: drops the keys their holder marked `untagged()`. */
+function tagged(this: unknown, key: string, value: unknown) {
+  const skip = (this as { [UNTAGGED]?: readonly string[] } | null)?.[UNTAGGED];
+  return skip?.includes(key) ? undefined : value;
+}
+
+/** The strong ETag of a representation: a hash of its JSON, as the response carries it (less what `untagged()` marks). */
 export const etagOf = (body: unknown) =>
-  `"${createHash('sha256').update(JSON.stringify(body)).digest('base64url').slice(0, 27)}"`;
+  `"${createHash('sha256').update(JSON.stringify(body, tagged)).digest('base64url').slice(0, 27)}"`;
 
 /** The tags of an `If-Match` / `If-None-Match` header (`*` as itself); weak tags as their strong form. */
 const tagsOf = (header: string | undefined) =>

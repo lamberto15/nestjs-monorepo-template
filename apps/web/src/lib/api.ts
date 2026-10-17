@@ -70,9 +70,6 @@ export function reauthenticationMiddleware(
 export const api: ApiClient = createApiClient({
   baseUrl: globalThis.location?.origin ?? '',
   credentials: 'include',
-  // Looked up at each call, not once at import: a fetch replaced later (the
-  // tests' msw, an instrumented one) is the one used.
-  fetch: (input, init) => globalThis.fetch(input, init),
   get language() {
     return i18n.language;
   },

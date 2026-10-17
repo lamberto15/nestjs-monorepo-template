@@ -4,6 +4,7 @@ import {
   customValuesSchema,
 } from '../../platform/custom-fields/custom-field.schemas.js';
 import { bulkRequestSchema } from '../../platform/bulk/bulk.schemas.js';
+import { recordCanSchema } from '../../platform/records/record-can.js';
 import { tagRefSchema } from '../../platform/tags/tag.schemas.js';
 import type { notes } from './notes.tables.js';
 
@@ -70,7 +71,19 @@ export const noteSchema = z.object({
   tags: z
     .array(tagRefSchema)
     .describe('Its tags, by name (PUT /v1/notes/{id}/tags sets them).'),
+  can: recordCanSchema(true),
 });
 
 /** A note as stored (dates as Date); the API sends them as ISO strings (noteSchema). */
 export type Note = typeof notes.$inferSelect;
+
+/**
+ * A note as the API shows it (before its tags, custom values and
+ * redaction): without the search vector the database keeps, nor its tenant,
+ * the request's own (docs/tenancy.md).
+ */
+export const noteView = ({
+  search: _search,
+  tenantId: _tenantId,
+  ...note
+}: Note) => note;

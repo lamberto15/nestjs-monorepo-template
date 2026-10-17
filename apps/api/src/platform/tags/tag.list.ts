@@ -61,6 +61,8 @@ export const tagFilter = (
     column: id,
     type: 'uuid',
     ops: ['eq', 'in'],
+    // The values are tag ids (GET /tags).
+    ref: 'tag',
     conditions: {
       eq: (value) => tagged(subject, id, [value as string]),
       in: (value) => tagged(subject, id, value as string[]),

@@ -10,6 +10,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
+import { MAX_TEXT_LENGTH } from '../../core/http/body-limit.js';
 import {
   decimalSchema,
   moneyResponseSchema,
@@ -56,6 +57,22 @@ export interface Referenced {
   id: AnyPgColumn;
 }
 
+/** The subjects of the tables `recordTable()` made, by table: what a `ref` field's list entry says its values are ids of. */
+const SUBJECTS = new WeakMap<object, string>();
+
+/** Remembers that `table` holds the records of `subject` (recordTable). */
+export const tableHolds = (table: object, subject: string) =>
+  void SUBJECTS.set(table, subject);
+
+/**
+ * The subject of a `ref` field's target: a record's table knows its own; a
+ * hand-written table is named in `field.ref(() => notes, 'Note')`.
+ */
+export function referencedSubject(f: AnyField): string | undefined {
+  const target = f.options.ref?.();
+  return f.options.refSubject ?? (target && SUBJECTS.get(target));
+}
+
 /**
  * One field. `C` the column builder (before NOT NULL), `I` the input schema
  * and `O` the output one (both for a value present), `Opt` optional (null
@@ -83,6 +100,8 @@ export class Field<
       searchable?: boolean;
       values?: readonly string[];
       ref?: () => Referenced;
+      /** The subject the referenced table holds, when it isn't a record's table. */
+      refSubject?: string;
     },
   ) {}
 
@@ -155,22 +174,35 @@ const plain = <
 export const columnName = (name: string) =>
   name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
+/**
+ * A text field's `max`, refused over MAX_TEXT_LENGTH (core/http/body-limit.ts):
+ * a longer one would pass its schema's `maxLength` and still be a 413.
+ */
+function textMax(kind: string, max: number) {
+  if (!Number.isInteger(max) || max < 1 || max > MAX_TEXT_LENGTH) {
+    throw new Error(
+      `field.${kind}(${max}): the max is a whole number of characters, 1 to ${MAX_TEXT_LENGTH} (the request body limit leaves no more: core/http/body-limit.ts).`,
+    );
+  }
+  return max;
+}
+
 /** The field types. Each one's column, input and output, in one place. */
 export const field = {
-  /** Short text, trimmed, 1 to `max` characters (200). */
+  /** Short text, trimmed, 1 to `max` characters (200; at most MAX_TEXT_LENGTH). */
   string: (max = 200) =>
     plain(
       'string',
       (name) => text(columnName(name)),
-      z.string().trim().min(1).max(max),
+      z.string().trim().min(1).max(textMax('string', max)),
       z.string(),
     ),
-  /** Long text, up to `max` characters (10 000). */
+  /** Long text, up to `max` characters (10 000; at most MAX_TEXT_LENGTH, 30 000). */
   text: (max = 10_000) =>
     plain(
       'text',
       (name) => text(columnName(name)),
-      z.string().max(max),
+      z.string().max(textMax('text', max)),
       z.string(),
     ),
   /** A whole number. */
@@ -249,9 +281,15 @@ export const field = {
       z.record(z.string(), z.unknown()),
       z.record(z.string(), z.unknown()),
     ),
-  /** A record of another feature, in the same tenant (a composite key: never another tenant's). */
-  ref: (target: () => Referenced) =>
+  /**
+   * A record of another feature, in the same tenant (a composite key: never
+   * another tenant's). Its list entry says the values are ids of that
+   * record's subject; `subject` names it when the target is a hand-written
+   * table, not a record's (`field.ref(() => notes, 'Note')`).
+   */
+  ref: (target: () => Referenced, subject?: string) =>
     plain('ref', (name) => uuid(columnName(name)), z.uuid(), z.uuid(), {
       ref: target,
+      ...(subject && { refSubject: subject }),
     }),
 };

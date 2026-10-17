@@ -441,6 +441,8 @@ export function useListQuery<P extends ListPath>(
   description: ListDescription,
   columns: ListColumn<ListRow<P>>[],
   fields?: string[],
+  /** More parameters of the route, such as `deleted=true` (the recycle bin). */
+  extra?: Record<string, string>,
 ) {
   const sortableIds = useMemo(
     () =>
@@ -491,8 +493,8 @@ export function useListQuery<P extends ListPath>(
 
   const selectable = useMemo(() => new Set(description.select), [description]);
   const params = useMemo(
-    () =>
-      listParams(
+    () => ({
+      ...listParams(
         {
           page,
           perPage,
@@ -504,6 +506,8 @@ export function useListQuery<P extends ListPath>(
         },
         description.fields,
       ),
+      ...extra,
+    }),
     [
       page,
       perPage,
@@ -514,6 +518,7 @@ export function useListQuery<P extends ListPath>(
       selectable,
       q,
       description,
+      extra,
     ],
   );
 

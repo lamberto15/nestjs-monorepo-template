@@ -10,6 +10,7 @@ type Field = {
   sortable: boolean;
   custom: boolean;
   label?: string;
+  ref?: string;
 };
 
 /** GET /v1/lists/{subject}: a list described (docs/api-conventions.md, "List metadata"). */
@@ -93,6 +94,13 @@ describe('list metadata (e2e)', () => {
         'updatedAt',
       ]),
     );
+    // The fields whose values are ids of something say of what (a generated record's declaration); the record's own fields don't.
+    const refs = Object.fromEntries(
+      fields
+        .filter((field) => field.ref)
+        .map((field) => [field.name, field.ref]),
+    );
+    expect(refs).toEqual({ tag: 'tag', ownerId: 'principal', teamId: 'team' });
     // `q` and `rank` are `search`, not fields.
     expect(names(fields)).not.toContain('q');
     expect(names(fields)).not.toContain('rank');

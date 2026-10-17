@@ -102,6 +102,20 @@ http://localhost:5173) side by side.
   Both packages have a `components.json` with the same style, icon library
   and base colour. Prettier skips `packages/ui` and the lint rules are
   relaxed there, so a CLI update stays a clean diff.
+- **Record panels** (`components/records/panels/`): comments with
+  @mentions, attachments, tags and revisions on a record's detail page. A
+  feature mounts them with one element, each panel shown only when the
+  feature keeps it and the user may read the record (writes need
+  `<Subject>.update`):
+
+  ```tsx
+  <RecordPanels subject="Note" path="/v1/notes/{id}" id={note.id}
+    capabilities={{ comments: true, attachments: true, tags: true, revisions: true }}
+    tags={note.tags} />
+  ```
+
+  The API does not publish a record's capabilities, so the page states
+  them. Texts are in the `records` namespace.
 - **Scripts:** `build` (`tsc -b && vite build`, to `dist/`), `lint`, `test`
   (Vitest, jsdom, Testing Library). Turborepo builds the client first.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,

@@ -30,11 +30,17 @@ export const NOTE_LIST = listQuery(
       ops: ['contains', 'notContains', 'startsWith', 'endsWith'],
       sortable: true,
     },
-    ownerId: { column: notes.ownerId, type: 'string', ops: ['eq'] },
+    ownerId: {
+      column: notes.ownerId,
+      type: 'string',
+      ops: ['eq'],
+      ref: 'principal',
+    },
     teamId: {
       column: notes.teamId,
       type: 'uuid',
       ops: ['eq', 'in', 'isNull'],
+      ref: 'team',
     },
     createdAt: {
       column: notes.createdAt,
@@ -55,5 +61,9 @@ export const NOTE_LIST = listQuery(
       sortable: true,
     },
   },
-  { select: Object.keys(noteSchema.shape), softDelete: true },
+  {
+    // `can` (?include=can) is no field to pick.
+    select: Object.keys(noteSchema.shape).filter((key) => key !== 'can'),
+    softDelete: true,
+  },
 );

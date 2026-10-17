@@ -53,13 +53,33 @@ Zod schemas on the route: `@Body({ schema })`, `@Query({ schema })`. They
 validate, convert (dates, numbers), and document the route in OpenAPI.
 Response schemas use `z.iso.datetime()`, never `z.date()`.
 
+**Body size.** A JSON body over 100 KB (`JSON_BODY_LIMIT`,
+`core/http/body-limit.ts`) is refused before validation: 413
+`payload_too_large`. A byte count isn't something a form can check, so every
+text field carries its own `maxLength` in the schema, under the limit: a
+record's `field.string()` 200 and `field.text()` 10 000 characters by
+default, `max` up to `MAX_TEXT_LENGTH` (30 000, which fits the limit in any
+script); a larger one is refused when the declaration loads. Validate the
+fields against the OpenAPI document and the body fits.
+
 ## Resources
 
 Every resource has the same shape and the same routes:
 
 - **Fields:** `id` (a UUIDv7), `createdAt` and `updatedAt` (ISO 8601, UTC),
   then its own fields in camelCase; `custom` holds its custom fields' values
-  when it has any.
+  when it has any. Never its tenant: that is the request's own (the session's
+  or the key's, `GET /v1/auth/me`'s `tenant`, [tenancy](tenancy.md)). The
+  response is its schema, no more.
+- **What you may do with it:** `?include=can` on `GET /v1/<x>/{id}` and on
+  the list adds `can` to each record, `{ update, delete, restore }` (restore
+  with a recycle bin): what its routes would answer you now, by your
+  permissions and their conditions (a published note is no longer an
+  editor's to change: `update: false`, the PATCH a 403). `restore` is true
+  only for a record in the bin you may restore. Left out by default, so lists
+  stay light; `fields=` never removes it; another `include` value is a 400.
+  It is about you, not the record: the ETag leaves it out (below). See
+  [permissions](permissions.md), "Checking".
 - **Routes:** `GET /v1/<x>` (a list), `GET /v1/<x>/{id}`, `POST /v1/<x>`
   (201, with `Idempotency-Key`), `PATCH /v1/<x>/{id}` (only what's sent
   changes; `null` clears), `DELETE /v1/<x>/{id}` (204); actions as
@@ -222,6 +242,8 @@ repeating the declaration:
   "fields": [
     { "name": "status", "type": "enum", "options": ["draft", "published"],
       "operators": ["eq", "ne", "in", "notIn"], "sortable": true, "custom": false },
+    { "name": "tag", "type": "uuid", "operators": ["eq", "in"], "sortable": false,
+      "custom": false, "ref": "tag" },
     { "name": "custom.region", "type": "enum", "options": ["eu", "us"],
       "operators": ["eq", "ne", "in", "notIn", "isNull"], "sortable": true,
       "custom": true, "label": "Region" }
@@ -245,6 +267,19 @@ repeating the declaration:
 - **Custom fields:** the caller's tenant's active ones (`custom.<key>`,
   `custom: true`, their `label`), as the list takes them now; never another
   tenant's.
+- **References:** a field whose values are ids of something has `ref`
+  (absent on any other field, the record's own `id` included), so a client
+  shows a picker instead of a text box and sends the id as the filter value.
+  `tag`: tag ids (`GET /v1/tags`; the `tag` filter, `tagFilter()`); `team`:
+  team ids (`GET /v1/access/teams`; `teamId`); `principal`: a user's or an
+  API client's key, `user:<id>` or `client:<id>` (`ownerId`, as the creator
+  is stored; not a bare user id); a record's subject (`Invoice`): the ids of
+  that record's list, for a `field.ref(() => invoices)` of a generated
+  record. It is declared with the filter (`ref` of a `listQuery()` field),
+  so a new reference field says it where it is declared:
+  `fieldList()` sets it for a `field.ref`, from the referenced record's
+  subject (a hand-written table: `field.ref(() => notes, 'Note')`).
+  A field shown on some records only keeps its `ref`.
 - **Permissions:** for whoever may read the subject (the list route's
   permission), else 403; an unknown subject is a 404 (`not_found`). A field
   the caller may read on no record (field-level permissions) is left out of
@@ -309,12 +344,20 @@ the representation, with `Cache-Control: private, no-cache`.
 - Write with `If-Match: <etag>` (`PATCH`, `DELETE`): 412 `precondition_failed`
   if the record changed since you read it; read it again and retry. The
   problem's `etag` is the current one. Without `If-Match` the write goes
-  ahead; `*` means the same. A write's response carries the new tag.
+  ahead; `*` means the same. A write's response carries the new tag, and so
+  does a create (201) and a restore: the tag `GET /{id}` would send, so the
+  next write's `If-Match` needs no read first. Every one is strong.
 - Tags are per reader: a field you may not see is not in yours.
+- A record's `can` (`?include=can`) is not in its tag: the tag of
+  `GET /{id}?include=can` is the plain `GET`'s, good as `If-Match`. A
+  `304` may then keep a `can` from before a change to your roles (never
+  from before a change to the record); the routes decide regardless.
 
 For a feature: `@Etag()` on the route, `assertUnchanged(ifMatch, shown)` in
 a write before the service call, with the record as that caller reads it
-(`apps/api/src/core/http/etag.ts`; notes is the example).
+(`apps/api/src/core/http/etag.ts`; notes is the example). A key the tag
+must leave out is marked `untagged(value, ['key'])` (`withCan()` does it
+for `can`).
 
 ## Idempotency
 
@@ -364,7 +407,10 @@ tenant A); a user acting in no tenant has an `account:` scope of their own.
 | A system | `Authorization: Bearer sk_<id>_<secret>`, an API client's key |
 
 Writes from other websites' pages are refused (CSRF), except from
-`CORS_ORIGINS`.
+`CORS_ORIGINS`. A browser app on one of them may read these response
+headers (`Access-Control-Expose-Headers`, `CORS_EXPOSED_HEADERS` in
+`core/http/http-setup.ts`): `X-Request-Id`, `Retry-After`,
+`Content-Language`, `ETag`, `Location` and `Idempotent-Replayed`.
 
 ## Rate limits
 

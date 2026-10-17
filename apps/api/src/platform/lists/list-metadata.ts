@@ -84,6 +84,7 @@ export function listMetadata(
       operators: matchable ? [...field.ops] : [],
       sortable: matchable && field.sortable === true,
       custom,
+      ...(field.ref !== undefined && { ref: field.ref }),
       ...(label !== undefined && { label }),
     });
   }

@@ -14,6 +14,7 @@ import { LIST_LIMITS, listMetadata } from './list-metadata.js';
 
 const things = pgTable('things', {
   id: uuid('id').primaryKey(),
+  owner: text('owner').notNull(),
   status: text('status').notNull(),
   title: text('title').notNull(),
   body: text('body'),
@@ -36,6 +37,14 @@ const LIST = listQuery(
     title: { column: things.title, type: 'string', ops: ['contains'] },
     body: { column: things.body, type: 'string', ops: ['contains', 'isNull'] },
     done: { column: things.done, type: 'boolean', ops: [] },
+    tag: { column: things.id, type: 'uuid', ops: ['eq', 'in'], ref: 'tag' },
+    ownerId: {
+      column: things.owner,
+      type: 'string',
+      ops: ['eq'],
+      ref: 'principal',
+    },
+    id: { column: things.id, type: 'uuid', ops: ['eq'] },
     createdAt: {
       column: things.createdAt,
       type: 'datetime',
@@ -90,6 +99,29 @@ describe('listMetadata', () => {
         name: 'body',
         type: 'string',
         operators: ['contains', 'isNull'],
+        sortable: false,
+        custom: false,
+      },
+      {
+        name: 'tag',
+        type: 'uuid',
+        operators: ['eq', 'in'],
+        sortable: false,
+        custom: false,
+        ref: 'tag',
+      },
+      {
+        name: 'ownerId',
+        type: 'string',
+        operators: ['eq'],
+        sortable: false,
+        custom: false,
+        ref: 'principal',
+      },
+      {
+        name: 'id',
+        type: 'uuid',
+        operators: ['eq'],
         sortable: false,
         custom: false,
       },

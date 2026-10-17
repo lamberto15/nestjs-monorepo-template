@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@nestjs-monorepo-template/ui/components/select';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
+import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import { CircleAlertIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -69,6 +70,37 @@ function TextField(props: {
         type={props.type ?? 'text'}
         autoComplete={props.autoComplete}
         autoFocus={props.autoFocus}
+        placeholder={props.placeholder}
+        value={field.state.value}
+        onBlur={field.handleBlur}
+        onChange={(event) => field.handleChange(event.target.value)}
+        aria-invalid={invalid}
+      />
+      {props.description && (
+        <FieldDescription>{props.description}</FieldDescription>
+      )}
+      {invalid && <FieldError errors={field.state.meta.errors} />}
+    </Field>
+  );
+}
+
+/** Longer text (a note's body): shadcn's Textarea. */
+function TextAreaField(props: {
+  label: ReactNode;
+  description?: ReactNode;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const field = useFieldContext<string>();
+  const invalid = useInvalid();
+  const id = `field-${field.name}`;
+  return (
+    <Field data-invalid={invalid}>
+      <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
+      <Textarea
+        id={id}
+        name={field.name}
+        rows={props.rows ?? 8}
         placeholder={props.placeholder}
         value={field.state.value}
         onBlur={field.handleBlur}
@@ -182,7 +214,7 @@ function SubmitButton(props: {
 export const { useAppForm } = createFormHook({
   fieldContext,
   formContext,
-  fieldComponents: { TextField, CodeField, SelectField },
+  fieldComponents: { TextField, TextAreaField, CodeField, SelectField },
   formComponents: { SubmitButton },
 });
 

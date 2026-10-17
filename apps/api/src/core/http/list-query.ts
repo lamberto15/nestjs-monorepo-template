@@ -93,6 +93,14 @@ export type FilterField = {
    * search document. Default: its name (see `fieldsRead`).
    */
   reads?: readonly string[];
+  /**
+   * What the field's values are ids of, so a client shows a picker of them
+   * instead of a text box: `'tag'`, `'team'`, `'principal'` (a user's or an
+   * API client's key, `user:<id>` / `client:<id>`: a record's owner, an
+   * author) or the subject of a record (`'Invoice'`, a `field.ref`).
+   * GET /v1/lists/{subject} tells it. Default: none, as the record's own `id`.
+   */
+  ref?: string;
 } & (
   | { type: 'string' | 'uuid' | 'datetime' | 'date' | 'number' | 'boolean' }
   | { type: 'enum'; values: readonly [string, ...string[]] }

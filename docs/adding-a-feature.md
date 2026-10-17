@@ -62,7 +62,7 @@ export const INVOICE = defineRecord({
 - **Field types:** `string`, `text`, `int`, `decimal`, `money` (minor units and
   currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
   `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, a key
-  within the tenant). `?` makes a field optional, `!unique` (string, int)
+  within the tenant; its list filter is `ref: '<Subject>'` in the list metadata). `?` makes a field optional, `!unique` (string, int)
   unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
 - **Options:** `--team` (records carry their creator's team: `team: true`),
@@ -349,9 +349,15 @@ the controller (`notes.*`); singular for what describes one record
 9. **Controller** (`<x>.controller.ts`): HTTP only, never the database.
    - `/v1/<x>`: `GET` list, `GET /:id`, `POST` (201, `@Idempotent()`),
      `PATCH /:id`, `DELETE /:id` (204); actions as `POST /:id/<verb>`.
-    `@Etag()` on the routes that return the record, `assertUnchanged(ifMatch,
-    shown)` before an update or delete ([api-conventions.md](api-conventions.md),
-    "Concurrency and caching").
+    `@Etag()` on the routes that return the record (the create and the
+    restore too), `assertUnchanged(ifMatch, shown)` before an update or
+    delete ([api-conventions.md](api-conventions.md), "Concurrency and
+    caching"); `?include=can` on the read and the list
+    (`@Query('include', IncludePipe)`, `RecordPresenter.one(user, row,
+    include)` and `.page()`; a hand-written feature calls `recordCan()` and
+    `withCan()`, as notes does). A text field's `max` stays under
+    `MAX_TEXT_LENGTH` (the body limit); the response never carries
+    `tenantId`.
    - `@Can()` on the route, or a check on the loaded record; field-level
      checks on writes (`field_forbidden`).
    - `@ApiOperation`, `@Api*Response` with the Zod schemas; errors are
