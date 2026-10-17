@@ -26,6 +26,7 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
+import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
 import { UserThrottle } from '../auth/user-throttle.guard.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { authenticationResponseSchema } from './passkey.schemas.js';
@@ -119,6 +120,7 @@ const reauthenticatedSchema = z.object({
 @ApiBearerAuth('user-token')
 @UserOnly()
 @Can.Anyone()
+@DuringMfaEnrollment()
 @Controller('auth/reauthenticate')
 export class ReauthenticationController {
   constructor(private readonly reauthentication: ReauthenticationService) {}

@@ -9864,6 +9864,8 @@ export interface operations {
                             name: string;
                         } | null;
                         mfaEnabled: boolean;
+                        /** @description true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`. */
+                        mfaEnrollmentRequired: boolean;
                         authentication: {
                             /** @enum {string} */
                             via: "session" | "token";

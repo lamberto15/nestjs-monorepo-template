@@ -28,6 +28,7 @@ import type { UserPrincipal } from '../auth/principal.js';
 import { RequiresSwitch } from '../auth/deployment-switch.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
+import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
 import { notWhileImpersonating, verifiedEmailOnly } from './account.schemas.js';
 import { AccountService } from './account.service.js';
 
@@ -57,6 +58,7 @@ const recoveryCodesSchema = z.object({
 @ApiCookieAuth('user-session')
 @ApiBearerAuth('user-token')
 @Can.Anyone()
+@DuringMfaEnrollment()
 @Controller('auth/mfa')
 export class MfaController {
   constructor(
