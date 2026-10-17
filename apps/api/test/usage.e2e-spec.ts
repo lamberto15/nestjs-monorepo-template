@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import { Redis } from 'ioredis';
 import type { Database } from '../src/core/database/drizzle.js';
@@ -15,7 +14,7 @@ describe('API usage and quotas (e2e)', () => {
 
   beforeAll(async () => {
     node = await bootApp();
-    db = node.app.get<Database>(getDrizzleToken());
+    db = node.db;
   });
   afterAll(async () => {
     await node.close();
@@ -254,7 +253,9 @@ describe('API usage and quotas (e2e)', () => {
     await job.run(undefined, tomorrow);
     const redis = new Redis(process.env.REDIS_URL!);
     const keys = await redis
-      .keys(`${process.env.REDIS_PREFIX}:usage:${client.id}:*`)
+      .keys(
+        `${process.env.REDIS_PREFIX}:tenant:${node.tenantId}:usage:${client.id}:*`,
+      )
       .finally(() => redis.disconnect());
     expect(keys).toEqual([]);
     const rolled = await node
@@ -266,6 +267,7 @@ describe('API usage and quotas (e2e)', () => {
     // Older than USAGE_RETENTION_DAYS (400): deleted.
     const old = addDays(utcDay(), -401);
     await db.insert(apiUsage).values({
+      tenantId: node.tenantId,
       clientId: client.id,
       day: old,
       route: 'GET /v1/notes',

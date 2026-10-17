@@ -16,6 +16,7 @@ import {
   SessionService,
   SignInService,
   TokenService,
+  EmailVerificationService,
 } from '@nestjs/authentication';
 import { t } from '@nestjs/i18n';
 import { TransactionHost } from '@nestjs-cls/transactional';
@@ -76,6 +77,7 @@ export class AccountService {
     private readonly oidc: OidcService,
     private readonly reauthentication: ReauthenticationService,
     private readonly hashLimiter: PasswordHashLimiter,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   /** A new account with a password (not one found in data breaches), audited. */
@@ -110,6 +112,41 @@ export class AccountService {
 
   updateProfile(userId: string, changes: ProfileChanges) {
     return this.users.update(this.db, userId, changes);
+  }
+
+  /**
+   * Proves an address with its verification link. An account whose password
+   * was chosen before its address was proved (a self sign-up) must also
+   * give that password: the link alone proves the mailbox, not who chose
+   * the password, and someone who signed up another person's address must
+   * not have them verify it for him (docs/auth.md, "Sign-up"). Checked
+   * before the package spends the link, so a missing or wrong password
+   * leaves it usable; the mailbox's owner who didn't sign up resets the
+   * password instead (its link proves the address and replaces it).
+   */
+  async verifyEmail(token: string, password: string | undefined) {
+    const pending = await this.users.pendingVerification(token);
+    if (pending?.passwordHash && !pending.emailVerified) {
+      if (!password) {
+        throw new BadRequestException({
+          code: 'password_required',
+          message: t('auth.required'),
+          errors: [{ path: 'password', message: t('auth.required') }],
+        });
+      }
+      const valid = await this.passwordHasher.verify(
+        password,
+        pending.passwordHash,
+      );
+      if (!valid) {
+        throw new ForbiddenException(t('auth.wrongPassword'));
+      }
+    }
+    const verified = await this.emailVerification.verify(token);
+    if (!verified) {
+      throw new BadRequestException(t('auth.invalidLink'));
+    }
+    return verified;
   }
 
   /**
@@ -190,12 +227,26 @@ export class AccountService {
     password: string,
     secondFactor: { code?: string; recoveryCode?: string },
     context: { ip: string; userAgent: string | undefined },
+    tenantId?: string,
   ) {
     const user = await this.credentials.verify(email, password, context.ip);
+    // The tenant asked for, when the user is a member (else the same 401 as
+    // a wrong password: nothing about tenants is told before a sign-in);
+    // else the last chosen (docs/tenancy.md).
+    const tenant =
+      tenantId === undefined
+        ? await this.users.defaultTenant(user.id)
+        : (await this.users.isMember(user.id, tenantId))
+          ? tenantId
+          : null;
+    if (tenantId !== undefined && !tenant) {
+      throw new UnauthorizedException(t('auth.invalidCredentials'));
+    }
     const tokens = await this.tokens.issue(user.id, {
       method: 'password',
-      // How and when, for every token of the family (step-up reads auth_time).
-      claims: tokenClaims(['pwd']),
+      // How, when and where, for every token of the family (step-up reads
+      // auth_time, JwtAuth the tenant).
+      claims: tokenClaims(['pwd'], new Date(), tenant),
       secondFactor,
     });
     await this.securityAlerts.signedIn(user, {

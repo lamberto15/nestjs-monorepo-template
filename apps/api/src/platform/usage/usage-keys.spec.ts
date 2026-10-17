@@ -25,12 +25,19 @@ describe('usage keys', () => {
     expect(secondsToUtcMidnight(new Date('2026-10-16T00:00:00Z'))).toBe(86_400);
   });
 
-  it('reads back the keys it writes', () => {
+  it('reads back the keys it writes, under their tenant', () => {
     const id = '0199a3f2-0000-7000-8000-000000000000';
-    expect(parseUsageKey(usageKey(id, '2026-10-16'))).toEqual({
+    const tenantId = '0199a3f2-0000-7000-8000-00000000000a';
+    expect(usageKey(tenantId, id, '2026-10-16')).toBe(
+      `tenant:${tenantId}:usage:${id}:2026-10-16`,
+    );
+    expect(parseUsageKey(usageKey(tenantId, id, '2026-10-16'))).toEqual({
+      tenantId,
       clientId: id,
       day: '2026-10-16',
     });
+    // A key without its tenant (before tenancy) is no counter.
+    expect(parseUsageKey(`usage:${id}:2026-10-16`)).toBeUndefined();
     expect(parseUsageKey('usage:nope:2026-10-16')).toBeUndefined();
   });
 });

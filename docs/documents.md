@@ -134,7 +134,7 @@ event follows the commit.
 
 - **One PDF per document, whatever runs twice.** Each run claims the
   document with a token of its own (`queued` or `rendering` → `rendering`,
-  `run_token`), writes under its own key (`documents/<id>/<token>.pdf`), and
+  `run_token`), writes under its own key (`tenants/<tenant>/documents/<id>/<token>.pdf`), and
   completes the document only while it still holds the claim. BullMQ can
   run a job twice at once (a stalled job, its worker alive but late, picked
   up again): the later claim wins, the earlier run finds its claim gone at
@@ -169,3 +169,8 @@ event follows the commit.
 - Checking a real render: compare text, never bytes (Chromium stamps
   `CreationDate` and `ModDate`): `pdftotext -layout file.pdf -`, and
   `pdffonts` for the fonts (an Arabic document lists NotoSansArabic).
+
+**Tenancy** ([tenancy](tenancy.md)): the render job names its tenant
+(`tenantId`); the worker renders there, as the requester checked again as a
+member of it, and issues the attachment in it. A document of another tenant
+is a 404.

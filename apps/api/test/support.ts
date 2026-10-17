@@ -1,4 +1,11 @@
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { Tenancy } from '../src/core/tenancy/tenancy.service.js';
+import { BYPASS, TENANT_SCOPE } from '../src/core/tenancy/tenant-scope.js';
+import { ClsServiceManager } from 'nestjs-cls';
+import { inTenantOf } from '../src/core/tenancy/tenant-job.js';
+import { tenants } from '../src/core/tenancy/tenancy.tables.js';
+import { auditLog } from '../src/iam/iam.tables.js';
+import { and, desc, eq } from 'drizzle-orm';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Type } from '@nestjs/common';
@@ -22,7 +29,10 @@ import { Redis } from 'ioredis';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { getDrizzleToken } from '@nestjs/drizzle';
-import { Client, type Pool } from 'pg';
+import { Client, Pool } from 'pg';
+import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
+import * as schema from '../src/schema.js';
+import type { Database } from '../src/core/database/drizzle.js';
 import { inject } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { createDatabase } from '../src/core/database/drizzle.js';
@@ -115,8 +125,11 @@ export async function testDatabase() {
   );
   const url = databaseUrl(inject('appUrl'), name);
   const ownerUrl = databaseUrl(inject('ownerUrl'), name);
+  const maintenanceUrl = databaseUrl(inject('maintenanceUrl'), name);
   const db = await createDatabase({
     url,
+    // As a worker has it (APP_ROLE=all in the tests): the bypass's pool.
+    maintenanceUrl,
     migrate: false,
     pool: {
       max: 10,
@@ -136,6 +149,7 @@ export async function testDatabase() {
     db,
     url,
     ownerUrl,
+    maintenanceUrl,
     /** Runs `statement` as the owner of the tables: a fixture table, a change to the schema. */
     asOwner: async (statement: string) => {
       const owner = new Client({ connectionString: ownerUrl });
@@ -150,6 +164,40 @@ export async function testDatabase() {
     close: async () => {
       await pool.end().catch(() => undefined);
       await onServer(`drop database "${name}" with (force)`);
+    },
+  };
+}
+
+/** Runs `work` across every tenant (the maintenance jobs' bypass), with no app booted. */
+export function bypassingTenants<T>(work: () => Promise<T>): Promise<T> {
+  const cls = ClsServiceManager.getClsService();
+  return cls.run({ ifNested: 'inherit' }, async () => {
+    cls.set(TENANT_SCOPE, BYPASS);
+    return await work();
+  });
+}
+
+/** Runs a test's body in one tenant's scope: `it('…', scoped(async () => …))`. */
+export type Scoped = <T>(work: () => Promise<T>) => () => Promise<T>;
+
+/**
+ * A tenant on a database of its own (`testDatabase()`, no app), for tests of
+ * core helpers on tenant tables (the tree, countPage): `scoped()` runs work
+ * in its scope (CLS), as a request of the tenant would; the tenant is made
+ * by `create(db)` (in `beforeAll`), and read when a test runs.
+ */
+export function testTenant() {
+  let tenantId: string | undefined;
+  const scoped: Scoped = (work) => () =>
+    inTenantOf({ tenantId: tenantId! }, work);
+  return {
+    scoped,
+    create: async (db: Database) => {
+      const [tenant] = await db
+        .insert(tenants)
+        .values({ slug: `t-${randomUUID().slice(0, 8)}`, name: 'Test' })
+        .returning({ id: tenants.id });
+      tenantId = tenant!.id;
     },
   };
 }
@@ -230,11 +278,211 @@ export async function bootApp(
     });
   };
 
+  /** The first mail matching `query`, once the app sent it (mail leaves after the response). */
+  const waitForMail = async (query: SentMailQuery) => {
+    const mailbox = app.get(MailTransport) as InMemoryMailTransport;
+    for (let tries = 0; tries < 100; tries++) {
+      const found = mailbox.find(query);
+      if (found) {
+        return found;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return mailbox.assertSent(query);
+  };
+
+  /** The invitations to a tenant mailed to `email` (docs/tenancy.md, "Invitations"), oldest first. */
+  const invitationsTo = (email: string) =>
+    (app.get(MailTransport) as InMemoryMailTransport).filter({
+      to: email,
+      subject: /invited you to/,
+    });
+  const tokenOf = (mail: { link: (match?: string) => URL }) =>
+    mail.link('/accept-invitation').searchParams.get('token')!;
+
+  /**
+   * `by` (an administrator's agent) invites `body.email` to their tenant;
+   * the link's token, once its mail left (mail leaves after the answer).
+   */
+  const invite = async (
+    by: request.Agent,
+    body: { email: string; roleIds?: string[]; name?: string },
+  ) => {
+    const before = invitationsTo(body.email).length;
+    await by
+      .post('/v1/access/users')
+      .send({ roleIds: [], ...body })
+      .expect(202);
+    for (let tries = 0; tries < 100; tries++) {
+      const sent = invitationsTo(body.email);
+      if (sent.length > before) {
+        return tokenOf(sent.at(-1)!);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`No invitation reached ${body.email}`);
+  };
+
+  /** A new address accepts an invitation: it chooses its password. */
+  const acceptAsNew = async (token: string, name?: string) => {
+    const password = newPassword();
+    await http()
+      .post('/v1/auth/invitations/accept')
+      .send({ token, password, ...(name && { name }) })
+      .expect(200);
+    return password;
+  };
+
+  /**
+   * Proves a signed-up address (verify first: its password signs in only
+   * after this): the verification link mailed to it, confirmed with the
+   * password chosen at sign-up.
+   */
+  const verifySignUp = async (email: string, password: string) => {
+    const mail = await waitForMail({
+      to: email,
+      subject: 'Confirm your email address',
+    });
+    await http()
+      .post('/v1/auth/email/verify')
+      .send({
+        token: mail.link('/verify-email').searchParams.get('token'),
+        password,
+      })
+      .expect(200);
+  };
+
+  /** A new address accepts the (first) invitation mailed to it: its password. */
+  const acceptInvitation = async (email: string) =>
+    acceptAsNew(
+      tokenOf(await waitForMail({ to: email, subject: /invited you to/ })),
+    );
+
+  /**
+   * Another tenant (docs/tenancy.md), made by the operators (the seeded
+   * administrator, in the operator tenant) with its own administrator,
+   * who accepted the invitation and is signed in (the session acts in it,
+   * their only tenant). Its `user()` and `client()` are that tenant's.
+   */
+  const otherTenant = async (slug = `t-${randomUUID().slice(0, 8)}`) => {
+    const email = `${slug}-admin@example.com`;
+    const created = await admin
+      .post('/v1/tenants')
+      .send({ name: slug, slug, administratorEmail: email })
+      .expect(201);
+    const password = await acceptInvitation(email);
+    const tenantAdmin = await signIn(email, password);
+    const roles = (await tenantAdmin.get('/v1/access/roles').expect(200)).body
+      .items as { id: string; key: string | null }[];
+    return {
+      id: created.body.id as string,
+      slug,
+      email,
+      password,
+      admin: tenantAdmin,
+      /** A user of this tenant with these roles (by key), who accepted, signed in. */
+      async user(roleKeys: string[]) {
+        const address = `${randomUUID().slice(0, 8)}@example.com`;
+        const token = await invite(tenantAdmin, {
+          email: address,
+          name: address,
+          roleIds: roleKeys.map(
+            (key) => roles.find((role) => role.key === key)!.id,
+          ),
+        });
+        const userPassword = await acceptAsNew(token);
+        const agent = await signIn(address, userPassword);
+        const me = await agent.get('/v1/auth/me').expect(200);
+        return {
+          id: me.body.user.id as string,
+          email: address,
+          password: userPassword,
+          agent,
+        };
+      },
+      /** A new API client of this tenant: its id and `Authorization` header. */
+      async client(name = `client-${randomUUID().slice(0, 8)}`) {
+        const client = await tenantAdmin
+          .post('/v1/access/clients')
+          .send({ name })
+          .expect(201);
+        return {
+          id: client.body.id as string,
+          key: client.body.key as string,
+          auth: `Bearer ${client.body.key}`,
+        };
+      },
+    };
+  };
+
+  /**
+   * A test's own view of the database, past row-level security: the
+   * maintenance role (BYPASSRLS) on a pool of its own. Fixtures read and age
+   * rows of any tenant through it; an insert into a tenant table names its
+   * `tenantId`. Never the app's pool, which stays as production runs it.
+   */
+  const testPool = new Pool({
+    connectionString: database.maintenanceUrl,
+    max: 3,
+  });
+  const db = drizzleNodePg({ client: testPool, schema }) as unknown as Database;
+
+  /**
+   * Audit entries of every tenant and of none (an account's own, which no
+   * tenant's `GET /v1/access/audit` shows: sign-ins, sign-ups, password
+   * resets, account deletion), newest first.
+   */
+  const auditEntries = (filter: {
+    action?: string;
+    actor?: string;
+    targetId?: string;
+  }) =>
+    db
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          filter.action ? eq(auditLog.action, filter.action) : undefined,
+          filter.actor ? eq(auditLog.actor, filter.actor) : undefined,
+          filter.targetId ? eq(auditLog.targetId, filter.targetId) : undefined,
+        ),
+      )
+      .orderBy(desc(auditLog.at), desc(auditLog.id));
+
+  /** The seeded tenant: the operators', the administrator's (docs/tenancy.md). */
+  const tenantId = (await admin.get('/v1/auth/me').expect(200)).body.user
+    .tenantId as string;
+
+  /**
+   * Runs `work` in a tenant's scope (the seeded one by default), as a
+   * request of that tenant would: what a test's own queries on tenant
+   * tables need (`database.db` is the app's pool, row-level security and
+   * all: no tenant, no rows).
+   */
+  const inTenant = <T>(work: () => Promise<T>, tenant = tenantId) =>
+    app.get(Tenancy).run(tenant, work);
+
+  /** Runs `work` across every tenant (the bypass the maintenance jobs use): fixtures that age rows. */
+  const acrossTenants = <T>(work: () => Promise<T>) =>
+    app.get(Tenancy).run(BYPASS, work);
+
   return {
     app,
     clock,
     http,
     signIn,
+    acceptInvitation,
+    verifySignUp,
+    invite,
+    acceptAsNew,
+    otherTenant,
+    tenantId,
+    inTenant,
+    acrossTenants,
+    db,
+    auditEntries,
+    /** This app's database: its URL as the app role, and as the owner (raw connections). */
+    database: { url: database.url, ownerUrl: database.ownerUrl },
     /** The seeded administrator, signed in. */
     admin: () => admin,
     workflows: app.get(WorkflowClient),
@@ -242,23 +490,22 @@ export async function bootApp(
 
     roleIds,
 
-    /** A user with these roles (by key, `editor`, or by id), signed in. */
+    /**
+     * A user with these roles (by key, `editor`, or by id), invited by the
+     * seeded administrator, who accepted (their own password) and is
+     * signed in.
+     */
     async user(roleKeys: string[]) {
       const email = `${randomUUID().slice(0, 8)}@example.com`;
-      const password = newPassword();
-      const created = await admin
-        .post('/v1/access/users')
-        .send({
-          email,
-          name: email,
-          password,
-          roleIds: await roleIds(...roleKeys),
-        })
-        .expect(201);
-      return {
-        id: created.body.id as string,
-        agent: await signIn(email, password),
-      };
+      const token = await invite(admin, {
+        email,
+        name: email,
+        roleIds: await roleIds(...roleKeys),
+      });
+      const password = await acceptAsNew(token);
+      const agent = await signIn(email, password);
+      const me = await agent.get('/v1/auth/me').expect(200);
+      return { id: me.body.user.id as string, email, password, agent };
     },
 
     /** A new API client: its id and `Authorization` header. */
@@ -311,20 +558,10 @@ export async function bootApp(
     /** The mail the app sent (MAIL_TRANSPORT=memory). */
     mailbox: app.get(MailTransport) as InMemoryMailTransport,
 
-    /** The first mail matching `query`, once the app sent it (mail leaves after the response). */
-    async waitForMail(query: SentMailQuery) {
-      const mailbox = app.get(MailTransport) as InMemoryMailTransport;
-      for (let tries = 0; tries < 100; tries++) {
-        const found = mailbox.find(query);
-        if (found) {
-          return found;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      return mailbox.assertSent(query);
-    },
+    waitForMail,
 
     close: async () => {
+      await testPool.end().catch(() => undefined);
       await app.close();
       await database.close();
     },

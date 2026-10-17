@@ -17,8 +17,14 @@ const user: Principal = {
   emailVerified: true,
   locale: null,
   timezone: null,
+  tenantId: 't1',
 };
-const client: Principal = { kind: 'client', id: 'c1', name: 'C' };
+const client: Principal = {
+  kind: 'client',
+  id: 'c1',
+  name: 'C',
+  tenantId: 't1',
+};
 
 const realtime: NotificationChannel = {
   name: 'realtime',

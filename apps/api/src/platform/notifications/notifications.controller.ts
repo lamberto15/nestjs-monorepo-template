@@ -28,6 +28,7 @@ import {
 } from '@nestjs/swagger';
 import type { z } from 'zod';
 import type { ListQuery } from '../../core/http/list-query.js';
+import { notWhileImpersonating } from '../../iam/account/account.schemas.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { NOTIFICATION_LIST } from './notification.list.js';
@@ -96,6 +97,8 @@ export class NotificationsController {
     @CurrentUser() user: Principal,
     @Body({ schema: readAllSchema }) body: z.infer<typeof readAllSchema>,
   ) {
+    // The person's own: an administrator acting as them changes none of it.
+    notWhileImpersonating(user);
     return this.notifications.markAllRead(
       user,
       body.before ? new Date(body.before) : undefined,
@@ -121,6 +124,8 @@ export class NotificationsController {
   })
   @ApiOkResponse({ standardSchema: preferencesViewSchema })
   preferences(@CurrentUser() user: Principal) {
+    // Account-wide (every tenant's): not shown to an administrator acting as them.
+    notWhileImpersonating(user);
     return this.notifications.preferences(user);
   }
 
@@ -142,6 +147,8 @@ export class NotificationsController {
     body: z.infer<typeof preferencesInputSchema>,
     @Ip() ip: string,
   ) {
+    // The person's own: an administrator acting as them changes none of it.
+    notWhileImpersonating(user);
     return this.notifications.updatePreferences(user, body, ip);
   }
 
@@ -155,6 +162,8 @@ export class NotificationsController {
     @CurrentUser() user: Principal,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
+    // The person's own: an administrator acting as them changes none of it.
+    notWhileImpersonating(user);
     return this.notifications.markRead(user, id);
   }
 
@@ -168,6 +177,8 @@ export class NotificationsController {
     @CurrentUser() user: Principal,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
+    // The person's own: an administrator acting as them changes none of it.
+    notWhileImpersonating(user);
     await this.notifications.remove(user, id);
   }
 }

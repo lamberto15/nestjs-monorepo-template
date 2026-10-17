@@ -4,26 +4,27 @@ import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
-import { and, eq, type SQL } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { and, asc, eq, gt, type SQL, sql } from 'drizzle-orm';
 import {
   afterCursor,
-  countPage,
+  countMatching,
   pageOffset,
   pageOrder,
   type PageQuery,
   toPage,
 } from '../../core/http/pagination.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
+import { tenants } from '../../core/tenancy/tenancy.tables.js';
 import {
-  auditLog,
+  emailTokens,
+  memberships,
   mfaAuthenticators,
   mfaFailures,
   mfaRecoveryCodes,
   refreshTokens,
   sessions,
   userIdentities,
-  userOrgUnits,
-  userRoles,
   users,
 } from '../iam.tables.js';
 import type { UserPrincipal } from './principal.js';
@@ -49,10 +50,103 @@ export class UsersRepository {
 
   constructor(private readonly txHost: TransactionHost<DrizzleTransactions>) {}
 
-  /** The signed-in principal, or `null` when the account is gone or deactivated. */
+  /**
+   * The account as a principal acting in no tenant, or `null` when the
+   * account is gone or deactivated. `inTenant()` for one that acts in one.
+   */
   async findActive(id: string): Promise<UserPrincipal | null> {
     const [row] = await this.db.select().from(users).where(eq(users.id, id));
     return row?.active ? toPrincipal(row) : null;
+  }
+
+  /**
+   * The signed-in principal in `tenantId` (a session's, a token's), or
+   * `null` when the account is gone or deactivated, or when it acts in a
+   * tenant it no longer may (the membership or the tenant deactivated):
+   * that session or token stops, as a deactivated account's did, and a new
+   * sign-in starts in a tenant the user still belongs to. Without a tenant
+   * (an account with no membership yet), the principal has none: it can
+   * list its tenants and switch, and every tenant route answers 403
+   * tenant_required.
+   */
+  async inTenant(
+    id: string,
+    tenantId: string | null | undefined,
+  ): Promise<UserPrincipal | null> {
+    const user = await this.findActive(id);
+    if (!user || !tenantId) {
+      return user;
+    }
+    return (await this.isMember(id, tenantId)) ? { ...user, tenantId } : null;
+  }
+
+  /** Whether the user's membership in the tenant, and the tenant, are active. */
+  async isMember(userId: string, tenantId: string): Promise<boolean> {
+    if (!UUID.test(tenantId)) {
+      return false;
+    }
+    const [row] = await this.db
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .innerJoin(tenants, eq(tenants.id, memberships.tenantId))
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          eq(memberships.tenantId, tenantId),
+          eq(memberships.active, true),
+          eq(tenants.active, true),
+        ),
+      );
+    return !!row;
+  }
+
+  /**
+   * The tenants the user may act in (active memberships of active
+   * tenants), the last chosen first, then the oldest: what a new sign-in
+   * starts in, and what `GET /v1/auth/tenants` lists.
+   */
+  memberships(userId: string) {
+    return this.db
+      .select({
+        id: tenants.id,
+        slug: tenants.slug,
+        name: tenants.name,
+        selectedAt: memberships.selectedAt,
+        joinedAt: memberships.createdAt,
+      })
+      .from(memberships)
+      .innerJoin(tenants, eq(tenants.id, memberships.tenantId))
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          eq(memberships.active, true),
+          eq(tenants.active, true),
+        ),
+      )
+      .orderBy(
+        sql`${memberships.selectedAt} desc nulls last`,
+        asc(memberships.createdAt),
+        asc(tenants.id),
+      );
+  }
+
+  /** The tenant a new sign-in starts in: the last chosen, else the oldest membership; null without one. */
+  async defaultTenant(userId: string): Promise<string | null> {
+    if (!UUID.test(userId)) {
+      return null; // not an account's id (the stores' contract tests use others)
+    }
+    const [first] = await this.memberships(userId);
+    return first?.id ?? null;
+  }
+
+  /** Records that the user chose this tenant (a switch): the next sign-in starts there. */
+  async selectTenant(userId: string, tenantId: string, db: Db = this.db) {
+    await db
+      .update(memberships)
+      .set({ selectedAt: new Date() })
+      .where(
+        and(eq(memberships.userId, userId), eq(memberships.tenantId, tenantId)),
+      );
   }
 
   /**
@@ -64,6 +158,7 @@ export class UsersRepository {
    * keeps pointing at an account that is nobody's.
    */
   async anonymize(tx: Transaction, id: string) {
+    await this.lockAccount(tx, id);
     await tx
       .update(users)
       .set({
@@ -77,8 +172,8 @@ export class UsersRepository {
       })
       .where(eq(users.id, id));
     await tx.delete(userIdentities).where(eq(userIdentities.userId, id));
-    await tx.delete(userRoles).where(eq(userRoles.userId, id));
-    await tx.delete(userOrgUnits).where(eq(userOrgUnits.userId, id));
+    // Its roles and units in every tenant go with the memberships (cascade).
+    await tx.delete(memberships).where(eq(memberships.userId, id));
     await tx.delete(mfaAuthenticators).where(eq(mfaAuthenticators.userId, id));
     await tx.delete(mfaRecoveryCodes).where(eq(mfaRecoveryCodes.userId, id));
     await tx.delete(mfaFailures).where(eq(mfaFailures.userId, id));
@@ -87,10 +182,99 @@ export class UsersRepository {
       .update(refreshTokens)
       .set({ revoked: true })
       .where(eq(refreshTokens.userId, id));
-    await tx
-      .update(auditLog)
-      .set({ actorLabel: DELETED_USER_NAME })
-      .where(eq(auditLog.actor, `user:${id}`));
+  }
+
+  /** The account as its owner sees it (`GET /v1/auth/me`): no tenant's view of it. */
+  /** An account by its address, whatever its state: an administrator adding someone finds theirs. */
+  async findByEmail(email: string, db: Db = this.db) {
+    const [row] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizeEmail(email)));
+    return row ? toView(row) : null;
+  }
+
+  /** Adds the user to the tenant (an active membership). */
+  async addMembership(db: Db, tenantId: string, userId: string) {
+    await db.insert(memberships).values({ tenantId, userId });
+  }
+
+  /** Makes the user an active member of the tenant: a new membership, or one deactivated before. */
+  async joinTenant(db: Db, tenantId: string, userId: string) {
+    await db
+      .insert(memberships)
+      .values({ tenantId, userId })
+      .onConflictDoUpdate({
+        target: [memberships.tenantId, memberships.userId],
+        set: { active: true, updatedAt: new Date() },
+      });
+  }
+
+  /**
+   * The account's lock, until the transaction ends, and whether the account
+   * is still active under it: its deletion (anonymize) and an invitation's
+   * acceptance never interleave, so no membership outlives the account.
+   */
+  async lockAccount(tx: Transaction, userId: string) {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`account:${userId}`}, 0))`,
+    );
+    const [row] = await tx
+      .select({ active: users.active })
+      .from(users)
+      .where(eq(users.id, userId));
+    return row?.active === true;
+  }
+
+  /**
+   * One change to a user's membership in a tenant at a time, until the
+   * transaction ends: an invitation's acceptance and a deactivation never
+   * interleave (both read and write the membership and its roles).
+   */
+  async lockMembership(tx: Transaction, tenantId: string, userId: string) {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`membership:${tenantId}:${userId}`}, 0))`,
+    );
+  }
+
+  /** Activates or deactivates the user's membership in the tenant: their access to it, not their account. */
+  async setMembershipActive(
+    db: Db,
+    tenantId: string,
+    userId: string,
+    active: boolean,
+  ) {
+    await db
+      .update(memberships)
+      .set({ active, updatedAt: new Date() })
+      .where(
+        and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)),
+      );
+  }
+
+  /**
+   * Ends what acts in one tenant for the user (a membership deactivated):
+   * the sessions in it and the token families issued for it. Their other
+   * tenants' sessions and tokens go on.
+   */
+  async endTenantSessions(userId: string, tenantId: string, db: Db = this.db) {
+    await db
+      .delete(sessions)
+      .where(
+        and(
+          eq(sessions.userId, userId),
+          sql`${sessions.metadata}->>'tenantId' = ${tenantId}`,
+        ),
+      );
+    await db
+      .update(refreshTokens)
+      .set({ revoked: true })
+      .where(
+        and(
+          eq(refreshTokens.userId, userId),
+          sql`${refreshTokens.claims}->>'tid' = ${tenantId}`,
+        ),
+      );
   }
 
   async findView(id: string, db: Db = this.db) {
@@ -109,19 +293,49 @@ export class UsersRepository {
       : null;
   }
 
-  /** A page of the users, newest first. */
-  async page(query: PageQuery, where?: SQL) {
+  /**
+   * A page of the members of `tenantId`, newest first: users are global,
+   * so the tenant's members are reached through its memberships, never the
+   * whole table. `active` is the membership's (in this tenant) and the
+   * account's together.
+   */
+  async page(tenantId: string, query: PageQuery, where?: SQL) {
+    // The list's filters read the membership too (`active`): the page and
+    // its count both join it.
     const [rows, total] = await Promise.all([
       this.db
-        .select()
+        .select({ user: users, membership: memberships.active })
         .from(users)
+        .innerJoin(memberships, memberJoin(tenantId))
         .where(and(where, afterCursor(users.id, query)))
         .orderBy(...pageOrder(users.id, query))
         .limit(query.limit + 1)
         .offset(pageOffset(query)),
-      countPage(this.db, users, where, query),
+      countMatching(
+        this.db,
+        this.db
+          .select({ one: sql`1` })
+          .from(users)
+          .innerJoin(memberships, memberJoin(tenantId))
+          .where(where),
+        query,
+      ),
     ]);
-    return toPage(rows.map(toView), query, total);
+    return toPage(
+      rows.map((row) => toView(row.user, row.membership)),
+      query,
+      total,
+    );
+  }
+
+  /** A member of `tenantId` by id, as the access API shows them; null for anyone else. */
+  async findMember(tenantId: string, id: string, db: Db = this.db) {
+    const [row] = await db
+      .select({ user: users, membership: memberships.active })
+      .from(users)
+      .innerJoin(memberships, memberJoin(tenantId))
+      .where(eq(users.id, id));
+    return row ? toView(row.user, row.membership) : null;
   }
 
   async create(
@@ -149,7 +363,15 @@ export class UsersRepository {
     db: Db,
     id: string,
     changes: Partial<
-      Pick<Row, 'name' | 'active' | 'passwordHash' | 'locale' | 'timezone'>
+      Pick<
+        Row,
+        | 'name'
+        | 'active'
+        | 'passwordHash'
+        | 'emailVerified'
+        | 'locale'
+        | 'timezone'
+      >
     >,
   ): Promise<UserView | null> {
     const [row] = await db
@@ -164,9 +386,38 @@ export class UsersRepository {
     await db.update(users).set({ passwordHash }).where(eq(users.id, id));
   }
 
+  /**
+   * The account a verification link (still unspent, unexpired) is for, with
+   * what verifying it requires: read without spending the link (the
+   * package stores it by its SHA-256, base64url).
+   */
+  async pendingVerification(token: string) {
+    const id = createHash('sha256').update(token).digest('base64url');
+    const [row] = await this.db
+      .select({
+        userId: users.id,
+        passwordHash: users.passwordHash,
+        emailVerified: users.emailVerified,
+      })
+      .from(emailTokens)
+      .innerJoin(users, eq(sql`${users.id}::text`, emailTokens.userId))
+      .where(
+        and(
+          eq(emailTokens.id, id),
+          eq(emailTokens.purpose, 'email-verification'),
+          gt(emailTokens.expiresAt, new Date()),
+        ),
+      );
+    return row;
+  }
+
   /** Only while `email` is still the user's address: a link sent to an old one verifies nothing. */
-  async markEmailVerified(id: string, email: string): Promise<boolean> {
-    const rows = await this.db
+  async markEmailVerified(
+    id: string,
+    email: string,
+    db: Db = this.db,
+  ): Promise<boolean> {
+    const rows = await db
       .update(users)
       .set({ emailVerified: true })
       .where(and(eq(users.id, id), eq(users.email, normalizeEmail(email))))
@@ -189,11 +440,18 @@ const toPrincipal = (row: Row): UserPrincipal => ({
   emailVerified: row.emailVerified,
   locale: row.locale,
   timezone: row.timezone,
+  tenantId: null,
 });
 
-const toView = (row: Row): UserView => ({
+/** Users who are members of `tenantId` (the `memberships` join's condition and the filter). */
+const memberJoin = (tenantId: string) =>
+  and(eq(memberships.userId, users.id), eq(memberships.tenantId, tenantId));
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+const toView = (row: Row, membershipActive = true): UserView => ({
   ...toPrincipal(row),
-  active: row.active,
+  active: row.active && membershipActive,
   hasPassword: row.passwordHash !== null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,

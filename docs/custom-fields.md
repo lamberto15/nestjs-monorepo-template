@@ -158,4 +158,19 @@ reached, cached definitions are used for 5 seconds at most.
   sorted often by one field, add an expression index in the table file
   (`index().on(sql\`((custom->>'amount')::numeric)\`)`) and generate the migration.
 - `pattern` is a regular expression an administrator writes, run on
-  values of at most 10,000 characters; keep patterns simple.
+  every value written. It runs on RE2 (the `re2` package,
+  `custom-field.pattern.ts`), never on V8's `RegExp`: RE2 matches in time
+  linear in the value's length, so no pattern (`(a|aa)+$`, `.*.*.*.*x`)
+  can block the event loop on a crafted value. The syntax is RE2's
+  (<https://github.com/google/re2/wiki/Syntax>), in unicode mode: what needs
+  backtracking is refused when the field is saved, with a message that
+  names it: lookahead and lookbehind (`(?=`, `(?!`, `(?<=`, `(?<!`),
+  backreferences (`\1`, `\k<name>`), and repetition counts above 1,000
+  (`a{1001}`). A pattern saved before RE2 that it can't run refuses every
+  value of the field until an administrator updates it. `re2` is a native
+  addon: its install script (allowed in `pnpm-workspace.yaml`) downloads the
+  prebuilt binary for the platform and Node's ABI from the package's GitHub
+  release (linux x64/arm64 glibc and musl, macOS, Windows), and falls back
+  to node-gyp, which the image's build stage can't run (no Python, no
+  compiler). A Node major that `re2` has no prebuilt for yet breaks the
+  image build: bump `re2` with Node.

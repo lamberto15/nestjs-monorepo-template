@@ -8,8 +8,8 @@ import { DEMO_NOTES, DEMO_USERS } from '../src/demo/demo-data.js';
 import { DemoSeedRefused } from '../src/demo/demo-guard.js';
 import { DemoSeedModule } from '../src/demo/demo-seed.module.js';
 import { type DemoCredentials, DemoSeeder } from '../src/demo/demo-seeder.js';
-import { notes } from '../src/features/notes/notes.tables.js';
-import { auditLog, users } from '../src/iam/iam.tables.js';
+import { tenants } from '../src/core/tenancy/tenancy.tables.js';
+import { users } from '../src/iam/iam.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
 /**
@@ -50,20 +50,23 @@ describe('demo seed (e2e)', () => {
     }
   }
 
-  /** What the seed writes: its users, the notes, its audit entries. */
+  /**
+   * What the seed writes outside its tenant: the demo tenant and the demo
+   * accounts (global tables). Without the tenant, nothing of it exists in
+   * a tenant table either: they all carry the tenant's id.
+   */
   async function written() {
+    const [{ demoTenants }] = await db
+      .select({ demoTenants: count() })
+      .from(tenants)
+      .where(eq(tenants.slug, 'demo'));
     const [{ demoUsers }] = await db
       .select({ demoUsers: count() })
       .from(users)
       .where(like(users.email, '%@demo.example.com'));
-    const [{ allNotes }] = await db.select({ allNotes: count() }).from(notes);
-    const [{ entries }] = await db
-      .select({ entries: count() })
-      .from(auditLog)
-      .where(eq(auditLog.actor, 'system:demo-seed'));
-    return { demoUsers, allNotes, entries };
+    return { demoTenants, demoUsers };
   }
-  const nothing = { demoUsers: 0, allNotes: 0, entries: 0 };
+  const nothing = { demoTenants: 0, demoUsers: 0 };
 
   /** Runs `work` with NODE_ENV set to `value` (unset for undefined), then puts it back. */
   async function withNodeEnv<T>(
@@ -149,8 +152,31 @@ describe('demo seed (e2e)', () => {
     expect(await titles('Elena Novak')).toHaveLength(DEMO_NOTES.length);
     expect(credentials('Elena Novak').roles).toEqual(['Viewer']);
 
+    // Everyone lands in the demo tenant, its only one. Its administrator
+    // administers that tenant alone: no operator.
+    expect(result.tenant).toBe('Demo Company');
+    expect(credentials('Noah Fischer').roles).toEqual(['Administrator']);
+    const admin = await signIn('Noah Fischer');
+    const me = (await admin.get('/v1/auth/me').expect(200)).body as {
+      tenant: { slug: string } | null;
+    };
+    expect(me.tenant?.slug).toBe('demo');
+    for (const name of ['Noah Fischer', 'Jonas Berg']) {
+      const { items } = (
+        await (await signIn(name)).get('/v1/auth/tenants').expect(200)
+      ).body as { items: { slug: string }[] };
+      expect(items.map((tenant) => tenant.slug)).toEqual(['demo']);
+    }
+    await admin
+      .get('/v1/tenants')
+      .expect(403)
+      .expect((res) => expect(res.body.code).toBe('operator_required'));
+    // The operators' administrator, in the operator tenant, sees none of it.
+    expect(
+      (await node.admin().get('/v1/notes?limit=50').expect(200)).body.items,
+    ).toEqual([]);
+
     // A note with its tags, its comment and its file, written by the seed.
-    const admin = node.admin();
     const [northwind] = (
       await admin
         .get(
@@ -203,7 +229,7 @@ describe('demo seed (e2e)', () => {
     const actions = new Set(audited.map((entry) => entry.action));
     for (const action of [
       'org-unit.created',
-      'user.created',
+      'user.seeded',
       'tag.created',
       'note.created',
       'tags.changed',

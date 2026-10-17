@@ -1,11 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { getDrizzleToken } from '@nestjs/drizzle';
-import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
+import { eq, sql } from 'drizzle-orm';
 import { AccountService } from '../src/iam/account/account.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
-import { userIdentities, users } from '../src/iam/iam.tables.js';
-import { bootApp, newPassword, type TestApp } from './support.js';
+import { sessions, userIdentities, users } from '../src/iam/iam.tables.js';
+import { bootApp, type TestApp } from './support.js';
 
 /**
  * The rules that keep one account from gaining rights through another:
@@ -42,10 +40,10 @@ describe('security (e2e)', () => {
   it('lets nobody act on an account that holds more than they do', async () => {
     const support = await node.user([await role(['Access', 'manageUsers'])]);
     const admin = await adminId();
-    // Not the administrator's password, nor their activation…
+    // Not the administrator's roles, nor their activation…
     const refused = await support.agent
       .patch(`/v1/access/users/${admin}`)
-      .send({ password: newPassword() })
+      .send({ roleIds: [] })
       .expect(403);
     expect(refused.body.code).toBe('authority_required');
     await support.agent
@@ -191,7 +189,7 @@ describe('security (e2e)', () => {
 
   it('never unlinks the last way to sign in, even with two unlinks at once', async () => {
     const { id } = await node.user([]);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     await db.update(users).set({ passwordHash: null }).where(eq(users.id, id));
     await db.insert(userIdentities).values([
       { provider: 'google', subject: `g-${id}`, userId: id },
@@ -216,5 +214,56 @@ describe('security (e2e)', () => {
       .from(userIdentities)
       .where(eq(userIdentities.userId, id));
     expect(left).toHaveLength(1);
+  });
+
+  it('answers a query parameter sent twice on the OIDC routes with a redirect or a 400, never a 500', async () => {
+    // `?redirectTo=/a&redirectTo=//evil` reaches the handler as an array:
+    // a string method on it threw (500), and the array could not be
+    // checked as a path of the web app (CodeQL
+    // js/type-confusion-through-parameter-tampering). Linking from a stale
+    // session is the flow that reads `redirectTo`, to send the browser back.
+    const me = await node.user(['editor']);
+    const db = node.db;
+    const current = (
+      (await me.agent.get('/v1/auth/sessions').expect(200)).body.items as {
+        id: string;
+        current: boolean;
+      }[]
+    ).find((item) => item.current)!;
+    await db
+      .update(sessions)
+      .set({
+        metadata: sql`${sessions.metadata} || ${JSON.stringify({
+          authenticatedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+        })}::jsonb`,
+      })
+      .where(eq(sessions.id, current.id));
+    const twice = await me.agent
+      .get(
+        '/v1/auth/oidc/google/login?link=true&redirectTo=/settings&redirectTo=//evil.example',
+      )
+      .expect(302);
+    // Not a string: as if absent, so the web app's root.
+    expect(twice.headers.location).toBe(
+      'https://web.example.com/?error=reauthentication_required',
+    );
+    // `link` twice is not `true`: not a link flow, so past the checks the
+    // route's 404 (no provider is configured here), not a 500.
+    await me.agent
+      .get('/v1/auth/oidc/google/login?link=true&link=true')
+      .expect(404);
+    // The callback: a repeated `code` or `state` is refused before anything reads it.
+    const refused = await node
+      .http()
+      .get('/v1/auth/oidc/google/callback?code=a&code=b&state=s')
+      .expect(400);
+    expect(refused.body.code).toBe('validation_failed');
+    expect(refused.body.errors).toEqual([
+      { path: 'code', message: expect.any(String) },
+    ]);
+    await node
+      .http()
+      .get('/v1/auth/oidc/google/callback?code=a&state=s&state=t')
+      .expect(400);
   });
 });

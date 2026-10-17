@@ -10,6 +10,11 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import {
+  tenantColumn,
+  tenantReference,
+  tenantTable,
+} from '../../core/tenancy/tenant-scope.js';
 import type { ApprovalPolicy } from './approval-policy.js';
 
 /** Where a request stands. `pending` and `changes_requested` are open; the rest have ended. */
@@ -47,6 +52,7 @@ export const approvalRequests = pgTable(
   'approval_requests',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The record's permission subject: `Note`. */
     subject: text('subject').notNull(),
     recordId: text('record_id').notNull(),
@@ -85,7 +91,7 @@ export const approvalRequests = pgTable(
     /** When the feature's handler for the outcome ran (a workflow step). */
     outcomeAppliedAt: at('outcome_applied_at'),
     /** Makes `request()` safe to retry (a workflow step's key): the same key returns the same request. */
-    idempotencyKey: text('idempotency_key').unique(),
+    idempotencyKey: text('idempotency_key'),
     ...timestamps(),
   },
   (t) => [
@@ -96,10 +102,15 @@ export const approvalRequests = pgTable(
     index('approval_requests_updated_at_idx').on(t.updatedAt),
     // One open request per action on a record: a second one is a 409 approval_pending.
     uniqueIndex('approval_requests_open_idx')
-      .on(t.subject, t.recordId, t.action)
+      .on(t.tenantId, t.subject, t.recordId, t.action)
       .where(sql`status in ('pending', 'changes_requested')`),
+    uniqueIndex('approval_requests_idempotency_key_idx').on(
+      t.tenantId,
+      t.idempotencyKey,
+    ),
+    ...tenantTable('approval_requests', t, { referenced: true }),
   ],
-);
+).enableRLS();
 
 /**
  * Who decides a stage: resolved once, when the stage starts, so later role
@@ -110,9 +121,8 @@ export const approvalAssignments = pgTable(
   'approval_assignments',
   {
     id: uuidPk(),
-    requestId: uuid('request_id')
-      .notNull()
-      .references(() => approvalRequests.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    requestId: uuid('request_id').notNull(),
     round: integer('round').notNull(),
     stage: integer('stage').notNull(),
     /** The user assigned. */
@@ -141,8 +151,14 @@ export const approvalAssignments = pgTable(
     ),
     index('approval_assignments_approver_idx').on(t.approverId, t.status),
     index('approval_assignments_decided_by_idx').on(t.decidedBy),
+    ...tenantTable('approval_assignments', t),
+    tenantReference(
+      'approval_assignments_request_fk',
+      [t.tenantId, t.requestId],
+      [approvalRequests.tenantId, approvalRequests.id],
+    ),
   ],
-);
+).enableRLS();
 
 /**
  * Out of office: `fromUserId`'s pending approvals may be decided by
@@ -152,6 +168,7 @@ export const approvalDelegations = pgTable(
   'approval_delegations',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     fromUserId: uuid('from_user_id').notNull(),
     toUserId: uuid('to_user_id').notNull(),
     startsAt: at('starts_at').notNull(),
@@ -163,8 +180,9 @@ export const approvalDelegations = pgTable(
   (t) => [
     index('approval_delegations_from_idx').on(t.fromUserId),
     index('approval_delegations_to_idx').on(t.toUserId, t.endsAt),
+    ...tenantTable('approval_delegations', t),
   ],
-);
+).enableRLS();
 
 /**
  * The administrators' versions of an action's policy, numbered per action:
@@ -175,6 +193,7 @@ export const approvalPolicies = pgTable(
   'approval_policies',
   {
     id: uuidPk(),
+    tenantId: tenantColumn(),
     /** The action: `Note.publish`. */
     key: text('key').notNull(),
     version: integer('version').notNull(),
@@ -183,17 +202,23 @@ export const approvalPolicies = pgTable(
     changedBy: text('changed_by').notNull(),
     ...timestamps(),
   },
-  (t) => [uniqueIndex('approval_policies_version_idx').on(t.key, t.version)],
-);
+  (t) => [
+    uniqueIndex('approval_policies_version_idx').on(
+      t.tenantId,
+      t.key,
+      t.version,
+    ),
+    ...tenantTable('approval_policies', t),
+  ],
+).enableRLS();
 
 /** What happened to a request, in order: its timeline (GET /approvals/{id}). */
 export const approvalEvents = pgTable(
   'approval_events',
   {
     id: uuidPk(),
-    requestId: uuid('request_id')
-      .notNull()
-      .references(() => approvalRequests.id, { onDelete: 'cascade' }),
+    tenantId: tenantColumn(),
+    requestId: uuid('request_id').notNull(),
     /** `requested`, `stage_started`, `approved`… (APPROVAL_EVENT_KINDS). */
     type: text('type').notNull(),
     /** `user:<id>`, `client:<id>`, or null for the workflow. */
@@ -204,8 +229,16 @@ export const approvalEvents = pgTable(
     details: jsonb('details').$type<Record<string, unknown>>(),
     ...timestamps(),
   },
-  (t) => [index('approval_events_request_idx').on(t.requestId)],
-);
+  (t) => [
+    index('approval_events_request_idx').on(t.requestId),
+    ...tenantTable('approval_events', t),
+    tenantReference(
+      'approval_events_request_fk',
+      [t.tenantId, t.requestId],
+      [approvalRequests.tenantId, approvalRequests.id],
+    ),
+  ],
+).enableRLS();
 
 export type ApprovalRequestRow = typeof approvalRequests.$inferSelect;
 export type ApprovalAssignmentRow = typeof approvalAssignments.$inferSelect;

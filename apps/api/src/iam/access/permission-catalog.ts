@@ -53,6 +53,11 @@ export const ACCESS_PERMISSIONS = definePermissions({
           conditions: [],
         },
         readAudit: { label: 'Read the audit log', conditions: [] },
+        manageTenants: {
+          label:
+            "Create tenants (the deployment's operators: only in the operator tenant)",
+          conditions: [],
+        },
         impersonate: {
           label: 'Act as another user (support), never as an administrator',
           conditions: [],

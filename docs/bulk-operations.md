@@ -134,3 +134,8 @@ Rules for an operation:
   since it was selected) and on the fields (`access.forbiddenFields`).
   Throw Nest's 4xx exceptions with a `code`: they become the item's error.
   Anything else (a 5xx, the database gone) stops the run.
+
+**Tenancy** ([tenancy](tenancy.md)): a queued run names the tenant it was
+started in (`tenantId`); the worker runs it there, as its principal checked
+again as a member of it. Another tenant's run is a 404 at
+`GET /v1/bulk/{id}`, even the same person's.

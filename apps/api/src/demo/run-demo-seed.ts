@@ -14,12 +14,12 @@ import { type DemoSeedResult, DemoSeeder } from './demo-seeder.js';
 function report(result: DemoSeedResult) {
   if (!result.seeded) {
     console.log(
-      `The demo data is already here (seeded ${result.since.toISOString()}): nothing changed. Its passwords were shown then; set a new one through PATCH /v1/access/users/{id} as the administrator.`,
+      `The demo data is already here (seeded ${result.since.toISOString()}): nothing changed. Its passwords were shown then; a lost one: the password reset (POST /v1/auth/password/forgot, the mail in Mailpit).`,
     );
     return;
   }
   console.log(
-    `Demo data: ${result.users.length} users, ${result.notes} notes. Their passwords, shown once:\n`,
+    `Demo data in the tenant "${result.tenant}": ${result.users.length} users, ${result.notes} notes. Their passwords, shown once:\n`,
   );
   const width = Math.max(...result.users.map((user) => user.email.length));
   for (const user of result.users) {
@@ -28,7 +28,7 @@ function report(result: DemoSeedResult) {
     );
   }
   console.log(
-    "\nThe administrator is the first start's (ADMIN_EMAIL). Swagger UI: /api.",
+    "\nThey sign in to the demo tenant (its administrator: the first above). The operators' administrator is the first start's (ADMIN_EMAIL). Swagger UI: /api.",
   );
 }
 

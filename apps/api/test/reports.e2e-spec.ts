@@ -1,8 +1,6 @@
 import { getQueueToken } from '@nestjs/bullmq';
-import { getDrizzleToken } from '@nestjs/drizzle';
 import type { Queue } from 'bullmq';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../src/core/database/drizzle.js';
 import {
   DataTransferProcessor,
   STALLED_REASON,
@@ -21,13 +19,17 @@ const local = (url: string) => {
   return pathname + search;
 };
 
-/** A link of a mail's HTML, its entities decoded. */
+/**
+ * A link of a mail's HTML, its entities decoded. `&amp;` last: decoded
+ * first, it would turn `&amp;#x2F;` (a literal `&#x2F;` in the link) into a
+ * `/` on the next replace (CodeQL js/double-escaping).
+ */
 const linkOf = (html: string) =>
   /href="([^"]+)"/
     .exec(html)![1]!
-    .replace(/&amp;/g, '&')
     .replace(/&#x3D;/g, '=')
-    .replace(/&#x2F;/g, '/');
+    .replace(/&#x2F;/g, '/')
+    .replace(/&amp;/g, '&');
 
 const paths = (body: { errors?: { path: string }[] }) =>
   (body.errors ?? []).map((error) => error.path);
@@ -373,7 +375,7 @@ describe('scheduled reports (e2e)', () => {
       .expect(204);
 
     const runner = node.app.get(ReportRunnerJob);
-    const db = node.app.get<Database>(getDrizzleToken());
+    const db = node.db;
     const [stale] = await db
       .select()
       .from(reportSchedules)
@@ -388,10 +390,12 @@ describe('scheduled reports (e2e)', () => {
     // A second runner holding the row as it was read claims nothing.
     const reports = node.app.get(ReportsService);
     expect(
-      await reports.start((await reports.owner(stale!))!, stale!, {
-        trigger: 'schedule',
-        now,
-      }),
+      await node.inTenant(async () =>
+        reports.start((await reports.owner(stale!))!, stale!, {
+          trigger: 'schedule',
+          now,
+        }),
+      ),
     ).toBeNull();
 
     const after = (await ada.agent.get(`/v1/reports/${due.id}`).expect(200))

@@ -66,7 +66,7 @@ jobs:
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci REDIS_PASSWORD=redis-ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci
           docker compose config --format json > env.json
           # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
           test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
@@ -80,7 +80,14 @@ jobs:
             test "$(jq -r ".services.$service.environment | has(\"DATABASE_OWNER_URL_FILE\")" env.json)" = false
             test "$(jq -r ".services.$service.secrets | map(.source) | index(\"database_owner_url\")" env.json)" = null
           done
-          test "$(jq -r '.services.migrate.secrets | map(.source) | sort | join(",")' env.json)" = 'database_owner_url,database_url'
+          test "$(jq -r '.services.migrate.secrets | map(.source) | sort | join(",")' env.json)" = 'database_maintenance_url,database_owner_url,database_url'
+          # The maintenance role (BYPASSRLS) on migrate and the worker, never api (docs/tenancy.md, "The bypass").
+          test "$(jq -r .services.worker.environment.DATABASE_MAINTENANCE_URL env.json)" = 'postgres://app_maintenance:maint-ci@postgres:5432/app'
+          test "$(jq -r .services.migrate.environment.DATABASE_MAINTENANCE_URL env.json)" = 'postgres://app_maintenance:maint-ci@postgres:5432/app'
+          test "$(jq -r '.services.api.environment | has("DATABASE_MAINTENANCE_URL")' env.json)" = false
+          test "$(jq -r '.services.api.environment | has("DATABASE_MAINTENANCE_URL_FILE")' env.json)" = false
+          test "$(jq -r '.services.api.secrets | map(.source) | index("database_maintenance_url")' env.json)" = null
+          test "$(jq -r '.services.worker.secrets | map(.source) | index("database_maintenance_url") != null' env.json)" = true
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
           test "$(jq -r .services.backup.environment.PGPASSWORD env.json)" = pg-ci
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN env.json)" = ci

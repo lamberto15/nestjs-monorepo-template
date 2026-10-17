@@ -215,6 +215,33 @@ export class OrgUnitsService {
     }
   }
 
+  /** Refuses ids that aren't this tenant's units (400). */
+  async assertExist(ids: string[]) {
+    const unique = [...new Set(ids)];
+    if (!unique.length) {
+      return;
+    }
+    const found = await database(this.txHost)
+      .select({ id: orgUnits.id })
+      .from(orgUnits)
+      .where(inArray(orgUnits.id, unique));
+    if (found.length !== unique.length) {
+      throw new BadRequestException('Unknown org unit.');
+    }
+  }
+
+  /** Those of `ids` that are this tenant's units now (an invitation's, accepted later). */
+  async existing(tx: Transaction, ids: string[]) {
+    if (!ids.length) {
+      return [];
+    }
+    const found = await tx
+      .select({ id: orgUnits.id })
+      .from(orgUnits)
+      .where(inArray(orgUnits.id, [...new Set(ids)]));
+    return found.map((row) => row.id);
+  }
+
   private async find(db: Database | Transaction, id: string) {
     const [unit] = await db.select().from(orgUnits).where(eq(orgUnits.id, id));
     if (!unit) {

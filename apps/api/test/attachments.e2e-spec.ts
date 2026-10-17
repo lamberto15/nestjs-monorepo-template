@@ -1,4 +1,3 @@
-import { getDrizzleToken } from '@nestjs/drizzle';
 import { StorageDisk } from '@nestjs/storage';
 import { eq, inArray } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
@@ -35,7 +34,7 @@ describe('attachments (e2e)', () => {
 
   beforeAll(async () => {
     node = await bootApp();
-    db = node.app.get<Database>(getDrizzleToken());
+    db = node.db;
   });
   afterAll(async () => {
     await node.close();

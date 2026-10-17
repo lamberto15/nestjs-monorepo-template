@@ -62,7 +62,8 @@ export class MailEventsRetentionJob {
         });
         return deleted.length;
       },
-      { transaction: false },
+      // A global table (every tenant's mail together): no tenant.
+      { transaction: false, tenantId: null },
     );
   }
 }

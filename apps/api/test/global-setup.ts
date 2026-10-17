@@ -17,6 +17,8 @@ declare module 'vitest' {
      */
     ownerUrl: string;
     appUrl: string;
+    /** The maintenance role (BYPASSRLS): the workers' sweeps across tenants, the tests' fixtures. */
+    maintenanceUrl: string;
     /** The migrated database every test database is a copy of. */
     templateDatabase: string;
   }
@@ -227,9 +229,12 @@ export default async function setup(project: TestProject) {
   const template = `template_${suffix}`;
   const owner = `owner_${suffix}`;
   const app = `app_${suffix}`;
+  const maintenance = `maint_${suffix}`;
   const ownerSecret = randomBytes(12).toString('hex');
   const ownerUrl = asRole(postgres.url, owner, ownerSecret);
   const appUrl = asRole(postgres.url, app, randomBytes(12).toString('hex'));
+  const maintenanceSecret = randomBytes(12).toString('hex');
+  const maintenanceUrl = asRole(postgres.url, maintenance, maintenanceSecret);
   const onServer = async (statement: string) => {
     const admin = new Client({ connectionString: postgres.url });
     await admin.connect();
@@ -264,7 +269,7 @@ export default async function setup(project: TestProject) {
     await onServer(`drop database if exists "${template}" with (force)`).catch(
       (error) => console.warn(`Template not dropped: ${String(error)}`),
     );
-    for (const role of [app, owner]) {
+    for (const role of [app, maintenance, owner]) {
       try {
         await onServer(`drop role if exists "${role}"`);
       } catch (error) {
@@ -278,10 +283,20 @@ export default async function setup(project: TestProject) {
     await onServer(
       `create role "${owner}" login createrole nosuperuser nocreatedb nobypassrls password '${ownerSecret}'`,
     );
+    // The maintenance role (BYPASSRLS) made once by the server's superuser,
+    // as on a managed PostgreSQL whose admin may not create BYPASSRLS roles
+    // (docs/deployment.md, "Database roles"): the owner keeps no BYPASSRLS,
+    // so FORCE binds it, and the bootstrap checks the role and grants it.
+    // The path where the owner creates it runs in CI's check job (a
+    // superuser owner, as in Compose).
+    await onServer(
+      `create role "${maintenance}" login bypassrls nosuperuser nocreatedb nocreaterole password '${maintenanceSecret}'`,
+    );
     await onServer(`create database "${template}" owner "${owner}"`);
     await migrateAll({
       ownerUrl: databaseUrl(ownerUrl, template),
       appUrl: databaseUrl(appUrl, template),
+      maintenanceUrl: databaseUrl(maintenanceUrl, template),
     });
   } catch (error) {
     // A failed bootstrap leaves no role, template or container behind.
@@ -292,6 +307,7 @@ export default async function setup(project: TestProject) {
   project.provide('postgresUrl', postgres.url);
   project.provide('ownerUrl', ownerUrl);
   project.provide('appUrl', appUrl);
+  project.provide('maintenanceUrl', maintenanceUrl);
   project.provide('templateDatabase', template);
   return teardown;
 }

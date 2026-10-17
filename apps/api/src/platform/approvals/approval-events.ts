@@ -1,5 +1,6 @@
 import { WorkflowSignal } from '@nestjs/workflows';
 import { z } from 'zod';
+import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 import { defineNotifications } from '../notifications/notification.types.js';
 
 /** One workflow instance per request: the request id is in the instance id. */
@@ -7,23 +8,34 @@ export const approvalWorkflowId = (requestId: string) =>
   `approval-${requestId}`;
 
 /**
+ * What a request's workflow starts with: the request, and its tenant, in
+ * which every step runs (docs/tenancy.md).
+ */
+export interface ApprovalWorkflowInput extends TenantEnvelope {
+  requestId: string;
+  tenantId: string;
+}
+
+/**
  * A stage has its outcome (sent in the deciding transaction). Key:
  * `<request>:<round>:<stage>`.
  */
-export const stageDecided = new WorkflowSignal<{
-  /** `failed`: the stage can't be decided any more (too few approvers left). */
-  outcome: 'approved' | 'rejected' | 'changes_requested' | 'failed';
-}>('approval.stage-decided');
+export const stageDecided = new WorkflowSignal<
+  {
+    /** `failed`: the stage can't be decided any more (too few approvers left). */
+    outcome: 'approved' | 'rejected' | 'changes_requested' | 'failed';
+  } & TenantEnvelope
+>('approval.stage-decided');
 
 /** The requester (or an administrator) cancelled the request. Key: the request id. */
-export const requestCancelled = new WorkflowSignal<{ by: string }>(
-  'approval.cancelled',
-);
+export const requestCancelled = new WorkflowSignal<
+  { by: string } & TenantEnvelope
+>('approval.cancelled');
 
 /** The requester resubmitted after changes were requested. Key: `<request>:<round before>`. */
-export const requestResubmitted = new WorkflowSignal<{ round: number }>(
-  'approval.resubmitted',
-);
+export const requestResubmitted = new WorkflowSignal<
+  { round: number } & TenantEnvelope
+>('approval.resubmitted');
 
 /**
  * The webhook events API clients may subscribe to, for the requests they

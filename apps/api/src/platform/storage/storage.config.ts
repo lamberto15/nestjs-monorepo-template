@@ -19,6 +19,38 @@ import {
 } from '../../core/database/drizzle.js';
 import type { PlatformEnv } from '../platform.env.js';
 
+/**
+ * A key of a tenant's file on the private disk: every tenant's files are
+ * under `tenants/<tenant id>/` (docs/tenancy.md), from the first file on, so
+ * a tenant's export or deletion is a prefix operation, and a key built for
+ * one tenant never lands among another's. The tenant comes from the
+ * principal or the context of the work (an upload: the request's user),
+ * never from the client.
+ */
+export function tenantFileKey(tenantId: string, path: string) {
+  if (!UUID.test(tenantId)) {
+    throw new TypeError(`Not a tenant id: ${JSON.stringify(tenantId)}`);
+  }
+  return `tenants/${tenantId}/${path.replace(/^\/+/, '')}`;
+}
+
+/**
+ * Where an account's own files live (`accounts/<user id>/…`): a person's
+ * data export, which spans their tenants and belongs to none of them.
+ */
+export function accountFileKey(userId: string, path: string) {
+  if (!UUID.test(userId)) {
+    throw new TypeError(`Not a user id: ${JSON.stringify(userId)}`);
+  }
+  return `accounts/${userId}/${path.replace(/^\/+/, '')}`;
+}
+
+/** Whether `key` is one of this tenant's files (a key read back from a job's payload). */
+export const isTenantFileKey = (tenantId: string, key: string) =>
+  key.startsWith(`tenants/${tenantId}/`) && !key.includes('..');
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /** The route that serves the local disk's signed URLs (FilesController). */
 export const FILES_ROUTE = 'files';
 

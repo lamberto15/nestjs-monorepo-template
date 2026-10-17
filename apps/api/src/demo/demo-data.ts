@@ -1,10 +1,13 @@
 /**
- * What the demo seed creates (DemoSeeder): a small company with two teams,
- * people in the template's example roles (note.policy.ts' seed roles), and
- * their notes. Every key below is the data's own (a note names its owner
- * by the user's key); the database gives the ids. Change it to show your
- * own features; tenancy (roadmap 1a) adds the demo tenant here.
+ * What the demo seed creates (DemoSeeder): a tenant of its own, a small
+ * company with two teams, its administrator and people in the template's
+ * example roles (note.policy.ts' seed roles), and their notes. Every key
+ * below is the data's own (a note names its owner by the user's key); the
+ * database gives the ids. Change it to show your own features.
  */
+
+/** The demo's tenant: never the operators' (the first start's). */
+export const DEMO_TENANT = { name: 'Demo Company', slug: 'demo' };
 
 /** The demo users' addresses: example.com is reserved, nothing is ever delivered. */
 export const DEMO_EMAIL_DOMAIN = 'demo.example.com';
@@ -19,7 +22,10 @@ export interface DemoOrgUnit {
 export interface DemoUser {
   key: string;
   name: string;
-  /** Seeded roles' keys (`roles.key`). */
+  /**
+   * Seeded roles' keys (`roles.key`). `administrator` makes the demo
+   * tenant's administrator (of that tenant only, no operator).
+   */
   roles: string[];
   /** Org units' keys. */
   units: string[];
@@ -51,6 +57,13 @@ export const DEMO_ORG_UNITS: DemoOrgUnit[] = [
 ];
 
 export const DEMO_USERS: DemoUser[] = [
+  // Runs the demo tenant: its members, roles, units, tags, audit log.
+  {
+    key: 'noah',
+    name: 'Noah Fischer',
+    roles: ['administrator'],
+    units: [],
+  },
   // Team leads see the notes of their unit and every unit below it.
   {
     key: 'maya',

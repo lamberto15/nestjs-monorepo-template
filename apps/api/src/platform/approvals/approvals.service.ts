@@ -150,7 +150,10 @@ export class ApprovalsService implements PersonalDataSource {
       name: 'approvals',
       forget: async (tx, subject, recordIds) => {
         const open = await tx
-          .select({ id: approvalRequests.id })
+          .select({
+            id: approvalRequests.id,
+            tenantId: approvalRequests.tenantId,
+          })
           .from(approvalRequests)
           .where(
             and(
@@ -159,10 +162,10 @@ export class ApprovalsService implements PersonalDataSource {
               inArray(approvalRequests.status, [...OPEN_STATUSES]),
             ),
           );
-        for (const { id } of open) {
+        for (const { id, tenantId } of open) {
           await this.workflows.signal(
             requestCancelled,
-            { by: 'purge' },
+            { by: 'purge', tenantId },
             { key: id, id: `${id}:cancelled`, transaction: tx },
           );
         }
@@ -434,7 +437,7 @@ export class ApprovalsService implements PersonalDataSource {
         // The process exists if and only if the request does.
         await this.workflows.start(
           ApprovalWorkflow,
-          { requestId: created!.id },
+          { requestId: created!.id, tenantId: created!.tenantId },
           { id: approvalWorkflowId(created!.id), transaction: tx },
         );
         return { required: true, request: created! };
@@ -570,7 +573,7 @@ export class ApprovalsService implements PersonalDataSource {
       });
       await this.workflows.signal(
         requestCancelled,
-        { by: principalKey(by) },
+        { by: principalKey(by), tenantId: locked.tenantId },
         { key: id, id: `${id}:cancelled`, transaction: tx },
       );
     }
@@ -912,7 +915,7 @@ export class ApprovalsService implements PersonalDataSource {
       );
       await this.workflows.signal(
         requestCancelled,
-        { by: principalKey(principal) },
+        { by: principalKey(principal), tenantId: locked.tenantId },
         { key: id, id: `${id}:cancelled`, transaction: tx },
       );
       return ended;
@@ -1025,7 +1028,7 @@ export class ApprovalsService implements PersonalDataSource {
       );
       await this.workflows.signal(
         requestResubmitted,
-        { round: resubmitted!.round },
+        { round: resubmitted!.round, tenantId: resubmitted!.tenantId },
         {
           key: `${id}:${locked.round}`,
           id: `${id}:${locked.round}:resubmitted`,

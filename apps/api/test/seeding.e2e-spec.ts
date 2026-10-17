@@ -11,7 +11,8 @@ import { AppModule } from '../src/app.module.js';
 import { PASSWORD_HASHER_PARAMS } from '../src/iam/account/password-hashing.js';
 import { createDatabase, type Database } from '../src/core/database/drizzle.js';
 import { auditLog, roles, users } from '../src/iam/iam.tables.js';
-import { testDatabase } from './support.js';
+import { tenants } from '../src/core/tenancy/tenancy.tables.js';
+import { bypassingTenants, testDatabase } from './support.js';
 
 /**
  * The first start of a deployment: every process (api replicas, the worker)
@@ -76,19 +77,28 @@ describe('first start (seeding)', () => {
       ]);
 
       const db: Database = database.db;
+      // Every tenant's rows (the roles are a tenant table).
+      const [{ tenantsMade }] = await bypassingTenants(() =>
+        db.select({ tenantsMade: count() }).from(tenants),
+      );
+      expect(tenantsMade).toBe(1);
       const [{ administrators }] = await db
         .select({ administrators: count() })
         .from(users);
       expect(administrators).toBe(1);
-      const [{ seededRoles }] = await db
-        .select({ seededRoles: count() })
-        .from(roles)
-        .where(eq(roles.key, 'administrator'));
+      const [{ seededRoles }] = await bypassingTenants(() =>
+        db
+          .select({ seededRoles: count() })
+          .from(roles)
+          .where(eq(roles.key, 'administrator')),
+      );
       expect(seededRoles).toBe(1);
-      const [{ entries }] = await db
-        .select({ entries: count() })
-        .from(auditLog)
-        .where(eq(auditLog.action, 'user.seeded'));
+      const [{ entries }] = await bypassingTenants(() =>
+        db
+          .select({ entries: count() })
+          .from(auditLog)
+          .where(eq(auditLog.action, 'user.seeded')),
+      );
       expect(entries).toBe(1);
     } finally {
       await Promise.all(apps.map((each) => each.close()));

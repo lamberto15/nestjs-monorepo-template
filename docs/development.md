@@ -51,11 +51,15 @@ provider, and remove `floci` from `compose.dev.yaml`.
 ## Demo data
 
 `pnpm db:seed:demo` fills a development database with a small, believable
-company: org units (Sales, Sales North under it, Engineering), six users in
-the example roles (two team leads, three editors, a viewer), four tags, and
-seven notes owned by those users, tagged, two with a comment that mentions a
-colleague, one with a text file attached. The data is
-`apps/api/src/demo/demo-data.ts`: change it with your features.
+company in a tenant of its own, **Demo Company** (`demo`, never the
+operators' tenant: [tenancy](tenancy.md)): org units (Sales, Sales North
+under it, Engineering), seven members (its administrator, two team leads,
+three editors, a viewer), four tags, and seven notes owned by those
+members, tagged, two with a comment that mentions a colleague, one with a
+text file attached. Everything is in the demo tenant: memberships, roles,
+units, tags, notes, comments, the file (under `tenants/<id>/`), the audit
+entries. The data is `apps/api/src/demo/demo-data.ts`: change it with your
+features.
 
 - **Through the services, as the system principal** `system:demo-seed`
   ([permissions](permissions.md), "The system principal"): a standalone
@@ -64,15 +68,28 @@ colleague, one with a text file attached. The data is
   (`APP_ROLE=api`). Every write has its audit entry with the seed as the
   actor, and the job may do only what `DEMO_SEED_JOB` declares
   (`src/demo/demo.jobs.ts`), checked where a controller checks and where
-  the services do (granting a role takes holding its permissions, so the
-  seed can't make an administrator). The notes are their users' (so `mine`
+  the services do (granting a role takes holding its permissions, and a
+  job never holds `all.manage`). The notes are their users' (so `mine`
   and "in my units" show something), created on their behalf. What the
   seed starts (the notes' publication, their webhooks) waits in PostgreSQL
   for the app's workers: `pnpm start:dev` runs them.
-- **Passwords are generated** and printed once, with the addresses
+- **Members with passwords, though adding people is invite-only**
+  ([auth](auth.md)): no route lets an administrator set a password, and
+  none is reopened for this. The seed uses the system-only path the first
+  start uses for its administrator, `AccessAdminService.seedUser()`
+  (refused to anything but a system principal made in code, no route
+  calls it): a verified account (the seed made the address up; sign-in
+  refuses unverified ones), its membership, roles and units, `user.seeded`
+  with the seed as the actor. The demo administrator gets the
+  Administrator role as every tenant's first administrator does
+  (`TenantsService.addAdministrator()`, in the tenant's creating
+  transaction): administrator of the demo tenant only, no operator.
+- **Passwords are generated** and printed once, straight to stdout (never
+  through the app's logger), with the addresses
   (`<first>.<last>@demo.example.com`): a fixed password would be in every
-  breach list, which sign-up and password changes refuse. Lost one? Set a
-  new one as the administrator (`PATCH /v1/access/users/{id}`).
+  breach list, which the breach check refuses. Each member signs in and
+  lands in the demo tenant, their only one. Lost one? The password reset
+  (`POST /v1/auth/password/forgot`; the mail is in Mailpit).
 - **Development databases only, by a positive check**: it runs only when
   both say so, and refuses (exit 1, nothing written) otherwise:
   - `NODE_ENV` is set to `development` (or `test`). Unset doesn't count,
@@ -90,18 +107,19 @@ colleague, one with a text file attached. The data is
     `docker-entrypoint-initdb.d`); a volume made before this needs it once:
     `pnpm services:up && pnpm db:mark-dev` (Compose's `exec` into the
     development project's PostgreSQL, never another project's).
-- **Once:** everything is one transaction under an advisory lock, and a
-  database that already has demo users is left alone ("already here",
-  exit 0). To start over, drop the development database's volume
-  (`pnpm services:down`, then `docker volume rm <name>-dev_postgres_data`) or
-  delete the demo users.
-- **Tenancy** ([roadmap](roadmap.md), 1a) adds the demo tenant in one
-  place: `DemoSeeder.seed()` creates it before `system.run()` and passes it
-  `{ tenantId }`.
+- **Once, all or nothing:** the demo tenant is made as every tenant is
+  (`TenantsService.create()`: the row and its roles in one transaction in
+  its scope), and everything else runs in that same transaction as
+  `system.run(DEMO_SEED_JOB, …, { tenantId })`, after an advisory lock and
+  the checks. A database that already has the demo tenant or demo users is
+  left alone ("already here", exit 0). To start over, drop the development
+  database's volume (`pnpm services:down`, then
+  `docker volume rm <name>-dev_postgres_data`).
 - Its tests: `src/demo/demo-guard.spec.ts` (both halves of the check) and
   `test/demo-seed.e2e-spec.ts` (refused on an unmarked database and under
-  another NODE_ENV, then a run on a marked one, and a second that changes
-  nothing).
+  another NODE_ENV, then a run on a marked one: members sign in to the demo
+  tenant only, the roles' conditions, the operators see none of it, the
+  audit; and a second run that changes nothing).
 
 ## Devcontainer
 
@@ -242,10 +260,11 @@ measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
   stops it rather than raising its limits. List and create go through
   a **dedicated API client**, `load-test`, with a daily quota of 10 million
   (the quota is counted on every request, as for any client). `k6`'s
-  `setup()` makes it, the users and 300 notes through the API, as the
-  administrator the stack seeds. The users' password is generated per stack
-  by `run.sh` (`LOADTEST_USER_PASSWORD`; k6 refuses to seed without it), and
-  `setup()` first checks the target's rate limit is raised (only a
+  `setup()` makes it and 300 notes through the API, as the administrator
+  the stack seeds, whose password `run.sh` generates per stack; the
+  sign-in scenario signs that administrator in (an account signs in only
+  once its address is proved, by mail, which a load test can't do for
+  accounts of its own: docs/tenancy.md). `setup()` first checks the target's rate limit is raised (only a
   load-test stack's is), so k6 pointed at a real deployment seeds nothing.
 - **The bot check (roadmap item 4) is off:** the load test measures the
   app, not a captcha, so `compose.loadtest.yaml` sets `CAPTCHA_MODE=off`

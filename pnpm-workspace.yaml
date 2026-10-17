@@ -12,3 +12,7 @@ allowBuilds:
   lefthook: true
   # bullmq's msgpackr: optional native speedup with a prebuilt binary.
   msgpackr-extract: true
+  # RE2 (custom-field patterns): its install script downloads the prebuilt
+  # addon for the platform (verified against the hashes pinned in the
+  # package), or builds it with node-gyp when none matches.
+  re2: true

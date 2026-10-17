@@ -26,8 +26,13 @@ export class MailEventsProcessor extends WorkerHost {
 
   async process(job: Job<MailEventsJob>) {
     const { provider, id, events } = job.data;
-    const applied = await this.system.run(MAIL_INTAKE_JOB, (system) =>
-      this.suppressions.apply(system, provider, id, events),
+    // The deployment's: the suppression list is per address, every
+    // tenant's mail together (docs/tenancy.md), so no tenant; its audit
+    // entries are of no tenant either.
+    const applied = await this.system.run(
+      MAIL_INTAKE_JOB,
+      (system) => this.suppressions.apply(system, provider, id, events),
+      { tenantId: null },
     );
     if (applied.suppressed.length > 0) {
       this.logger.warn('Addresses suppressed', {

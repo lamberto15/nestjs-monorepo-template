@@ -30,13 +30,19 @@ import {
   sql,
 } from 'drizzle-orm';
 import type { PageQuery } from '../../core/http/pagination.js';
-import type { SystemPrincipal, UserPrincipal } from '../auth/principal.js';
+import {
+  isSystemPrincipal,
+  type SystemPrincipal,
+  type UserPrincipal,
+} from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import { BreachedPasswordsService } from '../account/breached-passwords.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { Transaction } from '../../core/database/drizzle.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
   apiClientRoles,
+  memberships,
   rolePermissions,
   roles,
   userOrgUnits,
@@ -44,6 +50,7 @@ import {
   users,
 } from '../iam.tables.js';
 import { ApiClientsService } from './api-clients.service.js';
+import { InvitationsService } from './invitations.service.js';
 import { OrgUnitsService } from './org-units.service.js';
 import { AccessService } from './access.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
@@ -57,9 +64,8 @@ export interface RoleInput {
 
 export interface UserInput {
   email: string;
-  name: string;
-  /** Unset: the user is invited by email to set one. */
-  password?: string;
+  /** The name a new account starts with (its owner changes it). */
+  name?: string;
   roleIds: string[];
   /** When grants end, by role id (temporary access); the others never do. */
   roleExpiresAt?: Record<string, string>;
@@ -67,13 +73,12 @@ export interface UserInput {
   orgUnitIds?: string[];
 }
 
+/** What an administrator changes of a membership: never the account (its name, its password). */
 export interface UserChanges {
-  name?: string;
   active?: boolean;
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
   orgUnitIds?: string[];
-  password?: string;
 }
 
 export interface ClientInput {
@@ -91,14 +96,6 @@ export interface ClientChanges {
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
 }
-
-/**
- * Who may create users: an administrator (a request), or a system job
- * that declares what it grants (the demo seed, src/demo). The grant rules
- * apply to both: a job holds only its declared permissions, never
- * `all.manage`, so it can't make an administrator.
- */
-type UserCreator = UserPrincipal | SystemPrincipal;
 
 /**
  * Changes to roles and users, with the rules that keep access control safe:
@@ -132,6 +129,8 @@ export class AccessAdminService {
     private readonly orgUnits: OrgUnitsService,
     private readonly breachedPasswords: BreachedPasswordsService,
     private readonly lifecycle: UserLifecycleRegistry,
+    private readonly tenancy: Tenancy,
+    private readonly invitations: InvitationsService,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -260,9 +259,13 @@ export class AccessAdminService {
 
   // Users
 
-  /** A page of the users, with their role ids. */
+  /** A page of the tenant's members, with their role ids. */
   async listUsers(query: PageQuery, where?: SQL) {
-    const page = await this.accounts.page(query, where);
+    const page = await this.accounts.page(
+      this.tenancy.tenantId(),
+      query,
+      where,
+    );
     const ids = page.items.map((user) => user.id);
     const [assignments, memberships] = ids.length
       ? await Promise.all([
@@ -293,64 +296,101 @@ export class AccessAdminService {
     };
   }
 
-  async createUser(actor: UserCreator, input: UserInput, ip?: string) {
+  /**
+   * Invites someone to the tenant (docs/tenancy.md, "Invitations"): the
+   * address gets a link; the membership, with these roles and units, comes
+   * when its owner accepts. Nothing about an account is read, changed or
+   * returned here, so the answer is the same whether or not the address
+   * has one, and no administrator sets anyone's password.
+   */
+  async createUser(actor: UserPrincipal, input: UserInput, ip?: string) {
     await this.checkRoleGrant(actor, input.roleIds);
-    if (input.password) {
-      await this.breachedPasswords.assertNotBreached(
-        input.password,
-        'password',
-      );
-    }
-    const passwordHash = input.password
-      ? await this.passwordHasher.hash(input.password)
-      : null;
-    const user = await this.db
-      .transaction(async (tx) => {
-        const created = await this.accounts.create(tx, {
-          email: input.email,
-          name: input.name,
-          passwordHash,
-        });
-        await this.writeRoles(
-          tx,
-          userRoles,
-          created.id,
-          input.roleIds,
-          input.roleExpiresAt,
-        );
-        await this.orgUnits.setUserUnits(
-          tx,
-          created.id,
-          input.orgUnitIds ?? [],
-        );
+    await this.orgUnits.assertExist(input.orgUnitIds ?? []);
+    this.checkExpiries(input.roleIds, input.roleExpiresAt);
+    const { invitation, token } = await inTransaction(
+      this.txHost,
+      async (tx) => {
+        const created = await this.invitations.create(tx, input, actor);
         await this.audit.record(
           actor,
           {
-            action: 'user.created',
-            targetType: 'user',
-            targetId: created.id,
+            action: 'user.invited',
+            targetType: 'invitation',
+            targetId: created.invitation.id,
             details: {
-              email: created.email,
-              roleIds: input.roleIds,
+              email: created.invitation.email,
+              roleIds: created.invitation.roleIds,
               ...(input.roleExpiresAt && {
                 roleExpiresAt: input.roleExpiresAt,
               }),
-              invited: !input.password,
             },
             ip,
           },
           tx,
         );
         return created;
-      })
-      .catch(rethrowUnique('A user with this email already exists.'));
-    // No password: the invitation is a link to set one (the reset flow, for an
-    // account without a password), sent after the commit.
-    if (!input.password) {
-      this.passwordReset.request(user.email);
+      },
+    );
+    await this.invitations.send(invitation, token, actor);
+    return {
+      id: invitation.id,
+      email: invitation.email,
+      expiresAt: invitation.expiresAt,
+    };
+  }
+
+  /**
+   * A member made by a system job, with the password it generated, never
+   * by a request: the demo seed's users (src/demo). The same way as the
+   * first start's administrator (AccessSeeder): a verified account (the
+   * job made the address up, nobody has to prove it), its membership in
+   * the current tenant, its roles and units, and `user.seeded` with the
+   * job as the actor, in the caller's transaction. The grant rule holds
+   * (the job must hold what the roles give; it never holds `all.manage`),
+   * and the password passes the breach check. Refused for anything but a
+   * system principal made in code: administrators invite (`createUser()`).
+   */
+  async seedUser(
+    actor: SystemPrincipal,
+    tx: Transaction,
+    input: {
+      email: string;
+      name: string;
+      password: string;
+      roleIds: string[];
+      orgUnitIds?: string[];
+    },
+  ) {
+    if (!isSystemPrincipal(actor)) {
+      throw new Error('seedUser() is for system jobs only.');
     }
+    await this.checkRoleGrant(actor, input.roleIds);
+    const units = input.orgUnitIds ?? [];
+    if ((await this.orgUnits.existing(tx, units)).length !== units.length) {
+      throw new BadRequestException('Unknown org unit.');
+    }
+    await this.breachedPasswords.assertNotBreached(input.password, 'password');
+    const created = await this.accounts.create(tx, {
+      email: input.email,
+      name: input.name,
+      passwordHash: await this.passwordHasher.hash(input.password),
+      emailVerified: true,
+    });
+    await this.accounts.addMembership(tx, this.tenancy.tenantId(), created.id);
+    await this.writeRoles(tx, userRoles, created.id, input.roleIds);
+    await this.orgUnits.setUserUnits(tx, created.id, units);
+    await this.audit.record(
+      actor,
+      {
+        action: 'user.seeded',
+        targetType: 'user',
+        targetId: created.id,
+        details: { email: created.email, roleIds: input.roleIds },
+      },
+      tx,
+    );
     this.access.invalidate();
-    return user;
+    return created;
   }
 
   async updateUser(
@@ -359,7 +399,8 @@ export class AccessAdminService {
     changes: UserChanges,
     ip?: string,
   ) {
-    const before = await this.accounts.findView(id);
+    const tenantId = this.tenancy.tenantId();
+    const before = await this.accounts.findMember(tenantId, id);
     if (!before) {
       throw new NotFoundException(`User ${id} not found.`);
     }
@@ -386,24 +427,18 @@ export class AccessAdminService {
       ];
       await this.checkRoleGrant(actor, changed);
     }
-    if (changes.password) {
-      await this.breachedPasswords.assertNotBreached(
-        changes.password,
-        'password',
-      );
-    }
-    const passwordHash = changes.password
-      ? await this.passwordHasher.hash(changes.password)
-      : undefined;
-
-    const fields = {
-      ...(changes.name !== undefined && { name: changes.name }),
-      ...(changes.active !== undefined && { active: changes.active }),
-      ...(passwordHash && { passwordHash }),
-    };
     await inTransaction(this.txHost, async (tx) => {
-      if (Object.keys(fields).length) {
-        await this.accounts.update(tx, id, fields);
+      // An invitation's acceptance waits (or ran first): one change to the
+      // membership at a time.
+      await this.accounts.lockMembership(tx, tenantId, id);
+      if (changes.active !== undefined) {
+        // The membership, not the account: access to this tenant alone.
+        await this.accounts.setMembershipActive(
+          tx,
+          tenantId,
+          id,
+          changes.active,
+        );
       }
       if (changes.roleIds) {
         // Without roleExpiresAt, kept roles keep their end (and ended ones stay gone).
@@ -420,7 +455,7 @@ export class AccessAdminService {
       if (changes.active === false && before.active) {
         // What waits on them (approvals, delegations) moves on, in this transaction.
         for (const listener of this.lifecycle.all()) {
-          await listener.deactivated(tx, id, actor);
+          await listener.deactivated?.(tx, id, actor);
         }
       }
       await this.audit.record(
@@ -431,7 +466,6 @@ export class AccessAdminService {
           targetId: id,
           details: {
             email: before.email,
-            ...(changes.name !== undefined && { name: changes.name }),
             ...(changes.active !== undefined && { active: changes.active }),
             ...(changes.roleIds !== undefined && {
               roleIds: { from: currentRoleIds, to: changes.roleIds },
@@ -440,16 +474,22 @@ export class AccessAdminService {
               }),
             }),
             ...(changes.orgUnitIds && { orgUnitIds: changes.orgUnitIds }),
-            ...(passwordHash && { passwordReset: true }),
           },
           ip,
         },
         tx,
       );
     });
-    // A new password or a deactivation signs the account out everywhere.
-    if (passwordHash || changes.active === false) {
-      await this.signInService.signOutEverywhere(id);
+    // A deactivation ends its sessions and tokens in this tenant (the
+    // others go on; the membership check would refuse them on their next
+    // request anyway).
+    if (changes.active === false) {
+      await this.accounts.endTenantSessions(id, tenantId);
+      if (before.active) {
+        for (const listener of this.lifecycle.all()) {
+          await listener.afterDeactivation?.(id, tenantId);
+        }
+      }
     }
     this.access.invalidate();
   }
@@ -498,7 +538,10 @@ export class AccessAdminService {
   }
 
   /** Validates the permissions against the catalog, and checks the actor may grant each. */
-  private async checkGrant(actor: UserCreator, permissions: PermissionInput[]) {
+  private async checkGrant(
+    actor: UserPrincipal | SystemPrincipal,
+    permissions: PermissionInput[],
+  ) {
     const actorPermissions = await this.access.permissions(actor);
     const isAdmin = actorPermissions.some(isAll);
     const valid: PermissionInput[] = [];
@@ -539,7 +582,10 @@ export class AccessAdminService {
     return valid;
   }
 
-  private async checkRoleGrant(actor: UserCreator, roleIds: string[]) {
+  private async checkRoleGrant(
+    actor: UserPrincipal | SystemPrincipal,
+    roleIds: string[],
+  ) {
     if (!roleIds.length) {
       return;
     }
@@ -556,15 +602,24 @@ export class AccessAdminService {
   private async assertAnAdministratorRemains(tx: Transaction) {
     // One at a time: two admins demoting each other at once can't both see "one left".
     await tx.execute(sql`select pg_advisory_xact_lock(${ADMINS_LOCK})`);
+    // In this tenant (row-level security on the roles): its active members.
     const [{ admins }] = await tx
       .select({ admins: count() })
       .from(userRoles)
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
       .innerJoin(users, eq(users.id, userRoles.userId))
+      .innerJoin(
+        memberships,
+        and(
+          eq(memberships.tenantId, userRoles.tenantId),
+          eq(memberships.userId, userRoles.userId),
+        ),
+      )
       .where(
         and(
           eq(roles.system, true),
           eq(users.active, true),
+          eq(memberships.active, true),
           // A grant that ends later still counts; one that ended doesn't.
           or(isNull(userRoles.expiresAt), gt(userRoles.expiresAt, new Date())),
         ),
@@ -658,18 +713,14 @@ export class AccessAdminService {
     );
   }
 
-  /** A user's or a client's role grants, each with its end (none: never). */
-  private async writeRoles(
-    tx: Transaction,
-    grants: typeof userRoles | typeof apiClientRoles,
-    holderId: string,
+  /** Each grant's end names one of the roles, and is still to come. */
+  private checkExpiries(
     roleIds: string[],
     expiresAt: Record<string, string> = {},
   ) {
-    const unique = [...new Set(roleIds)];
     const now = Date.now();
     for (const [roleId, when] of Object.entries(expiresAt)) {
-      if (!unique.includes(roleId)) {
+      if (!roleIds.includes(roleId)) {
         throw new BadRequestException(
           `roleExpiresAt names ${roleId}, which isn't in roleIds.`,
         );
@@ -680,6 +731,18 @@ export class AccessAdminService {
         );
       }
     }
+  }
+
+  /** A user's or a client's role grants, each with its end (none: never). */
+  private async writeRoles(
+    tx: Transaction,
+    grants: typeof userRoles | typeof apiClientRoles,
+    holderId: string,
+    roleIds: string[],
+    expiresAt: Record<string, string> = {},
+  ) {
+    const unique = [...new Set(roleIds)];
+    this.checkExpiries(unique, expiresAt);
     if (!unique.length) {
       return;
     }

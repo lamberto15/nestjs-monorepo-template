@@ -65,6 +65,8 @@ export class ApprovalMetrics implements OnModuleInit {
     return { open, overdue, unapplied: unapplied?.seconds ?? 0 };
   }
 
+  // Every tenant's requests, as the maintenance role: these gauges come
+  // from the workers' scrape (docs/tenancy.md, "The bypass").
   onModuleInit() {
     this.metrics.collect(
       'approvals_open',
@@ -77,16 +79,23 @@ export class ApprovalMetrics implements OnModuleInit {
         }));
       },
       ['status'],
+      ACROSS_TENANTS,
     );
     this.metrics.collect(
       'approvals_overdue_seconds',
       'How far the most overdue pending approval stage is past its deadline (0: none).',
       async () => [{ value: (await this.read()).overdue }],
+      [],
+      ACROSS_TENANTS,
     );
     this.metrics.collect(
       'approvals_unapplied_seconds',
       'How long the oldest approved request has waited for its outcome to be applied (0: none).',
       async () => [{ value: (await this.read()).unapplied }],
+      [],
+      ACROSS_TENANTS,
     );
   }
 }
+
+const ACROSS_TENANTS = { acrossTenants: true } as const;
