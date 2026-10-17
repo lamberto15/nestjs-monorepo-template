@@ -4,7 +4,7 @@ import {
   Alert,
   AlertDescription,
 } from '@nestjs-monorepo-template/ui/components/alert';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
 import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { LockIcon } from 'lucide-react';
@@ -167,13 +167,12 @@ function RoleFormLoaded(props: { catalog: Catalog; role?: Role }) {
               </form.SubmitButton>
             </form.AppForm>
           )}
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link to="/access/roles" />}
+          <Link
+            to="/access/roles"
+            className={buttonVariants({ variant: 'outline' })}
           >
             {t('cancel')}
-          </Button>
+          </Link>
         </div>
       </FieldGroup>
     </form>

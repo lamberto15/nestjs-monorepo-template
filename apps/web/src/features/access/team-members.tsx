@@ -4,7 +4,10 @@ import {
   Alert,
   AlertDescription,
 } from '@nestjs-monorepo-template/ui/components/alert';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import {
+  Button,
+  buttonVariants,
+} from '@nestjs-monorepo-template/ui/components/button';
 import {
   Field,
   FieldLabel,
@@ -93,15 +96,13 @@ export function TeamMembers(props: { teamId: string }) {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          nativeButton={false}
+        <Link
+          to="/access/teams"
           aria-label={t('teams.back')}
-          render={<Link to="/access/teams" />}
+          className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
         >
           <ArrowLeftIcon className="rtl:rotate-180" />
-        </Button>
+        </Link>
         <h1 className="text-xl font-medium">{team.name}</h1>
       </div>
       <FormAlert message={error} />

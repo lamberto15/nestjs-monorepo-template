@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
   Table,
@@ -32,14 +32,14 @@ export function RolesPage() {
     <section className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-medium">{t('roles.title')}</h1>
-        <Button
-          className="ms-auto"
-          nativeButton={false}
-          render={<Link to="/access/roles/new" />}
+        {/* A link that looks like a button: it goes to a page. */}
+        <Link
+          to="/access/roles/new"
+          className={buttonVariants({ className: 'ms-auto' })}
         >
           <PlusIcon />
           {t('roles.new')}
-        </Button>
+        </Link>
       </div>
       {roles.isPending ? (
         <Spinner />
