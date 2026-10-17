@@ -114,6 +114,10 @@ export interface ClientChanges {
 /** The advisory lock that serializes changes to who is an administrator. */
 const ADMINS_LOCK = 7_300_421_020;
 
+/** A role grant still running: no end, or one still to come (an ended one is gone). */
+const liveGrant = (grants: typeof userRoles | typeof apiClientRoles) =>
+  or(isNull(grants.expiresAt), gt(grants.expiresAt, new Date()));
+
 @Injectable()
 export class AccessAdminService {
   constructor(
@@ -147,6 +151,7 @@ export class AccessAdminService {
       this.db
         .select({ roleId: userRoles.roleId, members: count() })
         .from(userRoles)
+        .where(liveGrant(userRoles))
         .groupBy(userRoles.roleId),
     ]);
     return allRoles.map((role) => ({
@@ -259,7 +264,7 @@ export class AccessAdminService {
 
   // Users
 
-  /** A page of the tenant's members, with their role ids. */
+  /** A page of the tenant's members, with their role ids (grants still running). */
   async listUsers(query: PageQuery, where?: SQL) {
     const page = await this.accounts.page(
       this.tenancy.tenantId(),
@@ -269,10 +274,11 @@ export class AccessAdminService {
     const ids = page.items.map((user) => user.id);
     const [assignments, memberships] = ids.length
       ? await Promise.all([
+          // An ended grant is gone: never reported, so never echoed back (#114).
           this.db
             .select()
             .from(userRoles)
-            .where(inArray(userRoles.userId, ids)),
+            .where(and(inArray(userRoles.userId, ids), liveGrant(userRoles))),
           this.db
             .select()
             .from(userTeams)
@@ -407,25 +413,24 @@ export class AccessAdminService {
     if (changes.active === false && id === actor.id) {
       throw new ConflictException('You can’t deactivate yourself.');
     }
-    const currentRoleIds = await this.roleIdsOf(id);
+    const current = await this.liveGrantsOf('user', id);
+    const currentRoleIds = [...current.keys()];
     if (id !== actor.id) {
       await this.assertAuthorityOver(
         actor,
-        await this.rolePermissionsOf(currentRoleIds),
+        await this.permissionsOfHolder('user', id),
         before.email,
       );
     } else if (changes.teamIds) {
       throw new ForbiddenException('You can’t change your own teams.');
     }
-    if (changes.roleIds) {
-      // Both what is given and what is taken away must be within the actor's own rights.
-      const changed = [
-        ...changes.roleIds.filter((roleId) => !currentRoleIds.includes(roleId)),
-        ...currentRoleIds.filter(
-          (roleId) => !changes.roleIds!.includes(roleId),
-        ),
-      ];
-      await this.checkRoleGrant(actor, changed);
+    // On oneself too: every role given (an ended one sent back included),
+    // taken away or with a moved end goes through the grant rule.
+    const grants =
+      changes.roleIds &&
+      this.regrant(current, changes.roleIds, changes.roleExpiresAt);
+    if (grants) {
+      await this.checkRoleGrant(actor, grants.changed);
     }
     await inTransaction(this.txHost, async (tx) => {
       // An invitation's acceptance waits (or ran first): one change to the
@@ -440,13 +445,16 @@ export class AccessAdminService {
           changes.active,
         );
       }
-      if (changes.roleIds) {
-        // Without roleExpiresAt, kept roles keep their end (and ended ones stay gone).
-        const expiries =
-          changes.roleExpiresAt ??
-          (await this.liveExpiries(tx, 'user', id, changes.roleIds));
+      if (changes.roleIds && grants) {
+        // Ended grants not given again are deleted here, never rewritten.
         await tx.delete(userRoles).where(eq(userRoles.userId, id));
-        await this.writeRoles(tx, userRoles, id, changes.roleIds, expiries);
+        await this.writeRoles(
+          tx,
+          userRoles,
+          id,
+          changes.roleIds,
+          grants.expiries,
+        );
       }
       if (changes.teamIds) {
         await this.teams.setUserTeams(tx, id, changes.teamIds);
@@ -644,12 +652,69 @@ export class AccessAdminService {
       .where(inArray(rolePermissions.roleId, roleIds));
   }
 
-  private async roleIdsOf(userId: string) {
-    const rows = await this.db
-      .select({ roleId: userRoles.roleId })
-      .from(userRoles)
-      .where(eq(userRoles.userId, userId));
-    return rows.map((row) => row.roleId);
+  /**
+   * A user's or a client's grants still running: role id → end (null:
+   * never). An ended grant isn't current (#114): sent back in `roleIds`, it
+   * is given anew, under the grant rule, never revived as it was.
+   */
+  private async liveGrantsOf(kind: 'user' | 'client', holderId: string) {
+    const rows =
+      kind === 'user'
+        ? await this.db
+            .select({
+              roleId: userRoles.roleId,
+              expiresAt: userRoles.expiresAt,
+            })
+            .from(userRoles)
+            .where(and(eq(userRoles.userId, holderId), liveGrant(userRoles)))
+        : await this.db
+            .select({
+              roleId: apiClientRoles.roleId,
+              expiresAt: apiClientRoles.expiresAt,
+            })
+            .from(apiClientRoles)
+            .where(
+              and(
+                eq(apiClientRoles.clientId, holderId),
+                liveGrant(apiClientRoles),
+              ),
+            );
+    return new Map(rows.map((row) => [row.roleId, row.expiresAt]));
+  }
+
+  /**
+   * What replacing a holder's roles with `roleIds` does to its live grants:
+   * each role's end (`roleExpiresAt` when sent, else each kept grant keeps
+   * its own; none: never), and the roles whose grant changes, which the
+   * actor must be able to grant (checkRoleGrant): given (an ended grant sent
+   * back included), taken away, or kept with an end that moves (a later or
+   * no end gives more; an earlier one takes away).
+   */
+  private regrant(
+    current: Map<string, Date | null>,
+    roleIds: string[],
+    roleExpiresAt?: Record<string, string>,
+  ) {
+    this.checkExpiries(roleIds, roleExpiresAt);
+    const expiries =
+      roleExpiresAt ??
+      Object.fromEntries(
+        roleIds.flatMap((roleId) => {
+          const end = current.get(roleId);
+          return end ? [[roleId, end.toISOString()]] : [];
+        }),
+      );
+    const endOf = (roleId: string) =>
+      expiries[roleId] ? Date.parse(expiries[roleId]) : null;
+    const changed = [
+      ...[...new Set(roleIds)].filter(
+        (roleId) =>
+          !current.has(roleId) ||
+          (current.get(roleId)?.getTime() ?? null) !== endOf(roleId),
+      ),
+      ...[...current.keys()].filter((roleId) => !roleIds.includes(roleId)),
+    ];
+    return { changed, expiries };
   }
 
   private async findRole(id: string) {
@@ -675,44 +740,6 @@ export class AccessAdminService {
     }
   }
 
-  /** The ends of a holder's grants still running, for the roles it keeps. */
-  private async liveExpiries(
-    tx: Transaction,
-    kind: 'user' | 'client',
-    holderId: string,
-    keep: string[],
-  ) {
-    const now = new Date();
-    const rows =
-      kind === 'user'
-        ? await tx
-            .select({
-              roleId: userRoles.roleId,
-              expiresAt: userRoles.expiresAt,
-            })
-            .from(userRoles)
-            .where(
-              and(eq(userRoles.userId, holderId), gt(userRoles.expiresAt, now)),
-            )
-        : await tx
-            .select({
-              roleId: apiClientRoles.roleId,
-              expiresAt: apiClientRoles.expiresAt,
-            })
-            .from(apiClientRoles)
-            .where(
-              and(
-                eq(apiClientRoles.clientId, holderId),
-                gt(apiClientRoles.expiresAt, now),
-              ),
-            );
-    return Object.fromEntries(
-      rows
-        .filter((row) => keep.includes(row.roleId))
-        .map((row) => [row.roleId, row.expiresAt!.toISOString()]),
-    );
-  }
-
   /** Each grant's end names one of the roles, and is still to come. */
   private checkExpiries(
     roleIds: string[],
@@ -733,7 +760,11 @@ export class AccessAdminService {
     }
   }
 
-  /** A user's or a client's role grants, each with its end (none: never). */
+  /**
+   * A user's or a client's role grants, each with its end (none: never;
+   * the caller checked the ends, checkExpiries). A kept end that passed
+   * meanwhile isn't written: an ended grant is gone.
+   */
   private async writeRoles(
     tx: Transaction,
     grants: typeof userRoles | typeof apiClientRoles,
@@ -741,13 +772,15 @@ export class AccessAdminService {
     roleIds: string[],
     expiresAt: Record<string, string> = {},
   ) {
-    const unique = [...new Set(roleIds)];
-    this.checkExpiries(unique, expiresAt);
+    const now = Date.now();
+    const end = (roleId: string) =>
+      expiresAt[roleId] ? new Date(expiresAt[roleId]) : null;
+    const unique = [...new Set(roleIds)].filter(
+      (roleId) => (end(roleId)?.getTime() ?? Infinity) > now,
+    );
     if (!unique.length) {
       return;
     }
-    const end = (roleId: string) =>
-      expiresAt[roleId] ? new Date(expiresAt[roleId]) : null;
     if (grants === userRoles) {
       await tx.insert(userRoles).values(
         unique.map((roleId) => ({
@@ -772,6 +805,7 @@ export class AccessAdminService {
   /** A client with its roles and first key (shown this once). */
   async createClient(actor: UserPrincipal, input: ClientInput, ip?: string) {
     await this.checkRoleGrant(actor, input.roleIds ?? []);
+    this.checkExpiries(input.roleIds ?? [], input.roleExpiresAt);
     const { client, key } = await inTransaction(this.txHost, async (tx) => {
       const created = await this.clients.create(tx, actor, input, ip);
       await this.writeRoles(
@@ -831,12 +865,12 @@ export class AccessAdminService {
       await this.permissionsOfHolder('client', id),
       before.name,
     );
-    if (changes.roleIds) {
-      const current = before.roles.map((role) => role.roleId);
-      await this.checkRoleGrant(actor, [
-        ...changes.roleIds.filter((roleId) => !current.includes(roleId)),
-        ...current.filter((roleId) => !changes.roleIds!.includes(roleId)),
-      ]);
+    const current = await this.liveGrantsOf('client', id);
+    const grants =
+      changes.roleIds &&
+      this.regrant(current, changes.roleIds, changes.roleExpiresAt);
+    if (grants) {
+      await this.checkRoleGrant(actor, grants.changed);
     }
     await inTransaction(this.txHost, async (tx) => {
       if (changes.active !== undefined) {
@@ -845,17 +879,15 @@ export class AccessAdminService {
       if (changes.dailyQuota !== undefined) {
         await this.clients.setQuota(tx, actor, id, changes.dailyQuota, ip);
       }
-      if (changes.roleIds) {
-        const expiries =
-          changes.roleExpiresAt ??
-          (await this.liveExpiries(tx, 'client', id, changes.roleIds));
+      if (changes.roleIds && grants) {
+        // Ended grants not given again are deleted here, never rewritten.
         await tx.delete(apiClientRoles).where(eq(apiClientRoles.clientId, id));
         await this.writeRoles(
           tx,
           apiClientRoles,
           id,
           changes.roleIds,
-          expiries,
+          grants.expiries,
         );
         await this.audit.record(
           actor,
@@ -865,7 +897,7 @@ export class AccessAdminService {
             targetId: id,
             details: {
               roleIds: {
-                from: before.roles.map((role) => role.roleId),
+                from: [...current.keys()],
                 to: changes.roleIds,
               },
               ...(changes.roleExpiresAt && {

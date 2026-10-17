@@ -166,6 +166,13 @@ the operator tenant.
   `Administrator` is built in (`all.manage`); the last active one of each tenant stays.
 - Grants to users and API clients may end: `roleExpiresAt: { roleId: date }`.
   Expired grants never count; cached abilities never outlive them.
+- An ended grant is gone: the user and client lists never report it
+  (`roleIds`, `roles`, a role's `members`), a change of roles deletes its
+  row, and a role sent back in `roleIds` after its grant ended is granted
+  anew, under the grant rule above (on yourself too), for good unless
+  `roleExpiresAt` names an end. Without `roleExpiresAt`, the roles kept keep
+  their ends; with it, every role not named in it has none. A kept role whose
+  end moves (later, earlier or none) is a grant too.
 - Changes apply on the next request, on every instance (the invalidation is
   published through Redis).
 
