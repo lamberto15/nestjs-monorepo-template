@@ -37,9 +37,8 @@ out=$(cd "$out" && pwd)
 env_file="$out/stack.env"
 
 # The stack's settings, made once per output directory (a started stack
-# keeps its generated secrets). PASSWORD_BREACH_CHECK=off: the seeded users'
-# password isn't sent to Pwned Passwords. LOADTEST_USER_PASSWORD: the seeded
-# users' password, generated like the rest (k6 refuses to seed without it).
+# keeps its generated secrets). PASSWORD_BREACH_CHECK=off: the seeded
+# administrator's password isn't sent to Pwned Passwords.
 if [ ! -f "$env_file" ]; then
   (
     umask 077
@@ -50,7 +49,7 @@ if [ ! -f "$env_file" ]; then
       echo ADMIN_EMAIL=load-test-admin@example.com
       echo PASSWORD_BREACH_CHECK=off
       echo "APP_IMAGE=${APP_IMAGE:-}"
-      for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD POSTGRES_MAINTENANCE_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD LOADTEST_USER_PASSWORD; do
+      for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD POSTGRES_MAINTENANCE_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD; do
         echo "$name=$(openssl rand -hex 24)"
       done
     } > "$env_file"
@@ -90,7 +89,6 @@ run() {
   # The administrator's credentials reach k6 through its environment, never
   # on a command line.
   ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
-    LOADTEST_USER_PASSWORD=$(setting LOADTEST_USER_PASSWORD) \
     GIT_SHA=${GIT_SHA:-$(git rev-parse HEAD 2> /dev/null || true)} \
     docker run --rm \
     --network "${project}_default" \
@@ -100,7 +98,7 @@ run() {
     -e BASE_URL=http://caddy \
     -e BASELINE_FILE=/out/baseline.json \
     -e K6_NO_USAGE_REPORT=true \
-    -e ADMIN_EMAIL -e ADMIN_PASSWORD -e LOADTEST_USER_PASSWORD -e GIT_SHA -e K6_IMAGE \
+    -e ADMIN_EMAIL -e ADMIN_PASSWORD -e GIT_SHA -e K6_IMAGE \
     -e PHASE_SECONDS -e SIGN_IN_RATE -e LIST_RATE -e CREATE_RATE \
     "$K6_IMAGE" run --quiet /scripts/scenarios.js
 }

@@ -78,16 +78,14 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     lifecycle: UserLifecycleRegistry,
   ) {
     // A membership deactivated: that user's connections in that tenant end
-    // at once (a socket is authenticated at its handshake; its tenant room
-    // would keep hearing the tenant's events). Called in the tenant's scope,
-    // in the deactivation's transaction: a rollback leaves the user
-    // reconnecting to the room they still have. Every instance's sockets,
+    // (a socket is authenticated at its handshake; its tenant room would
+    // keep hearing the tenant's events). After the commit: a deactivation
+    // that rolled back disconnects nobody. Every instance's sockets,
     // through the Redis adapter.
     lifecycle.register({
       name: 'realtime',
-      deactivated: async (_tx, userId) => {
-        const tenantId = currentTenantId();
-        if (tenantId && this.server) {
+      afterDeactivation: (userId, tenantId) => {
+        if (this.server) {
           this.server
             .in(principalRoom({ kind: 'user', id: userId }, tenantId))
             .disconnectSockets(true);

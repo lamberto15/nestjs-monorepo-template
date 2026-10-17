@@ -4,7 +4,8 @@ import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
-import { and, asc, eq, type SQL, sql } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { and, asc, eq, gt, type SQL, sql } from 'drizzle-orm';
 import {
   afterCursor,
   countMatching,
@@ -16,6 +17,7 @@ import {
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { tenants } from '../../core/tenancy/tenancy.tables.js';
 import {
+  emailTokens,
   memberships,
   mfaAuthenticators,
   mfaFailures,
@@ -382,6 +384,31 @@ export class UsersRepository {
 
   async updatePasswordHash(id: string, passwordHash: string, db: Db = this.db) {
     await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+  }
+
+  /**
+   * The account a verification link (still unspent, unexpired) is for, with
+   * what verifying it requires: read without spending the link (the
+   * package stores it by its SHA-256, base64url).
+   */
+  async pendingVerification(token: string) {
+    const id = createHash('sha256').update(token).digest('base64url');
+    const [row] = await this.db
+      .select({
+        userId: users.id,
+        passwordHash: users.passwordHash,
+        emailVerified: users.emailVerified,
+      })
+      .from(emailTokens)
+      .innerJoin(users, eq(sql`${users.id}::text`, emailTokens.userId))
+      .where(
+        and(
+          eq(emailTokens.id, id),
+          eq(emailTokens.purpose, 'email-verification'),
+          gt(emailTokens.expiresAt, new Date()),
+        ),
+      );
+    return row;
   }
 
   /** Only while `email` is still the user's address: a link sent to an old one verifies nothing. */

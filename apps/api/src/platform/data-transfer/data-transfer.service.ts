@@ -383,7 +383,12 @@ export class DataTransferService {
     if (
       !job ||
       (job.data.tenantId !== null && job.data.tenantId !== currentTenantId()) ||
-      principalKey(job.data.principal) !== principalKey(principal)
+      principalKey(job.data.principal) !== principalKey(principal) ||
+      // An account export (no tenant) is the person's alone: never shown,
+      // nor its link given, to an administrator acting as them.
+      (job.data.tenantId === null &&
+        principal.kind === 'user' &&
+        !!principal.impersonator)
     ) {
       throw new NotFoundException(`Transfer ${id} not found.`);
     }

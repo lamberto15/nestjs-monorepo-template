@@ -99,9 +99,14 @@ const STATE = Symbol('tenancy.client');
  *   would read nothing and write nothing (fail closed); this says why.
  * - **The bypass is another role.** In `Tenancy.bypass()`'s scope, queries
  *   and transactions go to the maintenance role's pool (BYPASSRLS,
- *   DATABASE_MAINTENANCE_URL, workers only): no setting of the app role's
- *   connections opens every tenant, so nothing injected into a request's
- *   SQL can. Without that pool here, the bypass is refused.
+ *   DATABASE_MAINTENANCE_URL, workers only): an api process holds no
+ *   bypass at all, and no setting turns one on. What this does not do:
+ *   SQL injected into a request still runs as the app role and may set
+ *   `app.tenant_id` / `app.read_tenants` itself (to any tenant ids it can
+ *   read, from the global `tenants` table): row-level security bounds an
+ *   injection by what those settings allow, not by the request's tenant.
+ *   The wall is against bugs in queries, not a substitute for parameters.
+ *   Without that pool here, the bypass is refused.
  */
 export class TenantPool extends pg.Pool {
   private readonly maintenance?: pg.Pool;

@@ -14,8 +14,6 @@ services:
   api:
     environment:
       GOTENBERG_URL: ''
-      # The scenarios' users sign up themselves (loadtest/scenarios.js).
-      AUTH_SIGN_UP: 'on'
       # Names this stack in logs, and lets it raise the rate limits: under
       # NODE_ENV=production the app refuses RATE_LIMIT_MULTIPLIER above 1
       # without it.

@@ -1393,8 +1393,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create an account (when AUTH_SIGN_UP=on), and sign in
-         * @description The address is unverified until the user opens the link sent to it (POST /auth/email/verify). The account has no roles: an administrator grants them.
+         * Create an account (when AUTH_SIGN_UP=on); it signs in once its address is verified
+         * @description Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.
          */
         post: operations["AuthController_signUp_v1"];
         delete?: never;
@@ -9889,6 +9889,8 @@ export interface operations {
             content: {
                 "application/json": {
                     token: string;
+                    /** @description The account's password, when it was chosen before the address was proved (a sign-up): required then. */
+                    password?: string;
                 };
             };
         };
@@ -9905,7 +9907,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Unknown, used or expired link, or the address changed since. */
+            /** @description Unknown, used or expired link, or the address changed since. `password_required`: the account signed up with a password, send it (a wrong one is 403 `forbidden`; the link stays usable either way). */
             400: {
                 headers: {
                     [name: string]: unknown;

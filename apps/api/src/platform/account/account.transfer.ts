@@ -93,9 +93,13 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
     registry.registerExporter(this);
   }
 
-  /** A user's own data: no permission to check; a system has none. */
+  /**
+   * A user's own data: no permission to check; a system has none, and an
+   * administrator acting as the user may not take it (it spans the
+   * person's tenants: never theirs to read, whichever route asks).
+   */
   allowed(principal: Principal) {
-    return principal.kind === 'user';
+    return principal.kind === 'user' && !principal.impersonator;
   }
 
   /**

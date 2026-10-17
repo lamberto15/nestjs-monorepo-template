@@ -132,8 +132,15 @@ account still active).
 a setting: its queries run as the **maintenance role** (`BYPASSRLS`,
 `DATABASE_MAINTENANCE_URL`), on a small pool of its own that `TenantPool`
 routes to in the bypass's scope. Only workers (and `migrate`, which creates the
-role) hold its URL; an api process has none, so nothing a request runs, nor any
-SQL injected into one, can read past its tenant. It runs only in a process that
+role) hold its URL: an api process has no bypass at all, and no setting turns
+one on. (An `APP_ROLE=all` process, as in development and the tests, holds both;
+`Tenancy.bypass()` still refuses inside a request, and the metrics' read-only
+aggregates are the only other user.) What the wall is not: SQL injected into a
+request still runs as the app role and may set `app.tenant_id` and
+`app.read_tenants` itself, to any tenant id it can read from the global
+`tenants` table. Row-level security protects against bugs in correct queries
+(a forgotten filter, a wrong join), not against injection, which parameters
+prevent. It runs only in a process that
 runs workers and has the role, never inside a request's context, logged. It is
 for maintenance that sweeps a table whole by age (notification, revision,
 usage retention); jobs that act per tenant, and audit what they did, walk the

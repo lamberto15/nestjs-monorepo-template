@@ -41,6 +41,19 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
   ([tenancy](tenancy.md), "Accounts and sessions").
 - **A proved address** (`emailVerified`) is wanted to link a provider or
   enrol two-factor (403 `email_unverified`).
+- **Sign-up: verify first** (`AUTH_SIGN_UP=on`). `POST /v1/auth/sign-up` makes
+  the account and mails a verification link; it makes no session. Its
+  password signs in (session or token) only once the address is proved:
+  before, the right password gets 403 `email_unverified` (a wrong one the
+  usual 401). Proving it takes the link **and** that password
+  (`POST /v1/auth/email/verify { token, password }`; without it 400
+  `password_required`, a wrong one 403, the link usable again either way):
+  the link proves the mailbox, not who chose the password, so whoever signed
+  up someone else's address can't have its owner verify it for them and
+  sign in as the owner. The owner of such an address uses
+  "forgot password" instead: the reset link proves the address and replaces
+  the password. A provider sign-in that asserts the address is verified
+  already; invitations prove it with their link.
 - **Account linking** by verified email only, or from a signed-in session
   (`?link=true`): never by an unverified address.
 - **Two-factor** secrets are encrypted at rest (`MFA_ENCRYPTION_KEYS`); a code

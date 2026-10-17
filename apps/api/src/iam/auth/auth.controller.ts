@@ -61,7 +61,7 @@ import { CaptchaService } from '../captcha/captcha.service.js';
 import { oidcProviders } from '../account/oidc.providers.js';
 import type { IamEnv } from '../iam.env.js';
 import { ReauthenticationService } from '../account/reauthentication.service.js';
-import { SIGN_IN_METHODS, signInOptions } from './authentication-method.js';
+import { SIGN_IN_METHODS } from './authentication-method.js';
 import type { UserPrincipal } from './principal.js';
 import { SessionOnly, UserOnly } from './user-only.decorator.js';
 import { UsersRepository } from './users.repository.js';
@@ -232,9 +232,10 @@ export class AuthController {
   @Captcha({ action: 'sign-up', count: 'requests' })
   @Post('sign-up')
   @ApiOperation({
-    summary: 'Create an account (when AUTH_SIGN_UP=on), and sign in',
+    summary:
+      'Create an account (when AUTH_SIGN_UP=on); it signs in once its address is verified',
     description:
-      'The address is unverified until the user opens the link sent to it (POST /auth/email/verify). The account has no roles: an administrator grants them.',
+      "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.",
   })
   @ApiCreatedResponse({ standardSchema: userSchema })
   @ApiBadRequestResponse({
@@ -261,7 +262,7 @@ export class AuthController {
       },
       ip,
     );
-    await this.signInService.signIn(user.id, signInOptions('password'));
+    // Verify first: no session until the address is proved (CredentialsService).
     await this.emailVerification.send(user);
     const {
       active: _a,

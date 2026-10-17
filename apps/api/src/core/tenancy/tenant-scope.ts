@@ -76,7 +76,14 @@ export const AGGREGATES: TenantScope = Object.freeze({
   readOnly: true,
 });
 
-/** Runs `work` in the aggregates' scope (AGGREGATES): metrics across tenants. */
+/**
+ * Runs `work` in the aggregates' scope (AGGREGATES): metrics across
+ * tenants, for `MetricsService.collect(…, { acrossTenants: true })` only.
+ * It needs the maintenance role, which only workers hold; a process with
+ * `APP_ROLE=all` (development, tests, a small deployment) has it next to
+ * its routes, so that process's `/metrics` serves these gauges too:
+ * read-only aggregates, never rows. Nothing else calls this.
+ */
 export function acrossTenantsReadOnly<T>(work: () => Promise<T> | T) {
   const cls = ClsServiceManager.getClsService();
   return cls.run({ ifNested: 'inherit' }, async () => {

@@ -196,6 +196,7 @@ describe('breached passwords (e2e)', () => {
 
     // Back up: an existing password isn't checked at sign-in (docs/auth.md).
     pwned.state.down = false;
+    await node.verifySignUp(address, pwned.breached);
     await node.signIn(address, pwned.breached);
     expect(pwned.requests).toHaveLength(1);
   });

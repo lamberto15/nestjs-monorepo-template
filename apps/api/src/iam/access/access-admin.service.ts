@@ -397,7 +397,7 @@ export class AccessAdminService {
       if (changes.active === false && before.active) {
         // What waits on them (approvals, delegations) moves on, in this transaction.
         for (const listener of this.lifecycle.all()) {
-          await listener.deactivated(tx, id, actor);
+          await listener.deactivated?.(tx, id, actor);
         }
       }
       await this.audit.record(
@@ -427,6 +427,11 @@ export class AccessAdminService {
     // request anyway).
     if (changes.active === false) {
       await this.accounts.endTenantSessions(id, tenantId);
+      if (before.active) {
+        for (const listener of this.lifecycle.all()) {
+          await listener.afterDeactivation?.(id, tenantId);
+        }
+      }
     }
     this.access.invalidate();
   }

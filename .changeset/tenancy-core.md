@@ -8,3 +8,7 @@ Tenancy (roadmap 1a), breaking: users carry the `tenantId` they act in, and
 `POST /tenants` (operators); `POST /auth/token` takes an optional `tenantId`.
 The settings scope `global` is now `tenant`. Every other route answers within
 the caller's tenant.
+Invitations replace administrator-made accounts: `POST /access/users` answers
+202 with the invitation, `POST /auth/invitations/accept` takes its token.
+Sign-up makes no session; `POST /auth/email/verify` takes the sign-up's
+`password`.

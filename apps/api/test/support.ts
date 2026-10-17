@@ -330,6 +330,25 @@ export async function bootApp(
     return password;
   };
 
+  /**
+   * Proves a signed-up address (verify first: its password signs in only
+   * after this): the verification link mailed to it, confirmed with the
+   * password chosen at sign-up.
+   */
+  const verifySignUp = async (email: string, password: string) => {
+    const mail = await waitForMail({
+      to: email,
+      subject: 'Confirm your email address',
+    });
+    await http()
+      .post('/v1/auth/email/verify')
+      .send({
+        token: mail.link('/verify-email').searchParams.get('token'),
+        password,
+      })
+      .expect(200);
+  };
+
   /** A new address accepts the (first) invitation mailed to it: its password. */
   const acceptInvitation = async (email: string) =>
     acceptAsNew(
@@ -450,6 +469,7 @@ export async function bootApp(
     http,
     signIn,
     acceptInvitation,
+    verifySignUp,
     invite,
     acceptAsNew,
     otherTenant,

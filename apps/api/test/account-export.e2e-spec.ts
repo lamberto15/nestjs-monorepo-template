@@ -46,12 +46,8 @@ describe('the account export (e2e)', () => {
   }
 
   it('exports an account with no tenant, under accounts/<id>/', async () => {
-    const browser = request.agent(node.app.getHttpServer());
-    const email = `${randomUUID().slice(0, 8)}@example.com`;
-    const signedUp = await browser
-      .post('/v1/auth/sign-up')
-      .send({ email, name: 'Solo', password: newPassword() })
-      .expect(201);
+    const { agent: browser, email, id } = await signUp('Solo');
+    const signedUp = { body: { id } };
     const me = await browser.get('/v1/auth/me').expect(200);
     expect(me.body.user.tenantId).toBeNull();
 
@@ -63,15 +59,17 @@ describe('the account export (e2e)', () => {
     expect(file.some((row) => row.kind === 'membership')).toBe(false);
   });
 
-  /** A person who signed up themselves (no tenant yet), signed in. */
+  /** A person who signed up themselves (no tenant yet), verified their address, signed in. */
   async function signUp(name: string) {
-    const agent = request.agent(node.app.getHttpServer());
     const email = `${randomUUID().slice(0, 8)}@example.com`;
     const password = newPassword();
-    const created = await agent
+    const created = await node
+      .http()
       .post('/v1/auth/sign-up')
       .send({ email, name, password })
       .expect(201);
+    await node.verifySignUp(email, password);
+    const agent = await node.signIn(email, password);
     return { agent, email, password, id: created.body.id as string };
   }
 
@@ -134,6 +132,31 @@ describe('the account export (e2e)', () => {
     // …and nobody else's, whatever their tenant.
     await other.admin.get(`/v1/data/transfers/${id}`).expect(404);
     await node.admin().get(`/v1/data/transfers/${id}`).expect(404);
+  });
+
+  it('never lets an administrator acting as the person queue or follow their account export', async () => {
+    const person = await signUp('Watched');
+    await join(person, node.admin());
+    await switchTo(person.agent, node.tenantId);
+    const { id } = await exportOf(person.agent);
+    // The tenant's administrator acts as them (a member of the tenant)…
+    const admin = await node.signIn(
+      process.env.ADMIN_EMAIL!,
+      process.env.ADMIN_PASSWORD!,
+    );
+    await admin.post(`/v1/access/users/${person.id}/impersonate`).expect(204);
+    const me = await admin.get('/v1/auth/me').expect(200);
+    expect(me.body.user.impersonator).toBeDefined();
+    // …and may queue the account export by no route…
+    await admin.post('/v1/account/export').send({}).expect(403);
+    const generic = await admin
+      .post('/v1/data/exports')
+      .send({ name: 'account' });
+    expect(generic.status).toBe(403);
+    // …nor read the person's own export, or its link.
+    await admin.get(`/v1/data/transfers/${id}`).expect(404);
+    // The person still can.
+    await person.agent.get(`/v1/data/transfers/${id}`).expect(200);
   });
 
   it('exports only what is personal from a tenant the person left', async () => {

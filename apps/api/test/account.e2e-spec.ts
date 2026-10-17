@@ -218,7 +218,7 @@ describe('accounts (e2e)', () => {
   });
 
   it('verifies an address with the link the user asks for', async () => {
-    const { agent, id } = await node.user([]);
+    const { agent, id, password } = await node.user([]);
     // An address not proved (an invitation's acceptance proves it: undone
     // here, as for an account that signed up).
     await node.db
@@ -240,7 +240,8 @@ describe('accounts (e2e)', () => {
     await node
       .http()
       .post('/v1/auth/email/verify')
-      .send({ token: tokenOf(mail, '/verify-email') })
+      // The account has a password its owner never proved: it goes along.
+      .send({ token: tokenOf(mail, '/verify-email'), password })
       .expect(200, { email: me.body.user.email, emailVerified: true });
     const after = await agent.get('/v1/auth/me').expect(200);
     expect(after.body.user).toMatchObject({ id, emailVerified: true });

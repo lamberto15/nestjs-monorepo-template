@@ -15547,7 +15547,7 @@
     },
     "/v1/auth/sign-up": {
       "post": {
-        "description": "The address is unverified until the user opens the link sent to it (POST /auth/email/verify). The account has no roles: an administrator grants them.",
+        "description": "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.",
         "operationId": "AuthController_signUp_v1",
         "parameters": [
           {
@@ -15684,7 +15684,7 @@
             "description": "An account with this email exists."
           }
         },
-        "summary": "Create an account (when AUTH_SIGN_UP=on), and sign in",
+        "summary": "Create an account (when AUTH_SIGN_UP=on); it signs in once its address is verified",
         "tags": [
           "auth"
         ]
@@ -16296,6 +16296,12 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 512
+                  },
+                  "password": {
+                    "description": "The account's password, when it was chosen before the address was proved (a sign-up): required then.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
                   }
                 },
                 "required": [
@@ -16333,7 +16339,7 @@
             }
           },
           "400": {
-            "description": "Unknown, used or expired link, or the address changed since."
+            "description": "Unknown, used or expired link, or the address changed since. `password_required`: the account signed up with a password, send it (a wrong one is 403 `forbidden`; the link stays usable either way)."
           }
         },
         "summary": "Confirm an address with the link's token",
