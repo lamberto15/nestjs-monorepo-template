@@ -31,6 +31,9 @@ Details live in `docs/`: read the file a task needs, not all of them.
 - **Every feature follows docs/adding-a-feature.md** (tables with `uuidPk()`
   and `timestamps()`, the list declaration, routes, audit, tests), so the API
   stays uniform.
+- **New features start from `pnpm feature:add`** (the `/add-feature` skill in
+  `.claude/skills/` asks what to add and runs it); never copy `notes` by hand.
+  Then write only the business logic, where the generated service says so.
 - **Newest versions, pinned** (never `:latest`); Dependabot proposes updates.
 - `.env*` files can't be written by Claude: the owner copies the template
   (`cp env.example .env` at the root and fills it, or `cp
@@ -44,7 +47,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Where things are, the processes, how features plug in | [docs/architecture.md](docs/architecture.md) |
 | The monorepo: root scripts, Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
 | Setup, commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer, the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
-| A new feature (record routes declared from a `RecordRouteSpec`, `platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md) |
+| A new feature: `pnpm feature:add` (`tools/feature`, the `/add-feature` skill), record routes declared from a `RecordRouteSpec` (`platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md) |
 | Load tests: k6 on the production stack, the baseline (manual runs), a 2× regression, accepting a change (`loadtest/run.sh`) | [docs/development.md](docs/development.md), "Load tests" |
 | Routes' rules: versions, errors, pagination, filters, credentials | [docs/api-conventions.md](docs/api-conventions.md) |
 | The typed client for frontends (`packages/api-client`, `pnpm client:generate` after route changes) | [docs/development.md](docs/development.md), "Typed client" |

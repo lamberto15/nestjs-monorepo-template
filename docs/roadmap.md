@@ -372,7 +372,18 @@ Depends on 19.
 
 ## 6 + 8. Feature generator and unified event declaration
 
-Built together after 1a.
+**6 is done (2026-10-17, #24 and #25, then the capabilities and the skill):**
+`pnpm feature:add` (`tools/feature`) writes a feature's standard parts from
+`--fields` and `--with`, appending to `features/index.ts` (each feature
+declares itself in `<x>.feature.ts`); the `/add-feature` skill
+(`.claude/skills/`) interviews and runs it. Owner's decisions: CI's
+`feature-smoke` job generates two features with every option and runs their
+generated tests, instead of regenerating notes and diffing it (notes keeps
+business logic the generator must not emit); generated texts are English in
+every locale, listed to translate. Still open: custom fields, approvals,
+settings and events in the generator, and 8 (one event declaration).
+
+Planned as:
 
 - **Generator:**
   - a small generator in `tools/`. A Nest schematic is not used, because it pulls in
