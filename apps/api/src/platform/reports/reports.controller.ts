@@ -21,6 +21,7 @@ import {
   ApiBearerAuth,
   ApiCookieAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -88,6 +89,10 @@ export class ReportsController {
   @ApiHeader(idempotencyKeyHeader(false))
   @ApiCreatedResponse({ standardSchema: reportSchema })
   @ApiBadRequestResponse({ description: VALIDATION })
+  @ApiForbiddenResponse({
+    description:
+      'Its filters use a field your permissions hide (field_forbidden, naming it).',
+  })
   create(
     @CurrentUser() user: RequestPrincipal,
     @Body({ schema: createReportSchema }) dto: CreateReportDto,
@@ -115,6 +120,10 @@ export class ReportsController {
   })
   @ApiOkResponse({ standardSchema: reportSchema })
   @ApiBadRequestResponse({ description: VALIDATION })
+  @ApiForbiddenResponse({
+    description:
+      'Its filters use a field your permissions hide (field_forbidden, naming it).',
+  })
   @ApiNotFoundResponse()
   update(
     @CurrentUser() user: RequestPrincipal,
@@ -151,6 +160,10 @@ export class ReportsController {
   @ApiAcceptedResponse({ standardSchema: reportRunSchema })
   @ApiBadRequestResponse({
     description: 'You may no longer run its export (validation_failed).',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Its filters use a field your permissions hide (field_forbidden, naming it).',
   })
   @ApiNotFoundResponse()
   run(

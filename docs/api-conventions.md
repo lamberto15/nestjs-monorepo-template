@@ -124,6 +124,16 @@ operators (`listQuery()`). Anything else is a 400 naming it; values are
 checked by the field's type. Each route's parameters in `/api` list its
 fields and operators.
 
+**Hidden fields can't be filtered, searched, sorted or selected.** A field
+your field-level permissions hide on every record (docs/permissions.md)
+is a 403 `field_forbidden` naming it (`fields: ["body"]`) wherever the
+query uses it: a flat filter, a condition of `filter` at any depth,
+`sort`, `fields`, and `q` / `sort=-rank` when the search document holds
+it; `custom.<key>` counts as `custom`, a money field's `<x>Currency` as
+`<x>`. The same for the filters of an export, a bulk run and a scheduled
+report. `GET /v1/lists/{subject}` already leaves those out (and says
+`search: false`).
+
 | Operator | Means | Flat value | `filter` value |
 | --- | --- | --- | --- |
 | `eq`, `ne` | equal, not equal | `draft` | `"draft"`, `3`, `true` |
@@ -180,7 +190,9 @@ full-text search, on a generated `tsvector` column with a GIN index; the
 `GET /v1/search?q=…[&subject=Note&limit=20]` searches every kind of record
 the caller may read at once: `{ subject, id, title, snippet, score, link }`,
 best first; the snippet marks matches with `<b>…</b>` and is null for a text
-the caller may not read. A feature joins by registering a `SearchSource`
+the caller may not read. A text the caller may read on no record isn't
+matched at all (only the rest of the record's text, without the index);
+on a list, `q` is then a 403 (Filters, above). A feature joins by registering a `SearchSource`
 (`features/notes/note.search.ts`).
 
 ## Sorting

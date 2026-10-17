@@ -9,6 +9,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import { z } from 'zod';
+import type { ListQuery } from '../../core/http/list-query.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
@@ -141,7 +142,10 @@ export class BulkService {
     }
     // Checked now, so a typo is a 400, not a failed job. The job keeps them
     // raw (it travels as JSON: parsed dates would arrive as strings).
-    const parsed = this.parse(operation, { ...request, ids });
+    const parsed = await this.parse(principal, operation, {
+      ...request,
+      ids,
+    });
     assertRequestPrincipal(principal, 'A queued bulk operation');
     const tenantId = requireTenantId('A bulk operation');
     if (principal.tenantId !== tenantId) {
@@ -176,8 +180,16 @@ export class BulkService {
     return result;
   }
 
-  /** The selection and input as the operation takes them, parsed (the request's, or a job's again). */
-  parse(operation: BulkOperation, request: Omit<BulkRequest, 'name'>) {
+  /**
+   * The selection and input as the operation takes them, parsed (the
+   * request's, or a job's again: the principal's permissions may have
+   * changed since).
+   */
+  async parse(
+    principal: Principal,
+    operation: BulkOperation,
+    request: Omit<BulkRequest, 'name'>,
+  ) {
     const action = operation.actions[request.action]!;
     let selection: BulkSelection = { ids: request.ids };
     if (request.filter !== undefined) {
@@ -214,6 +226,12 @@ export class BulkService {
       selection = {
         filter: parseAt(operation.filters, request.filter, 'filter'),
       };
+      // Field-level: which records a run acts on would tell a hidden field's values.
+      await this.access.assertQueryFields(
+        principal,
+        operation.subject,
+        selection.filter as ListQuery,
+      );
     }
     if (!action.input && request.input !== undefined) {
       throw invalid([

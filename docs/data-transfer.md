@@ -61,7 +61,8 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   import ignores a `tags` column (the schema doesn't name it; tags are set
   with `PUT /{path}/{id}/tags`), as for notes.
 - Exports apply **field-level permissions** (a user without `Note.body`
-  gets no text) and the caller's read filter.
+  gets no text, and filters on it are a 403 `field_forbidden`) and the
+  caller's read filter.
 - Text a spreadsheet would run as a formula (a cell starting with `=`, `+`,
   `-` or `@`: `=1+1`, a phone number `+63 912`) is written with a leading
   quote, `'+63 912`, in CSV and Excel; an import removes that quote, as

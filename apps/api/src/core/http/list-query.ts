@@ -86,6 +86,13 @@ export type FilterField = {
    * its own (`sortValueKey`; see `sortSelect`), never shown to clients.
    */
   sort?: ListColumn;
+  /**
+   * The record fields its values reveal, when not its own name (field-level
+   * permissions refuse it to whoever may read none of them): a money
+   * field's currency filter reads the money field, `q` the fields of the
+   * search document. Default: its name (see `fieldsRead`).
+   */
+  reads?: readonly string[];
 } & (
   | { type: 'string' | 'uuid' | 'datetime' | 'date' | 'number' | 'boolean' }
   | { type: 'enum'; values: readonly [string, ...string[]] }
@@ -251,6 +258,12 @@ function condition(
 
 type Issue = { path: (string | number)[]; message: string };
 
+/** A validated `filter`: its SQL condition, and the fields its conditions name (at every depth). */
+interface FilterTree {
+  where: SQL | undefined;
+  fields: string[];
+}
+
 /**
  * `?filter=`: a JSON tree of conditions and groups,
  * `{"and":[{"field":"status","op":"in","value":["draft"]},{"or":[…]}]}`,
@@ -260,7 +273,7 @@ function filterTreeSchema(fields: Record<string, FilterField>) {
   return z
     .string()
     .max(20_000)
-    .transform((text, ctx): SQL | undefined => {
+    .transform((text, ctx): FilterTree => {
       let json: unknown;
       try {
         json = JSON.parse(text);
@@ -269,6 +282,7 @@ function filterTreeSchema(fields: Record<string, FilterField>) {
         return z.NEVER;
       }
       const issues: Issue[] = [];
+      const named = new Set<string>();
       let conditions = 0;
       const node = (
         value: unknown,
@@ -360,13 +374,14 @@ function filterTreeSchema(fields: Record<string, FilterField>) {
           });
           return undefined;
         }
+        named.add(name);
         return condition(field, op, parsed.data);
       };
       const where = node(json, [], 0);
       for (const issue of issues) {
         ctx.addIssue({ code: 'custom', ...issue });
       }
-      return issues.length ? z.NEVER : where;
+      return issues.length ? z.NEVER : { where, fields: [...named] };
     });
 }
 
@@ -549,6 +564,19 @@ export function listQuery(
           query.after = decoded.after;
         }
       }
+      // What field-level permissions check (queryReads): every name the
+      // query filters, sorts or selects by, as the record fields it reveals.
+      const names = [
+        ...keys
+          .filter(({ key }) => query[key] !== undefined)
+          .map((k) => k.name),
+        ...((query.filter as FilterTree | undefined)?.fields ?? []),
+        ...(sort ?? []).map(({ name }) => name),
+        ...((query.fields as string[] | undefined) ?? []),
+      ];
+      Object.defineProperty(query, READS, {
+        value: [...new Set(names.flatMap((name) => fieldsRead(fields, name)))],
+      });
       return query;
     });
 
@@ -581,7 +609,7 @@ export function listQuery(
           .map(({ key, name, op }) =>
             condition(fields[name], op, query[key], query),
           ),
-        query.filter as SQL | undefined,
+        (query.filter as FilterTree | undefined)?.where,
         id ? afterCursor(id, query) : undefined,
       );
     },
@@ -642,6 +670,35 @@ export function listQuery(
     },
   };
 }
+
+/** Where a validated query keeps `queryReads()`: not enumerable, so never a filter nor in a job's JSON. */
+const READS = Symbol('list query reads');
+
+/**
+ * The record fields a list field, or a `fields=` name, reveals: its
+ * `reads`, else its own name; a dotted name (`custom.region`) also its
+ * object field (`custom`). What GET /v1/lists/{subject} and the list
+ * routes compare with the caller's field-level permissions.
+ */
+export function fieldsRead(
+  fields: Record<string, FilterField>,
+  name: string,
+): string[] {
+  const field = Object.hasOwn(fields, name) ? fields[name] : undefined;
+  const own = field?.reads ?? [name];
+  return [...new Set([...own, ...own.map((read) => read.split('.')[0])])];
+}
+
+/**
+ * The record fields a validated list query filters (flat and `filter`, at
+ * every depth), searches (`q`), sorts or selects (`fields=`) by, from
+ * `fieldsRead()`. Empty for a query `listQuery()`'s schema didn't validate.
+ * A list refuses the query when the caller may read one on no record
+ * (`AccessService.assertQueryFields`): a filter on a hidden field would
+ * tell its values one probe at a time.
+ */
+export const queryReads = (query: ListQuery): readonly string[] =>
+  ((query as Record<symbol, unknown>)[READS] as string[] | undefined) ?? [];
 
 /** A validated list query: the page, the sort, and the filter values by key. */
 export type ListQuery = PageQuery & Record<string, unknown>;

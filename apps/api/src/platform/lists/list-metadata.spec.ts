@@ -7,7 +7,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { searchFields, tsvector } from '../../core/database/search.js';
-import { listQuery } from '../../core/http/list-query.js';
+import { fieldsRead, listQuery } from '../../core/http/list-query.js';
 import { customFilterFields } from '../custom-fields/custom-field.list.js';
 import type { CustomFieldDefinition } from '../custom-fields/custom-field.types.js';
 import { LIST_LIMITS, listMetadata } from './list-metadata.js';
@@ -25,7 +25,7 @@ const things = pgTable('things', {
 
 const LIST = listQuery(
   {
-    ...searchFields(things.search),
+    ...searchFields(things.search, ['title', 'body']),
     status: {
       column: things.status,
       type: 'enum',
@@ -133,6 +133,18 @@ describe('listMetadata', () => {
     });
     expect(metadata.fields.map((field) => field.name)).not.toContain('body');
     expect(metadata.select).not.toContain('body');
+  });
+
+  it('offers no search when the search document reads a hidden field', () => {
+    const hidden = new Set(['body']);
+    const metadata = listMetadata('Thing', LIST, {
+      hidden: (name) =>
+        fieldsRead(LIST.fields, name).some((field) => hidden.has(field)),
+    });
+    expect(metadata.search).toBe(false);
+    const names = metadata.fields.map((field) => field.name);
+    expect(names).not.toContain('q');
+    expect(names).not.toContain('rank');
   });
 
   it('marks the custom fields, with their labels, and keeps them out when hidden', () => {

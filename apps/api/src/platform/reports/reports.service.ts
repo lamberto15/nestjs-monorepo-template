@@ -29,6 +29,7 @@ import {
   toPage,
 } from '../../core/http/pagination.js';
 import { MailQueue } from '../../core/mail/mail-queue.js';
+import { AccessService } from '../../iam/access/access.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import {
@@ -121,6 +122,7 @@ export class ReportsService implements PersonalDataSource {
     private readonly i18n: I18nService,
     private readonly config: ConfigService<CoreEnv & PlatformEnv, true>,
     private readonly system: SystemContext,
+    private readonly access: AccessService,
     personalData: PersonalDataRegistry,
   ) {
     registry.onFinished((finished) => this.finished(finished));
@@ -288,7 +290,8 @@ export class ReportsService implements PersonalDataSource {
   /** Runs one of the principal's reports now; its schedule stays as it is. */
   async runNow(principal: RequestPrincipal, id: string, ip?: string) {
     const report = await this.findOwn(principal, id);
-    // A 400 (not the export's 403/404) when the owner may no longer run it.
+    // A 400 (not the export's 403/404) when the owner may no longer run it;
+    // filters on a field they may no longer read: a 403 field_forbidden.
     await this.check(principal, report.exporter, report.filters);
     const started = await this.start(principal, report, {
       trigger: 'manual',
@@ -503,6 +506,14 @@ export class ReportsService implements PersonalDataSource {
           path: ['filters', ...issue.path].join('.'),
           message: issue.message,
         })),
+      );
+    }
+    if (parsed) {
+      // A 403 field_forbidden as the export itself would answer (each run checks again).
+      await this.access.assertQueryFields(
+        principal,
+        exporter.subject,
+        parsed.data as ListQuery,
       );
     }
   }

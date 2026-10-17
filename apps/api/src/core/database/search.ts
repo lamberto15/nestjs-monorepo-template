@@ -13,8 +13,8 @@ import type { FilterField } from '../http/list-query.js';
  * // the table
  * search: searchVector('search', (): SQL => sql`${notes.title} || ' ' || ${notes.body}`),
  * (table) => [index('notes_search_idx').using('gin', table.search)]
- * // the list: ?q=… filters, ?sort=-rank orders the best first
- * export const NOTE_LIST = listQuery({ ...searchFields(notes.search), … });
+ * // the list: ?q=… filters, ?sort=-rank orders the best first; the fields the vector is made of
+ * export const NOTE_LIST = listQuery({ ...searchFields(notes.search, ['title', 'body']), … });
  * ```
  */
 
@@ -52,23 +52,40 @@ export const headline = (text: AnyColumn | SQL, q: string) =>
   sql<string>`ts_headline(${sql.raw(`'${CONFIG}'`)}, ${text}, ${searchQuery(q)}, 'MaxFragments=2, MaxWords=14, MinWords=6, StartSel=<b>, StopSel=</b>')`;
 
 /**
+ * A vector of `columns` made now, for a search that must not match the
+ * stored vector's other fields (a field the caller may not read): the
+ * stored one's text, without its index.
+ */
+export const vectorOf = (columns: readonly (AnyColumn | SQL)[]) =>
+  sql`to_tsvector(${sql.raw(`'${CONFIG}'`)}, concat_ws(' ', ${sql.join(
+    columns.map((column) => sql`${column}::text`),
+    sql`, `,
+  )}))`;
+
+/**
  * The list fields of a searchable table: `q` (`?q=words`, filtering on
  * the vector) and `rank` (`?sort=-rank`: the best match first, by the
  * request's `q`; without one every rank is 0 and the id orders).
+ * `fields`: the record fields the vector is made of, so field-level
+ * permissions refuse `q` to whoever may read one of them on no record
+ * (a match would tell what the hidden text holds).
  */
 export const searchFields = (
   vector: AnyPgColumn,
+  fields: readonly string[],
 ): Record<'q' | 'rank', FilterField> => ({
   q: {
     column: vector,
     type: 'string',
     ops: ['eq'],
     conditions: { eq: (value) => matches(vector, String(value)) },
+    reads: fields,
   },
   rank: {
     column: (query) => rank(vector, typeof query.q === 'string' ? query.q : ''),
     type: 'number',
     ops: [],
     sortable: true,
+    reads: fields,
   },
 });

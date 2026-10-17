@@ -58,6 +58,8 @@ export function fieldList(fields: Fields, table: Record<string, AnyPgColumn>) {
     entries[key] = {
       column: table[key],
       ...entry,
+      // The currency is part of the money field's value: its permission covers it.
+      ...(f.kind === 'money' && { reads: [name] }),
       ops: f.options.optional
         ? [...new Set([...entry.ops, 'isNull'])]
         : entry.ops,

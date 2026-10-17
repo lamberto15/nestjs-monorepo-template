@@ -322,6 +322,19 @@ the controller (`notes.*`); singular for what describes one record
      `customFields.extendList(LIST, subject)`, `list.parse(raw)`, and
      `select({ ...getTableColumns(t), ...list.sortSelect(query) })`
      (`NotesController.list`). Without: `@Query({ schema: LIST.schema })`.
+   - With field-level permissions (declared `fields`), a hidden field
+     can't be filtered, sorted, selected or searched (docs/permissions.md).
+     A generated controller gets that from its only way to a query,
+     `const { list, query } = await this.presenter.query(user, LIST, raw)`
+     (`RecordPresenter`: custom fields, validation, then
+     `access.assertQueryFields()`). By hand, call
+     `await access.assertQueryFields(user, '<Subject>', query)` right after
+     the query validates (as `NotesController.list`). `searchFields(t.search,
+     ['title', 'body'])` names the fields the vector is made of.
+   - **A controller generated before this** calls `presenter.list(LIST)`
+     and `list.parse(raw)`, which no longer compile (`presenter.list` is
+     gone): replace those two lines with the `presenter.query()` call
+     above.
 8. **Service** (`<x>.service.ts`): owns the logic and the queries; no HTTP
    in it. It reads the database through the transaction host:
    ```ts
