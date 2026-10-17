@@ -1,0 +1,93 @@
+# The devcontainer (devcontainer.json): the workspace, where the code runs,
+# next to PostgreSQL, Redis, Mailpit and Gotenberg, taken from compose.yaml
+# and compose.dev.yaml with `extends`, so their images stay pinned in one
+# place. Lean on purpose: no Floci (AWS locally). Files go to the local disk
+# and mail straight to Mailpit (below), the app's own alternatives to S3 and
+# SES; `pnpm services:up` on the host keeps the AWS code paths.
+#
+# This file is the project's first and only file on purpose: Compose reads
+# `.env` from the first file's directory, and the repository root's `.env`
+# is production's (its secrets, COMPOSE_PROJECT_NAME). Here it would be
+# .devcontainer/.env, which never exists, so the services take their
+# defaults: the development values (dev/compose.env). Nothing is published
+# on the host either (`ports: !reset []`): `pnpm services:up` may hold the
+# same ports; devcontainer.json forwards what the editor needs.
+name: nestjs-monorepo-template-devcontainer
+
+services:
+  workspace:
+    build: .
+    command: sleep infinity
+    # PostgreSQL's network: it is on 127.0.0.1:5432 here, as
+    # apps/api/.env.development has it (DATABASE_URL, DATABASE_OWNER_URL).
+    # The other services by name, below.
+    network_mode: service:postgres
+    volumes:
+      - ..:/workspace:cached
+      # The dependencies are the container's own (Linux binaries: oxlint,
+      # esbuild, turbo, lefthook), never the host's node_modules. One volume
+      # per workspace package; a frontend added in apps/ gets one too.
+      - node_modules:/workspace/node_modules
+      - api_node_modules:/workspace/apps/api/node_modules
+      - api_client_node_modules:/workspace/packages/api-client/node_modules
+    environment:
+      # The demo seed's positive check (docs/development.md, "Demo data").
+      NODE_ENV: development
+      # What the environment sets wins over apps/api/.env.development.
+      REDIS_URL: redis://redis:6379
+      # No Floci here: the local disk (apps/api/.data) instead of S3, SMTP
+      # to Mailpit instead of SES.
+      STORAGE_DRIVER: local
+      MAIL_TRANSPORT: smtp
+      SMTP_URL: smtp://mailpit:1025
+      GOTENBERG_URL: http://gotenberg:3000
+      # The e2e tests use these services instead of starting their own
+      # (test/global-setup.ts): their databases and roles on this server,
+      # as its superuser (dev/compose.env's), made and dropped by the run;
+      # Redis keys under a prefix per test file. The password is
+      # PGPASSWORD, which node-postgres and psql read.
+      TEST_DATABASE_URL: postgres://app@127.0.0.1:5432/postgres
+      PGPASSWORD: app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    extends:
+      file: ../compose.yaml
+      service: postgres
+    environment:
+      # The workspace connects over 127.0.0.1 (its network is PostgreSQL's),
+      # which the image trusts without a password by default: passwords are
+      # checked there too, as everywhere else (the e2e tests prove a rotated
+      # one). Read when the volume is created.
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      # Marks the database as a development one (the demo seed's marker).
+      - ../dev/postgres:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    extends:
+      file: ../compose.yaml
+      service: redis
+
+  mailpit:
+    extends:
+      file: ../compose.dev.yaml
+      service: mailpit
+    ports: !reset []
+
+  gotenberg:
+    extends:
+      file: ../compose.dev.yaml
+      service: gotenberg
+    ports: !reset []
+
+volumes:
+  postgres_data:
+  redis_data:
+  node_modules:
+  api_node_modules:
+  api_client_node_modules:

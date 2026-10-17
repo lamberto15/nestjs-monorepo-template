@@ -77,7 +77,17 @@ export class NotesService {
     return rows.map((row) => ({ ...row, tags: tags.get(row.id) ?? [] }));
   }
 
-  async create(owner: Principal, dto: CreateNoteDto): Promise<Note> {
+  /**
+   * A new draft of `owner`'s. `by` is who acts, when not the owner: the
+   * demo seed (src/demo) writes its users' notes as the system principal,
+   * so the audit entry and the first revision name it, and the note is
+   * still theirs.
+   */
+  async create(
+    owner: Principal,
+    dto: CreateNoteDto,
+    { by = owner }: { by?: Principal } = {},
+  ): Promise<Note> {
     // Before the transaction: a validation error then costs no transaction.
     const custom = await this.customFields.parseValues(
       'Note',
@@ -121,7 +131,7 @@ export class NotesService {
         recordId: row.id,
       });
       await this.audit.recordChange(
-        owner,
+        by,
         NOTE,
         { action: 'created', id: row.id, after: row },
         tx,
@@ -129,7 +139,7 @@ export class NotesService {
       // Revision 1: the first state, restorable like any later one.
       await this.revisions.record(tx, 'Note', row.id, {
         snapshot: noteSnapshot(row),
-        by: owner,
+        by,
       });
       return row;
     });

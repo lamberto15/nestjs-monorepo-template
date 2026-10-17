@@ -30,7 +30,11 @@ import {
   sql,
 } from 'drizzle-orm';
 import type { PageQuery } from '../../core/http/pagination.js';
-import type { UserPrincipal } from '../auth/principal.js';
+import {
+  isSystemPrincipal,
+  type SystemPrincipal,
+  type UserPrincipal,
+} from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import { BreachedPasswordsService } from '../account/breached-passwords.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -335,6 +339,60 @@ export class AccessAdminService {
     };
   }
 
+  /**
+   * A member made by a system job, with the password it generated, never
+   * by a request: the demo seed's users (src/demo). The same way as the
+   * first start's administrator (AccessSeeder): a verified account (the
+   * job made the address up, nobody has to prove it), its membership in
+   * the current tenant, its roles and units, and `user.seeded` with the
+   * job as the actor, in the caller's transaction. The grant rule holds
+   * (the job must hold what the roles give; it never holds `all.manage`),
+   * and the password passes the breach check. Refused for anything but a
+   * system principal made in code: administrators invite (`createUser()`).
+   */
+  async seedUser(
+    actor: SystemPrincipal,
+    tx: Transaction,
+    input: {
+      email: string;
+      name: string;
+      password: string;
+      roleIds: string[];
+      orgUnitIds?: string[];
+    },
+  ) {
+    if (!isSystemPrincipal(actor)) {
+      throw new Error('seedUser() is for system jobs only.');
+    }
+    await this.checkRoleGrant(actor, input.roleIds);
+    const units = input.orgUnitIds ?? [];
+    if ((await this.orgUnits.existing(tx, units)).length !== units.length) {
+      throw new BadRequestException('Unknown org unit.');
+    }
+    await this.breachedPasswords.assertNotBreached(input.password, 'password');
+    const created = await this.accounts.create(tx, {
+      email: input.email,
+      name: input.name,
+      passwordHash: await this.passwordHasher.hash(input.password),
+      emailVerified: true,
+    });
+    await this.accounts.addMembership(tx, this.tenancy.tenantId(), created.id);
+    await this.writeRoles(tx, userRoles, created.id, input.roleIds);
+    await this.orgUnits.setUserUnits(tx, created.id, units);
+    await this.audit.record(
+      actor,
+      {
+        action: 'user.seeded',
+        targetType: 'user',
+        targetId: created.id,
+        details: { email: created.email, roleIds: input.roleIds },
+      },
+      tx,
+    );
+    this.access.invalidate();
+    return created;
+  }
+
   async updateUser(
     actor: UserPrincipal,
     id: string,
@@ -481,7 +539,7 @@ export class AccessAdminService {
 
   /** Validates the permissions against the catalog, and checks the actor may grant each. */
   private async checkGrant(
-    actor: UserPrincipal,
+    actor: UserPrincipal | SystemPrincipal,
     permissions: PermissionInput[],
   ) {
     const actorPermissions = await this.access.permissions(actor);
@@ -524,7 +582,10 @@ export class AccessAdminService {
     return valid;
   }
 
-  private async checkRoleGrant(actor: UserPrincipal, roleIds: string[]) {
+  private async checkRoleGrant(
+    actor: UserPrincipal | SystemPrincipal,
+    roleIds: string[],
+  ) {
     if (!roleIds.length) {
       return;
     }

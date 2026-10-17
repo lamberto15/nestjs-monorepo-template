@@ -129,7 +129,8 @@ template's: `seed`, `audit-retention`, `soft-delete-purge` (IAM,
 `attachment-sweep`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
 `approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention` (platform,
-`platform/platform.jobs.ts`); `note-publication` (notes).
+`platform/platform.jobs.ts`); `note-publication` (notes); `demo-seed` (the
+demo seed, `src/demo/demo.jobs.ts`, [development](development.md), "Demo data").
 
 **Run it** with `SystemContext.run()`, the one way in:
 
@@ -166,6 +167,7 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
 | Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
 | Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |
+| Demo seed (`pnpm db:seed:demo`, development databases only) | `system:demo-seed` | the demo tenant it creates | everything it writes (`org-unit.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
 | Mail intake, mail events retention, exchange rates | `system:<job>` | none (global tables) | the intake's suppressions (`mailSuppression.*`, no tenant) |
 | Notification delivery (outbox), usage roll-up, revision and notification retention, digests | `system:<job>` | the event's, or each tenant | none (no change a person would audit) |
 

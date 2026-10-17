@@ -129,6 +129,8 @@ export class IamModule {
   static forRoot(options: IamOptions): DynamicModule {
     const exported = [
       AccessService,
+      // The demo seed (src/demo) creates its users through it.
+      AccessAdminService,
       AuditService,
       PermissionCatalog,
       SessionAuth,

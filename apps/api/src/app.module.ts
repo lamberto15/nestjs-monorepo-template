@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CoreModule } from './core/core.module.js';
+import { DEMO_PERMISSIONS } from './demo/demo.jobs.js';
 import { DEV_ENV_FILE, ignoreDevEnvFile } from './dev-env.js';
 import { envSchema } from './env.js';
 import { EXAMPLE_SENDER } from './features/notes/example-sender-webhook.controller.js';
@@ -60,7 +61,8 @@ import { PLATFORM_PERMISSIONS } from './platform/ops/ops.policy.js';
     // Before IamModule: the rate limit guards before authentication does.
     CoreModule,
     IamModule.forRoot({
-      permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS],
+      // DEMO_PERMISSIONS: the demo seed's system job (src/demo, pnpm db:seed:demo).
+      permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS, DEMO_PERMISSIONS],
       // Resources the platform acts on (soft delete: the recycle bin, the purge).
       resources: [NOTE],
     }),
