@@ -236,5 +236,12 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
       sortable: true,
       custom: false,
     });
+    // The fields that are ids of something say of what.
+    const refs = Object.fromEntries(
+      body.fields
+        .filter((field: { ref?: string }) => field.ref)
+        .map((field: { name: string; ref: string }) => [field.name, field.ref]),
+    );
+    expect(refs).toEqual({ tag: 'tag', ownerId: 'principal', teamId: 'team' });
   });
 });
