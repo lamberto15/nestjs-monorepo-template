@@ -1,3 +1,4 @@
+import { writeNote } from './notes-support.js';
 import { bootApp, type TestApp } from '../../support.js';
 
 type Agent = ReturnType<TestApp['admin']>;
@@ -34,13 +35,11 @@ describe('record revisions of notes: custom fields (e2e)', () => {
       .send({ subject: 'Note', key: 'region', label: 'Region', type: 'text' })
       .expect(201);
     const editor = await node.user(['editor']);
-    const created = await node
-      .writeNote(editor.agent, {
-        title: 'Plan',
-        body: 'x',
-        custom: { region: 'eu' },
-      })
-      .expect(201);
+    const created = await writeNote(node, editor.agent, {
+      title: 'Plan',
+      body: 'x',
+      custom: { region: 'eu' },
+    }).expect(201);
     const id = created.body.id as string;
     await patch(editor.agent, id, { custom: { region: 'us' } });
     await patch(editor.agent, id, { custom: { region: null } });

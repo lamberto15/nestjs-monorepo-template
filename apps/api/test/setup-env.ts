@@ -22,7 +22,10 @@ Object.assign(process.env, {
   LOCALES: 'en,de,ar,zh,ms',
   ADMIN_EMAIL: 'admin@example.com',
   ADMIN_PASSWORD: randomBytes(18).toString('base64url'),
+  // feature:notes begin
   EXAMPLE_SENDER_WEBHOOK_SECRET: `whsec_${randomBytes(32).toString('base64')}`,
+  NOTE_PUBLISH_DELAY: '10s',
+  // feature:notes end
   // supertest speaks plain HTTP, where a browser drops Secure cookies.
   SESSION_COOKIE_SECURE: 'off',
   OUTBOX_RELAY: 'off',
@@ -30,7 +33,6 @@ Object.assign(process.env, {
   QUEUES_WORKER: 'off',
   SCHEDULER: 'off',
   WEBHOOKS_ALLOW_LOOPBACK: 'on',
-  NOTE_PUBLISH_DELAY: '10s',
   MAIL_TRANSPORT: 'memory',
   // Never the real Pwned Passwords API from a test: breached-passwords.e2e-spec.ts
   // turns the check on against a stub on loopback.

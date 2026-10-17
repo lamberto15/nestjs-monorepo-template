@@ -2,7 +2,7 @@
  * The advanced list query (docs/api-conventions.md): `filter` (and/or
  * trees), `sort` with keyset cursors, `page` numbers and `fields`. First on
  * a table of every type in PostgreSQL (the SQL, against the same rows in
- * JavaScript), then through the notes route (access, redaction, OpenAPI).
+ * JavaScript), then through the test items route (access, redaction, OpenAPI).
  */
 import type { Database } from '../src/core/database/drizzle.js';
 import { randomUUID } from 'node:crypto';
@@ -508,7 +508,7 @@ describe('the advanced list query (PostgreSQL)', () => {
   });
 });
 
-describe('the advanced list query on GET /v1/notes (e2e)', () => {
+describe('the advanced list query on GET /v1/test-items (e2e)', () => {
   let node: TestApp;
   let auth: string;
   const titles = ['Plan', 'Plan', 'Report', 'Plan', 'Memo', 'Report', 'Zeta'];
@@ -518,7 +518,7 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
     node = await bootApp();
     ({ auth } = await node.client());
     for (const title of titles) {
-      const res = await node.writeNote(auth, { title, body: `${title} text` });
+      const res = await node.writeItem(auth, { title, body: `${title} text` });
       expect(res.status).toBe(201);
       written.push({ id: res.body.id, title });
     }
@@ -526,7 +526,7 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
   afterAll(() => node.close());
 
   const list = (query: Record<string, string>, as = auth) =>
-    node.http().get('/v1/notes').query(query).set('Authorization', as);
+    node.http().get('/v1/test-items').query(query).set('Authorization', as);
 
   it('filters with and / or trees, and counts what they match', async () => {
     const res = await list({
@@ -534,7 +534,7 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
       filter: JSON.stringify({
         or: [
           { field: 'title', op: 'startsWith', value: 'rep' },
-          { field: 'title', op: 'endsWith', value: 'eta' },
+          { field: 'title', op: 'startsWith', value: 'Z' },
         ],
       }),
     }).expect(200);
@@ -545,15 +545,15 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
   });
 
   it('never lets an or widen what the caller may see', async () => {
-    // Another client: it may read its own notes only.
+    // Another client: it may read its own items only.
     const other = await node.client();
     await node
-      .writeNote(other.auth, { title: 'Theirs', body: 'x' })
+      .writeItem(other.auth, { title: 'Theirs', body: 'x' })
       .expect(201);
     const everything = JSON.stringify({
       or: [
         { field: 'title', op: 'contains', value: 'Plan' },
-        { field: 'status', op: 'in', value: ['draft', 'published'] },
+        { field: 'title', op: 'startsWith', value: 'T' },
         { field: 'createdAt', op: 'gte', value: '2000-01-01T00:00:00Z' },
       ],
     });
@@ -567,13 +567,13 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
     expect(res.body.total).toBe(1);
     // Flat filters next to it change nothing either.
     const flat = await list(
-      { filter: everything, 'status.in': 'draft,published' },
+      { filter: everything, 'title.startsWith': 'T' },
       other.auth,
     ).expect(200);
     expect(flat.body.items).toHaveLength(1);
   });
 
-  it('walks a sort with ties page by page, with no note twice and none missed', async () => {
+  it('walks a sort with ties page by page, with no item twice and none missed', async () => {
     const seen: { id: string; title: string }[] = [];
     let cursor: string | null = null;
     do {
@@ -625,10 +625,10 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
   });
 
   it('answers with the fields asked for, id always, redaction still applied', async () => {
-    const res = await list({ fields: 'title,status', limit: '1' }).expect(200);
+    const res = await list({ fields: 'title,body', limit: '1' }).expect(200);
     expect(Object.keys(res.body.items[0]).sort()).toEqual([
+      'body',
       'id',
-      'status',
       'title',
     ]);
 
@@ -639,13 +639,13 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
       .send({
         name: `Titles only ${Date.now()}`,
         permissions: [
-          { subject: 'Note', action: 'read', conditions: [], fields: [] },
+          { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
         ],
       })
       .expect(201);
     const reader = await node.user([role.body.id]);
     const asked = await reader.agent
-      .get('/v1/notes')
+      .get('/v1/test-items')
       .query({ fields: 'title,body', limit: '5' })
       .expect(200);
     expect(asked.body.items.length).toBeGreaterThan(0);
@@ -658,12 +658,22 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
     const cases: [Record<string, string>, string][] = [
       [
         {
-          filter: JSON.stringify({ field: 'body', op: 'contains', value: 'x' }),
+          filter: JSON.stringify({
+            field: 'secret',
+            op: 'contains',
+            value: 'x',
+          }),
         },
         'filter.field',
       ],
       [
-        { filter: JSON.stringify({ field: 'title', op: 'eq', value: 'x' }) },
+        {
+          filter: JSON.stringify({
+            field: 'title',
+            op: 'notContains',
+            value: 'x',
+          }),
+        },
         'filter.op',
       ],
       [{ filter: '{nope' }, 'filter'],
@@ -683,21 +693,21 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
       ).toEqual([path]);
     }
     const named = await list({
-      filter: JSON.stringify({ field: 'body', op: 'eq', value: 'x' }),
+      filter: JSON.stringify({ field: 'secret', op: 'eq', value: 'x' }),
     }).expect(400);
-    expect(named.body.errors[0].message).toContain('"body"');
+    expect(named.body.errors[0].message).toContain('"secret"');
   });
 
   it('documents filter, sort and fields with examples', async () => {
     const document = (await node.http().get('/api-json').expect(200)).body;
     const params: { name: string; description?: string }[] =
-      document.paths['/v1/notes'].get.parameters;
+      document.paths['/v1/test-items'].get.parameters;
     const described = (name: string) =>
       params.find((param) => param.name === name)?.description ?? '';
     expect(described('filter')).toContain('Example:');
-    expect(described('filter')).toContain('title (contains');
+    expect(described('filter')).toContain('title (eq, contains, startsWith');
     expect(described('sort')).toContain(
-      'Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt',
+      'Sortable: rank, title, createdAt, updatedAt',
     );
     expect(described('fields')).toContain('Example: ');
     expect(described('page')).toContain('Example:');

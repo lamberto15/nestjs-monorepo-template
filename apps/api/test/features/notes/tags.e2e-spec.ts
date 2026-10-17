@@ -1,3 +1,4 @@
+import { writeNote } from './notes-support.js';
 import { bootApp, type TestApp } from '../../support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
@@ -31,7 +32,7 @@ describe('tags on notes (e2e)', () => {
     const urgent = await tag('Urgent');
     const later = await tag('Later');
     const id = (
-      await node.writeNote(client.auth, { title: 'Tagged', body: '' })
+      await writeNote(node, client.auth, { title: 'Tagged', body: '' })
     ).body.id as string;
     // A client lists the tags it may use, sorted by name whatever the case.
     await tag('alpha');

@@ -18,7 +18,6 @@ import {
 } from '@nestjs/mail';
 import { OutboxRelay } from '@nestjs/outbox';
 import { WebhookWorker } from '@nestjs/webhooks';
-import { signWebhook } from '@nestjs/webhooks/testing';
 import {
   ManualWorkflowClock,
   WORKFLOWS_MODULE_OPTIONS,
@@ -533,19 +532,6 @@ export async function bootApp(
       };
     },
 
-    /** Writes a note as this API client (or users agent). */
-    writeNote(
-      auth: string | request.Agent,
-      body: Record<string, unknown> = { title: 'Hello', body: 'World' },
-      key: string = randomUUID(),
-    ) {
-      const req =
-        typeof auth === 'string'
-          ? http().post('/v1/notes').set('Authorization', auth)
-          : auth.post('/v1/notes');
-      return req.set('Idempotency-Key', key).send(body);
-    },
-
     /**
      * Creates a test item (test/fixtures: the platform's tests' record, there
      * whatever features a project keeps) as a bearer token or an agent.
@@ -566,21 +552,6 @@ export async function bootApp(
     async deliverWebhooks() {
       await app.get(OutboxRelay).runOnce();
       return app.get(WebhookWorker).runOnce();
-    },
-
-    /** POSTs an event signed as the example sender signs it (Standard Webhooks). */
-    exampleSender(
-      payload: unknown,
-      {
-        id = `msg_${randomUUID()}`,
-        secret = process.env.EXAMPLE_SENDER_WEBHOOK_SECRET!,
-      } = {},
-    ) {
-      const signed = signWebhook({ scheme: 'standard', secret, payload, id });
-      return http()
-        .post('/v1/webhooks/example-sender')
-        .set(signed.headers)
-        .send(signed.body);
     },
 
     /** The mail the app sent (MAIL_TRANSPORT=memory). */

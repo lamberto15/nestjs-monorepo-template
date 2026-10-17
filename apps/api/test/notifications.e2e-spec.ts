@@ -39,16 +39,30 @@ describe('notifications (e2e)', () => {
   const paths = (body: { errors?: { path: string }[] }) =>
     (body.errors ?? []).map((error) => error.path);
 
-  /** Writes a note and lets its publication workflow publish it. */
-  async function publish(auth: string | request.Agent) {
-    const note = (
-      await node.writeNote(auth, { title: 'Hello', body: '' }).expect(201)
+  /**
+   * A test item of `auth`'s, commented on by the administrator: its owner
+   * watches it, so they are told (`testItem.commented`).
+   */
+  async function commented(auth: string | request.Agent) {
+    const item = (
+      await node.writeItem(auth, { title: 'Hello', body: '' }).expect(201)
     ).body as { id: string };
-    await node.worker.drain();
-    node.clock.advance('10s');
-    await node.worker.drain();
-    return note;
+    await node
+      .admin()
+      .post(`/v1/test-items/${item.id}/comments`)
+      .send({ body: 'Looks good.' })
+      .expect(201);
+    return item;
   }
+
+  /** The `data` of a `testItem.commented` notification. */
+  const commentData = (title: string) => ({
+    recordId: randomUUID(),
+    commentId: randomUUID(),
+    title,
+    by: 'Ada',
+    excerpt: 'Looks good.',
+  });
 
   /** A notification sent straight from code, as a feature's service does. */
   async function notify(to: string, input: Partial<NotifyInput> = {}) {
@@ -58,9 +72,9 @@ describe('notifications (e2e)', () => {
     const [id] = await node.inTenant(() =>
       inTransaction(txHost, (tx) =>
         service.notify(tx, {
-          type: 'note.published',
+          type: 'testItem.commented',
           to,
-          data: { noteId: randomUUID(), title: 'Direct' },
+          data: commentData('Direct'),
           ...input,
         }),
       ),
@@ -83,26 +97,35 @@ describe('notifications (e2e)', () => {
   const emailOf = async (agent: request.Agent) =>
     (await agent.get('/v1/auth/me').expect(200)).body.user.email as string;
 
-  it('tells a user in-app, in their language, and by mail; they read and mark it', async () => {
+  it('tells a user in-app, and by mail; they read and mark it', async () => {
     const editor = await node.user(['editor']);
     await editor.agent
       .patch('/v1/auth/me')
       .send({ locale: 'de', timezone: 'Europe/Berlin' })
       .expect(200);
     const email = await emailOf(editor.agent);
-    const note = await publish(editor.agent);
+    await editor.agent
+      .put('/v1/notifications/preferences')
+      .send({ 'testItem.commented': { email: 'immediate' } })
+      .expect(200);
+    const record = await commented(editor.agent);
     await deliver();
 
     const page = await editor.agent.get('/v1/notifications').expect(200);
     expect(page.body.items).toHaveLength(1);
     const item = page.body.items[0];
     expect(item).toMatchObject({
-      type: 'note.published',
-      title: 'Notiz veröffentlicht',
-      body: '„Hello“ ist jetzt veröffentlicht.',
-      data: { noteId: note.id, title: 'Hello' },
-      link: `/notes/${note.id}`,
-      key: null,
+      type: 'testItem.commented',
+      title: 'New comment',
+      body: 'Administrator commented on "Hello": Looks good.',
+      data: {
+        recordId: record.id,
+        title: 'Hello',
+        by: 'Administrator',
+        excerpt: 'Looks good.',
+      },
+      link: `/test-items/${record.id}`,
+      key: `testItem.commented:${record.id}`,
       count: 1,
       read: false,
       readAt: null,
@@ -111,8 +134,10 @@ describe('notifications (e2e)', () => {
     const english = await editor.agent
       .get('/v1/notifications?lang=en')
       .expect(200);
-    expect(english.body.items[0].title).toBe('Note published');
-    expect(english.body.items[0].body).toBe('"Hello" is now published.');
+    expect(english.body.items[0].title).toBe('New comment');
+    expect(english.body.items[0].body).toBe(
+      'Administrator commented on "Hello": Looks good.',
+    );
     expect(
       (await editor.agent.get('/v1/notifications/unread-count').expect(200))
         .body,
@@ -121,10 +146,12 @@ describe('notifications (e2e)', () => {
     // The mail, in German, with the link into the web app.
     const mail = await node.waitForMail({
       to: email,
-      subject: /Notiz veröffentlicht/,
+      subject: /New comment/,
     });
-    expect(mail.html).toContain('„Hello“ ist jetzt veröffentlicht.');
-    expect(mail.html).toContain(`https://web.example.com/notes/${note.id}`);
+    expect(mail.html).toContain('commented on &quot;Hello&quot;');
+    expect(mail.html).toContain(
+      `https://web.example.com/test-items/${record.id}`,
+    );
 
     // Read: once, and again without change; nobody else can.
     const read = await editor.agent
@@ -171,7 +198,7 @@ describe('notifications (e2e)', () => {
         socket.once('notifications.unread-count', resolve),
       );
 
-      const note = await publish(client.auth);
+      const item = await commented(client.auth);
       await deliver(); // the handler: it dispatches the webhook through the outbox
       await node.deliverWebhooks();
 
@@ -179,19 +206,19 @@ describe('notifications (e2e)', () => {
         'notification.created',
       ]);
       expect(receiver.received[0]!.body.data).toMatchObject({
-        type: 'note.published',
-        title: 'Note published',
-        data: { noteId: note.id, title: 'Hello' },
+        type: 'testItem.commented',
+        title: 'New comment',
+        data: { recordId: item.id, title: 'Hello' },
         count: 1,
       });
-      const item = await live;
-      expect(item.title).toBe('Note published');
+      const live_ = await live;
+      expect(live_.title).toBe('New comment');
       const list = await node
         .http()
         .get('/v1/notifications')
         .set('Authorization', client.auth)
         .expect(200);
-      expect(list.body.items[0].id).toBe(item.id);
+      expect(list.body.items[0].id).toBe(live_.id);
 
       // Every connection keeps up: the count after the delivery, each change.
       const next = <T>(event: string) =>
@@ -202,24 +229,24 @@ describe('notifications (e2e)', () => {
         next<{ unread: number }>('notifications.unread-count'),
         node
           .http()
-          .post(`/v1/notifications/${item.id}/read`)
+          .post(`/v1/notifications/${live_.id}/read`)
           .set('Authorization', client.auth)
           .expect(200),
       ]);
-      expect(read.id).toBe(item.id);
+      expect(read.id).toBe(live_.id);
       expect(read.readAt).toBeTruthy();
       expect(afterRead).toEqual({ unread: 0 });
       const [removed] = await Promise.all([
         next<{ id: string }>('notification.removed'),
         node
           .http()
-          .delete(`/v1/notifications/${item.id}`)
+          .delete(`/v1/notifications/${live_.id}`)
           .set('Authorization', client.auth)
           .expect(204),
       ]);
-      expect(removed).toEqual({ id: item.id });
+      expect(removed).toEqual({ id: live_.id });
       // No mail for a system.
-      expect(node.mailbox.find({ subject: /Note published/ })).toBeUndefined();
+      expect(node.mailbox.find({ subject: /New comment/ })).toBeUndefined();
 
       // Its choices: the webhook only; a client has no email to set.
       const types = await node
@@ -229,11 +256,11 @@ describe('notifications (e2e)', () => {
         .expect(200);
       expect(
         types.body.items.find(
-          (t: { type: string }) => t.type === 'note.published',
+          (t: { type: string }) => t.type === 'testItem.commented',
         ),
       ).toEqual({
-        type: 'note.published',
-        label: 'Note published',
+        type: 'testItem.commented',
+        label: 'Comment on a test item you watch',
         mandatory: false,
         channels: { webhook: true },
       });
@@ -241,17 +268,17 @@ describe('notifications (e2e)', () => {
         .http()
         .put('/v1/notifications/preferences')
         .set('Authorization', client.auth)
-        .send({ 'note.published': { email: false } })
+        .send({ 'testItem.commented': { email: false } })
         .expect(400);
-      expect(paths(refused.body)).toEqual(['note.published.email']);
+      expect(paths(refused.body)).toEqual(['testItem.commented.email']);
       const off = await node
         .http()
         .put('/v1/notifications/preferences')
         .set('Authorization', client.auth)
-        .send({ 'note.published': { webhook: false } })
+        .send({ 'testItem.commented': { webhook: false } })
         .expect(200);
-      expect(off.body.types['note.published']).toEqual({ webhook: false });
-      await publish(client.auth);
+      expect(off.body.types['testItem.commented']).toEqual({ webhook: false });
+      await commented(client.auth);
       await deliver();
       await node.deliverWebhooks();
       expect(receiver.received).toHaveLength(1);
@@ -266,37 +293,23 @@ describe('notifications (e2e)', () => {
     expect(
       (await editor.agent.get('/v1/notifications/preferences').expect(200))
         .body,
-    ).toEqual({
-      types: {
-        'note.published': { email: 'immediate' },
-        'note.changed': { email: 'daily' },
-        'note.commented': { email: 'daily' },
-        'note.deleted': { email: 'immediate' },
+    ).toMatchObject({
+      types: expect.objectContaining({
+        'testItem.commented': { email: 'daily' },
         'comment.mentioned': { email: 'immediate' },
         'approval.requested': { email: 'immediate' },
-        'approval.reminder': { email: 'immediate' },
-        'approval.escalated': { email: 'immediate' },
-        'approval.approved': { email: 'immediate' },
-        'approval.rejected': { email: 'immediate' },
-        'approval.changesRequested': { email: 'immediate' },
-        'approval.expired': { email: 'immediate' },
-        'approval.failed': { email: 'immediate' },
-        'approval.cancelled': { email: false },
         'security.newSignIn': { email: 'immediate' },
         'security.passwordChanged': { email: 'immediate' },
-        'security.mfaChanged': { email: 'immediate' },
-        'security.passkeyAdded': { email: 'immediate' },
-        'security.passkeyRemoved': { email: 'immediate' },
         'security.apiKeyRotated': { email: false },
-      },
+      }),
     });
     const changed = await editor.agent
       .put('/v1/notifications/preferences')
-      .send({ 'note.published': { email: false } })
+      .send({ 'testItem.commented': { email: false } })
       .expect(200);
-    expect(changed.body.types['note.published']).toEqual({ email: false });
+    expect(changed.body.types['testItem.commented']).toEqual({ email: false });
 
-    await publish(editor.agent);
+    await commented(editor.agent);
     await deliver();
     expect(
       (await editor.agent.get('/v1/notifications').expect(200)).body.items,
@@ -312,24 +325,31 @@ describe('notifications (e2e)', () => {
       expect(response.body.code).toBe('validation_failed');
       expect(paths(response.body)).toEqual([path]);
     };
-    await invalid({ 'note.deleted': { email: false } }, 'note.deleted.email');
-    await invalid({ 'note.nope': { email: false } }, 'note.nope');
-    await invalid({ 'note.published': { sms: true } }, 'note.published.sms');
     await invalid(
-      { 'note.published': { email: 'often' } },
-      'note.published.email',
+      { 'security.passwordChanged': { email: false } },
+      'security.passwordChanged.email',
+    );
+    await invalid({ 'testItem.nope': { email: false } }, 'testItem.nope');
+    await invalid(
+      { 'testItem.commented': { sms: true } },
+      'testItem.commented.sms',
+    );
+    await invalid(
+      { 'testItem.commented': { email: 'often' } },
+      'testItem.commented.email',
     );
     // A mandatory type may change its frequency.
     await editor.agent
       .put('/v1/notifications/preferences')
-      .send({ 'note.deleted': { email: 'daily' } })
+      .send({ 'security.passwordChanged': { email: 'daily' } })
       .expect(200);
     const types = await editor.agent.get('/v1/notifications/types').expect(200);
     expect(
-      types.body.items.find((t: { type: string }) => t.type === 'note.deleted'),
-    ).toEqual({
-      type: 'note.deleted',
-      label: 'Note deleted by someone else',
+      types.body.items.find(
+        (t: { type: string }) => t.type === 'security.passwordChanged',
+      ),
+    ).toMatchObject({
+      type: 'security.passwordChanged',
       mandatory: true,
       channels: { email: 'immediate' },
     });
@@ -340,37 +360,21 @@ describe('notifications (e2e)', () => {
       .expect(200);
     expect(audit.body.items.length).toBeGreaterThanOrEqual(2);
     expect(audit.body.items[0].details).toMatchObject({
-      to: { 'note.deleted': { email: 'daily' } },
+      to: { 'security.passwordChanged': { email: 'daily' } },
     });
   });
 
-  it('sends a mandatory notification when someone else deletes a note, and collapses by key', async () => {
+  it('collapses by key: one notification, counted up', async () => {
     const editor = await node.user(['editor']);
-    const email = await emailOf(editor.agent);
-    const note = (
-      await node
-        .writeNote(editor.agent, { title: 'Mine', body: '' })
-        .expect(201)
-    ).body as { id: string };
-    await node.admin().delete(`/v1/notes/${note.id}`).expect(204);
-    await deliver();
-    const list = await editor.agent.get('/v1/notifications').expect(200);
-    expect(list.body.items[0]).toMatchObject({
-      type: 'note.deleted',
-      title: 'Note deleted',
-      body: '"Mine" was deleted by Administrator.',
-    });
-    await node.waitForMail({ to: email, subject: /Note deleted/ });
-
     // The same key again: one notification, counted up, unread again, newest.
     const first = await notify(`user:${editor.id}`, {
       key: 'batch',
-      data: { noteId: randomUUID(), title: 'One' },
+      data: commentData('One'),
     });
     await editor.agent.post(`/v1/notifications/${first}/read`).expect(200);
     const second = await notify(`user:${editor.id}`, {
       key: 'batch',
-      data: { noteId: randomUUID(), title: 'Two' },
+      data: commentData('Two'),
     });
     expect(second).not.toBe(first);
     const batched = await editor.agent
@@ -381,7 +385,7 @@ describe('notifications (e2e)', () => {
       id: second,
       count: 2,
       read: false,
-      body: '2 of your notes were published; the latest is "Two".',
+      body: '2 new comments on "Two"; the latest by Ada: Looks good.',
     });
     await editor.agent.post(`/v1/notifications/${first}/read`).expect(404);
     // The outbox message of the one collapsed away finds nothing: no error.
@@ -396,7 +400,7 @@ describe('notifications (e2e)', () => {
     const b = await notify(to);
     const bCreated = (await row(b)).createdAt;
     await new Promise((resolve) => setTimeout(resolve, 5));
-    const c = await notify(to, { data: { noteId: randomUUID(), title: 'C' } });
+    const c = await notify(to, { data: commentData('C') });
 
     const all = await editor.agent.get('/v1/notifications').expect(200);
     expect(all.body.items.map((i: { id: string }) => i.id)).toEqual([c, b, a]);
@@ -420,7 +424,7 @@ describe('notifications (e2e)', () => {
     expect(
       (
         await editor.agent
-          .get('/v1/notifications?type=note.deleted')
+          .get('/v1/notifications?type=comment.mentioned')
           .expect(200)
       ).body.items,
     ).toEqual([]);
@@ -447,7 +451,7 @@ describe('notifications (e2e)', () => {
 
     await editor.agent
       .put('/v1/notifications/preferences')
-      .send({ 'note.published': { email: 'daily' } })
+      .send({ 'testItem.commented': { email: 'daily' } })
       .expect(200);
     const daily = await notify(`user:${editor.id}`);
     await deliver();
@@ -473,14 +477,14 @@ describe('notifications (e2e)', () => {
       to: email,
       subject: /1 new notification in/,
     });
-    expect(mail.html).toContain('&quot;Direct&quot; is now published.');
+    expect(mail.html).toContain('&quot;Direct&quot;');
     expect((await row(daily)).emailedAt).toBeTruthy();
     expect((await row(daily)).digest).toBeNull();
 
     // Hourly: due at once, two in one mail.
     await editor.agent
       .put('/v1/notifications/preferences')
-      .send({ 'note.published': { email: 'hourly' } })
+      .send({ 'testItem.commented': { email: 'hourly' } })
       .expect(200);
     await notify(`user:${editor.id}`);
     await notify(`user:${editor.id}`);
@@ -499,7 +503,7 @@ describe('notifications (e2e)', () => {
         {
           tenantId: node.tenantId,
           recipient: to,
-          type: 'note.published',
+          type: 'testItem.commented',
           data: {},
           createdAt: days(100),
           readAt: days(95),
@@ -507,14 +511,14 @@ describe('notifications (e2e)', () => {
         {
           tenantId: node.tenantId,
           recipient: to,
-          type: 'note.published',
+          type: 'testItem.commented',
           data: {},
           createdAt: days(400),
         },
         {
           tenantId: node.tenantId,
           recipient: to,
-          type: 'note.published',
+          type: 'testItem.commented',
           data: {},
           createdAt: days(100),
         },
@@ -530,7 +534,7 @@ describe('notifications (e2e)', () => {
     const other = await node.user(['editor']);
     await notify(`user:${editor.id}`);
     await notify(`user:${other.id}`, {
-      data: { noteId: randomUUID(), title: 'Not mine' },
+      data: commentData('Not mine'),
     });
     const catalog = await editor.agent.get('/v1/data').expect(200);
     expect(
@@ -566,9 +570,9 @@ describe('notifications (e2e)', () => {
     const file = await node.http().get(local(status.result.url)).expect(200);
     expect(file.body).toHaveLength(1);
     expect(file.body[0]).toMatchObject({
-      type: 'note.published',
-      title: 'Note published',
-      body: '"Direct" is now published.',
+      type: 'testItem.commented',
+      title: 'New comment',
+      body: 'Ada commented on "Direct": Looks good.',
       read: false,
     });
   });

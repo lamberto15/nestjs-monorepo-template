@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
@@ -66,7 +65,7 @@ describe('the system principal', () => {
       tenantId: node.tenantId,
       actor: 'user:00000000-0000-7000-8000-000000000000',
       actorLabel: 'someone@example.com',
-      action: 'note.created',
+      action: 'test-item.created',
       at: old,
     });
 
@@ -93,25 +92,8 @@ describe('the system principal', () => {
     const [gone] = await db
       .select()
       .from(auditLog)
-      .where(eq(auditLog.action, 'note.created'));
+      .where(eq(auditLog.action, 'test-item.created'));
     expect(gone).toBeUndefined();
-  });
-
-  it("is a workflow step's audit actor: the publication of a note", async () => {
-    const client = await node.client();
-    const note = (await node.writeNote(client.auth).expect(201)).body;
-    await node.worker.drain();
-    node.clock.advance('10s');
-    await node.worker.drain();
-    const updated = await node
-      .admin()
-      .get(`/v1/access/audit?action=note.updated&targetId=${note.id}`)
-      .expect(200);
-    expect(updated.body.items[0]).toMatchObject({
-      actor: 'system:note-publication',
-      actorLabel: 'System: Note publication',
-      details: { changes: { status: { from: 'draft', to: 'published' } } },
-    });
   });
 
   it('is the first-boot seed’s actor', async () => {
@@ -139,13 +121,8 @@ describe('the system principal', () => {
         'account-deletion',
         'report-runner',
         'approvals',
-        'note-publication',
       ]),
     );
-    expect(jobs.find((job) => job.key === 'note-publication')).toMatchObject({
-      actor: 'system:note-publication',
-      permissions: [{ subject: 'Note', action: 'update' }],
-    });
     // Least privilege: a job that checks no permission declares none.
     expect(jobs.find((job) => job.key === 'account-deletion')).toMatchObject({
       actor: 'system:account-deletion',
@@ -161,10 +138,10 @@ describe('the system principal', () => {
     const editor = await node.user(['editor']);
     const service = node.app.get(NotificationsService);
     const txHost = node.app.get(TransactionHost);
-    const data = { noteId: randomUUID(), title: 'To the system' };
+    const data = { via: 'change' as const, ip: '127.0.0.1' };
     const ids = await inTransaction(txHost, (tx) =>
       service.notify(tx, {
-        type: 'note.published',
+        type: 'security.passwordChanged',
         to: ['system:approvals', `user:${editor.id}`, 'system:seed'],
         data,
       }),
@@ -172,7 +149,11 @@ describe('the system principal', () => {
     expect(ids).toHaveLength(1);
     expect(
       await inTransaction(txHost, (tx) =>
-        service.notify(tx, { type: 'note.published', to: 'system:seed', data }),
+        service.notify(tx, {
+          type: 'security.passwordChanged',
+          to: 'system:seed',
+          data,
+        }),
       ),
     ).toEqual([]);
     const db = node.db;
@@ -192,7 +173,7 @@ describe('the system principal', () => {
       const token = tokenFor(node, { sub });
       const refused = await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', `Bearer ${token}`)
         .expect(401);
       expect(refused.body.status).toBe(401);
@@ -201,7 +182,7 @@ describe('the system principal', () => {
     // An API key naming it is no key either.
     await node
       .http()
-      .get('/v1/notes')
+      .get('/v1/test-items')
       .set('Authorization', 'Bearer sk_system_account-deletion')
       .expect(401);
   });
@@ -248,7 +229,7 @@ describe('a credential provider returning the system principal', () => {
     const token = tokenFor(node, { sub: 'system' });
     const refused = await node
       .http()
-      .get('/v1/notes')
+      .get('/v1/test-items')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
     expect(refused.body.code).toBe('system_principal_refused');
@@ -267,7 +248,7 @@ describe('a credential provider returning the system principal', () => {
     });
     await node
       .http()
-      .get('/v1/notes')
+      .get('/v1/test-items')
       .set('Authorization', `Bearer ${user}`)
       .expect(200);
   });
