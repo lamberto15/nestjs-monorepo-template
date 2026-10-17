@@ -22,7 +22,7 @@ import {
 } from '../../core/tenancy/tenant-scope.js';
 import { teams } from '../../iam/iam.tables.js';
 import { defineCustomFields } from '../custom-fields/custom-field.types.js';
-import { columnName, type Fields } from '../fields/field.js';
+import { columnName, type Fields, tableHolds } from '../fields/field.js';
 import {
   type FieldColumns,
   fieldColumns,
@@ -273,6 +273,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
     ];
   }).enableRLS();
   TABLES.set(declaration, built as unknown as PgTable);
+  tableHolds(built, declaration.subject);
   return built;
 }
 

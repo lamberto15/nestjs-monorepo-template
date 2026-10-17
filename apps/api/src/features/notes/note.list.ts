@@ -30,11 +30,17 @@ export const NOTE_LIST = listQuery(
       ops: ['contains', 'notContains', 'startsWith', 'endsWith'],
       sortable: true,
     },
-    ownerId: { column: notes.ownerId, type: 'string', ops: ['eq'] },
+    ownerId: {
+      column: notes.ownerId,
+      type: 'string',
+      ops: ['eq'],
+      ref: 'principal',
+    },
     teamId: {
       column: notes.teamId,
       type: 'uuid',
       ops: ['eq', 'in', 'isNull'],
+      ref: 'team',
     },
     createdAt: {
       column: notes.createdAt,

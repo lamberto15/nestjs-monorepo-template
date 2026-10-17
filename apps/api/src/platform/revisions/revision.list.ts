@@ -14,6 +14,7 @@ export const REVISION_LIST = listQuery(
       column: revisions.changedBy,
       type: 'string',
       ops: ['eq', 'in'],
+      ref: 'principal',
     },
     createdAt: {
       column: revisions.createdAt,
