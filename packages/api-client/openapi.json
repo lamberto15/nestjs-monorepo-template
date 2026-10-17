@@ -1272,6 +1272,120 @@
         ]
       }
     },
+    "/v1/features": {
+      "get": {
+        "description": "The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.",
+        "operationId": "FeaturesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "realtime": {
+                      "type": "boolean",
+                      "description": "The socket.io gateway at `/realtime`."
+                    },
+                    "webhooks": {
+                      "type": "boolean",
+                      "description": "The webhook endpoints and deliveries API (`/v1/webhook-endpoints`)."
+                    },
+                    "reports": {
+                      "type": "boolean",
+                      "description": "Scheduled reports (`/v1/reports`)."
+                    },
+                    "usage": {
+                      "type": "boolean",
+                      "description": "API clients' usage and daily quotas (`/v1/access/clients/{id}/usage`)."
+                    },
+                    "impersonation": {
+                      "type": "boolean",
+                      "description": "Support impersonation (`/v1/access/users/{id}/impersonate`)."
+                    },
+                    "mfa": {
+                      "type": "boolean",
+                      "description": "Two-factor enrollment (`/v1/auth/mfa/enroll`). Off: enrolled users are still asked for a code."
+                    },
+                    "apiClients": {
+                      "type": "boolean",
+                      "description": "API clients (`/v1/access/clients`) and their keys."
+                    },
+                    "passkeys": {
+                      "type": "boolean",
+                      "description": "Passkeys (`/v1/auth/passkeys`)."
+                    },
+                    "signUp": {
+                      "type": "boolean",
+                      "description": "Self sign-up (`POST /v1/auth/sign-up`)."
+                    },
+                    "magicLink": {
+                      "type": "boolean",
+                      "description": "Sign-in by email link (`POST /v1/auth/magic-link`)."
+                    },
+                    "documents": {
+                      "type": "boolean",
+                      "description": "PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured)."
+                    },
+                    "tenancy": {
+                      "type": "string",
+                      "enum": [
+                        "multi",
+                        "single"
+                      ],
+                      "description": "`single`: the first tenant is the only one."
+                    },
+                    "locales": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "The languages the API answers in; the first is the default."
+                    }
+                  },
+                  "required": [
+                    "realtime",
+                    "webhooks",
+                    "reports",
+                    "usage",
+                    "impersonation",
+                    "mfa",
+                    "apiClients",
+                    "passkeys",
+                    "signUp",
+                    "magicLink",
+                    "documents",
+                    "tenancy",
+                    "locales"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Which switches are on in this deployment",
+        "tags": [
+          "features"
+        ]
+      }
+    },
     "/v1/data": {
       "get": {
         "operationId": "DataTransferController_catalog_v1",

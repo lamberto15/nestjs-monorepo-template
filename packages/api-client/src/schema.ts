@@ -240,6 +240,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which switches are on in this deployment
+         * @description The deployment switches (`REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE`, `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`), the sign-in options (`PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`), whether PDF documents are set up, `TENANCY` and `LOCALES`. A switch that is off leaves its routes out (404) or refuses them (404 `feature_off`, 503 `documents_unavailable`). Read at startup: a change needs a restart.
+         */
+        get: operations["FeaturesController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/data": {
         parameters: {
             query?: never;
@@ -3479,6 +3499,62 @@ export interface operations {
              *     Not allowed by your permissions.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FeaturesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description The socket.io gateway at `/realtime`. */
+                        realtime: boolean;
+                        /** @description The webhook endpoints and deliveries API (`/v1/webhook-endpoints`). */
+                        webhooks: boolean;
+                        /** @description Scheduled reports (`/v1/reports`). */
+                        reports: boolean;
+                        /** @description API clients' usage and daily quotas (`/v1/access/clients/{id}/usage`). */
+                        usage: boolean;
+                        /** @description Support impersonation (`/v1/access/users/{id}/impersonate`). */
+                        impersonation: boolean;
+                        /** @description Two-factor enrollment (`/v1/auth/mfa/enroll`). Off: enrolled users are still asked for a code. */
+                        mfa: boolean;
+                        /** @description API clients (`/v1/access/clients`) and their keys. */
+                        apiClients: boolean;
+                        /** @description Passkeys (`/v1/auth/passkeys`). */
+                        passkeys: boolean;
+                        /** @description Self sign-up (`POST /v1/auth/sign-up`). */
+                        signUp: boolean;
+                        /** @description Sign-in by email link (`POST /v1/auth/magic-link`). */
+                        magicLink: boolean;
+                        /** @description PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured). */
+                        documents: boolean;
+                        /**
+                         * @description `single`: the first tenant is the only one.
+                         * @enum {string}
+                         */
+                        tenancy: "multi" | "single";
+                        /** @description The languages the API answers in; the first is the default. */
+                        locales: string[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
