@@ -19,7 +19,6 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppNotesRouteImport } from './routes/_app/notes'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
@@ -27,6 +26,10 @@ import { Route as AppAccountNotificationsRouteImport } from './routes/_app/accou
 import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account/preferences'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
+import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
+import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
+import { Route as AppNotesIdIndexRouteImport } from './routes/_app/notes/$id/index'
+import { Route as AppNotesIdEditRouteImport } from './routes/_app/notes/$id/edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -77,11 +80,6 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppNotesRoute = AppNotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -117,6 +115,26 @@ const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
   path: '/account/security',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
+  id: '/notes/',
+  path: '/notes/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotesNewRoute = AppNotesNewRouteImport.update({
+  id: '/notes/new',
+  path: '/notes/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotesIdIndexRoute = AppNotesIdIndexRouteImport.update({
+  id: '/notes/$id/',
+  path: '/notes/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotesIdEditRoute = AppNotesIdEditRouteImport.update({
+  id: '/notes/$id/edit',
+  path: '/notes/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -128,14 +146,17 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
-  '/notes': typeof AppNotesRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/notes/new': typeof AppNotesNewRoute
   '/account/': typeof AppAccountIndexRoute
+  '/notes/': typeof AppNotesIndexRoute
+  '/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/notes/$id/': typeof AppNotesIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/accept-invitation': typeof AcceptInvitationRoute
@@ -146,7 +167,6 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
-  '/notes': typeof AppNotesRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
@@ -154,7 +174,11 @@ export interface FileRoutesByTo {
   '/account/preferences': typeof AppAccountPreferencesRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/notes/new': typeof AppNotesNewRoute
   '/account': typeof AppAccountIndexRoute
+  '/notes': typeof AppNotesIndexRoute
+  '/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/notes/$id': typeof AppNotesIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,7 +191,6 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
-  '/_app/notes': typeof AppNotesRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
@@ -175,7 +198,11 @@ export interface FileRoutesById {
   '/_app/account/preferences': typeof AppAccountPreferencesRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
+  '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/account/': typeof AppAccountIndexRoute
+  '/_app/notes/': typeof AppNotesIndexRoute
+  '/_app/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/_app/notes/$id/': typeof AppNotesIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -189,14 +216,17 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
-    | '/notes'
     | '/notifications'
     | '/settings'
     | '/account/notifications'
     | '/account/preferences'
     | '/account/profile'
     | '/account/security'
+    | '/notes/new'
     | '/account/'
+    | '/notes/'
+    | '/notes/$id/edit'
+    | '/notes/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/accept-invitation'
@@ -207,7 +237,6 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
-    | '/notes'
     | '/notifications'
     | '/settings'
     | '/'
@@ -215,7 +244,11 @@ export interface FileRouteTypes {
     | '/account/preferences'
     | '/account/profile'
     | '/account/security'
+    | '/notes/new'
     | '/account'
+    | '/notes'
+    | '/notes/$id/edit'
+    | '/notes/$id'
   id:
     | '__root__'
     | '/_app'
@@ -227,7 +260,6 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
-    | '/_app/notes'
     | '/_app/notifications'
     | '/_app/settings'
     | '/_app/'
@@ -235,7 +267,11 @@ export interface FileRouteTypes {
     | '/_app/account/preferences'
     | '/_app/account/profile'
     | '/_app/account/security'
+    | '/_app/notes/new'
     | '/_app/account/'
+    | '/_app/notes/'
+    | '/_app/notes/$id/edit'
+    | '/_app/notes/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -322,13 +358,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/notes': {
-      id: '/_app/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof AppNotesRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -378,11 +407,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountSecurityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/notes/': {
+      id: '/_app/notes/'
+      path: '/notes'
+      fullPath: '/notes/'
+      preLoaderRoute: typeof AppNotesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notes/new': {
+      id: '/_app/notes/new'
+      path: '/notes/new'
+      fullPath: '/notes/new'
+      preLoaderRoute: typeof AppNotesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notes/$id/': {
+      id: '/_app/notes/$id/'
+      path: '/notes/$id'
+      fullPath: '/notes/$id/'
+      preLoaderRoute: typeof AppNotesIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notes/$id/edit': {
+      id: '/_app/notes/$id/edit'
+      path: '/notes/$id/edit'
+      fullPath: '/notes/$id/edit'
+      preLoaderRoute: typeof AppNotesIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
-  AppNotesRoute: typeof AppNotesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -390,11 +446,14 @@ interface AppRouteChildren {
   AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
+  AppNotesNewRoute: typeof AppNotesNewRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
+  AppNotesIndexRoute: typeof AppNotesIndexRoute
+  AppNotesIdEditRoute: typeof AppNotesIdEditRoute
+  AppNotesIdIndexRoute: typeof AppNotesIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppNotesRoute: AppNotesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
@@ -402,7 +461,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountPreferencesRoute: AppAccountPreferencesRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
+  AppNotesNewRoute: AppNotesNewRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
+  AppNotesIndexRoute: AppNotesIndexRoute,
+  AppNotesIdEditRoute: AppNotesIdEditRoute,
+  AppNotesIdIndexRoute: AppNotesIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

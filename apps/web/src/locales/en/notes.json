@@ -1,0 +1,79 @@
+{
+  "title": "Notes",
+  "columns": {
+    "number": "Number",
+    "title": "Title",
+    "status": "Status",
+    "tags": "Tags",
+    "createdAt": "Created",
+    "publishedAt": "Published"
+  },
+  "status": {
+    "draft": "Draft",
+    "published": "Published"
+  },
+  "fields": {
+    "body": "Text",
+    "tags": "Tags",
+    "updatedAt": "Updated",
+    "deletedAt": "Deleted",
+    "noTags": "No tags",
+    "empty": "—"
+  },
+  "new": {
+    "action": "New note",
+    "title": "New note"
+  },
+  "edit": {
+    "title": "Edit note"
+  },
+  "form": {
+    "title": "Title",
+    "body": "Text",
+    "titleRequired": "Enter a title.",
+    "titleTooLong": "The title is at most 200 characters.",
+    "create": "Create note",
+    "save": "Save changes",
+    "cancel": "Cancel",
+    "created": "Note created",
+    "saved": "Note saved"
+  },
+  "detail": {
+    "back": "Back to notes"
+  },
+  "actions": {
+    "open": "Actions for this note",
+    "view": "View",
+    "edit": "Edit note",
+    "delete": "Delete",
+    "restore": "Restore"
+  },
+  "delete": {
+    "title": "Delete this note?",
+    "description": "It moves to the recycle bin, where you can restore it until it is purged.",
+    "confirm": "Delete",
+    "done": "Note deleted",
+    "undo": "Undo"
+  },
+  "restore": {
+    "done": "Note restored"
+  },
+  "bin": {
+    "label": "Recycle bin",
+    "showing": "Showing deleted notes"
+  },
+  "conflict": {
+    "title": "Someone else changed this note",
+    "description": "Reload to see the latest version. Your unsaved changes here will be discarded.",
+    "reload": "Reload note"
+  },
+  "notFound": {
+    "title": "Note not found",
+    "description": "It may have been deleted, or you may not have access to it."
+  },
+  "error": {
+    "title": "The note could not be loaded",
+    "generic": "Something went wrong. Try again.",
+    "retry": "Try again"
+  }
+}
