@@ -3,8 +3,10 @@
     "document": "Test item",
     "issued": "Issued {date}",
     "fields": {
+      "number": "Number",
       "title": "Title",
-      "body": "Body"
+      "body": "Body",
+      "code": "Code"
     }
   }
 }

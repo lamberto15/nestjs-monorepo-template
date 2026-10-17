@@ -610,9 +610,12 @@ export class RecordDocuments {
         : typeof value === 'object'
           ? JSON.stringify(value)
           : String(value as string | number | boolean);
-    const fields = Object.entries(this.c.declaration.fields)
-      .filter(([name, f]) => f.kind !== 'json' && name in shown)
-      .map(([name]) => name);
+    const fields = [
+      ...(takes(this.c.declaration, 'numbered') ? ['number'] : []),
+      ...Object.entries(this.c.declaration.fields)
+        .filter(([name, f]) => f.kind !== 'json' && name in shown)
+        .map(([name]) => name),
+    ];
     return {
       template: 'record',
       fields,
@@ -667,6 +670,7 @@ export class RecordTransfer {
     this.subject = c.declaration.subject;
     this.columns = [
       { key: 'id' },
+      ...(takes(c.declaration, 'numbered') ? [{ key: 'number' }] : []),
       ...fields.map(([name, f]): TransferColumn => {
         if (f.kind === 'money') {
           return {

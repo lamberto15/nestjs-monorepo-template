@@ -19,8 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1792233741423,
-      "tag": "0002_windy_ma_gnuci",
+      "when": 1792232418499,
+      "tag": "0002_unknown_solo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792234504108,
+      "tag": "0003_dark_frog_thor",
       "breakpoints": true
     }
   ]

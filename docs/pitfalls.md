@@ -204,6 +204,11 @@
   (test/support.ts). Account-level audit entries (sign-ins) are in no
   tenant's `GET /v1/access/audit`: read them with `node.auditEntries()`.
 
+- **Don't run Prettier on `docs/*.md`:** the docs aren't Prettier-formatted;
+  `prettier --write` on one reflows its whole tables and makes every
+  concurrent pull request conflict (this happened twice with
+  docs/configuration.md). Edit the docs by hand.
+
 ## Migrations: expand/contract
 
 A release's migrations must leave the release before it working, because

@@ -413,6 +413,26 @@ export class UsersRepository {
     return row;
   }
 
+  /**
+   * The account a password reset link is for, without spending it (the
+   * new password's length is checked against its tenants first); undefined
+   * for an unknown or expired link, which the reset then refuses.
+   */
+  async pendingReset(token: string) {
+    const id = createHash('sha256').update(token).digest('base64url');
+    const [row] = await this.db
+      .select({ userId: emailTokens.userId })
+      .from(emailTokens)
+      .where(
+        and(
+          eq(emailTokens.id, id),
+          eq(emailTokens.purpose, 'password-reset'),
+          gt(emailTokens.expiresAt, new Date()),
+        ),
+      );
+    return row?.userId;
+  }
+
   /** Only while `email` is still the user's address: a link sent to an old one verifies nothing. */
   async markEmailVerified(
     id: string,

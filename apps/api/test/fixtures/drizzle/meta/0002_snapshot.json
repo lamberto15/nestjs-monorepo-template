@@ -1,5 +1,5 @@
 {
-  "id": "0286fa69-28c4-4cee-bd7c-3135ae225827",
+  "id": "c4727376-b391-4d5a-aab3-c03dc1026fc4",
   "prevId": "a1a265cf-8cf1-431a-a4c0-4680aef3c64d",
   "version": "7",
   "dialect": "postgresql",
@@ -45,8 +45,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "code": {
-          "name": "code",
+        "number": {
+          "name": "number",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -141,8 +141,8 @@
           "method": "gin",
           "with": {}
         },
-        "test_items_code_idx": {
-          "name": "test_items_code_idx",
+        "test_items_number_idx": {
+          "name": "test_items_number_idx",
           "columns": [
             {
               "expression": "tenant_id",
@@ -151,14 +151,13 @@
               "nulls": "last"
             },
             {
-              "expression": "code",
+              "expression": "number",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "where": "deleted_at is null",
           "concurrently": false,
           "method": "btree",
           "with": {}

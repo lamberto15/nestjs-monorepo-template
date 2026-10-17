@@ -38,6 +38,11 @@ sees and receives only its own. Every route takes the client's API key.
   `approval.requested`, `.approved`, `.rejected`… to the requesting client
   ([approvals](approvals.md)).
 
+A record that takes the `events` capability ([adding a feature](adding-a-feature.md))
+declares and dispatches `<item>.created`, `.updated`, `.deleted` (and
+`.restored`) itself, through `RecordLifecycle`, to the client that owns the
+record; `data` is the record as `GET /<x>/{id}` shows it to that client.
+
 From a feature, dispatch in the change's transaction, so the webhook goes out
 if and only if the change commits (`features/notes/note-publisher.service.ts`):
 

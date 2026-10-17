@@ -25,3 +25,12 @@ const { value, formatted } = await this.sequences.next(tx, 'note', {
   taken; never number with it.
 - The number is the feature's column (`notes.number`, unique per tenant), set on
   create and never changed; list, filter and export it like any field.
+
+A generated feature takes this with the `numbered` capability
+(`pnpm feature:add --with numbered`, or `'numbered'` in its
+`<item>.record.ts`): `number: { prefix: 'INV', perYear: true, width: 5 }`
+declares the format (sequence name: the record's key, `invoice`), the
+platform adds the nullable `number` column (unique per tenant), assigns it in
+the create transaction (`RecordLifecycle.creating()`), and shows it in
+responses, the list (`?number=`, `?sort=number`), the PDF and exports. It is
+never in a create or update body.
