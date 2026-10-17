@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeftIcon, EllipsisIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ApprovalBanner } from '@/features/approvals/record-banner';
 import { DetailItem, DetailList } from '@/components/records/detail-list';
 import { RecordState } from '@/components/records/record-state';
 import { noteQuery, type Note } from '@/features/notes/api';
@@ -110,6 +111,7 @@ function NoteView({ note }: { note: Note }) {
           </DropdownMenu>
         )}
       </header>
+      <ApprovalBanner subject="Note" recordId={note.id} />
       <DetailList>
         <DetailItem
           label={t('columns.status')}
