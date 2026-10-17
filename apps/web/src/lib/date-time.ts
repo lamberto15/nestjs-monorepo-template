@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import { i18n } from '@/i18n';
+import { useMe } from '@/lib/features';
 
 /** A date and time in the UI's language (the API's are ISO 8601, UTC). */
 export function formatDateTime(value: string | null | undefined): string {
@@ -9,4 +11,25 @@ export function formatDateTime(value: string | null | undefined): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+/**
+ * Dates and times for the signed-in user: in their UI language and their
+ * time zone (the profile's, else the browser's), as `Intl` formats them.
+ */
+export function useDateTimeFormat() {
+  const { i18n: current } = useTranslation();
+  const timeZone = useMe()?.user.timezone ?? undefined;
+  const format = (
+    value: string | null | undefined,
+    style: 'date' | 'dateTime' = 'dateTime',
+  ) =>
+    value
+      ? new Intl.DateTimeFormat(current.language, {
+          dateStyle: 'medium',
+          ...(style === 'dateTime' && { timeStyle: 'short' }),
+          ...(timeZone && { timeZone }),
+        }).format(new Date(value))
+      : '';
+  return format;
 }

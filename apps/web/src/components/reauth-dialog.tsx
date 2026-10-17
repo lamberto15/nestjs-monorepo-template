@@ -16,7 +16,7 @@ import {
 import { KeyRoundIcon, MailIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { useCaptcha } from '@/components/auth/captcha';
 import { providerName } from '@/components/login-form';
 import { api } from '@/lib/api';

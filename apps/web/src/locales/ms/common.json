@@ -347,20 +347,5 @@
         "gte": "Pada atau selepas"
       }
     }
-  },
-  "notes": {
-    "title": "Nota",
-    "columns": {
-      "number": "Nombor",
-      "title": "Tajuk",
-      "status": "Status",
-      "tags": "Tag",
-      "createdAt": "Dicipta",
-      "publishedAt": "Diterbitkan"
-    },
-    "status": {
-      "draft": "Draf",
-      "published": "Diterbitkan"
-    }
   }
 }

@@ -263,7 +263,8 @@ export class RecordPresenter {
    * validated against the list with the custom fields defined now (a 400
    * naming what is wrong), then refused (403 `field_forbidden`) when it
    * filters, searches, sorts or selects by a field the caller may read on
-   * no record (`AccessService.assertQueryFields`). Answers the list it was
+   * no record, or filters, searches or sorts by one shown on some of the
+   * rows it reaches only (`AccessService.assertQueryFields`). Answers the list it was
    * checked against too: its `where()`, `sortSelect()` and `pick()`.
    */
   async query(
@@ -275,7 +276,12 @@ export class RecordPresenter {
       ? await this.customFields.extendList(list, this.declaration.subject)
       : list;
     const query = extended.parse(raw);
-    await this.access.assertQueryFields(user, this.declaration.subject, query);
+    // Matched among the rows the list reaches: the recycle bin's
+    // (?deleted=true) are those the caller may restore, as the list route's
+    // sqlFilter() reads them.
+    await this.access.assertQueryFields(user, this.declaration.subject, query, {
+      reach: query.deleted ? 'restore' : 'read',
+    });
     return { list: extended, query };
   }
 

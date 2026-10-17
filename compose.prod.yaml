@@ -146,6 +146,7 @@ x-app: &app
     IDEMPOTENCY: ${IDEMPOTENCY:-}
     # Keys at rest
     IDEMPOTENCY_KEYS: ${IDEMPOTENCY_KEYS:-}
+    CURSOR_KEYS: ${CURSOR_KEYS:-}
     WEBHOOKS_ENCRYPTION_KEYS: ${WEBHOOKS_ENCRYPTION_KEYS:-}
     # PDF documents (docs/documents.md): the gotenberg service below. Empty: documents off.
     GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
@@ -176,6 +177,7 @@ x-app: &app
     STORAGE_SIGNING_KEYS_FILE: ${STORAGE_SIGNING_KEYS_FILE:+/run/secrets/storage_signing_keys}
     AWS_SECRET_ACCESS_KEY_FILE: ${AWS_SECRET_ACCESS_KEY_FILE:+/run/secrets/aws_secret_access_key}
     IDEMPOTENCY_KEYS_FILE: ${IDEMPOTENCY_KEYS_FILE:+/run/secrets/idempotency_keys}
+    CURSOR_KEYS_FILE: ${CURSOR_KEYS_FILE:+/run/secrets/cursor_keys}
     WEBHOOKS_ENCRYPTION_KEYS_FILE: ${WEBHOOKS_ENCRYPTION_KEYS_FILE:+/run/secrets/webhooks_encryption_keys}
     OBSERVE_APP_SECRET_FILE: ${OBSERVE_APP_SECRET_FILE:+/run/secrets/observe_app_secret}
     EXAMPLE_SENDER_WEBHOOK_SECRET_FILE: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:+/run/secrets/example_sender_webhook_secret}
@@ -195,6 +197,7 @@ x-app: &app
     - storage_signing_keys
     - aws_secret_access_key
     - idempotency_keys
+    - cursor_keys
     - webhooks_encryption_keys
     - observe_app_secret
     - example_sender_webhook_secret
@@ -311,6 +314,7 @@ services:
       - storage_signing_keys
       - aws_secret_access_key
       - idempotency_keys
+      - cursor_keys
       - webhooks_encryption_keys
       - observe_app_secret
       - example_sender_webhook_secret
@@ -557,6 +561,8 @@ secrets:
     file: ${AWS_SECRET_ACCESS_KEY_FILE:-./secret.empty}
   idempotency_keys:
     file: ${IDEMPOTENCY_KEYS_FILE:-./secret.empty}
+  cursor_keys:
+    file: ${CURSOR_KEYS_FILE:-./secret.empty}
   webhooks_encryption_keys:
     file: ${WEBHOOKS_ENCRYPTION_KEYS_FILE:-./secret.empty}
   observe_app_secret:

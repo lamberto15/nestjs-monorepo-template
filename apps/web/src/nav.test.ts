@@ -40,7 +40,11 @@ describe('mergeNav', () => {
 
   it('collects the feature nav files into the app menu', () => {
     const workspace = nav.find((g) => g.id === 'workspace');
-    expect(workspace?.items.map((i) => i.to)).toEqual(['/', '/notes']);
+    expect(workspace?.items.map((i) => i.to)).toEqual([
+      '/',
+      '/notifications',
+      '/notes',
+    ]);
   });
 });
 

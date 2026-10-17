@@ -232,6 +232,7 @@ describe('defaults', () => {
       'WEBHOOKS_ENCRYPTION_KEYS',
       'MFA_ENCRYPTION_KEYS',
       'STORAGE_SIGNING_KEYS',
+      'CURSOR_KEYS',
       'JWT_SECRET',
     ]) {
       assert.match(env.get(key), /^[A-Za-z0-9+/]{43}=$/, key); // openssl rand -base64 32

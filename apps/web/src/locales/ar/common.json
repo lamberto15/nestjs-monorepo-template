@@ -355,20 +355,5 @@
       "rowsSelected_few": "تم تحديد {{count}} صفوف.",
       "notShown_few": "{{count}} غير معروضة"
     }
-  },
-  "notes": {
-    "title": "الملاحظات",
-    "columns": {
-      "number": "الرقم",
-      "title": "العنوان",
-      "status": "الحالة",
-      "tags": "الوسوم",
-      "createdAt": "تاريخ الإنشاء",
-      "publishedAt": "تاريخ النشر"
-    },
-    "status": {
-      "draft": "مسودة",
-      "published": "منشورة"
-    }
   }
 }

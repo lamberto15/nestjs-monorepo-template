@@ -5678,7 +5678,7 @@ export interface operations {
                     "application/json": {
                         /** @example Note */
                         subject: string;
-                        /** @description The fields the list may be filtered or sorted by, as this caller may read them: a field their permissions hide is not here. */
+                        /** @description The fields the list may be filtered or sorted by, as this caller may read them: a field their permissions hide is not here; one they may read on some records only has no operators and is not sortable (still in `select`). */
                         fields: {
                             /**
                              * @description The name in the query: `?<name>.<operator>=`, `{ "field": <name> }` in `filter`, `sort=<name>`. Custom fields are `custom.<key>`.
@@ -5724,7 +5724,7 @@ export interface operations {
                          *     ]
                          */
                         select: string[];
-                        /** @description `q=` searches the text, and `sort=-rank` puts the best match first. */
+                        /** @description `q=` searches the text, and `sort=-rank` puts the best match first. False when the search reads a field this caller may not read on every record. */
                         search: boolean;
                         /** @description `deleted=true` lists the recycle bin for this caller (they may restore). */
                         recycleBin: boolean;
