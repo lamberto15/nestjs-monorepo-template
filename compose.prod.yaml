@@ -373,6 +373,14 @@ services:
     build: ./caddy
     restart: unless-stopped
     logging: *logging
+    # Docker sees it healthy once it serves its admin API (localhost only, in
+    # the container): the process is up and its configuration loaded.
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:2019/config/']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
       - api
     deploy:

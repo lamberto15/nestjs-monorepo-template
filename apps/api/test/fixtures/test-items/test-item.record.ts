@@ -16,11 +16,17 @@ export const TEST_ITEM = defineRecord({
   table: 'test_items',
   softDelete: true,
   team: true,
+  // Many platform tests act as an API client on test items.
+  clientAccess: 'own',
+  grants: 'standard',
   // Its number, gapless per tenant: TI-2026-00001 (perYear: false drops the year).
   number: { prefix: 'TI', perYear: true, width: 5 },
   fields: {
     title: field.string().searchable(),
     body: field.text().optional().searchable(),
+    // Set by publishing (test-items.service.ts, through approval when the flag is on); the API takes it as any field.
+    publishedAt: field.datetime().optional(),
+    code: field.string().optional().unique(),
   },
   capabilities: [
     'tags',

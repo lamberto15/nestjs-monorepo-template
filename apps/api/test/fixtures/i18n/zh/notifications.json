@@ -1,10 +1,11 @@
 {
   "testItem": {
     "commented": {
-      "label": "Comment on a test item you watch",
-      "title": "New comment",
+      "label": "您关注的测试项有新评论",
+      "title": "新评论",
       "body": {
-        "other": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}"
+        "one": "{by} 评论了“{title}”：{excerpt}",
+        "other": "“{title}”有 {count} 条新评论，最新的来自 {by}：{excerpt}"
       }
     }
   }

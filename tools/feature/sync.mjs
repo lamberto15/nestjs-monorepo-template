@@ -18,6 +18,7 @@
 // Turning them on adds nullable columns: a migration, nothing to fix. What
 // the flags change in the code the platform derives (platform/records): a
 // generated file that still codes them by hand fails the sync.
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -105,6 +106,12 @@ const HAND_WRITTEN = [
     what: 'the recycle bin (recordResource)',
   },
   {
+    file: (t) => `src/features/${t.plural}/${t.plural}.controller.ts`,
+    flag: 'idempotency',
+    pattern: /@Idempotent\(|idempotencyKeyHeader\(/,
+    what: "the create route's Idempotency-Key (RecordIdempotent)",
+  },
+  {
     file: (t) => `test/${t.plural}.e2e-spec.ts`,
     flag: 'softDelete',
     pattern: /\/restore`/,
@@ -136,7 +143,10 @@ const kebab = (pascal) =>
 
 /** The declaration, from its text: names, flags, fields (one per line) and capabilities. */
 export function readRecord(file) {
-  const text = readFileSync(file, 'utf8');
+  return readRecordText(readFileSync(file, 'utf8'), file);
+}
+
+function readRecordText(text, file) {
   const string = (key) => new RegExp(`\\b${key}:\\s*'([^']+)'`).exec(text)?.[1];
   const flag = (key) =>
     new RegExp(`\\b${key}:\\s*(true|false)`).exec(text)?.[1] === 'true';
@@ -181,16 +191,64 @@ export function readRecord(file) {
           : undefined,
     });
   }
+  const choice = (key, allowed) => {
+    const value = new RegExp(`\\b${key}:\\s*('[^']*'|true|false)`)
+      .exec(text)?.[1]
+      ?.replace(/'/g, '');
+    if (value !== undefined && !allowed.includes(value)) {
+      throw new Error(
+        `${file}: ${key}: ${value} is not a choice; any of ${allowed.join(', ')}.`,
+      );
+    }
+    return value;
+  };
+  const clientAccess = choice('clientAccess', ['false', 'own']);
   return {
     subject,
     plural,
     table,
+    idempotency: choice('idempotency', ['required', 'optional', 'off']),
+    clientAccess: clientAccess === 'own' ? 'own' : false,
+    grants: choice('grants', ['standard', 'none']) ?? 'standard',
     softDelete: flag('softDelete'),
     team: flag('team'),
     fields,
     capabilities: new Set([...caps.matchAll(/'([^']+)'/g)].map((m) => m[1])),
     t: names(plural, kebab(subject)),
   };
+}
+
+/**
+ * A change to who may use the feature (clientAccess, grants) against the
+ * committed declaration: the code takes effect on deploy for API clients
+ * (clientPermissions are read from the code), but the seed roles are written
+ * when a tenant is made, so existing tenants keep their stored roles.
+ */
+export function permissionWarnings(file, record) {
+  let committed;
+  try {
+    const full = path.resolve(file);
+    committed = execFileSync('git', ['show', `HEAD:./${path.basename(full)}`], {
+      cwd: path.dirname(full),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return []; // new, or not in git: nothing to compare
+  }
+  const before = readRecordText(committed, file);
+  const warnings = [];
+  if (before.clientAccess !== record.clientAccess) {
+    warnings.push(
+      `clientAccess ${before.clientAccess} -> ${record.clientAccess}: API clients ${record.clientAccess === 'own' ? 'get their own records' : 'lose their own-records access'} on the next deploy, in every tenant; keys already granted a role keep the role's permissions.`,
+    );
+  }
+  if (before.grants !== record.grants) {
+    warnings.push(
+      `grants ${before.grants} -> ${record.grants}: the seed roles are written when a tenant is made, so existing tenants keep the roles they have (their administrators change them at /v1/access/roles); only new tenants start with the new grants.`,
+    );
+  }
+  return warnings;
 }
 
 /** The paths the feature's routes have (the OpenAPI test lists them). */
@@ -433,6 +491,7 @@ export async function syncFeature(api, plural, { check = false } = {}) {
   const texts = syncTexts(api, record, check);
   const paths = await syncPaths(api, record, check);
   const { errors, warnings, generate } = guard(api, record);
+  warnings.push(...permissionWarnings(path.join(dir, file), record));
   return {
     plural,
     changes: [...texts.changes, ...paths],

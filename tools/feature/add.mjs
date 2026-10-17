@@ -10,6 +10,7 @@
 //
 //   pnpm feature:add invoices --fields "title:string,amount:money,dueOn:date?,status:enum(draft|sent|paid)"
 //   pnpm feature:add invoices --fields "…" --team --no-soft-delete --description "Invoices to customers"
+//   pnpm feature:add payments --fields "…" --idempotency required --client-access own --grants none
 //   pnpm feature:add people --singular person --fields "name:string"
 //   pnpm feature:add invoices --fields "…" --with tags,comments,attachments,revisions,pdf,bulk,watch,search,transfer,custom
 //   node --test tools/feature/add.test.mjs                  # its tests
@@ -22,7 +23,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { CAPABILITIES, parseCapabilities } from './capabilities.mjs';
+import {
+  CAPABILITIES,
+  parseCapabilities,
+  parseChoices,
+} from './capabilities.mjs';
 import { format } from './format.mjs';
 import { parseFields } from './fields.mjs';
 import { names } from './names.mjs';
@@ -100,6 +105,7 @@ export async function addFeature(root, options) {
     fields,
     softDelete: options.softDelete !== false,
     team: options.team === true,
+    ...parseChoices(options),
     capabilities,
     description:
       options.description || `${t.nouns[0].toUpperCase()}${t.nouns.slice(1)}`,
@@ -176,7 +182,7 @@ async function appendTables(api, t) {
   return file;
 }
 
-const USAGE = `pnpm feature:add <plural-name> --fields "name:type,…" [--with ${CAPABILITIES.join(',')}] [--singular <name>] [--team] [--no-soft-delete] [--description "…"]`;
+const USAGE = `pnpm feature:add <plural-name> --fields "name:type,…" [--with ${CAPABILITIES.join(',')}] [--singular <name>] [--team] [--no-soft-delete] [--idempotency required|optional|off] [--client-access own] [--grants none] [--description "…"]`;
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -187,6 +193,9 @@ async function main() {
       singular: { type: 'string' },
       team: { type: 'boolean', default: false },
       'soft-delete': { type: 'boolean', default: true },
+      idempotency: { type: 'string' },
+      'client-access': { type: 'string' },
+      grants: { type: 'string' },
       description: { type: 'string' },
       with: { type: 'string' },
       root: { type: 'string' },
@@ -203,6 +212,9 @@ async function main() {
     singular: values.singular,
     team: values.team,
     softDelete: values['soft-delete'],
+    idempotency: values.idempotency,
+    clientAccess: values['client-access'],
+    grants: values.grants,
     description: values.description,
     with: values.with,
   });

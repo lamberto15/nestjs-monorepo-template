@@ -63,9 +63,6 @@ first project is built on the template; until then they report only.
   user isn't in writes no failure entry; `crossOrigin`/`topOrigin` aren't checked.
   Token clients with two-factor still send a code with a passkey until
   @nestjs/authentication can take a verified external factor (ask upstream).
-- **Guard order:** at start, @nestjs/authorization warns that its global guard runs
-  before `RecentAuthenticationGuard` on six admin routes. Present since the first
-  release; check whether `@Can()` there sees the right principal.
 - **Load-test anchor:** `main` has none yet; run the Load test workflow on `main` once
   to set it.
 - **Owner actions (from #8):** squash commits titled by the PR (`PR_TITLE`); allow

@@ -1,5 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { TokenService } from '@nestjs/authentication';
+import { Logger } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { ClsService } from 'nestjs-cls';
 import request from 'supertest';
@@ -356,6 +357,68 @@ describe('step-up: session auth method and re-authentication (e2e)', () => {
       expect((await act(c)).status).toBe(ok);
     },
   );
+
+  // The guard behind @RecentAuthentication() runs after the global ones
+  // (PrincipalGuard, then AuthorizationGuard): the permission check sees the
+  // signed-in principal (403, where a guest would get 401) and comes first.
+  it('checks the permission first, as the signed-in user, on every admin route that wants a recent sign-in', async () => {
+    const editor = await person(['editor']);
+    const other = await person();
+    const clientId = (
+      await node
+        .admin()
+        .post('/v1/access/clients')
+        .send({ name: `client-${randomUUID().slice(0, 8)}` })
+        .expect(201)
+    ).body.id as string;
+    const viewer = await node.roleIds('viewer');
+    const calls: ((agent: request.Agent) => request.Test)[] = [
+      (agent) =>
+        agent.post('/v1/access/users').send({
+          email: `${randomUUID().slice(0, 8)}@example.com`,
+          roleIds: viewer,
+        }),
+      (agent) =>
+        agent.patch(`/v1/access/users/${other.id}`).send({ roleIds: viewer }),
+      (agent) => agent.post(`/v1/access/users/${other.id}/impersonate`),
+      (agent) =>
+        agent
+          .post('/v1/access/clients')
+          .send({ name: `client-${randomUUID().slice(0, 8)}` }),
+      (agent) => agent.post(`/v1/access/clients/${clientId}/rotate`).send({}),
+      (agent) =>
+        agent.patch(`/v1/access/clients/${clientId}`).send({ roleIds: viewer }),
+    ];
+    const guest = request.agent(node.app.getHttpServer());
+    for (const call of calls) {
+      // Signed in a moment ago, without the permission: forbidden.
+      const recent = await call(editor.agent);
+      expect(recent.status).toBe(403);
+      expect(recent.body.code).not.toBe('reauthentication_required');
+      // Nobody signed in: authentication refuses before anything else.
+      expect((await call(guest)).status).toBe(401);
+    }
+    // A stale sign-in without the permission: still the permission's 403,
+    // never the step-up's (which would tell how to re-authenticate).
+    await age(editor.agent);
+    for (const call of calls) {
+      const stale = await call(editor.agent);
+      expect(stale.status).toBe(403);
+      expect(stale.body.code).not.toBe('reauthentication_required');
+    }
+  });
+
+  it("boots without @nestjs/authorization's guard-order error", async () => {
+    const errors = vi.spyOn(Logger.prototype, 'error');
+    const other = await bootApp();
+    try {
+      const logged = errors.mock.calls.map((args) => String(args[0]));
+      expect(logged.filter((line) => line.includes('runs before'))).toEqual([]);
+    } finally {
+      errors.mockRestore();
+      await other.close();
+    }
+  });
 
   it('leaves alone a change of name, a deactivation, an invitation without roles, a quota, and a sign-in with a provider', async () => {
     const me = await person(['administrator']);

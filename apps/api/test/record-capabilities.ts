@@ -10,6 +10,9 @@ import {
 } from '../src/platform/records/record.js';
 import { type TestApp, webhookReceiver } from './support.js';
 
+const lowerFirst = (text: string) =>
+  text.charAt(0).toLowerCase() + text.slice(1);
+
 /**
  * The tests of each capability a record declares (platform/records), and of
  * its recycle bin (`softDelete`) and teams (`team`), for a feature's e2e
@@ -64,7 +67,7 @@ export function describeCapabilities(
     });
   }
 
-  if (record.team) {
+  if (record.team && record.grants !== 'none') {
     it("belongs to its creator's team: the team's leads see it", async () => {
       const admin = node().admin();
       const team = (
@@ -93,12 +96,127 @@ export function describeCapabilities(
         .expect(204);
       await lead.agent.get(`${path}/${id}`).expect(200);
     });
-  } else {
+  } else if (!record.team) {
     it('has no team', async () => {
       const id = await make();
       expect(
         (await node().admin().get(`${path}/${id}`).expect(200)).body,
       ).not.toHaveProperty('teamId');
+    });
+  }
+
+  if (record.grants === 'none') {
+    it('grants no seed role: only administrators, until someone grants it', async () => {
+      const id = await make();
+      const editor = await node().user(['editor']);
+      const viewer = await node().user(['viewer']);
+      await editor.agent
+        .post(path)
+        .set('Idempotency-Key', randomUUID())
+        .send(samples.body())
+        .expect(403);
+      await editor.agent.get(`${path}/${id}`).expect(403);
+      await viewer.agent.get(`${path}/${id}`).expect(403);
+      await node().admin().get(`${path}/${id}`).expect(200);
+    });
+  }
+
+  if (record.clientAccess === 'own') {
+    it("lets an API client use its own records, not another client's", async () => {
+      const client = await node().client();
+      const other = await node().client();
+      const created = await node()
+        .http()
+        .post(path)
+        .set('Authorization', client.auth)
+        .set('Idempotency-Key', randomUUID())
+        .send(samples.body())
+        .expect(201);
+      const id = created.body.id as string;
+      await node()
+        .http()
+        .get(`${path}/${id}`)
+        .set('Authorization', client.auth)
+        .expect(200);
+      await node()
+        .http()
+        .get(`${path}/${id}`)
+        .set('Authorization', other.auth)
+        .expect(403);
+    });
+  } else {
+    it('is closed to API clients: a role must grant it', async () => {
+      const client = await node().client();
+      const id = await make();
+      await node()
+        .http()
+        .post(path)
+        .set('Authorization', client.auth)
+        .set('Idempotency-Key', randomUUID())
+        .send(samples.body())
+        .expect(403);
+      await node()
+        .http()
+        .get(`${path}/${id}`)
+        .set('Authorization', client.auth)
+        .expect(403);
+    });
+  }
+
+  if (record.idempotency) {
+    describe(`Idempotency-Key: ${record.idempotency}`, () => {
+      const post = (key?: string, sent = samples.body()) => {
+        const call = node().admin().post(path);
+        return (key ? call.set('Idempotency-Key', key) : call).send(sent);
+      };
+      /** The Idempotency-Key parameters of the record's routes in the OpenAPI document. */
+      const headers = async () => {
+        const document = (await node().http().get('/api-json').expect(200))
+          .body;
+        return Object.entries<
+          Record<
+            string,
+            { parameters?: { name?: string; required?: boolean }[] }
+          >
+        >(document.paths)
+          .filter(([route]) => route.startsWith(`${path}`))
+          .flatMap(([, operations]) => Object.values(operations))
+          .flatMap((operation) => operation.parameters ?? [])
+          .filter((parameter) => parameter.name === 'Idempotency-Key');
+      };
+
+      if (record.idempotency === 'off') {
+        it('takes no key: every create is a new record, and the document has no header', async () => {
+          const key = randomUUID();
+          const first = await post(key).expect(201);
+          const second = await post(key).expect(201);
+          expect(second.body.id).not.toBe(first.body.id);
+          expect(await headers()).toEqual([]);
+        });
+      } else if (record.idempotency === 'optional') {
+        it('creates without a key and replays one that is sent, the document says optional', async () => {
+          await post().expect(201);
+          const key = randomUUID();
+          const sent = samples.body();
+          const created = await post(key, sent).expect(201);
+          expect((await post(key, sent).expect(201)).body.id).toBe(
+            created.body.id,
+          );
+          const found = await headers();
+          expect(found.length).toBeGreaterThan(0);
+          expect(found.every((header) => header.required !== true)).toBe(true);
+        });
+      } else {
+        it('refuses a create without a key, whatever the deployment says, the document says required', async () => {
+          const refused = await post().expect(400);
+          expect(refused.body).toMatchObject({
+            code: 'IDEMPOTENCY_KEY_REQUIRED',
+          });
+          const found = await headers();
+          expect(found.length).toBeGreaterThan(0);
+          expect(found.every((header) => header.required === true)).toBe(true);
+        });
+      }
     });
   }
 
@@ -215,12 +333,47 @@ export function describeCapabilities(
       expect(found.map((item) => item.id)).toContain(id);
     });
   }
+  /**
+   * An API client that can own records: with `clientAccess: 'own'` any;
+   * otherwise one an administrator gave a role of its own records.
+   */
+  const ownerClient = async () => {
+    if (record.clientAccess === 'own') return node().client();
+    const actions = ['read', 'create', 'update', 'delete'].concat(
+      record.softDelete ? ['restore'] : [],
+    );
+    const role = await node()
+      .admin()
+      .post('/v1/access/roles')
+      .send({
+        name: `Own ${record.path} ${randomUUID().slice(0, 8)}`,
+        permissions: actions.map((action) => ({
+          subject: record.subject,
+          action,
+          conditions: action === 'create' ? [] : [{ key: 'mine' }],
+        })),
+      })
+      .expect(201);
+    const created = await node()
+      .admin()
+      .post('/v1/access/clients')
+      .send({
+        name: `client-${randomUUID().slice(0, 8)}`,
+        roleIds: [role.body.id],
+      })
+      .expect(201);
+    return {
+      id: created.body.id as string,
+      auth: `Bearer ${created.body.key}`,
+    };
+  };
+
   if (has('events')) {
     it('sends its changes as webhooks to the API client that owns it', async () => {
       const receiver = await webhookReceiver();
       try {
         const key = recordKey(record);
-        const client = await node().client();
+        const client = await ownerClient();
         await node()
           .http()
           .post('/v1/webhook-endpoints')
@@ -370,6 +523,24 @@ export function describeCapabilities(
           .expect(200)
       ).body.items as { id: string }[];
       expect(listed.map((item) => item.id)).toEqual([id]);
+    });
+  }
+
+  const unique = Object.entries(record.fields).find(
+    ([, f]) => f.options.unique,
+  )?.[0];
+  if (record.softDelete && unique) {
+    it("frees a deleted record's unique value, and refuses to restore it once taken", async () => {
+      const admin = node().admin();
+      const body = samples.body();
+      const create = (data: Record<string, unknown>) =>
+        admin.post(path).set('Idempotency-Key', randomUUID()).send(data);
+      const first = (await create(body).expect(201)).body.id as string;
+      await admin.delete(`${path}/${first}`).expect(204);
+      // The bin doesn't hold the value: a new record takes it.
+      await create({ ...samples.body(), [unique]: body[unique] }).expect(201);
+      const taken = await admin.post(`${path}/${first}/restore`).expect(409);
+      expect(taken.body.code).toBe(`${lowerFirst(record.subject)}_taken`);
     });
   }
 }

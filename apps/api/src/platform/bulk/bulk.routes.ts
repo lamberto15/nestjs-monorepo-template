@@ -9,13 +9,11 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
-import { Idempotent } from '@nestjs/idempotency';
 import {
   ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiForbiddenResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiUnprocessableEntityResponse,
@@ -23,8 +21,7 @@ import {
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { Response } from 'express';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
-import { idempotencyKeyHeader } from '../idempotency/idempotency.openapi.js';
-import { principalScope } from '../idempotency/idempotency.scopes.js';
+import { RecordIdempotent } from '../records/record-idempotency.js';
 import {
   namedController,
   operationIdOf,
@@ -60,14 +57,13 @@ export function bulkRoutes(
     @Post('bulk')
     @HttpCode(HttpStatus.OK)
     // A retry with the same key gets the first answer instead of acting twice.
-    @Idempotent({ scope: principalScope })
+    @RecordIdempotent(spec)
     @Can.Anyone() // Checked by BulkService: the action's permission, then each record.
     @ApiOperation({
       ...options.docs,
       // Kept from when the route was the feature's own (operationIdOf()).
       operationId: operationIdOf(spec, 'runBulk'),
     })
-    @ApiHeader(idempotencyKeyHeader(true))
     @ApiOkResponse({ standardSchema: bulkResultSchema })
     @ApiAcceptedResponse({ standardSchema: bulkStartedSchema })
     @ApiBadRequestResponse({
