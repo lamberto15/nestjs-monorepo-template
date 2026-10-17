@@ -20,12 +20,12 @@ packages/
   api-client/          the typed client (@nestjs-monorepo-template/api-client)
 caddy/  dev/           the HTTPS proxy's image; the development services' files
 gotenberg/             the PDF renderer's image (Gotenberg, thin on the official one)
-compose*.yaml          Docker Compose: shared, development, production
+compose*.yaml          Docker Compose: shared, development, production, blue-green, Swarm, monitoring, load test
 env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
 pnpm-workspace.yaml    the workspace: apps/*, packages/*
 turbo.json             the tasks (build, lint, test, test:e2e) and their cache
-tools/                 CI's scripts: the migration lint, the release notes
+tools/                 scripts: setup (first-run wizard), feature (generator), deploy (rolling, blue-green, Swarm), migration lint, release notes
 .changeset/            the typed client's pending changes (pnpm changeset)
 ```
 
@@ -54,7 +54,7 @@ src/
   core/       what everything stands on
   iam/        identity and access
   platform/   services features call
-  features/   your code (notes/ is the example)
+  features/   your code (notes/ is the example; pnpm feature:remove notes drops it)
   demo/       the demo seed's data and seeder (it knows the features, like app.module.ts)
 ```
 
@@ -142,6 +142,9 @@ repository):
 `APP_ROLE=all` (the default) runs both in one process: development, tests,
 small deployments. Every engine is safe with several instances: shared state
 lives in PostgreSQL and Redis, cron jobs take a lock, workers lease their work.
+A replica finishes its requests and exits on shutdown, so a deploy can replace
+replicas without downtime: rolling or blue-green with Compose, or Docker Swarm
+([deployment](deployment.md), "Zero-downtime deploys: three ways").
 
 See also: [development](development.md), [deployment](deployment.md),
 [adding a feature](adding-a-feature.md), [webhooks and realtime](webhooks-and-realtime.md).

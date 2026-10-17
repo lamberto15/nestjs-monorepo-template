@@ -23,7 +23,7 @@ export const NOTE_PERMISSIONS = definePermissions({
       },
     },
   },
-  clientPermissions: [...],   // what every API client may do
+  clientPermissions: [...],   // what API clients may do by default (a generated feature: clientAccess)
   seedRoles: [{ key: 'editor', name: 'Editor', permissions: [...] }],
 });
 ```

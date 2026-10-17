@@ -41,7 +41,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
   only for complex or security work (and the main session). Set `model` on
   every Agent call.
 - `.env*` files can't be written by Claude: the owner copies the template
-  (`cp env.example .env` at the root and fills it, or `cp
+  (`pnpm setup` writes them, or `cp env.example .env` at the root and fills it, or `cp
   apps/api/env.development.example apps/api/.env.development`). Keep
   `env.example` complete when adding variables.
 
@@ -54,6 +54,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer, the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
 | A new feature: `pnpm feature:add` (`tools/feature`, the `/add-feature` skill); changing one: edit its `<item>.record.ts` (fields, capabilities), then `pnpm feature:sync` (`platform/fields`, `platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md), "Changing a feature" |
 | Load tests: k6 on the production stack, the baseline (manual runs), a 2× regression, accepting a change (`loadtest/run.sh`) | [docs/development.md](docs/development.md), "Load tests" |
+| Outgoing and incoming webhooks, the ops API, realtime (socket.io), health | [docs/webhooks-and-realtime.md](docs/webhooks-and-realtime.md) |
 | Routes' rules: versions, errors, pagination, filters, credentials | [docs/api-conventions.md](docs/api-conventions.md) |
 | The typed client for frontends (`packages/api-client`, `pnpm client:generate` after route changes) | [docs/development.md](docs/development.md), "Typed client" |
 | Tenants: the RLS wall, the tenant of the work (requests, jobs, workflows, cron), global tables, operators, single-tenant deployments (`TENANCY=single`), adding a tenant table | [docs/tenancy.md](docs/tenancy.md) |
@@ -79,6 +80,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Languages, time zones | [docs/i18n-and-time.md](docs/i18n-and-time.md) |
 | Environment variables | [docs/configuration.md](docs/configuration.md) |
 | Compose, staging, scaling, CI and its scans, published images (GHCR, `APP_IMAGE`, rollback) | [docs/deployment.md](docs/deployment.md) |
+| Zero-downtime deploys: `pnpm deploy:rolling`, `deploy:blue-green`, `deploy:swarm` | [docs/deployment.md](docs/deployment.md), "Zero-downtime deploys: three ways"; [rolling](docs/deploy-rolling.md), [blue-green](docs/deploy-blue-green.md), [Swarm](docs/deploy-swarm.md) |
 | Zero-downtime deploys: which of the three, and what each needs | [docs/deployment.md](docs/deployment.md), "Zero-downtime deploys" |
 | Rolling deploys with Compose (`pnpm deploy:rolling`), graceful shutdown | [docs/deploy-rolling.md](docs/deploy-rolling.md) |
 | Blue-green deploys: two api colours, switching the traffic, instant rollback (`pnpm deploy:blue-green`, `compose.blue-green.yaml`) | [docs/deploy-blue-green.md](docs/deploy-blue-green.md) |

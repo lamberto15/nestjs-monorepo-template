@@ -5,7 +5,7 @@ pnpm install
 pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
 pnpm start:dev            # the API and the workers, with reload: http://localhost:3000/api
-pnpm db:seed:demo         # optional: demo users, notes, tags (passwords printed once)
+pnpm db:seed:demo         # optional: demo users, teams and each feature's demo data (passwords printed once)
 ```
 
 Or open the repository in its [devcontainer](#devcontainer): the same
@@ -189,9 +189,14 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
+| `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
 | `pnpm db:check` | the migrations match the schema |
 | `pnpm migrate` | apply migrations as `DATABASE_OWNER_URL`, then make or check the app role of `DATABASE_URL` (what a deploy runs) |
-| `pnpm db:seed:demo` | demo users, notes and tags on a development database ("Demo data") |
+| `pnpm db:seed:demo` | demo users, teams and each feature's demo data on a development database ("Demo data") |
+| `pnpm feature:add <plural> --fields "…" [--with …]` | a new feature from its declaration ([adding a feature](adding-a-feature.md)) |
+| `pnpm feature:sync [<plural>]` | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it |
+| `pnpm feature:remove <plural>` | a feature, its tests and texts, e.g. the example `notes` |
+| `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | zero-downtime deploys ([deployment](deployment.md), "Zero-downtime deploys: three ways") |
 | `pnpm db:mark-dev` | mark the development services' database as a development one, once, for a volume made before the marker |
 | `pnpm services:up` / `services:down` | the development services |
 | `pnpm client:generate` | the typed client's `openapi.json` and `schema.ts` (after any route change) |

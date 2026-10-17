@@ -3,6 +3,8 @@
 ## Production with Docker Compose
 
 ```bash
+pnpm setup --target production          # asks, writes .env (chmod 600), every secret generated
+# or by hand:
 cp env.example .env && chmod 600 .env   # then fill it (below)
 docker compose up -d --build      # .env sets COMPOSE_FILE=compose.yaml:compose.prod.yaml
 docker compose ps
