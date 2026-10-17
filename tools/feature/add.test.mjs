@@ -142,7 +142,7 @@ describe('addFeature', () => {
       'invoice.policy.ts',
       'invoices.service.ts',
       'invoices.controller.ts',
-      'invoice.routes.ts',
+      'invoice.record.ts',
       'invoices.module.ts',
       'invoices.feature.ts',
     ]) {
@@ -161,13 +161,18 @@ describe('addFeature', () => {
       /export \* from '\.\/invoices\/invoices\.tables\.js';/,
     );
 
-    // The money field: two columns stored, one object shown.
-    const service = readFileSync(
-      api('src/features/invoices/invoices.service.ts'),
+    // The fields declared once: the table and schemas derive from them.
+    const record = readFileSync(
+      api('src/features/invoices/invoice.record.ts'),
       'utf8',
     );
-    assert.match(service, /moneyValues\('total'/);
-    assert.match(service, /totalMinor: _totalMinor/);
+    assert.match(record, /total: field\.money\(\),/);
+    assert.match(record, /status: field\.enum\(\['draft', 'paid'\]\),/);
+    assert.match(record, /capabilities: \[\]/);
+    assert.match(
+      readFileSync(api('src/features/invoices/invoices.tables.ts'), 'utf8'),
+      /recordTable\(INVOICE\)/,
+    );
   });
 
   it('adds the paths to the OpenAPI test in its sorted order', async () => {
@@ -203,34 +208,24 @@ describe('addFeature', () => {
     );
   });
 
-  it('adds what each capability needs: its target, its routes, its texts in every locale', async () => {
-    mkdirSync(api('src/documents/templates'), { recursive: true });
+  it('declares the capabilities, and writes their texts in every locale', async () => {
     const result = await addFeature(root, {
       name: 'tickets',
       fields: 'title:string,body:text',
       with: 'tags,comments,pdf,bulk,watch,search,revisions,transfer',
     });
-    for (const file of [
-      'ticket-tags.ts',
-      'ticket-comments.ts',
-      'ticket-notifications.ts',
-      'ticket-attachments.ts',
-      'ticket-documents.ts',
-      'ticket.bulk.ts',
-      'ticket-subscriptions.ts',
-      'ticket.search.ts',
-      'ticket-revisions.ts',
-      'ticket.transfer.ts',
-    ]) {
-      assert.ok(existsSync(api('src/features/tickets', file)), file);
-    }
-    assert.ok(existsSync(api('src/documents/templates/ticket.html')));
-    const module = readFileSync(
-      api('src/features/tickets/tickets.module.ts'),
+    // The platform's generic targets and routes: no file of the feature's.
+    const record = readFileSync(
+      api('src/features/tickets/ticket.record.ts'),
       'utf8',
     );
-    assert.match(module, /commentRoutes\(TICKET_ROUTES\)/);
-    assert.match(module, /bulkRoutes\(TICKET_ROUTES/);
+    assert.match(record, /'tags',[\s\S]*'transfer'/);
+    assert.match(record, /title: field\.string\(\)\.searchable\(\)/);
+    assert.ok(!existsSync(api('src/features/tickets/ticket-tags.ts')));
+    assert.match(
+      readFileSync(api('src/features/tickets/tickets.module.ts'), 'utf8'),
+      /recordParts\(TICKET/,
+    );
     // Arabic gets its six plural forms; Chinese its one.
     const ar = JSON.parse(
       readFileSync(api('src/i18n/ar/notifications.json'), 'utf8'),

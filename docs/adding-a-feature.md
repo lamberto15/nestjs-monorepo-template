@@ -12,44 +12,83 @@ pnpm db:generate        # its table's migration (new tables: drizzle-kit asks no
 pnpm client:generate    # the typed client
 ```
 
-It writes everything below that every feature has, so only the business
-logic is left to write (`<x>.service.ts`, where it says "Business logic"):
-the table (tenant, owner, timestamps, recycle bin, indexes), the schemas,
-the list's filters and sorts, the permissions (`mine`, with `--team`
-`inMyTeams`; added to the `editor` and `viewer` seed roles, which merge
-across features), the policy, the audited service, the controller
-(idempotent create, ETags, If-Match, field checks), the record-route spec,
-the module, `<x>.feature.ts`, and `test/<x>.e2e-spec.ts`. It appends the
-feature to `features/index.ts`, `features/tables.ts` and the OpenAPI
-test's path list.
+It writes the feature's **record declaration**, `<item>.record.ts`: its
+fields (platform/fields) and its capabilities, in one place. Everything else
+is derived from it by the platform, so only the business logic is left to
+write (`<x>.service.ts`, where it says "Business logic"):
+
+- the table (`recordTable`: tenant, owner, team, the fields' columns, timestamps,
+  recycle bin, search vector, indexes and keys), the schemas
+  (`recordSchemas`), the list's filters and sorts (`recordList`);
+- the capabilities' routes and targets (`recordParts` in the module: the
+  platform's generic targets, platform/records), what the service does for
+  them (`RecordLifecycle`: watchers, revisions) and how records are shown
+  (`RecordPresenter`: money as objects, tags, field-level redaction);
+- the files it writes around that: the permissions (`mine`, with `--team`
+  `inMyTeams`; added to the `editor` and `viewer` seed roles, which merge
+  across features), the policy, the audited service, the controller
+  (idempotent create, ETags, If-Match, field checks), the module,
+  `<x>.feature.ts` and `test/<x>.e2e-spec.ts` (bodies from the declaration).
+
+It appends the feature to `features/index.ts`, `features/tables.ts` and the
+OpenAPI test's path list.
+
+```ts
+// features/invoices/invoice.record.ts
+export const INVOICE = defineRecord({
+  subject: 'Invoice', path: 'invoices', apiTag: 'invoices', className: 'Invoice',
+  noun: 'invoice', table: 'invoices', softDelete: true, team: false,
+  fields: {
+    title: field.string().searchable(),
+    total: field.money(),
+    dueOn: field.date().optional(),
+    status: field.enum(['draft', 'sent', 'paid']).default('draft'),
+  },
+  capabilities: ['tags', 'comments'],
+});
+```
 
 - **Field types:** `string`, `text`, `int`, `decimal`, `money` (minor units and
   currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
   `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, a key
   within the tenant). `?` makes a field optional, `!unique` (string, int)
-  unique per tenant (a duplicate is a 409 `<x>_taken`).
+  unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
+  `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
 - **Options:** `--team` (records carry their creator's team),
   `--no-soft-delete` (deleted for good, no recycle bin), `--singular <name>`
   (when it can't be derived: `people` → `--singular person`),
   `--description "…"` (the Swagger tag's).
-- **Capabilities (`--with a,b,…`):** each writes the feature's target,
-  registered in the platform's registry, and lists the platform's routes
-  for it in the module (platform/records); notes shows each one in full.
+- **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
+  is a platform module, wired by `recordParts` with a generic target;
+  `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
+  (notes does, for custom fields).
 
-  | `--with` | Writes | Routes and more |
-  | --- | --- | --- |
-  | `tags` | `<item>-tags.ts` (who may change it tags it) | `PUT /<x>/{id}/tags`, `?tag=` on the list, `tags` in responses |
-  | `comments` | `<item>-comments.ts`, `<item>-notifications.ts` | `/<x>/{id}/comments`, the `<item>.commented` notification (texts in every locale) |
-  | `attachments` | `<item>-attachments.ts` | `/<x>/{id}/attachments`, download and remove at `/v1/attachments/{id}` |
-  | `revisions` | `<item>-revisions.ts`, `snapshot()` in the service | `/<x>/{id}/revisions` (list, one, diff, restore) |
-  | `pdf` | `<item>-documents.ts`, `documents/templates/<item>.html` (brings `attachments`) | `POST /<x>/{id}/pdf`, labels in `documents.json` |
-  | `bulk` | `<item>.bulk.ts` | `POST /<x>/bulk` (delete, update, restore) |
-  | `watch` | `<item>-subscriptions.ts`; the owner watches from the start | `POST`/`DELETE /<x>/{id}/watch` |
-  | `search` | a search vector over its string and text fields, `<item>.search.ts` | `?q=` on the list, GET /v1/search |
-  | `transfer` | `<item>.transfer.ts` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
+  | Capability | Routes and more |
+  | --- | --- |
+  | `tags` | `PUT /<x>/{id}/tags`, `?tag=` on the list, `tags` in responses |
+  | `comments` | `/<x>/{id}/comments`, the `<item>.commented` notification (texts in every locale) |
+  | `attachments` | `/<x>/{id}/attachments`, download and remove at `/v1/attachments/{id}` |
+  | `revisions` | `/<x>/{id}/revisions` (list, one, diff, restore); a revision per create and update |
+  | `pdf` | `POST /<x>/{id}/pdf` on the shared page (`documents/templates/record.html`), labels in `documents.json`; needs `attachments` |
+  | `bulk` | `POST /<x>/bulk` (delete, update, restore) |
+  | `watch` | `POST`/`DELETE /<x>/{id}/watch`; the owner watches from the start |
+  | `search` | a search vector over the `.searchable()` fields: `?q=` on the list, GET /v1/search |
+  | `transfer` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
 
   Texts go to every locale in English (each locale's plural forms); the
   command lists the keys to translate.
+
+## Changing a feature
+
+- **A field:** a line in `fields` (`reference: field.string().optional()`),
+  then `pnpm db:generate` (review the SQL) and `pnpm client:generate`. A new
+  **required** field on a table with rows needs `.default(…)`, or the
+  migration fails there; renaming or removing one follows expand/contract
+  ([pitfalls](pitfalls.md)).
+- **A capability:** its name in `capabilities`; then its texts (comments,
+  pdf) and its paths in `test/openapi.e2e-spec.ts`, `pnpm db:generate` (search
+  adds a column) and `pnpm client:generate`.
+
 - **Not generated:** custom fields, approvals, settings, workflows and
   outgoing webhook events: add them as the sections below say, notes as the
   example.

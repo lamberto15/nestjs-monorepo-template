@@ -1,0 +1,656 @@
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { I18nService } from '@nestjs/i18n';
+import { AuthorizationService } from '@nestjs/authorization';
+import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
+import { headline, matches, rank } from '../../core/database/search.js';
+import type { ListQuery } from '../../core/http/list-query.js';
+import { validationException } from '../../core/http/problem-details.filter.js';
+import { AccessService } from '../../iam/access/access.service.js';
+import {
+  type Principal,
+  principalKey,
+  type RequestPrincipal,
+  type UserPrincipal,
+} from '../../iam/auth/principal.js';
+import { PersonalDataRegistry } from '../account/personal-data.registry.js';
+import { AttachmentsRegistry } from '../attachments/attachments.registry.js';
+import { BulkRegistry } from '../bulk/bulk.registry.js';
+import type { BulkSelection } from '../bulk/bulk.types.js';
+import { CommentsRegistry } from '../comments/comments.registry.js';
+import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
+import type { TransferColumn } from '../data-transfer/data-transfer.types.js';
+import {
+  type DocumentRenderOptions,
+  DocumentsRegistry,
+} from '../documents/documents.registry.js';
+import { fieldSnapshot, searchableFields } from '../fields/fields.js';
+import {
+  type RevisionItem,
+  RevisionsRegistry,
+} from '../revisions/revisions.registry.js';
+import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
+import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
+import { TagsRegistry } from '../tags/tags.registry.js';
+import { type RecordDeclaration, recordKey, recordView } from './record.js';
+export { recordKey } from './record.js';
+import {
+  RECORD_CONTRACT,
+  type RecordContract,
+  type RecordRow,
+} from './record-contract.js';
+
+/**
+ * The capabilities' targets for any record (record.ts), each registered in
+ * its platform registry with the feature's service and policy (its
+ * RecordContract): a capability declared is a capability working, with no
+ * code in the feature. A feature replaces one with its own (recordParts'
+ * `override`) when its records need more: notes' revisions and PDF know
+ * custom fields.
+ */
+
+/** The record's first `.searchable()` or string field: what it is called by (comments, search, PDF). */
+const titleOf = (
+  declaration: RecordDeclaration,
+  row: Record<string, unknown>,
+) => {
+  const name =
+    searchableFields(declaration.fields)[0] ??
+    Object.entries(declaration.fields).find(
+      ([, f]) => f.kind === 'string',
+    )?.[0];
+  const value = name ? row[name] : null;
+  return typeof value === 'string' && value
+    ? value
+    : `${declaration.noun} ${row.id as string}`;
+};
+
+/** The record, or null when it doesn't exist (or is in the recycle bin). */
+async function find(c: RecordContract, id: string) {
+  try {
+    return await c.service.findOne(id);
+  } catch (error) {
+    if (error instanceof NotFoundException) return null;
+    throw error;
+  }
+}
+
+/** Who may change a record tags it (platform/tags). */
+@Injectable()
+export class RecordTags {
+  readonly subject: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    registry: TagsRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    registry.register(this);
+  }
+  /** A 404 when it doesn't exist (or is in the recycle bin). */
+  async canTag(principal: Principal, id: string) {
+    return this.c.policy.update(principal, await this.c.service.findOne(id));
+  }
+}
+
+/** Who may read a record reads and writes its comments; who may change it moderates them. */
+@Injectable()
+export class RecordComments {
+  readonly subject: string;
+  readonly commentedType: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    registry: CommentsRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    this.commentedType = `${recordKey(c.declaration)}.commented`;
+    registry.register(this);
+  }
+  async canRead(principal: Principal, id: string) {
+    return this.c.policy.read(principal, await this.c.service.findOne(id));
+  }
+  async canModerate(principal: Principal, id: string) {
+    return this.c.policy.update(principal, await this.c.service.findOne(id));
+  }
+  link(id: string) {
+    return `/${this.c.declaration.path}/${id}`;
+  }
+  async title(id: string) {
+    return titleOf(this.c.declaration, await this.c.service.findOne(id));
+  }
+}
+
+/** Who may read a record sees its attachments; who may change it adds and removes them. */
+@Injectable()
+export class RecordAttachments {
+  readonly subject: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly access: AccessService,
+    registry: AttachmentsRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    registry.register(this);
+  }
+  async canRead(principal: Principal, id: string) {
+    const row = await find(this.c, id);
+    return row !== null && this.c.policy.read(principal, row);
+  }
+  async canWrite(principal: Principal, id: string) {
+    const row = await find(this.c, id);
+    return row !== null && this.c.policy.update(principal, row);
+  }
+  /** Every one of these fields, as reading the record would show them (an issued PDF's). */
+  async canReadFields(
+    principal: Principal,
+    id: string,
+    fields: readonly string[],
+  ) {
+    const row = await find(this.c, id);
+    if (!row || !(await this.c.policy.read(principal, row))) return false;
+    const shown = await this.access.redact(
+      principal,
+      'read',
+      this.subject,
+      recordView(this.c.declaration, row),
+    );
+    return fields.every((field) => field in shown);
+  }
+  async exists(ids: readonly string[]) {
+    const table = this.c.table;
+    const rows = (await this.c.service.query((db) =>
+      db
+        .select({ id: table.id! })
+        .from(table as never)
+        .where(inArray(table.id!, [...ids])),
+    )) as { id: string }[];
+    return rows.map((row) => row.id);
+  }
+}
+
+/** Who may read a record may watch it (platform/subscriptions). */
+@Injectable()
+export class RecordSubscriptions {
+  readonly subject: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly authorization: AuthorizationService,
+    registry: SubscriptionsRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    registry.register(this);
+  }
+  async assertCanWatch(principal: Principal, recordId: string) {
+    const row = await this.c.service.findOne(recordId);
+    if (!(await this.c.policy.read(principal, row))) {
+      throw new ForbiddenException();
+    }
+    void this.authorization;
+  }
+}
+
+/** Many records at once (POST /<x>/bulk), each as its own route does it. */
+@Injectable()
+export class RecordBulk {
+  readonly name: string;
+  readonly subject: string;
+  readonly actions: Record<
+    string,
+    { label: string; permission: string; input?: unknown }
+  >;
+  readonly filters: RecordContract['list']['schema'];
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly access: AccessService,
+    registry: BulkRegistry,
+  ) {
+    const soft = c.declaration.softDelete;
+    this.name = c.declaration.path;
+    this.subject = c.declaration.subject;
+    this.actions = {
+      delete: {
+        label: soft ? 'Delete (to the recycle bin)' : 'Delete',
+        permission: 'delete',
+      },
+      ...(soft && {
+        restore: {
+          label: 'Restore from the recycle bin',
+          permission: 'restore',
+        },
+      }),
+      update: {
+        label: 'Change',
+        permission: 'update',
+        input: c.schemas.update,
+      },
+    };
+    this.filters = c.list.schema;
+    registry.register(this as never);
+  }
+  async *select(
+    principal: Principal,
+    action: string,
+    selection: BulkSelection,
+  ) {
+    const table = this.c.table;
+    const where = and(
+      await this.access.sqlFilter(principal, this.subject, action, {
+        deleted: this.c.declaration.softDelete && action === 'restore',
+      }),
+      selection.ids
+        ? inArray(table.id!, selection.ids)
+        : this.c.list.where(selection.filter as ListQuery),
+    );
+    let cursor: string | undefined;
+    for (;;) {
+      const rows = (await this.c.service.query((db) =>
+        db
+          .select()
+          .from(table as never)
+          .where(and(where, cursor ? lt(table.id!, cursor) : undefined))
+          .orderBy(desc(table.id!))
+          .limit(500),
+      )) as RecordRow[];
+      if (rows.length === 0) return;
+      yield rows;
+      cursor = rows[rows.length - 1]!.id;
+    }
+  }
+  async perform(
+    principal: Principal,
+    action: string,
+    selected: RecordRow,
+    input: unknown,
+    ip?: string,
+  ) {
+    // As it is now (a 404 or 403 fails this item alone).
+    const row = await this.c.service.findOne(selected.id, undefined, {
+      deleted: action === 'restore',
+    });
+    if (!(await this.access.can(principal, action, this.subject, row))) {
+      throw new ForbiddenException();
+    }
+    if (action === 'delete') {
+      await this.c.service.delete(principal, row, ip);
+    } else if (action === 'restore') {
+      await this.c.service.restore!(principal, row, ip);
+    } else {
+      const dto = input as Record<string, unknown>;
+      const forbidden = await this.access.forbiddenFields(
+        principal,
+        'update',
+        this.subject,
+        dto,
+        row,
+      );
+      if (forbidden.length) {
+        throw new ForbiddenException({
+          code: 'field_forbidden',
+          message: `You may not change: ${forbidden.join(', ')}.`,
+          fields: forbidden,
+        });
+      }
+      await this.c.service.update(principal, row, dto, ip);
+    }
+  }
+}
+
+/** Records in the global search (GET /v1/search): those the principal may read, best match first. */
+@Injectable()
+export class RecordSearch {
+  readonly subject: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly access: AccessService,
+    registry: SearchRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    registry.register(this);
+  }
+  async search(
+    principal: Principal,
+    q: string,
+    limit: number,
+  ): Promise<SearchHit[]> {
+    const table = this.c.table;
+    const first = searchableFields(this.c.declaration.fields)[0]!;
+    const where = and(
+      await this.access.sqlFilter(principal, this.subject, 'read'),
+      matches(table.search!, q),
+    );
+    const score = rank(table.search!, q);
+    const rows = (await this.c.service.query((db) =>
+      db
+        // The whole row: the permission conditions (`mine`) read it.
+        .select({
+          ...getTableColumns(
+            table as unknown as Parameters<typeof getTableColumns>[0],
+          ),
+          score,
+          snippet: headline(table[first]!, q),
+        })
+        .from(table as never)
+        .where(where)
+        .orderBy(desc(score), desc(table.id!))
+        .limit(limit),
+    )) as Record<string, unknown>[];
+    const shown = await this.access.redactAll(
+      principal,
+      'read',
+      this.subject,
+      rows,
+    );
+    return shown.map((row) => ({
+      subject: this.subject,
+      id: row.id as string,
+      title: titleOf(this.c.declaration, row),
+      snippet: (row.snippet as string | null) ?? null,
+      score: Number(row.score),
+      link: `/${this.c.declaration.path}/${row.id as string}`,
+    }));
+  }
+}
+
+/** A record's revisions: its fields after each change; restored through the service (a PATCH's checks). */
+@Injectable()
+export class RecordRevisions {
+  readonly subject: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly access: AccessService,
+    registry: RevisionsRegistry,
+  ) {
+    this.subject = c.declaration.subject;
+    registry.register(this);
+  }
+  private view(row: Record<string, unknown>) {
+    return recordView(this.c.declaration, row);
+  }
+  async canRead(principal: Principal, id: string) {
+    const row = await find(this.c, id);
+    return row !== null && this.c.policy.read(principal, row);
+  }
+  async canRestore(principal: Principal, id: string) {
+    const row = await find(this.c, id);
+    return row !== null && this.c.policy.update(principal, row);
+  }
+  snapshot(row: Record<string, unknown>) {
+    return fieldSnapshot(this.c.declaration.fields, this.view(row));
+  }
+  async apply(
+    principal: Principal,
+    id: string,
+    fields: Record<string, unknown>,
+    { ip, restoredFrom }: { ip?: string; restoredFrom: number },
+  ) {
+    const row = await this.c.service.findOne(id);
+    const now = this.snapshot(row);
+    const changes = Object.fromEntries(
+      Object.entries(fields).filter(
+        ([field, value]) =>
+          field in now && JSON.stringify(value) !== JSON.stringify(now[field]),
+      ),
+    );
+    const parsed = this.c.schemas.update.safeParse(changes);
+    if (!parsed.success) {
+      throw validationException(parsed.error.issues);
+    }
+    const dto = parsed.data as Record<string, unknown>;
+    const forbidden = await this.access.forbiddenFields(
+      principal,
+      'update',
+      this.subject,
+      dto,
+      row,
+    );
+    if (forbidden.length) {
+      throw new ForbiddenException({
+        code: 'field_forbidden',
+        message: `You may not change: ${forbidden.join(', ')}.`,
+        fields: forbidden,
+      });
+    }
+    const updated = await this.c.service.update(principal, row, dto, ip, {
+      restoredFrom,
+    });
+    return this.access.redact(
+      principal,
+      'read',
+      this.subject,
+      this.view(updated),
+    );
+  }
+  async shown(principal: Principal, id: string) {
+    return this.access.redact(
+      principal,
+      'read',
+      this.subject,
+      this.view(await this.c.service.findOne(id)),
+    );
+  }
+  /** Without the fields the reader's permissions leave out, in the snapshots and in the changes. */
+  async redact(
+    principal: Principal,
+    id: string,
+    items: RevisionItem[],
+  ): Promise<RevisionItem[]> {
+    const row = this.view(await this.c.service.findOne(id));
+    return Promise.all(
+      items.map(async ({ snapshot: kept, changes }) => {
+        const allowed = await this.access.redact(
+          principal,
+          'read',
+          this.subject,
+          {
+            ...row,
+            ...kept,
+          } as Record<string, unknown>,
+        );
+        const shown = Object.fromEntries(
+          Object.entries(kept).filter(([field]) => field in allowed),
+        );
+        return {
+          snapshot: shown,
+          changes:
+            changes &&
+            Object.fromEntries(
+              Object.entries(changes).filter(
+                ([key]) => key.split('.', 1)[0]! in shown,
+              ),
+            ),
+        };
+      }),
+    );
+  }
+}
+
+/**
+ * A record as a PDF (platform/documents): its fields as label and value,
+ * in the requester's language and time zone, on the shared page
+ * (documents/templates/record.html; `<item>.html` when the feature has
+ * its own). Labels: `documents.<item>.fields.<field>` (`pnpm feature:sync`).
+ */
+@Injectable()
+export class RecordDocuments {
+  readonly name: string;
+  readonly subject: string;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly access: AccessService,
+    private readonly i18n: I18nService,
+    registry: DocumentsRegistry,
+  ) {
+    this.name = recordKey(c.declaration);
+    this.subject = c.declaration.subject;
+    registry.register(this);
+  }
+  canIssue() {
+    return Promise.resolve(true);
+  }
+  async content(
+    principal: RequestPrincipal,
+    id: string,
+    { locale, timezone, issuedAt }: DocumentRenderOptions,
+  ) {
+    const row = await this.c.service.findOne(id);
+    if (!(await this.c.policy.read(principal, row))) {
+      throw new NotFoundException(
+        `${this.c.declaration.noun} ${id} not found.`,
+      );
+    }
+    const shown = (await this.access.redact(
+      principal,
+      'read',
+      this.subject,
+      recordView(this.c.declaration, row),
+    )) as Record<string, unknown>;
+    const key = this.name;
+    const label = (path: string, args?: Record<string, string>) =>
+      this.i18n.translate(`documents.${key}.${path}`, { locale, args });
+    const date = (value: Date) =>
+      this.i18n.formatDate(value, {
+        locale,
+        dateStyle: 'long',
+        timeStyle: 'short',
+        timeZone: timezone,
+      });
+    const text = (value: unknown) =>
+      value === null || value === undefined
+        ? ''
+        : typeof value === 'object'
+          ? JSON.stringify(value)
+          : String(value as string | number | boolean);
+    const fields = Object.entries(this.c.declaration.fields)
+      .filter(([name, f]) => f.kind !== 'json' && name in shown)
+      .map(([name]) => name);
+    return {
+      template: 'record',
+      fields,
+      title: titleOf(this.c.declaration, row),
+      fileName: `${this.c.declaration.path}-${row.id}`,
+      context: {
+        labels: {
+          document: label('document'),
+          issued: label('issued', { date: date(issuedAt) }),
+        },
+        title: titleOf(this.c.declaration, row),
+        rows: fields.map((field) => ({
+          label: label(`fields.${field}`),
+          value: text(shown[field]),
+        })),
+      },
+    };
+  }
+}
+
+/**
+ * Records as CSV, JSON or Excel (platform/data-transfer): exports of those
+ * the principal may read; imports through the service's create (when no
+ * required field is money or JSON, which a cell can't hold); a user's own
+ * records in their data export.
+ */
+@Injectable()
+export class RecordTransfer {
+  readonly name: string;
+  readonly subject: string;
+  readonly columns: readonly TransferColumn[];
+  readonly filters: RecordContract['list']['schema'];
+  readonly schema?: RecordContract['schemas']['create'];
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    private readonly access: AccessService,
+    registry: DataTransferRegistry,
+    personalData: PersonalDataRegistry,
+  ) {
+    const fields = Object.entries(c.declaration.fields);
+    this.name = c.declaration.path;
+    this.subject = c.declaration.subject;
+    this.columns = [
+      { key: 'id' },
+      ...fields.map(([name, f]): TransferColumn => {
+        if (f.kind === 'money') {
+          return {
+            key: name,
+            value: (row) => {
+              const view = recordView(c.declaration, row) as Record<
+                string,
+                { amount: string; currency: string } | null
+              >;
+              const money = view[name];
+              return money ? `${money.amount} ${money.currency}` : '';
+            },
+          };
+        }
+        if (f.kind === 'json')
+          return {
+            key: name,
+            value: (row) => JSON.stringify(row[name] ?? null),
+          };
+        if (f.kind === 'datetime') return { key: name, type: 'datetime' };
+        return { key: name };
+      }),
+      { key: 'ownerId', header: 'owner' },
+      { key: 'createdAt', type: 'datetime' },
+    ];
+    this.filters = c.list.schema;
+    registry.registerExporter(this as never);
+    const importable = fields.every(
+      ([, f]) =>
+        f.options.optional ||
+        f.options.hasDefault ||
+        !['money', 'json'].includes(f.kind),
+    );
+    if (importable) {
+      const flat = Object.fromEntries(
+        fields
+          .filter(([, f]) => ['money', 'json'].includes(f.kind))
+          .map(([name]) => [name, true]),
+      );
+      this.schema = c.schemas.create.omit(flat as never) as never;
+      registry.registerImporter(this as never);
+    }
+    personalData.register(this);
+  }
+  private async *pages(where: ReturnType<typeof and>) {
+    const table = this.c.table;
+    let cursor: string | undefined;
+    for (;;) {
+      const rows = (await this.c.service.query((db) =>
+        db
+          .select()
+          .from(table as never)
+          .where(and(where, cursor ? lt(table.id!, cursor) : undefined))
+          .orderBy(desc(table.id!))
+          .limit(1000),
+      )) as RecordRow[];
+      if (rows.length === 0) return;
+      yield rows;
+      cursor = rows[rows.length - 1]!.id;
+    }
+  }
+  /** A person's data export: those they own (they stay when the account is deleted). */
+  async *rows(user: UserPrincipal) {
+    for await (const rows of this.pages(
+      eq(this.c.table.ownerId!, principalKey(user)),
+    )) {
+      yield rows.map((row) => recordView(this.c.declaration, row)) as Record<
+        string,
+        unknown
+      >[];
+    }
+  }
+  async *batches(principal: Principal, filters: Record<string, unknown>) {
+    yield* this.pages(
+      and(
+        await this.access.sqlFilter(principal, this.subject, 'read'),
+        this.c.list.where({ limit: 1000, ...filters } as ListQuery),
+      ),
+    );
+  }
+  async write(principal: Principal, row: Record<string, unknown>) {
+    await this.c.service.create(principal, row);
+  }
+}

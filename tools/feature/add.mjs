@@ -28,12 +28,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import {
-  CAPABILITIES,
-  documentTemplate,
-  parseCapabilities,
-  parts,
-} from './capabilities.mjs';
+import { CAPABILITIES, parseCapabilities, texts } from './capabilities.mjs';
 import { parseFields } from './fields.mjs';
 import { names } from './names.mjs';
 import * as templates from './templates.mjs';
@@ -96,7 +91,9 @@ export async function addFeature(root, options) {
         `ref(${ref}): there is no features/${ref}/${ref}.tables.ts.`,
       );
     }
-    if (!readFileSync(file, 'utf8').includes('referenced: true')) {
+    // A record's table (recordTable) always is; a hand-written one says so.
+    const text = readFileSync(file, 'utf8');
+    if (!text.includes('recordTable(') && !text.includes('referenced: true')) {
       throw new Error(
         `ref(${ref}): its table must be referenceable first: tenantTable('…', table, { referenced: true }) in ${ref}.tables.ts, then pnpm db:generate.`,
       );
@@ -113,6 +110,7 @@ export async function addFeature(root, options) {
   };
 
   const files = {
+    [`${t.singular}.record.ts`]: templates.record(context),
     [`${t.plural}.tables.ts`]: templates.tables(context),
     [`${t.singular}.schemas.ts`]: templates.schemas(context),
     [`${t.singular}.list.ts`]: templates.list(context),
@@ -120,12 +118,9 @@ export async function addFeature(root, options) {
     [`${t.singular}.policy.ts`]: templates.policy(context),
     [`${t.plural}.service.ts`]: templates.service(context),
     [`${t.plural}.controller.ts`]: templates.controller(context),
-    [`${t.singular}.routes.ts`]: templates.routes(context),
     [`${t.plural}.module.ts`]: templates.moduleFile(context),
     [`${t.plural}.feature.ts`]: templates.feature(context),
   };
-  const extra = parts(context);
-  Object.assign(files, extra.files);
   const written = [];
   mkdirSync(dir, { recursive: true });
   for (const [name, text] of Object.entries(files)) {
@@ -137,16 +132,10 @@ export async function addFeature(root, options) {
   writeFileSync(spec, await format(spec, templates.e2e(context)));
   written.push(path.relative(root, spec));
 
-  if (capabilities.has('pdf')) {
-    const page = path.join(
-      api,
-      'src/documents/templates',
-      `${t.singular}.html`,
-    );
-    writeFileSync(page, documentTemplate());
-    written.push(path.relative(root, page));
-  }
-  const translate = await addTexts(api, extra.texts);
+  const translate = await addTexts(
+    api,
+    texts({ t, fields, has: (name) => capabilities.has(name) }),
+  );
 
   const changed = [
     await appendFeature(api, t),
