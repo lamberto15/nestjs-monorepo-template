@@ -238,8 +238,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
-    name: e2e (${{ matrix.shard }}/4)
+        shard: [1, 2]
+    name: e2e (${{ matrix.shard }}/2)
     services:
       # Redis: queues, rate limits, realtime; each file keeps to its own prefix.
       redis:
@@ -263,7 +263,7 @@ jobs:
         with:
           runtime: node@24
           cache: true
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/4
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
         env:
           REDIS_URL: redis://localhost:6379
           # The tests create their databases here (a template, then a copy per app).
@@ -347,13 +347,13 @@ jobs:
     needs: compose-images
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # Its e2e run in four shards like e2e's: the whole suite in one job was the
+    # Its e2e run in two shards like e2e's: the whole suite in one job was the
     # run's longest (about 6 min); each shard repeats the cheap steps before it.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
-    name: template-without-notes (${{ matrix.shard }}/4)
+        shard: [1, 2]
+    name: template-without-notes (${{ matrix.shard }}/2)
     services:
       redis:
         image: ${{ needs.compose-images.outputs.redis }}
@@ -393,8 +393,8 @@ jobs:
       - name: 'Unit tests (once: shard 1)'
         if: matrix.shard == 1
         run: pnpm test
-      - name: Every e2e test (this shard's quarter)
-        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/4
+      - name: Every e2e test (this shard's half)
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/2
         env:
           REDIS_URL: redis://localhost:6379
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres

@@ -958,7 +958,7 @@ merged migration fails it already):
 | Job | What |
 | --- | --- |
 | `check` | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests |
-| `e2e` | the e2e tests in 4 shards (`--shard=1/4` … `4/4`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
+| `e2e` | the e2e tests in 2 shards (`--shard=1/2`, `2/2`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
 | `security` | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles |
 | `image` | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`) |
 | `backup-image` | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it |
