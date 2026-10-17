@@ -22,7 +22,11 @@ import { fileURLToPath } from 'node:url';
 import { toStack } from './render.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const COMPOSE_FILES = ['compose.yaml', 'compose.prod.yaml', 'compose.swarm.yaml'];
+const COMPOSE_FILES = [
+  'compose.yaml',
+  'compose.prod.yaml',
+  'compose.swarm.yaml',
+];
 const TERMINAL_OK = new Set(['completed']);
 const TERMINAL_ROLLED_BACK = new Set(['rollback_completed']);
 const TERMINAL_STUCK = new Set(['paused', 'rollback_paused']);
@@ -35,7 +39,9 @@ export function spawnRunner(command, args, { input, env, cwd } = {}) {
     let stderr = '';
     child.stdout.on('data', (chunk) => (stdout += chunk));
     child.stderr.on('data', (chunk) => (stderr += chunk));
-    child.on('error', (error) => done({ code: 127, stdout, stderr: String(error) }));
+    child.on('error', (error) =>
+      done({ code: 127, stdout, stderr: String(error) }),
+    );
     child.on('close', (code) => done({ code: code ?? 1, stdout, stderr }));
     child.stdin.on('error', () => {});
     child.stdin.end(input ?? '');
@@ -43,7 +49,12 @@ export function spawnRunner(command, args, { input, env, cwd } = {}) {
 }
 
 export function parseArgs(argv) {
-  const options = { command: 'deploy', services: [], prune: false, skipMigrate: false };
+  const options = {
+    command: 'deploy',
+    services: [],
+    prune: false,
+    skipMigrate: false,
+  };
   const rest = [...argv];
   const take = (flag) => {
     const value = rest.shift();
@@ -92,7 +103,8 @@ export async function main(argv, deps = {}) {
       run: deps.runner ?? spawnRunner,
       env: deps.env ?? process.env,
       log,
-      sleep: deps.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))),
+      sleep:
+        deps.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))),
       now: deps.now ?? (() => Date.now()),
       readFile: deps.readFile ?? ((path) => readFileSync(path)),
       exists: deps.exists ?? ((path) => existsSync(path)),
@@ -107,13 +119,17 @@ export async function main(argv, deps = {}) {
     const command = commands[options.command];
     if (!command) throw new UsageError(`unknown command ${options.command}`);
     if (!/^[a-z0-9][a-z0-9_-]*$/.test(ctx.stack)) {
-      throw new UsageError(`stack name ${ctx.stack}: lowercase letters, digits, - and _`);
+      throw new UsageError(
+        `stack name ${ctx.stack}: lowercase letters, digits, - and _`,
+      );
     }
     return await command(ctx);
   } catch (error) {
     if (error instanceof UsageError) {
       log(`deploy:swarm: ${error.message}`);
-      log('usage: deploy:swarm [deploy|check|render|status|rollback] [--stack n] [--env-file f] [--timeout s] [--service s] [--prune] [--skip-migrate]');
+      log(
+        'usage: deploy:swarm [deploy|check|render|status|rollback] [--stack n] [--env-file f] [--timeout s] [--service s] [--prune] [--skip-migrate]',
+      );
       return 2;
     }
     if (error instanceof DeployError) {
@@ -127,10 +143,16 @@ export async function main(argv, deps = {}) {
 // --- Docker -----------------------------------------------------------------
 
 async function docker(ctx, args, options = {}) {
-  const result = await ctx.run('docker', args, { env: ctx.env, cwd: ctx.root, ...options });
+  const result = await ctx.run('docker', args, {
+    env: ctx.env,
+    cwd: ctx.root,
+    ...options,
+  });
   if (result.code !== 0 && !options.allowFailure) {
     const detail = (result.stderr || result.stdout).trim();
-    throw new DeployError(`docker ${args.slice(0, 3).join(' ')} failed (${result.code}): ${detail}`);
+    throw new DeployError(
+      `docker ${args.slice(0, 3).join(' ')} failed (${result.code}): ${detail}`,
+    );
   }
   return result;
 }
@@ -138,7 +160,8 @@ async function docker(ctx, args, options = {}) {
 /** The stack file as an object: Compose renders, render.mjs adapts. */
 async function renderStack(ctx, { app }) {
   const args = ['compose', '--project-directory', ctx.root, '-p', ctx.stack];
-  if (ctx.options.envFile) args.push('--env-file', resolve(ctx.options.envFile));
+  if (ctx.options.envFile)
+    args.push('--env-file', resolve(ctx.options.envFile));
   for (const file of COMPOSE_FILES) args.push('-f', join(ctx.root, file));
   if (app) args.push('--profile', 'app');
   args.push('config', '--format', 'json');
@@ -156,11 +179,15 @@ async function renderStack(ctx, { app }) {
 }
 
 async function validate(ctx, stackFile) {
-  await docker(ctx, ['stack', 'config', '-c', '-'], { input: JSON.stringify(stackFile) });
+  await docker(ctx, ['stack', 'config', '-c', '-'], {
+    input: JSON.stringify(stackFile),
+  });
 }
 
 async function inspectService(ctx, name) {
-  const result = await docker(ctx, ['service', 'inspect', name], { allowFailure: true });
+  const result = await docker(ctx, ['service', 'inspect', name], {
+    allowFailure: true,
+  });
   if (result.code !== 0) return null;
   const [service] = JSON.parse(result.stdout);
   return service ?? null;
@@ -179,7 +206,8 @@ async function replicas(ctx) {
   for (const line of result.stdout.split('\n').filter(Boolean)) {
     const [name, value] = line.split('|');
     const match = /^(\d+)\/(\d+)/.exec(value ?? '');
-    if (match) map.set(name, { running: Number(match[1]), wanted: Number(match[2]) });
+    if (match)
+      map.set(name, { running: Number(match[1]), wanted: Number(match[2]) });
   }
   return map;
 }
@@ -189,7 +217,9 @@ async function replicas(ctx) {
 async function check(ctx) {
   const stackFile = await renderStack(ctx, { app: true });
   await validate(ctx, stackFile);
-  ctx.log(`stack file valid: ${Object.keys(stackFile.services).length} services`);
+  ctx.log(
+    `stack file valid: ${Object.keys(stackFile.services).length} services`,
+  );
   return 0;
 }
 
@@ -211,15 +241,25 @@ export async function preflight(ctx, stackFile) {
   const wanted = new Map();
   for (const service of Object.values(stackFile.services)) {
     for (const constraint of service.deploy?.placement?.constraints ?? []) {
-      const match = /^node\.labels\.([\w.-]+)\s*==\s*(.+)$/.exec(constraint.trim());
+      const match = /^node\.labels\.([\w.-]+)\s*==\s*(.+)$/.exec(
+        constraint.trim(),
+      );
       if (match) wanted.set(constraint.trim(), [match[1], match[2].trim()]);
     }
   }
   if (wanted.size === 0) return;
-  const ids = (await docker(ctx, ['node', 'ls', '-q'])).stdout.split('\n').filter(Boolean);
+  const ids = (await docker(ctx, ['node', 'ls', '-q'])).stdout
+    .split('\n')
+    .filter(Boolean);
   const labels = [];
   for (const id of ids) {
-    const result = await docker(ctx, ['node', 'inspect', '--format', '{{json .Spec.Labels}}', id]);
+    const result = await docker(ctx, [
+      'node',
+      'inspect',
+      '--format',
+      '{{json .Spec.Labels}}',
+      id,
+    ]);
     labels.push({ id, labels: JSON.parse(result.stdout.trim() || '{}') ?? {} });
   }
   for (const [constraint, [key, value]] of wanted) {
@@ -243,7 +283,14 @@ async function deploy(ctx) {
   await validate(ctx, full);
   await preflight(ctx, full);
 
-  const deployArgs = ['stack', 'deploy', '--with-registry-auth', '--detach=true', '-c', '-'];
+  const deployArgs = [
+    'stack',
+    'deploy',
+    '--with-registry-auth',
+    '--detach=true',
+    '-c',
+    '-',
+  ];
   if (ctx.options.prune) deployArgs.push('--prune');
   deployArgs.push(ctx.stack);
 
@@ -258,11 +305,16 @@ async function deploy(ctx) {
   }
 
   // 2. The app: api and worker roll one task at a time, start-first.
-  const waited = Object.keys(full.services).filter((name) => name !== 'migrate');
+  const waited = Object.keys(full.services).filter(
+    (name) => name !== 'migrate',
+  );
   const before = new Map();
   for (const name of waited) {
     const service = await inspectService(ctx, `${ctx.stack}_${name}`);
-    before.set(name, { startedAt: service?.UpdateStatus?.StartedAt, image: imageOf(service) });
+    before.set(name, {
+      startedAt: service?.UpdateStatus?.StartedAt,
+      image: imageOf(service),
+    });
   }
   ctx.log('deploying the stack');
   await docker(ctx, deployArgs, { input: JSON.stringify(full) });
@@ -277,10 +329,16 @@ function imageOf(service) {
 }
 
 async function taskIds(ctx, service) {
-  const result = await docker(ctx, ['service', 'ps', '--no-trunc', '-q', service], {
-    allowFailure: true,
-  });
-  return new Set(result.code === 0 ? result.stdout.split('\n').filter(Boolean) : []);
+  const result = await docker(
+    ctx,
+    ['service', 'ps', '--no-trunc', '-q', service],
+    {
+      allowFailure: true,
+    },
+  );
+  return new Set(
+    result.code === 0 ? result.stdout.split('\n').filter(Boolean) : [],
+  );
 }
 
 /** The job's new tasks (not in `known`): Complete is done, enough failed ones is an error. */
@@ -291,7 +349,14 @@ async function waitForMigration(ctx, name, known, spec) {
   while (ctx.now() < deadline) {
     const result = await docker(
       ctx,
-      ['service', 'ps', '--no-trunc', '--format', '{{.ID}}|{{.CurrentState}}|{{.Error}}', name],
+      [
+        'service',
+        'ps',
+        '--no-trunc',
+        '--format',
+        '{{.ID}}|{{.CurrentState}}|{{.Error}}',
+        name,
+      ],
       { allowFailure: true },
     );
     const fresh = result.stdout
@@ -300,7 +365,9 @@ async function waitForMigration(ctx, name, known, spec) {
       .map((line) => line.split('|'))
       .filter(([id]) => !known.has(id));
     if (fresh.some(([, state]) => state.startsWith('Complete'))) return;
-    const failed = fresh.filter(([, state]) => /^(Failed|Rejected)/.test(state));
+    const failed = fresh.filter(([, state]) =>
+      /^(Failed|Rejected)/.test(state),
+    );
     const error = failed[0]?.[2];
     if (error && error !== lastError) {
       lastError = error;
@@ -314,7 +381,9 @@ async function waitForMigration(ctx, name, known, spec) {
     }
     await ctx.sleep(ctx.pollMs);
   }
-  throw new DeployError(`the migrations did not finish within ${ctx.timeoutMs / 1000}s`);
+  throw new DeployError(
+    `the migrations did not finish within ${ctx.timeoutMs / 1000}s`,
+  );
 }
 
 /**
@@ -343,7 +412,11 @@ async function waitForServices(ctx, names, before, startedAt) {
         outcomes.set(name, { state: 'paused', message: status.Message });
       } else if (touched && status.State === 'completed' && converged) {
         outcomes.set(name, { state: 'ok', message: 'updated' });
-      } else if (!touched && converged && ctx.now() - startedAt >= ctx.graceMs) {
+      } else if (
+        !touched &&
+        converged &&
+        ctx.now() - startedAt >= ctx.graceMs
+      ) {
         outcomes.set(name, { state: 'ok', message: 'unchanged' });
       } else if (!status && converged) {
         outcomes.set(name, { state: 'ok', message: 'running' });
@@ -353,7 +426,10 @@ async function waitForServices(ctx, names, before, startedAt) {
   }
   for (const name of names) {
     if (!outcomes.has(name)) {
-      outcomes.set(name, { state: 'timeout', message: `not converged in ${ctx.timeoutMs / 1000}s` });
+      outcomes.set(name, {
+        state: 'timeout',
+        message: `not converged in ${ctx.timeoutMs / 1000}s`,
+      });
     }
   }
   return outcomes;
@@ -383,13 +459,17 @@ async function failureLines(ctx, name) {
 async function report(ctx, outcomes) {
   let code = 0;
   for (const [name, outcome] of outcomes) {
-    ctx.log(`${name}: ${outcome.state}${outcome.message ? ` (${outcome.message})` : ''}`);
+    ctx.log(
+      `${name}: ${outcome.state}${outcome.message ? ` (${outcome.message})` : ''}`,
+    );
     if (outcome.state === 'ok') continue;
     code = outcome.state === 'rolled-back' ? Math.max(code, 1) : 3;
-    for (const line of await failureLines(ctx, name)) ctx.log(`  failed task: ${line}`);
+    for (const line of await failureLines(ctx, name))
+      ctx.log(`  failed task: ${line}`);
   }
   if (code === 1) ctx.log('the update was rolled back to the previous version');
-  if (code === 3) ctx.log('the update needs attention: pnpm deploy:swarm status');
+  if (code === 3)
+    ctx.log('the update needs attention: pnpm deploy:swarm status');
   if (code === 0) ctx.log('deployed');
   return code;
 }
@@ -412,13 +492,17 @@ async function status(ctx) {
   for (const name of names) {
     const service = await inspectService(ctx, name);
     const update = service?.UpdateStatus;
-    if (update) ctx.log(`${name}: update ${update.State}${update.Message ? `: ${update.Message}` : ''}`);
+    if (update)
+      ctx.log(
+        `${name}: update ${update.State}${update.Message ? `: ${update.Message}` : ''}`,
+      );
   }
   return 0;
 }
 
 async function rollback(ctx) {
-  const names = ctx.options.services.length > 0 ? ctx.options.services : ['api', 'worker'];
+  const names =
+    ctx.options.services.length > 0 ? ctx.options.services : ['api', 'worker'];
   let code = 0;
   for (const name of names) {
     const full = `${ctx.stack}_${name}`;
@@ -432,10 +516,15 @@ async function rollback(ctx) {
     ctx.log(`${name}: rolling back from ${imageOf(service)}`);
     await docker(ctx, ['service', 'rollback', '--detach=false', full]);
   }
-  ctx.log('rolled back; the database is not (expand/contract migrations keep the old version working)');
+  ctx.log(
+    'rolled back; the database is not (expand/contract migrations keep the old version working)',
+  );
   return code;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   process.exitCode = await main(process.argv.slice(2));
 }

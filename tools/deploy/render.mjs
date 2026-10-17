@@ -30,19 +30,24 @@ export function toStack(rendered, { stack, readFile, placeholder }) {
   for (const service of Object.values(out.services ?? {})) {
     // Compose prints unset keys as null; profiles only choose what to render.
     for (const key of Object.keys(service)) {
-      if (service[key] === null || service[key] === undefined) delete service[key];
+      if (service[key] === null || service[key] === undefined)
+        delete service[key];
     }
     delete service.profiles;
     // `docker stack config` wants the CPU limits as strings.
     for (const kind of ['limits', 'reservations']) {
       const resources = service.deploy?.resources?.[kind];
-      if (resources && resources.cpus !== undefined) resources.cpus = String(resources.cpus);
+      if (resources && resources.cpus !== undefined)
+        resources.cpus = String(resources.cpus);
     }
     // Ports and file modes are numbers (Compose prints "80" and "0555").
     for (const port of service.ports ?? []) {
       if (typeof port === 'object') port.published = Number(port.published);
     }
-    for (const mount of [...(service.configs ?? []), ...(service.secrets ?? [])]) {
+    for (const mount of [
+      ...(service.configs ?? []),
+      ...(service.secrets ?? []),
+    ]) {
       if (typeof mount === 'object' && typeof mount.mode === 'string') {
         mount.mode = Number.parseInt(mount.mode, 8);
       }

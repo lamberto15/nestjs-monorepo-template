@@ -150,9 +150,9 @@ jobs:
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
 
-  # The Swarm stack (docs/deploy-swarm.md): the deploy script's tests, then
-  # compose.swarm.yaml rendered over the Compose files with dummy values and
-  # accepted by `docker stack config` (which needs no Swarm).
+  # The Swarm stack (docs/deploy-swarm.md): compose.swarm.yaml rendered over
+  # the Compose files with dummy values and accepted by `docker stack config`
+  # (which needs no Swarm). The script's unit tests run in feature-smoke.
   swarm-stack:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

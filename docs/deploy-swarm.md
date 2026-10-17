@@ -154,16 +154,18 @@ reservations, which are unset: it doesn't place tasks by their limits.
 
 ## Measured
 
-On a one-node swarm (2 api replicas, 1 worker), one request every 100 ms to
-`/health/live` through Caddy during each deploy:
+On a one-node swarm (2 api replicas, 1 worker), three clients at about 9
+requests a second to `GET /v1/account` without credentials (a real route:
+401 expected) through Caddy, during each deploy:
 
-| Deploy | Requests | Failed |
+| Deploy | Requests | Unexpected |
 | --- | --- | --- |
-| api image update (four runs) | 946 to 1445 each | 3 to 5 each, within one second: a `503 unavailable` from the replica being stopped |
-| a version that never becomes healthy | 1289 | 0: one new task tried and failed, the old two kept serving; `rollback_completed`, exit 1 |
-| Caddy update (new Caddyfile) | 1212 | 13, about two seconds of refused connections |
+| api image update, run 1 | 1251 | 0 |
+| api image update, run 2 | 1251 | 0 |
+| a version that never becomes healthy | 1289 (probing `/health/live`) | 0: one new task tried and failed, the old two kept serving; `rollback_completed`, exit 1 |
+| Caddy update (new Caddyfile) | 1212 (probing `/health/live`) | 13, about two seconds of refused connections |
 
-So a rolling update loses a handful of requests in 1000, not whole seconds,
-and a bad version loses none. The residual 503s are requests Caddy still sends
-to a replica that has begun to shut down; a `lb_try_duration` in the Caddyfile
-did not remove them.
+Probe a real route, not `/health` or `/health/live`: a draining replica
+answers 503 on both by design while it still serves real requests, so an
+earlier measurement with `/health/live` showed 3 to 5 failures per update
+that were the probe, not lost traffic.
