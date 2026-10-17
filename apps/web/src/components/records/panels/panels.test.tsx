@@ -23,7 +23,8 @@ const ALL = [
 ];
 const ME = `user:${signedInUser.user.id}`;
 const open = async (tab: string) => {
-  const user = userEvent.setup();
+  // No pause between keystrokes: each one re-renders the whole page.
+  const user = userEvent.setup({ delay: null });
   await screen.findByRole('heading', { name: 'Q3 targets' });
   await user.click(await screen.findByRole('tab', { name: tab }));
   return user;
@@ -55,31 +56,30 @@ describe('comments', () => {
     expect(within(thread).getByText('You')).toBeVisible();
   });
 
-  it(
-    'writes a mention into the body and sends exactly that text',
-    { timeout: 20_000 },
-    async () => {
-      useNotesApi({ can: ALL, notes: [sampleNote()] });
-      const calls = usePanelsApi({ users: [MAYA] });
-      await renderApp(`/notes/${NOTE_ID}`);
-      const user = await open('Comments');
-      const box = await screen.findByLabelText('Write a comment');
-      await user.type(box, 'Please check, @may');
-      await user.click(
-        await screen.findByRole('option', { name: /Maya Patel/ }),
-      );
-      await user.type(box, 'thanks');
-      await user.click(screen.getByRole('button', { name: 'Comment' }));
-      await waitFor(() => expect(calls.commented).toHaveLength(1));
-      expect(calls.commented[0]).toEqual({
-        id: NOTE_ID,
-        body: { body: 'Please check, @maya@example.com thanks' },
-      });
-      expect(
-        await screen.findByRole('list', { name: 'Comments' }),
-      ).toHaveTextContent('Please check, @maya@example.com thanks');
-    },
-  );
+  it('writes a mention into the body and sends exactly that text', async () => {
+    useNotesApi({ can: ALL, notes: [sampleNote()] });
+    const calls = usePanelsApi({ users: [MAYA] });
+    await renderApp(`/notes/${NOTE_ID}`);
+    const user = await open('Comments');
+    const box = await screen.findByLabelText('Write a comment');
+    // One keystroke after the "@": with the list open, each key makes the
+    // mention measure the caret, which jsdom does slowly (~0.3 s a key), so
+    // the list is not narrowed by typing: the person is picked from it.
+    await user.type(box, 'Please check, @');
+    await user.click(await screen.findByText('Maya Patel'));
+    await user.type(box, 'thanks');
+    await user.click(screen.getByText('Comment', { selector: 'button' }));
+    await waitFor(() => expect(calls.commented).toHaveLength(1));
+    expect(calls.commented[0]).toEqual({
+      id: NOTE_ID,
+      body: { body: 'Please check, @maya@example.com thanks' },
+    });
+    await waitFor(() =>
+      expect(document.querySelector('[data-comment]')).toHaveTextContent(
+        'Please check, @maya@example.com thanks',
+      ),
+    );
+  });
 
   it('edits and deletes only what the user may', async () => {
     useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
@@ -169,9 +169,13 @@ describe('attachments', () => {
       'input[type="file"]',
     ) as HTMLInputElement;
     await user.upload(input, new File(['x'], 'a.exe', { type: 'text/plain' }));
-    expect(
-      await screen.findByText('unsupported_media_type (test)'),
-    ).toBeVisible();
+    // The problem is shown twice: as the upload row's error and as a toast.
+    // Waiting for both (not for "the" element) leaves nothing to race.
+    await waitFor(() =>
+      expect(screen.getAllByText('unsupported_media_type (test)')).toHaveLength(
+        2,
+      ),
+    );
   });
 
   it('lists size and type, and deletes after a confirmation', async () => {

@@ -201,15 +201,15 @@ export function panelHandlers(
           recordId: 'x',
           snapshot: {},
           restoredFrom: null,
-          changedAt: `2026-10-17T0${r.number}:00:00.000Z`,
-          createdAt: `2026-10-17T0${r.number}:00:00.000Z`,
-          updatedAt: `2026-10-17T0${r.number}:00:00.000Z`,
+          changedAt: `2026-10-17T0${String(r.number)}:00:00.000Z`,
+          createdAt: `2026-10-17T0${String(r.number)}:00:00.000Z`,
+          updatedAt: `2026-10-17T0${String(r.number)}:00:00.000Z`,
           ...r,
         })),
       ),
     ),
     http.get(`${NOTE}/revisions/:a/diff/:b`, ({ params }) => {
-      calls.diffs.push(`${params.a}-${params.b}`);
+      calls.diffs.push(`${String(params.a)}-${String(params.b)}`);
       return HttpResponse.json({
         from: Number(params.a),
         to: Number(params.b),
