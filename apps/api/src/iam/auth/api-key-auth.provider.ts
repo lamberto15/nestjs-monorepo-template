@@ -1,10 +1,12 @@
 import { type ExecutionContext, Injectable, Logger } from '@nestjs/common';
 import { ApiKeyProvider, AuthenticationRegistry } from '@nestjs/authentication';
+import { ConfigService } from '@nestjs/config';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import type { Database } from '../../core/database/drizzle.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { tenants } from '../../core/tenancy/tenancy.tables.js';
+import type { IamEnv } from '../iam.env.js';
 import { apiClients, apiKeys } from '../iam.tables.js';
 import { API_KEY_PREFIX } from './api-keys.js';
 import type { Principal } from './principal.js';
@@ -24,6 +26,7 @@ export class ApiKeyAuth extends ApiKeyProvider<Principal> {
 
   constructor(
     @InjectDrizzle() private readonly db: Database,
+    private readonly config: ConfigService<IamEnv, true>,
     private readonly tenancy: Tenancy,
     registry: AuthenticationRegistry,
   ) {
@@ -35,6 +38,10 @@ export class ApiKeyAuth extends ApiKeyProvider<Principal> {
   // is read in that tenant's scope (docs/tenancy.md). A key of an inactive
   // tenant stops.
   async findKey(id: string) {
+    // API_CLIENTS=off: no key authenticates.
+    if (!this.config.get('API_CLIENTS', { infer: true })) {
+      return null;
+    }
     const [key] = await this.db
       .select({ key: apiKeys, tenantActive: tenants.active })
       .from(apiKeys)
