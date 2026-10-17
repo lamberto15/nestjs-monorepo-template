@@ -23,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { CAPABILITIES, parseCapabilities } from './capabilities.mjs';
+import { format } from './format.mjs';
 import { parseFields } from './fields.mjs';
 import { names } from './names.mjs';
 import * as templates from './templates.mjs';
@@ -131,7 +132,7 @@ export async function addFeature(root, options) {
     (file) => path.relative(root, file),
   );
   // Its texts and OpenAPI paths, as `pnpm feature:sync` keeps them.
-  const synced = syncFeature(api, t.plural);
+  const synced = await syncFeature(api, t.plural);
   return {
     written,
     changed: [...changed, ...synced.changes],
@@ -173,13 +174,6 @@ async function appendTables(api, t) {
     ),
   );
   return file;
-}
-
-/** Formats as `pnpm format` would (the repository's Prettier config). */
-async function format(file, text) {
-  const prettier = await import('prettier');
-  const config = (await prettier.resolveConfig(file)) ?? {};
-  return prettier.format(text, { ...config, filepath: file });
 }
 
 const USAGE = `pnpm feature:add <plural-name> --fields "name:type,…" [--with ${CAPABILITIES.join(',')}] [--singular <name>] [--team] [--no-soft-delete] [--description "…"]`;
