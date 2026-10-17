@@ -196,6 +196,49 @@ descending. Without `sort`: newest first.
 the list's own fields; field-level permissions apply first, so a field
 your permissions hide stays hidden when asked for.
 
+## List metadata
+
+`GET /v1/lists/{subject}` (`Note`, `Invoice`…) describes a list at runtime,
+so a generic table builds its filter menus, sort and column pickers without
+repeating the declaration:
+
+```json
+{
+  "subject": "Note",
+  "fields": [
+    { "name": "status", "type": "enum", "options": ["draft", "published"],
+      "operators": ["eq", "ne", "in", "notIn"], "sortable": true, "custom": false },
+    { "name": "custom.region", "type": "enum", "options": ["eu", "us"],
+      "operators": ["eq", "ne", "in", "notIn", "isNull"], "sortable": true,
+      "custom": true, "label": "Region" }
+  ],
+  "select": ["title", "status", "body", "custom", "custom.region"],
+  "search": true,
+  "recycleBin": false,
+  "defaultSort": "-createdAt",
+  "limits": { "defaultLimit": 50, "maxLimit": 100, "maxOffset": 10000, "countCap": 10000,
+              "maxSort": 3, "maxConditions": 30, "maxDepth": 3, "maxValues": 50 }
+}
+```
+
+- It is read from the list's own declaration (`<item>.list.ts`,
+  `listQuery()`), the one the list route validates with, so the two can't
+  drift. `fields` are what may be filtered (`operators`, the table above;
+  empty: sort only) or sorted; `select` what `fields=` may pick (a field
+  neither filterable nor sortable is only there); `search: true` means `q=`
+  and `sort=-rank`; `recycleBin`, that `deleted=true` lists the bin for
+  this caller.
+- **Custom fields:** the caller's tenant's active ones (`custom.<key>`,
+  `custom: true`, their `label`), as the list takes them now; never another
+  tenant's.
+- **Permissions:** for whoever may read the subject (the list route's
+  permission), else 403; an unknown subject is a 404 (`not_found`). A field
+  the caller may read on no record (field-level permissions) is left out of
+  `fields` and `select`, `custom.*` with `custom`.
+- Every feature has it: a generated record registers its list through
+  `recordParts()`; a hand-written list adds `listSource('<Subject>', LIST)`
+  to its module's providers (notes does; `platform/lists`).
+
 ## Using it from a data table
 
 A table UI keeps its state its own way and maps it to these parameters.

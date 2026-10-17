@@ -202,4 +202,23 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
     expect(described('fields')).toContain('Example: ');
     expect(described('page')).toContain('Example:');
   });
+
+  it('is described at GET /v1/lists/Note (a hand-written list registered with listSource)', async () => {
+    const { body } = await node
+      .http()
+      .get('/v1/lists/Note')
+      .set('Authorization', auth)
+      .expect(200);
+    expect(body).toMatchObject({ subject: 'Note', search: true });
+    expect(
+      body.fields.find((field: { name: string }) => field.name === 'status'),
+    ).toEqual({
+      name: 'status',
+      type: 'enum',
+      options: ['draft', 'published'],
+      operators: ['eq', 'ne', 'in', 'notIn'],
+      sortable: true,
+      custom: false,
+    });
+  });
 });
