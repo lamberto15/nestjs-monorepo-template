@@ -176,9 +176,7 @@ function fakeDocker({
           't2|Complete 1 second ago|\nt1|Failed 9 seconds ago|task: non-zero exit (1)\n',
         );
       return ok(
-        't3|Failed 1 second ago|task: non-zero exit (1)\n'
-          .repeat(1)
-          .replace(/t3/, 't3') +
+        't3|Failed 1 second ago|task: non-zero exit (1)\n' +
           ['t4', 't5', 't6']
             .map((id) => `${id}|Failed 5 seconds ago|task: non-zero exit (1)`)
             .join('\n'),
