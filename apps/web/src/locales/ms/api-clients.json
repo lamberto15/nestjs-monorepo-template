@@ -1,0 +1,143 @@
+{
+  "nav": {
+    "title": "Klien API",
+    "usage": "Penggunaan API"
+  },
+  "list": {
+    "title": "Klien API",
+    "description": "Sistem yang memanggil API dengan kunci. Kunci dipaparkan sekali sahaja, apabila ia dibuat.",
+    "empty": "Belum ada klien API.",
+    "create": "Klien baharu",
+    "columns": {
+      "name": "Nama",
+      "status": "Status",
+      "quota": "Kuota harian",
+      "keys": "Kunci aktif",
+      "lastUsed": "Terakhir digunakan"
+    },
+    "open": "Buka",
+    "never": "Tidak pernah",
+    "noQuota": "Tiada"
+  },
+  "status": {
+    "active": "Aktif",
+    "revoked": "Dibatalkan"
+  },
+  "create": {
+    "title": "Klien API baharu",
+    "description": "Kunci pertamanya dipaparkan sekali selepas anda mencipta klien.",
+    "name": "Nama",
+    "namePlaceholder": "Pengeksport bil",
+    "nameRequired": "Beri nama kepada klien.",
+    "quota": "Kuota harian (pilihan)",
+    "quotaHint": "Permintaan sehari (UTC); selepas itu API menjawab 429. Biarkan kosong jika tiada.",
+    "quotaInvalid": "Nombor bulat 1 atau lebih.",
+    "submit": "Cipta klien",
+    "cancel": "Batal"
+  },
+  "secret": {
+    "createdTitle": "Salin kunci {{name}}",
+    "rotatedTitle": "Salin kunci baharu {{name}}",
+    "warning": "Anda tidak akan melihat kunci ini lagi. Salin sekarang dan simpan di tempat selamat.",
+    "usage": "Hantar sebagai Authorization: Bearer <key>.",
+    "copy": "Salin",
+    "copied": "Disalin ke papan keratan.",
+    "copyFailed": "Tidak dapat menyalin. Pilih kunci dan salin secara manual.",
+    "done": "Saya sudah menyalinnya",
+    "label": "Kunci API"
+  },
+  "detail": {
+    "back": "Semua klien",
+    "notFound": "Tiada klien sedemikian.",
+    "created": "Dicipta pada {{date}}",
+    "viewUsage": "Lihat penggunaan",
+    "quota": {
+      "title": "Kuota harian",
+      "description": "Permintaan sehari (UTC). Selepas itu, API menjawab 429 quota_exceeded sehingga tengah malam UTC.",
+      "label": "Permintaan sehari",
+      "save": "Simpan kuota",
+      "saved": "Kuota disimpan.",
+      "remove": "Buang kuota",
+      "none": "Tiada kuota."
+    },
+    "state": {
+      "title": "Akses",
+      "activeDescription": "Semasa dibatalkan, setiap kunci klien ini ditolak.",
+      "revoke": "Batalkan klien",
+      "revokeTitle": "Batalkan {{name}}?",
+      "revokeDescription": "Semua kunci klien ini berhenti berfungsi dari permintaan seterusnya. Anda boleh mengaktifkannya semula kemudian.",
+      "revokeConfirm": "Batalkan",
+      "reactivate": "Aktifkan semula klien",
+      "revoked": "Klien dibatalkan.",
+      "reactivated": "Klien diaktifkan semula."
+    },
+    "keys": {
+      "title": "Kunci",
+      "empty": "Tiada kunci.",
+      "columns": {
+        "key": "Kunci",
+        "created": "Dicipta",
+        "expires": "Tamat",
+        "lastUsed": "Terakhir digunakan",
+        "status": "Status"
+      },
+      "never": "Tidak pernah",
+      "revokedAt": "Dibatalkan pada {{date}}",
+      "expired": "Tamat tempoh",
+      "active": "Aktif",
+      "revoke": "Batalkan",
+      "revokeTitle": "Batalkan kunci ini?",
+      "revokeDescription": "Kunci {{keyId}} berhenti berfungsi sekarang. Sistem yang menggunakannya akan ditolak.",
+      "revokeConfirm": "Batalkan kunci",
+      "revokedToast": "Kunci dibatalkan."
+    },
+    "rotate": {
+      "title": "Putar kunci",
+      "description": "Mencipta kunci baharu. Kunci semasa terus berfungsi sepanjang tempoh tangguh supaya sistem sempat bertukar.",
+      "grace": "Kunci semasa terus berfungsi selama",
+      "graces": {
+        "0": "Tidak: berhenti sekarang",
+        "3600": "1 jam",
+        "86400": "1 hari",
+        "604800": "7 hari"
+      },
+      "submit": "Putar kunci",
+      "confirmTitle": "Putar kunci {{name}}?",
+      "confirmDescription": "Kunci baharu dicipta dan dipaparkan sekali. Kunci semasa berhenti selepas tempoh tangguh yang anda pilih."
+    }
+  },
+  "usage": {
+    "title": "Penggunaan API",
+    "description": "Permintaan klien API mengikut hari UTC dan laluan.",
+    "client": "Klien",
+    "selectClient": "Pilih klien",
+    "range": "Tempoh",
+    "ranges": {
+      "7": "7 hari lepas",
+      "30": "30 hari lepas",
+      "90": "90 hari lepas"
+    },
+    "noClients": "Belum ada klien API.",
+    "stats": {
+      "total": "Permintaan dalam tempoh",
+      "today": "Hari ini",
+      "quota": "Kuota harian",
+      "remaining_other": "{{count}} lagi hari ini",
+      "overQuota": "Kuota dicapai: permintaan ditolak sehingga tengah malam UTC",
+      "noQuota": "Tiada kuota",
+      "usedOf": "{{used}} daripada {{quota}} digunakan"
+    },
+    "chart": {
+      "title": "Permintaan sehari",
+      "series": "Permintaan",
+      "empty": "Tiada permintaan dalam tempoh ini."
+    },
+    "routes": {
+      "title": "Mengikut laluan",
+      "route": "Laluan",
+      "requests": "Permintaan",
+      "share": "Bahagian",
+      "empty": "Tiada permintaan dalam tempoh ini."
+    }
+  }
+}
