@@ -1,0 +1,233 @@
+# The production stack on Docker Swarm: rolling updates with no downtime and
+# an automatic rollback (docs/deploy-swarm.md). An overlay on compose.yaml and
+# compose.prod.yaml, not a file of its own: `pnpm deploy:swarm` renders the
+# three with Compose (`docker compose config`, whose interpolation `docker
+# stack` lacks), fixes what `docker stack deploy` still refuses
+# (tools/deploy/render.mjs), validates it and deploys it. So the environment,
+# the secrets and the limits stay declared once, in compose.prod.yaml.
+#
+#   pnpm deploy:swarm            migrate, then deploy and wait
+#   pnpm deploy:swarm status | rollback | render
+#
+# What Swarm lacks, and what replaces it:
+# - build:       images are pulled: APP_IMAGE, GOTENBERG_IMAGE, BACKUP_IMAGE and
+#                CADDY_IMAGE are required (push them first, docs/deploy-swarm.md).
+# - depends_on:  ignored. Tasks that start before PostgreSQL or Redis fail
+#                their healthcheck or exit, and restart_policy retries them.
+# - one-shot:    `migrate` is a replicated job; the script deploys it first and
+#                waits for it (api and worker are the `app` profile, left out
+#                of that first deploy).
+# - bind mounts: the Caddyfile and redis.sh are Swarm configs.
+# - local state: PostgreSQL, Redis, Caddy, the backups and the files volume
+#                are local to one node: they stay on the node labelled
+#                `stateful` (SWARM_STATEFUL_CONSTRAINT).
+
+# Restart on any failure, like `restart: unless-stopped`, but with a pause.
+x-restart: &restart
+  condition: any
+  delay: 5s
+  window: 30s
+
+# A stateful service never runs two tasks at once (one volume): the old stops
+# first. The price is a short gap, which a rolling update of api and worker
+# (start-first) doesn't have.
+x-stateful: &stateful
+  placement:
+    constraints:
+      - ${SWARM_STATEFUL_CONSTRAINT:-node.labels.stateful == true}
+  restart_policy: *restart
+  update_config:
+    parallelism: 1
+    order: stop-first
+    failure_action: rollback
+    monitor: 30s
+  rollback_config:
+    parallelism: 1
+    order: stop-first
+
+services:
+  # A job: runs once to completion per deploy (its spec changes with
+  # SWARM_DEPLOY_ID, which reruns it), retrying while PostgreSQL starts.
+  migrate:
+    build: !reset null
+    depends_on: !reset null
+    restart: !reset null
+    image: ${APP_IMAGE:?set APP_IMAGE (docs/deploy-swarm.md)}
+    environment:
+      SWARM_DEPLOY_ID: ${SWARM_DEPLOY_ID:-0}
+    deploy:
+      mode: replicated-job
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 12
+      placement:
+        constraints:
+          - ${SWARM_APP_CONSTRAINT:-node.platform.os == linux}
+
+  api:
+    profiles: [app]
+    build: !reset null
+    depends_on: !reset null
+    restart: !reset null
+    image: ${APP_IMAGE:?set APP_IMAGE (docs/deploy-swarm.md)}
+    # Readiness, not the image's liveness check: a task that can't reach
+    # PostgreSQL or Redis (a wrong secret in the new version) never becomes
+    # healthy, so the update rolls back. Caddy routes by the same /health.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      # dnsrr: `api` resolves to every task's address, which Caddy's
+      # `dynamic a` needs (its sticky cookie picks one). The routing mesh's
+      # one virtual IP would hide the replicas.
+      endpoint_mode: dnsrr
+      restart_policy: *restart
+      placement:
+        constraints:
+          - ${SWARM_APP_CONSTRAINT:-node.platform.os == linux}
+        max_replicas_per_node: ${API_MAX_PER_NODE:-0}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+        monitor: ${SWARM_MONITOR:-60s}
+        max_failure_ratio: 0
+      rollback_config:
+        parallelism: 1
+        order: start-first
+        monitor: 30s
+        failure_action: pause
+
+  worker:
+    profiles: [app]
+    build: !reset null
+    depends_on: !reset null
+    restart: !reset null
+    image: ${APP_IMAGE:?set APP_IMAGE (docs/deploy-swarm.md)}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      restart_policy: *restart
+      placement:
+        constraints:
+          - ${SWARM_APP_CONSTRAINT:-node.platform.os == linux}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+        monitor: ${SWARM_MONITOR:-60s}
+        max_failure_ratio: 0
+      rollback_config:
+        parallelism: 1
+        order: start-first
+        monitor: 30s
+        failure_action: pause
+
+  caddy:
+    profiles: [app]
+    build: !reset null
+    depends_on: !reset null
+    restart: !reset null
+    image: ${CADDY_IMAGE:?set CADDY_IMAGE (docs/deploy-swarm.md)}
+    # Host mode: Caddy sees the clients' addresses, and nothing but Caddy
+    # publishes a port. One task, on the stateful node (its certificates).
+    ports: !override
+      - target: 80
+        published: ${CADDY_HTTP_PORT:-80}
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: ${CADDY_HTTPS_PORT:-443}
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: ${CADDY_HTTPS_PORT:-443}
+        protocol: udp
+        mode: host
+    volumes: !override
+      - caddy_data:/data
+      - caddy_config:/config
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    deploy:
+      replicas: 1
+      <<: *stateful
+
+  postgres:
+    restart: !reset null
+    deploy:
+      replicas: 1
+      <<: *stateful
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+    stop_grace_period: 2m
+
+  redis:
+    restart: !reset null
+    volumes: !override
+      - redis_data:/data
+    configs:
+      - source: redis_sh
+        target: /etc/redis-scripts/redis.sh
+        mode: 0555
+    deploy:
+      replicas: 1
+      <<: *stateful
+
+  gotenberg:
+    build: !reset null
+    restart: !reset null
+    image: ${GOTENBERG_IMAGE:?set GOTENBERG_IMAGE (docs/deploy-swarm.md)}
+    deploy:
+      restart_policy: *restart
+      placement:
+        constraints:
+          - ${SWARM_APP_CONSTRAINT:-node.platform.os == linux}
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        monitor: 30s
+
+  backup:
+    build: !reset null
+    depends_on: !reset null
+    restart: !reset null
+    image: ${BACKUP_IMAGE:?set BACKUP_IMAGE (docs/deploy-swarm.md)}
+    # Compose only reports an unhealthy backup (the last run failed). Swarm
+    # would kill the container, and with it a run in progress, every minute
+    # until a run succeeds. Read it with `docker exec <container> backup-health`.
+    healthcheck:
+      disable: true
+    deploy:
+      replicas: 1
+      <<: *stateful
+
+configs:
+  caddyfile:
+    file: ${CADDYFILE:-./caddy/Caddyfile}
+  redis_sh:
+    file: ./redis/redis.sh

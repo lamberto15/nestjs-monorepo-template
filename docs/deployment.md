@@ -64,6 +64,23 @@ Filling `.env` (each step is commented in `env.example`):
   included: a few seconds' pause). Older logs are not kept: ship them
   somewhere if you need them for longer.
 
+### Zero-downtime deploys: three ways
+
+Each keeps the old version serving until the new one is healthy, and every one
+needs the same three things: expand/contract migrations (old and new code run
+against the same database), graceful shutdown (in place: a replica finishes
+its requests and exits), and pinned images (`APP_IMAGE` by commit SHA, so a
+rollback is one command).
+
+| Method | Command | Rollback | Choose it when |
+| --- | --- | --- | --- |
+| Rolling (Compose) | `pnpm deploy:rolling` | deploy the previous `APP_IMAGE` | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md)) |
+| Blue-green (Compose) | `pnpm deploy:blue-green` | `pnpm deploy:blue-green rollback`: instant while the old colour runs | one host, an instant switch back matters, 2× the API's resources during a deploy are fine ([deploy-blue-green.md](deploy-blue-green.md)) |
+| Docker Swarm | `pnpm deploy:swarm` | automatic on a failed health check, or `pnpm deploy:swarm rollback` | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md)) |
+
+A plain `docker compose up -d --build` is not one of them: it recreates the
+replicas in place (below, what Caddy does about that).
+
 ### Redeploying without downtime
 
 `docker compose up -d --build` recreates both `api` replicas at once, and a

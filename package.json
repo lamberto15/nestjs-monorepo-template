@@ -33,7 +33,8 @@
     "feature:add": "node tools/feature/add.mjs",
     "feature:remove": "node tools/feature/remove.mjs",
     "feature:sync": "node tools/feature/sync.mjs",
-    "deploy:blue-green": "node tools/deploy/blue-green.mjs"
+    "deploy:blue-green": "node tools/deploy/blue-green.mjs",
+    "deploy:swarm": "node tools/deploy/swarm.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
