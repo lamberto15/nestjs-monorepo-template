@@ -16,6 +16,7 @@ export const CAPABILITIES = [
   'watch',
   'search',
   'transfer',
+  'custom',
   'events',
   'numbered',
 ];

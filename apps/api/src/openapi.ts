@@ -1,8 +1,13 @@
 import type { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { APP_FEATURES } from './app.tokens.js';
 import type { FeatureDefinition } from './features/feature.js';
-import { swaggerRequestInterceptor } from './platform/idempotency/idempotency.openapi.js';
+import {
+  applyIdempotencyMode,
+  swaggerRequestInterceptor,
+} from './platform/idempotency/idempotency.openapi.js';
+import type { PlatformEnv } from './platform/platform.env.js';
 
 /** Your API's name, in the document and Swagger UI's title. */
 const API_TITLE = 'My API';
@@ -14,20 +19,33 @@ const API_TITLE = 'My API';
  * converts itself, so no converter is configured.
  */
 export function setupOpenApi(app: INestApplication) {
-  SwaggerModule.setup('api', app, () => buildOpenApiDocument(app), {
-    customSiteTitle: API_TITLE,
-    swaggerOptions: {
-      // A fresh Idempotency-Key per Execute when the field is left at "generate".
-      requestInterceptor: swaggerRequestInterceptor,
+  const idempotency = app
+    .get<ConfigService<PlatformEnv, true>>(ConfigService)
+    .get('IDEMPOTENCY', { infer: true });
+  SwaggerModule.setup(
+    'api',
+    app,
+    () => buildOpenApiDocument(app, idempotency),
+    {
+      customSiteTitle: API_TITLE,
+      swaggerOptions: {
+        // A fresh Idempotency-Key per Execute when the field is left at "generate".
+        requestInterceptor: swaggerRequestInterceptor,
+      },
     },
-  });
+  );
 }
 
 /**
  * The OpenAPI document of the app's routes: what `/api-json` serves, and what
  * `pnpm openapi:dump` writes for the typed client (packages/api-client).
+ * `idempotency` is the deployment's IDEMPOTENCY; the dump (preview mode, no
+ * config) and so the committed client use the default, `required`.
  */
-export function buildOpenApiDocument(app: INestApplication) {
+export function buildOpenApiDocument(
+  app: INestApplication,
+  idempotency: PlatformEnv['IDEMPOTENCY'] = 'required',
+) {
   const builder = new DocumentBuilder()
     .setTitle(API_TITLE)
     .setDescription(
@@ -88,5 +106,7 @@ export function buildOpenApiDocument(app: INestApplication) {
       'user-session',
     )
     .build();
-  return SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config);
+  applyIdempotencyMode(document, idempotency);
+  return document;
 }

@@ -28,6 +28,9 @@ Object.assign(process.env, {
   // feature:notes end
   // supertest speaks plain HTTP, where a browser drops Secure cookies.
   SESSION_COOKIE_SECURE: 'off',
+  // Off by default (a privileged tool); the impersonation suites need it.
+  // deployment-switches.e2e-spec.ts turns it off on a running app.
+  IMPERSONATION: 'on',
   OUTBOX_RELAY: 'off',
   WEBHOOKS_WORKER: 'off',
   QUEUES_WORKER: 'off',

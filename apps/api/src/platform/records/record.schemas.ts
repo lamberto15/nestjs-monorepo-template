@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { bulkRequestSchema } from '../bulk/bulk.schemas.js';
+import {
+  customValuesInputSchema,
+  customValuesSchema,
+} from '../custom-fields/custom-field.schemas.js';
 import { fieldSchemas } from '../fields/fields.js';
 import { tagRefSchema } from '../tags/tag.schemas.js';
 import { numberFormat, type RecordDeclaration, takes } from './record.js';
@@ -22,6 +26,12 @@ export function recordSchemas<const D extends RecordDeclaration>(
   declaration: D,
 ) {
   const fields = fieldSchemas(declaration.fields);
+  const custom = takes(declaration, 'custom');
+  // Checked against the subject's active custom fields by the service (RecordLifecycle.values).
+  const create = fields.create.extend({
+    ...(custom && { custom: customValuesInputSchema.optional() }),
+  });
+  const update = create.partial();
   const noun = declaration.noun;
   const response = z.object({
     id: z.uuid(),
@@ -47,6 +57,13 @@ export function recordSchemas<const D extends RecordDeclaration>(
           `Its tags, by name (PUT /v1/${declaration.path}/{id}/tags sets them).`,
         ),
     }),
+    ...(custom && {
+      custom: customValuesSchema
+        .optional()
+        .describe(
+          "Custom field values by key; left out when your permissions don't include them.",
+        ),
+    }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     ...(declaration.softDelete && {
@@ -68,13 +85,10 @@ export function recordSchemas<const D extends RecordDeclaration>(
     ...(declaration.softDelete ? (['restore'] as const) : []),
   ] as const;
   return {
-    create: fields.create,
-    update: fields.update,
+    create,
+    update,
     response,
-    bulk: bulkRequestSchema(
-      [...actions] as [string, ...string[]],
-      fields.update,
-    ),
+    bulk: bulkRequestSchema([...actions] as [string, ...string[]], update),
   };
 }
 

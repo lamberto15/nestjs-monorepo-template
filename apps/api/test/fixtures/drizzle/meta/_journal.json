@@ -12,8 +12,15 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1792230582802,
-      "tag": "0001_needy_puppet_master",
+      "when": 1792230561878,
+      "tag": "0001_bizarre_blacklash",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792232418499,
+      "tag": "0002_unknown_solo",
       "breakpoints": true
     }
   ]

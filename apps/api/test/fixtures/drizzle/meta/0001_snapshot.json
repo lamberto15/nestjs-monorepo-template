@@ -1,5 +1,5 @@
 {
-  "id": "af61e7ba-ed11-4581-a521-c7edde61c712",
+  "id": "a1a265cf-8cf1-431a-a4c0-4680aef3c64d",
   "prevId": "7aaba98b-dea6-402d-b187-e885bb00a363",
   "version": "7",
   "dialect": "postgresql",
@@ -45,11 +45,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "number": {
-          "name": "number",
-          "type": "text",
+        "custom": {
+          "name": "custom",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -134,25 +135,19 @@
           "method": "gin",
           "with": {}
         },
-        "test_items_number_idx": {
-          "name": "test_items_number_idx",
+        "test_items_custom_idx": {
+          "name": "test_items_custom_idx",
           "columns": [
             {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "number",
+              "expression": "custom",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
-          "method": "btree",
+          "method": "gin",
           "with": {}
         }
       },

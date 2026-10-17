@@ -427,4 +427,67 @@ describe('record revisions of test items (e2e)', () => {
       watchers: 1,
     });
   });
+
+  it('keeps custom values in the snapshots and restores them', async () => {
+    const field = await node
+      .admin()
+      .post('/v1/custom-fields')
+      .send({
+        subject: 'TestItem',
+        key: 'region',
+        label: 'Region',
+        type: 'text',
+      })
+      .expect(201);
+    const editor = await node.user(['editor']);
+    const created = await node
+      .writeItem(editor.agent, {
+        title: 'Plan',
+        body: 'x',
+        custom: { region: 'eu' },
+      })
+      .expect(201);
+    const id = created.body.id as string;
+    await patch(editor.agent, id, { custom: { region: 'us' } });
+    await patch(editor.agent, id, { custom: { region: null } });
+
+    const page = await revisions(editor.agent, id);
+    expect(page.items.map((r) => r.snapshot.custom)).toEqual([
+      {},
+      { region: 'us' },
+      { region: 'eu' },
+    ]);
+    expect(page.items[1]!.changes).toEqual({
+      'custom.region': { from: 'eu', to: 'us' },
+    });
+    expect(page.items[0]!.changes).toEqual({
+      'custom.region': { from: 'us', to: null },
+    });
+
+    const restored = await editor.agent
+      .post(`/v1/test-items/${id}/revisions/1/restore`)
+      .expect(200);
+    expect(restored.body.custom).toEqual({ region: 'eu' });
+
+    // A field deactivated since: hidden in snapshots, changes and diffs.
+    await node
+      .admin()
+      .patch(`/v1/custom-fields/${field.body.id}`)
+      .send({ active: false })
+      .expect(200);
+    const hidden = await revisions(editor.agent, id);
+    for (const revision of hidden.items) {
+      expect(revision.snapshot.custom).toEqual({});
+      expect(Object.keys(revision.changes ?? {})).not.toContain(
+        'custom.region',
+      );
+    }
+    expect(
+      (
+        await editor.agent
+          .get(`/v1/test-items/${id}/revisions/1/diff/2`)
+          .expect(200)
+      ).body.changes,
+    ).toEqual({});
+  });
 });

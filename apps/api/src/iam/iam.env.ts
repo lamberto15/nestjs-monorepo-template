@@ -202,6 +202,26 @@ export const iamEnv = z.object({
     .min(1)
     .max(30 * 24)
     .default(7 * 24),
+  /**
+   * Support impersonation (an administrator acts as a user:
+   * POST /access/users/{id}/impersonate). Off: those routes answer 404
+   * `feature_off`, and a running impersonation ends at its next request.
+   * A privileged tool: opt in.
+   */
+  IMPERSONATION: flag('off'),
+  /**
+   * Two-factor sign-in (TOTP). Off: nobody can set it up (POST
+   * /auth/mfa/enroll and /confirm answer 404 `feature_off`), but accounts
+   * that already have it keep being asked for a code, and can still use or
+   * turn off their own: switching it off never weakens an account silently.
+   */
+  AUTH_MFA: flag('on'),
+  /**
+   * API clients (machine keys `sk_...`). Off: their management routes answer
+   * 404 `feature_off`, and a bearer key no longer authenticates (401);
+   * users are unaffected. Clients and keys stay stored, working again when on.
+   */
+  API_CLIENTS: flag('on'),
   /** How long an administrator may act as another user. */
   IMPERSONATION_TTL_MINUTES: z.coerce
     .number()

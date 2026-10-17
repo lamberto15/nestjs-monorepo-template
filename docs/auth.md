@@ -735,6 +735,23 @@ mistakes such a stack for a protected one. For a
 manual try against Cloudflare, Turnstile's documented test keys (its docs,
 "Testing") always pass, always block, or answer "already spent".
 
+## Switches
+
+Three deployment switches (env, `iam.env.ts`) turn a capability off. A
+refused route answers **404 `feature_off`** (the route does not exist for
+this deployment, as with `PASSKEYS=off`), after authentication: a caller
+who is not signed in still gets 401. The routes stay in the OpenAPI document
+and the typed client either way (each lists the 404).
+
+| Switch | Default | Off |
+| --- | --- | --- |
+| `IMPERSONATION` | `off` | `POST /v1/access/users/{id}/impersonate` and `POST /v1/auth/impersonation/stop` answer 404. A running impersonation ends at its next request (401): the session is refused while the switch is off; the administrator signs in again. |
+| `AUTH_MFA` | `on` | `POST /v1/auth/mfa/enroll` and `/confirm` answer 404: nobody can set two-factor up. Accounts that **already have it** are still asked for a code at sign-in and can still use their recovery codes or turn it off themselves (`GET`, `/verify`, `/recovery-codes`, `DELETE`): switching it off never weakens an account silently. |
+| `API_CLIENTS` | `on` | `/v1/access/clients…` (list, create, rotate, revoke a key, change) and a client's usage answer 404, and a bearer key (`sk_…`) no longer authenticates (401, as a revoked one). Users are unaffected. Clients and keys stay stored and work again when it is turned on. |
+
+Impersonation is a privileged support tool, so it is opt in: set
+`IMPERSONATION=on` (the development example does).
+
 ## Impersonation (support)
 
 Within one tenant ([tenancy](tenancy.md)): the administrator's current

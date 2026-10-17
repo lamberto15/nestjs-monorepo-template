@@ -6606,6 +6606,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -9971,6 +9972,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description feature_off: IMPERSONATION=off in this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Not impersonating anyone. */
             409: {
                 headers: {
@@ -10313,6 +10321,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description feature_off: AUTH_MFA=off in this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Two-factor is already on: turn it off first. */
             409: {
                 headers: {
@@ -10347,6 +10362,13 @@ export interface operations {
                         recoveryCodes: string[];
                     };
                 };
+            };
+            /** @description feature_off: AUTH_MFA=off in this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11908,6 +11930,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description feature_off: IMPERSONATION=off in this deployment. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -11986,6 +12009,13 @@ export interface operations {
             };
             /** @description Not allowed by your permissions. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12076,6 +12106,13 @@ export interface operations {
             };
             /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12175,6 +12212,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12215,6 +12253,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12305,6 +12344,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
             404: {
                 headers: {
                     [name: string]: unknown;

@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto';
-import { type DynamicModule, Module } from '@nestjs/common';
+import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
+import { ConfigService } from '@nestjs/config';
 import { IdempotencyModule } from '@nestjs/idempotency';
 import { OutboxModule, OutboxStorage } from '@nestjs/outbox';
 import { PostgresOutboxStore } from '@nestjs/outbox/postgres';
@@ -18,6 +19,7 @@ import { OpsController } from './ops/ops.controller.js';
 import { OpsPolicy } from './ops/ops.policy.js';
 import { OpsQueues } from './ops/ops-queues.service.js';
 import { OpsMetrics } from './ops/ops-metrics.js';
+import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
@@ -44,7 +46,9 @@ import {
 import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
 import { SuppressionsController } from './deliverability/suppressions.controller.js';
 import { SuppressionsService } from './deliverability/suppressions.service.js';
+import { NoRealtime } from './realtime/no-realtime.js';
 import { Realtime } from './realtime/realtime.service.js';
+import { switchedOn, whenOn } from './switches.js';
 import { FilesController } from './storage/files.controller.js';
 import { storage } from './storage/storage.config.js';
 import { queues } from './queues/queues.js';
@@ -219,8 +223,14 @@ export class PlatformModule {
         // before any replay, and a replay is metered. Guards run before every interceptor, so the scope sees the caller.
         IdempotencyModule.forRootAsync({
           imports: [secretsModule],
-          inject: [PLATFORM_SECRETS],
-          useFactory: (platform: PlatformSecrets) => ({
+          inject: [PLATFORM_SECRETS, ConfigService],
+          useFactory: (
+            platform: PlatformSecrets,
+            config: ConfigService<PlatformEnv, true>,
+          ) => ({
+            // IDEMPOTENCY=required|optional: the default of every @Idempotent()
+            // route, which can still say otherwise for itself.
+            required: config.get('IDEMPOTENCY', { infer: true }) === 'required',
             scope: principalScope,
             ttl: '24h', // longer than any client keeps retrying
             lockTtl: '60s', // how long a crashed instance blocks a key
@@ -280,8 +290,13 @@ export class PlatformModule {
         MoneyModule,
       ],
       controllers: [
-        WebhookEndpointsController,
-        WebhookDeliveriesController,
+        // WEBHOOKS=off: no endpoint or delivery API (the module itself stays: the
+        // notifications, approvals and incoming receivers inject it).
+        ...whenOn(
+          'WEBHOOKS',
+          WebhookEndpointsController,
+          WebhookDeliveriesController,
+        ),
         OpsController,
         FilesController,
         DataTransferController,
@@ -296,8 +311,8 @@ export class PlatformModule {
         AttachmentsController,
         DocumentsController,
         TagsController,
-        ReportsController,
-        UsageController,
+        ...whenOn('REPORTS', ReportsController),
+        ...whenOn('USAGE', UsageController),
         // Email deliverability: the providers' bounces and complaints, the suppression list.
         MailEventsController,
         SuppressionsController,
@@ -358,7 +373,10 @@ export class PlatformModule {
         DrizzleIdempotencyStore,
         OpsPolicy,
         // socket.io gateway at /realtime; features inject it to push events.
-        Realtime,
+        // REALTIME=off: the same token, pushes that do nothing, no gateway.
+        switchedOn('REALTIME')
+          ? Realtime
+          : { provide: Realtime, useClass: NoRealtime },
         // Exports and imports: features register their DataExporter / DataImporter.
         DataTransferRegistry,
         DataTransferService,
@@ -419,14 +437,19 @@ export class PlatformModule {
         TagsRegistry,
         TagsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
-        ReportsService,
-        ReportRunnerJob,
-        ReportReadyMail,
-        ReportFailedMail,
+        ...whenOn<Provider>(
+          'REPORTS',
+          ReportsService,
+          ReportRunnerJob,
+          ReportReadyMail,
+          ReportFailedMail,
+        ),
         // API clients' usage: counted per day and route, daily quotas, the nightly roll-up.
-        UsageService,
-        UsageRollupJob,
-        { provide: APP_INTERCEPTOR, useClass: UsageInterceptor },
+        // USAGE=off: no metering, no quota enforcement, no roll-up.
+        ...whenOn<Provider>('USAGE', UsageService, UsageRollupJob, {
+          provide: APP_INTERCEPTOR,
+          useClass: UsageInterceptor,
+        }),
         // Record revisions: features register a RevisionTarget and call RevisionsService.record().
         RevisionsRegistry,
         RevisionsService,

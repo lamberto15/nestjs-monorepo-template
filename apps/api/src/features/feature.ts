@@ -12,6 +12,7 @@ import type { PlatformOptions } from '../platform/platform.options.js';
 import {
   type RecordDeclaration,
   recordEventTypes,
+  recordCustomFields,
   recordKey,
   takes,
 } from '../platform/records/record.js';
@@ -42,7 +43,8 @@ export interface FeatureDefinition {
   /**
    * Its records' declaration (`<x>.record.ts`), when they are declared:
    * what their capabilities need of the platform is derived from it (the
-   * `<item>.commented` notification with comments).
+   * `<item>.commented` notification with comments, the custom fields'
+   * declaration with custom).
    */
   record?: RecordDeclaration;
   /**
@@ -107,7 +109,11 @@ export function featureDeclarations(features: readonly FeatureDefinition[]) {
     ]),
     incomingWebhooks: all((feature) => feature.incomingWebhooks),
     queues: all((feature) => feature.queues),
-    customFields: all((feature) => feature.customFields),
+    customFields: all((feature) => [
+      ...(feature.customFields ?? []),
+      // A record that takes custom fields declares them itself (platform/records).
+      ...recordCustomFields(feature.record),
+    ]),
     notifications: all((feature) => [
       ...(feature.notifications ?? []),
       ...recordNotifications(feature.record),

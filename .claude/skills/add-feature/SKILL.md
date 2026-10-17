@@ -1,6 +1,6 @@
 ---
 name: add-feature
-description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, export, webhooks for its changes or human-readable numbers), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
+description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, custom fields, export, webhooks for its changes or human-readable numbers), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
 ---
 
 # Add a feature
@@ -36,7 +36,8 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
 4. **What it needs** (`--with`): tags, comments, attachments, revisions
    (history and restore), pdf (a document of a record), bulk (act on many),
    watch (be notified of changes), search, transfer (CSV/Excel export and
-   import). Only what they need. Ask two more, by name:
+   import), custom (fields administrators add at runtime, no migration).
+   Only what they need. Ask two more, by name:
    - **"Do API clients need webhooks for its changes?"** → `events`
      (`<item>.created`, `.updated`, `.deleted`, `.restored` webhooks, sent to
      the API client that owns the record).

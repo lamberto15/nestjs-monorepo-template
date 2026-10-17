@@ -53,6 +53,7 @@ import {
   timezone,
   userSchema,
 } from '../account/account.schemas.js';
+import { RequiresSwitch } from './deployment-switch.js';
 import { ImpersonationService } from '../account/impersonation.service.js';
 import { notWhileImpersonating } from '../account/account.schemas.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
@@ -419,6 +420,7 @@ export class AuthController {
   @SessionOnly()
   @Can.Anyone()
   @Post('impersonation/stop')
+  @RequiresSwitch('IMPERSONATION')
   @HttpCode(204)
   @ApiCookieAuth('user-session')
   @ApiOperation({ summary: 'Stop acting as another user' })

@@ -31,10 +31,7 @@ import {
   type Principal,
   principalKey,
 } from '../../../src/iam/auth/principal.js';
-import {
-  recordValues,
-  recordView,
-} from '../../../src/platform/records/record.js';
+import { recordView } from '../../../src/platform/records/record.js';
 import { RecordLifecycle } from '../../../src/platform/records/record-contract.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { TEST_ITEM_RESOURCE } from './test-item.resource.js';
@@ -71,6 +68,8 @@ export class TestItemsService {
     { by = owner }: { by?: Principal } = {},
   ): Promise<TestItem> {
     // Business logic: check or derive values here, before the transaction.
+    // The body as columns; custom values checked against their fields (RecordLifecycle).
+    const values = await this.lifecycle.values(dto, 'create');
     return inTransaction(this.txHost, async (tx) => {
       const [row] = await tx
         .insert(testItems)
@@ -83,7 +82,7 @@ export class TestItemsService {
               : null,
           // Its number (numbered), when the record takes one.
           ...(await this.lifecycle.creating(tx)),
-          ...recordValues(TEST_ITEM, dto),
+          ...values,
         } as typeof testItems.$inferInsert)
         .returning();
       await this.lifecycle.created(tx, { row: row!, owner, by });
@@ -154,7 +153,7 @@ export class TestItemsService {
     ip?: string,
     { restoredFrom }: { restoredFrom?: number } = {},
   ) {
-    const changes = recordValues(TEST_ITEM, dto);
+    const changes = await this.lifecycle.values(dto, 'update');
     if (Object.keys(changes).length === 0) {
       return row; // nothing to change
     }

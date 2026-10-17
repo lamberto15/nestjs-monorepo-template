@@ -263,6 +263,21 @@ first response. A key is spent even when that first answer was an error (a
 400 included): send a corrected request with a new key. Its errors come from
 `@nestjs/idempotency` with its own codes (`IDEMPOTENCY_KEY_REQUIRED`,
 `IDEMPOTENCY_KEY_REUSED`: 422 for the same key with another body).
+`IDEMPOTENCY` sets the deployment's mode. `required` (the default): a route
+marked `@Idempotent()` refuses a request without the header (400
+`IDEMPOTENCY_KEY_REQUIRED`). `optional`: a key is honoured when sent (replay;
+422 for another body) but not demanded, so simple clients can create without
+keys, at the price of no duplicate protection for a client that sends none.
+The module-level default (`IdempotencyModule`'s `required`, set from the
+variable) rules every `@Idempotent({ scope })`; a route that must stay
+optional in both modes says `@Idempotent({ required: false })` (webhook
+endpoints, reports, suppressions), and one that must always demand a key
+would say `required: true`. The OpenAPI document follows the mode: the
+decorators document the header as required, and under `optional`
+`buildOpenApiDocument` marks every `Idempotency-Key` parameter optional
+(`applyIdempotencyMode`). The committed typed client is generated with the
+default mode.
+
 Keys are the caller's own, **in its tenant**: the scope is
 `tenant:<tenantId>:<user|client>:<id>` ([tenancy](tenancy.md)), so two
 callers never replay each other's responses, and neither does one person
