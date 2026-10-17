@@ -38,7 +38,7 @@ describe('identity and access, edge cases (e2e)', () => {
   }
 
   const notesAs = (auth: string) =>
-    node.http().get('/v1/notes').set('Authorization', auth);
+    node.http().get('/v1/test-items').set('Authorization', auth);
 
   describe('sign-in and sessions', () => {
     it('finds the account whatever the case of the email', async () => {
@@ -539,18 +539,18 @@ describe('identity and access, edge cases (e2e)', () => {
 
     it('combines fields with conditions: the text of my notes only, and changes without the text', async () => {
       const seeAllTitles = await role('Titles', [
-        { subject: 'Note', action: 'read', conditions: [], fields: [] },
+        { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
       ]);
       const ownText = await role('Own text', [
         {
-          subject: 'Note',
+          subject: 'TestItem',
           action: 'read',
           conditions: [{ key: 'mine' }],
           fields: ['body'],
         },
-        { subject: 'Note', action: 'create', conditions: [] },
+        { subject: 'TestItem', action: 'create', conditions: [] },
         {
-          subject: 'Note',
+          subject: 'TestItem',
           action: 'update',
           conditions: [{ key: 'mine' }],
           fields: [],
@@ -559,17 +559,18 @@ describe('identity and access, edge cases (e2e)', () => {
       const { agent } = await node.user([seeAllTitles, ownText]);
       const mine = (
         await node
-          .writeNote(agent, { title: 'Mine', body: 'my text' })
+          .writeItem(agent, { title: 'Mine', body: 'my text' })
           .expect(201)
       ).body;
       const other = await node.client();
       const theirs = (
         await node
-          .writeNote(other.auth, { title: 'Theirs', body: 'their text' })
+          .writeItem(other.auth, { title: 'Theirs', body: 'their text' })
           .expect(201)
       ).body;
 
-      const listed = (await agent.get('/v1/notes').expect(200)).body.items as {
+      const listed = (await agent.get('/v1/test-items').expect(200)).body
+        .items as {
         id: string;
         body?: string;
       }[];
@@ -578,20 +579,20 @@ describe('identity and access, edge cases (e2e)', () => {
       expect(listedTheirs).toBeDefined();
       expect(listedTheirs).not.toHaveProperty('body');
       expect(
-        (await agent.get(`/v1/notes/${theirs.id}`).expect(200)).body,
+        (await agent.get(`/v1/test-items/${theirs.id}`).expect(200)).body,
       ).not.toHaveProperty('body');
       expect(
-        (await agent.get(`/v1/notes/${mine.id}`).expect(200)).body.body,
+        (await agent.get(`/v1/test-items/${mine.id}`).expect(200)).body.body,
       ).toBe('my text');
 
       // Changing the title of my note: yes; its text: no; their note: no.
       const renamed = await agent
-        .patch(`/v1/notes/${mine.id}`)
+        .patch(`/v1/test-items/${mine.id}`)
         .send({ title: 'Renamed' })
         .expect(200);
       expect(renamed.body).toMatchObject({ title: 'Renamed', body: 'my text' });
       const refused = await agent
-        .patch(`/v1/notes/${mine.id}`)
+        .patch(`/v1/test-items/${mine.id}`)
         .send({ title: 'Again', body: 'new text' })
         .expect(403);
       expect(refused.body).toMatchObject({
@@ -600,10 +601,10 @@ describe('identity and access, edge cases (e2e)', () => {
       });
       // Nothing of the refused change was saved.
       expect(
-        (await agent.get(`/v1/notes/${mine.id}`).expect(200)).body.title,
+        (await agent.get(`/v1/test-items/${mine.id}`).expect(200)).body.title,
       ).toBe('Renamed');
       await agent
-        .patch(`/v1/notes/${theirs.id}`)
+        .patch(`/v1/test-items/${theirs.id}`)
         .send({ title: 'Mine now' })
         .expect(403);
     });
@@ -611,8 +612,12 @@ describe('identity and access, edge cases (e2e)', () => {
     it("refuses to grant fields or conditions-free access the granter doesn't hold: 403", async () => {
       const limited = await role('Limited manager', [
         { subject: 'Access', action: 'manageRoles', conditions: [] },
-        { subject: 'Note', action: 'read', conditions: [], fields: [] },
-        { subject: 'Note', action: 'update', conditions: [{ key: 'mine' }] },
+        { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
+        {
+          subject: 'TestItem',
+          action: 'update',
+          conditions: [{ key: 'mine' }],
+        },
       ]);
       const { agent } = await node.user([limited]);
       const attempt = (permissions: unknown[]) =>
@@ -621,18 +626,27 @@ describe('identity and access, edge cases (e2e)', () => {
           .send({ name: `Attempt ${randomUUID().slice(0, 6)}`, permissions });
       // Every field (fields left out), or the text explicitly: not held.
       await attempt([
-        { subject: 'Note', action: 'read', conditions: [] },
+        { subject: 'TestItem', action: 'read', conditions: [] },
       ]).expect(403);
       await attempt([
-        { subject: 'Note', action: 'read', conditions: [], fields: ['body'] },
+        {
+          subject: 'TestItem',
+          action: 'read',
+          conditions: [],
+          fields: ['body'],
+        },
       ]).expect(403);
       // Held with a condition only: can't be granted, with or without it.
       await attempt([
-        { subject: 'Note', action: 'update', conditions: [{ key: 'mine' }] },
+        {
+          subject: 'TestItem',
+          action: 'update',
+          conditions: [{ key: 'mine' }],
+        },
       ]).expect(403);
       // Exactly what is held without conditions: fine.
       await attempt([
-        { subject: 'Note', action: 'read', conditions: [], fields: [] },
+        { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
       ]).expect(201);
       // Unknown fields: a 400, not a silent grant.
       await node
@@ -642,7 +656,7 @@ describe('identity and access, edge cases (e2e)', () => {
           name: 'Unknown field',
           permissions: [
             {
-              subject: 'Note',
+              subject: 'TestItem',
               action: 'read',
               conditions: [],
               fields: ['secret'],
@@ -669,13 +683,13 @@ describe('identity and access, edge cases (e2e)', () => {
         .send({ teamIds: [team] })
         .expect(204);
       await node
-        .writeNote(writer.agent, { title: 'Team note', body: 'x' })
+        .writeItem(writer.agent, { title: 'Team note', body: 'x' })
         .expect(201);
 
       const lead = await node.user(['team-lead']);
       const titles = async () =>
         (
-          (await lead.agent.get('/v1/notes').expect(200)).body.items as {
+          (await lead.agent.get('/v1/test-items').expect(200)).body.items as {
             title: string;
           }[]
         ).map((n) => n.title);
@@ -696,16 +710,16 @@ describe('identity and access, edge cases (e2e)', () => {
         .send({ parentId: other })
         .expect(200);
       expect(await titles()).toEqual(['Team note']);
-      const note = (await lead.agent.get('/v1/notes').expect(200)).body
+      const note = (await lead.agent.get('/v1/test-items').expect(200)).body
         .items[0];
-      await lead.agent.get(`/v1/notes/${note.id}`).expect(200);
+      await lead.agent.get(`/v1/test-items/${note.id}`).expect(200);
       // And back to the top: gone again, in the list and the record.
       await admin
         .patch(`/v1/access/teams/${team}`)
         .send({ parentId: null })
         .expect(200);
       expect(await titles()).toEqual([]);
-      await lead.agent.get(`/v1/notes/${note.id}`).expect(403);
+      await lead.agent.get(`/v1/test-items/${note.id}`).expect(403);
     });
 
     it('takes access away when a role is deleted or narrowed, from the next request', async () => {
@@ -713,17 +727,17 @@ describe('identity and access, edge cases (e2e)', () => {
         { subject: 'Ops', action: 'view', conditions: [] },
       ]);
       const readAll = await role('Read all', [
-        { subject: 'Note', action: 'read', conditions: [] },
+        { subject: 'TestItem', action: 'read', conditions: [] },
       ]);
       const { agent } = await node.user([opsRole, readAll]);
       const other = await node.client();
       await node
-        .writeNote(other.auth, { title: 'Not mine', body: 'x' })
+        .writeItem(other.auth, { title: 'Not mine', body: 'x' })
         .expect(201);
 
       await agent.get('/v1/ops/outbox').expect(200);
       expect(
-        (await agent.get('/v1/notes').expect(200)).body.items.length,
+        (await agent.get('/v1/test-items').expect(200)).body.items.length,
       ).toBeGreaterThan(0);
       expect(
         (await agent.get('/v1/auth/me').expect(200)).body.can['Ops.view'],
@@ -741,22 +755,28 @@ describe('identity and access, edge cases (e2e)', () => {
         .send({
           name: 'Read mine',
           permissions: [
-            { subject: 'Note', action: 'read', conditions: [{ key: 'mine' }] },
+            {
+              subject: 'TestItem',
+              action: 'read',
+              conditions: [{ key: 'mine' }],
+            },
           ],
         })
         .expect(204);
-      expect((await agent.get('/v1/notes').expect(200)).body.items).toEqual([]);
+      expect(
+        (await agent.get('/v1/test-items').expect(200)).body.items,
+      ).toEqual([]);
       // A deleted role is gone for good: 404.
       await node.admin().delete(`/v1/access/roles/${opsRole}`).expect(404);
     });
 
     it('takes a deleted role away from API clients too', async () => {
       const readAll = await role('Client reads all', [
-        { subject: 'Note', action: 'read', conditions: [] },
+        { subject: 'TestItem', action: 'read', conditions: [] },
       ]);
       const writer = await node.client();
       await node
-        .writeNote(writer.auth, { title: 'For the reader', body: 'x' })
+        .writeItem(writer.auth, { title: 'For the reader', body: 'x' })
         .expect(201);
       const reader = await node.client();
       await node

@@ -18,9 +18,22 @@ const registry = {
   optional: new Set<string>(),
 };
 
+/** Tables beyond the schema's, kept across registrations: the tests' fixtures. */
+const extra = { strict: [] as string[], optional: [] as string[] };
+
 export function registerTenantTables(strict: string[], optional: string[]) {
-  registry.strict = new Set(strict);
-  registry.optional = new Set(optional);
+  registry.strict = new Set([...strict, ...extra.strict]);
+  registry.optional = new Set([...optional, ...extra.optional]);
+}
+
+/**
+ * Tenant tables outside the app's schema: the test-only features'
+ * (test/support.ts, from `tenantTableNames(fixtureTables)`), never an app's.
+ */
+export function addTenantTables(strict: string[], optional: string[]) {
+  extra.strict.push(...strict);
+  extra.optional.push(...optional);
+  registerTenantTables([...registry.strict], [...registry.optional]);
 }
 
 /** The tables a statement reads or writes (Drizzle quotes every name). */

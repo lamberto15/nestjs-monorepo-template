@@ -306,6 +306,55 @@ jobs:
           REDIS_URL: redis://localhost:6379
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
 
+  # A new project's first step, on every change: the example feature removed
+  # (`pnpm feature:remove notes`), the template must still build, lint,
+  # migrate and pass every remaining test, unit and e2e (the platform's run
+  # on the test-only record, test/fixtures). Thrown away like feature-smoke's.
+  template-without-notes:
+    needs: compose-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      redis:
+        image: ${{ needs.compose-images.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres:
+        image: ${{ needs.compose-images.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Remove the example feature
+        run: pnpm feature:remove notes
+      - name: 'Its table dropped (a generated migration: drizzle-kit asks nothing)'
+        run: pnpm db:generate
+      - name: Nothing of notes is left outside docs and generated files
+        run: |
+          if grep -rn --include='*.ts' -e 'features/notes' -e "'/v1/notes" apps/api/src apps/api/test; then
+            echo "Still referenced after pnpm feature:remove notes" >&2
+            exit 1
+          fi
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm db:check
+      - run: pnpm client:generate
+      - run: pnpm test
+      - name: Every e2e test
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts
+        env:
+          REDIS_URL: redis://localhost:6379
+          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+
   # Pull requests: the typed client's contract (packages/api-client/openapi.json,
   # kept in sync with the routes by `client:check`) compared with the base
   # branch's by oasdiff. Breaking changes (removed endpoints, fields, enum

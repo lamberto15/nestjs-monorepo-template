@@ -127,10 +127,12 @@ export async function loadOrCreateSecret(
  * security): the strict ones (NOT NULL, reachable only in a tenant's
  * scope) and the optional ones (rows of no tenant too).
  */
-export function tenantTableNames(): [strict: string[], optional: string[]] {
+export function tenantTableNames(
+  tables: Record<string, unknown> = schema,
+): [strict: string[], optional: string[]] {
   const strict: string[] = [];
   const optional: string[] = [];
-  for (const value of Object.values(schema)) {
+  for (const value of Object.values(tables)) {
     if (!is(value, PgTable)) {
       continue;
     }

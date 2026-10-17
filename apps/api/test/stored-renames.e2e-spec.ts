@@ -47,7 +47,7 @@ describe('stored renames (e2e)', () => {
     await node.db.insert(settingOverrides).values(
       [node.tenantId, other.id].map((tenantId) => ({
         tenantId,
-        key: 'notes.publishDelay',
+        key: 'approvals.maxDelegationDays',
         scope: 'orgUnit' as never,
         scopeId: '',
         value: 1,
@@ -57,7 +57,7 @@ describe('stored renames (e2e)', () => {
 
     // A role naming a condition no declaration has grants nothing: an
     // empty list, not a failure of every request.
-    await lead.agent.get('/v1/notes').expect(200);
+    await lead.agent.get('/v1/test-items').expect(200);
 
     const lines: string[] = [];
     await applyStoredRenames(node.database.ownerUrl, STORED_RENAMES, (line) =>

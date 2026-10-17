@@ -1,6 +1,7 @@
+import { writeNote, exampleSender } from './notes-support.js';
 import { randomUUID } from 'node:crypto';
-import { publicationId } from '../src/features/notes/note-publication.workflow.js';
-import { bootApp, webhookReceiver, type TestApp } from './support.js';
+import { publicationId } from '../../../src/features/notes/note-publication.workflow.js';
+import { bootApp, webhookReceiver, type TestApp } from '../../support.js';
 
 describe('the example feature: notes (e2e)', () => {
   let node: TestApp;
@@ -24,19 +25,22 @@ describe('the example feature: notes (e2e)', () => {
         .expect(400);
 
       const key = randomUUID();
-      const first = await node
-        .writeNote(client.auth, undefined, key)
-        .expect(201);
-      const retry = await node
-        .writeNote(client.auth, undefined, key)
-        .expect(201);
+      const first = await writeNote(node, client.auth, undefined, key).expect(
+        201,
+      );
+      const retry = await writeNote(node, client.auth, undefined, key).expect(
+        201,
+      );
       expect(retry.headers['idempotent-replayed']).toBe('true');
       expect(retry.body.id).toBe(first.body.id);
 
       // The same key with another body is a mistake, not a retry.
-      await node
-        .writeNote(client.auth, { title: 'Other', body: '' }, key)
-        .expect(422);
+      await writeNote(
+        node,
+        client.auth,
+        { title: 'Other', body: '' },
+        key,
+      ).expect(422);
       const notes = await node
         .http()
         .get('/v1/notes')
@@ -47,8 +51,8 @@ describe('the example feature: notes (e2e)', () => {
     it('scopes keys per caller: two clients never replay each other', async () => {
       const [a, b] = [await node.client(), await node.client()];
       const key = randomUUID();
-      const first = await node.writeNote(a.auth, undefined, key).expect(201);
-      const second = await node.writeNote(b.auth, undefined, key).expect(201);
+      const first = await writeNote(node, a.auth, undefined, key).expect(201);
+      const second = await writeNote(node, b.auth, undefined, key).expect(201);
       expect(second.body.id).not.toBe(first.body.id);
     });
   });
@@ -57,7 +61,7 @@ describe('the example feature: notes (e2e)', () => {
     it('pages and filters lists the same way everywhere', async () => {
       const client = await node.client();
       for (const title of ['Alpha report', 'Beta notes', 'Gamma report']) {
-        await node.writeNote(client.auth, { title, body: 'x' }).expect(201);
+        await writeNote(node, client.auth, { title, body: 'x' }).expect(201);
       }
       const list = (query: string) =>
         node.http().get(`/v1/notes${query}`).set('Authorization', client.auth);
@@ -92,9 +96,10 @@ describe('the example feature: notes (e2e)', () => {
 
     it('changes a note, audited with what changed (from → to)', async () => {
       const client = await node.client();
-      const created = await node
-        .writeNote(client.auth, { title: 'Draft', body: 'v1' })
-        .expect(201);
+      const created = await writeNote(node, client.auth, {
+        title: 'Draft',
+        body: 'v1',
+      }).expect(201);
       const id = created.body.id as string;
       const changed = await node
         .http()
@@ -117,9 +122,10 @@ describe('the example feature: notes (e2e)', () => {
 
     it('applies field-level permissions to reads and writes', async () => {
       const writer = await node.client();
-      await node
-        .writeNote(writer.auth, { title: 'Secret plan', body: 'the text' })
-        .expect(201);
+      await writeNote(node, writer.auth, {
+        title: 'Secret plan',
+        body: 'the text',
+      }).expect(201);
       const role = await node
         .admin()
         .post('/v1/access/roles')
@@ -171,9 +177,10 @@ describe('the example feature: notes (e2e)', () => {
       expect(listed.body.items[0]).toMatchObject({ title: 'Secret plan' });
       expect(listed.body.items[0]).not.toHaveProperty('body');
 
-      const own = await node
-        .writeNote(limited.agent, { title: 'Mine', body: 'x' })
-        .expect(201);
+      const own = await writeNote(node, limited.agent, {
+        title: 'Mine',
+        body: 'x',
+      }).expect(201);
       await limited.agent
         .patch(`/v1/notes/${own.body.id}`)
         .send({ title: 'Renamed' })
@@ -190,10 +197,10 @@ describe('the example feature: notes (e2e)', () => {
 
     it('lists only what the caller may read, filtered in the query', async () => {
       const [a, b] = [await node.client(), await node.client()];
-      await node.writeNote(a.auth).expect(201);
-      await node.writeNote(b.auth).expect(201);
+      await writeNote(node, a.auth).expect(201);
+      await writeNote(node, b.auth).expect(201);
       const editor = (await node.user(['editor'])).agent;
-      await node.writeNote(editor).expect(201);
+      await writeNote(node, editor).expect(201);
 
       const asA = await node
         .http()
@@ -207,7 +214,7 @@ describe('the example feature: notes (e2e)', () => {
 
     it("checks one note against its conditions: another client's is 403", async () => {
       const [a, b] = [await node.client(), await node.client()];
-      const note = (await node.writeNote(a.auth).expect(201)).body;
+      const note = (await writeNote(node, a.auth).expect(201)).body;
       await node
         .http()
         .get(`/v1/notes/${note.id}`)
@@ -227,12 +234,12 @@ describe('the example feature: notes (e2e)', () => {
 
     it('lets a viewer read but not write: 403', async () => {
       const viewer = (await node.user(['viewer'])).agent;
-      await node.writeNote(viewer).expect(403);
+      await writeNote(node, viewer).expect(403);
     });
 
     it('deletes only drafts (Created by me AND Still a draft), and audits it', async () => {
       const client = await node.client();
-      const note = (await node.writeNote(client.auth).expect(201)).body;
+      const note = (await writeNote(node, client.auth).expect(201)).body;
       await node
         .http()
         .delete(`/v1/notes/${note.id}`)
@@ -244,7 +251,7 @@ describe('the example feature: notes (e2e)', () => {
         .set('Authorization', client.auth)
         .expect(404);
 
-      const published = (await node.writeNote(client.auth).expect(201)).body;
+      const published = (await writeNote(node, client.auth).expect(201)).body;
       await node.worker.drain();
       node.clock.advance('10s');
       await node.worker.drain();
@@ -264,7 +271,7 @@ describe('the example feature: notes (e2e)', () => {
   describe('the durable workflow', () => {
     it('publishes a draft when its delay is over', async () => {
       const client = await node.client();
-      const note = (await node.writeNote(client.auth).expect(201)).body;
+      const note = (await writeNote(node, client.auth).expect(201)).body;
       await node.worker.drain();
       expect(
         await node.workflows.getStatus(publicationId(note.id)),
@@ -302,8 +309,8 @@ describe('the example feature: notes (e2e)', () => {
           .expect(201);
         expect(endpoint.body.secret).toMatch(/^whsec_/);
 
-        await node.writeNote(b.auth).expect(201); // not a's: no webhook to a
-        const note = (await node.writeNote(a.auth).expect(201)).body;
+        await writeNote(node, b.auth).expect(201); // not a's: no webhook to a
+        const note = (await writeNote(node, a.auth).expect(201)).body;
         await node.deliverWebhooks();
         await node.worker.drain();
         node.clock.advance('10s');
@@ -345,7 +352,7 @@ describe('the example feature: notes (e2e)', () => {
 
     it('accepts a verified incoming webhook once, and refuses a bad signature', async () => {
       const client = await node.client();
-      const note = (await node.writeNote(client.auth).expect(201)).body;
+      const note = (await writeNote(node, client.auth).expect(201)).body;
       await node.worker.drain();
 
       // The route is public: the event names the note's tenant (docs/tenancy.md).
@@ -354,23 +361,19 @@ describe('the example feature: notes (e2e)', () => {
         data: { noteId: note.id, tenantId: note.tenantId as string },
       };
       // Another tenant's id finds no such note there: 404, nothing recorded.
-      await node
-        .exampleSender({
-          ...payload,
-          data: { noteId: note.id, tenantId: randomUUID() },
-        })
-        .expect(404);
-      await node
-        .exampleSender(payload, {
-          secret: `whsec_${Buffer.from(randomUUID()).toString('base64')}`,
-        })
-        .expect(401);
+      await exampleSender(node, {
+        ...payload,
+        data: { noteId: note.id, tenantId: randomUUID() },
+      }).expect(404);
+      await exampleSender(node, payload, {
+        secret: `whsec_${Buffer.from(randomUUID()).toString('base64')}`,
+      }).expect(401);
 
       const id = `msg_${randomUUID()}`;
-      const first = await node.exampleSender(payload, { id }).expect(200);
+      const first = await exampleSender(node, payload, { id }).expect(200);
       expect(first.body).toEqual({ received: true, duplicate: false });
       // The sender's retry of the same event id: answered 200 without running the handler.
-      await node.exampleSender(payload, { id }).expect(200);
+      await exampleSender(node, payload, { id }).expect(200);
 
       // The signal wakes the workflow before its delay.
       await node.worker.drain();

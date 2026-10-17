@@ -1,0 +1,12 @@
+{
+  "testItem": {
+    "commented": {
+      "label": "Comment on a test item you watch",
+      "title": "New comment",
+      "body": {
+        "one": "{by} commented on \"{title}\": {excerpt}",
+        "other": "{count} new comments on \"{title}\"; the latest by {by}: {excerpt}"
+      }
+    }
+  }
+}

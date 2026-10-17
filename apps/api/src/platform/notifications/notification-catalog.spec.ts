@@ -49,11 +49,11 @@ const webhook: NotificationChannel<boolean> = {
 const channels = [realtime, email, webhook];
 
 const published = {
-  type: 'note.published',
+  type: 'comment.mentioned',
   channels: { email: 'immediate', webhook: true },
 } as NotificationTypeDeclaration;
 const deleted = {
-  type: 'note.deleted',
+  type: 'approval.cancelled',
   channels: { email: 'immediate' },
   mandatory: true,
 } as NotificationTypeDeclaration;
@@ -104,35 +104,35 @@ describe('preferencesSchema', () => {
 
   it('takes the declared types and the settable channels', () => {
     expect(
-      forUser.safeParse({ 'note.published': { email: 'daily' } }).success,
+      forUser.safeParse({ 'comment.mentioned': { email: 'daily' } }).success,
     ).toBe(true);
     expect(
-      forClient.safeParse({ 'note.published': { webhook: false } }).success,
+      forClient.safeParse({ 'comment.mentioned': { webhook: false } }).success,
     ).toBe(true);
     expect(forUser.safeParse({}).success).toBe(true);
   });
 
   it('refuses an unknown type, an unknown channel, and a channel the kind cannot use', () => {
-    expect(paths(forUser.safeParse({ 'note.nope': { email: false } }))).toEqual(
-      ['note.nope'],
-    );
     expect(
-      paths(forUser.safeParse({ 'note.published': { sms: true } })),
-    ).toEqual(['note.published.sms']);
+      paths(forUser.safeParse({ 'comment.nope': { email: false } })),
+    ).toEqual(['comment.nope']);
     expect(
-      paths(forClient.safeParse({ 'note.published': { email: false } })),
-    ).toEqual(['note.published.email']);
+      paths(forUser.safeParse({ 'comment.mentioned': { sms: true } })),
+    ).toEqual(['comment.mentioned.sms']);
     expect(
-      paths(forUser.safeParse({ 'note.published': { email: 'often' } })),
-    ).toEqual(['note.published.email']);
+      paths(forClient.safeParse({ 'comment.mentioned': { email: false } })),
+    ).toEqual(['comment.mentioned.email']);
+    expect(
+      paths(forUser.safeParse({ 'comment.mentioned': { email: 'often' } })),
+    ).toEqual(['comment.mentioned.email']);
   });
 
   it('refuses switching a mandatory type off, but takes another frequency', () => {
     expect(
-      paths(forUser.safeParse({ 'note.deleted': { email: false } })),
-    ).toEqual(['note.deleted.email']);
+      paths(forUser.safeParse({ 'approval.cancelled': { email: false } })),
+    ).toEqual(['approval.cancelled.email']);
     expect(
-      forUser.safeParse({ 'note.deleted': { email: 'daily' } }).success,
+      forUser.safeParse({ 'approval.cancelled': { email: 'daily' } }).success,
     ).toBe(true);
   });
 });

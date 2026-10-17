@@ -103,12 +103,12 @@ describe('the account export (e2e)', () => {
     await join(person, node.admin());
     await switchTo(person.agent, node.tenantId);
     const inA = await node
-      .writeNote(person.agent, { title: 'In A', body: '' })
+      .writeItem(person.agent, { title: 'In A', body: '' })
       .expect(201);
     await join(person, other.admin);
     await switchTo(person.agent, other.id);
     const inB = await node
-      .writeNote(person.agent, { title: 'In B', body: '' })
+      .writeItem(person.agent, { title: 'In B', body: '' })
       .expect(201);
 
     const { id, status, file } = await exportOf(person.agent);
@@ -119,7 +119,7 @@ describe('the account export (e2e)', () => {
       file.filter((row) => row.kind === 'membership').map((row) => row.id),
     ).toEqual(expect.arrayContaining([node.tenantId, other.id]));
     const notes = file
-      .filter((row) => row.kind === 'notes')
+      .filter((row) => row.kind === 'test-items')
       .map((row) => row.data.id ?? row.id);
     expect(notes).toEqual(expect.arrayContaining([inA.body.id, inB.body.id]));
 
@@ -165,7 +165,7 @@ describe('the account export (e2e)', () => {
     await join(person, other.admin);
     await switchTo(person.agent, other.id);
     const note = await node
-      .writeNote(person.agent, { title: 'Theirs', body: '' })
+      .writeItem(person.agent, { title: 'Theirs', body: '' })
       .expect(201);
     await other.admin
       .patch(`/v1/access/users/${person.id}`)
@@ -179,7 +179,7 @@ describe('the account export (e2e)', () => {
     expect(membership?.id).toBe(other.id);
     expect(membership?.data.active).toBe(false);
     // The tenant's business records stay with the tenant.
-    expect(file.some((row) => row.kind === 'notes')).toBe(false);
+    expect(file.some((row) => row.kind === 'test-items')).toBe(false);
     expect(JSON.stringify(file)).not.toContain(note.body.id);
     // What is about them there (their membership's change) is theirs.
     expect(

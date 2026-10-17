@@ -79,6 +79,18 @@ INVOICE_SECRET_FILE=
 C=3
 `,
     );
+    mkdirSync(path.join(root, 'apps/api/test'), { recursive: true });
+    writeFileSync(
+      path.join(root, 'apps/api/test/setup-env.ts'),
+      `Object.assign(process.env, {
+  A: '1',
+  // feature:invoices begin
+  INVOICE_DELAY: '10s',
+  // feature:invoices end
+  B: '2',
+});
+`,
+    );
     await addFeature(root, {
       name: 'invoices',
       fields: 'title:string,total:money',
@@ -154,5 +166,9 @@ C=3
       }
     }
     assert.equal(read(path.join(root, 'env.example')), 'A=1\n\nB=2\n\nC=3\n');
+    assert.equal(
+      read(path.join(root, 'apps/api/test/setup-env.ts')),
+      "Object.assign(process.env, {\n  A: '1',\n  B: '2',\n});\n",
+    );
   });
 });

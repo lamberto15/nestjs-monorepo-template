@@ -25,8 +25,8 @@ describe('API conventions, edge cases (e2e)', () => {
         .send({
           name: 'Nested',
           permissions: [
-            { subject: 'Note', action: 'read', conditions: [] },
-            { subject: 'Note', action: 'read', conditions: [{ key: '' }] },
+            { subject: 'TestItem', action: 'read', conditions: [] },
+            { subject: 'TestItem', action: 'read', conditions: [{ key: '' }] },
           ],
         })
         .expect(400);
@@ -54,7 +54,7 @@ describe('API conventions, edge cases (e2e)', () => {
         number,
         string,
       ][] = [
-        [node.http().get('/v1/notes'), 401, 'missing_credentials'],
+        [node.http().get('/v1/test-items'), 401, 'missing_credentials'],
         [
           (await node.user(['viewer'])).agent
             .post('/v1/access/roles')
@@ -63,7 +63,7 @@ describe('API conventions, edge cases (e2e)', () => {
           'forbidden',
         ],
         [node.admin().get('/v1/nowhere'), 404, 'not_found'],
-        [node.admin().get(`/v1/notes/${randomUUID()}`), 404, 'not_found'],
+        [node.admin().get(`/v1/test-items/${randomUUID()}`), 404, 'not_found'],
         [node.admin().post('/v1/auth/impersonation/stop'), 409, 'conflict'],
       ];
       for (const [pending, status, code] of cases) {
@@ -103,9 +103,9 @@ describe('API conventions, edge cases (e2e)', () => {
     it('drops the query string from instance', async () => {
       const res = await node
         .admin()
-        .get('/v1/notes?limit=0&secret=1')
+        .get('/v1/test-items?limit=0&secret=1')
         .expect(400);
-      expect(res.body.instance).toBe('/v1/notes');
+      expect(res.body.instance).toBe('/v1/test-items');
     });
 
     it('answers a malformed JSON body with a 400 problem, not a 500', async () => {
@@ -147,7 +147,7 @@ describe('API conventions, edge cases (e2e)', () => {
     it('answers a body over the size limit with 413 payload_too_large', async () => {
       const res = await node
         .admin()
-        .post('/v1/notes')
+        .post('/v1/test-items')
         .set('Idempotency-Key', randomUUID())
         .send({ title: 'Big', body: 'x'.repeat(200_000) });
       expect(res.status).toBe(413);
@@ -157,7 +157,7 @@ describe('API conventions, edge cases (e2e)', () => {
     it('never answers a body over the size limit with internals', async () => {
       const res = await node
         .admin()
-        .post('/v1/notes')
+        .post('/v1/test-items')
         .set('Idempotency-Key', randomUUID())
         .send({ title: 'Big', body: 'x'.repeat(200_000) });
       expect(res.headers['content-type']).toMatch(PROBLEM);
@@ -192,7 +192,7 @@ describe('API conventions, edge cases (e2e)', () => {
     });
 
     it('answers a percent-encoding that is not UTF-8 with a 400, not a 500', async () => {
-      const res = await node.admin().get('/v1/notes/%E0%A4%A');
+      const res = await node.admin().get('/v1/test-items/%E0%A4%A');
       expect(res.status).toBe(400);
       expect(res.headers['content-type']).toMatch(PROBLEM);
     });
@@ -235,12 +235,12 @@ describe('API conventions, edge cases (e2e)', () => {
   describe('concurrency and caching', () => {
     it('answers with an ETag, 304 while unchanged, and refuses a stale If-Match with 412', async () => {
       const client = await node.client();
-      const note = (
+      const item = (
         await node
-          .writeNote(client.auth, { title: 'Tagged', body: 'v1' })
+          .writeItem(client.auth, { title: 'Tagged', body: 'v1' })
           .expect(201)
       ).body as { id: string };
-      const url = `/v1/notes/${note.id}`;
+      const url = `/v1/test-items/${item.id}`;
       const first = await node
         .http()
         .get(url)
@@ -311,19 +311,19 @@ describe('API conventions, edge cases (e2e)', () => {
       // A list has a tag too: it changes with any row of the page.
       const list = await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', client.auth)
         .expect(200);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', client.auth)
         .set('If-None-Match', list.headers.etag as string)
         .expect(304);
-      await node.writeNote(client.auth).expect(201);
+      await node.writeItem(client.auth).expect(201);
       await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', client.auth)
         .set('If-None-Match', list.headers.etag as string)
         .expect(200);
@@ -338,13 +338,13 @@ describe('API conventions, edge cases (e2e)', () => {
       ({ auth } = await node.client());
       for (let i = 0; i < 5; i++) {
         const res = await node
-          .writeNote(auth, { title: `Page ${i}`, body: 'x' })
+          .writeItem(auth, { title: `Page ${i}`, body: 'x' })
           .expect(201);
         ids.push(res.body.id);
       }
     });
     const list = (query: string) =>
-      node.http().get(`/v1/notes${query}`).set('Authorization', auth);
+      node.http().get(`/v1/test-items${query}`).set('Authorization', auth);
 
     it('walks every page, newest first, and ends with nextCursor null', async () => {
       const seen: string[] = [];
@@ -355,7 +355,7 @@ describe('API conventions, edge cases (e2e)', () => {
           await list(`?limit=2${cursor ? `&cursor=${cursor}` : ''}`).expect(
             200,
           );
-        seen.push(...res.body.items.map((note) => note.id));
+        seen.push(...res.body.items.map((item) => item.id));
         cursor = res.body.nextCursor;
         pages++;
       } while (cursor);
@@ -383,14 +383,14 @@ describe('API conventions, edge cases (e2e)', () => {
     });
 
     it('counts only what the caller may see', async () => {
-      // Another client: its own notes only (clientPermissions: read mine).
+      // Another client: its own items only (clientPermissions: read mine).
       const other = await node.client();
       await node
-        .writeNote(other.auth, { title: 'Theirs', body: 'x' })
+        .writeItem(other.auth, { title: 'Theirs', body: 'x' })
         .expect(201);
       const res = await node
         .http()
-        .get('/v1/notes?count=true')
+        .get('/v1/test-items?count=true')
         .set('Authorization', other.auth)
         .expect(200);
       expect(res.body).toMatchObject({ total: 1, totalCapped: false });
@@ -468,18 +468,18 @@ describe('API conventions, edge cases (e2e)', () => {
     beforeAll(async () => {
       ({ auth } = await node.client());
       for (const title of titles) {
-        await node.writeNote(auth, { title, body: 'x' }).expect(201);
+        await node.writeItem(auth, { title, body: 'x' }).expect(201);
       }
     });
     const found = async (query: Record<string, string>) => {
       const res = await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .query(query)
         .set('Authorization', auth);
       expect(res.status, JSON.stringify(res.body)).toBe(200);
       return (res.body.items as { title: string }[])
-        .map((note) => note.title)
+        .map((item) => item.title)
         .sort();
     };
 
@@ -499,31 +499,10 @@ describe('API conventions, edge cases (e2e)', () => {
       ]);
     });
 
-    it('reads `in` with spaces around the items, and refuses an empty list', async () => {
-      expect(await found({ 'status.in': ' draft , published ' })).toHaveLength(
-        titles.length,
-      );
-      expect(await found({ 'status.in': 'published,' })).toEqual([]);
-      const empty = await node
-        .http()
-        .get('/v1/notes?status.in=,')
-        .set('Authorization', auth)
-        .expect(400);
-      expect(empty.body.errors).toEqual([
-        { path: 'status.in', message: expect.any(String) },
-      ]);
-      await node
-        .http()
-        .get('/v1/notes?status.in=draft,archived')
-        .set('Authorization', auth)
-        .expect(400);
-    });
-
     it('reads isNull=false as "has a value"', async () => {
-      expect(await found({ 'publishedAt.isNull': 'true' })).toHaveLength(
+      expect(await found({ 'teamId.isNull': 'true' })).toHaveLength(
         titles.length,
       );
-      expect(await found({ 'publishedAt.isNull': 'false' })).toEqual([]);
       expect(await found({ 'teamId.isNull': 'false' })).toEqual([]);
     });
 
@@ -546,15 +525,10 @@ describe('API conventions, edge cases (e2e)', () => {
     });
 
     it('refuses unknown keys and undeclared operators, naming the key; lang is allowed', async () => {
-      for (const key of [
-        'secret',
-        'title',
-        'status.contains',
-        'body.contains',
-      ]) {
+      for (const key of ['secret', 'ownerId.contains', 'createdAt.contains']) {
         const res = await node
           .http()
-          .get('/v1/notes')
+          .get('/v1/test-items')
           .query({ [key]: 'x' })
           .set('Authorization', auth)
           .expect(400);
@@ -567,13 +541,12 @@ describe('API conventions, edge cases (e2e)', () => {
       for (const [key, value] of [
         ['teamId', 'not-a-uuid'],
         ['createdAt.gte', '2026-01-01'],
-        ['publishedAt.isNull', 'yes'],
-        ['status', 'archived'],
+        ['teamId.isNull', 'yes'],
         ['title.contains', ''],
       ]) {
         const res = await node
           .http()
-          .get('/v1/notes')
+          .get('/v1/test-items')
           .query({ [key]: value })
           .set('Authorization', auth);
         expect(res.status, `${key}=${value}`).toBe(400);
@@ -587,46 +560,46 @@ describe('API conventions, edge cases (e2e)', () => {
       const { auth } = await node.client();
       const key = randomUUID();
       const first = await node
-        .writeNote(auth, { title: 'Once', body: 'x' }, key)
+        .writeItem(auth, { title: 'Once', body: 'x' }, key)
         .expect(201);
       const retry = await node
-        .writeNote(auth, { title: 'Once', body: 'x' }, key)
+        .writeItem(auth, { title: 'Once', body: 'x' }, key)
         .expect(201);
       expect(retry.body).toEqual(first.body);
       const changed = await node
-        .writeNote(auth, { title: 'Once', body: 'changed' }, key)
+        .writeItem(auth, { title: 'Once', body: 'changed' }, key)
         .expect(422);
       expect(changed.headers['content-type']).toMatch(PROBLEM);
       expect(changed.body.status).toBe(422);
       expect(changed.body.code).toEqual(expect.any(String));
-      const notes = await node
+      const items = await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', auth)
         .expect(200);
-      expect(notes.body.items).toHaveLength(1);
+      expect(items.body.items).toHaveLength(1);
     });
 
     it('requires the key where the route says so', async () => {
       const { auth } = await node.client();
       const res = await node
         .http()
-        .post('/v1/notes')
+        .post('/v1/test-items')
         .set('Authorization', auth)
         .send({ title: 'No key', body: 'x' })
         .expect(400);
       expect(res.headers['content-type']).toMatch(PROBLEM);
     });
 
-    it('keeps keys apart per caller: the same key from two clients makes two notes', async () => {
+    it('keeps keys apart per caller: the same key from two clients makes two items', async () => {
       const a = await node.client();
       const b = await node.client();
       const key = randomUUID();
       const fromA = await node
-        .writeNote(a.auth, { title: 'Shared key', body: 'x' }, key)
+        .writeItem(a.auth, { title: 'Shared key', body: 'x' }, key)
         .expect(201);
       const fromB = await node
-        .writeNote(b.auth, { title: 'Shared key', body: 'x' }, key)
+        .writeItem(b.auth, { title: 'Shared key', body: 'x' }, key)
         .expect(201);
       expect(fromB.body.id).not.toBe(fromA.body.id);
     });
@@ -634,34 +607,34 @@ describe('API conventions, edge cases (e2e)', () => {
     it('remembers a request that failed validation: a fixed body needs a new key', async () => {
       const { auth } = await node.client();
       const key = randomUUID();
-      await node.writeNote(auth, { title: '' }, key).expect(400);
+      await node.writeItem(auth, { title: '' }, key).expect(400);
       // The same request again: the same answer.
-      await node.writeNote(auth, { title: '' }, key).expect(400);
+      await node.writeItem(auth, { title: '' }, key).expect(400);
       // A different body under that key: refused, never a second meaning for one key.
       await node
-        .writeNote(auth, { title: 'Fixed', body: 'x' }, key)
+        .writeItem(auth, { title: 'Fixed', body: 'x' }, key)
         .expect(422);
       await node
-        .writeNote(auth, { title: 'Fixed', body: 'x' }, randomUUID())
+        .writeItem(auth, { title: 'Fixed', body: 'x' }, randomUUID())
         .expect(201);
     });
 
-    it('makes one note of two concurrent requests with the same key', async () => {
+    it('makes one item of two concurrent requests with the same key', async () => {
       const { auth } = await node.client();
       const key = randomUUID();
       const results = await Promise.all([
-        node.writeNote(auth, { title: 'Race', body: 'x' }, key),
-        node.writeNote(auth, { title: 'Race', body: 'x' }, key),
+        node.writeItem(auth, { title: 'Race', body: 'x' }, key),
+        node.writeItem(auth, { title: 'Race', body: 'x' }, key),
       ]);
       for (const res of results) {
         expect([201, 409]).toContain(res.status);
       }
-      const notes = await node
+      const items = await node
         .http()
-        .get('/v1/notes')
+        .get('/v1/test-items')
         .set('Authorization', auth)
         .expect(200);
-      expect(notes.body.items).toHaveLength(1);
+      expect(items.body.items).toHaveLength(1);
     });
   });
 
@@ -725,7 +698,7 @@ describe('API conventions, edge cases (e2e)', () => {
       const { auth } = await node.client();
       const res = await node
         .http()
-        .get('/v1/notes?lang=de&limit=0')
+        .get('/v1/test-items?lang=de&limit=0')
         .set('Authorization', auth)
         .expect(400);
       expect(res.headers['content-language']).toBe('de');
@@ -743,18 +716,18 @@ describe('API conventions, edge cases (e2e)', () => {
     });
 
     it('serves no /v2 and no unversioned API route, even to a signed-in user', async () => {
-      const v2 = await node.admin().get('/v2/notes').expect(404);
+      const v2 = await node.admin().get('/v2/test-items').expect(404);
       expect(v2.body).toMatchObject({
         code: 'not_found',
-        instance: '/v2/notes',
+        instance: '/v2/test-items',
       });
-      await node.admin().get('/notes').expect(404);
-      await node.admin().get('/v0/notes').expect(404);
-      await node.admin().get('/v1/notes').expect(200);
+      await node.admin().get('/test-items').expect(404);
+      await node.admin().get('/v0/test-items').expect(404);
+      await node.admin().get('/v1/test-items').expect(200);
     });
 
     it('answers an unknown method on a known path as a 404 problem', async () => {
-      const res = await node.admin().put('/v1/notes').send({}).expect(404);
+      const res = await node.admin().put('/v1/test-items').send({}).expect(404);
       expect(res.headers['content-type']).toMatch(PROBLEM);
     });
   });

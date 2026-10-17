@@ -16,6 +16,25 @@ import { IamModule } from './iam/iam.module.js';
 import { PlatformModule } from './platform/platform.module.js';
 import { PLATFORM_PERMISSIONS } from './platform/ops/ops.policy.js';
 
+// The environment, validated by every group's schema (env.ts), the
+// secrets' `X_FILE` files read first (core/config/secret-files.ts). In
+// development, .env.development adds to it (env.development.example;
+// main.ts has already put it into process.env, see dev-env.ts);
+// production gets it from Compose, tests from test/setup-env.ts. (.env is
+// Docker Compose's own file.)
+// Made once per process, however many apps are built (createAppModule):
+// it writes the validated values back into process.env, which a second
+// validation would read as invalid (`true` isn't `on`).
+const CONFIG = ConfigModule.forRoot({
+  isGlobal: true,
+  cache: true,
+  validationSchema: envSchema,
+  envFilePath: DEV_ENV_FILE,
+  // Only validated values: an empty `FOO=` reads as unset, never as ''.
+  skipProcessEnv: true,
+  ignoreEnvFile: ignoreDevEnvFile,
+});
+
 /**
  * The composition root: the three groups every project keeps, then the
  * features. Groups never import features; features hand them what they
@@ -40,21 +59,7 @@ export function createAppModule(list: readonly FeatureDefinition[]): Type {
     providers: [{ provide: APP_FEATURES, useValue: list }],
     exports: [APP_FEATURES],
     imports: [
-      // The environment, validated by every group's schema (env.ts), the
-      // secrets' `X_FILE` files read first (core/config/secret-files.ts). In
-      // development, .env.development adds to it (env.development.example;
-      // main.ts has already put it into process.env, see dev-env.ts);
-      // production gets it from Compose, tests from test/setup-env.ts. (.env is
-      // Docker Compose's own file.)
-      ConfigModule.forRoot({
-        isGlobal: true,
-        cache: true,
-        validationSchema: envSchema,
-        envFilePath: DEV_ENV_FILE,
-        // Only validated values: an empty `FOO=` reads as unset, never as ''.
-        skipProcessEnv: true,
-        ignoreEnvFile: ignoreDevEnvFile,
-      }),
+      CONFIG,
       // First of the groups: the idempotency interceptor must be outermost, so
       // a replay doesn't pass through the other interceptors (i18n, resilience,
       // authentication) again. Module order only orders global enhancers; the

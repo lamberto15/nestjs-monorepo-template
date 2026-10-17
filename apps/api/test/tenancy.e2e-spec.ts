@@ -9,7 +9,7 @@ import { Client } from 'pg';
 import { io, type Socket } from 'socket.io-client';
 import type { Database } from '../src/core/database/drizzle.js';
 import { TenantScopeMissingError } from '../src/core/tenancy/tenant-scope.js';
-import { notes } from '../src/features/notes/notes.tables.js';
+import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { Realtime } from '../src/platform/realtime/realtime.service.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
@@ -33,12 +33,12 @@ describe('tenancy (e2e)', () => {
 
   const db = () => node.app.get<Database>(getDrizzleToken());
 
-  /** A note written by a new API client of the seeded tenant, and one of the other tenant. */
-  async function noteInEach() {
+  /** A test item written by a new API client of the seeded tenant, and one of the other tenant. */
+  async function itemInEach() {
     const mine = await node.client();
     const theirs = await other.client();
-    const a = await node.writeNote(mine.auth, { title: 'A', body: 'a' });
-    const b = await node.writeNote(theirs.auth, { title: 'B', body: 'b' });
+    const a = await node.writeItem(mine.auth, { title: 'A', body: 'a' });
+    const b = await node.writeItem(theirs.auth, { title: 'B', body: 'b' });
     expect(a.status).toBe(201);
     expect(b.status).toBe(201);
     return {
@@ -67,12 +67,12 @@ describe('tenancy (e2e)', () => {
 
   describe('as the app role, in SQL', () => {
     it('shows no row of another tenant, and refuses to write one', async () => {
-      const { a, b } = await noteInEach();
+      const { a, b } = await itemInEach();
       const app = new Client({ connectionString: node.database.url });
       await app.connect();
       try {
         // No setting at all (a fresh connection): nothing.
-        const none = await app.query('select id from notes');
+        const none = await app.query('select id from test_items');
         expect(none.rows).toEqual([]);
 
         await app.query('begin');
@@ -80,30 +80,38 @@ describe('tenancy (e2e)', () => {
           `select set_config('app.tenant_id', $1, true), set_config('app.read_tenants', $1, true)`,
           [node.tenantId],
         );
-        const read = await app.query<{ id: string }>('select id from notes');
+        const read = await app.query<{ id: string }>(
+          'select id from test_items',
+        );
         expect(read.rows.map((row) => row.id)).toEqual([a]);
         // Another tenant's row: not there to read, update or delete…
-        const byId = await app.query('select id from notes where id = $1', [b]);
+        const byId = await app.query(
+          'select id from test_items where id = $1',
+          [b],
+        );
         expect(byId.rows).toEqual([]);
         const updated = await app.query(
-          `update notes set title = 'stolen' where id = $1`,
+          `update test_items set title = 'stolen' where id = $1`,
           [b],
         );
         expect(updated.rowCount).toBe(0);
-        const deleted = await app.query('delete from notes where id = $1', [b]);
+        const deleted = await app.query(
+          'delete from test_items where id = $1',
+          [b],
+        );
         expect(deleted.rowCount).toBe(0);
         // …and not one to write into: the insert fails (WITH CHECK).
         await app.query('savepoint insert_elsewhere');
         await expect(
           app.query(
-            `insert into notes (tenant_id, owner_id, title, body, status) values ($1, 'client:x', 'smuggled', '', 'draft')`,
+            `insert into test_items (tenant_id, owner_id, title, body) values ($1, 'client:x', 'smuggled', '')`,
             [other.id],
           ),
         ).rejects.toMatchObject({ code: '42501' });
         await app.query('rollback to savepoint insert_elsewhere');
         // Nor may a row move to it.
         await expect(
-          app.query(`update notes set tenant_id = $1 where id = $2`, [
+          app.query(`update test_items set tenant_id = $1 where id = $2`, [
             other.id,
             a,
           ]),
@@ -112,20 +120,20 @@ describe('tenancy (e2e)', () => {
       } finally {
         await app.end();
       }
-      // The other tenant's note is untouched.
+      // The other tenant's test item is untouched.
       const still = await node.inTenant(
-        () => db().select().from(notes).where(eq(notes.id, b)),
+        () => db().select().from(testItems).where(eq(testItems.id, b)),
         other.id,
       );
       expect(still[0]?.title).toBe('B');
     });
 
     it('binds the owner too (FORCE): without a tenant it reads nothing', async () => {
-      await noteInEach();
+      await itemInEach();
       const owner = new Client({ connectionString: node.database.ownerUrl });
       await owner.connect();
       try {
-        const rows = await owner.query('select id from notes');
+        const rows = await owner.query('select id from test_items');
         expect(rows.rows).toEqual([]);
       } finally {
         await owner.end();
@@ -179,14 +187,16 @@ describe('tenancy (e2e)', () => {
     // Drizzle wraps the pool's refusal: the cause says it.
     const refused = await db()
       .select()
-      .from(notes)
+      .from(testItems)
       .catch((error: { cause?: unknown }) => error.cause);
     expect(refused).toBeInstanceOf(TenantScopeMissingError);
-    expect((refused as Error).message).toMatch(/notes ran without a tenant/);
+    expect((refused as Error).message).toMatch(
+      /test_items ran without a tenant/,
+    );
     // In a tenant's scope, the same query reads that tenant's rows only.
-    const { a } = await noteInEach();
+    const { a } = await itemInEach();
     const rows = await node.inTenant(() =>
-      db().select({ id: notes.id }).from(notes),
+      db().select({ id: testItems.id }).from(testItems),
     );
     expect(rows.map((row) => row.id)).toEqual([a]);
   });
@@ -212,23 +222,23 @@ describe('tenancy (e2e)', () => {
   });
 
   it('keeps an API client in its own tenant', async () => {
-    const { mine, theirs, a, b } = await noteInEach();
+    const { mine, theirs, a, b } = await itemInEach();
     const listed = await node
       .http()
-      .get('/v1/notes')
+      .get('/v1/test-items')
       .set('Authorization', theirs.auth)
       .expect(200);
-    expect(listed.body.items.map((note: { id: string }) => note.id)).toEqual([
+    expect(listed.body.items.map((item: { id: string }) => item.id)).toEqual([
       b,
     ]);
     await node
       .http()
-      .get(`/v1/notes/${a}`)
+      .get(`/v1/test-items/${a}`)
       .set('Authorization', theirs.auth)
       .expect(404);
     await node
       .http()
-      .delete(`/v1/notes/${a}`)
+      .delete(`/v1/test-items/${a}`)
       .set('Authorization', theirs.auth)
       .expect(404);
     // The administrators see their own tenant's clients only.
@@ -239,13 +249,13 @@ describe('tenancy (e2e)', () => {
       .patch(`/v1/access/clients/${mine.id}`)
       .send({ active: false })
       .expect(404);
-    // The notes of A are still A's alone.
+    // The test items of A are still A's alone.
     const own = await node
       .http()
-      .get('/v1/notes')
+      .get('/v1/test-items')
       .set('Authorization', mine.auth)
       .expect(200);
-    expect(own.body.items.map((note: { id: string }) => note.id)).toEqual([a]);
+    expect(own.body.items.map((item: { id: string }) => item.id)).toEqual([a]);
   });
 
   it('lists only its own members, and adds anyone only by an invitation its owner accepts', async () => {
@@ -333,7 +343,7 @@ describe('tenancy (e2e)', () => {
       .expect(404);
 
     const mine = await node
-      .writeNote(browser, { title: 'In A', body: '' })
+      .writeItem(browser, { title: 'In A', body: '' })
       .expect(201);
     const before = browser.jar.getCookies({
       domain: '127.0.0.1',
@@ -349,9 +359,9 @@ describe('tenancy (e2e)', () => {
     expect((await browser.get('/v1/auth/me').expect(200)).body.tenant.id).toBe(
       other.id,
     );
-    // In B, A's note is nowhere, and B's own list is B's.
-    await browser.get(`/v1/notes/${mine.body.id}`).expect(404);
-    const listed = await browser.get('/v1/notes').expect(200);
+    // In B, A's test item is nowhere, and B's own list is B's.
+    await browser.get(`/v1/test-items/${mine.body.id}`).expect(404);
+    const listed = await browser.get('/v1/test-items').expect(200);
     expect(listed.body.items).toEqual([]);
     // The old cookie is gone with the old session.
     const stale = before.map((cookie) => `${cookie.name}=${cookie.value}`);
@@ -372,14 +382,14 @@ describe('tenancy (e2e)', () => {
     const browser = await node.signIn(both.email, both.password);
     const key = randomUUID();
     const first = await node
-      .writeNote(browser, { title: 'Same', body: '' }, key)
+      .writeItem(browser, { title: 'Same', body: '' }, key)
       .expect(201);
     await browser
       .post('/v1/auth/tenant')
       .send({ tenantId: other.id })
       .expect(204);
     const second = await node
-      .writeNote(browser, { title: 'Same', body: '' }, key)
+      .writeItem(browser, { title: 'Same', body: '' }, key)
       .expect(201);
     expect(second.headers['idempotent-replayed']).toBeUndefined();
     expect(second.body.id).not.toBe(first.body.id);
@@ -389,7 +399,7 @@ describe('tenancy (e2e)', () => {
       .send({ tenantId: node.tenantId })
       .expect(204);
     const replayed = await node
-      .writeNote(browser, { title: 'Same', body: '' }, key)
+      .writeItem(browser, { title: 'Same', body: '' }, key)
       .expect(201);
     expect(replayed.headers['idempotent-replayed']).toBe('true');
     expect(replayed.body.id).toBe(first.body.id);
@@ -512,28 +522,30 @@ describe('tenancy (e2e)', () => {
   });
 
   it('runs a cron job under row-level security, doing real work in every tenant', async () => {
-    const { mine, theirs } = await noteInEach();
+    const { mine, theirs } = await itemInEach();
     const deleted: string[] = [];
     for (const auth of [mine.auth, theirs.auth]) {
-      const note = await node
-        .writeNote(auth, { title: 'Old', body: '' })
+      const item = await node
+        .writeItem(auth, { title: 'Old', body: '' })
         .expect(201);
       await node
         .http()
-        .delete(`/v1/notes/${note.body.id}`)
+        .delete(`/v1/test-items/${item.body.id}`)
         .set('Authorization', auth)
         .expect(204);
-      deleted.push(note.body.id);
+      deleted.push(item.body.id);
     }
     await node.acrossTenants(() =>
       db()
-        .update(notes)
+        .update(testItems)
         .set({ deletedAt: new Date(Date.now() - 31 * 86_400_000) })
-        .where(inArray(notes.id, deleted)),
+        .where(inArray(testItems.id, deleted)),
     );
     await node.app.get(SoftDeletePurgeJob).run();
     const left = await node.acrossTenants(() =>
-      db().select({ id: notes.id, tenantId: notes.tenantId }).from(notes),
+      db()
+        .select({ id: testItems.id, tenantId: testItems.tenantId })
+        .from(testItems),
     );
     expect(left).toHaveLength(2);
     expect(left.map((row) => row.id)).not.toEqual(

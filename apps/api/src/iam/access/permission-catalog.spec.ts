@@ -1,9 +1,85 @@
 import { createMongoAbility, subject } from '@casl/ability';
-import { NOTE_PERMISSIONS } from '../../features/notes/note.policy.js';
+import { eq } from 'drizzle-orm';
+import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { PLATFORM_PERMISSIONS } from '../../platform/ops/ops.policy.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { mergeConditions, PermissionCatalog } from './permission-catalog.js';
-import { definePermissions } from './permissions.js';
+import { createdBy, definePermissions, inMyTeams } from './permissions.js';
+
+/** A sample resource: owned, in a team, with a draft status. */
+const notes = pgTable('notes', {
+  ownerId: text('owner_id').notNull(),
+  teamId: uuid('team_id'),
+  status: text('status').notNull(),
+});
+const NOTE_PERMISSIONS = definePermissions({
+  subjects: {
+    Note: {
+      label: 'Notes',
+      fields: { body: { label: "The note's text" } },
+      conditions: {
+        mine: createdBy('ownerId', notes.ownerId),
+        inMyTeams: inMyTeams('teamId', notes.teamId),
+        draft: {
+          label: 'Still a draft',
+          description: 'Only notes not yet published.',
+          casl: () => ({ status: 'draft' }),
+          sql: () => eq(notes.status, 'draft'),
+        },
+      },
+      actions: {
+        read: { label: 'See notes', conditions: ['mine', 'inMyTeams'] },
+        create: { label: 'Write notes', conditions: [] },
+        update: { label: 'Change notes', conditions: ['mine', 'draft'] },
+        delete: { label: 'Delete notes', conditions: ['mine', 'draft'] },
+        restore: { label: 'Restore notes', conditions: ['mine', 'inMyTeams'] },
+      },
+    },
+  },
+  clientPermissions: [
+    { subject: 'Note', action: 'create', conditions: [] },
+    { subject: 'Note', action: 'read', conditions: [{ key: 'mine' }] },
+    {
+      subject: 'Note',
+      action: 'update',
+      conditions: [{ key: 'mine' }, { key: 'draft' }],
+    },
+    {
+      subject: 'Note',
+      action: 'delete',
+      conditions: [{ key: 'mine' }, { key: 'draft' }],
+    },
+    { subject: 'Note', action: 'restore', conditions: [{ key: 'mine' }] },
+  ],
+  seedRoles: [
+    {
+      key: 'editor',
+      name: 'Editor',
+      description: 'Writes notes and sees their own.',
+      permissions: [
+        { subject: 'Note', action: 'read', conditions: [{ key: 'mine' }] },
+        { subject: 'Note', action: 'create', conditions: [] },
+      ],
+    },
+    {
+      key: 'team-lead',
+      name: 'Team lead',
+      description: 'Sees the notes of their teams.',
+      permissions: [
+        { subject: 'Note', action: 'read', conditions: [{ key: 'inMyTeams' }] },
+      ],
+    },
+    {
+      key: 'viewer',
+      name: 'Viewer',
+      description: 'Sees every note and the operations API.',
+      permissions: [
+        { subject: 'Note', action: 'read', conditions: [] },
+        { subject: 'Ops', action: 'view', conditions: [] },
+      ],
+    },
+  ],
+});
 
 const sam: UserPrincipal = {
   kind: 'user',

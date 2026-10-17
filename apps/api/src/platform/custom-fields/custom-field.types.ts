@@ -58,7 +58,7 @@ export type CustomFieldDefinition = {
  * own table, with a GIN index.
  *
  * ```ts
- * // features/notes/note.resource.ts
+ * // features/invoices/invoice.resource.ts
  * export const NOTE_CUSTOM_FIELDS = defineCustomFields({ subject: 'Note', table: notes, column: notes.custom });
  * // app.module.ts
  * PlatformModule.forRoot({ …, customFields: [NOTE_CUSTOM_FIELDS] })

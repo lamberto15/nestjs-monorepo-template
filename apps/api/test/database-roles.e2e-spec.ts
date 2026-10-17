@@ -105,9 +105,9 @@ describe('the app role', () => {
       INSUFFICIENT_PRIVILEGE,
     );
     expect(await refused('truncate app_secrets')).toBe(INSUFFICIENT_PRIVILEGE);
-    expect(await refused('alter table notes disable row level security')).toBe(
-      INSUFFICIENT_PRIVILEGE,
-    );
+    expect(
+      await refused('alter table test_items disable row level security'),
+    ).toBe(INSUFFICIENT_PRIVILEGE);
     expect(await refused('create role smuggled')).toBe(INSUFFICIENT_PRIVILEGE);
     expect(await refused('alter role current_user bypassrls')).toBe(
       INSUFFICIENT_PRIVILEGE,

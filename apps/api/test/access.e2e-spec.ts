@@ -20,9 +20,17 @@ describe('access control (e2e)', () => {
 
   it('shows the catalog every group and feature declared', async () => {
     const catalog = await node.admin().get('/v1/access/catalog').expect(200);
-    expect(
-      catalog.body.subjects.map((s: { subject: string }) => s.subject),
-    ).toEqual(['Access', 'Approval', 'Ops', 'MailSuppression', 'Note']);
+    const subjects = catalog.body.subjects.map(
+      (s: { subject: string }) => s.subject,
+    );
+    // The groups' subjects, then the features' (and the test-only record's).
+    expect(subjects.slice(0, 4)).toEqual([
+      'Access',
+      'Approval',
+      'Ops',
+      'MailSuppression',
+    ]);
+    expect(subjects).toContain('TestItem');
   });
 
   it('opens each access and ops route only to the permissions it needs: 403 otherwise', async () => {
@@ -35,8 +43,8 @@ describe('access control (e2e)', () => {
     await editor.get('/v1/ops/outbox').expect(403);
     const me = await editor.get('/v1/auth/me').expect(200);
     expect(me.body.can).toMatchObject({
-      'Note.create': true,
-      'Note.read': true, // their own notes: allowed on some records
+      'TestItem.create': true,
+      'TestItem.read': true, // their own items: allowed on some records
       'Ops.view': false,
       'Access.manageRoles': false,
     });
@@ -98,7 +106,11 @@ describe('access control (e2e)', () => {
         .send({
           name: 'Bad',
           permissions: [
-            { subject: 'Note', action: 'read', conditions: [{ key: 'draft' }] },
+            {
+              subject: 'TestItem',
+              action: 'read',
+              conditions: [{ key: 'undeclared' }],
+            },
           ],
         })
         .expect(400);
@@ -183,7 +195,7 @@ describe('access control (e2e)', () => {
   });
 
   describe('organization hierarchy', () => {
-    it('lets a lead see the notes of their teams and every team below them', async () => {
+    it('lets a lead see the items of their teams and every team below them', async () => {
       const admin = node.admin();
       const team = async (name: string, parentId?: string) =>
         (
@@ -203,7 +215,7 @@ describe('access control (e2e)', () => {
         teams.find((u: { id: string }) => u.id === northEast),
       ).toMatchObject({ depth: 2, parentId: north });
 
-      // Members write notes in their teams.
+      // Members write items in their teams.
       const [lead] = await node.roleIds('team-lead');
       const member = async (teamId: string) => {
         const created = await node.user(['editor']);
@@ -214,13 +226,13 @@ describe('access control (e2e)', () => {
         return created.agent;
       };
       await node
-        .writeNote(await member(northEast), {
+        .writeItem(await member(northEast), {
           title: 'From North East',
           body: 'x',
         })
         .expect(201);
       await node
-        .writeNote(await member(south), { title: 'From South', body: 'x' })
+        .writeItem(await member(south), { title: 'From South', body: 'x' })
         .expect(201);
 
       const leadOf = async (teamId: string) => {
@@ -229,9 +241,9 @@ describe('access control (e2e)', () => {
           .patch(`/v1/access/users/${created.id}`)
           .send({ teamIds: [teamId] })
           .expect(204);
-        const notes = (await created.agent.get('/v1/notes').expect(200)).body
-          .items as { title: string }[];
-        return notes.map((note) => note.title).sort();
+        const items = (await created.agent.get('/v1/test-items').expect(200))
+          .body.items as { title: string }[];
+        return items.map((item) => item.title).sort();
       };
       expect(await leadOf(sales)).toEqual(['From North East', 'From South']);
       expect(await leadOf(north)).toEqual(['From North East']);

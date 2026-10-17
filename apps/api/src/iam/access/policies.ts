@@ -9,7 +9,7 @@ import { AccessService } from './access.service.js';
  * guest (`null`) is denied everywhere.
  *
  * Each group and feature keeps its own policy next to its code (e.g.
- * features/notes/note.policy.ts); this one guards access control itself.
+ * features/<x>/<item>.policy.ts); this one guards access control itself.
  */
 
 /** For abilities only users may hold, whatever an API client's permissions say. */

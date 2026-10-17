@@ -93,10 +93,13 @@ function stripBarrel(text, plural) {
   return out;
 }
 
-/** env.example without every `# feature:<name> begin … end` block. */
+/**
+ * A file without every `feature:<name> begin … end` block, marked by `#`
+ * comments (env files) or `//` comments (test/setup-env.ts).
+ */
 function stripEnvBlocks(text, plural) {
   const block = new RegExp(
-    `^# feature:${plural} begin\\n[\\s\\S]*?^# feature:${plural} end\\n`,
+    `^[ \\t]*(?:#|//) feature:${plural} begin\\n[\\s\\S]*?^[ \\t]*(?:#|//) feature:${plural} end\\n`,
     'gm',
   );
   const count = text.match(block)?.length ?? 0;
@@ -151,13 +154,21 @@ export function removeFeature(root, options) {
       removed.push(`lines in ${path.relative(root, file)}`);
     }
   }
-  const envExample = path.join(root, 'env.example');
-  if (existsSync(envExample)) {
-    const text = readFileSync(envExample, 'utf8');
-    const { out, count } = stripEnvBlocks(text, plural);
+  // Its variables: the deployment's template, the development one, the tests'.
+  for (const file of [
+    path.join(root, 'env.example'),
+    path.join(api, 'env.development.example'),
+    path.join(api, 'test/setup-env.ts'),
+  ]) {
+    if (!existsSync(file)) {
+      continue;
+    }
+    const { out, count } = stripEnvBlocks(readFileSync(file, 'utf8'), plural);
     if (count) {
-      edits.push([envExample, out]);
-      removed.push(`${count} feature:${plural} block(s) in env.example`);
+      edits.push([file, out]);
+      removed.push(
+        `${count} feature:${plural} block(s) in ${path.relative(root, file)}`,
+      );
     }
   }
   const i18n = path.join(api, 'src/i18n');

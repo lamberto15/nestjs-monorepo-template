@@ -3,7 +3,6 @@ import { StorageDisk } from '@nestjs/storage';
 import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
 import type { Database } from '../src/core/database/drizzle.js';
-import { notes } from '../src/features/notes/notes.tables.js';
 import { auditLog } from '../src/iam/iam.tables.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { AttachmentSweepJob } from '../src/platform/attachments/attachment-sweep.job.js';
@@ -13,6 +12,7 @@ import {
   DocumentsService,
 } from '../src/platform/documents/documents.service.js';
 import { documents } from '../src/platform/documents/documents.tables.js';
+import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
 /**
@@ -112,7 +112,7 @@ describe('documents (e2e)', () => {
     await gotenberg.close();
   });
 
-  /** An API client with a note, and its realtime connection. */
+  /** An API client with a test item, and its realtime connection. */
   async function owner(
     body: Record<string, unknown> = {
       title: 'Quarterly report',
@@ -120,13 +120,12 @@ describe('documents (e2e)', () => {
     },
   ) {
     const client = await node.client();
-    const note = (await node.writeNote(client.auth, body).expect(201)).body as {
+    const item = (await node.writeItem(client.auth, body).expect(201)).body as {
       id: string;
-      number: string;
     };
     const socket = await connect(node, client.key);
     sockets.push(socket);
-    return { client, note, socket };
+    return { client, item, socket };
   }
 
   /** The next `event` this connection hears. */
@@ -142,10 +141,10 @@ describe('documents (e2e)', () => {
       });
     });
 
-  const ask = (auth: string, noteId: string, query = '') =>
+  const ask = (auth: string, itemId: string, query = '') =>
     node
       .http()
-      .post(`/v1/notes/${noteId}/pdf${query}`)
+      .post(`/v1/test-items/${itemId}/pdf${query}`)
       .set('Authorization', auth)
       .set('Idempotency-Key', randomUUID());
 
@@ -178,22 +177,22 @@ describe('documents (e2e)', () => {
       .expect(200);
   };
 
-  it('renders a note on a worker, issues it as a locked attachment of the note, and says so over realtime', async () => {
-    const { client, note, socket } = await owner({
+  it('renders a test item on a worker, issues it as a locked attachment of the test item, and says so over realtime', async () => {
+    const { client, item, socket } = await owner({
       title: '<script>alert("x")</script> Report',
       body: '<img src=x onerror=alert(1)>\nSecond line',
     });
     const ready = next(socket, 'document.ready');
 
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     expect(asked.body).toEqual({ id: expect.any(String), status: 'queued' });
     const heard = await ready;
     const done = (await status(client.auth, asked.body.id).expect(200)).body;
     expect(done).toMatchObject({
       id: asked.body.id,
-      source: 'note',
-      subject: 'Note',
-      recordId: note.id,
+      source: 'testItem',
+      subject: 'TestItem',
+      recordId: item.id,
       locale: 'en',
       status: 'completed',
       attachmentId: expect.any(String),
@@ -202,8 +201,8 @@ describe('documents (e2e)', () => {
     });
     expect(heard).toEqual({
       id: asked.body.id,
-      subject: 'Note',
-      recordId: note.id,
+      subject: 'TestItem',
+      recordId: item.id,
       attachmentId: done.attachmentId,
     });
 
@@ -218,19 +217,18 @@ describe('documents (e2e)', () => {
     );
     expect(page!.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(page!.html).not.toMatch(/<script|<img/);
-    expect(page!.html).toContain(note.number);
     expect(page!.html).toContain("default-src 'none'");
 
-    // The note's attachment: the stub's PDF, locked, named after the note.
+    // The test item's attachment: the stub's PDF, locked, named after the test item.
     const listed = await node
       .http()
-      .get(`/v1/notes/${note.id}/attachments`)
+      .get(`/v1/test-items/${item.id}/attachments`)
       .set('Authorization', client.auth)
       .expect(200);
     expect(listed.body.items).toEqual([
       expect.objectContaining({
         id: done.attachmentId,
-        name: `${note.number}.pdf`,
+        name: `test-items-${item.id}.pdf`,
         contentType: 'application/pdf',
         locked: true,
         uploadedBy: `client:${client.id}`,
@@ -248,11 +246,11 @@ describe('documents (e2e)', () => {
       .expect(409);
     expect(removed.body.code).toBe('attachment_locked');
     const again = next(socket, 'document.ready');
-    const second = await ask(client.auth, note.id).expect(202);
+    const second = await ask(client.auth, item.id).expect(202);
     expect((await again).id).toBe(second.body.id);
     const both = await node
       .http()
-      .get(`/v1/notes/${note.id}/attachments`)
+      .get(`/v1/test-items/${item.id}/attachments`)
       .set('Authorization', client.auth)
       .expect(200);
     expect(both.body.items).toHaveLength(2);
@@ -274,25 +272,24 @@ describe('documents (e2e)', () => {
   });
 
   it('writes the document in the language asked for: Arabic right to left', async () => {
-    const { client, note, socket } = await owner({
+    const { client, item, socket } = await owner({
       title: 'تقرير',
       body: 'مرحبا بالعالم',
     });
     const ready = next(socket, 'document.ready');
-    const asked = await ask(client.auth, note.id, '?lang=ar').expect(202);
+    const asked = await ask(client.auth, item.id, '?lang=ar').expect(202);
     await ready;
     expect((await status(client.auth, asked.body.id)).body.locale).toBe('ar');
     const [page] = gotenberg.pages;
     expect(page!.html).toContain('<html lang="ar" dir="rtl">');
-    expect(page!.html).toContain('ملاحظة'); // "Note", from the ar catalog
     expect(page!.html).toContain('مرحبا بالعالم');
   });
 
   it('tries a failed render again, then issues it', async () => {
-    const { client, note, socket } = await owner();
+    const { client, item, socket } = await owner();
     gotenberg.state.answers.push('down');
     const ready = next(socket, 'document.ready');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     expect((await ready).id).toBe(asked.body.id);
     expect(gotenberg.pages).toHaveLength(2);
     expect((await status(client.auth, asked.body.id)).body.status).toBe(
@@ -301,14 +298,14 @@ describe('documents (e2e)', () => {
   });
 
   it('fails without retries when Gotenberg refuses the page', async () => {
-    const { client, note, socket } = await owner();
+    const { client, item, socket } = await owner();
     gotenberg.state.answers.push('reject');
     const failed = next(socket, 'document.failed');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     expect(await failed).toEqual({
       id: asked.body.id,
-      subject: 'Note',
-      recordId: note.id,
+      subject: 'TestItem',
+      recordId: item.id,
       error: DOCUMENT_ERRORS.rejected,
     });
     expect(gotenberg.pages).toHaveLength(1);
@@ -317,10 +314,10 @@ describe('documents (e2e)', () => {
       attachmentId: null,
       error: DOCUMENT_ERRORS.rejected,
     });
-    // Nothing on the note, nothing on the disk.
+    // Nothing on the test item, nothing on the disk.
     const listed = await node
       .http()
-      .get(`/v1/notes/${note.id}/attachments`)
+      .get(`/v1/test-items/${item.id}/attachments`)
       .set('Authorization', client.auth)
       .expect(200);
     expect(listed.body.items).toEqual([]);
@@ -328,10 +325,10 @@ describe('documents (e2e)', () => {
   });
 
   it('gives up after its attempts when Gotenberg never answers (timeouts)', async () => {
-    const { client, note, socket } = await owner();
+    const { client, item, socket } = await owner();
     gotenberg.state.answers.push('hang', 'hang');
     const failed = next(socket, 'document.failed');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     expect(await failed).toMatchObject({
       id: asked.body.id,
       error: DOCUMENT_ERRORS.unavailable,
@@ -343,14 +340,14 @@ describe('documents (e2e)', () => {
     );
   });
 
-  it('fails a document whose note is gone by the time it renders', async () => {
-    const { client, note, socket } = await owner();
-    gotenberg.state.answers.push('hang'); // the first try waits; the note goes meanwhile
+  it('fails a document whose test item is gone by the time it renders', async () => {
+    const { client, item, socket } = await owner();
+    gotenberg.state.answers.push('hang'); // the first try waits; the test item goes meanwhile
     const failed = next(socket, 'document.failed');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     await node
       .http()
-      .delete(`/v1/notes/${note.id}`)
+      .delete(`/v1/test-items/${item.id}`)
       .set('Authorization', client.auth)
       .expect(204);
     expect(await failed).toMatchObject({
@@ -359,27 +356,27 @@ describe('documents (e2e)', () => {
     });
   });
 
-  it('is for those who may read the note, and needs an Idempotency-Key', async () => {
-    const { client, note } = await owner();
+  it('is for those who may read the test item, and needs an Idempotency-Key', async () => {
+    const { client, item } = await owner();
     const stranger = await node.client();
-    await ask(stranger.auth, note.id).expect(404);
+    await ask(stranger.auth, item.id).expect(404);
     await ask(client.auth, randomUUID()).expect(404);
     await node
       .http()
-      .post(`/v1/notes/${note.id}/pdf`)
+      .post(`/v1/test-items/${item.id}/pdf`)
       .set('Authorization', client.auth)
       .expect(400);
     expect(gotenberg.pages).toHaveLength(0);
 
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     await status(stranger.auth, asked.body.id).expect(404);
     await status(client.auth, randomUUID()).expect(404);
   });
 
-  it("goes with its note: the sweep removes a purged note's documents, file and rows", async () => {
-    const { client, note, socket } = await owner();
+  it("goes with its test item: the sweep removes a purged test item's documents, file and rows", async () => {
+    const { client, item, socket } = await owner();
     const ready = next(socket, 'document.ready');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     await ready;
     const [issued] = await db
       .select()
@@ -394,13 +391,13 @@ describe('documents (e2e)', () => {
 
     await node
       .http()
-      .delete(`/v1/notes/${note.id}`)
+      .delete(`/v1/test-items/${item.id}`)
       .set('Authorization', client.auth)
       .expect(204);
     await db
-      .update(notes)
+      .update(testItems)
       .set({ deletedAt: new Date(Date.now() - 31 * 86_400_000) })
-      .where(eq(notes.id, note.id));
+      .where(eq(testItems.id, item.id));
     await node.app.get(SoftDeletePurgeJob).run();
     await node.app.get(AttachmentSweepJob).run();
     expect(
@@ -409,13 +406,13 @@ describe('documents (e2e)', () => {
     expect(await disk.exists(file!.key)).toBe(false);
   });
 
-  it('a reader without Note.body cannot download a PDF that includes it, nor see its document', async () => {
-    const { client, note, socket } = await owner({
+  it('a reader without TestItem.body cannot download a PDF that includes it, nor see its document', async () => {
+    const { client, item, socket } = await owner({
       title: 'Salaries',
       body: 'confidential text',
     });
     const ready = next(socket, 'document.ready');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     const { attachmentId } = (await ready) as { attachmentId: string };
     const [row] = await db
       .select()
@@ -424,7 +421,7 @@ describe('documents (e2e)', () => {
     expect(row!.fields).toContain('body');
     expect(gotenberg.pages[0]!.html).toContain('confidential text');
 
-    // Every note, titles only (no Note.body).
+    // Every test item, titles only (no TestItem.body).
     const titlesOnly = (
       await node
         .admin()
@@ -432,14 +429,14 @@ describe('documents (e2e)', () => {
         .send({
           name: `Titles ${randomUUID().slice(0, 6)}`,
           permissions: [
-            { subject: 'Note', action: 'read', conditions: [], fields: [] },
+            { subject: 'TestItem', action: 'read', conditions: [], fields: [] },
           ],
         })
         .expect(201)
     ).body.id as string;
     const reader = await node.user([titlesOnly]);
     expect(
-      (await reader.agent.get(`/v1/notes/${note.id}`).expect(200)).body,
+      (await reader.agent.get(`/v1/test-items/${item.id}`).expect(200)).body,
     ).not.toHaveProperty('body');
     await reader.agent
       .get(`/v1/attachments/${attachmentId}/download`)
@@ -465,7 +462,7 @@ describe('documents (e2e)', () => {
       void check();
     });
     const theirs = await reader.agent
-      .post(`/v1/notes/${note.id}/pdf`)
+      .post(`/v1/test-items/${item.id}/pdf`)
       .set('Idempotency-Key', randomUUID())
       .expect(202);
     await ownReady;
@@ -480,30 +477,30 @@ describe('documents (e2e)', () => {
   });
 
   it('refuses a second request while the first is rendering (409 document_pending)', async () => {
-    const { client, note, socket } = await owner();
+    const { client, item, socket } = await owner();
     gotenberg.state.answers.push('hang', 'hang');
     const failed = next(socket, 'document.failed');
-    const first = await ask(client.auth, note.id).expect(202);
-    const again = await ask(client.auth, note.id).expect(409);
+    const first = await ask(client.auth, item.id).expect(202);
+    const again = await ask(client.auth, item.id).expect(409);
     expect(again.body).toMatchObject({
       code: 'document_pending',
       id: first.body.id,
     });
     // Another language is another document.
     gotenberg.state.answers.push('reject');
-    await ask(client.auth, note.id, '?lang=de').expect(202);
+    await ask(client.auth, item.id, '?lang=de').expect(202);
     await failed;
     // Once it failed, asking again is allowed.
     const ready = next(socket, 'document.ready');
-    await ask(client.auth, note.id).expect(202);
+    await ask(client.auth, item.id).expect(202);
     await ready;
   });
 
   it('issues one PDF when a document is rendered twice at once (a stalled job run again)', async () => {
-    const { client, note, socket } = await owner();
+    const { client, item, socket } = await owner();
     gotenberg.state.answers.push('slow', 'slow');
     const ready = next(socket, 'document.ready');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     // Wait until the queued run claimed it, then start a second run, as
     // BullMQ does with a stalled job: the later claim wins.
     for (let tries = 0; tries < 100; tries++) {
@@ -545,7 +542,7 @@ describe('documents (e2e)', () => {
     }
     const listed = await node
       .http()
-      .get(`/v1/notes/${note.id}/attachments`)
+      .get(`/v1/test-items/${item.id}/attachments`)
       .set('Authorization', client.auth)
       .expect(200);
     expect(listed.body.items).toHaveLength(1);
@@ -574,10 +571,10 @@ describe('documents (e2e)', () => {
   });
 
   it('fails a document once: a second fail() changes, audits and tells nothing', async () => {
-    const { client, note, socket } = await owner();
+    const { client, item, socket } = await owner();
     gotenberg.state.answers.push('reject');
     const failed = next(socket, 'document.failed');
-    const asked = await ask(client.auth, note.id).expect(202);
+    const asked = await ask(client.auth, item.id).expect(202);
     await failed;
     const audited = async () =>
       (
@@ -616,15 +613,15 @@ describe('documents (e2e)', () => {
 
   it('limits a user to 10 requests a minute (429)', async () => {
     const editor = await node.user(['editor']);
-    const note = (
-      await node.writeNote(editor.agent, { title: 'T', body: 'b' }).expect(201)
+    const item = (
+      await node.writeItem(editor.agent, { title: 'T', body: 'b' }).expect(201)
     ).body as { id: string };
     const codes: number[] = [];
     for (let i = 0; i < 11; i++) {
       codes.push(
         (
           await editor.agent
-            .post(`/v1/notes/${note.id}/pdf`)
+            .post(`/v1/test-items/${item.id}/pdf`)
             .set('Idempotency-Key', randomUUID())
         ).status,
       );

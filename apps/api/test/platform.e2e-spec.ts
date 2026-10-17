@@ -87,14 +87,14 @@ describe('platform: queues, storage and realtime (e2e)', () => {
   it('exports data as CSV, JSON and Excel in a worker, and says so over realtime', async () => {
     const owner = await node.client();
     await node
-      .writeNote(owner.auth, { title: 'First, with a comma', body: 'one' })
+      .writeItem(owner.auth, { title: 'First, with a comma', body: 'one' })
       .expect(201);
     await node
-      .writeNote(owner.auth, { title: 'Second', body: 'two' })
+      .writeItem(owner.auth, { title: 'Second', body: 'two' })
       .expect(201);
     const other = await node.client();
     await node
-      .writeNote(other.auth, { title: 'Not mine', body: 'x' })
+      .writeItem(other.auth, { title: 'Not mine', body: 'x' })
       .expect(201);
 
     const catalog = await node
@@ -103,7 +103,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .set('Authorization', owner.auth)
       .expect(200);
     expect(catalog.body.exports.map((e: { name: string }) => e.name)).toContain(
-      'notes',
+      'test-items',
     );
 
     const socket = await connect(node, owner.key);
@@ -115,7 +115,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .http()
       .post('/v1/data/exports')
       .set('Authorization', owner.auth)
-      .send({ name: 'notes', format: 'csv' })
+      .send({ name: 'test-items', format: 'csv' })
       .expect(202);
     expect((await ready).id).toBe(csv.body.id);
     const done = await finished(owner.auth, csv.body.id);
@@ -133,7 +133,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .post('/v1/data/exports')
       .set('Authorization', owner.auth)
       .send({
-        name: 'notes',
+        name: 'test-items',
         format: 'json',
         filters: { 'title.contains': 'second' },
       })
@@ -148,7 +148,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .http()
       .post('/v1/data/exports')
       .set('Authorization', owner.auth)
-      .send({ name: 'notes', format: 'xlsx' })
+      .send({ name: 'test-items', format: 'xlsx' })
       .expect(202);
     const xlsxDone = await finished(owner.auth, xlsx.body.id);
     const sheet = await node
@@ -162,7 +162,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .http()
       .post('/v1/data/exports')
       .set('Authorization', owner.auth)
-      .send({ name: 'notes', filters: { nope: '1' } })
+      .send({ name: 'test-items', filters: { nope: '1' } })
       .expect(400);
     await node
       .http()
@@ -181,7 +181,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
   it('exports with date filters, and neutralizes formulas in CSV', async () => {
     const owner = await node.client();
     await node
-      .writeNote(owner.auth, { title: '=1+1', body: '@cmd' })
+      .writeItem(owner.auth, { title: '=1+1', body: '@cmd' })
       .expect(201);
 
     // A date filter is parsed again by the worker (the job carries JSON).
@@ -190,7 +190,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .post('/v1/data/exports')
       .set('Authorization', owner.auth)
       .send({
-        name: 'notes',
+        name: 'test-items',
         format: 'csv',
         filters: { 'createdAt.gte': '2000-01-01T00:00:00Z' },
       })
@@ -202,13 +202,13 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     expect(file.text).toContain("'@cmd");
     expect(file.text).not.toMatch(/(^|,)"?=1\+1/m);
 
-    // A date after every note: nothing.
+    // A date after every test item: nothing.
     const later = await node
       .http()
       .post('/v1/data/exports')
       .set('Authorization', owner.auth)
       .send({
-        name: 'notes',
+        name: 'test-items',
         format: 'json',
         filters: { 'createdAt.gte': '2999-01-01T00:00:00Z' },
       })
@@ -222,7 +222,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
   it("writes an export's dates in the reader's time zone", async () => {
     const title = `zoned-${randomUUID().slice(0, 8)}`;
     const filters = { 'title.contains': title };
-    /** The createdAt header and cell of the one exported note. */
+    /** The createdAt header and cell of the one exported test item. */
     const exported = async (
       auth: string | request.Agent,
       body: Record<string, unknown>,
@@ -232,14 +232,14 @@ describe('platform: queues, storage and realtime (e2e)', () => {
           ? node.http().post('/v1/data/exports').set('Authorization', auth)
           : auth.post('/v1/data/exports')
       )
-        .send({ name: 'notes', filters, ...body })
+        .send({ name: 'test-items', filters, ...body })
         .expect(202);
       const done = await finished(auth, started.body.id);
       expect(done).toMatchObject({ status: 'completed', result: { rows: 1 } });
       const file = await node.http().get(local(done.result.url)).expect(200);
       if (body.format === 'json') {
-        const [note] = file.body as { createdAt: string }[];
-        return { header: 'createdAt', cell: note!.createdAt };
+        const [item] = file.body as { createdAt: string }[];
+        return { header: 'createdAt', cell: item!.createdAt };
       }
       const [headers, line] = file.text.replace(/^\uFEFF/, '').split('\n');
       const column = headers!
@@ -262,8 +262,8 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .patch('/v1/auth/me')
       .send({ timezone: 'Asia/Dubai' })
       .expect(200);
-    const note = await node.writeNote(agent, { title, body: 'x' }).expect(201);
-    const moment = new Date(note.body.createdAt as string).getTime();
+    const item = await node.writeItem(agent, { title, body: 'x' }).expect(201);
+    const moment = new Date(item.body.createdAt as string).getTime();
 
     // CSV, for people (and spreadsheets): local time, the zone in the header.
     expect(await exported(agent, { format: 'csv' })).toEqual({
@@ -283,7 +283,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     });
     await agent
       .post('/v1/data/exports')
-      .send({ name: 'notes', timezone: 'Mars/Olympus' })
+      .send({ name: 'test-items', timezone: 'Mars/Olympus' })
       .expect(400);
   });
 
@@ -294,42 +294,40 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .get('/v1/data')
       .set('Authorization', client.auth)
       .expect(200);
-    const notesImport = catalog.body.imports.find(
-      (i: { name: string }) => i.name === 'notes',
+    const itemsImport = catalog.body.imports.find(
+      (i: { name: string }) => i.name === 'test-items',
     );
-    expect(notesImport.template).toBe('/v1/data/imports/notes/template');
-    expect(notesImport.columns.slice(0, 2)).toEqual([
+    expect(itemsImport.template).toBe('/v1/data/imports/test-items/template');
+    expect(itemsImport.columns.slice(0, 2)).toEqual([
       {
         name: 'title',
         type: 'text',
         required: true,
         min: 1,
         max: 200,
-        example: 'Hello',
       },
       {
         name: 'body',
         type: 'text',
         required: false,
         max: 10_000,
-        example: 'My first note.',
       },
     ]);
 
     const template = await node
       .http()
-      .get('/v1/data/imports/notes/template')
+      .get('/v1/data/imports/test-items/template')
       .set('Authorization', client.auth)
       .expect(200);
     expect(template.headers['content-disposition']).toBe(
-      'attachment; filename="notes-template.csv"',
+      'attachment; filename="test-items-template.csv"',
     );
     const text = template.text.replace(/^\uFEFF/, '');
     expect(text).toMatch(/^title,body/);
-    expect(text.split('\n')[1]).toMatch(/^Hello,My first note\./);
+    expect(text.split('\n')[1]).toMatch(/^text,text\n?/);
     const excel = await node
       .http()
-      .get('/v1/data/imports/notes/template?format=xlsx')
+      .get('/v1/data/imports/test-items/template?format=xlsx')
       .set('Authorization', client.auth)
       .responseType('blob')
       .expect(200);
@@ -349,7 +347,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
         .http()
         .post('/v1/data/imports')
         .set('Authorization', client.auth)
-        .field('name', 'notes')
+        .field('name', 'test-items')
         .field('dryRun', 'true')
         .attach('file', file, `template.${format}`)
         .expect(202);
@@ -359,31 +357,31 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       });
     }
 
-    // A role that may create notes but not set their text: no body column,
-    // and a file that sets it is refused row by row, as POST /notes is.
+    // A role that may create test items but not set their text: no body column,
+    // and a file that sets it is refused row by row, as POST /test-items is.
     const titlesOnly = await node
       .admin()
       .post('/v1/access/roles')
       .send({
         name: `Import titles ${randomUUID().slice(0, 8)}`,
         permissions: [
-          { subject: 'Note', action: 'read', conditions: [] },
-          { subject: 'Note', action: 'create', conditions: [], fields: [] },
+          { subject: 'TestItem', action: 'read', conditions: [] },
+          { subject: 'TestItem', action: 'create', conditions: [], fields: [] },
         ],
       })
       .expect(201);
     const { agent } = await node.user([titlesOnly.body.id]);
     const limited = await agent
-      .get('/v1/data/imports/notes/template')
+      .get('/v1/data/imports/test-items/template')
       .expect(200);
     expect(limited.text.replace(/^\uFEFF/, '')).toMatch(/^title\n/);
     const refused = await agent
       .post('/v1/data/imports')
-      .field('name', 'notes')
+      .field('name', 'test-items')
       .attach(
         'file',
         Buffer.from('title,body\nJust a title,\nWith text,secret\n'),
-        'notes.csv',
+        'test-items.csv',
       )
       .expect(202);
     const done = await finished(agent, refused.body.id);
@@ -408,10 +406,10 @@ describe('platform: queues, storage and realtime (e2e)', () => {
         .http()
         .post('/v1/data/imports')
         .set('Authorization', client.auth)
-        .field('name', 'notes')
+        .field('name', 'test-items')
         .field('dryRun', String(dryRun))
         .attach('file', file, {
-          filename: 'notes.csv',
+          filename: 'test-items.csv',
           contentType: 'text/csv',
         })
         .expect(202);
@@ -424,8 +422,12 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       dryRun: true,
     });
     expect(
-      (await node.http().get('/v1/notes').set('Authorization', client.auth))
-        .body.items,
+      (
+        await node
+          .http()
+          .get('/v1/test-items')
+          .set('Authorization', client.auth)
+      ).body.items,
     ).toHaveLength(0);
 
     const imported = await finished(client.auth, (await upload(false)).body.id);
@@ -441,14 +443,14 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .expect(200);
     expect(report.text).toContain('2,title,');
     const titles = (
-      await node.http().get('/v1/notes').set('Authorization', client.auth)
+      await node.http().get('/v1/test-items').set('Authorization', client.auth)
     ).body.items.map((n: { title: string }) => n.title);
     expect(titles.sort()).toEqual(['Imported one', 'Imported two']);
 
     // An Excel file works the same.
     const ExcelJS = (await import('exceljs')).default;
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Notes');
+    const sheet = workbook.addWorksheet('Test items');
     sheet.addRow(['title', 'body']);
     sheet.addRow(['From Excel', 'cell']);
     const xlsx = Buffer.from(await workbook.xlsx.writeBuffer());
@@ -456,8 +458,8 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .http()
       .post('/v1/data/imports')
       .set('Authorization', client.auth)
-      .field('name', 'notes')
-      .attach('file', xlsx, { filename: 'notes.xlsx' })
+      .field('name', 'test-items')
+      .attach('file', xlsx, { filename: 'test-items.xlsx' })
       .expect(202);
     const excelDone = await finished(client.auth, fromExcel.body.id);
     expect(excelDone).toMatchObject({
@@ -471,7 +473,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .http()
       .post('/v1/data/imports')
       .set('Authorization', client.auth)
-      .field('name', 'notes')
+      .field('name', 'test-items')
       .attach('file', png, 'x.png')
       .expect(415);
 
