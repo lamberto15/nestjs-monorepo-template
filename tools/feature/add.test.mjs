@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import { addFeature, MARKERS } from './add.mjs';
+import { format } from './format.mjs';
 import { readRecord, syncFeature } from './sync.mjs';
 import { parseCapabilities } from './capabilities.mjs';
 import { parseField, parseFields } from './fields.mjs';
@@ -424,36 +425,36 @@ describe('feature:sync', () => {
     assert.equal(read.capabilities.size, 0);
   });
 
-  it('refuses a new required field without a default, takes one with', () => {
+  it('refuses a new required field without a default, takes one with', async () => {
     edit(
       '    total: field.money(),\n',
       '    total: field.money(),\n    dueOn: field.date(),\n',
     );
     assert.match(
-      syncFeature(api(), 'orders').errors.join('\n'),
+      (await syncFeature(api(), 'orders')).errors.join('\n'),
       /orders\.dueOn: a new required field/,
     );
     edit(
       '    dueOn: field.date(),\n',
       '    dueOn: field.date().optional(),\n    rank: field.int().default(1),\n',
     );
-    const result = syncFeature(api(), 'orders');
+    const result = await syncFeature(api(), 'orders');
     assert.deepEqual(result.errors, []);
     assert.equal(result.generate, true);
   });
 
-  it('refuses a removed field (expand/contract)', () => {
+  it('refuses a removed field (expand/contract)', async () => {
     edit('    title: field.string(),\n', '');
     assert.match(
-      syncFeature(api(), 'orders').errors.join('\n'),
+      (await syncFeature(api(), 'orders')).errors.join('\n'),
       /the column title has no field any more/,
     );
     edit('  fields: {\n', '  fields: {\n    title: field.string(),\n');
   });
 
-  it("turns team on: its column is a migration (with a warning), its code the platform's", () => {
+  it("turns team on: its column is a migration (with a warning), its code the platform's", async () => {
     edit('  team: false,', '  team: true,');
-    const result = syncFeature(api(), 'orders');
+    const result = await syncFeature(api(), 'orders');
     assert.deepEqual(result.errors, []);
     assert.equal(result.generate, true);
     assert.match(
@@ -461,30 +462,30 @@ describe('feature:sync', () => {
       /team turned on: existing records get no team/,
     );
     assert.equal(
-      syncFeature(api(), 'orders', { check: true }).changes.length,
+      (await syncFeature(api(), 'orders', { check: true })).changes.length,
       0,
     );
   });
 
-  it('refuses team turned off once migrated: dropping team_id loses data', () => {
+  it('refuses team turned off once migrated: dropping team_id loses data', async () => {
     const snapshot = api('drizzle/meta/0000_snapshot.json');
     const before = readFileSync(snapshot, 'utf8');
     const migrated = JSON.parse(before);
     migrated.tables['public.orders'].columns.team_id = { notNull: false };
     writeFileSync(snapshot, JSON.stringify(migrated));
-    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
+    assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
     edit('  team: true,', '  team: false,');
     assert.match(
-      syncFeature(api(), 'orders').errors.join('\n'),
+      (await syncFeature(api(), 'orders')).errors.join('\n'),
       /team turned off drops team_id; which team each record belongs to is lost/,
     );
     writeFileSync(snapshot, before);
-    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
+    assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
   });
 
-  it('turns softDelete off: refused like a dropped field, its restore path out of the OpenAPI test; and back on', () => {
+  it('turns softDelete off: refused like a dropped field, its restore path out of the OpenAPI test; and back on', async () => {
     edit('  softDelete: true,', '  softDelete: false,');
-    const off = syncFeature(api(), 'orders');
+    const off = await syncFeature(api(), 'orders');
     assert.match(
       off.errors.join('\n'),
       /softDelete turned off drops deleted_at and deleted_by; records in the recycle bin would come back as live ones/,
@@ -494,12 +495,12 @@ describe('feature:sync', () => {
     // Nothing else to change: the generated files hold no recycle bin.
     assert.ok(off.errors.every((error) => !error.includes('by hand')));
     edit('  softDelete: false,', '  softDelete: true,');
-    const on = syncFeature(api(), 'orders');
+    const on = await syncFeature(api(), 'orders');
     assert.deepEqual(on.errors, []);
     assert.ok(on.changes.includes('OpenAPI test: + /v1/orders/{id}/restore'));
   });
 
-  it('fails on a generated file that still codes a flag by hand', () => {
+  it('fails on a generated file that still codes a flag by hand', async () => {
     const service = api('src/features/orders/orders.service.ts');
     const policy = api('src/features/orders/order.policy.ts');
     const generated = [
@@ -514,9 +515,9 @@ describe('feature:sync', () => {
       policy,
       `${generated[1]}\n// inMyTeams('teamId', orders.teamId)\n`,
     );
-    const errors = syncFeature(api(), 'orders', { check: true }).errors.join(
-      '\n',
-    );
+    const errors = (
+      await syncFeature(api(), 'orders', { check: true })
+    ).errors.join('\n');
     assert.match(
       errors,
       /orders\.service\.ts codes the recycle bin's columns \(RecordStore\) by hand[^\n]*softDelete: true/,
@@ -524,43 +525,46 @@ describe('feature:sync', () => {
     assert.match(errors, /order\.policy\.ts codes the inMyTeams condition/);
     writeFileSync(service, generated[0]);
     writeFileSync(policy, generated[1]);
-    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
+    assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
   });
 
-  it("adds a capability's paths and texts, and takes them away when it goes", () => {
+  it("adds a capability's paths and texts, and takes them away when it goes", async () => {
     edit('  capabilities: [],', "  capabilities: ['comments', 'watch'],");
-    const added = syncFeature(api(), 'orders');
+    const added = await syncFeature(api(), 'orders');
     assert.ok(
       added.changes.includes('OpenAPI test: + /v1/orders/{id}/comments'),
     );
+    // The OpenAPI spec the sync wrote is formatted as Prettier formats it.
+    const spec = readFileSync(api('test/openapi.e2e-spec.ts'), 'utf8');
+    assert.equal(spec, await format(api('test/openapi.e2e-spec.ts'), spec));
     assert.ok(added.changes.includes('en/notifications.json: + order'));
     assert.equal(
-      syncFeature(api(), 'orders', { check: true }).changes.length,
+      (await syncFeature(api(), 'orders', { check: true })).changes.length,
       0,
     );
     edit(
       "  capabilities: ['comments', 'watch'],",
       "  capabilities: ['watch'],",
     );
-    const removed = syncFeature(api(), 'orders');
+    const removed = await syncFeature(api(), 'orders');
     assert.ok(
       removed.changes.includes('OpenAPI test: - /v1/orders/{id}/comments'),
     );
   });
 
-  it('custom is a table change: it needs a migration, and its removal is refused once the column exists', () => {
+  it('custom is a table change: it needs a migration, and its removal is refused once the column exists', async () => {
     edit("  capabilities: ['watch'],", "  capabilities: ['watch', 'custom'],");
-    const added = syncFeature(api(), 'orders');
+    const added = await syncFeature(api(), 'orders');
     assert.equal(added.generate, true);
     assert.deepEqual(added.errors, []);
     const file = api('drizzle/meta/0000_snapshot.json');
     const snapshot = JSON.parse(readFileSync(file, 'utf8'));
     snapshot.tables['public.orders'].columns.custom = { notNull: true };
     writeFileSync(file, JSON.stringify(snapshot));
-    assert.deepEqual(syncFeature(api(), 'orders').errors, []);
+    assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
     edit("  capabilities: ['watch', 'custom'],", "  capabilities: ['watch'],");
     assert.match(
-      syncFeature(api(), 'orders').errors.join('\n'),
+      (await syncFeature(api(), 'orders')).errors.join('\n'),
       /custom was removed/,
     );
   });
