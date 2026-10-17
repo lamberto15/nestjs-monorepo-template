@@ -4,7 +4,11 @@ import { count, eq, like, sql } from 'drizzle-orm';
 import { Client } from 'pg';
 import { inject } from 'vitest';
 import type { Database } from '../src/core/database/drizzle.js';
-import { DEMO_NOTES, DEMO_USERS } from '../src/demo/demo-data.js';
+import { DEMO_USERS } from '../src/demo/demo-data.js';
+import {
+  DEMO_NOTES,
+  DEMO_TAGS,
+} from '../src/features/notes/notes.demo-data.js';
 import { DemoSeedRefused } from '../src/demo/demo-guard.js';
 import { DemoSeedModule } from '../src/demo/demo-seed.module.js';
 import { type DemoCredentials, DemoSeeder } from '../src/demo/demo-seeder.js';
@@ -118,7 +122,10 @@ describe('demo seed (e2e)', () => {
       throw new Error('expected the seed to run');
     }
     expect(result.users).toHaveLength(DEMO_USERS.length);
-    expect(result.notes).toBe(DEMO_NOTES.length);
+    expect(result.data).toEqual({
+      notes: DEMO_NOTES.length,
+      tags: DEMO_TAGS.length,
+    });
     // Generated passwords, each its own.
     expect(new Set(result.users.map((user) => user.password)).size).toBe(
       DEMO_USERS.length,

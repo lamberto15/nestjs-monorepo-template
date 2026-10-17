@@ -1,5 +1,10 @@
 import type { Type } from '@nestjs/common';
-import type { PermissionsDefinition } from '../iam/access/permissions.js';
+import type { Transaction } from '../core/database/drizzle.js';
+import type {
+  PermissionInput,
+  PermissionsDefinition,
+} from '../iam/access/permissions.js';
+import type { SystemPrincipal } from '../iam/auth/principal.js';
 import type { ResourceDefinition } from '../iam/resources/resource.js';
 import { commentedData } from '../platform/comments/comment-notifications.js';
 import { defineNotifications } from '../platform/notifications/notification.types.js';
@@ -39,6 +44,32 @@ export interface FeatureDefinition {
    * `<item>.commented` notification with comments).
    */
   record?: RecordDeclaration;
+  /**
+   * Its demo data (`pnpm db:seed:demo`): a provider of its module that
+   * writes it, and what the seed's system job needs for that (src/demo).
+   */
+  demo?: {
+    seeder: Type<FeatureDemoSeeder>;
+    permissions: PermissionInput[];
+  };
+}
+
+/** What a feature's demo seeder gets: the demo tenant's transaction, its people. */
+export interface FeatureDemoContext {
+  system: SystemPrincipal;
+  tx: Transaction;
+  tenantId: string;
+  /** The demo users by their key (demo-data.ts): id and address. */
+  users: Map<string, { id: string; email: string }>;
+  /** Files written to storage: deleted again if the seed fails. */
+  stored: string[];
+  /** As `@Can()` checks a request: the seed's job must declare it. */
+  assertCan: (action: string, subject: string) => Promise<void>;
+}
+
+/** A feature's demo data (`FeatureDefinition.demo`): what it made, to report. */
+export interface FeatureDemoSeeder {
+  seed(context: FeatureDemoContext): Promise<Record<string, number>>;
 }
 
 /** The notifications a record's capabilities bring: `<item>.commented` with comments. */

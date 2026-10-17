@@ -35,6 +35,11 @@ Details live in `docs/`: read the file a task needs, not all of them.
   `.claude/skills/` asks what to add and runs it); never copy `notes` by hand.
   Then write only the business logic, where the generated service says so.
 - **Newest versions, pinned** (never `:latest`); Dependabot proposes updates.
+- **Models for Claude: never Fable.** Subagents and delegated tasks use the
+  cheapest model that does the job well: Haiku 5.5 for simple searches and
+  mechanical edits, Sonnet 5.5 for ordinary coding and exploration, Opus 5.5
+  only for complex or security work (and the main session). Set `model` on
+  every Agent call.
 - `.env*` files can't be written by Claude: the owner copies the template
   (`cp env.example .env` at the root and fills it, or `cp
   apps/api/env.development.example apps/api/.env.development`). Keep

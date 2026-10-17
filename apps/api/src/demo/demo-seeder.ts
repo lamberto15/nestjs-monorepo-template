@@ -1,9 +1,11 @@
-import { randomBytes, randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
+import { Inject, Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { StorageDisk } from '@nestjs/storage';
-import { and, eq, like, min, sql } from 'drizzle-orm';
+import { eq, like, min, sql } from 'drizzle-orm';
 import type { Transaction } from '../core/database/drizzle.js';
-import { NotesService } from '../features/notes/notes.service.js';
+import { APP_FEATURES } from '../app.tokens.js';
+import type { FeatureDefinition } from '../features/feature.js';
 import { AccessAdminService } from '../iam/access/access-admin.service.js';
 import { AccessService } from '../iam/access/access.service.js';
 import { TeamsService } from '../iam/access/teams.service.js';
@@ -14,23 +16,15 @@ import type { SystemPrincipal } from '../iam/auth/principal.js';
 import { UsersRepository } from '../iam/auth/users.repository.js';
 import { roles, users } from '../iam/iam.tables.js';
 import { tenants } from '../core/tenancy/tenancy.tables.js';
-import { tenantFileKey } from '../platform/storage/storage.config.js';
 import {
   ADMINISTRATOR_ROLE,
   TenantsService,
 } from '../iam/access/tenants.service.js';
-import { AttachmentsService } from '../platform/attachments/attachments.service.js';
-import { CommentsService } from '../platform/comments/comments.service.js';
-import { TagsService } from '../platform/tags/tags.service.js';
-import { tags as tagsTable } from '../platform/tags/tags.tables.js';
 import {
   DEMO_EMAIL_DOMAIN,
-  DEMO_NOTES,
   DEMO_TEAMS,
-  DEMO_TAGS,
   DEMO_TENANT,
   DEMO_USERS,
-  type DemoNote,
 } from './demo-data.js';
 import {
   DemoSeedRefused,
@@ -38,7 +32,7 @@ import {
   markerRefusal,
   nodeEnvRefusal,
 } from './demo-guard.js';
-import { DEMO_SEED_JOB } from './demo.jobs.js';
+import { demoSeedJob } from './demo.jobs.js';
 
 /** A demo user's sign-in, shown once: only its hash is kept. */
 export interface DemoCredentials {
@@ -55,7 +49,8 @@ export type DemoSeedResult =
       /** TENANCY=single: the seed filled the operators' tenant, the only one. */
       operators: boolean;
       users: DemoCredentials[];
-      notes: number;
+      /** What the features' demo seeders made, by kind: `{ notes: 7, tags: 4 }`. */
+      data: Record<string, number>;
     }
   | { seeded: false; since: Date };
 
@@ -66,7 +61,7 @@ const demoEmail = (name: string) =>
 /**
  * The demo data (demo-data.ts), written through the services an
  * administrator's requests go through, as the system principal
- * `system:demo-seed` (DEMO_SEED_JOB), in a tenant of its own: every write
+ * `system:demo-seed` (demoSeedJob), in a tenant of its own: every write
  * has its audit entry with the seed as the actor, in the demo tenant's
  * log, and the job's declared permissions are checked where a controller
  * would check them (`@Can()`), and by the services themselves (granting
@@ -85,8 +80,9 @@ const demoEmail = (name: string) =>
  *   every breach list). The demo administrator administers the demo
  *   tenant only: the way any tenant gets its first administrator
  *   (`TenantsService.addAdministrator()`), never an operator.
- * - The notes belong to the demo users (their `mine` and `inMyTeams`
- *   conditions then show something), created on their behalf by the seed.
+ * - **Then each feature's own data** (`FeatureDefinition.demo`: its
+ *   seeder, a provider of its module), in the same transaction, owned by
+ *   the demo users. Without features, users and teams only.
  */
 @Injectable()
 export class DemoSeeder {
@@ -97,14 +93,17 @@ export class DemoSeeder {
     private readonly tenants: TenantsService,
     private readonly teams: TeamsService,
     private readonly users: UsersRepository,
-    private readonly notes: NotesService,
-    private readonly tags: TagsService,
-    private readonly comments: CommentsService,
-    private readonly attachments: AttachmentsService,
     private readonly disk: StorageDisk,
     private readonly audit: AuditService,
     private readonly singleTenant: SingleTenant,
+    private readonly moduleRef: ModuleRef,
+    @Inject(APP_FEATURES) private readonly features: FeatureDefinition[],
   ) {}
+
+  /** The seed's system job: what the app's features need (demo.jobs.ts). */
+  private get job() {
+    return demoSeedJob(this.features);
+  }
 
   async seed(): Promise<DemoSeedResult> {
     // Read at the call, as set (demo-guard.ts): not ConfigService, whose
@@ -119,7 +118,7 @@ export class DemoSeeder {
       // No tenant yet: the checks read global tables (tenants, users); the
       // tenant's own transaction is TenantsService.create()'s.
       return await this.system.run(
-        DEMO_SEED_JOB,
+        this.job,
         async () => {
           const created = await (
             this.singleTenant.enabled
@@ -131,7 +130,7 @@ export class DemoSeeder {
                     // Everything in the new tenant, in create()'s transaction.
                     (_tx, tenant) =>
                       this.system.run(
-                        DEMO_SEED_JOB,
+                        this.job,
                         (system, tx) => this.fill(system, tx, tenant, stored),
                         { tenantId: tenant.id },
                       ),
@@ -166,7 +165,7 @@ export class DemoSeeder {
   private async fillTheTenant(stored: string[]): Promise<DemoSeedResult> {
     const tenant = await this.singleTenant.tenant();
     return this.system.run(
-      DEMO_SEED_JOB,
+      this.job,
       async (system, tx) => {
         await this.assertMaySeed(tx);
         return this.fill(system, tx, tenant, stored);
@@ -211,9 +210,23 @@ export class DemoSeeder {
     const tenantId = tenant.id;
     const teams = await this.createTeams(system);
     const people = await this.createUsers(system, tx, teams);
-    const tags = await this.createTags(system, tx);
-    for (const note of DEMO_NOTES) {
-      await this.createNote(system, tenantId, note, people, tags, stored);
+    const data: Record<string, number> = {};
+    for (const feature of this.features) {
+      if (!feature.demo) {
+        continue;
+      }
+      const seeder = this.moduleRef.get(feature.demo.seeder, { strict: false });
+      const made = await seeder.seed({
+        system,
+        tx,
+        tenantId,
+        users: people.ids,
+        stored,
+        assertCan: (action, subject) => this.assertCan(system, action, subject),
+      });
+      for (const [kind, count] of Object.entries(made)) {
+        data[kind] = (data[kind] ?? 0) + count;
+      }
     }
     await this.audit.record(
       system,
@@ -223,7 +236,7 @@ export class DemoSeeder {
         targetId: tenantId,
         details: {
           users: people.credentials.map((user) => user.email),
-          notes: DEMO_NOTES.length,
+          ...data,
         },
       },
       tx,
@@ -233,7 +246,7 @@ export class DemoSeeder {
       tenant: tenant.name,
       operators: this.singleTenant.enabled,
       users: people.credentials,
-      notes: DEMO_NOTES.length,
+      data,
     };
   }
 
@@ -245,7 +258,7 @@ export class DemoSeeder {
   ) {
     if (!(await this.access.can(system, action, subject))) {
       throw new Error(
-        `${system.name} may not ${subject}.${action}: declare it in DEMO_SEED_JOB (demo.jobs.ts).`,
+        `${system.name} may not ${subject}.${action}: declare it in the feature's demo.permissions (or demo.jobs.ts for the seed's own).`,
       );
     }
   }
@@ -310,83 +323,6 @@ export class DemoSeeder {
       });
     }
     return { ids, credentials };
-  }
-
-  private async createTags(system: SystemPrincipal, tx: Transaction) {
-    await this.assertCan(system, 'manageTags', 'Access');
-    const ids = new Map<string, string>();
-    for (const tag of DEMO_TAGS) {
-      // A tenant that has one by that name already (TENANCY=single fills
-      // the existing tenant): the demo notes get it, unchanged.
-      const [existing] = await tx
-        .select({ id: tagsTable.id })
-        .from(tagsTable)
-        .where(
-          and(
-            eq(tagsTable.subject, 'Note'),
-            sql`lower(${tagsTable.name}) = lower(${tag.name})`,
-          ),
-        );
-      if (existing) {
-        ids.set(tag.key, existing.id);
-        continue;
-      }
-      const created = await this.tags.create(system, {
-        subject: 'Note',
-        name: tag.name,
-        color: tag.color,
-      });
-      ids.set(tag.key, created.id);
-    }
-    return ids;
-  }
-
-  private async createNote(
-    system: SystemPrincipal,
-    tenantId: string,
-    note: DemoNote,
-    people: { ids: Map<string, { id: string; email: string }> },
-    tags: Map<string, string>,
-    stored: string[],
-  ) {
-    await this.assertCan(system, 'create', 'Note');
-    const owner = await this.users.inTenant(
-      people.ids.get(note.owner)!.id,
-      tenantId,
-    );
-    const created = await this.notes.create(
-      owner!,
-      { title: note.title, body: note.body },
-      { by: system },
-    );
-    const record = { subject: 'Note', recordId: created.id };
-    await this.tags.setTags(
-      system,
-      record,
-      note.tags.map((key) => tags.get(key)!),
-    );
-    for (const comment of note.comments ?? []) {
-      // `@maya` in the data: a mention of her address.
-      const body = comment.replace(/@([a-z]+)/g, (mention, key: string) =>
-        people.ids.has(key) ? `@${people.ids.get(key)!.email}` : mention,
-      );
-      await this.comments.add(system, record, body);
-    }
-    if (note.file) {
-      await this.attachments.assertCanUpload(system, record);
-      const content = Buffer.from(note.file.text, 'utf8');
-      const contentType = 'text/plain; charset=utf-8';
-      // Under the tenant's prefix, as an upload's (docs/tenancy.md).
-      const key = tenantFileKey(tenantId, `attachments/${randomUUID()}.txt`);
-      stored.push(key);
-      await this.disk.put(key, content, { contentType });
-      await this.attachments.attachStored(system, record, {
-        key,
-        name: note.file.name,
-        size: content.length,
-        contentType,
-      });
-    }
   }
 }
 
