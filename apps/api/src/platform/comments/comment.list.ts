@@ -5,7 +5,12 @@ import { comments } from './comments.tables.js';
 /** What a record's comment list can be filtered and sorted by (oldest first unless `sort` says otherwise). */
 export const COMMENT_LIST = listQuery(
   {
-    author: { column: comments.author, type: 'string', ops: ['eq', 'in'] },
+    author: {
+      column: comments.author,
+      type: 'string',
+      ops: ['eq', 'in'],
+      ref: 'principal',
+    },
     createdAt: {
       column: comments.createdAt,
       type: 'datetime',

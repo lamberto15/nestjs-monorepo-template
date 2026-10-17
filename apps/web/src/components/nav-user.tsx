@@ -33,6 +33,7 @@ import {
   LogOutIcon,
   PaletteIcon,
   ShieldCheckIcon,
+  SlidersHorizontalIcon,
   UserIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -115,6 +116,10 @@ export function NavUser() {
               <DropdownMenuItem render={<Link to="/account/profile" />}>
                 <UserIcon />
                 {t('account.profile.title')}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link to="/account/preferences" />}>
+                <SlidersHorizontalIcon />
+                {t('settings:preferences.title')}
               </DropdownMenuItem>
               <DropdownMenuItem render={<Link to="/account/security" />}>
                 <ShieldCheckIcon />
