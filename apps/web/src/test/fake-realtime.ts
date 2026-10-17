@@ -20,6 +20,8 @@ export function createFakeRealtime() {
     closed: false,
     connects: 0,
     emit(event: string, ...args: unknown[]) {
+      // A copy: a handler may unsubscribe while the event is delivered.
+      // oxlint-disable-next-line unicorn/no-useless-spread
       for (const handler of [...(listeners.get(event) ?? [])]) {
         handler(...args);
       }

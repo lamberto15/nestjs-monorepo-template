@@ -158,8 +158,13 @@ function Editor(props: { types: NotificationType[]; saved: Preferences }) {
                           <SelectItem
                             key={entry.value}
                             value={entry.value}
-                            // A mandatory type may change a frequency, never go off.
-                            disabled={type.mandatory && entry.value === 'false'}
+                            // A mandatory type may change a frequency, never go off (unless
+                            // it is off by default: in-app only).
+                            disabled={
+                              type.mandatory &&
+                              entry.value === 'false' &&
+                              type.channels[channel] !== false
+                            }
                           >
                             {entry.label}
                           </SelectItem>
