@@ -1,8 +1,15 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { server } from '@/test/server';
+
+// findBy*/waitFor wait 1 s by default (Testing Library's asyncUtilTimeout).
+// One step here (a click that re-renders the whole app, then a request) takes
+// a few hundred ms alone and several times that on a loaded machine, where
+// the default failed tests that were only slow (#127). The test's own
+// timeout (vitest.config.ts) stays well above it.
+configure({ asyncUtilTimeout: 3000 });
 
 // msw (its Vitest quick start): every request of a test is answered by a
 // handler, and one nobody expected fails the test.
