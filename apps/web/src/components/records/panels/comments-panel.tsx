@@ -12,7 +12,9 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmButton } from '@/components/confirm-button';
 import { RelativeTime } from '@/features/notifications/relative-time';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { useMe } from '@/lib/features';
+import { useRealtime } from '@/lib/realtime';
 import {
   addComment,
   editComment,
@@ -22,40 +24,35 @@ import {
   type Comment,
 } from './api';
 import { CommentText } from './comment-text';
-import { useMentionable, type Mentionable } from './users';
+import { usePeople, type Person } from './users';
 
 /** The API's limit (docs/comments.md): 1 to 10 000 characters. */
 const MAX_LENGTH = 10_000;
 
 /**
- * The text box: typing `@` offers the people the directory knows; choosing
- * one writes `@<address>` into the text, which is what the API reads
- * (docs/comments.md). The body sent is exactly the text.
+ * The text box: typing `@` offers the tenant's people (`GET /v1/people?q=`,
+ * searched by name as the user types); choosing one writes `@user:<id>` into
+ * the text, which is what the API reads (docs/comments.md). The body sent is
+ * exactly the text. `onPicked` hears of each person chosen, so the thread
+ * can name them.
  */
 function CommentEditor(props: {
   initial?: string;
-  users: readonly Mentionable[];
   submit: string;
   label: string;
   placeholder: string;
   busy: boolean;
   onSubmit: (body: string) => Promise<unknown>;
+  onPicked: (person: Person) => void;
   onCancel?: () => void;
 }) {
   const { t } = useTranslation('records');
   const [text, setText] = useState(props.initial ?? '');
   const [mentions, setMentions] = useState<string[]>([]);
+  const [term, setTerm] = useState('');
+  const search = useDebouncedCallback(setTerm, 250);
+  const people = usePeople(term).data ?? [];
   const body = text.trim();
-  // Only active people with an address can be mentioned.
-  const mentionable = props.users.filter((user) => user.active && user.email);
-  const search = (term: string) => {
-    const needle = term.toLowerCase();
-    return mentionable.filter(
-      (user) =>
-        user.email.toLowerCase().includes(needle) ||
-        user.name.toLowerCase().includes(needle),
-    );
-  };
 
   const send = async (event: FormEvent) => {
     event.preventDefault();
@@ -76,17 +73,28 @@ function CommentEditor(props: {
       <Mention
         trigger="@"
         value={mentions}
-        onValueChange={setMentions}
+        onValueChange={(keys) => {
+          setMentions(keys);
+          for (const person of people) {
+            if (keys.includes(person.key)) props.onPicked(person);
+          }
+        }}
         inputValue={text}
         onInputValueChange={setText}
         disabled={props.busy}
-        // The directory is searched here by name and address, not by the
-        // address alone.
-        onFilter={(options, term) =>
-          options.filter((option) =>
-            search(term).some((user) => user.email === option),
-          )
-        }
+        // The API searches by name (the next answer replaces the list); the
+        // list at hand is narrowed meanwhile, by name too, not by the key.
+        onFilter={(keys, typed) => {
+          search(typed);
+          const needle = typed.toLowerCase();
+          return keys.filter((key) =>
+            people.some(
+              (person) =>
+                person.key === key &&
+                person.name.toLowerCase().includes(needle),
+            ),
+          );
+        }}
       >
         <MentionInput
           aria-label={props.label}
@@ -94,16 +102,11 @@ function CommentEditor(props: {
           maxLength={MAX_LENGTH}
           autoComplete="off"
         />
-        {mentionable.length > 0 && (
+        {people.length > 0 && (
           <MentionContent>
-            {mentionable.map((user) => (
-              <MentionItem key={user.id} value={user.email}>
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </span>
-                </span>
+            {people.map((person) => (
+              <MentionItem key={person.key} value={person.key}>
+                <span className="truncate">{person.name}</span>
               </MentionItem>
             ))}
           </MentionContent>
@@ -130,24 +133,26 @@ function CommentEditor(props: {
   );
 }
 
+/** Who wrote it, as the API names them (`authorName`). */
 function authorName(
-  author: string,
+  comment: Comment,
   me: string | undefined,
-  users: readonly Mentionable[],
   t: (key: string) => string,
 ) {
-  if (author === 'anonymous') return t('comments.anonymous');
-  if (author.startsWith('client:')) return t('comments.system');
-  const id = author.replace(/^user:/, '');
-  if (id === me) return t('comments.you');
-  return users.find((user) => user.id === id)?.name ?? t('comments.someone');
+  if (comment.author === 'anonymous') return t('comments.anonymous');
+  if (comment.author.startsWith('client:')) return t('comments.system');
+  if (me !== undefined && comment.author === `user:${me}`) {
+    return t('comments.you');
+  }
+  return comment.authorName ?? t('comments.someone');
 }
 
 function CommentItem(props: {
   comment: Comment;
   base: string;
   recordId: string;
-  users: readonly Mentionable[];
+  names: ReadonlyMap<string, string>;
+  onPicked: (person: Person) => void;
   canModerate: boolean;
   refresh: () => Promise<unknown>;
 }) {
@@ -172,7 +177,7 @@ function CommentItem(props: {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-sm font-medium">
-          {authorName(comment.author, me, props.users, t)}
+          {authorName(comment, me, t)}
         </span>
         <span className="flex items-baseline gap-2">
           <RelativeTime value={comment.createdAt} />
@@ -186,7 +191,7 @@ function CommentItem(props: {
       {editing ? (
         <CommentEditor
           initial={comment.body}
-          users={props.users}
+          onPicked={props.onPicked}
           label={t('comments.editLabel')}
           placeholder={t('comments.placeholder')}
           submit={t('save')}
@@ -195,7 +200,11 @@ function CommentItem(props: {
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <CommentText body={comment.body} users={props.users} />
+        <CommentText
+          body={comment.body}
+          names={props.names}
+          unknown={t('comments.someone')}
+        />
       )}
       {!editing && (own || props.canModerate) && (
         <div className="flex gap-1">
@@ -233,8 +242,10 @@ function CommentItem(props: {
  * the record may comment; an author edits their own; the author or whoever
  * may change the record deletes (`canModerate`).
  *
- * No realtime event carries comments (backend finding), so it refreshes on a
- * timer, on focus and on the `refresh` of the parent (a notification arrived).
+ * It reloads when `record.commented` arrives for the record (RecordPanels
+ * listens); without realtime (switched off, or not connected) it polls.
+ * A mention `@user:<id>` shows the person's name when it is known: the
+ * thread's authors, the people the autocomplete offered, the user.
  */
 export function CommentsPanel(props: {
   base: string;
@@ -243,18 +254,35 @@ export function CommentsPanel(props: {
 }) {
   const { t } = useTranslation('records');
   const queryClient = useQueryClient();
-  const users = useMentionable().data ?? [];
+  const live = useRealtime() !== undefined;
+  const me = useMe()?.user;
+  const offered = usePeople('').data;
+  const [picked, setPicked] = useState<ReadonlyMap<string, string>>(new Map());
   const key = panelKeys.comments(props.base, props.id);
   const query = useQuery({
     queryKey: key,
     queryFn: () => listComments(props.base, props.id),
-    refetchInterval: 30_000,
+    refetchInterval: live ? false : 30_000,
   });
   const refresh = () => queryClient.invalidateQueries({ queryKey: key });
   const add = useMutation({
     mutationFn: (body: string) => addComment(props.base, props.id, body),
     onSuccess: refresh,
   });
+  const remember = (person: Person) =>
+    setPicked((current) =>
+      current.get(person.key) === person.name
+        ? current
+        : new Map(current).set(person.key, person.name),
+    );
+
+  const names = new Map<string, string>();
+  for (const person of offered ?? []) names.set(person.key, person.name);
+  for (const comment of query.data ?? []) {
+    if (comment.authorName) names.set(comment.author, comment.authorName);
+  }
+  for (const [key, name] of picked) names.set(key, name);
+  if (me?.name) names.set(`user:${me.id}`, me.name);
 
   return (
     <div className="flex flex-col gap-4">
@@ -277,7 +305,8 @@ export function CommentsPanel(props: {
               comment={comment}
               base={props.base}
               recordId={props.id}
-              users={users}
+              names={names}
+              onPicked={remember}
               canModerate={props.canModerate}
               refresh={refresh}
             />
@@ -285,12 +314,12 @@ export function CommentsPanel(props: {
         </ul>
       )}
       <CommentEditor
-        users={users}
         label={t('comments.label')}
         placeholder={t('comments.placeholder')}
         submit={t('comments.add')}
         busy={add.isPending}
         onSubmit={(body) => add.mutateAsync(body)}
+        onPicked={remember}
       />
     </div>
   );

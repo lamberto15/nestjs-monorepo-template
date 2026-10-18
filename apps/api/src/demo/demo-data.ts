@@ -41,11 +41,14 @@ export const DEMO_TEAMS: DemoTeam[] = [
 ];
 
 export const DEMO_USERS: DemoUser[] = [
-  // Runs the demo tenant: its members, roles, teams, tags, audit log.
+  // Runs the demo tenant: its members, roles, teams, tags, audit log. An
+  // editor too, so an approver of the notes' publication (Note.publish
+  // routes to editors): the account the demo is tried with approves what
+  // the editors ask for (docs/approvals.md, "The notes example").
   {
     key: 'noah',
     name: 'Noah Fischer',
-    roles: ['administrator'],
+    roles: ['administrator', 'editor'],
     teams: [],
   },
   // Team leads see the notes of their team and every team below it.

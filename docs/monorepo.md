@@ -210,21 +210,26 @@ What a feature's record pages share; `features/notes` and
 - **Record panels** (`components/records/panels/`): comments with
   @mentions, attachments, tags and revisions on a record's detail page. A
   feature mounts them with one element, each panel shown only when the
-  feature keeps it and the user may read the record (writes need
+  subject takes it and the user may read the record (writes need
   `<Subject>.update`):
 
   ```tsx
   <RecordPanels subject="Note" path="/v1/notes/{id}" id={note.id}
-    capabilities={{ comments: true, attachments: true, tags: true, revisions: true }}
-    tags={note.tags} />
+    tags={note.tags} canUpdate={canUpdate} />
   ```
 
-  The page states the capabilities for now: the API publishes them in
-  `GET /v1/lists/{subject}` (`capabilities`, [api-conventions](api-conventions.md)),
-  which the panels don't read yet (#141). Texts are in the `records`
-  namespace. Pass `canUpdate` (the record's own `can.update`) when the page
-  has it: the panels' writes take the record's PATCH check, conditions
-  included.
+  Which panels a subject takes is the API's `capabilities` in
+  `GET /v1/lists/{subject}` (from its `<item>.record.ts`), and uploads are
+  held to its `attachmentLimits` (size, types). @mentions search
+  `GET /v1/people?q=` (any member) and write `@user:<id>`; authors are the
+  API's `authorName` and `changedByName`. Comments and files reload on the
+  realtime events `record.commented` and `record.attachments.changed`
+  (polled only without realtime). Texts are in the `records` namespace. Pass
+  `canUpdate` (the record's own `can.update`) when the page has it: the
+  panels' writes take the record's PATCH check, conditions included. Tests:
+  `usePanelsApi()` (`test/panels-api.ts`) serves the panels' routes for a
+  test-only subject; a feature's test description spreads
+  `panelsDescription()`.
 - **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
   is the example): `ListPage`'s `listActions` gets the list's `params`, for
   `<ExportButton exporter="notes" filters={exportFilters(params)} />` and

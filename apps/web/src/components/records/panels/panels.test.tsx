@@ -1,7 +1,10 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { http, HttpResponse } from 'msw/http';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RealtimeProvider } from '@/lib/realtime';
 import { recordKeys } from '@/lib/records';
+import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import {
   MAYA,
   TEST_RECORD,
@@ -10,12 +13,30 @@ import {
 } from '@/test/panels-api';
 import { renderComponent } from '@/test/render-component';
 import { findToast } from '@/test/toast';
-import { signedInUser } from '@/test/server';
+import { server, signedInUser } from '@/test/server';
 import { splitMentions } from './comment-text';
-import { RecordPanels, type RecordCapabilities } from './record-panels';
+import { RecordPanels } from './record-panels';
 
-// The panels on a test-only subject's record (TEST_RECORD), mounted alone:
-// no feature's page hosts them, so they stand without any feature.
+const connections: FakeRealtime[] = [];
+vi.mock('@nestjs-monorepo-template/api-client', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@nestjs-monorepo-template/api-client')
+  >()),
+  createRealtime: vi.fn(() => {
+    const fake = createFakeRealtime();
+    connections.push(fake);
+    return fake;
+  }),
+}));
+
+beforeEach(() => {
+  connections.length = 0;
+});
+
+// The panels on a test-only subject's record (TEST_RECORD), mounted alone
+// (with the session's socket, a fake): no feature's page hosts them, so they
+// stand without any feature. What the subject takes is the API's answer
+// (usePanelsApi's `capabilities`, all four by default).
 const ID = '0199a3f2-0000-7000-8000-000000000601';
 const ALL = [
   'TestItem.read',
@@ -25,27 +46,19 @@ const ALL = [
   'TestItem.restore',
 ];
 const ME = `user:${signedInUser.user.id}`;
-const EVERY_PANEL: RecordCapabilities = {
-  comments: true,
-  attachments: true,
-  tags: true,
-  revisions: true,
-};
 /** The record's ETag, as its page would have cached it with the record. */
 const ETAG = `"${ID}-1"`;
 
-async function mountPanels(
-  can: string[],
-  capabilities: RecordCapabilities = EVERY_PANEL,
-) {
+async function mountPanels(can: string[]) {
   const view = await renderComponent(
-    <RecordPanels
-      subject={TEST_RECORD.subject}
-      path={TEST_RECORD.path}
-      id={ID}
-      capabilities={capabilities}
-      tags={[{ id: 't1', name: 'Internal', color: '#6b7280' }]}
-    />,
+    <RealtimeProvider>
+      <RecordPanels
+        subject={TEST_RECORD.subject}
+        path={TEST_RECORD.path}
+        id={ID}
+        tags={[{ id: 't1', name: 'Internal', color: '#6b7280' }]}
+      />
+    </RealtimeProvider>,
     { can },
   );
   view.queryClient.setQueryData(
@@ -65,7 +78,6 @@ const open = async (tab: string) => {
 describe('comments', () => {
   it('shows the thread with mentions marked, as plain text', async () => {
     usePanelsApi({
-      users: [MAYA],
       comments: [
         {
           author: `user:${MAYA.id}`,
@@ -87,11 +99,38 @@ describe('comments', () => {
     expect(within(thread).getByText('You')).toBeVisible();
   });
 
+  it("names authors as the API does, and someone it doesn't", async () => {
+    const stranger = '0199a3f2-0000-7000-8000-000000000003';
+    usePanelsApi({
+      comments: [
+        { author: `user:${MAYA.id}`, authorName: 'Maya P.', body: 'Hello' },
+        {
+          author: `user:${stranger}`,
+          authorName: null,
+          body: `cc @user:${stranger}`,
+        },
+        { author: 'client:1', authorName: null, body: 'Imported' },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Comments');
+    const thread = await screen.findByRole('list', { name: 'Comments' });
+    expect(within(thread).getByText('Maya P.')).toBeVisible();
+    expect(within(thread).getByText('System')).toBeVisible();
+    expect(within(thread).getByText('Someone')).toBeVisible();
+    // A mention of someone unknown shows no id.
+    expect(thread.querySelector('[data-mention]')).toHaveTextContent(
+      '@Someone',
+    );
+  });
+
   it('writes a mention into the body and sends exactly that text', async () => {
-    const calls = usePanelsApi({ users: [MAYA] });
+    const calls = usePanelsApi({ people: [MAYA] });
     await mountPanels(ALL);
     const user = await open('Comments');
     const box = await screen.findByLabelText('Write a comment');
+    // The first people by name, asked without `q` (an empty one is a 400).
+    await waitFor(() => expect(calls.peopleQueries).toContain(''));
     // One keystroke after the "@": with the list open, each key makes the
     // mention measure the caret, which jsdom does slowly (~0.3 s a key), so
     // the list is not narrowed by typing: the person is picked from it.
@@ -100,13 +139,15 @@ describe('comments', () => {
     await user.type(box, 'thanks');
     await user.click(screen.getByText('Comment', { selector: 'button' }));
     await waitFor(() => expect(calls.commented).toHaveLength(1));
+    // `@user:<id>`, what the API reads (docs/comments.md).
     expect(calls.commented[0]).toEqual({
       id: ID,
-      body: { body: 'Please check, @maya@example.com thanks' },
+      body: { body: `Please check, @user:${MAYA.id} thanks` },
     });
+    // Shown with the person's name.
     await waitFor(() =>
       expect(document.querySelector('[data-comment]')).toHaveTextContent(
-        'Please check, @maya@example.com thanks',
+        'Please check, @Maya Patel thanks',
       ),
     );
   });
@@ -143,8 +184,16 @@ describe('comments', () => {
     await waitFor(() => expect(calls.removedComments).toEqual(['mine']));
   });
 
-  it('has no mention list when the directory is forbidden', async () => {
-    usePanelsApi({ users: 'forbidden' });
+  it('searches the people by what follows the @', async () => {
+    const calls = usePanelsApi({ people: [MAYA] });
+    await mountPanels(ALL);
+    const user = await open('Comments');
+    await user.type(await screen.findByLabelText('Write a comment'), '@ma');
+    await waitFor(() => expect(calls.peopleQueries).toContain('ma'));
+  });
+
+  it('has no mention list when nobody matches', async () => {
+    usePanelsApi({ people: [] });
     await mountPanels(ALL);
     const user = await open('Comments');
     await user.type(await screen.findByLabelText('Write a comment'), '@x');
@@ -246,6 +295,32 @@ describe('attachments', () => {
     await waitFor(() => expect(calls.removedAttachments).toEqual(['a1']));
   });
 
+  it("holds uploads to the API's limits", async () => {
+    const calls = usePanelsApi({
+      attachmentLimits: {
+        maxBytes: 4,
+        maxMb: 0,
+        types: ['text/plain', 'application/pdf'],
+      },
+    });
+    await mountPanels(ALL);
+    const user = await open('Attachments');
+    expect(
+      await screen.findByText('At most 4 byte each. Accepted: TXT, PDF.'),
+    ).toBeVisible();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(['hello'], 'big.txt', { type: 'text/plain' }),
+    );
+    await findToast('big.txt: the file is larger than 4 byte');
+    await user.upload(input, new File(['x'], 'a.png', { type: 'image/png' }));
+    await findToast('a.png: this type of file is not accepted');
+    expect(calls.uploaded).toEqual([]);
+  });
+
   it('offers no upload to a reader', async () => {
     usePanelsApi();
     await mountPanels(['TestItem.read']);
@@ -316,7 +391,7 @@ describe('tags', () => {
 
 describe('revisions', () => {
   it('compares two revisions side by side', async () => {
-    const calls = usePanelsApi({ users: [MAYA], revisions: sampleRevisions });
+    const calls = usePanelsApi({ revisions: sampleRevisions });
     await mountPanels(ALL);
     const user = await open('History');
     await screen.findByText('Revision 3');
@@ -394,10 +469,94 @@ describe('revisions', () => {
   });
 });
 
+describe('realtime', () => {
+  const socket = async () => {
+    await waitFor(() => expect(connections).toHaveLength(1));
+    return connections[0]!;
+  };
+
+  it("reloads the comments on the record's record.commented, not another's", async () => {
+    usePanelsApi({ comments: [{ body: 'First' }] });
+    await mountPanels(ALL);
+    await open('Comments');
+    await screen.findByText('First');
+    const fake = await socket();
+    // Another record's, then another subject's: nothing to reload.
+    let requests = 0;
+    const count = () => (requests += 1);
+    server.events.on('request:start', count);
+    act(() => {
+      fake.emit('record.commented', {
+        subject: TEST_RECORD.subject,
+        recordId: 'other',
+        commentId: 'c9',
+        action: 'added',
+      });
+      fake.emit('record.commented', {
+        subject: 'Other',
+        recordId: ID,
+        commentId: 'c9',
+        action: 'added',
+      });
+    });
+    await act(() => Promise.resolve());
+    expect(requests).toBe(0);
+    act(() =>
+      fake.emit('record.commented', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        commentId: 'c9',
+        action: 'added',
+      }),
+    );
+    await waitFor(() => expect(requests).toBe(1));
+    server.events.removeListener('request:start', count);
+  });
+
+  it('reloads the files on record.attachments.changed', async () => {
+    usePanelsApi();
+    await mountPanels(ALL);
+    await open('Attachments');
+    await screen.findByText('No files attached.');
+    const fake = await socket();
+    // Another tab (or a PDF issued) added one.
+    server.use(
+      http.get(`${TEST_RECORD.path.replace('{id}', ':id')}/attachments`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 'a9',
+              subject: TEST_RECORD.subject,
+              recordId: ID,
+              name: 'issued.pdf',
+              size: 10,
+              contentType: 'application/pdf',
+              uploadedBy: 'client:1',
+              locked: true,
+              createdAt: '2026-10-17T09:40:00.000Z',
+              updatedAt: '2026-10-17T09:40:00.000Z',
+            },
+          ],
+          nextCursor: null,
+        }),
+      ),
+    );
+    act(() =>
+      fake.emit('record.attachments.changed', {
+        subject: TEST_RECORD.subject,
+        recordId: ID,
+        attachmentId: 'a9',
+        action: 'added',
+      }),
+    );
+    expect(await screen.findByText('issued.pdf')).toBeVisible();
+  });
+});
+
 describe('the panels on a record', () => {
   it('shows only the panels the feature supports', async () => {
-    usePanelsApi();
-    await mountPanels(ALL, { comments: true, revisions: true });
+    usePanelsApi({ capabilities: { attachments: false, tags: false } });
+    await mountPanels(ALL);
     expect(await screen.findByRole('tab', { name: 'Comments' })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'History' })).toBeVisible();
     expect(screen.queryByRole('tab', { name: 'Attachments' })).toBeNull();
@@ -411,14 +570,26 @@ describe('the panels on a record', () => {
   };
 
   it('shows nothing when the feature supports none', async () => {
-    usePanelsApi();
-    await mountPanels(ALL, {});
+    const calls = usePanelsApi({
+      capabilities: {
+        comments: false,
+        attachments: false,
+        tags: false,
+        revisions: false,
+      },
+    });
+    await mountPanels(ALL);
+    // Once the API has said what the subject takes.
+    await waitFor(() => expect(calls.described).toBe(1));
+    await act(() => Promise.resolve());
     nothingShown();
   });
 
   it('shows nothing to a user who may not read the record', async () => {
-    usePanelsApi();
+    const calls = usePanelsApi();
     await mountPanels([]);
     nothingShown();
+    // Nor asks what the subject takes (a 403).
+    expect(calls.described).toBe(0);
   });
 });

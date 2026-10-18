@@ -801,6 +801,210 @@ describe('approvals (e2e)', () => {
     });
   });
 
+  describe('the inbox for ordinary users: can, etag, decidedByMe', () => {
+    type Item = {
+      id: string;
+      can: { decide: boolean; cancel: boolean; resubmit: boolean };
+      etag: string;
+    };
+    const inbox = async (agent: request.Agent, query = '') =>
+      (await agent.get(`/v1/approvals${query}`).expect(200)).body
+        .items as Item[];
+    const ids = (items: Item[]) => items.map((item) => item.id).sort();
+
+    it('each item carries the can and the etag its GET would give the reader; decide from the list with If-Match', async () => {
+      const [requester, a, b, delegate] = [
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+      ];
+      await setPolicy({
+        stages: [stage([users(a, b)], { mode: { type: 'all' } })],
+      });
+      const now = Date.now();
+      await b.agent
+        .post('/v1/approvals/delegations')
+        .send({
+          toUserId: delegate.id,
+          startsAt: new Date(now - 60_000).toISOString(),
+          endsAt: new Date(now + 86_400_000).toISOString(),
+        })
+        .expect(201);
+      const id = await ask(requester);
+      const admin = node.admin();
+      // Each reader's item is what GET /approvals/{id} answers them: its can, its ETag.
+      for (const agent of [requester.agent, a.agent, delegate.agent, admin]) {
+        const [item] = (await inbox(agent)).filter((x) => x.id === id);
+        const read = await agent.get(`/v1/approvals/${id}`).expect(200);
+        expect(item!.can).toEqual(read.body.can);
+        expect(item!.etag).toBe(read.headers.etag);
+      }
+      const [mine] = await inbox(requester.agent);
+      expect(mine!.can).toEqual({
+        decide: false,
+        cancel: true,
+        resubmit: false,
+      });
+      const [theirs] = await inbox(a.agent, '?assignedToMe=true');
+      expect(theirs!.can).toEqual({
+        decide: true,
+        cancel: false,
+        resubmit: false,
+      });
+      // The delegate decides for b; an administrator reads (Approval.read) and may cancel, never decide.
+      expect((await inbox(delegate.agent))[0]!.can.decide).toBe(true);
+      expect((await inbox(admin, '?status=pending'))[0]!.can).toEqual({
+        decide: false,
+        cancel: true,
+        resubmit: false,
+      });
+      // ?fields= picks the fields, and keeps can and etag (which it can't name).
+      const [picked] = (
+        await a.agent.get('/v1/approvals?fields=title').expect(200)
+      ).body.items;
+      expect(Object.keys(picked).sort()).toEqual(
+        ['can', 'etag', 'id', 'title'].sort(),
+      );
+      await a.agent.get('/v1/approvals?fields=etag').expect(400);
+
+      // A row's etag is good as If-Match; once the request changed, it is stale (412).
+      const stale = theirs!.etag;
+      await delegate.agent
+        .post(`/v1/approvals/${id}/approve`)
+        .set('If-Match', (await inbox(delegate.agent))[0]!.etag)
+        .send({})
+        .expect(200);
+      const refused = await a.agent
+        .post(`/v1/approvals/${id}/approve`)
+        .set('If-Match', stale)
+        .send({})
+        .expect(412);
+      expect(refused.body.code).toBe('precondition_failed');
+      const [fresh] = await inbox(a.agent, '?assignedToMe=true');
+      expect(fresh!.etag).not.toBe(stale);
+      await a.agent
+        .post(`/v1/approvals/${id}/approve`)
+        .set('If-Match', fresh!.etag)
+        .send({})
+        .expect(200);
+      expect((await detail(requester.agent, id)).status).toBe('approved');
+      // Ended, nothing is left to do with it; the tags still match the GET's.
+      const [ended] = await inbox(a.agent);
+      expect(ended!.can).toEqual({
+        decide: false,
+        cancel: false,
+        resubmit: false,
+      });
+      expect(ended!.etag).toBe(
+        (await a.agent.get(`/v1/approvals/${id}`).expect(200)).headers.etag,
+      );
+    });
+
+    it('decidedByMe: what the caller decided, themselves or standing in for someone', async () => {
+      const [requester, a, b, delegate] = [
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+      ];
+      await setPolicy({ stages: [stage([users(a, b)])] });
+      const decided = await ask(requester, 'Decided by a');
+      const waiting = await ask(requester, 'Waiting');
+      const rejected = await ask(requester, 'Rejected by a');
+      await approve(a, decided).expect(200);
+      await a.agent
+        .post(`/v1/approvals/${rejected}/reject`)
+        .send({ comment: 'No.' })
+        .expect(200);
+      const now = Date.now();
+      await b.agent
+        .post('/v1/approvals/delegations')
+        .send({
+          toUserId: delegate.id,
+          startsAt: new Date(now - 60_000).toISOString(),
+          endsAt: new Date(now + 86_400_000).toISOString(),
+        })
+        .expect(201);
+      const forB = await ask(requester, 'Decided for b');
+      await approve(delegate, forB).expect(200);
+
+      expect(ids(await inbox(a.agent, '?decidedByMe=true'))).toEqual(
+        [decided, rejected].sort(),
+      );
+      // The delegate's decision is theirs, not b's (b's assignment says onBehalfOf).
+      expect(ids(await inbox(delegate.agent, '?decidedByMe=true'))).toEqual([
+        forB,
+      ]);
+      expect(await inbox(b.agent, '?decidedByMe=true')).toEqual([]);
+      expect(await inbox(requester.agent, '?decidedByMe=true')).toEqual([]);
+      // false: what they take part in and didn't decide; with the other filters.
+      expect(ids(await inbox(a.agent, '?decidedByMe=false'))).toEqual(
+        [waiting, forB].sort(),
+      );
+      expect(
+        ids(await inbox(a.agent, '?decidedByMe=true&status=rejected')),
+      ).toEqual([rejected]);
+      expect(
+        ids(
+          await inbox(
+            a.agent,
+            `?filter=${encodeURIComponent(JSON.stringify({ field: 'decidedByMe', op: 'eq', value: true }))}`,
+          ),
+        ),
+      ).toEqual([decided, rejected].sort());
+      // An API client decides nothing: nothing is decided by it.
+      const client = await node.client();
+      expect(
+        (
+          await node
+            .http()
+            .get('/v1/approvals?decidedByMe=true')
+            .set('Authorization', client.auth)
+            .expect(200)
+        ).body.items,
+      ).toEqual([]);
+    });
+
+    it('security: can and decidedByMe stay within what the reader may see, in their tenant', async () => {
+      const [requester, a, stranger] = [
+        await node.user([]),
+        await node.user([]),
+        await node.user([]),
+      ];
+      await setPolicy({ stages: [stage([users(a)])] });
+      const id = await ask(requester);
+      await approve(a, id).expect(200);
+      await ask(requester, 'Second');
+      // A member who takes no part: neither filter value shows them anything.
+      for (const query of [
+        '',
+        '?decidedByMe=true',
+        '?decidedByMe=false',
+        '?assignedToMe=false&requestedByMe=false&decidedByMe=false',
+      ]) {
+        expect(await inbox(stranger.agent, query)).toEqual([]);
+      }
+      // Another tenant's administrator (Approval.read, Approval.cancel there): nothing of this tenant's.
+      const other = await node.otherTenant();
+      for (const query of ['', '?decidedByMe=false', '?status=approved']) {
+        expect(await inbox(other.admin, query)).toEqual([]);
+      }
+      const outsider = await other.user([]);
+      expect(await inbox(outsider.agent, '?decidedByMe=false')).toEqual([]);
+      await other.admin.get(`/v1/approvals/${id}`).expect(404);
+      // An approver's can follows their role, not the list's filter: a decided
+      // request is no longer theirs to decide, nor ever theirs to cancel.
+      const [item] = await inbox(a.agent, '?decidedByMe=true');
+      expect(item!.can).toEqual({
+        decide: false,
+        cancel: false,
+        resubmit: false,
+      });
+      await a.agent.post(`/v1/approvals/${id}/cancel`).send({}).expect(403);
+    });
+  });
+
   describe('time: reminders, escalation, expiry', () => {
     it('reminds, then escalates an overdue stage, then expires it', async () => {
       const [requester, a, boss] = [

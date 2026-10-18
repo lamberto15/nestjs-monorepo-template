@@ -29,7 +29,6 @@ import {
   restoreRevision,
   type Revision,
 } from './api';
-import { useMentionable } from './users';
 
 /** A changed value as text: strings as they are, the rest as JSON. */
 export function showValue(value: unknown): string {
@@ -101,7 +100,6 @@ export function RevisionsPanel(props: {
   const { t } = useTranslation('records');
   const date = useDateTimeFormat();
   const queryClient = useQueryClient();
-  const users = useMentionable().data ?? [];
   const [picked, setPicked] = useState<number[]>([]);
   const [compare, setCompare] = useState<[number, number] | null>(null);
   const [asking, setAsking] = useState<Revision | null>(null);
@@ -149,8 +147,7 @@ export function RevisionsPanel(props: {
     if (revision.changedBy === 'unknown') return t('revisions.unknown');
     if (revision.changedBy === 'anonymized') return t('comments.anonymous');
     if (revision.changedBy.startsWith('client:')) return t('comments.system');
-    const id = revision.changedBy.replace(/^user:/, '');
-    return users.find((user) => user.id === id)?.name ?? t('comments.someone');
+    return revision.changedByName ?? t('comments.someone');
   };
 
   const toggle = (number: number) => {

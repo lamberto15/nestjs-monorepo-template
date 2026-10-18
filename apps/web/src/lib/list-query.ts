@@ -409,8 +409,9 @@ export function listParams(
 // ------------------------------------------------------------------- hooks
 
 /** The list's metadata, fetched once: it changes with permissions and custom fields only. */
-export function useListDescription(subject: string) {
+export function useListDescription(subject: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['lists', subject],
     queryFn: () =>
       unwrap(api.GET('/v1/lists/{subject}', { params: { path: { subject } } })),
