@@ -28,6 +28,7 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
 | `POST /v1/data/exports { name, format, filters, timezone? }` | 202; the file lands in private storage |
 | `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`) | 202; every row is validated, valid rows written |
 | `GET /v1/data/transfers/{id}` | progress, then the result: a signed link (30 min), counts, the error report |
+| `GET /v1/data/transfers?kind=&limit=&cursor=` | the caller's transfers in this tenant, newest first, each as the route above tells it |
 
 - **Per tenant** ([tenancy](tenancy.md)): a transfer job names the tenant
   it was started in (`tenantId`, required by its type); the worker runs it
@@ -35,6 +36,22 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   of that tenant. Its files (the upload, the export, the error report) are
   under `tenants/<id>/transfers/`. `GET /v1/data/transfers/{id}` answers 404
   for another tenant's transfer, even the same person's.
+- **The list** (`GET /v1/data/transfers`): the transfers the caller started
+  in the current tenant (its scheduled reports' included, they run as their
+  owner), exports and imports or one `kind`, newest first, by cursor
+  (`limit` up to 100, `cursor` = the previous `nextCursor`, the last id;
+  an unknown or expired one is a 400): `{ items, nextCursor }`. Only the
+  caller's own, whatever their permissions: the docs' model is that a
+  transfer is its principal's alone (an administrator sees theirs only).
+  Listed while BullMQ keeps the job (7 days after it ends). The index is a
+  Redis sorted set per tenant and principal (`platform/queues/job-index.ts`,
+  `tenant:<tid>:jobs:data-transfers[:<kind>]:<principal key>`), written
+  before the job is queued, expiring with it; each item is read from its
+  job and checked again (tenant, principal), and an entry whose job is gone
+  is dropped. The account export is not listed (it is in no tenant):
+  follow it by its id.
+- `GET /v1/data` is described in the OpenAPI document (`catalogSchema`), so
+  the typed client types it.
 - **The account export** (an exporter with `scope: 'account'`: `POST
   /v1/account/export`) is the person's, across their tenants: queued with
   `tenantId: null`, run in no tenant (it reads each tenant in turn, as

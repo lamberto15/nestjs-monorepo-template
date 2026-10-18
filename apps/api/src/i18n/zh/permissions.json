@@ -46,6 +46,10 @@
   },
   "note": {
     "label": "笔记（示例）",
+    "names": {
+      "singular": "笔记",
+      "plural": "笔记"
+    },
     "actions": {
       "read": "查看笔记",
       "create": "撰写笔记",

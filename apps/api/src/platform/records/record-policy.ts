@@ -74,6 +74,11 @@ export function recordPermissions(
     subjects: {
       [subject]: {
         label: `${nouns[0]!.toUpperCase()}${nouns.slice(1)}`,
+        // Its noun and path: `Purchase order`, `Purchase orders`.
+        names: {
+          singular: `${declaration.noun[0]!.toUpperCase()}${declaration.noun.slice(1)}`,
+          plural: `${nouns[0]!.toUpperCase()}${nouns.slice(1)}`,
+        },
         // Field-level: those of its capabilities (custom), and its own.
         fields: { ...recordPermissionFields(declaration), ...options.fields },
         conditions: {

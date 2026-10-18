@@ -12,7 +12,7 @@ import {
 import { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
-import { SearchRegistry } from './search.registry.js';
+import { SearchService } from './search.service.js';
 
 const searchQuerySchema = z
   .object({
@@ -34,6 +34,14 @@ const hitSchema = z.object({
   snippet: z.string().nullable(),
   score: z.number(),
   link: z.string().nullable(),
+  subjectLabel: z
+    .object({
+      singular: z.string().meta({ example: 'Note' }),
+      plural: z.string().meta({ example: 'Notes' }),
+    })
+    .describe(
+      "How the subject is named, in the response's language: one record and several.",
+    ),
 });
 
 /** One search box over every kind of record the caller may read. */
@@ -44,7 +52,7 @@ const hitSchema = z.object({
 @ApiUnauthorizedResponse({ description: 'No valid API key or session.' })
 @Controller('search')
 export class SearchController {
-  constructor(private readonly registry: SearchRegistry) {}
+  constructor(private readonly searches: SearchService) {}
 
   @Get()
   @Can.Anyone() // Each source filters by what the caller may read.
@@ -59,15 +67,11 @@ export class SearchController {
     @Query({ schema: searchQuerySchema })
     query: z.infer<typeof searchQuerySchema>,
   ) {
-    const sources = query.subject
-      ? [this.registry.get(query.subject)].filter((s) => s !== undefined)
-      : this.registry.all();
-    const hits = (
-      await Promise.all(
-        sources.map((source) => source.search(user, query.q, query.limit)),
-      )
-    ).flat();
-    hits.sort((a, b) => b.score - a.score);
-    return { items: hits.slice(0, query.limit) };
+    return {
+      items: await this.searches.search(user, query.q, {
+        subject: query.subject,
+        limit: query.limit,
+      }),
+    };
   }
 }
