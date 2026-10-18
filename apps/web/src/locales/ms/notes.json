@@ -25,13 +25,19 @@
     "title": "Nota baharu"
   },
   "edit": {
-    "title": "Edit nota"
+    "title": "Edit nota",
+    "locked": {
+      "title": "Anda tidak boleh menyunting nota ini sekarang",
+      "description": "Kebenaran anda tidak membenarkan ia diubah dalam keadaannya sekarang (contohnya, nota yang telah diterbitkan).",
+      "back": "Kembali ke nota"
+    }
   },
   "form": {
     "title": "Tajuk",
     "body": "Teks",
     "titleRequired": "Masukkan tajuk.",
     "titleTooLong": "Tajuk paling panjang 200 aksara.",
+    "bodyTooLong": "Teks paling panjang 10,000 aksara.",
     "create": "Cipta nota",
     "save": "Simpan perubahan",
     "cancel": "Batal",

@@ -20,7 +20,11 @@ import {
   useBulkActions,
   type BulkActionSpec,
 } from '@/features/bulk/use-bulk-actions';
-import { NOTES_PATH } from '@/features/notes/api';
+import {
+  NOTES_BIN_QUERY,
+  NOTES_LIST_QUERY,
+  NOTES_PATH,
+} from '@/features/notes/api';
 import { ScheduleReportButton } from '@/features/reports/schedule-button';
 import { exportFilters } from '@/features/transfer/api';
 import { ExportButton } from '@/features/transfer/export-button';
@@ -28,6 +32,7 @@ import { ImportButton } from '@/features/transfer/import-button';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { TagBadge } from '@/lib/tags';
 import { Can, useCan } from '@/lib/features';
+import { useRecordCan } from '@/lib/records';
 import { useDateTimeFormat } from '@/lib/date-time';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import type { ListColumn } from '@/lib/list-query';
@@ -39,15 +44,15 @@ export const Route = createFileRoute('/_app/notes/')({
 type Note =
   paths['/v1/notes']['get']['responses'][200]['content']['application/json']['items'][number];
 
-const DELETED = { deleted: 'true' };
-
 function Notes() {
   const { t } = useTranslation('notes');
   const date = useDateTimeFormat();
   const bin = useRecycleBin();
-  const canUpdate = useCan('Note.update');
+  // The selection's actions go by the permission (each row's refusal is in
+  // the bulk run's report); a row's own actions by its `can`.
   const canDelete = useCan('Note.delete');
   const canRestore = useCan('Note.restore');
+  const canOf = useRecordCan('Note');
   const { ask, restore, dialog } = useNoteDelete();
 
   // The selection's actions (POST /v1/notes/bulk): what the user may do here.
@@ -158,46 +163,51 @@ function Notes() {
   }, [t, date]);
 
   const rowActions = useCallback(
-    (note: Note) => (
-      <>
-        <DropdownMenuItem
-          render={<Link to="/notes/$id" params={{ id: note.id }} />}
-        >
-          {t('actions.view')}
-        </DropdownMenuItem>
-        {bin.deleted ? (
-          canRestore && (
-            <DropdownMenuItem
-              onClick={() => void restore(note).catch(() => {})}
-            >
-              {t('actions.restore')}
-            </DropdownMenuItem>
-          )
-        ) : (
-          <>
-            {canUpdate && (
+    (note: Note) => {
+      const can = canOf(note);
+      return (
+        <>
+          <DropdownMenuItem
+            render={<Link to="/notes/$id" params={{ id: note.id }} />}
+          >
+            {t('actions.view')}
+          </DropdownMenuItem>
+          {bin.deleted ? (
+            can.restore && (
               <DropdownMenuItem
-                render={<Link to="/notes/$id/edit" params={{ id: note.id }} />}
+                onClick={() => void restore(note).catch(() => {})}
               >
-                {t('actions.edit')}
+                {t('actions.restore')}
               </DropdownMenuItem>
-            )}
-            {canDelete && (
-              <>
-                <DropdownMenuSeparator />
+            )
+          ) : (
+            <>
+              {can.update && (
                 <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => ask(note)}
+                  render={
+                    <Link to="/notes/$id/edit" params={{ id: note.id }} />
+                  }
                 >
-                  {t('actions.delete')}
+                  {t('actions.edit')}
                 </DropdownMenuItem>
-              </>
-            )}
-          </>
-        )}
-      </>
-    ),
-    [t, bin.deleted, canUpdate, canDelete, canRestore, ask, restore],
+              )}
+              {can.delete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => ask(note)}
+                  >
+                    {t('actions.delete')}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </>
+          )}
+        </>
+      );
+    },
+    [t, bin.deleted, canOf, ask, restore],
   );
 
   return (
@@ -207,7 +217,7 @@ function Notes() {
         path={NOTES_PATH}
         title={bin.deleted ? t('bin.showing') : t('title')}
         columns={columns}
-        query={bin.deleted ? DELETED : undefined}
+        query={bin.deleted ? NOTES_BIN_QUERY : NOTES_LIST_QUERY}
         // The bin's notes are gone from the detail route (404).
         rowHref={bin.deleted ? undefined : (note) => `/notes/${note.id}`}
         rowActions={rowActions}

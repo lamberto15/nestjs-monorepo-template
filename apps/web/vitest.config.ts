@@ -16,5 +16,18 @@ export default defineConfig({
     // (`glob<T>(`), so a glob result went stale when files were added or
     // removed (the nav and i18n globs). Off until Vitest handles that.
     fsModuleCache: false,
+    // Half the CPUs, not Vitest's default (all but one). `pnpm test` runs
+    // every package's Vitest at once through Turborepo, each with its own
+    // workers, and a jsdom test renders the whole app in a CPU-bound worker:
+    // with the default, 3 runs on 8 CPUs ran 21 workers, the tests ran ~6×
+    // slower and random ones hit their timeouts (#127). With half, the
+    // same 3 runs finished sooner and the slowest test took 2 s, not 10. A
+    // run alone is no slower: the last workers only add contention.
+    maxWorkers: '50%',
+    // Headroom for a loaded machine (CI's 4 CPUs, agents running e2e
+    // beside it): the slowest test takes ~1.7 s alone, so 5 s (the default)
+    // left 3×. Paired with Testing Library's asyncUtilTimeout in
+    // src/test/setup.ts.
+    testTimeout: 15_000,
   },
 });

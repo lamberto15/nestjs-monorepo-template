@@ -319,10 +319,20 @@ export class ApiClientsService {
           ),
         )
         .orderBy(asc(apiKeys.createdAt)),
+      // Grants still running only: an ended one is gone, never reported (so
+      // never echoed back into a change of roles, #114).
       db
         .select()
         .from(apiClientRoles)
-        .where(inArray(apiClientRoles.clientId, ids)),
+        .where(
+          and(
+            inArray(apiClientRoles.clientId, ids),
+            or(
+              isNull(apiClientRoles.expiresAt),
+              gt(apiClientRoles.expiresAt, new Date()),
+            ),
+          ),
+        ),
     ]);
     return clients.map((client) => ({
       id: client.id,

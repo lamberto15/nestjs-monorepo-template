@@ -16,14 +16,13 @@ import {
 } from '@/lib/records';
 import {
   NOTES_PATH,
+  NOTE_LIMITS,
   createNote,
+  seedCreatedNote,
   updateNote,
   type Note,
   type NoteChanges,
 } from './api';
-
-/** The API's limit (`title must be at most 200 characters long`). */
-const TITLE_MAX = 200;
 
 /**
  * Create (no `note`) or edit (`note` and the `etag` it was read with): one
@@ -37,6 +36,8 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const invalidate = useInvalidateRecords(NOTES_PATH);
+  const invalidateLists = () =>
+    queryClient.invalidateQueries({ queryKey: recordKeys.lists(NOTES_PATH) });
   const [error, setError] = useState<string>();
   const [conflict, setConflict] = useState(false);
   const [reloading, setReloading] = useState(false);
@@ -45,7 +46,11 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const save = useMutation({
     mutationFn: async (values: { title: string; body: string }) => {
       if (!note) {
-        return createNote(values);
+        // The created note and its ETag go to the cache: the page it opens
+        // shows them without reading it again.
+        const created = await createNote(values);
+        seedCreatedNote(queryClient, created);
+        return created.note;
       }
       const changes: NoteChanges = {};
       if (values.title !== note.title) changes.title = values.title;
@@ -67,8 +72,8 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
           .string()
           .trim()
           .min(1, t('form.titleRequired'))
-          .max(TITLE_MAX, t('form.titleTooLong')),
-        body: z.string(),
+          .max(NOTE_LIMITS.title, t('form.titleTooLong')),
+        body: z.string().max(NOTE_LIMITS.body, t('form.bodyTooLong')),
       }),
     },
     onSubmit: async ({ value }) => {
@@ -79,7 +84,8 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
           title: value.title.trim(),
           body: value.body,
         });
-        await invalidate();
+        // A new note is in no record query yet (it was just seeded).
+        await (note ? invalidate() : invalidateLists());
         toast.success(note ? t('form.saved') : t('form.created'));
         await navigate({ to: '/notes/$id', params: { id: saved.id } });
       } catch (caught) {
