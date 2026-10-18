@@ -14,6 +14,9 @@ native speaker review them.
   `LOCALES`. Responses carry `Content-Language`.
 - Validation messages come from `validation.json`; throw translated
   messages with `t('auth.invalidLink')`.
+- The access catalog's labels (`GET /v1/access/catalog`: subjects, actions,
+  fields, conditions, system jobs) come from `permissions.json`, else as
+  declared ([permissions](permissions.md)).
 - Mail: a template per language (`reset-password.ar.html`; `layout.ar.html`
   sets `dir="rtl"`); subjects from `mail.json`. Mail is sent outside the
   recipient's request: always pass their `locale`.

@@ -349,6 +349,100 @@ describe('security (e2e)', () => {
       .expect(200);
   });
 
+  it('deletes only the clients the actor has authority over', async () => {
+    const clientManager = await node.user([
+      await role(['Access', 'manageClients']),
+    ]);
+    const client = await node.client();
+    await node
+      .admin()
+      .patch(`/v1/access/clients/${client.id}`)
+      .send({ roleIds: await node.roleIds('viewer') })
+      .expect(200);
+    const refused = await clientManager.agent
+      .delete(`/v1/access/clients/${client.id}`)
+      .expect(403);
+    expect(refused.body.code).toBe('authority_required');
+    // Still there, its key still working.
+    await node
+      .http()
+      .get('/v1/webhook-endpoints')
+      .set('Authorization', client.auth)
+      .expect(200);
+    const plain = await node.client();
+    await clientManager.agent
+      .delete(`/v1/access/clients/${plain.id}`)
+      .expect(204);
+  });
+
+  it('resends only invitations whose roles the actor may grant', async () => {
+    const manager = await node.user([await role(['Access', 'manageUsers'])]);
+    const email = `${randomUUID().slice(0, 8)}@example.com`;
+    await node.invite(node.admin(), {
+      email,
+      roleIds: await node.roleIds('administrator'),
+    });
+    const pending = (
+      (await node.admin().get('/v1/access/invitations').expect(200)).body
+        .items as { id: string; email: string }[]
+    ).find((item) => item.email === email)!;
+    // A fresh link to an administrator's membership is a grant of it.
+    await manager.agent
+      .post(`/v1/access/invitations/${pending.id}/resend`)
+      .expect(403);
+    const plain = `${randomUUID().slice(0, 8)}@example.com`;
+    await node.invite(node.admin(), { email: plain });
+    const mine = (
+      (await manager.agent.get('/v1/access/invitations').expect(200)).body
+        .items as { id: string; email: string }[]
+    ).find((item) => item.email === plain)!;
+    await manager.agent
+      .post(`/v1/access/invitations/${mine.id}/resend`)
+      .expect(202);
+  });
+
+  it("never reads, deletes or resends another tenant's users, roles, clients or invitations", async () => {
+    const other = await node.otherTenant();
+    const theirUser = await other.user([]);
+    const theirClient = await other.client();
+    const theirRoles = (await other.admin.get('/v1/access/roles').expect(200))
+      .body.items as { id: string }[];
+    const invited = `${randomUUID().slice(0, 8)}@example.com`;
+    await node.invite(other.admin, { email: invited });
+    const theirInvitation = (
+      (await other.admin.get('/v1/access/invitations').expect(200)).body
+        .items as { id: string; email: string }[]
+    ).find((item) => item.email === invited)!;
+
+    const admin = node.admin();
+    await admin.get(`/v1/access/users/${theirUser.id}`).expect(404);
+    await admin.get(`/v1/access/roles/${theirRoles[0]!.id}`).expect(404);
+    await admin.get(`/v1/access/clients/${theirClient.id}`).expect(404);
+    await admin.delete(`/v1/access/clients/${theirClient.id}`).expect(404);
+    await admin
+      .post(`/v1/access/invitations/${theirInvitation.id}/resend`)
+      .expect(404);
+    // A team id of theirs filters nothing in.
+    const theirTeam = await other.admin
+      .post('/v1/access/teams')
+      .send({ name: 'Theirs' })
+      .expect(201);
+    await other.admin
+      .patch(`/v1/access/users/${theirUser.id}`)
+      .send({ teamIds: [theirTeam.body.id] })
+      .expect(204);
+    const filtered = await admin
+      .get(`/v1/access/users?teamId=${theirTeam.body.id}`)
+      .expect(200);
+    expect(filtered.body.items).toEqual([]);
+    // Their client still works.
+    await node
+      .http()
+      .get('/v1/webhook-endpoints')
+      .set('Authorization', theirClient.auth)
+      .expect(200);
+  });
+
   it('refuses keys that would already have expired', async () => {
     const past = new Date(Date.now() - 60_000).toISOString();
     await node

@@ -1,6 +1,7 @@
 import { Policy } from '@nestjs/authorization';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
+import { ListsRegistry } from './lists.registry.js';
 
 /**
  * Who may read a subject's list description (GET /v1/lists/{subject}):
@@ -9,9 +10,14 @@ import type { Principal } from '../../iam/auth/principal.js';
  */
 @Policy()
 export class ListPolicy {
-  constructor(private readonly access: AccessService) {}
+  constructor(
+    private readonly access: AccessService,
+    private readonly registry: ListsRegistry,
+  ) {}
 
+  /** Or, for a list that isn't of records, what its registration says (`readable`). */
   async read(user: Principal | null, subject: string) {
-    return this.access.can(user, 'read', subject);
+    const readable = this.registry.get(subject)?.readable;
+    return readable ? readable(user) : this.access.can(user, 'read', subject);
   }
 }

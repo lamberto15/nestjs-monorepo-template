@@ -1,0 +1,149 @@
+{
+  "access": {
+    "label": "Access control",
+    "actions": {
+      "manageRoles": "Create, edit and delete roles",
+      "manageUsers": "Invite users, assign their roles and teams, deactivate their memberships",
+      "manageClients": "Create API clients, rotate and revoke their keys",
+      "manageTeams": "Create, move and delete teams (what \"in my teams\" covers)",
+      "manageCustomFields": "Add, change, reorder and deactivate custom fields (the fields administrators add to notes and other records)",
+      "manageSettings": "Set settings and feature flags for everyone, a team or a user (platform/settings)",
+      "manageTags": "Create, rename, recolour and delete the tags records carry (platform/tags)",
+      "readAudit": "Read the audit log",
+      "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
+      "impersonate": "Act as another user (support), never as an administrator"
+    }
+  },
+  "approval": {
+    "label": "Approvals",
+    "actions": {
+      "read": "See every approval request, not only one's own",
+      "cancel": "Cancel anyone's approval request",
+      "manage": "Abandon an approved request whose outcome would not apply (POST /v1/approvals/{id}/abandon)",
+      "managePolicies": "Change approval policies (stages, approvers, deadlines)"
+    },
+    "conditions": {
+      "ofSubject": {
+        "label": "Of one subject",
+        "description": "Only approval requests about records of this subject (Note).",
+        "input": "Subject"
+      }
+    }
+  },
+  "ops": {
+    "label": "Operations",
+    "actions": {
+      "view": "See the outbox, dead letters and live events",
+      "manage": "Requeue and purge dead letters"
+    }
+  },
+  "mail-suppression": {
+    "label": "Mail suppression list",
+    "actions": {
+      "view": "See the addresses mail is not sent to, and why",
+      "manage": "Add an address to the suppression list, or remove one"
+    }
+  },
+  "note": {
+    "label": "Notes (example)",
+    "actions": {
+      "read": "See notes",
+      "create": "Write notes",
+      "update": "Change notes",
+      "delete": "Delete notes",
+      "restore": "See deleted notes and restore them"
+    },
+    "fields": {
+      "body": "The note's text",
+      "custom": "The custom fields"
+    },
+    "conditions": {
+      "draft": {
+        "label": "Still a draft",
+        "description": "Only notes not yet published."
+      }
+    },
+    "systemJobs": {
+      "note-publication": {
+        "label": "Note publication",
+        "description": "Publishes draft notes when their delay passes (or asks for approval first, for their owners)."
+      }
+    }
+  },
+  "conditions": {
+    "mine": {
+      "label": "Created by me",
+      "description": "Only records this person (or API client) created."
+    },
+    "inMyTeams": {
+      "label": "In my teams",
+      "description": "Only records of the teams I belong to, and of the teams below them."
+    }
+  },
+  "systemJobs": {
+    "seed": {
+      "label": "First-boot seed",
+      "description": "Creates the built-in and declared roles and the first administrator on the first start."
+    },
+    "audit-retention": {
+      "label": "Audit retention",
+      "description": "Deletes audit entries older than AUDIT_RETENTION_DAYS, every night."
+    },
+    "soft-delete-purge": {
+      "label": "Recycle bin purge",
+      "description": "Deletes for good the records deleted longer ago than their retention, every night."
+    },
+    "account-deletion": {
+      "label": "Account deletion",
+      "description": "Anonymizes the accounts whose deletion grace period passed, and erases their personal data, every night."
+    },
+    "usage-rollup": {
+      "label": "Usage roll-up",
+      "description": "Copies API clients' daily usage counters from Redis into the database, every night."
+    },
+    "attachment-sweep": {
+      "label": "Attachment sweep",
+      "description": "Deletes the files and rows of attachments whose record no longer exists, every night."
+    },
+    "revisions-retention": {
+      "label": "Revision retention",
+      "description": "Deletes record revisions older than REVISIONS_RETENTION_DAYS (never a record's latest), every night."
+    },
+    "notification-retention": {
+      "label": "Notification retention",
+      "description": "Deletes read notifications past NOTIFICATIONS_RETENTION_DAYS and any past NOTIFICATIONS_MAX_AGE_DAYS, every night."
+    },
+    "notification-digests": {
+      "label": "Notification digests",
+      "description": "Mails the notification digests that are due, every hour."
+    },
+    "notification-delivery": {
+      "label": "Notification delivery",
+      "description": "Delivers stored notifications through their channels (realtime, mail, webhook), from the outbox."
+    },
+    "report-runner": {
+      "label": "Scheduled reports",
+      "description": "Starts the scheduled reports that are due (as their owners), pauses the ones that can no longer run, and records how each run ended."
+    },
+    "approvals": {
+      "label": "Approvals",
+      "description": "Runs approval requests' workflows: starts stages, reminds, escalates, expires, and applies the outcome."
+    },
+    "exchange-rates": {
+      "label": "Exchange rates",
+      "description": "Fetches the ECB's euro reference rates once they are published each working day, and stores them."
+    },
+    "mail-intake": {
+      "label": "Mail intake",
+      "description": "Records the bounces and complaints a mail provider reports (SES through SNS) and keeps the suppression list from them."
+    },
+    "mail-events-retention": {
+      "label": "Mail events retention",
+      "description": "Deletes bounce, complaint and delivery events older than MAIL_EVENTS_RETENTION_DAYS, every night."
+    },
+    "demo-seed": {
+      "label": "Demo seed",
+      "description": "Creates demo users, teams and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."
+    }
+  }
+}

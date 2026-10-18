@@ -106,8 +106,8 @@ web app needs the API, so `dev:web` alone suits an API already running.
 - **What shows** follows the API: `GET /v1/features` (the deployment
   switches, `REPORTS=off` hides the reports page…) and `GET /v1/auth/me`'s
   `can` (the permissions). Hiding is for the user; the API refuses either way.
-- **Not in the devcontainer yet:** `apps/web` and `packages/ui` have no
-  `node_modules` volume there (#147); run the web app on the host.
+- **In the devcontainer** `pnpm dev` runs it too, at the same address
+  (port 5173 is forwarded; [development](development.md), "Devcontainer").
 
 ### What's in it
 

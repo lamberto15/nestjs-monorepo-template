@@ -1,0 +1,149 @@
+{
+  "access": {
+    "label": "Kawalan akses",
+    "actions": {
+      "manageRoles": "Cipta, sunting dan padam peranan",
+      "manageUsers": "Jemput pengguna, tetapkan peranan dan pasukan mereka, nyahaktifkan keahlian mereka",
+      "manageClients": "Cipta klien API, putar dan batalkan kunci mereka",
+      "manageTeams": "Cipta, alih dan padam pasukan (apa yang diliputi \"dalam pasukan saya\")",
+      "manageCustomFields": "Tambah, ubah, susun semula dan nyahaktifkan medan tersuai (medan yang ditambah oleh pentadbir pada nota dan rekod lain)",
+      "manageSettings": "Tetapkan tetapan dan bendera ciri untuk semua orang, satu pasukan atau seorang pengguna (platform/settings)",
+      "manageTags": "Cipta, namakan semula, warnakan semula dan padam tag yang dibawa oleh rekod (platform/tags)",
+      "readAudit": "Baca log audit",
+      "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
+      "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir"
+    }
+  },
+  "approval": {
+    "label": "Kelulusan",
+    "actions": {
+      "read": "Lihat setiap permintaan kelulusan, bukan hanya milik sendiri",
+      "cancel": "Batalkan permintaan kelulusan sesiapa sahaja",
+      "manage": "Tinggalkan permintaan yang diluluskan yang hasilnya tidak akan digunakan (POST /v1/approvals/{id}/abandon)",
+      "managePolicies": "Ubah dasar kelulusan (peringkat, pelulus, tarikh akhir)"
+    },
+    "conditions": {
+      "ofSubject": {
+        "label": "Bagi satu subjek",
+        "description": "Hanya permintaan kelulusan tentang rekod subjek ini (Note).",
+        "input": "Subjek"
+      }
+    }
+  },
+  "ops": {
+    "label": "Operasi",
+    "actions": {
+      "view": "Lihat peti keluar, surat mati dan peristiwa langsung",
+      "manage": "Masukkan semula surat mati ke baris gilir dan padamkannya"
+    }
+  },
+  "mail-suppression": {
+    "label": "Senarai sekatan mel",
+    "actions": {
+      "view": "Lihat alamat yang tidak dihantar mel, dan sebabnya",
+      "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
+    }
+  },
+  "note": {
+    "label": "Nota (contoh)",
+    "actions": {
+      "read": "Lihat nota",
+      "create": "Tulis nota",
+      "update": "Ubah nota",
+      "delete": "Padam nota",
+      "restore": "Lihat nota yang dipadam dan pulihkannya"
+    },
+    "fields": {
+      "body": "Teks nota",
+      "custom": "Medan tersuai"
+    },
+    "conditions": {
+      "draft": {
+        "label": "Masih draf",
+        "description": "Hanya nota yang belum diterbitkan."
+      }
+    },
+    "systemJobs": {
+      "note-publication": {
+        "label": "Penerbitan nota",
+        "description": "Menerbitkan draf nota apabila tempoh tangguhnya berlalu (atau meminta kelulusan dahulu, bagi pihak pemiliknya)."
+      }
+    }
+  },
+  "conditions": {
+    "mine": {
+      "label": "Dicipta oleh saya",
+      "description": "Hanya rekod yang dicipta oleh orang ini (atau klien API ini)."
+    },
+    "inMyTeams": {
+      "label": "Dalam pasukan saya",
+      "description": "Hanya rekod pasukan yang saya sertai, dan pasukan di bawahnya."
+    }
+  },
+  "systemJobs": {
+    "seed": {
+      "label": "Penyediaan permulaan pertama",
+      "description": "Mencipta peranan terbina dalam dan yang diisytiharkan serta pentadbir pertama pada permulaan pertama."
+    },
+    "audit-retention": {
+      "label": "Penyimpanan audit",
+      "description": "Memadam entri audit yang lebih lama daripada AUDIT_RETENTION_DAYS, setiap malam."
+    },
+    "soft-delete-purge": {
+      "label": "Pengosongan tong kitar semula",
+      "description": "Memadam secara kekal rekod yang dipadam lebih lama daripada tempoh penyimpanannya, setiap malam."
+    },
+    "account-deletion": {
+      "label": "Pemadaman akaun",
+      "description": "Menjadikan tanpa nama akaun yang tempoh tangguh pemadamannya telah berlalu, dan memadam data peribadinya, setiap malam."
+    },
+    "usage-rollup": {
+      "label": "Ringkasan penggunaan",
+      "description": "Menyalin pembilang penggunaan harian klien API dari Redis ke pangkalan data, setiap malam."
+    },
+    "attachment-sweep": {
+      "label": "Pembersihan lampiran",
+      "description": "Memadam fail dan baris lampiran yang rekodnya tidak lagi wujud, setiap malam."
+    },
+    "revisions-retention": {
+      "label": "Penyimpanan semakan",
+      "description": "Memadam semakan rekod yang lebih lama daripada REVISIONS_RETENTION_DAYS (tidak sekali-kali yang terkini bagi sesuatu rekod), setiap malam."
+    },
+    "notification-retention": {
+      "label": "Penyimpanan pemberitahuan",
+      "description": "Memadam pemberitahuan yang telah dibaca selepas NOTIFICATIONS_RETENTION_DAYS dan mana-mana selepas NOTIFICATIONS_MAX_AGE_DAYS, setiap malam."
+    },
+    "notification-digests": {
+      "label": "Ringkasan pemberitahuan",
+      "description": "Menghantar ringkasan pemberitahuan yang tiba masanya melalui mel, setiap jam."
+    },
+    "notification-delivery": {
+      "label": "Penghantaran pemberitahuan",
+      "description": "Menghantar pemberitahuan yang disimpan melalui salurannya (masa nyata, mel, webhook), dari peti keluar."
+    },
+    "report-runner": {
+      "label": "Laporan berjadual",
+      "description": "Memulakan laporan berjadual yang tiba masanya (sebagai pemiliknya), menjeda yang tidak lagi boleh dijalankan, dan merekodkan bagaimana setiap larian berakhir."
+    },
+    "approvals": {
+      "label": "Kelulusan",
+      "description": "Menjalankan aliran kerja permintaan kelulusan: memulakan peringkat, memberi peringatan, meningkatkan, menamatkan tempoh dan menggunakan hasilnya."
+    },
+    "exchange-rates": {
+      "label": "Kadar pertukaran",
+      "description": "Mengambil kadar rujukan euro ECB sebaik sahaja ia diterbitkan setiap hari bekerja, dan menyimpannya."
+    },
+    "mail-intake": {
+      "label": "Penerimaan peristiwa mel",
+      "description": "Merekodkan lantunan dan aduan yang dilaporkan oleh pembekal mel (SES melalui SNS) dan menyelenggara senarai sekatan daripadanya."
+    },
+    "mail-events-retention": {
+      "label": "Penyimpanan peristiwa mel",
+      "description": "Memadam peristiwa lantunan, aduan dan penghantaran yang lebih lama daripada MAIL_EVENTS_RETENTION_DAYS, setiap malam."
+    },
+    "demo-seed": {
+      "label": "Data demo",
+      "description": "Mencipta pengguna demo, pasukan dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."
+    }
+  }
+}

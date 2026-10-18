@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
@@ -49,6 +50,7 @@ import {
   userRoles,
   users,
 } from '../iam.tables.js';
+import { ApiClientLifecycleRegistry } from './api-client-lifecycle.registry.js';
 import { ApiClientsService } from './api-clients.service.js';
 import { InvitationsService } from './invitations.service.js';
 import { TeamsService } from './teams.service.js';
@@ -83,6 +85,8 @@ export interface UserChanges {
 
 export interface ClientInput {
   name: string;
+  /** Requests a UTC day; none (or null): no quota. */
+  dailyQuota?: number | null;
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
   /** When the first key stops working (none: never). */
@@ -120,6 +124,8 @@ const liveGrant = (grants: typeof userRoles | typeof apiClientRoles) =>
 
 @Injectable()
 export class AccessAdminService {
+  private readonly logger = new Logger('AccessAdmin');
+
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly access: AccessService,
@@ -135,6 +141,7 @@ export class AccessAdminService {
     private readonly lifecycle: UserLifecycleRegistry,
     private readonly tenancy: Tenancy,
     private readonly invitations: InvitationsService,
+    private readonly clientLifecycle: ApiClientLifecycleRegistry,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -145,13 +152,31 @@ export class AccessAdminService {
   // Roles
 
   async listRoles() {
-    const [allRoles, permissions, members] = await Promise.all([
-      this.db.select().from(roles).orderBy(asc(roles.name)),
-      this.db.select().from(rolePermissions),
+    return this.roleViews(
+      await this.db.select().from(roles).orderBy(asc(roles.name)),
+    );
+  }
+
+  /** One role of the tenant, as the list shows it (row-level security: another tenant's is a 404). */
+  async getRole(id: string) {
+    return (await this.roleViews([await this.findRole(id)]))[0]!;
+  }
+
+  /** Roles with their permissions and how many hold them (grants still running). */
+  private async roleViews(allRoles: (typeof roles.$inferSelect)[]) {
+    const ids = allRoles.map((role) => role.id);
+    if (!ids.length) {
+      return [];
+    }
+    const [permissions, members] = await Promise.all([
+      this.db
+        .select()
+        .from(rolePermissions)
+        .where(inArray(rolePermissions.roleId, ids)),
       this.db
         .select({ roleId: userRoles.roleId, members: count() })
         .from(userRoles)
-        .where(liveGrant(userRoles))
+        .where(and(inArray(userRoles.roleId, ids), liveGrant(userRoles)))
         .groupBy(userRoles.roleId),
     ]);
     return allRoles.map((role) => ({
@@ -271,7 +296,23 @@ export class AccessAdminService {
       query,
       where,
     );
-    const ids = page.items.map((user) => user.id);
+    return { ...page, items: await this.withGrants(page.items) };
+  }
+
+  /** One member of the tenant, as the list shows them; anyone else is a 404. */
+  async getUser(id: string) {
+    const member = await this.accounts.findMember(this.tenancy.tenantId(), id);
+    if (!member) {
+      throw new NotFoundException(`User ${id} not found.`);
+    }
+    return (await this.withGrants([member]))[0]!;
+  }
+
+  /** Members with their role grants still running and their teams. */
+  private async withGrants<T extends { id: string; tenantId?: unknown }>(
+    items: T[],
+  ) {
+    const ids = items.map((user) => user.id);
     const [assignments, memberships] = ids.length
       ? await Promise.all([
           // An ended grant is gone: never reported, so never echoed back (#114).
@@ -285,22 +326,19 @@ export class AccessAdminService {
             .where(inArray(userTeams.userId, ids)),
         ])
       : [[], []];
-    return {
-      ...page,
-      // A view's `tenantId` (the principal's, always null here) says nothing in a tenant's list.
-      items: page.items.map(({ tenantId: _tenantId, ...user }) => ({
-        ...user,
-        roleIds: assignments
-          .filter((assignment) => assignment.userId === user.id)
-          .map((assignment) => assignment.roleId),
-        roles: assignments
-          .filter((assignment) => assignment.userId === user.id)
-          .map(({ roleId, expiresAt }) => ({ roleId, expiresAt })),
-        teamIds: memberships
-          .filter((membership) => membership.userId === user.id)
-          .map((membership) => membership.teamId),
-      })),
-    };
+    // A view's `tenantId` (the principal's, always null here) says nothing in a tenant's list.
+    return items.map(({ tenantId: _tenantId, ...user }) => ({
+      ...user,
+      roleIds: assignments
+        .filter((assignment) => assignment.userId === user.id)
+        .map((assignment) => assignment.roleId),
+      roles: assignments
+        .filter((assignment) => assignment.userId === user.id)
+        .map(({ roleId, expiresAt }) => ({ roleId, expiresAt })),
+      teamIds: memberships
+        .filter((membership) => membership.userId === user.id)
+        .map((membership) => membership.teamId),
+    }));
   }
 
   /**
@@ -336,6 +374,62 @@ export class AccessAdminService {
           tx,
         );
         return created;
+      },
+    );
+    await this.invitations.send(invitation, token, actor);
+    return {
+      id: invitation.id,
+      email: invitation.email,
+      expiresAt: invitation.expiresAt,
+    };
+  }
+
+  /**
+   * Sends a pending invitation again (expired or not): a new link (the old
+   * one stops working: only its hash was kept), a new expiry, the same
+   * roles, their ends and teams. Resending hands out the roles again, so
+   * the grant rule holds as when inviting: the resender must be able to
+   * grant every role it carries (one deleted since is left out, as the
+   * acceptance does).
+   */
+  async resendInvitation(actor: UserPrincipal, id: string, ip?: string) {
+    const pending = await this.invitations.findPending(id);
+    if (!pending) {
+      throw new NotFoundException(`Invitation ${id} not found.`);
+    }
+    const existing = pending.roleIds.length
+      ? await this.db
+          .select({ id: roles.id })
+          .from(roles)
+          .where(inArray(roles.id, pending.roleIds))
+      : [];
+    await this.checkRoleGrant(
+      actor,
+      existing.map((role) => role.id),
+    );
+    const { invitation, token } = await inTransaction(
+      this.txHost,
+      async (tx) => {
+        const renewed = await this.invitations.renew(tx, id);
+        if (!renewed) {
+          // Accepted or withdrawn meanwhile.
+          throw new NotFoundException(`Invitation ${id} not found.`);
+        }
+        await this.audit.record(
+          actor,
+          {
+            action: 'invitation.resent',
+            targetType: 'invitation',
+            targetId: id,
+            details: {
+              email: renewed.invitation.email,
+              roleIds: renewed.invitation.roleIds,
+            },
+            ip,
+          },
+          tx,
+        );
+        return renewed;
       },
     );
     await this.invitations.send(invitation, token, actor);
@@ -808,6 +902,8 @@ export class AccessAdminService {
     await this.checkRoleGrant(actor, input.roleIds ?? []);
     this.checkExpiries(input.roleIds ?? [], input.roleExpiresAt);
     const { client, key } = await inTransaction(this.txHost, async (tx) => {
+      // The quota with the client, in its transaction: never a client
+      // without the quota it was made with.
       const created = await this.clients.create(tx, actor, input, ip);
       await this.writeRoles(
         tx,
@@ -820,6 +916,44 @@ export class AccessAdminService {
     });
     this.access.invalidate();
     return { ...(await this.clients.findView(client.id)), key };
+  }
+
+  /** One API client of the tenant (never its keys); another tenant's is a 404. */
+  async getClient(id: string) {
+    return this.clients.findView(id);
+  }
+
+  /**
+   * Deletes a client for good (revoking is `active: false`, undone by
+   * `true`): its keys stop at once, its role grants and usage go with it,
+   * then what lives outside the database (its webhook endpoints, its live
+   * connections: ApiClientLifecycleRegistry). Only by someone with
+   * authority over it, as rotating its key. The audit entry, in the
+   * deletion's transaction, keeps its name.
+   */
+  async deleteClient(actor: UserPrincipal, id: string, ip?: string) {
+    const client = await this.clients.findView(id);
+    await this.assertAuthorityOver(
+      actor,
+      await this.permissionsOfHolder('client', id),
+      client.name,
+    );
+    const tenantId = this.tenancy.tenantId();
+    await inTransaction(this.txHost, (tx) =>
+      this.clients.remove(tx, actor, id, ip),
+    );
+    this.access.invalidate();
+    // Each listener on its own: one that fails doesn't keep the others
+    // from cleaning up (the deletion committed; its keys already stop).
+    for (const listener of this.clientLifecycle.all()) {
+      try {
+        await listener.afterDeletion(id, tenantId);
+      } catch (error) {
+        this.logger.error(
+          `API client ${id} deleted, but "${listener.name}" failed to clean up: ${(error as Error).message}`,
+        );
+      }
+    }
   }
 
   /** A new key for a client you have authority over (see ApiClientsService.rotate). */

@@ -122,6 +122,7 @@ import { SubscriptionsRegistry } from './subscriptions/subscriptions.registry.js
 import { SearchController } from './search/search.controller.js';
 import { SearchRegistry } from './search/search.registry.js';
 import { ListsController } from './lists/lists.controller.js';
+import { AccessListSources } from './lists/access-lists.js';
 import { ListPolicy } from './lists/list.policy.js';
 import { ListsRegistry } from './lists/lists.registry.js';
 import { ListsService } from './lists/lists.service.js';
@@ -477,6 +478,8 @@ export class PlatformModule {
         ListsRegistry,
         ListsService,
         ListPolicy,
+        // The access API's users list (GET /v1/lists/User).
+        AccessListSources,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,
         // Files attached to records: features register an AttachmentTarget.

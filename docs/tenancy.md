@@ -188,8 +188,12 @@ Built in the platform code, never at call sites (`tenantKey()`):
   membership, with the invitation's roles and units (those still there), comes
   then, in one transaction under the account's and the membership's locks (an
   acceptance never interleaves with the account's deletion or the membership's
-  deactivation). `GET /v1/access/invitations`, `DELETE
-  /v1/access/invitations/{id}`. Administrators never set or change anyone's
+  deactivation). `GET /v1/access/invitations` (with each one's `roleIds`,
+  `roleExpiresAt` and `teamIds`), `DELETE /v1/access/invitations/{id}`,
+  `POST /v1/access/invitations/{id}/resend` (202, expired or not: a new link
+  and expiry, the old link stops; the roles, their ends and the units stay;
+  the resender must be able to grant its roles, and signed in recently;
+  audited `invitation.resent`). Administrators never set or change anyone's
   password or name: `PATCH /v1/access/users/{id}` changes the membership
   (`active`, roles, units) only, and a `password` or `name` is refused (400).
   Linking a provider and enrolling two-factor want a proved address (403

@@ -423,11 +423,11 @@ guard, step-up and the account pages (#78); the generic list page (#70, #81);
 per-feature texts and grouped navigation (#98); notifications (#101); the notes' record
 pages and panels (#100, #112, #137); settings (#105, #135); access administration
 (#108); API clients and usage (#109); approvals (#121); search and the audit log
-(#125); exports, imports, reports and bulk work (#131). Open: webhooks (#89), PDF
+(#125); exports, imports, reports and bulk work (#131); the web app in the devcontainer
+(#147); removing the web's notes with the feature (#149). Open: webhooks (#89), PDF
 documents (#93), custom fields (#94), tenants for operators (#95), privacy (#96),
 Playwright with accessibility checks (#97), the panels on the API's capabilities
-(#141), the devcontainer (#147). Done since: removing the web's notes with the
-feature (#149).
+(#141).
 
 - Decision 2 above sets the framework (Vite SPA recommended).
 - Decision 1 settles cookies. With the single-origin recommendation, the SPA is

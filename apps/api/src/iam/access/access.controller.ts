@@ -130,14 +130,31 @@ const invitationSchema = z.object({
 const pendingInvitationSchema = invitationSchema.extend({
   name: z.string().nullable(),
   roleIds: z.array(z.uuid()),
+  roleExpiresAt: z
+    .record(z.uuid(), z.iso.datetime({ offset: true }))
+    .describe(
+      'When each grant ends once accepted, by role id; the others never do.',
+    ),
   teamIds: z.array(z.uuid()),
   invitedBy: z.string(),
   expired: z.boolean(),
   createdAt: z.iso.datetime(),
 });
 
+/** Requests a UTC day (platform/usage); null: no quota. */
+const dailyQuota = z
+  .number()
+  .int()
+  .min(1)
+  .nullable()
+  .optional()
+  .describe(
+    'Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota.',
+  );
+
 const clientSchema = z.object({
   name: z.string().trim().min(1).max(80),
+  dailyQuota,
   roleIds: z
     .array(z.uuid())
     .default([])
@@ -153,15 +170,7 @@ const clientChangesSchema = z.object({
     .boolean()
     .optional()
     .describe('false: every key is refused from the next request.'),
-  dailyQuota: z
-    .number()
-    .int()
-    .min(1)
-    .nullable()
-    .optional()
-    .describe(
-      'Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota.',
-    ),
+  dailyQuota,
   roleIds: z.array(z.uuid()).optional(),
   roleExpiresAt,
 });
@@ -272,6 +281,17 @@ export class AccessController {
     return { items: await this.admin.listRoles() };
   }
 
+  @Get('roles/:id')
+  @Can(AccessPolicy, 'open')
+  @ApiOperation({
+    summary: 'One role, with its permissions and member count',
+  })
+  @ApiOkResponse({ standardSchema: roleViewSchema })
+  @ApiNotFoundResponse()
+  role(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.getRole(id);
+  }
+
   @Post('roles')
   @Can(AccessPolicy, 'manageRoles')
   @ApiOperation({ summary: 'Create a role' })
@@ -326,7 +346,7 @@ export class AccessController {
   @ApiOperation({
     summary: 'The users, with their role ids, newest first',
     description:
-      'Filter flat (`?active=true&email.contains=@example.com`) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes.',
+      "Filter flat (`?active=true&email.contains=@example.com`, a team's members with `?teamId=<id>` or `?teamId.in=<id>,<id>`: those in it, not in the teams below) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes. GET /v1/lists/User describes it.",
   })
   @ApiOkResponse({ standardSchema: pageSchema(userViewSchema) })
   async users(@Query({ schema: USER_LIST.schema }) query: ListQuery) {
@@ -334,6 +354,17 @@ export class AccessController {
       await this.admin.listUsers(query, USER_LIST.where(query)),
       query,
     );
+  }
+
+  @Get('users/:id')
+  @Can(AccessPolicy, 'open')
+  @ApiOperation({
+    summary: 'One member of this tenant, with their role grants and teams',
+  })
+  @ApiOkResponse({ standardSchema: userViewSchema })
+  @ApiNotFoundResponse({ description: 'Not a member of this tenant.' })
+  user(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.getUser(id);
   }
 
   @Post('users')
@@ -393,6 +424,26 @@ export class AccessController {
   @ApiOkResponse({ standardSchema: listSchema(pendingInvitationSchema) })
   async invitations() {
     return { items: await this.invitationsService.pending() };
+  }
+
+  @Post('invitations/:id/resend')
+  @Can(AccessPolicy, 'manageUsers')
+  // A new link that hands out the invitation's roles: as inviting with roles.
+  @RecentAuthentication()
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Send a pending invitation again: a new link and expiry',
+    description:
+      'Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the teams stay as they were. You must be able to grant its roles, as when inviting.',
+  })
+  @ApiAcceptedResponse({ standardSchema: invitationSchema })
+  @ApiNotFoundResponse({ description: 'No pending invitation of this id.' })
+  resendInvitation(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Ip() ip: string,
+  ) {
+    return this.admin.resendInvitation(user, id, ip);
   }
 
   @Delete('invitations/:id')
@@ -469,12 +520,24 @@ export class AccessController {
     return { items: await this.clients.list() };
   }
 
+  @Get('clients/:id')
+  @RequiresSwitch('API_CLIENTS')
+  @Can(AccessPolicy, 'open')
+  @ApiOperation({ summary: 'One API client (never its keys)' })
+  @ApiOkResponse({ standardSchema: clientViewSchema })
+  @ApiNotFoundResponse()
+  apiClient(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.getClient(id);
+  }
+
   @Post('clients')
   @RequiresSwitch('API_CLIENTS')
   @Can(AccessPolicy, 'manageClients')
   @RecentAuthentication()
   @ApiOperation({
     summary: 'Create an API client: its key is in the response, this once',
+    description:
+      'With its roles and daily quota at once, in one transaction: never a client without them.',
   })
   @ApiCreatedResponse({ standardSchema: clientWithKeySchema })
   @ApiConflictResponse({ description: 'An API client with this name exists.' })
@@ -542,6 +605,25 @@ export class AccessController {
     @Ip() ip: string,
   ) {
     return this.admin.updateClient(user, id, body, ip);
+  }
+
+  @Delete('clients/:id')
+  @RequiresSwitch('API_CLIENTS')
+  @Can(AccessPolicy, 'manageClients')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Delete an API client for good: its keys stop at once',
+    description:
+      'Its keys, role grants, usage and webhook endpoints go with it; the audit log keeps what it did. To stop it and keep it, revoke it instead (PATCH `active: false`).',
+  })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse()
+  async deleteClient(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Ip() ip: string,
+  ) {
+    await this.admin.deleteClient(user, id, ip);
   }
 
   @Get('audit')
