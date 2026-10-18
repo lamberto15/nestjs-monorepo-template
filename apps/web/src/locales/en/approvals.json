@@ -1,0 +1,172 @@
+{
+  "nav": {
+    "title": "Approvals"
+  },
+  "inbox": {
+    "title": "Approvals",
+    "error": "Could not load the approvals.",
+    "loadMore": "Load more"
+  },
+  "tabs": {
+    "mine": "Waiting for me",
+    "requested": "Requested by me",
+    "history": "History"
+  },
+  "empty": {
+    "mine": "Nothing is waiting for your decision.",
+    "requested": "You have not asked for any approval.",
+    "history": "No finished approvals yet."
+  },
+  "actions": {
+    "Note": {
+      "publish": "Publish a note"
+    }
+  },
+  "row": {
+    "stage": "{{name}} (stage {{current}} of {{count}})",
+    "requested": "Requested by {{name}} on {{date}}",
+    "details": "Details"
+  },
+  "status": {
+    "pending": "Pending",
+    "changes_requested": "Changes requested",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "expired": "Expired",
+    "failed": "Failed"
+  },
+  "decision": {
+    "approve": {
+      "title": "Approve",
+      "button": "Approve",
+      "submit": "Approve",
+      "done": "Approved."
+    },
+    "reject": {
+      "title": "Reject",
+      "button": "Reject",
+      "submit": "Reject",
+      "done": "Rejected."
+    },
+    "cancel": {
+      "title": "Cancel the request",
+      "button": "Cancel request",
+      "submit": "Cancel request",
+      "done": "Request cancelled."
+    },
+    "comment": "Comment (optional)",
+    "commentRequiredLabel": "Reason for rejecting",
+    "commentRequired": "Say why you reject it."
+  },
+  "conflict": {
+    "title": "This request changed",
+    "description": "Someone decided or changed it since you opened it.",
+    "reload": "Reload"
+  },
+  "delegations": {
+    "open": "Delegate",
+    "title": "Delegate my approvals",
+    "description": "While you are away, someone else can decide the approvals assigned to you. Their decision is recorded as theirs, on your behalf.",
+    "list": "Delegations",
+    "none": "You have not delegated or received any delegation.",
+    "given": "You delegated to {{name}}",
+    "held": "{{name}} delegated to you",
+    "period": "{{from}} to {{to}}",
+    "end": "End",
+    "person": "Delegate to",
+    "choose": "Choose a person",
+    "from": "From",
+    "to": "Until",
+    "hint": "You can still decide yourself during the period.",
+    "create": "Delegate",
+    "created": "Delegation created.",
+    "errors": {
+      "person": "Choose a person.",
+      "dates": "Set both dates.",
+      "order": "The end must be after the start.",
+      "people": "The list of people could not be loaded (managing users is required)."
+    }
+  },
+  "detail": {
+    "back": "Back to approvals",
+    "notFound": {
+      "title": "Approval not found",
+      "description": "It does not exist, or you may not see it."
+    },
+    "error": {
+      "title": "Could not load the approval",
+      "generic": "Something went wrong.",
+      "retry": "Try again"
+    },
+    "status": "Status",
+    "record": "Record",
+    "requester": "Requested by",
+    "requestedAt": "Requested on",
+    "comment": "Requester's comment",
+    "dueAt": "Due",
+    "outcome": "Outcome"
+  },
+  "outcome": {
+    "overdue": "Not decided in time",
+    "not_resubmitted": "Not resubmitted in time",
+    "no_approvers": "No approver was left to decide",
+    "record_changed": "The record changed while it waited",
+    "apply_failed": "The approved change could not be applied",
+    "abandoned": "Ended by an administrator",
+    "record_deleted": "The record was deleted"
+  },
+  "stages": {
+    "title": "Stages",
+    "name": "Stage {{current}} of {{count}}: {{name}}",
+    "state": {
+      "waiting": "Waiting",
+      "active": "In progress",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "changes_requested": "Sent back for changes",
+      "closed": "Closed"
+    },
+    "mode": {
+      "any": "Any one approver decides",
+      "all": "Everyone must approve",
+      "quorum": "{{n}} approvals needed"
+    },
+    "noApprovers": "No approvers.",
+    "assignment": {
+      "pending": "Waiting",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "changes_requested": "Asked for changes",
+      "closed": "Closed"
+    },
+    "by": "by {{name}}",
+    "escalated": "escalated"
+  },
+  "history": {
+    "title": "History",
+    "stage": "Stage {{stage}}",
+    "type": {
+      "requested": "Requested",
+      "stage_started": "Stage started",
+      "decided": "Decision",
+      "stage_approved": "Stage approved",
+      "reminded": "Reminder sent",
+      "escalated": "Escalated",
+      "approver_removed": "Approver removed",
+      "resubmitted": "Resubmitted",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "changes_requested": "Changes requested",
+      "cancelled": "Cancelled",
+      "expired": "Expired",
+      "failed": "Failed"
+    }
+  },
+  "banner": {
+    "awaiting": "Awaiting approval: stage {{current}} of {{count}} ({{name}})",
+    "changesRequested": "Changes were requested: the requester must resubmit",
+    "requestedBy": "Requested by {{name}}",
+    "details": "Approval details"
+  }
+}
