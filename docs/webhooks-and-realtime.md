@@ -14,15 +14,62 @@ fail; the outbox relay keeps running because notification delivery uses it.
 Deliveries to endpoints created earlier wait until it is turned on again.
 `REALTIME=off`: no `/realtime` gateway; `Realtime` pushes do nothing.
 
-Per API client: the client is the tenant (`tenant` = its id), so a client
-sees and receives only its own. Every route takes the client's API key.
+Per API client, by design: the client is the package's tenant (`tenant` =
+its id), so a client sees and receives only its own. There are no endpoints of
+a whole tenant: what a webhook carries is what its client may read. The
+client's own routes take its API key:
 
 | Need | Route |
 | --- | --- |
 | Subscribe, list, read, change, remove | `POST/GET /v1/webhook-endpoints`, `GET/PATCH/DELETE /v1/webhook-endpoints/{id}` |
 | A new secret (the old one keeps signing for 24 hours) | `POST /v1/webhook-endpoints/{id}/rotate-secret` |
-| Deliveries | `GET /v1/webhook-deliveries`, `GET /v1/webhook-deliveries/{id}` |
+| A test event to one endpoint | `POST /v1/webhook-endpoints/{id}/test` (202, the delivery) |
+| Deliveries (paged) | `GET /v1/webhook-deliveries`, `GET /v1/webhook-deliveries/{id}` |
 | Retry one, or every failed one since an outage | `POST /v1/webhook-deliveries/{id}/retry`, `POST /v1/webhook-deliveries/retry` |
+| What may be subscribed to, by feature | `GET /v1/webhook-event-types` (an API key or a user) |
+
+### Managed by an administrator
+
+A signed-in user manages a chosen client's webhooks on its behalf, under
+`/v1/access/clients/{clientId}/`: `webhook-endpoints…` and
+`webhook-deliveries…`, the same routes as above
+(`platform/webhooks/client-webhooks.controller.ts`; one
+`WebhookManagementService` behind both doors). Each route wants:
+
+- a user (a session or a user token; an API key is a 401) with
+  `Access.manageClients` (never while impersonating), and API_CLIENTS on;
+- a client of the caller's tenant (another tenant's is a 404) over which the
+  caller has authority, as for rotating its key (403 `authority_required`);
+- a recent sign-in to create an endpoint or rotate its secret: both return a
+  secret (403 `reauthentication_required`, [auth](auth.md)).
+
+Changes (create, update, delete, rotate, test, retry) are audited as the
+user's, with the client as the target (`webhook-endpoint.created`, …); a
+client's own changes through its key are not. The package keeps endpoints in
+its own store, on its own connection, so the audit entry is written after its
+change succeeded, not in one transaction with it.
+
+### Details
+
+- **Event types catalog:** `GET /v1/webhook-event-types` groups the declared
+  types by feature (`group`: the first segment unless declared). A feature
+  declares a description with `{ type, description, group? }` in
+  `PlatformModule.forRoot({ eventTypes })` (a plain string still works);
+  records' `events` declare theirs.
+- **Test event:** the reserved `webhook.test` (`data`: `{ endpointId, test: true }`)
+  goes to that endpoint alone, whatever it subscribed to, signed and retried
+  as any delivery. Subscribing to it is a 400, as any unknown type.
+- **The delivery log** pages by cursor with the list query of every list
+  ([api-conventions](api-conventions.md)): `limit`, `cursor`, `count=true`,
+  flat filters (`status`, `endpointId`, `type`, `attempts`, `createdAt` in
+  ISO 8601), `filter`, `sort`, `fields`. Items show times in epoch
+  milliseconds, as the package does. One delivery adds `durationMs` (every
+  attempt together) and `lastRequest`: the headers of the latest attempt as
+  sent (`webhook-id`, `webhook-timestamp`, `webhook-signature`, content type,
+  user agent; never a secret). The recording transport
+  (`recording.transport.ts`) writes them to `webhook_delivery_requests`
+  before each attempt, around the package's own HTTP transport.
+- **`description`:** `null` clears it on PATCH; an empty string is a 400.
 
 - **Signatures:** Standard Webhooks (`webhook-id`, `webhook-timestamp`,
   `webhook-signature`), with the endpoint's `whsec_…` secret, shown once at

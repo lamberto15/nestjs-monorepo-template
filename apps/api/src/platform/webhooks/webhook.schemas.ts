@@ -3,7 +3,7 @@ import { z } from 'zod';
 const eventTypes = z
   .array(z.string())
   .describe(
-    'Event types to receive (see the API description), or "*" for all.',
+    'Event types to receive (GET /v1/webhook-event-types), or "*" for all. An unknown type is a 400; so is the reserved webhook.test.',
   );
 
 /** Body of `POST /webhook-endpoints`. The package checks the URL and the types themselves. */
@@ -14,7 +14,8 @@ export const createEndpointSchema = z.object({
       'A public https:// URL. Private and cloud-metadata addresses are refused.',
     ),
   eventTypes,
-  description: z.string().optional(),
+  // Not empty: no description is its absence (or null on PATCH), never "".
+  description: z.string().min(1).optional(),
 });
 export type CreateEndpointDto = z.infer<typeof createEndpointSchema>;
 
@@ -22,7 +23,14 @@ export type CreateEndpointDto = z.infer<typeof createEndpointSchema>;
 export const updateEndpointSchema = z.object({
   url: z.string().optional(),
   eventTypes: eventTypes.optional(),
-  description: z.string().nullable().optional(),
+  description: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe(
+      'null clears it (an empty string is refused: 400); absent leaves it as it is.',
+    ),
   enabled: z.boolean().optional(),
 });
 export type UpdateEndpointDto = z.infer<typeof updateEndpointSchema>;
@@ -43,17 +51,6 @@ export const retryDeliveriesSchema = z.object({
 export type RetryDeliveriesDto = z.infer<typeof retryDeliveriesSchema>;
 
 const DELIVERY_STATUSES = ['pending', 'succeeded', 'failed'] as const;
-
-/** Query of `GET /webhook-deliveries`. */
-export const listDeliveriesQuerySchema = z.object({
-  endpointId: z.string().optional(),
-  status: z.enum(DELIVERY_STATUSES).optional(),
-  type: z
-    .string()
-    .optional()
-    .describe('An event type, such as note.published.'),
-});
-export type ListDeliveriesQuery = z.infer<typeof listDeliveriesQuerySchema>;
 
 const epochMs = z.number().describe('Epoch milliseconds.');
 
@@ -131,6 +128,45 @@ export const webhookDeliveryDetailsSchema = webhookDeliverySchema.extend({
         .nullable()
         .describe('The first 4 KB of the response body.'),
       error: z.string().nullable(),
+    }),
+  ),
+});
+
+/**
+ * `GET …/webhook-deliveries/{id}`: the delivery with its message, every
+ * attempt, the time they took and the request last sent.
+ */
+export const webhookDeliveryViewSchema = webhookDeliveryDetailsSchema.extend({
+  durationMs: z
+    .number()
+    .describe('Every attempt of the log together, in milliseconds.'),
+  lastRequest: z
+    .object({
+      attempt: z.int().describe('1-based, within its round.'),
+      sentAt: epochMs,
+      headers: z
+        .record(z.string(), z.string())
+        .describe(
+          'As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret.',
+        ),
+    })
+    .nullable()
+    .describe('The request of the latest attempt; null before the first.'),
+});
+
+/** `GET /v1/webhook-event-types`: what an endpoint may subscribe to, by feature. */
+export const webhookEventTypesSchema = z.object({
+  items: z.array(
+    z.object({
+      group: z
+        .string()
+        .describe("The feature: the types' first segment unless declared."),
+      types: z.array(
+        z.object({
+          type: z.string().meta({ example: 'note.published' }),
+          description: z.string().nullable(),
+        }),
+      ),
     }),
   ),
 });

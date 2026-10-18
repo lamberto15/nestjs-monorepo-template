@@ -68,6 +68,14 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/clients/{id}/keys/{keyId}',
         '/v1/access/clients/{id}/rotate',
         '/v1/access/clients/{id}/usage',
+        '/v1/access/clients/{clientId}/webhook-deliveries',
+        '/v1/access/clients/{clientId}/webhook-deliveries/retry',
+        '/v1/access/clients/{clientId}/webhook-deliveries/{id}',
+        '/v1/access/clients/{clientId}/webhook-deliveries/{id}/retry',
+        '/v1/access/clients/{clientId}/webhook-endpoints',
+        '/v1/access/clients/{clientId}/webhook-endpoints/{id}',
+        '/v1/access/clients/{clientId}/webhook-endpoints/{id}/rotate-secret',
+        '/v1/access/clients/{clientId}/webhook-endpoints/{id}/test',
         '/v1/access/invitations',
         '/v1/access/invitations/{id}',
         '/v1/access/principals',
@@ -188,6 +196,8 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/webhook-endpoints',
         '/v1/webhook-endpoints/{id}',
         '/v1/webhook-endpoints/{id}/rotate-secret',
+        '/v1/webhook-endpoints/{id}/test',
+        '/v1/webhook-event-types',
         '/v1/webhooks/mail/{provider}',
       ]);
     check({

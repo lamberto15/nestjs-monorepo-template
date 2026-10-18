@@ -19,7 +19,7 @@ is a tenant. A way one customer organizes itself is a group.
 | `api_keys` | global, with `tenant_id` | keys are looked up by id before the tenant is known |
 | `sessions`, `refresh_tokens`, two-factor, links | global | the person's; a session's tenant is `metadata.tenantId` |
 | `notification_preferences`, `consents`, `account_deletions` | global | the person's |
-| `idempotency_keys`, `locks`, `app_secrets`, `exchange_rates`, `mail_*` | global | infrastructure (an idempotency key carries the tenant) |
+| `idempotency_keys`, `locks`, `app_secrets`, `exchange_rates`, `mail_*`, `webhook_delivery_requests` | global | infrastructure (an idempotency key carries the tenant; a delivery's request is read only after its tenant-scoped delivery) |
 | everything else | tenant table | `tenant_id NOT NULL`, RLS enabled and forced, four policies |
 
 `audit_log` and `notifications` are tenant tables whose `tenant_id` may be null:
