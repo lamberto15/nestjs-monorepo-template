@@ -8,22 +8,19 @@ import {
 } from '@nestjs-monorepo-template/ui/components/field';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { Slider } from '@nestjs-monorepo-template/ui/components/slider';
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type QueryKey,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { PrincipalPicker } from '@/components/principal-picker';
+import { teamsQuery } from '@/features/access/api';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { principalDirectoryQuery, principalLabel } from '@/lib/principals';
 import {
   fromDraft,
-  kindOf,
   overrideBody,
   overridesQuery,
   settingsQuery,
@@ -33,61 +30,54 @@ import {
   type Scope,
   type Setting,
 } from './settings';
-import { ValueInput, formatValue } from './value-input';
-
-const teamsQuery = {
-  queryKey: ['access', 'teams'] as QueryKey,
-  queryFn: async () => (await unwrap(api.GET('/v1/access/teams'))).items,
-};
-const usersQuery = {
-  queryKey: ['access', 'users', 'settings-picker'] as QueryKey,
-  queryFn: async () => {
-    // The route declares no body type (a backend gap): the fields asked for.
-    const page = (await unwrap(
-      api.GET('/v1/access/users', {
-        params: { query: { limit: 100, fields: 'name,email' } },
-      }),
-    )) as unknown as { items?: { id: string; name: string; email: string }[] };
-    return page.items ?? [];
-  },
-};
+import {
+  ValueInput,
+  boundsHint,
+  formatValue,
+  invalidText,
+} from './value-input';
 
 type Mode = 'value' | 'rollout';
 
 /**
  * Sets a setting at a scope (`PUT /v1/settings/{key}`), or, for a flag at the
  * tenant scope, a rollout: a percentage of the tenant's principals. Lists the
- * stored overrides, each of which can be edited or cleared.
+ * stored overrides, each of which can be edited or cleared. A user scope's
+ * value is for a user or an API client, found by searching the principals
+ * (`GET /v1/access/principals`): its `key` is the `scopeId`.
  */
 export function OverrideEditor({ setting }: { setting: Setting }) {
   const { t } = useTranslation('settings');
   const queryClient = useQueryClient();
-  const kind = kindOf(setting);
   const [error, setError] = useState<string>();
   const overrides = useQuery(overridesQuery(setting.key));
   const hasTeam = setting.scopes.includes('team');
-  const hasUser = setting.scopes.includes('user');
   const teams = useQuery({
     ...teamsQuery,
     enabled: hasTeam,
     meta: { errorToast: false },
   });
-  const users = useQuery({
-    ...usersQuery,
-    enabled: hasUser,
-    meta: { errorToast: false },
+  // Names for the stored values of principals; read only when there are some.
+  const principals = useQuery({
+    ...principalDirectoryQuery(),
+    enabled: !!overrides.data?.some((o) => o.scope === 'user'),
   });
   const scopeOptions = setting.scopes.map((scope) => ({
     value: scope,
     label: t(`scope.${scope}`),
   }));
-  const idOptions = (scope: Scope) =>
-    scope === 'team'
-      ? (teams.data ?? []).map((team) => ({ value: team.id, label: team.name }))
-      : (users.data ?? []).map((user) => ({
-          value: `user:${user.id}`,
-          label: `${user.name} (${user.email})`,
-        }));
+  const teamOptions = (teams.data ?? []).map((team) => ({
+    value: team.id,
+    label: team.name,
+  }));
+  const nameOf = (scope: Scope, scopeId: string) => {
+    if (scope === 'team') {
+      return teamOptions.find((o) => o.value === scopeId)?.label;
+    }
+    const principal = principals.data?.find((p) => p.key === scopeId);
+    return principal && principalLabel(principal);
+  };
+  const hint = boundsHint(setting, t);
 
   const refresh = () =>
     Promise.all([
@@ -133,16 +123,24 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
       scope: setting.scopes[0] as Scope,
       scopeId: '',
       mode: (initial?.rollout != null ? 'rollout' : 'value') as Mode,
-      draft: toDraft(kind, initial?.value ?? setting.value) as Draft,
+      draft: toDraft(setting, initial?.value ?? setting.value) as Draft,
       rollout: String(initial?.rollout ?? 10),
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
       const rollout = value.mode === 'rollout' && value.scope === 'tenant';
-      const parsed = fromDraft(kind, value.draft);
+      const parsed = fromDraft(setting, value.draft);
       const percent = Number(value.rollout);
-      if (rollout ? !(percent >= 0 && percent <= 100) : !parsed.ok) {
-        setError(t(rollout ? 'invalid.rollout' : `invalid.${kind}`));
+      if (rollout && !(percent >= 0 && percent <= 100)) {
+        setError(t('invalid.rollout'));
+        return;
+      }
+      if (!rollout && !parsed.ok) {
+        setError(invalidText(parsed.invalid, t));
+        return;
+      }
+      if (value.scope !== 'tenant' && !value.scopeId) {
+        setError(t(`invalid.scopeId.${value.scope}`));
         return;
       }
       try {
@@ -172,17 +170,18 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
     form.setFieldValue('scope', scope);
     form.setFieldValue('scopeId', scopeId);
     form.setFieldValue('mode', stored?.rollout != null ? 'rollout' : 'value');
-    form.setFieldValue('draft', toDraft(kind, stored?.value ?? setting.value));
+    form.setFieldValue(
+      'draft',
+      toDraft(setting, stored?.value ?? setting.value),
+    );
     form.setFieldValue('rollout', String(stored?.rollout ?? 10));
   };
   const labelOf = (override: Override) => {
     if (override.scope === 'tenant') {
       return t('scope.tenant');
     }
-    const found = idOptions(override.scope).find(
-      (o) => o.value === override.scopeId,
-    );
-    return `${t(`scope.${override.scope}`)}: ${found?.label ?? override.scopeId}`;
+    const name = nameOf(override.scope, override.scopeId) ?? override.scopeId;
+    return `${t(`scope.${override.scope}`)}: ${name}`;
   };
 
   return (
@@ -254,15 +253,37 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
                 return null;
               }
               // The picker is rebuilt with the scope: a team's id is not a user's.
-              return (
+              return scope === 'team' ? (
                 <form.AppField name="scopeId" key={scope}>
                   {(field) => (
                     <field.SelectField
-                      label={t(`scopeId.${scope}`)}
-                      options={idOptions(scope)}
+                      label={t('scopeId.team')}
+                      options={teamOptions}
                     />
                   )}
                 </form.AppField>
+              ) : (
+                <form.Field name="scopeId" key={scope}>
+                  {(field) => (
+                    <Field>
+                      <FieldLabel htmlFor="field-scopeId">
+                        {t('scopeId.user')}
+                      </FieldLabel>
+                      <PrincipalPicker
+                        id="field-scopeId"
+                        label={t('scopeId.user')}
+                        value={field.state.value}
+                        initialLabel={
+                          field.state.value
+                            ? nameOf('user', field.state.value)
+                            : undefined
+                        }
+                        onChange={(value) => field.handleChange(value)}
+                      />
+                      <FieldDescription>{t('scopeIdHint')}</FieldDescription>
+                    </Field>
+                  )}
+                </form.Field>
               );
             }}
           </form.Subscribe>
@@ -328,10 +349,11 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
                           <ValueInput
                             id="field-draft"
                             label={t('valueLabel')}
-                            kind={kind}
+                            spec={setting}
                             value={field.state.value}
                             onChange={field.handleChange}
                           />
+                          {hint && <FieldDescription>{hint}</FieldDescription>}
                         </Field>
                       )}
                     </form.Field>

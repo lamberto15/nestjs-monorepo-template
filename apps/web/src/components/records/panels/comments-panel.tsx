@@ -46,9 +46,11 @@ function CommentEditor(props: {
   const [text, setText] = useState(props.initial ?? '');
   const [mentions, setMentions] = useState<string[]>([]);
   const body = text.trim();
+  // Only active people with an address can be mentioned.
+  const mentionable = props.users.filter((user) => user.active && user.email);
   const search = (term: string) => {
     const needle = term.toLowerCase();
-    return props.users.filter(
+    return mentionable.filter(
       (user) =>
         user.email.toLowerCase().includes(needle) ||
         user.name.toLowerCase().includes(needle),
@@ -92,9 +94,9 @@ function CommentEditor(props: {
           maxLength={MAX_LENGTH}
           autoComplete="off"
         />
-        {props.users.length > 0 && (
+        {mentionable.length > 0 && (
           <MentionContent>
-            {props.users.map((user) => (
+            {mentionable.map((user) => (
               <MentionItem key={user.id} value={user.email}>
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate">{user.name}</span>

@@ -1,97 +1,40 @@
-import { unwrap } from '@nestjs-monorepo-template/api-client';
+import {
+  unwrap,
+  type GetResponse,
+  type paths,
+} from '@nestjs-monorepo-template/api-client';
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type {
-  Catalog,
-  Permission,
-  RequestPermission,
-} from '@/features/access/permissions';
 
 /**
  * The access API (docs/permissions.md, docs/tenancy.md "Accounts and
- * sessions"). Its catalog, roles and users answers carry no response schema
- * in the OpenAPI document, so the client types them as nothing: the shapes
- * below are the API's (AccessAdminService.listRoles/listUsers,
- * PermissionCatalog.view), read as such.
+ * sessions"), typed by the client: the shapes below are its answers.
  *
  * Who may call what (AccessPolicy):
- * - GET catalog, roles, users, teams: `open` (any of manageRoles,
- *   manageUsers, manageClients, readAudit)
+ * - GET catalog, roles, users, teams, principals: `open` (any of
+ *   manageRoles, manageUsers, manageClients, readAudit)
  * - roles: manageRoles; users, invitations: manageUsers; teams: manageTeams
  * - impersonate: Access.impersonate (+ IMPERSONATION on)
  * Never while impersonating. Hiding in the UI is a courtesy: the API decides.
  */
 
-export interface Role {
-  id: string;
-  key: string | null;
-  name: string;
-  description: string;
-  /** Built in (Administrator): never changed or deleted. */
-  system: boolean;
-  permissions: Permission[];
-  members: number;
-  createdAt: string;
-  updatedAt: string;
-}
+export type Role = GetResponse<'/v1/access/roles'>['items'][number];
+
+export type MembersPage = GetResponse<'/v1/access/users'>;
+export type Member = MembersPage['items'][number];
 
 /** A role given to someone, until `expiresAt` (null: for good). */
-export interface Grant {
-  roleId: string;
-  expiresAt: string | null;
-}
+export type Grant = Member['roles'][number];
 
-export interface Member {
-  id: string;
-  email: string;
-  name: string | null;
-  emailVerified: boolean;
-  /** The membership in this tenant. */
-  active: boolean;
-  hasPassword: boolean;
-  createdAt: string;
-  updatedAt: string;
-  roleIds: string[];
-  roles: Grant[];
-  teamIds: string[];
-}
+export type Team = GetResponse<'/v1/access/teams'>['items'][number];
 
-export interface MembersPage {
-  items: Member[];
-  page?: number;
-  nextPage?: number | null;
-  pageCount?: number;
-  total?: number;
-}
+export type Invitation = GetResponse<'/v1/access/invitations'>['items'][number];
 
-export interface Team {
-  id: string;
-  name: string;
-  parentId: string | null;
-  depth: number;
-  members: number;
-  createdAt: string;
-  updatedAt: string;
+type JsonBody<T> = T extends {
+  requestBody: { content: { 'application/json': infer B } };
 }
-
-export interface Invitation {
-  id: string;
-  email: string;
-  name: string | null;
-  roleIds: string[];
-  teamIds: string[];
-  invitedBy: string;
-  expired: boolean;
-  expiresAt: string;
-  createdAt: string;
-}
-
-/** A call whose answer the OpenAPI document doesn't describe (see above). */
-async function untyped<T>(
-  call: Promise<{ data?: unknown; response: Response }>,
-): Promise<T> {
-  return (await unwrap(call)) as T;
-}
+  ? B
+  : never;
 
 export const accessKeys = {
   all: ['access'] as const,
@@ -105,14 +48,13 @@ export const accessKeys = {
 
 export const catalogQuery = queryOptions({
   queryKey: accessKeys.catalog,
-  queryFn: () => untyped<Catalog>(api.GET('/v1/access/catalog')),
+  queryFn: () => unwrap(api.GET('/v1/access/catalog')),
   staleTime: 10 * 60_000,
 });
 
 export const rolesQuery = queryOptions({
   queryKey: accessKeys.roles,
-  queryFn: async () =>
-    (await untyped<{ items: Role[] }>(api.GET('/v1/access/roles'))).items,
+  queryFn: async () => (await unwrap(api.GET('/v1/access/roles'))).items,
 });
 
 export const teamsQuery = queryOptions({
@@ -122,8 +64,7 @@ export const teamsQuery = queryOptions({
 
 export const invitationsQuery = queryOptions({
   queryKey: accessKeys.invitations,
-  queryFn: async () =>
-    (await unwrap(api.GET('/v1/access/invitations'))).items as Invitation[],
+  queryFn: async () => (await unwrap(api.GET('/v1/access/invitations'))).items,
 });
 
 export const MEMBERS_PER_PAGE = 20;
@@ -133,7 +74,7 @@ export function membersQuery(page: number, q: string) {
   return queryOptions({
     queryKey: [...accessKeys.members, { page, q }],
     queryFn: () =>
-      untyped<MembersPage>(
+      unwrap(
         api.GET('/v1/access/users', {
           params: {
             query: {
@@ -157,7 +98,7 @@ export const allMembersQuery = queryOptions({
   queryFn: async () => {
     const items: Member[] = [];
     for (let page = 1; page <= 100; page++) {
-      const data = await untyped<MembersPage>(
+      const data = await unwrap(
         api.GET('/v1/access/users', {
           params: { query: { page, limit: 100, sort: 'email' } },
         }),
@@ -170,14 +111,10 @@ export const allMembersQuery = queryOptions({
 });
 
 /** The request body of a role (create and replace). */
-export interface RoleBody {
-  name: string;
-  description?: string;
-  permissions: RequestPermission[];
-}
+export type RoleBody = JsonBody<paths['/v1/access/roles']['post']>;
 
 export async function createRole(body: RoleBody) {
-  return untyped<{ id: string }>(api.POST('/v1/access/roles', { body }));
+  return unwrap(api.POST('/v1/access/roles', { body }));
 }
 
 export async function updateRole(id: string, body: RoleBody) {
@@ -191,14 +128,11 @@ export async function deleteRole(id: string) {
   await api.DELETE('/v1/access/roles/{id}', { params: { path: { id } } });
 }
 
-/** What changes of a membership; only what is sent changes. */
-export interface MemberChanges {
-  active?: boolean;
-  roleIds?: string[];
-  /** Replaces every end date: a role not listed never ends. */
-  roleExpiresAt?: Record<string, string>;
-  teamIds?: string[];
-}
+/**
+ * What changes of a membership; only what is sent changes. `roleExpiresAt`
+ * replaces every end date: a role not listed never ends.
+ */
+export type MemberChanges = JsonBody<paths['/v1/access/users/{id}']['patch']>;
 
 export async function updateMember(id: string, body: MemberChanges) {
   await api.PATCH('/v1/access/users/{id}', {
@@ -207,13 +141,7 @@ export async function updateMember(id: string, body: MemberChanges) {
   });
 }
 
-export interface InvitationBody {
-  email: string;
-  name?: string;
-  roleIds: string[];
-  roleExpiresAt?: Record<string, string>;
-  teamIds?: string[];
-}
+export type InvitationBody = JsonBody<paths['/v1/access/users']['post']>;
 
 /** Invites someone; a pending invitation to the same address is replaced. */
 export async function invite(body: InvitationBody) {

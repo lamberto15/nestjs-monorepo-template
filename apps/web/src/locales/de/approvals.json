@@ -84,8 +84,7 @@
     "errors": {
       "person": "Wählen Sie eine Person.",
       "dates": "Geben Sie beide Daten an.",
-      "order": "Das Ende muss nach dem Beginn liegen.",
-      "people": "Die Personenliste konnte nicht geladen werden (Benutzerverwaltung erforderlich)."
+      "order": "Das Ende muss nach dem Beginn liegen."
     }
   },
   "detail": {

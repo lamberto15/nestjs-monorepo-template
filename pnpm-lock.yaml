@@ -529,6 +529,9 @@ importers:
       '@base-ui/utils':
         specifier: 0.5.0
         version: 0.5.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@diceui/combobox':
+        specifier: 2.0.0
+        version: 2.0.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@diceui/mention':
         specifier: 1.0.0
         version: 1.0.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -1028,6 +1031,19 @@ packages:
 
   '@date-fns/tz@1.5.0':
     resolution: {integrity: sha512-lwYN/vDPeNRULcepoE/LO2Pgx+7/RV+S9ARfbc9lr2DtGkOD7pAiruHvbR1RX3Qyf6ja47EWJDMsNK5vK08DJg==}
+
+  '@diceui/combobox@2.0.0':
+    resolution: {integrity: sha512-Pv1iRvUNf1RajM2m+KNk8NVwn1VNcUwpXA+Sm/ykIwxrXM9eMfM7tPdk81yAWfulX96E6wL+L/3cjhFGZJL4+A==}
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
 
   '@diceui/mention@1.0.0':
     resolution: {integrity: sha512-yy08bBmZMzUCbK4rFVR7SoQVAZwzitIoFgyabAsML0lGOMWcbr7h9FbCptg3HaSmuAPPMNwn8ASrJGD6KoXeMw==}
@@ -7725,6 +7741,16 @@ snapshots:
   '@csstools/css-tokenizer@4.0.2': {}
 
   '@date-fns/tz@1.5.0': {}
+
+  '@diceui/combobox@2.0.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+    dependencies:
+      '@diceui/shared': 1.0.0(@floating-ui/react@0.27.20(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@floating-ui/react': 0.27.20(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
+    optionalDependencies:
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
   '@diceui/mention@1.0.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:

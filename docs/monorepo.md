@@ -129,6 +129,15 @@ http://localhost:5173) side by side.
   `/transfers` lists the exports and imports this browser started (the API
   has no list of them yet), `/reports` the scheduled reports (`REPORTS=off`
   hides it).
+- **Picking people and API clients** (`components/principal-picker.tsx`,
+  `lib/principals.ts`): `<PrincipalPicker>` searches
+  `GET /v1/access/principals?q=` as one types (Dice UI's combobox); its value
+  is the principal's `key` (a setting's `scopeId`) or, with `by="id"`, the
+  user's id (`kind="user" active` for a delegate). `principalDirectoryQuery()`
+  reads them all to name ids (comment authors, mentions, a setting's
+  overrides). The route answers only callers who may list users or clients;
+  for anyone else the picker says so and the directory is empty. In tests,
+  `principalsHandler()` (`test/principals.ts`) answers it.
 - **Search palette** (`features/search`): the header's search button and
   Cmd/Ctrl+K open it. Typing calls `GET /v1/search` (debounced, grouped by
   subject); `>` lists the nav entries the user sees. Snippets keep only

@@ -1,17 +1,25 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { nav, visibleGroups } from '@/nav';
+import {
+  clientPrincipal,
+  principalsHandler,
+  userPrincipal,
+} from '@/test/principals';
 import { renderApp } from '@/test/render-app';
 import { server, signedInUser } from '@/test/server';
-import { fromDraft, groupOf, kindOf, overrideBody, toDraft } from './settings';
+import { findToast } from '@/test/toast';
+import { fromDraft, groupOf, overrideBody, toDraft } from './settings';
 
 const admin = {
   ...signedInUser,
   can: { 'Access.manageSettings': true },
 };
 
+// A setting as GET /v1/settings describes it (docs/settings.md): its type,
+// bounds, and what the caller may do (`canEdit`, `canSetMine`).
 const setting = (extra: object) => ({
   key: 'x.y',
   label: 'Label',
@@ -22,7 +30,21 @@ const setting = (extra: object) => ({
   value: null,
   source: 'default',
   default: null,
+  type: 'json',
+  schema: {},
+  canEdit: true,
+  canSetMine: false,
   ...extra,
+});
+
+const GRACE = userPrincipal({
+  id: '0199a3f2-0000-7000-8000-000000000101',
+  email: 'grace@example.com',
+  name: 'Grace Hopper',
+});
+const BILLING = clientPrincipal({
+  id: '0199a3f2-0000-7000-8000-000000000102',
+  name: 'Billing sync',
 });
 
 const items = [
@@ -30,13 +52,17 @@ const items = [
     key: 'notes.richText',
     label: 'Rich text editor',
     flag: true,
+    type: 'boolean',
     scopes: ['tenant', 'team', 'user'],
     value: false,
     default: false,
+    canSetMine: true,
   }),
   setting({
     key: 'notes.publishDelay',
     label: 'Publication delay',
+    type: 'string',
+    maxLength: 10,
     value: '10s',
     default: '10s',
   }),
@@ -44,6 +70,10 @@ const items = [
     key: 'auth.passwordMinLength',
     label: 'Minimum password length',
     public: false,
+    type: 'number',
+    integer: true,
+    min: 12,
+    max: 64,
     value: 12,
     default: 12,
   }),
@@ -52,6 +82,24 @@ const items = [
     label: 'Config blob',
     value: { a: 1 },
     default: { a: 1 },
+  }),
+  setting({
+    key: 'ui.density',
+    label: 'Density',
+    type: 'enum',
+    options: ['compact', 'comfortable'],
+    scopes: ['tenant', 'user'],
+    value: 'comfortable',
+    default: 'comfortable',
+    canSetMine: true,
+  }),
+  setting({
+    key: 'ui.locked',
+    label: 'Locked policy',
+    type: 'boolean',
+    value: true,
+    default: true,
+    canEdit: false,
   }),
 ];
 
@@ -67,31 +115,61 @@ function api(me: object, list: object[] = items) {
         items: [{ id: 'team-1', name: 'Editors', parentId: null, depth: 0 }],
       }),
     ),
-    http.get('/v1/access/users', () =>
-      HttpResponse.json({
-        items: [{ id: 'u1', name: 'Grace', email: 'grace@example.com' }],
-      }),
-    ),
+    principalsHandler([GRACE, BILLING]),
   );
 }
 
 describe('value types', () => {
-  it('picks the input from the default', () => {
-    expect(kindOf({ flag: true, default: false })).toBe('boolean');
-    expect(kindOf({ flag: false, default: 12 })).toBe('number');
-    expect(kindOf({ flag: false, default: '10s' })).toBe('string');
-    expect(kindOf({ flag: false, default: null })).toBe('json');
-    expect(kindOf({ flag: false, default: { a: 1 } })).toBe('json');
-  });
+  const number = { type: 'number' as const };
+  const json = { type: 'json' as const };
 
   it('turns drafts back into values, refusing what does not parse', () => {
-    expect(fromDraft('number', '20')).toEqual({ ok: true, value: 20 });
-    expect(fromDraft('number', '')).toEqual({ ok: false });
-    expect(fromDraft('json', '{"a":2}')).toEqual({ ok: true, value: { a: 2 } });
-    expect(fromDraft('json', '{')).toEqual({ ok: false });
-    expect(fromDraft('boolean', true)).toEqual({ ok: true, value: true });
-    expect(toDraft('number', 5)).toBe('5');
+    expect(fromDraft(number, '20')).toEqual({ ok: true, value: 20 });
+    expect(fromDraft(number, '')).toEqual({
+      ok: false,
+      invalid: { reason: 'number' },
+    });
+    expect(fromDraft(json, '{"a":2}')).toEqual({ ok: true, value: { a: 2 } });
+    expect(fromDraft(json, '{')).toEqual({
+      ok: false,
+      invalid: { reason: 'json' },
+    });
+    expect(fromDraft({ type: 'boolean' }, true)).toEqual({
+      ok: true,
+      value: true,
+    });
+    expect(toDraft(number, 5)).toBe('5');
     expect(groupOf('notes.publishDelay')).toBe('notes');
+  });
+
+  it('checks what the setting declares: bounds, whole numbers, options, length', () => {
+    const length = { type: 'number' as const, integer: true, min: 12, max: 64 };
+    expect(fromDraft(length, '11')).toEqual({
+      ok: false,
+      invalid: { reason: 'min', limit: 12 },
+    });
+    expect(fromDraft(length, '65')).toEqual({
+      ok: false,
+      invalid: { reason: 'max', limit: 64 },
+    });
+    expect(fromDraft(length, '12.5')).toEqual({
+      ok: false,
+      invalid: { reason: 'integer' },
+    });
+    expect(fromDraft(length, '20')).toEqual({ ok: true, value: 20 });
+    // An enum's options keep their type: a number stays a number.
+    const level = { type: 'enum' as const, options: ['low', 2] };
+    expect(fromDraft(level, '2')).toEqual({ ok: true, value: 2 });
+    expect(fromDraft(level, 'low')).toEqual({ ok: true, value: 'low' });
+    expect(fromDraft(level, 'high')).toEqual({
+      ok: false,
+      invalid: { reason: 'enum' },
+    });
+    expect(toDraft(level, 2)).toBe('2');
+    expect(fromDraft({ type: 'string', maxLength: 3 }, 'abcd')).toEqual({
+      ok: false,
+      invalid: { reason: 'maxLength', limit: 3 },
+    });
   });
 
   it('builds the body per scope', () => {
@@ -133,7 +211,7 @@ describe('gating', () => {
 });
 
 describe('my preferences', () => {
-  it('lists only the settings with the user scope and saves, then resets', async () => {
+  it('lists only the settings one may set for oneself, and saves, then resets', async () => {
     api(signedInUser);
     let saved: unknown;
     let deleted = false;
@@ -157,8 +235,16 @@ describe('my preferences', () => {
       name: 'Rich text editor',
     });
     expect(screen.queryByText('Publication delay')).not.toBeInTheDocument();
+    // An enum is a select of its options.
+    expect(screen.getByRole('combobox', { name: 'Density' })).toBeVisible();
     await user.click(toggle);
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(
+      within(
+        screen
+          .getByRole('switch', { name: 'Rich text editor' })
+          .closest('form')!,
+      ).getByRole('button', { name: 'Save' }),
+    );
     await waitFor(() =>
       expect(saved).toEqual({ key: 'notes.richText', body: { value: true } }),
     );
@@ -179,12 +265,21 @@ describe('admin settings', () => {
     return { user, dialog: await screen.findByRole('dialog') };
   }
 
-  it('groups by prefix, searches, and notes the auth policies', async () => {
+  it('groups by prefix, searches, and offers editing only where canEdit', async () => {
     api(admin);
     const user = userEvent.setup();
     await renderApp('/settings');
     expect(await screen.findByText('Sign-in policy')).toBeVisible();
-    expect(screen.getByText(/only managers can see and change/)).toBeVisible();
+    // Hidden from members: said by `public`, not by the `auth.` prefix.
+    expect(screen.getByText('Managers only')).toBeVisible();
+    // The API says who may set it: no edit button where canEdit is false.
+    expect(
+      screen.queryByRole('button', { name: 'Edit Locked policy' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Read-only')).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Edit Minimum password length' }),
+    ).toBeVisible();
     await user.type(screen.getByRole('searchbox'), 'delay');
     expect(screen.queryByText('Rich text editor')).not.toBeInTheDocument();
     expect(screen.getByText('Publication delay')).toBeVisible();
@@ -196,13 +291,52 @@ describe('admin settings', () => {
     expect(within(flag.dialog).getByRole('switch')).toBeVisible();
   });
 
-  it('renders a number, a string and JSON', async () => {
+  it('renders a number with its declared bounds, and refuses one outside them', async () => {
     api(admin);
-    const number = await open('Minimum password length');
-    expect(within(number.dialog).getByLabelText('Value')).toHaveAttribute(
-      'type',
-      'number',
+    let body: unknown;
+    server.use(
+      http.put('/v1/settings/:key', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
     );
+    const { user, dialog } = await open('Minimum password length');
+    const input = within(dialog).getByLabelText('Value');
+    expect(input).toHaveAttribute('type', 'number');
+    expect(input).toHaveAttribute('min', '12');
+    expect(input).toHaveAttribute('max', '64');
+    expect(input).toHaveAttribute('step', '1');
+    expect(within(dialog).getByText('From 12 to 64.')).toBeVisible();
+    await user.clear(input);
+    await user.type(input, '8');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(await within(dialog).findByText('Enter 12 or more.')).toBeVisible();
+    // Hidden from members (`public: false`): the dialog says so.
+    expect(
+      within(dialog).getByText(
+        'Only people who manage settings see this setting.',
+      ),
+    ).toBeVisible();
+    expect(body).toBeUndefined();
+  });
+
+  it('renders an enum as a select of its options', async () => {
+    api(admin);
+    let body: unknown;
+    server.use(
+      http.put('/v1/settings/:key', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
+    );
+    const { user, dialog } = await open('Density');
+    await user.click(within(dialog).getByRole('combobox', { name: 'Value' }));
+    await user.click(await screen.findByRole('option', { name: 'compact' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(body).toEqual({ scope: 'tenant', value: 'compact' }),
+    );
+    await findToast('Saved.');
   });
 
   it('renders JSON as a textarea', async () => {
@@ -310,5 +444,78 @@ describe('admin settings', () => {
       }),
     );
     await waitFor(() => expect(url).toBe('?scope=team&scopeId=team-1'));
+  });
+
+  it('saves a flag for an API client found by searching the principals', async () => {
+    api(admin);
+    let body: unknown;
+    server.use(
+      http.put('/v1/settings/:key', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
+    );
+    const { user, dialog } = await open('Rich text editor');
+    await user.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
+    await user.click(await screen.findByRole('option', { name: 'User' }));
+    const picker = await within(dialog).findByRole('combobox', {
+      name: 'User',
+    });
+    await user.click(picker);
+    // Dice UI takes the text a frame later: typed at once, not key by key.
+    fireEvent.change(picker, { target: { value: 'bill' } });
+    await user.click(
+      await screen.findByRole('option', { name: /Billing sync/ }),
+    );
+    expect(
+      screen.queryByRole('option', { name: /Grace Hopper/ }),
+    ).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('switch'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        scope: 'user',
+        scopeId: BILLING.key,
+        value: true,
+      }),
+    );
+  });
+
+  it('refuses a user scope with nobody picked', async () => {
+    api(admin);
+    const { user, dialog } = await open('Rich text editor');
+    await user.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
+    await user.click(await screen.findByRole('option', { name: 'User' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Choose a user or an API client.',
+    );
+  });
+
+  it("names a stored value's principal from the directory", async () => {
+    api(admin);
+    server.use(
+      http.get('/v1/settings/:key/overrides', () =>
+        HttpResponse.json({
+          items: [
+            {
+              key: 'notes.richText',
+              scope: 'user',
+              scopeId: GRACE.key,
+              value: true,
+              rollout: null,
+              updatedBy: 'x',
+              updatedAt: '2026-10-17T00:00:00.000Z',
+            },
+          ],
+        }),
+      ),
+    );
+    const { dialog } = await open('Rich text editor');
+    expect(
+      await within(dialog).findByText(
+        /User: Grace Hopper \(grace@example.com\)/,
+      ),
+    ).toBeVisible();
   });
 });

@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw/http';
+import { principalsHandler, userPrincipal } from '@/test/principals';
 import { problem, server, signedInUser } from '@/test/server';
 
 // The record panels' routes for a Note (comments, attachments, tags,
@@ -98,10 +99,10 @@ export function panelHandlers(
     HttpResponse.json({ items, nextCursor: null });
 
   const handlers = [
-    http.get('/v1/access/users', () =>
+    principalsHandler(
       options.users === 'forbidden'
-        ? problem(403, 'forbidden')
-        : HttpResponse.json({ items: options.users ?? [], nextCursor: null }),
+        ? 'forbidden'
+        : (options.users ?? []).map(userPrincipal),
     ),
     http.get('/v1/tags', () => page(options.tags ?? [])),
     http.post('/v1/tags', async ({ request }) => {

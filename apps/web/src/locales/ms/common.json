@@ -359,5 +359,13 @@
       "tooMany": "Paling banyak {{max}} baris dipilih sekali gus: tapis senarai dan pilih semua yang sepadan.",
       "clear": "Kosongkan pilihan"
     }
+  },
+  "principals": {
+    "placeholder": "Search by name or address",
+    "searching": "Searching…",
+    "none": "Nobody matches.",
+    "failed": "The search failed.",
+    "forbidden": "You may not search people and clients.",
+    "client": "(API client)"
   }
 }

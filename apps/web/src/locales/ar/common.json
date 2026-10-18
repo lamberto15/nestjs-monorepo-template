@@ -375,5 +375,13 @@
       "selectAll_few": "تحديد كل النتائج المطابقة ({{count}})",
       "selectAll_many": "تحديد كل النتائج المطابقة ({{count}})"
     }
+  },
+  "principals": {
+    "placeholder": "Search by name or address",
+    "searching": "Searching…",
+    "none": "Nobody matches.",
+    "failed": "The search failed.",
+    "forbidden": "You may not search people and clients.",
+    "client": "(API client)"
   }
 }

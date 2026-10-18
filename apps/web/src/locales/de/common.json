@@ -359,5 +359,13 @@
       "tooMany": "Höchstens {{max}} gewählte Zeilen auf einmal: Filtern Sie die Liste und wählen Sie stattdessen alle Treffer.",
       "clear": "Auswahl aufheben"
     }
+  },
+  "principals": {
+    "placeholder": "Search by name or address",
+    "searching": "Searching…",
+    "none": "Nobody matches.",
+    "failed": "The search failed.",
+    "forbidden": "You may not search people and clients.",
+    "client": "(API client)"
   }
 }

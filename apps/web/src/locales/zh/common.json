@@ -359,5 +359,13 @@
       "tooMany": "一次最多选择 {{max}} 行：请筛选列表并改为选择全部匹配项。",
       "clear": "清除选择"
     }
+  },
+  "principals": {
+    "placeholder": "Search by name or address",
+    "searching": "Searching…",
+    "none": "Nobody matches.",
+    "failed": "The search failed.",
+    "forbidden": "You may not search people and clients.",
+    "client": "(API client)"
   }
 }
