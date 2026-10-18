@@ -39,8 +39,15 @@ this.comments.add(user, { subject: 'Note', recordId: id }, dto.body, ip);
   the people it newly mentions. Autocomplete searches `GET /v1/people?q=`
   ([permissions.md](permissions.md), "The people directory"), open to
   every member, and inserts `@user:<id>`.
-- **Author's name**: each comment carries `authorName` beside `author`,
-  the name every member sees (null for `anonymous`).
+- **Names**: each comment carries `authorName` beside `author`, and
+  `mentionNames` beside `mentions` (`{ "user:<id>": "Maya Patel" }`, a
+  key for each mention), the names every member sees
+  (`PeopleService.names()`): a page's authors and mentioned people in
+  one query, whatever its size. Only the tenant's people have a name
+  here: one who left it (an inactive membership) keeps theirs on what
+  they wrote and where they're mentioned; `anonymous`, or a key of
+  someone the tenant never had, is null. The personal-data export
+  leaves `mentionNames` out (other people's data; the keys stay).
 - **Watchers** (subscriptions) get the feature's `<subject>.commented`,
   collapsed per record, but the author and those mentioned. The author
   watches the record from their first comment on it (while an earlier

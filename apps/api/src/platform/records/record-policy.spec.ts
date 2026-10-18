@@ -75,3 +75,13 @@ describe('recordPermissions: clientAccess and grants', () => {
     expect(keys(false)).toEqual(['editor', 'viewer']);
   });
 });
+
+describe('recordPermissions: names', () => {
+  it('names one record by its noun and several by its path', () => {
+    const permissions = recordPermissions(declare(), table);
+    expect(permissions.subjects.Widget!.names).toEqual({
+      singular: 'Widget',
+      plural: 'Widgets',
+    });
+  });
+});

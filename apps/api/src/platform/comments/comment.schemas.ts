@@ -34,6 +34,14 @@ export const commentSchema = z.object({
     .describe(
       'The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`.',
     ),
+  mentionNames: z
+    .record(z.string(), z.string().nullable())
+    .describe(
+      'The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.',
+    )
+    .meta({
+      example: { 'user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00': 'Maya Patel' },
+    }),
   editedAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),

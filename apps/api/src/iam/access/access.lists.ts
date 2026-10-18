@@ -9,7 +9,13 @@ import {
   sql,
 } from 'drizzle-orm';
 import { escapeLike, listQuery } from '../../core/http/list-query.js';
-import { auditLog, memberships, userTeams, users } from '../iam.tables.js';
+import {
+  apiClients,
+  auditLog,
+  memberships,
+  userTeams,
+  users,
+} from '../iam.tables.js';
 
 /** Members of these teams (directly, not of the teams below them). */
 const inTeams = (teamIds: string[]) =>
@@ -88,6 +94,39 @@ export const USER_LIST = listQuery(
   },
 );
 
+/**
+ * Entries whose actor matches a LIKE pattern (escaped): its label as the
+ * entry stored it (a user's address, `admin as user`, a client's name,
+ * `System: …`), or the current name or address of the user, or the name of
+ * the API client, it names. Only a member of the entry's tenant (a
+ * membership in it) or a client of that tenant is looked up: the entries
+ * are the caller's tenant's (row-level security), so another tenant's user
+ * or client never matches, and a name or address is matched only for those
+ * the access lists already show this caller (`AccessPolicy.open` covers
+ * `readAudit`). An entry without a tenant (a sign-in) matches by its label
+ * alone.
+ */
+const actorMatches = (pattern: string) =>
+  or(
+    ilike(auditLog.actorLabel, pattern),
+    exists(
+      sql`(select 1 from ${users} inner join ${memberships} on ${and(
+        eq(memberships.userId, users.id),
+        eq(memberships.tenantId, auditLog.tenantId),
+      )} where ${and(
+        sql`${auditLog.actor} = 'user:' || ${users.id}::text`,
+        or(ilike(users.name, pattern), ilike(users.email, pattern)),
+      )})`,
+    ),
+    exists(
+      sql`(select 1 from ${apiClients} where ${and(
+        eq(apiClients.tenantId, auditLog.tenantId),
+        sql`${auditLog.actor} = 'client:' || ${apiClients.id}::text`,
+        ilike(apiClients.name, pattern),
+      )})`,
+    ),
+  )!;
+
 /** What GET /access/audit can be filtered, sorted and narrowed by. */
 export const AUDIT_LIST = listQuery(
   {
@@ -102,6 +141,19 @@ export const AUDIT_LIST = listQuery(
       type: 'string',
       ops: ['eq', 'in'],
       ref: 'principal',
+    },
+    // Who acted, by name or address rather than key (actorMatches()):
+    // `?actorLabel.contains=ada` finds Ada's entries by her name, her
+    // address, or the label the entry stored.
+    actorLabel: {
+      column: auditLog.actorLabel,
+      type: 'string',
+      ops: ['eq', 'contains', 'startsWith'],
+      conditions: {
+        eq: (value) => actorMatches(escapeLike(value as string)),
+        contains: (value) => actorMatches(`%${escapeLike(value as string)}%`),
+        startsWith: (value) => actorMatches(`${escapeLike(value as string)}%`),
+      },
     },
     targetType: {
       column: auditLog.targetType,

@@ -46,6 +46,10 @@
   },
   "note": {
     "label": "Notizen (Beispiel)",
+    "names": {
+      "singular": "Notiz",
+      "plural": "Notizen"
+    },
     "actions": {
       "read": "Notizen sehen",
       "create": "Notizen schreiben",

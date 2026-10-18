@@ -122,6 +122,7 @@ import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
 import { SubscriptionsRegistry } from './subscriptions/subscriptions.registry.js';
 import { SearchController } from './search/search.controller.js';
 import { SearchRegistry } from './search/search.registry.js';
+import { SearchService } from './search/search.service.js';
 import { ListsController } from './lists/lists.controller.js';
 import { AccessListSources } from './lists/access-lists.js';
 import { ListPolicy } from './lists/list.policy.js';
@@ -477,11 +478,12 @@ export class PlatformModule {
         SubscriptionsRegistry,
         // Global search: features register a SearchSource.
         SearchRegistry,
+        SearchService,
         // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
         ListsRegistry,
         ListsService,
         ListPolicy,
-        // The access API's users list (GET /v1/lists/User).
+        // The access API's users and audit lists (GET /v1/lists/User, /Audit).
         AccessListSources,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,

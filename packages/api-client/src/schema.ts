@@ -2642,7 +2642,7 @@ export interface paths {
         };
         /**
          * The audit log, newest first
-         * @description Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes.
+         * @description Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). GET /v1/lists/Audit describes it.
          */
         get: operations["AccessController_auditLog_v1"];
         put?: never;
@@ -7155,6 +7155,13 @@ export interface operations {
                             snippet: string | null;
                             score: number;
                             link: string | null;
+                            /** @description How the subject is named, in the response's language: one record and several. */
+                            subjectLabel: {
+                                /** @example Note */
+                                singular: string;
+                                /** @example Notes */
+                                plural: string;
+                            };
                         }[];
                     };
                 };
@@ -14876,6 +14883,12 @@ export interface operations {
                 actor?: string;
                 /** @description Filter: actor in */
                 "actor.in"?: string;
+                /** @description Filter: actorLabel = */
+                actorLabel?: string;
+                /** @description Filter: actorLabel contains */
+                "actorLabel.contains"?: string;
+                /** @description Filter: actorLabel startsWith */
+                "actorLabel.startsWith"?: string;
                 /** @description Filter: targetType = */
                 targetType?: string;
                 /** @description Filter: targetType in */
@@ -14894,7 +14907,7 @@ export interface operations {
                 "at.lte"?: string;
                 /** @description Filter: at between */
                 "at.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at. */
                 sort?: string;
@@ -16064,7 +16077,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -16096,6 +16109,15 @@ export interface operations {
                             body: string;
                             /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                             mentions: string[];
+                            /**
+                             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+                             * @example {
+                             *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                             *     }
+                             */
+                            mentionNames: {
+                                [key: string]: string | null;
+                            };
                             /** Format: date-time */
                             editedAt: string | null;
                             /** Format: date-time */
@@ -16179,6 +16201,15 @@ export interface operations {
                         body: string;
                         /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                         mentions: string[];
+                        /**
+                         * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+                         * @example {
+                         *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                         *     }
+                         */
+                        mentionNames: {
+                            [key: string]: string | null;
+                        };
                         /** Format: date-time */
                         editedAt: string | null;
                         /** Format: date-time */
@@ -16298,6 +16329,15 @@ export interface operations {
                         body: string;
                         /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                         mentions: string[];
+                        /**
+                         * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+                         * @example {
+                         *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                         *     }
+                         */
+                        mentionNames: {
+                            [key: string]: string | null;
+                        };
                         /** Format: date-time */
                         editedAt: string | null;
                         /** Format: date-time */

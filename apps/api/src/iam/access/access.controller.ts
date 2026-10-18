@@ -631,7 +631,7 @@ export class AccessController {
   @ApiOperation({
     summary: 'The audit log, newest first',
     description:
-      'Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes.',
+      "Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). GET /v1/lists/Audit describes it.",
   })
   @ApiOkResponse({ standardSchema: pageSchema(auditEntrySchema) })
   async auditLog(@Query({ schema: AUDIT_LIST.schema }) query: ListQuery) {
