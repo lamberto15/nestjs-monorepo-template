@@ -14,8 +14,8 @@ printed ([monorepo](monorepo.md), "Running it"). Swagger UI is at
 http://localhost:3000/api.
 
 Or open the repository in its [devcontainer](#devcontainer): the same
-services, Node.js and pnpm at the repository's versions, nothing to install
-(the API only, for now: #147).
+services, Node.js and pnpm at the repository's versions, nothing to install;
+`pnpm dev` there runs the API and the web app.
 
 Every command runs from the repository root. The API lives in `apps/api`
 ([architecture](architecture.md)); the root's scripts run its tasks there,
@@ -150,12 +150,15 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **On creation** (`.devcontainer/post-create.sh`): `pnpm install`, and
   `apps/api/.env.development` copied from `apps/api/env.development.example`
   when there is none (yours, if you have one, comes with the repository's
-  folder). Then `pnpm dev:api` (port 3000 is forwarded; Mailpit's inbox as
-  `mailpit:8025`) and `pnpm db:seed:demo`.
-- **The web app doesn't run there yet** (#147): `apps/web` and
-  `packages/ui` have no `node_modules` volume, so the container would use,
-  and rewrite, the host's. Port 5173 is forwarded already. Until the fix,
-  work on the web app on the host (the commands at the top of this page).
+  folder). Then `pnpm dev` (the API and the web app; ports 3000 and 5173
+  are forwarded, Mailpit's inbox as `mailpit:8025`) and `pnpm db:seed:demo`.
+- **The web app** is at http://localhost:5173, as on the host: Vite's proxy
+  reaches the API on the container's `localhost:3000`. The container sets
+  `WEB_DEV_HOST=::`, which `apps/web/vite.config.ts` hands to Vite's
+  `server.host`: Vite listens on every address, IPv4 and IPv6, so the
+  forwarded port reaches it whichever loopback the editor uses (Vite's
+  `localhost` default binds `::1` alone there). Nothing is published on the
+  host; on the host the variable is unset and Vite keeps its default.
 - **The services' addresses:** the workspace shares PostgreSQL's network,
   so the file's `127.0.0.1:5432` reaches it; Redis, Mailpit and Gotenberg
   are reached by name, set in the container's environment
@@ -172,9 +175,14 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
   `pnpm services:up` and never near a production stack:
   `.devcontainer/compose.yaml` is its only file, so Compose never reads the
   root's `.env` (production's).
-- **`node_modules` are the container's** (volumes): the Linux binaries of
-  oxlint, esbuild, turbo and lefthook never replace the host's. A frontend
-  added under `apps/` needs a volume for its own `node_modules` too.
+- **`node_modules` are the container's** (volumes, one per workspace
+  package: the root, `apps/api`, `apps/web`, `packages/api-client`,
+  `packages/ui`; `post-create.sh` gives them to the `node` user): the Linux
+  binaries of oxlint, esbuild, turbo, lefthook, Vite's Rolldown and
+  Tailwind's oxide never replace the host's. A package added to the
+  workspace (a frontend under `apps/`, a library under `packages/`) needs a
+  volume for its own `node_modules` too, and its line in `post-create.sh`'s
+  `chown`.
 - **PostgreSQL checks passwords on loopback too** (`POSTGRES_INITDB_ARGS:
   --auth-host=scram-sha-256`): the image trusts 127.0.0.1 by default, which
   is the workspace's way in; `database-roles.e2e-spec.ts` proves a rotated
