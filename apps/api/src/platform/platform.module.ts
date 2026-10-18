@@ -81,6 +81,7 @@ import { BulkController } from './bulk/bulk.controller.js';
 import { BulkProcessor } from './bulk/bulk.processor.js';
 import { BulkRegistry } from './bulk/bulk.registry.js';
 import { BULK, BulkService } from './bulk/bulk.service.js';
+import { JobIndex } from './queues/job-index.js';
 import { CustomFieldPolicy } from './custom-fields/custom-field.policy.js';
 import { CustomFieldsController } from './custom-fields/custom-fields.controller.js';
 import { CustomFieldsService } from './custom-fields/custom-fields.service.js';
@@ -429,6 +430,8 @@ export class PlatformModule {
         RecordActivity,
         // The names behind principal keys, and the directory @mentions search.
         PeopleService,
+        // Who queued which transfers and bulk runs (their lists).
+        JobIndex,
         // Exports and imports: features register their DataExporter / DataImporter.
         DataTransferRegistry,
         DataTransferService,

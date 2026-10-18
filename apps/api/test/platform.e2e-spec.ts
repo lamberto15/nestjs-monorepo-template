@@ -178,6 +178,93 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .expect(404);
   });
 
+  it('lists the caller’s transfers newest first, by kind and by cursor, as the single route tells them (#136)', async () => {
+    const owner = await node.client();
+    await node.writeItem(owner.auth, { title: 'One', body: 'b' }).expect(201);
+    const get = (path: string, auth = owner.auth) =>
+      node.http().get(path).set('Authorization', auth);
+
+    const exportCsv = await node
+      .http()
+      .post('/v1/data/exports')
+      .set('Authorization', owner.auth)
+      .send({ name: 'test-items', format: 'csv' })
+      .expect(202);
+    const imported = await node
+      .http()
+      .post('/v1/data/imports')
+      .set('Authorization', owner.auth)
+      .field('name', 'test-items')
+      .field('dryRun', 'true')
+      .attach('file', Buffer.from('title,body\nA,b\n'), 'items.csv')
+      .expect(202);
+    const exportJson = await node
+      .http()
+      .post('/v1/data/exports')
+      .set('Authorization', owner.auth)
+      .send({ name: 'test-items', format: 'json' })
+      .expect(202);
+    const done = await finished(owner.auth, exportJson.body.id);
+    await finished(owner.auth, exportCsv.body.id);
+    await finished(owner.auth, imported.body.id);
+
+    const all = await get('/v1/data/transfers').expect(200);
+    expect(all.body.items.map((item: { id: string }) => item.id)).toEqual([
+      exportJson.body.id,
+      imported.body.id,
+      exportCsv.body.id,
+    ]);
+    expect(all.body.nextCursor).toBeNull();
+    // Each item is what GET /v1/data/transfers/{id} answers (its link signed anew).
+    const [first] = all.body.items;
+    expect({ ...first, result: { ...first.result, url: undefined } }).toEqual({
+      ...done,
+      result: { ...done.result, url: undefined },
+    });
+    expect(first).toMatchObject({
+      kind: 'export',
+      name: 'test-items',
+      format: 'json',
+      status: 'completed',
+      result: { rows: 1, url: expect.any(String) },
+    });
+
+    const exports = await get('/v1/data/transfers?kind=export').expect(200);
+    expect(exports.body.items.map((item: { id: string }) => item.id)).toEqual([
+      exportJson.body.id,
+      exportCsv.body.id,
+    ]);
+    const imports = await get('/v1/data/transfers?kind=import').expect(200);
+    expect(imports.body.items).toEqual([
+      expect.objectContaining({
+        id: imported.body.id,
+        kind: 'import',
+        result: expect.objectContaining({ dryRun: true, imported: 1 }),
+      }),
+    ]);
+
+    // By cursor: the last id of a page is where the next starts.
+    const page1 = await get('/v1/data/transfers?limit=2').expect(200);
+    expect(page1.body.items).toHaveLength(2);
+    expect(page1.body.nextCursor).toBe(imported.body.id);
+    const page2 = await get(
+      `/v1/data/transfers?limit=2&cursor=${page1.body.nextCursor}`,
+    ).expect(200);
+    expect(page2.body.items.map((item: { id: string }) => item.id)).toEqual([
+      exportCsv.body.id,
+    ]);
+    expect(page2.body.nextCursor).toBeNull();
+    await get(`/v1/data/transfers?cursor=${randomUUID()}`).expect(400);
+    await get('/v1/data/transfers?kind=nope').expect(400);
+    await get('/v1/data/transfers?limit=101').expect(400);
+
+    // Someone else's list holds none of them.
+    const other = await node.client();
+    expect(
+      (await get('/v1/data/transfers', other.auth).expect(200)).body,
+    ).toEqual({ items: [], nextCursor: null });
+  });
+
   it('exports with date filters, and neutralizes formulas in CSV', async () => {
     const owner = await node.client();
     await node

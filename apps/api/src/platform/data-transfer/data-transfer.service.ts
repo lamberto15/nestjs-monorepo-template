@@ -9,7 +9,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { I18nService } from '@nestjs/i18n';
 import { StorageDisk } from '@nestjs/storage';
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
@@ -26,6 +26,7 @@ import {
   type Principal,
   type RequestPrincipal,
 } from '../../iam/auth/principal.js';
+import { JobIndex, type JobPage } from '../queues/job-index.js';
 import { accountFileKey, tenantFileKey } from '../storage/storage.config.js';
 import { DataTransferRegistry } from './data-transfer.registry.js';
 import {
@@ -108,6 +109,29 @@ const transferTenant = (principal: RequestPrincipal) => {
 /** The queue of exports and imports. */
 export const DATA_TRANSFERS = 'data-transfers';
 
+/** The JobIndex list of a principal's transfers, or of one kind of them. */
+const transferList = (kind?: TransferJob['kind']) =>
+  kind ? `${DATA_TRANSFERS}:${kind}` : DATA_TRANSFERS;
+
+/** A transfer as GET /data/transfers/{id} (and each item of the list) tells it. */
+export interface TransferStatus {
+  id: string;
+  kind: TransferJob['kind'];
+  name: string;
+  format: TransferFormat;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  progress: Record<string, number>;
+  result?: {
+    rows: number;
+    url?: string;
+    imported?: number;
+    failed?: number;
+    dryRun?: boolean;
+    errorsUrl?: string;
+  };
+  error?: string;
+}
+
 /** How long a download link works. */
 export const TRANSFER_LINK_TTL = '30m';
 
@@ -127,6 +151,7 @@ export class DataTransferService {
     private readonly config: ConfigService<CoreEnv, true>,
     private readonly i18n: I18nService,
     private readonly tenancy: Tenancy,
+    private readonly jobs: JobIndex,
   ) {}
 
   /** What the caller may export and import. */
@@ -390,19 +415,63 @@ export class DataTransferService {
    * account export (no tenant) is its user's in any tenant, or none.
    */
   async status(principal: Principal, id: string) {
-    let job = await this.queue.getJob(id);
-    if (
-      !job ||
-      (job.data.tenantId !== null && job.data.tenantId !== currentTenantId()) ||
-      principalKey(job.data.principal) !== principalKey(principal) ||
-      // An account export (no tenant) is the person's alone: never shown,
-      // nor its link given, to an administrator acting as them.
-      (job.data.tenantId === null &&
-        principal.kind === 'user' &&
-        !!principal.impersonator)
-    ) {
+    const job = await this.queue.getJob(id);
+    if (!job || !this.isOwn(principal, job)) {
       throw new NotFoundException(`Transfer ${id} not found.`);
     }
+    return this.view(job);
+  }
+
+  /**
+   * The transfers this principal started in this tenant (exports, imports,
+   * or one `kind`), newest first, by cursor (the last id of the previous
+   * page), each as `status()` tells it. Those BullMQ still keeps (7 days
+   * after they end); an account export (no tenant) is not among them.
+   */
+  async list(
+    principal: RequestPrincipal,
+    query: { kind?: TransferJob['kind']; limit: number; cursor?: string },
+  ): Promise<JobPage<TransferStatus>> {
+    return this.jobs.page(
+      transferList(query.kind),
+      principalTenant(principal),
+      principal,
+      query,
+      async (id) => {
+        const job = await this.queue.getJob(id);
+        return job && job.data.tenantId !== null && this.isOwn(principal, job)
+          ? this.view(job)
+          : null;
+      },
+    );
+  }
+
+  /**
+   * Whether the principal may see this transfer: theirs, started in this
+   * tenant. Another tenant's transfer is unseen, even the same person's (a
+   * user who belongs to both): the job names its tenant. An account export
+   * (no tenant) is its user's in any tenant, or none.
+   */
+  private isOwn(principal: Principal, job: Job<TransferJob, TransferResult>) {
+    return (
+      (job.data.tenantId === null || job.data.tenantId === currentTenantId()) &&
+      principalKey(job.data.principal) === principalKey(principal) &&
+      // An account export (no tenant) is the person's alone: never shown,
+      // nor its link given, to an administrator acting as them.
+      !(
+        job.data.tenantId === null &&
+        principal.kind === 'user' &&
+        !!principal.impersonator
+      )
+    );
+  }
+
+  /** A transfer's state, progress and result (with links). */
+  private async view(
+    read: Job<TransferJob, TransferResult>,
+  ): Promise<TransferStatus> {
+    const id = read.id!;
+    let job = read;
     const state = await job.getState();
     if (
       (state === 'completed' && job.returnvalue == null) ||
@@ -410,7 +479,7 @@ export class DataTransferService {
     ) {
       // It finished between the two reads: read it again, with its result
       // or its reason (else a refused file read as an internal failure).
-      job = (await this.queue.getJob(id))!;
+      job = (await this.queue.getJob(id)) ?? job;
     }
     const base = {
       id,
@@ -419,14 +488,16 @@ export class DataTransferService {
       format: job.data.format,
       status:
         state === 'completed'
-          ? 'completed'
+          ? ('completed' as const)
           : state === 'failed'
-            ? 'failed'
+            ? ('failed' as const)
             : state === 'active'
-              ? 'running'
-              : 'queued',
+              ? ('running' as const)
+              : ('queued' as const),
       progress:
-        typeof job.progress === 'object' ? job.progress : { processed: 0 },
+        typeof job.progress === 'object'
+          ? (job.progress as Record<string, number>)
+          : { processed: 0 },
     };
     if (state === 'failed') {
       // Only messages written for people (a bad file); never internal error text.
@@ -472,8 +543,18 @@ export class DataTransferService {
       // A bug, never a caller's choice: the job would run in another tenant.
       throw new Error("A transfer is queued in its principal's tenant only.");
     }
+    const jobId = id ?? randomUUID();
+    if (job.tenantId !== null) {
+      // Listed for its principal (GET /data/transfers) before it is queued.
+      await this.jobs.add(
+        [transferList(), transferList(job.kind)],
+        job.tenantId,
+        job.principal,
+        jobId,
+      );
+    }
     const added = await this.queue.add(job.kind, job, {
-      jobId: id ?? randomUUID(),
+      jobId,
       // A transfer is not retried blindly: an import could write a batch twice.
       attempts: 1,
       removeOnComplete: { age: 7 * 24 * 3600 },

@@ -3564,7 +3564,145 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "exports": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "example": "notes"
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "The file's columns, in order (custom fields included)."
+                          },
+                          "formats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "csv",
+                                "json",
+                                "xlsx"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "columns",
+                          "formats"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The data you may export: POST /v1/data/exports { name }."
+                    },
+                    "imports": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "example": "notes"
+                          },
+                          "formats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "csv",
+                                "json",
+                                "xlsx"
+                              ]
+                            }
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "description": "The header (a datetime column gets the zone in a template: `dueAt (Asia/Dubai)`)."
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "text",
+                                    "number",
+                                    "boolean",
+                                    "date",
+                                    "datetime",
+                                    "list"
+                                  ]
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "options": {
+                                  "description": "The values allowed (one, or several for a list).",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "min": {
+                                  "description": "Length for text, value for a number, entries for a list.",
+                                  "type": "number"
+                                },
+                                "max": {
+                                  "type": "number"
+                                },
+                                "example": {}
+                              },
+                              "required": [
+                                "name",
+                                "type",
+                                "required"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The columns you may fill (fields your permissions hide left out)."
+                          },
+                          "template": {
+                            "type": "string",
+                            "example": "/v1/data/imports/notes/template",
+                            "description": "A file to fill: add ?format=csv|json|xlsx."
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "formats",
+                          "columns",
+                          "template"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The data you may import: POST /v1/data/imports (name, file)."
+                    }
+                  },
+                  "required": [
+                    "exports",
+                    "imports"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3828,6 +3966,206 @@
         ]
       }
     },
+    "/v1/data/transfers": {
+      "get": {
+        "description": "Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account export (POST /v1/account/export) is followed by its id only.",
+        "operationId": "DataTransferController_list_v1",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "description": "Only exports, or only imports. Default: both.",
+            "schema": {
+              "description": "Only exports, or only imports. Default: both.",
+              "type": "string",
+              "enum": [
+                "export",
+                "import"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `kind`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `kind`).",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "export",
+                              "import"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "format": {
+                            "type": "string",
+                            "enum": [
+                              "csv",
+                              "json",
+                              "xlsx"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "running",
+                              "completed",
+                              "failed"
+                            ]
+                          },
+                          "progress": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "number"
+                            }
+                          },
+                          "result": {
+                            "type": "object",
+                            "properties": {
+                              "rows": {
+                                "type": "number"
+                              },
+                              "url": {
+                                "description": "The file, for 30m.",
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              "imported": {
+                                "type": "number"
+                              },
+                              "failed": {
+                                "type": "number"
+                              },
+                              "dryRun": {
+                                "type": "boolean"
+                              },
+                              "errorsUrl": {
+                                "description": "A CSV of the refused rows: row, field, message.",
+                                "type": "string",
+                                "format": "uri"
+                              }
+                            },
+                            "required": [
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "error": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "format",
+                          "status",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The exports and imports you started in this tenant",
+        "tags": [
+          "data"
+        ]
+      }
+    },
     "/v1/data/transfers/{id}": {
       "get": {
         "operationId": "DataTransferController_status_v1",
@@ -3951,6 +4289,175 @@
         "summary": "An export or import you started: progress, then the result and its links",
         "tags": [
           "data"
+        ]
+      }
+    },
+    "/v1/bulk": {
+      "get": {
+        "description": "Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.",
+        "operationId": "BulkController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page.",
+            "schema": {
+              "description": "`nextCursor` of the previous page.",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "running",
+                              "completed",
+                              "failed"
+                            ]
+                          },
+                          "progress": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "number"
+                            },
+                            "description": "processed, done, failed: every 100 items."
+                          },
+                          "result": {
+                            "description": "The counts; GET /v1/bulk/{id} has the result per item.",
+                            "type": "object",
+                            "properties": {
+                              "done": {
+                                "type": "number"
+                              },
+                              "failed": {
+                                "type": "number"
+                              },
+                              "skipped": {
+                                "type": "number",
+                                "description": "Ids not found, or not yours to act on (code not_found)."
+                              },
+                              "truncated": {
+                                "description": "A background job keeps 10000 results; true when there were more.",
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "done",
+                              "failed",
+                              "skipped"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "error": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "action",
+                          "status",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The bulk runs you handed to the workers in this tenant",
+        "tags": [
+          "bulk"
         ]
       }
     },

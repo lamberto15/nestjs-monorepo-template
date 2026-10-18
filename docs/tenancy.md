@@ -164,6 +164,7 @@ Built in the platform code, never at call sites (`tenantKey()`):
 | Sequences | rows per tenant (`(tenant_id, name, scope)`) |
 | Settings | the `tenant` scope (was `global`); rollouts hashed with the tenant; caches per tenant |
 | Usage counters | `tenant:<tid>:usage:<client>:<day>` |
+| A principal's transfers and bulk runs (their lists) | `tenant:<tid>:jobs:<list>:<principal key>` (`JobIndex`; each job's own tenant checked again) |
 | Stored files | `tenants/<tid>/…` (attachments, documents, transfers): a tenant's deletion and export are prefix operations |
 
 ## Accounts and sessions
