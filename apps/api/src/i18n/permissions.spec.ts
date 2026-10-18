@@ -9,7 +9,12 @@ import {
   jobTextKeys,
   subjectTextKey,
 } from '../iam/access/permission-catalog.js';
-import type { PermissionsDefinition } from '../iam/access/permissions.js';
+import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  createdBy,
+  inMyTeams,
+  type PermissionsDefinition,
+} from '../iam/access/permissions.js';
 import { PLATFORM_PERMISSIONS } from '../platform/ops/ops.policy.js';
 
 type Catalog = { [key: string]: string | Catalog };
@@ -41,10 +46,12 @@ function declaredTexts(definitions: PermissionsDefinition[]) {
       for (const [key, template] of Object.entries(declared.conditions)) {
         const at = (part: string) =>
           conditionTextKeys(subject, key, template, part);
-        put(at('label'), template.label, subject);
-        put(at('description'), template.description, subject);
+        // A shared condition's texts ship whoever uses it.
+        const owner = template.translation ? undefined : subject;
+        put(at('label'), template.label, owner);
+        put(at('description'), template.description, owner);
         if (template.paramsInput) {
-          put(at('input'), template.paramsInput.label, subject);
+          put(at('input'), template.paramsInput.label, owner);
         }
       }
     }
@@ -75,8 +82,28 @@ function flatten(catalog: Catalog, prefix = ''): Map<string, string> {
   return found;
 }
 
+/**
+ * The shared conditions every record may carry (createdBy, inMyTeams),
+ * whether or not a feature uses them today: the template without its
+ * example still ships their texts.
+ */
+const records = pgTable('records', { ownerId: text(), teamId: uuid() });
+const SHARED: PermissionsDefinition = {
+  subjects: {
+    SharedConditions: {
+      label: '',
+      conditions: {
+        mine: createdBy('ownerId', records.ownerId),
+        inMyTeams: inMyTeams('teamId', records.teamId),
+      },
+      actions: {},
+    },
+  },
+};
+
 describe('the permissions catalog (i18n)', () => {
   const declared = declaredTexts([
+    SHARED,
     ACCESS_PERMISSIONS,
     PLATFORM_PERMISSIONS,
     ...FEATURES.map((feature) => feature.permissions),
