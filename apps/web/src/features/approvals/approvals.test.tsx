@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
+import { findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 const connections: FakeRealtime[] = [];
@@ -390,7 +391,7 @@ describe('the inbox', () => {
       target: { value: '2026-11-08T09:00' },
     });
     await user.click(within(dialog).getByRole('button', { name: 'Delegate' }));
-    expect(await screen.findByText('Delegation created.')).toBeVisible();
+    await findToast('Delegation created.');
     expect(api.delegations).toEqual([
       {
         toUserId: OTHER_USER,
@@ -451,7 +452,7 @@ describe('the approval page', () => {
     await user.click(await screen.findByRole('button', { name: 'Approve' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
-    expect(await screen.findByText('Approved.')).toBeVisible();
+    await findToast('Approved.');
     expect(api.decisions).toEqual([
       { path: 'approve', body: {}, ifMatch: '"v1"' },
     ]);
@@ -515,7 +516,7 @@ describe('the banner on a record', () => {
     await user.click(screen.getByRole('button', { name: 'Approve' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
-    expect(await screen.findByText('Approved.')).toBeVisible();
+    await findToast('Approved.');
     expect(api.decisions[0]!.path).toBe('approve');
   });
 
