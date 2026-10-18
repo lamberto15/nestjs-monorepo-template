@@ -1,0 +1,87 @@
+{
+  "nav": "定时报告",
+  "title": "定时报告",
+  "description": "按计划为你运行的导出，文件通过邮件发送下载链接。在链接过期前，任何持有邮件的人都可以下载文件。",
+  "create": "计划报告",
+  "empty": "还没有报告。在此计划一个，或从带筛选的列表中计划。",
+  "error": "无法加载报告。",
+  "retry": "重试",
+  "never": "尚未运行",
+  "recipients_one": "{{count}} 位收件人",
+  "recipients_other": "{{count}} 位收件人",
+  "toggle": "{{name}} 已启用",
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel"
+  },
+  "every": {
+    "daily": "每天",
+    "weekly": "每周",
+    "monthly": "每月"
+  },
+  "schedule": {
+    "action": "计划",
+    "daily": "每天 {{at}}",
+    "weekly": "每{{weekday}} {{at}}",
+    "monthly": "每月 {{day}} 日 {{at}}"
+  },
+  "lastStatus": {
+    "completed": "已发送",
+    "failed": "失败"
+  },
+  "columns": {
+    "name": "报告",
+    "schedule": "计划",
+    "nextRun": "下次运行",
+    "lastRun": "上次运行",
+    "active": "启用",
+    "actions": "操作"
+  },
+  "actions": {
+    "label": "{{name}} 的操作",
+    "run": "立即运行",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "run": {
+    "started": "{{name}} 正在运行。",
+    "title": "{{name}}",
+    "description": "本次运行的导出。完成后收件人会收到邮件。",
+    "close": "关闭"
+  },
+  "delete": {
+    "title": "删除此报告？",
+    "description": "{{name}} 将停止运行。已发送的文件仍保留在收件人处。",
+    "done": "{{name}} 已删除。"
+  },
+  "form": {
+    "createTitle": "计划报告",
+    "editTitle": "编辑报告",
+    "description": "按计划为你运行的导出，在其时区的某个整点运行，并通过邮件发送给收件人。",
+    "name": "名称",
+    "namePlaceholder": "每周草稿",
+    "nameRequired": "请输入名称。",
+    "exporter": "数据",
+    "exporterPlaceholder": "选择要导出的内容",
+    "exporterRequired": "请选择要导出的内容。",
+    "filters": "筛选",
+    "noFilters": "无：你有权读取的所有记录。从列表计划可保留其筛选。",
+    "format": "格式",
+    "every": "重复",
+    "weekday": "星期",
+    "day": "每月的日期",
+    "hour": "时间",
+    "timezone": "时区",
+    "timezoneDefault": "你的时区",
+    "recipients": "收件人",
+    "recipientsPlaceholder": "name@example.com",
+    "recipientsHint": "最多 {{max}} 个地址。留空：你自己的地址。他们会收到你的数据；地址不会被确认。",
+    "recipientInvalid": "请输入有效的电子邮件地址。",
+    "tooManyRecipients": "最多 {{max}} 位收件人。",
+    "active": "启用",
+    "cancel": "取消",
+    "create": "计划",
+    "save": "保存"
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "nav": "التقارير المجدولة",
+  "title": "التقارير المجدولة",
+  "description": "عمليات تصدير تُشغَّل لك وفق جدول، ويُرسل الملف بالبريد مع رابط تنزيل. يمكن لأي شخص يملك الرسالة تنزيل الملف حتى انتهاء صلاحية الرابط.",
+  "create": "جدولة تقرير",
+  "empty": "لا توجد تقارير بعد. جدوِل واحدًا هنا أو من قائمة مع عامل تصفيتها.",
+  "error": "تعذر تحميل التقارير.",
+  "retry": "حاول مرة أخرى",
+  "never": "لم يُشغَّل بعد",
+  "recipients_one": "مستلم واحد",
+  "recipients_other": "المستلمون: {{count}}",
+  "toggle": "{{name}} نشط",
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel"
+  },
+  "every": {
+    "daily": "يوميًا",
+    "weekly": "أسبوعيًا",
+    "monthly": "شهريًا"
+  },
+  "schedule": {
+    "action": "جدولة",
+    "daily": "يوميًا في {{at}}",
+    "weekly": "كل {{weekday}} في {{at}}",
+    "monthly": "شهريًا في اليوم {{day}} في {{at}}"
+  },
+  "lastStatus": {
+    "completed": "أُرسل",
+    "failed": "فشل"
+  },
+  "columns": {
+    "name": "التقرير",
+    "schedule": "الجدول",
+    "nextRun": "التشغيل التالي",
+    "lastRun": "آخر تشغيل",
+    "active": "نشط",
+    "actions": "الإجراءات"
+  },
+  "actions": {
+    "label": "إجراءات {{name}}",
+    "run": "تشغيل الآن",
+    "edit": "تعديل",
+    "delete": "حذف"
+  },
+  "run": {
+    "started": "{{name}} قيد التشغيل.",
+    "title": "{{name}}",
+    "description": "تصدير هذا التشغيل. يتلقى المستلمون الرسالة عند انتهائه.",
+    "close": "إغلاق"
+  },
+  "delete": {
+    "title": "حذف هذا التقرير؟",
+    "description": "سيتوقف {{name}} عن التشغيل. تبقى الملفات المرسلة مع مستلميها.",
+    "done": "تم حذف {{name}}."
+  },
+  "form": {
+    "createTitle": "جدولة تقرير",
+    "editTitle": "تعديل التقرير",
+    "description": "تصدير يُشغَّل لك وفق جدول، في ساعة من منطقته الزمنية، ويُرسل بالبريد إلى مستلميه.",
+    "name": "الاسم",
+    "namePlaceholder": "المسودات الأسبوعية",
+    "nameRequired": "أدخل اسمًا.",
+    "exporter": "البيانات",
+    "exporterPlaceholder": "اختر ما تريد تصديره",
+    "exporterRequired": "اختر ما تريد تصديره.",
+    "filters": "عوامل التصفية",
+    "noFilters": "لا شيء: كل السجلات التي يحق لك قراءتها. جدوِل من قائمة للاحتفاظ بعامل تصفيتها.",
+    "format": "الصيغة",
+    "every": "التكرار",
+    "weekday": "في يوم",
+    "day": "يوم الشهر",
+    "hour": "الساعة",
+    "timezone": "المنطقة الزمنية",
+    "timezoneDefault": "منطقتك الزمنية",
+    "recipients": "المستلمون",
+    "recipientsPlaceholder": "name@example.com",
+    "recipientsHint": "حتى {{max}} عنوانًا. بلا عناوين: عنوانك. يتلقون بياناتك؛ ولا يُؤكَّد أي عنوان.",
+    "recipientInvalid": "أدخل عناوين بريد إلكتروني صالحة.",
+    "tooManyRecipients": "{{max}} مستلمًا على الأكثر.",
+    "active": "نشط",
+    "cancel": "إلغاء",
+    "create": "جدولة",
+    "save": "حفظ"
+  },
+  "recipients_zero": "المستلمون: {{count}}",
+  "recipients_two": "المستلمون: {{count}}",
+  "recipients_few": "المستلمون: {{count}}",
+  "recipients_many": "المستلمون: {{count}}"
+}

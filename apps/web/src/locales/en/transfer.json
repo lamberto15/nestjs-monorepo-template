@@ -1,0 +1,76 @@
+{
+  "nav": "Exports and imports",
+  "kind": {
+    "export": "Export",
+    "import": "Import"
+  },
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel (.xlsx)"
+  },
+  "export": {
+    "action": "Export",
+    "title": "Export",
+    "filtered": "The records the list shows now: its filter and search. The file is made in the background.",
+    "unfiltered": "Every record you may read. Filter or search the list first to export fewer. The file is made in the background.",
+    "format": "Format",
+    "start": "Start the export",
+    "mine": "Your exports and imports",
+    "done_one": "{{count}} row exported.",
+    "done_other": "{{count}} rows exported.",
+    "download": "Download ({{format}})"
+  },
+  "mine": {
+    "title": "Exports and imports",
+    "import": "Import a file",
+    "description": "The exports and imports started in this browser. A download link works for 30 minutes after the file is made; open the export again for a new one.",
+    "empty": "Nothing yet. Export from a list, or import a file."
+  },
+  "import": {
+    "action": "Import",
+    "title": "Import a file",
+    "nothing": "There is nothing you may import.",
+    "description": "Every row is checked as if it were created by hand; valid rows are written, refused rows come back with the reason. Columns are matched by their header name.",
+    "subject": "Import into",
+    "columns": "Columns it takes",
+    "column": "Column",
+    "type": "Type",
+    "required": "Required",
+    "yes": "Yes",
+    "no": "No",
+    "template": "A template to fill:",
+    "drop": "Drop a CSV, JSON or Excel file here",
+    "limit": "One file, up to {{max}}.",
+    "choose": "Choose a file",
+    "remove": "Remove the file",
+    "rejected": "{{name}} was not added: {{reason}}",
+    "tooLarge": "it is larger than {{max}}",
+    "dryRun": "Only check the file",
+    "dryRunHint": "Every row is checked; nothing is written.",
+    "writeHint": "Valid rows are written now; refused rows are listed after.",
+    "check": "Check the file",
+    "start": "Import",
+    "mine": "Your exports and imports",
+    "uploading": "Uploading",
+    "uploadingPercent": "Uploading… {{percent}}%",
+    "checked": "Checked {{rows}} rows: {{valid}} valid, {{failed}} refused. Nothing was written.",
+    "imported": "{{rows}} rows read: {{imported}} imported, {{failed}} refused.",
+    "errorsTitle": "Refused rows",
+    "row": "Row",
+    "field": "Field",
+    "message": "Reason",
+    "moreErrors_one": "And {{count}} more in the report.",
+    "moreErrors_other": "And {{count}} more in the report.",
+    "downloadErrors": "Download the refused rows (CSV)"
+  },
+  "status": {
+    "queued": "Waiting for a worker…",
+    "running_one": "Working… {{count}} row so far.",
+    "running_other": "Working… {{count}} rows so far.",
+    "progressLabel": "Progress",
+    "failed": "It failed. Try again.",
+    "notFound": "This transfer is no longer available.",
+    "error": "Its status could not be loaded."
+  }
+}

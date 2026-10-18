@@ -1,0 +1,87 @@
+{
+  "nav": "Geplante Berichte",
+  "title": "Geplante Berichte",
+  "description": "Exporte, die nach Zeitplan für Sie laufen; die Datei wird mit einem Download-Link gemailt. Wer die Mail hat, kann die Datei herunterladen, bis der Link abläuft.",
+  "create": "Bericht planen",
+  "empty": "Noch keine Berichte. Planen Sie einen hier oder aus einer Liste mit ihrem Filter.",
+  "error": "Die Berichte konnten nicht geladen werden.",
+  "retry": "Erneut versuchen",
+  "never": "Noch nicht gelaufen",
+  "recipients_one": "{{count}} Empfänger",
+  "recipients_other": "{{count}} Empfänger",
+  "toggle": "{{name}} ist aktiv",
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel"
+  },
+  "every": {
+    "daily": "Täglich",
+    "weekly": "Wöchentlich",
+    "monthly": "Monatlich"
+  },
+  "schedule": {
+    "action": "Planen",
+    "daily": "Täglich um {{at}}",
+    "weekly": "Jeden {{weekday}} um {{at}}",
+    "monthly": "Monatlich am {{day}}. um {{at}}"
+  },
+  "lastStatus": {
+    "completed": "Gesendet",
+    "failed": "Fehlgeschlagen"
+  },
+  "columns": {
+    "name": "Bericht",
+    "schedule": "Zeitplan",
+    "nextRun": "Nächster Lauf",
+    "lastRun": "Letzter Lauf",
+    "active": "Aktiv",
+    "actions": "Aktionen"
+  },
+  "actions": {
+    "label": "Aktionen für {{name}}",
+    "run": "Jetzt ausführen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen"
+  },
+  "run": {
+    "started": "{{name}} läuft.",
+    "title": "{{name}}",
+    "description": "Der Export dieses Laufs. Die Empfänger erhalten die Mail, wenn er fertig ist.",
+    "close": "Schließen"
+  },
+  "delete": {
+    "title": "Diesen Bericht löschen?",
+    "description": "{{name}} läuft nicht mehr. Bereits gemailte Dateien bleiben bei ihren Empfängern.",
+    "done": "{{name}} wurde gelöscht."
+  },
+  "form": {
+    "createTitle": "Bericht planen",
+    "editTitle": "Bericht bearbeiten",
+    "description": "Ein Export, der nach Zeitplan für Sie läuft, zu einer Stunde seiner Zeitzone, und an seine Empfänger gemailt wird.",
+    "name": "Name",
+    "namePlaceholder": "Wöchentliche Entwürfe",
+    "nameRequired": "Geben Sie einen Namen ein.",
+    "exporter": "Daten",
+    "exporterPlaceholder": "Wählen Sie, was exportiert wird",
+    "exporterRequired": "Wählen Sie, was exportiert wird.",
+    "filters": "Filter",
+    "noFilters": "Keine: alle Datensätze, die Sie lesen dürfen. Planen Sie aus einer Liste, um ihren Filter zu behalten.",
+    "format": "Format",
+    "every": "Wiederholung",
+    "weekday": "Am",
+    "day": "Tag des Monats",
+    "hour": "Um",
+    "timezone": "Zeitzone",
+    "timezoneDefault": "Ihre Zeitzone",
+    "recipients": "Empfänger",
+    "recipientsPlaceholder": "name@example.com",
+    "recipientsHint": "Bis zu {{max}} Adressen. Keine: Ihre eigene. Sie erhalten Ihre Daten; keine Adresse wird bestätigt.",
+    "recipientInvalid": "Geben Sie gültige E-Mail-Adressen ein.",
+    "tooManyRecipients": "Höchstens {{max}} Empfänger.",
+    "active": "Aktiv",
+    "cancel": "Abbrechen",
+    "create": "Planen",
+    "save": "Speichern"
+  }
+}

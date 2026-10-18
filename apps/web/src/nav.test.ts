@@ -45,6 +45,8 @@ describe('mergeNav', () => {
       '/notifications',
       '/approvals',
       '/notes',
+      '/transfers',
+      '/reports',
     ]);
   });
 });
