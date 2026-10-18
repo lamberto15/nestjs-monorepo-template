@@ -1,0 +1,17 @@
+{
+  "open": "Cari (Ctrl+K)",
+  "title": "Carian",
+  "description": "Cari rekod, atau taip > untuk arahan.",
+  "placeholder": "Cari rekod, atau taip > untuk arahan…",
+  "noCommands": "Tiada arahan yang sepadan.",
+  "commands": "Pergi ke",
+  "searching": "Sedang mencari…",
+  "error": "Carian gagal. Cuba lagi.",
+  "empty": "Tiada hasil untuk “{{q}}”.",
+  "subjects": {
+    "Note": "Nota"
+  },
+  "recent": "Carian terkini",
+  "clearRecent": "Kosongkan carian terkini",
+  "hint": "Taip untuk mencari; > menyenaraikan arahan."
+}

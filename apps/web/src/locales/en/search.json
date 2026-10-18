@@ -1,0 +1,17 @@
+{
+  "open": "Search (Ctrl+K)",
+  "title": "Search",
+  "description": "Search records, or type > for commands.",
+  "placeholder": "Search records, or type > for commands…",
+  "noCommands": "No matching command.",
+  "commands": "Go to",
+  "searching": "Searching…",
+  "error": "The search failed. Try again.",
+  "empty": "Nothing found for “{{q}}”.",
+  "subjects": {
+    "Note": "Notes"
+  },
+  "recent": "Recent searches",
+  "clearRecent": "Clear recent searches",
+  "hint": "Type to search; > lists commands."
+}

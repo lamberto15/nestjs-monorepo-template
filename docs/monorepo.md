@@ -129,6 +129,16 @@ http://localhost:5173) side by side.
   `/transfers` lists the exports and imports this browser started (the API
   has no list of them yet), `/reports` the scheduled reports (`REPORTS=off`
   hides it).
+- **Search palette** (`features/search`): the header's search button and
+  Cmd/Ctrl+K open it. Typing calls `GET /v1/search` (debounced, grouped by
+  subject); `>` lists the nav entries the user sees. Snippets keep only
+  `<b>` (as `<mark>`, everything else stays text) and a hit's `link` is
+  followed only when it is a path of this app. A searchable feature names
+  its group in `locales/<lng>/search.json`, `subjects.<Subject>`; without
+  it the subject itself is shown.
+- **Audit log** (`features/audit`, `/audit`): `GET /v1/access/audit` with
+  filters and server paging, for `Access.readAudit` only (nav entry and
+  route gate).
 - **Scripts:** `build` (`tsc -b && vite build`, to `dist/`), `lint`, `test`
   (Vitest, jsdom, Testing Library). Turborepo builds the client first.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,
