@@ -1,0 +1,46 @@
+{
+  "run": {
+    "title": {
+      "delete": "Wird gelöscht",
+      "restore": "Wird wiederhergestellt",
+      "update": "Wird geändert"
+    },
+    "description": "Jeder Datensatz durchläuft dieselben Prüfungen wie einzeln; einer, der fehlschlägt, hält die anderen nicht auf.",
+    "starting": "Wird gestartet…",
+    "queued": "Wartet auf einen Worker…",
+    "progress": "{{processed}} verarbeitet: {{done}} erledigt, {{failed}} fehlgeschlagen.",
+    "progressLabel": "Fortschritt",
+    "result": "{{done}} erledigt, {{failed}} fehlgeschlagen, {{skipped}} übersprungen.",
+    "failed": "Der Lauf wurde abgebrochen. Bereits erledigte Datensätze bleiben erledigt; starten Sie ihn erneut für den Rest.",
+    "error": "Sein Fortschritt konnte nicht geladen werden.",
+    "problems": "Nicht erledigte Datensätze",
+    "item": {
+      "done": "erledigt",
+      "failed": "fehlgeschlagen",
+      "skipped": "übersprungen (nicht gefunden oder nicht Ihres)"
+    },
+    "more_one": "Und {{count}} weiterer.",
+    "more_other": "Und {{count}} weitere.",
+    "close": "Schließen"
+  },
+  "confirm": {
+    "delete": {
+      "title_one": "{{count}} Datensatz löschen?",
+      "title_other": "{{count}} Datensätze löschen?",
+      "description_one": "Er kommt in den Papierkorb und kann wiederhergestellt werden.",
+      "description_other": "Sie kommen in den Papierkorb und können wiederhergestellt werden."
+    },
+    "restore": {
+      "title_one": "{{count}} Datensatz wiederherstellen?",
+      "title_other": "{{count}} Datensätze wiederherstellen?",
+      "description_one": "Er kommt aus dem Papierkorb zurück.",
+      "description_other": "Sie kommen aus dem Papierkorb zurück."
+    },
+    "update": {
+      "title_one": "{{count}} Datensatz ändern?",
+      "title_other": "{{count}} Datensätze ändern?",
+      "description_one": "Die Änderung wird auf ihn angewendet.",
+      "description_other": "Die Änderung wird auf jeden von ihnen angewendet."
+    }
+  }
+}

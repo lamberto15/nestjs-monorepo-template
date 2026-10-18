@@ -35,6 +35,9 @@ import { Route as AppApprovalsIndexRouteImport } from './routes/_app/approvals/i
 import { Route as AppApprovalsIdRouteImport } from './routes/_app/approvals/$id'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
+import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
+import { Route as AppTransfersIndexRouteImport } from './routes/_app/transfers/index'
+import { Route as AppTransfersImportRouteImport } from './routes/_app/transfers/import'
 import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
 import { Route as AppAccessRolesRoleIdRouteImport } from './routes/_app/access/roles/$roleId'
 import { Route as AppAccessRolesNewRouteImport } from './routes/_app/access/roles/new'
@@ -172,6 +175,21 @@ const AppNotesNewRoute = AppNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransfersIndexRoute = AppTransfersIndexRouteImport.update({
+  id: '/transfers/',
+  path: '/transfers/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransfersImportRoute = AppTransfersImportRouteImport.update({
+  id: '/transfers/import',
+  path: '/transfers/import',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccessRolesIndexRoute = AppAccessRolesIndexRouteImport.update({
   id: '/access/roles/',
   path: '/access/roles/',
@@ -230,10 +248,13 @@ export interface FileRoutesByFullPath {
   '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
+  '/transfers/import': typeof AppTransfersImportRoute
   '/account/': typeof AppAccountIndexRoute
   '/api-clients/': typeof AppApiClientsIndexRoute
   '/approvals/': typeof AppApprovalsIndexRoute
   '/notes/': typeof AppNotesIndexRoute
+  '/reports/': typeof AppReportsIndexRoute
+  '/transfers/': typeof AppTransfersIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
   '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
@@ -264,10 +285,13 @@ export interface FileRoutesByTo {
   '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
+  '/transfers/import': typeof AppTransfersImportRoute
   '/account': typeof AppAccountIndexRoute
   '/api-clients': typeof AppApiClientsIndexRoute
   '/approvals': typeof AppApprovalsIndexRoute
   '/notes': typeof AppNotesIndexRoute
+  '/reports': typeof AppReportsIndexRoute
+  '/transfers': typeof AppTransfersIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
   '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
@@ -300,10 +324,13 @@ export interface FileRoutesById {
   '/_app/api-clients/usage': typeof AppApiClientsUsageRoute
   '/_app/approvals/$id': typeof AppApprovalsIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
+  '/_app/transfers/import': typeof AppTransfersImportRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/api-clients/': typeof AppApiClientsIndexRoute
   '/_app/approvals/': typeof AppApprovalsIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
+  '/_app/transfers/': typeof AppTransfersIndexRoute
   '/_app/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/_app/access/roles/new': typeof AppAccessRolesNewRoute
   '/_app/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
@@ -336,10 +363,13 @@ export interface FileRouteTypes {
     | '/api-clients/usage'
     | '/approvals/$id'
     | '/notes/new'
+    | '/transfers/import'
     | '/account/'
     | '/api-clients/'
     | '/approvals/'
     | '/notes/'
+    | '/reports/'
+    | '/transfers/'
     | '/access/roles/$roleId'
     | '/access/roles/new'
     | '/access/teams/$teamId'
@@ -370,10 +400,13 @@ export interface FileRouteTypes {
     | '/api-clients/usage'
     | '/approvals/$id'
     | '/notes/new'
+    | '/transfers/import'
     | '/account'
     | '/api-clients'
     | '/approvals'
     | '/notes'
+    | '/reports'
+    | '/transfers'
     | '/access/roles/$roleId'
     | '/access/roles/new'
     | '/access/teams/$teamId'
@@ -405,10 +438,13 @@ export interface FileRouteTypes {
     | '/_app/api-clients/usage'
     | '/_app/approvals/$id'
     | '/_app/notes/new'
+    | '/_app/transfers/import'
     | '/_app/account/'
     | '/_app/api-clients/'
     | '/_app/approvals/'
     | '/_app/notes/'
+    | '/_app/reports/'
+    | '/_app/transfers/'
     | '/_app/access/roles/$roleId'
     | '/_app/access/roles/new'
     | '/_app/access/teams/$teamId'
@@ -614,6 +650,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/': {
+      id: '/_app/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AppReportsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transfers/': {
+      id: '/_app/transfers/'
+      path: '/transfers'
+      fullPath: '/transfers/'
+      preLoaderRoute: typeof AppTransfersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transfers/import': {
+      id: '/_app/transfers/import'
+      path: '/transfers/import'
+      fullPath: '/transfers/import'
+      preLoaderRoute: typeof AppTransfersImportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/access/roles/': {
       id: '/_app/access/roles/'
       path: '/access/roles'
@@ -680,10 +737,13 @@ interface AppRouteChildren {
   AppApiClientsUsageRoute: typeof AppApiClientsUsageRoute
   AppApprovalsIdRoute: typeof AppApprovalsIdRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
+  AppTransfersImportRoute: typeof AppTransfersImportRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
   AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
+  AppTransfersIndexRoute: typeof AppTransfersIndexRoute
   AppAccessRolesRoleIdRoute: typeof AppAccessRolesRoleIdRoute
   AppAccessRolesNewRoute: typeof AppAccessRolesNewRoute
   AppAccessTeamsTeamIdRoute: typeof AppAccessTeamsTeamIdRoute
@@ -707,10 +767,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppApiClientsUsageRoute: AppApiClientsUsageRoute,
   AppApprovalsIdRoute: AppApprovalsIdRoute,
   AppNotesNewRoute: AppNotesNewRoute,
+  AppTransfersImportRoute: AppTransfersImportRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppApiClientsIndexRoute: AppApiClientsIndexRoute,
   AppApprovalsIndexRoute: AppApprovalsIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
+  AppReportsIndexRoute: AppReportsIndexRoute,
+  AppTransfersIndexRoute: AppTransfersIndexRoute,
   AppAccessRolesRoleIdRoute: AppAccessRolesRoleIdRoute,
   AppAccessRolesNewRoute: AppAccessRolesNewRoute,
   AppAccessTeamsTeamIdRoute: AppAccessTeamsTeamIdRoute,

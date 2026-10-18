@@ -1,12 +1,10 @@
 import {
-  ApiError,
   etagOf,
-  parseProblem,
   unwrap,
   type paths,
 } from '@nestjs-monorepo-template/api-client';
-import { i18n } from '@/i18n';
 import { api } from '@/lib/api';
+import { postMultipart } from '@/lib/upload';
 
 /**
  * The record panels' routes (docs/comments.md, attachments.md, tags.md,
@@ -145,10 +143,7 @@ export const removeAttachment = (attachmentId: string) =>
 
 /**
  * Uploads one file (multipart, the field `file`: docs/attachments.md; the API
- * has no presigned upload). Custom code, not `api.POST`: fetch reports no
- * upload progress and the dropzone shows one, so this is an XMLHttpRequest
- * with the same conventions as the client (cookie, language; a problem as
- * ApiError).
+ * has no presigned upload), with progress for the dropzone.
  */
 export function uploadAttachment(
   base: string,
@@ -156,37 +151,13 @@ export function uploadAttachment(
   file: File,
   onProgress: (percent: number) => void,
 ): Promise<Attachment> {
-  return new Promise((resolve, reject) => {
-    const form = new FormData();
-    form.append('file', file);
-    const request = new XMLHttpRequest();
-    request.open('POST', at(base, '/attachments').replace('{id}', id));
-    request.withCredentials = true;
-    request.setRequestHeader('accept', 'application/json');
-    request.setRequestHeader('accept-language', i18n.language);
-    request.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-    request.onerror = () => reject(new Error(i18n.t('auth.errors.network')));
-    request.onload = () => {
-      if (request.status >= 200 && request.status < 300) {
-        resolve(JSON.parse(request.responseText) as Attachment);
-        return;
-      }
-      reject(
-        new ApiError(
-          parseProblem(
-            request.status,
-            request.responseText,
-            request.getResponseHeader('x-request-id') ?? undefined,
-          ),
-        ),
-      );
-    };
-    request.send(form);
-  });
+  const form = new FormData();
+  form.append('file', file);
+  return postMultipart<Attachment>(
+    at(base, '/attachments').replace('{id}', id),
+    form,
+    onProgress,
+  );
 }
 
 export const setTags = (base: string, id: string, tagIds: string[]) =>

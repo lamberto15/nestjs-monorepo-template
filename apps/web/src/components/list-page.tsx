@@ -13,9 +13,12 @@ import { useTranslation } from 'react-i18next';
 import { DataTable } from '@/components/data-table/data-table';
 import { getDataTableActionsColumn } from '@/components/data-table/data-table-actions-column';
 import { DataTableAdvancedToolbar } from '@/components/data-table/data-table-advanced-toolbar';
+import { getDataTableSelectColumn } from '@/components/data-table/data-table-select-column';
 import { DataTableFilterMenu } from '@/components/data-table/data-table-filter-menu';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableSortMenu } from '@/components/data-table/data-table-sort-menu';
+import { ListBulkBar } from '@/components/list-bulk-bar';
+import type { BulkContext } from '@/features/bulk/types';
 import { useDataTable } from '@/hooks/use-data-table';
 import { customFieldColumns, tagFilterColumns } from '@/lib/list-columns';
 import { tagOptions, useTags } from '@/lib/tags';
@@ -24,6 +27,7 @@ import {
   DEFAULT_PER_PAGE,
   defaultSorting,
   isTagField,
+  listFilters,
   useListDescription,
   useListQuery,
   withListMeta,
@@ -53,6 +57,19 @@ export interface ListPageProps<P extends ListPath> {
    * Keep it stable (useCallback) so the table is not rebuilt.
    */
   rowActions?: (row: ListRow<P>) => ReactNode;
+  /**
+   * Buttons in the table's toolbar that act on the list as it is shown: an
+   * export gets the current `params` (filter, search…). Keep it stable.
+   */
+  listActions?: (context: { params: Record<string, string> }) => ReactNode;
+  /** A checkbox column: rows can be selected (the pagination counts them). */
+  selectable?: boolean;
+  /**
+   * The action bar of a selection (implies `selectable`): what it renders in
+   * the bar for the chosen rows (`ActionBarItem`s, see features/bulk).
+   * The selection is cleared when the list's filter or search changes.
+   */
+  bulkActions?: (context: BulkContext) => ReactNode;
 }
 
 /**
@@ -93,9 +110,13 @@ function ListTable<P extends ListPath>({
   query: extraQuery,
   rowHref,
   rowActions,
+  listActions,
+  selectable,
+  bulkActions,
 }: ListPageProps<P> & { description: ListDescription }) {
   const { t, i18n } = useTranslation();
   const router = useRouter({ warn: false });
+  const checkable = selectable || bulkActions !== undefined;
   const tags = useTags(subject, description.fields.some(isTagField));
   const tagChoices = useMemo(() => tagOptions(tags.data ?? []), [tags.data]);
   // The caller's columns, then what the list's metadata adds to them: the
@@ -111,20 +132,31 @@ function ListTable<P extends ListPath>({
       description,
       tagChoices,
     );
+    const withActions = rowActions
+      ? [
+          ...withMeta,
+          getDataTableActionsColumn<ListRow<P>>({
+            actions: ({ row }) => rowActions(row.original),
+          }),
+        ]
+      : withMeta;
     return {
-      cols: rowActions
-        ? [
-            ...withMeta,
-            getDataTableActionsColumn<ListRow<P>>({
-              actions: ({ row }) => rowActions(row.original),
-            }),
-          ]
-        : withMeta,
+      cols: checkable
+        ? [getDataTableSelectColumn<ListRow<P>>(), ...withActions]
+        : withActions,
       hidden: Object.fromEntries(
         extra.flatMap((c) => (c.id ? [[c.id, false]] : [])),
       ),
     };
-  }, [columns, description, tagChoices, t, i18n.language, rowActions]);
+  }, [
+    columns,
+    description,
+    tagChoices,
+    t,
+    i18n.language,
+    rowActions,
+    checkable,
+  ]);
   const [fields, setFields] = useState(() =>
     cols.flatMap((c) => (c.id && !(c.id in hidden) ? [c.id] : [])),
   );
@@ -142,6 +174,12 @@ function ListTable<P extends ListPath>({
     getRowId: (row) => (row as { id: string }).id,
   });
 
+  // A selection is of the rows of THIS filter: another one starts again.
+  const scope = JSON.stringify([listFilters(query.params), extraQuery]);
+  useEffect(() => {
+    table.setRowSelection({});
+  }, [scope, table]);
+
   const filtered = 'filter' in query.params || 'q' in query.params;
   const empty = query.isSuccess && query.data.items.length === 0 && !filtered;
 
@@ -154,6 +192,7 @@ function ListTable<P extends ListPath>({
         )}
         <DataTableFilterMenu table={table} />
         <DataTableSortMenu table={table} />
+        {listActions?.({ params: query.params })}
       </DataTableAdvancedToolbar>
       {query.isError ? (
         <ErrorState error={query.error} onRetry={query.refetch} />
@@ -177,6 +216,16 @@ function ListTable<P extends ListPath>({
               : undefined
           }
           className={query.isPlaceholderData ? 'opacity-60' : undefined}
+          actionBar={
+            bulkActions ? (
+              <ListBulkBar
+                table={table}
+                total={query.data?.total}
+                filter={listFilters(query.params)}
+                actions={bulkActions}
+              />
+            ) : undefined
+          }
         />
       )}
     </div>

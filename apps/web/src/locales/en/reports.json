@@ -1,0 +1,87 @@
+{
+  "nav": "Scheduled reports",
+  "title": "Scheduled reports",
+  "description": "Exports run for you on a schedule, the file mailed with a download link. Anyone holding the mail can download the file until the link expires.",
+  "create": "Schedule a report",
+  "empty": "No reports yet. Schedule one here, or from a list with its filter.",
+  "error": "The reports could not be loaded.",
+  "retry": "Try again",
+  "never": "Not run yet",
+  "recipients_one": "{{count}} recipient",
+  "recipients_other": "{{count}} recipients",
+  "toggle": "{{name}} is active",
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel"
+  },
+  "every": {
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly"
+  },
+  "schedule": {
+    "action": "Schedule",
+    "daily": "Daily at {{at}}",
+    "weekly": "Every {{weekday}} at {{at}}",
+    "monthly": "Monthly on day {{day}} at {{at}}"
+  },
+  "lastStatus": {
+    "completed": "Sent",
+    "failed": "Failed"
+  },
+  "columns": {
+    "name": "Report",
+    "schedule": "Schedule",
+    "nextRun": "Next run",
+    "lastRun": "Last run",
+    "active": "Active",
+    "actions": "Actions"
+  },
+  "actions": {
+    "label": "Actions for {{name}}",
+    "run": "Run now",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "run": {
+    "started": "{{name}} is running.",
+    "title": "{{name}}",
+    "description": "The export of this run. The recipients get the mail when it is done.",
+    "close": "Close"
+  },
+  "delete": {
+    "title": "Delete this report?",
+    "description": "{{name}} stops running. Files already mailed stay with their recipients.",
+    "done": "{{name}} was deleted."
+  },
+  "form": {
+    "createTitle": "Schedule a report",
+    "editTitle": "Edit the report",
+    "description": "An export run for you on a schedule, at an hour of its time zone, and mailed to its recipients.",
+    "name": "Name",
+    "namePlaceholder": "Weekly drafts",
+    "nameRequired": "Enter a name.",
+    "exporter": "Data",
+    "exporterPlaceholder": "Choose what to export",
+    "exporterRequired": "Choose what to export.",
+    "filters": "Filters",
+    "noFilters": "None: every record you may read. Schedule from a list to keep its filter.",
+    "format": "Format",
+    "every": "Repeats",
+    "weekday": "On",
+    "day": "Day of the month",
+    "hour": "At",
+    "timezone": "Time zone",
+    "timezoneDefault": "Your time zone",
+    "recipients": "Recipients",
+    "recipientsPlaceholder": "name@example.com",
+    "recipientsHint": "Up to {{max}} addresses. None: your own. They receive your data; nothing confirms an address.",
+    "recipientInvalid": "Enter valid email addresses.",
+    "tooManyRecipients": "At most {{max}} recipients.",
+    "active": "Active",
+    "cancel": "Cancel",
+    "create": "Schedule",
+    "save": "Save"
+  }
+}

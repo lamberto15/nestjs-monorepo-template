@@ -345,7 +345,19 @@
         "lte": "Liegt am oder vor",
         "gt": "Liegt nach",
         "gte": "Liegt am oder nach"
-      }
+      },
+      "selectAll": "Alle auswählen",
+      "selectRow": "Zeile auswählen"
+    },
+    "bulk": {
+      "label": "Aktionen für die Auswahl",
+      "selected_one": "{{count}} ausgewählt",
+      "selected_other": "{{count}} ausgewählt",
+      "selectAll_one": "Alle {{count}} Treffer auswählen",
+      "selectAll_other": "Alle {{count}} Treffer auswählen",
+      "onlyChosen": "Nur die gewählten Zeilen",
+      "tooMany": "Höchstens {{max}} gewählte Zeilen auf einmal: Filtern Sie die Liste und wählen Sie stattdessen alle Treffer.",
+      "clear": "Auswahl aufheben"
     }
   },
   "principals": {

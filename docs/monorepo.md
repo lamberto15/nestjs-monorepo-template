@@ -116,6 +116,19 @@ http://localhost:5173) side by side.
 
   The API does not publish a record's capabilities, so the page states
   them. Texts are in the `records` namespace.
+- **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
+  is the example): `ListPage`'s `listActions` gets the list's `params`, for
+  `<ExportButton exporter="notes" filters={exportFilters(params)} />` and
+  `<ScheduleReportButton …/>` (each shown only when `GET /v1/data` lists the
+  export); `<ImportButton importer="notes" />` links to `/transfers/import`.
+  `bulkActions` turns on row selection and Dice UI's action bar:
+  `useBulkActions('/v1/notes/bulk', specs)` gives its `render` and the
+  `dialogs` to mount next to the list (confirmation, then the run: 200 at
+  once or a 202 job polled at `GET /v1/bulk/{id}`). Selecting the whole page
+  of a filtered list offers "all N matching", a run by the list's filter.
+  `/transfers` lists the exports and imports this browser started (the API
+  has no list of them yet), `/reports` the scheduled reports (`REPORTS=off`
+  hides it).
 - **Picking people and API clients** (`components/principal-picker.tsx`,
   `lib/principals.ts`): `<PrincipalPicker>` searches
   `GET /v1/access/principals?q=` as one types (Dice UI's combobox); its value

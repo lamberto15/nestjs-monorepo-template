@@ -1,0 +1,76 @@
+{
+  "nav": "导出与导入",
+  "kind": {
+    "export": "导出",
+    "import": "导入"
+  },
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel (.xlsx)"
+  },
+  "export": {
+    "action": "导出",
+    "title": "导出",
+    "filtered": "列表当前显示的记录：其筛选和搜索。文件在后台生成。",
+    "unfiltered": "你有权读取的所有记录。先筛选或搜索列表可导出更少。文件在后台生成。",
+    "format": "格式",
+    "start": "开始导出",
+    "mine": "你的导出与导入",
+    "done_one": "已导出 {{count}} 行。",
+    "done_other": "已导出 {{count}} 行。",
+    "download": "下载（{{format}}）"
+  },
+  "mine": {
+    "title": "导出与导入",
+    "import": "导入文件",
+    "description": "在此浏览器中发起的导出和导入。下载链接在文件生成后 30 分钟内有效；重新打开导出可获取新链接。",
+    "empty": "还没有。从列表导出，或导入一个文件。"
+  },
+  "import": {
+    "action": "导入",
+    "title": "导入文件",
+    "nothing": "没有你可以导入的内容。",
+    "description": "每一行都像手动创建一样被检查；有效的行会被写入，被拒绝的行会附带原因返回。列按表头名称匹配。",
+    "subject": "导入到",
+    "columns": "接受的列",
+    "column": "列",
+    "type": "类型",
+    "required": "必填",
+    "yes": "是",
+    "no": "否",
+    "template": "可填写的模板：",
+    "drop": "将 CSV、JSON 或 Excel 文件拖到这里",
+    "limit": "一个文件，最大 {{max}}。",
+    "choose": "选择文件",
+    "remove": "移除文件",
+    "rejected": "未添加 {{name}}：{{reason}}",
+    "tooLarge": "文件大于 {{max}}",
+    "dryRun": "仅检查文件",
+    "dryRunHint": "检查每一行；不写入任何内容。",
+    "writeHint": "有效的行现在写入；被拒绝的行随后列出。",
+    "check": "检查文件",
+    "start": "导入",
+    "mine": "你的导出与导入",
+    "uploading": "正在上传",
+    "uploadingPercent": "正在上传… {{percent}}%",
+    "checked": "已检查 {{rows}} 行：{{valid}} 行有效，{{failed}} 行被拒绝。未写入任何内容。",
+    "imported": "已读取 {{rows}} 行：导入 {{imported}} 行，拒绝 {{failed}} 行。",
+    "errorsTitle": "被拒绝的行",
+    "row": "行",
+    "field": "字段",
+    "message": "原因",
+    "moreErrors_one": "报告中还有 {{count}} 行。",
+    "moreErrors_other": "报告中还有 {{count}} 行。",
+    "downloadErrors": "下载被拒绝的行（CSV）"
+  },
+  "status": {
+    "queued": "等待工作进程…",
+    "running_one": "处理中… 目前 {{count}} 行。",
+    "running_other": "处理中… 目前 {{count}} 行。",
+    "progressLabel": "进度",
+    "failed": "失败了。请重试。",
+    "notFound": "此传输已不可用。",
+    "error": "无法加载其状态。"
+  }
+}

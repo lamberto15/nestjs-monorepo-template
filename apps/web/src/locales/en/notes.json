@@ -75,5 +75,9 @@
     "title": "The note could not be loaded",
     "generic": "Something went wrong. Try again.",
     "retry": "Try again"
+  },
+  "bulk": {
+    "delete": "Delete",
+    "restore": "Restore"
   }
 }

@@ -88,6 +88,9 @@ export function useNotesApi(options: { can: string[]; notes: TestNote[] }) {
       HttpResponse.json({ unread: 0 }),
     ),
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
+    // The list's export and import buttons ask what the user may run: nothing
+    // unless a test says so (features/transfer).
+    http.get('/v1/data', () => HttpResponse.json({ exports: [], imports: [] })),
     http.get('/v1/notes', ({ request }) => {
       const url = new URL(request.url);
       calls.listQueries.push(url.search);
