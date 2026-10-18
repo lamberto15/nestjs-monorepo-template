@@ -1,0 +1,17 @@
+{
+  "open": "Suchen (Strg+K)",
+  "title": "Suche",
+  "description": "Datensätze suchen oder > für Befehle eingeben.",
+  "placeholder": "Datensätze suchen oder > für Befehle eingeben…",
+  "noCommands": "Kein passender Befehl.",
+  "commands": "Gehe zu",
+  "searching": "Suche läuft…",
+  "error": "Die Suche ist fehlgeschlagen. Versuchen Sie es erneut.",
+  "empty": "Nichts gefunden für „{{q}}“.",
+  "subjects": {
+    "Note": "Notizen"
+  },
+  "recent": "Letzte Suchen",
+  "clearRecent": "Letzte Suchen löschen",
+  "hint": "Tippen zum Suchen; > zeigt Befehle."
+}

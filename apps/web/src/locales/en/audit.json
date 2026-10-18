@@ -1,0 +1,34 @@
+{
+  "nav": {
+    "title": "Audit log"
+  },
+  "title": "Audit log",
+  "filters": {
+    "label": "Filters",
+    "action": "Action starts with",
+    "actor": "Actor",
+    "subject": "Subject",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "reset": "Reset"
+  },
+  "retry": "Retry",
+  "loading": "Loading…",
+  "columns": {
+    "at": "When",
+    "actor": "Actor",
+    "action": "Action",
+    "target": "Target"
+  },
+  "empty": "No entries.",
+  "page": "Page {{page}} of {{pages}}",
+  "previous": "Previous",
+  "next": "Next",
+  "details": {
+    "toggle": "Show details of {{action}}",
+    "actor": "Actor id",
+    "ip": "IP address",
+    "none": "No details."
+  }
+}
