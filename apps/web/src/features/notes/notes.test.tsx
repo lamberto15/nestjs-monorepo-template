@@ -7,6 +7,27 @@ import { renderApp } from '@/test/render-app';
 import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
 import { findToast } from '@/test/toast';
 
+/** The request schemas of the API's routes, as the typed client's document has them. */
+const schemaPaths = (
+  openapi as unknown as {
+    paths: Record<
+      string,
+      Record<
+        string,
+        {
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: { properties: Record<string, { maxLength?: number }> };
+              };
+            };
+          };
+        }
+      >
+    >;
+  }
+).paths;
+
 const ALL = [
   'Note.read',
   'Note.create',
@@ -197,38 +218,22 @@ describe('creating a note', () => {
     expect(api.calls.created).toHaveLength(0);
   });
 
-  it("keeps its limits equal to the API schema's maxLength", () => {
-    const schema = (
-      openapi as unknown as {
-        paths: Record<
-          string,
-          Record<
-            string,
-            {
-              requestBody: {
-                content: {
-                  'application/json': {
-                    schema: {
-                      properties: Record<string, { maxLength?: number }>;
-                    };
-                  };
-                };
-              };
-            }
-          >
-        >;
+  // CI's template-without-notes job removes the API's notes: nothing to compare then.
+  it.skipIf(!('/v1/notes' in schemaPaths))(
+    "keeps its limits equal to the API schema's maxLength",
+    () => {
+      const schema = schemaPaths;
+      for (const [path, method] of [
+        ['/v1/notes', 'post'],
+        ['/v1/notes/{id}', 'patch'],
+      ] as const) {
+        const { properties } =
+          schema[path]![method]!.requestBody.content['application/json'].schema;
+        expect(properties.title?.maxLength).toBe(NOTE_LIMITS.title);
+        expect(properties.body?.maxLength).toBe(NOTE_LIMITS.body);
       }
-    ).paths;
-    for (const [path, method] of [
-      ['/v1/notes', 'post'],
-      ['/v1/notes/{id}', 'patch'],
-    ] as const) {
-      const { properties } =
-        schema[path]![method]!.requestBody.content['application/json'].schema;
-      expect(properties.title?.maxLength).toBe(NOTE_LIMITS.title);
-      expect(properties.body?.maxLength).toBe(NOTE_LIMITS.body);
-    }
-  });
+    },
+  );
 });
 
 describe('editing a note', () => {
