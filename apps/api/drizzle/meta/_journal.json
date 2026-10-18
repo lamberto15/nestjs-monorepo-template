@@ -225,6 +225,13 @@
       "when": 1792220675838,
       "tag": "0031_dizzy_moonstone",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792296056676,
+      "tag": "0032_unique_the_phantom",
+      "breakpoints": true
     }
   ]
 }

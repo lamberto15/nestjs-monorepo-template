@@ -33,10 +33,11 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "Event types to receive (see the API description), or \"*\" for all."
+                    "description": "Event types to receive (GET /v1/webhook-event-types), or \"*\" for all. An unknown type is a 400; so is the reserved webhook.test."
                   },
                   "description": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                   }
                 },
                 "required": [
@@ -343,6 +344,7 @@
         ]
       },
       "patch": {
+        "description": "`description: null` clears it; an empty string is a 400.",
         "operationId": "WebhookEndpointsController_update_v1",
         "parameters": [
           {
@@ -369,11 +371,13 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "Event types to receive (see the API description), or \"*\" for all."
+                    "description": "Event types to receive (GET /v1/webhook-event-types), or \"*\" for all. An unknown type is a 400; so is the reserved webhook.test."
                   },
                   "description": {
+                    "description": "null clears it (an empty string is refused: 400); absent leaves it as it is.",
                     "nullable": true,
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                   },
                   "enabled": {
                     "type": "boolean"
@@ -558,15 +562,220 @@
         ]
       }
     },
+    "/v1/webhook-endpoints/{id}/test": {
+      "post": {
+        "description": "Sends the reserved `webhook.test` event (`data`: `{ endpointId, test: true }`) to this endpoint alone, whatever it subscribed to, signed and retried as any webhook. Returns the delivery, pending: follow it at GET …/webhook-deliveries/{id}. A disabled endpoint gets no request (the delivery fails: endpoint-disabled).",
+        "operationId": "WebhookEndpointsController_test_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "description": "The webhook-id header: the same on every attempt and replay."
+                    },
+                    "endpointId": {
+                      "type": "string"
+                    },
+                    "tenant": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "succeeded",
+                        "failed"
+                      ]
+                    },
+                    "attempts": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextAttemptAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "lastAttemptAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "lastStatusCode": {
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "lastError": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "failureReason": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "exhausted",
+                        "rejected",
+                        "endpoint-disabled",
+                        "endpoint-deleted"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "completedAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "messageId",
+                    "endpointId",
+                    "tenant",
+                    "type",
+                    "status",
+                    "attempts",
+                    "nextAttemptAt",
+                    "lastAttemptAt",
+                    "lastStatusCode",
+                    "lastError",
+                    "failureReason",
+                    "createdAt",
+                    "completedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Send a test event to the endpoint",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
     "/v1/webhook-deliveries": {
       "get": {
+        "description": "Newest first, paged by cursor (`limit`, `cursor` = the previous `nextCursor`). Filter flat (`?status=failed&endpointId=…&type.startsWith=note.&createdAt.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=-attempts`, pick fields with `fields=status,type`; `count=true` adds `total`.",
         "operationId": "WebhookDeliveriesController_list_v1",
         "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
           {
             "name": "endpointId",
             "required": false,
             "in": "query",
+            "description": "Filter: endpointId =",
             "schema": {
+              "description": "Filter: endpointId =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "endpointId.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: endpointId in",
+            "schema": {
+              "description": "Filter: endpointId in",
               "type": "string"
             }
           },
@@ -574,7 +783,9 @@
             "name": "status",
             "required": false,
             "in": "query",
+            "description": "Filter: status =",
             "schema": {
+              "description": "Filter: status =",
               "type": "string",
               "enum": [
                 "pending",
@@ -584,12 +795,156 @@
             }
           },
           {
+            "name": "status.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: status in",
+            "schema": {
+              "description": "Filter: status in",
+              "type": "string"
+            }
+          },
+          {
             "name": "type",
             "required": false,
             "in": "query",
-            "description": "An event type, such as note.published.",
+            "description": "Filter: type =",
             "schema": {
-              "description": "An event type, such as note.published.",
+              "description": "Filter: type =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "type.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: type in",
+            "schema": {
+              "description": "Filter: type in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "type.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: type startsWith",
+            "schema": {
+              "description": "Filter: type startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "attempts.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: attempts gte",
+            "schema": {
+              "description": "Filter: attempts gte",
+              "type": "number"
+            }
+          },
+          {
+            "name": "attempts.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: attempts lte",
+            "schema": {
+              "description": "Filter: attempts lte",
+              "type": "number"
+            }
+          },
+          {
+            "name": "createdAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gt",
+            "schema": {
+              "description": "Filter: createdAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gte",
+            "schema": {
+              "description": "Filter: createdAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lt",
+            "schema": {
+              "description": "Filter: createdAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lte",
+            "schema": {
+              "description": "Filter: createdAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt between",
+            "schema": {
+              "description": "Filter: createdAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"endpointId\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: endpointId (eq, in); status (eq, in); type (eq, in, startsWith); attempts (gte, lte); createdAt (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"endpointId\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: endpointId (eq, in); status (eq, in); type (eq, in, startsWith); attempts (gte, lte); createdAt (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -type. Sortable: type, attempts.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -type. Sortable: type, attempts.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: messageId,endpointId. Fields: id, messageId, endpointId, tenant, type, status, attempts, nextAttemptAt, lastAttemptAt, lastStatusCode, lastError, failureReason, createdAt, completedAt.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: messageId,endpointId. Fields: id, messageId, endpointId, tenant, type, status, attempts, nextAttemptAt, lastAttemptAt, lastStatusCode, lastError, failureReason, createdAt, completedAt.",
               "type": "string"
             }
           }
@@ -695,10 +1050,45 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
                     }
                   },
                   "required": [
-                    "items"
+                    "items",
+                    "nextCursor"
                   ],
                   "additionalProperties": false
                 }
@@ -888,6 +1278,40 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "durationMs": {
+                      "type": "number",
+                      "description": "Every attempt of the log together, in milliseconds."
+                    },
+                    "lastRequest": {
+                      "nullable": true,
+                      "description": "The request of the latest attempt; null before the first.",
+                      "type": "object",
+                      "properties": {
+                        "attempt": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "1-based, within its round."
+                        },
+                        "sentAt": {
+                          "type": "number",
+                          "description": "Epoch milliseconds."
+                        },
+                        "headers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          },
+                          "description": "As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret."
+                        }
+                      },
+                      "required": [
+                        "attempt",
+                        "sentAt",
+                        "headers"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -906,7 +1330,9 @@
                     "createdAt",
                     "completedAt",
                     "message",
-                    "history"
+                    "history",
+                    "durationMs",
+                    "lastRequest"
                   ],
                   "additionalProperties": false
                 }
@@ -925,7 +1351,7 @@
             "api-key": []
           }
         ],
-        "summary": "One delivery, with the message sent and every attempt",
+        "summary": "One delivery, with the message sent, every attempt, their duration and the last request",
         "tags": [
           "webhooks"
         ]
@@ -1047,6 +1473,1752 @@
         "summary": "Retry every failed delivery since an outage began",
         "tags": [
           "webhooks"
+        ]
+      }
+    },
+    "/v1/webhook-event-types": {
+      "get": {
+        "description": "Declared by the features (`PlatformModule.forRoot({ eventTypes })`, a record's `events`) and the platform (notifications, approvals), each with its description when one is declared. `\"*\"` subscribes to all of them; any other type is a 400 on create. The reserved test event (`webhook.test`) is not among them.",
+        "operationId": "WebhookEventTypesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "group": {
+                            "type": "string",
+                            "description": "The feature: the types' first segment unless declared."
+                          },
+                          "types": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "example": "note.published"
+                                },
+                                "description": {
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "group",
+                          "types"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The event types an endpoint may subscribe to, by feature",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-endpoints": {
+      "post": {
+        "description": "The secret is in the response, this once. Send an Idempotency-Key to retry safely.",
+        "operationId": "ClientWebhooksController_create_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.\n\nIn Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "generate"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "A public https:// URL. Private and cloud-metadata addresses are refused."
+                  },
+                  "eventTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Event types to receive (GET /v1/webhook-event-types), or \"*\" for all. An unknown type is a 400; so is the reserved webhook.test."
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "url",
+                  "eventTypes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "tenant": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "eventTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "description": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "disabledReason": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "failing",
+                        "gone"
+                      ]
+                    },
+                    "failingSince": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "updatedAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "secret": {
+                      "type": "string",
+                      "description": "Standard Webhooks whsec_…: verify the signatures with it. Shown this once."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "tenant",
+                    "url",
+                    "eventTypes",
+                    "description",
+                    "enabled",
+                    "disabledReason",
+                    "failingSince",
+                    "createdAt",
+                    "updatedAt",
+                    "secret"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refused URL (not https, a private or cloud-metadata address) or an unknown event type."
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Subscribe a URL to the client's events",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      },
+      "get": {
+        "operationId": "ClientWebhooksController_list_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "tenant": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "eventTypes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "description": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "disabledReason": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": [
+                              "manual",
+                              "failing",
+                              "gone"
+                            ]
+                          },
+                          "failingSince": {
+                            "nullable": true,
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          },
+                          "createdAt": {
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          },
+                          "updatedAt": {
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "tenant",
+                          "url",
+                          "eventTypes",
+                          "description",
+                          "enabled",
+                          "disabledReason",
+                          "failingSince",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The client's endpoints",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-endpoints/{id}": {
+      "get": {
+        "operationId": "ClientWebhooksController_get_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "tenant": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "eventTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "description": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "disabledReason": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "failing",
+                        "gone"
+                      ]
+                    },
+                    "failingSince": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "updatedAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "tenant",
+                    "url",
+                    "eventTypes",
+                    "description",
+                    "enabled",
+                    "disabledReason",
+                    "failingSince",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "One of its endpoints",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      },
+      "patch": {
+        "description": "`description: null` clears it; an empty string is a 400.",
+        "operationId": "ClientWebhooksController_update_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "eventTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Event types to receive (GET /v1/webhook-event-types), or \"*\" for all. An unknown type is a 400; so is the reserved webhook.test."
+                  },
+                  "description": {
+                    "description": "null clears it (an empty string is refused: 400); absent leaves it as it is.",
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "tenant": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "eventTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "description": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "disabledReason": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "failing",
+                        "gone"
+                      ]
+                    },
+                    "failingSince": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "updatedAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "tenant",
+                    "url",
+                    "eventTypes",
+                    "description",
+                    "enabled",
+                    "disabledReason",
+                    "failingSince",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Change an endpoint; only what is sent changes",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      },
+      "delete": {
+        "operationId": "ClientWebhooksController_delete_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Unsubscribe",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-endpoints/{id}/rotate-secret": {
+      "post": {
+        "description": "The new secret is in the response, this once; the old one keeps signing next to it for 24 hours.",
+        "operationId": "ClientWebhooksController_rotateSecret_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "string",
+                      "description": "The new whsec_…. The old one keeps signing next to it for 24 hours."
+                    }
+                  },
+                  "required": [
+                    "secret"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Rotate the endpoint's signing secret",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-endpoints/{id}/test": {
+      "post": {
+        "description": "Sends the reserved `webhook.test` event (`data`: `{ endpointId, test: true }`) to this endpoint alone, whatever it subscribed to, signed and retried as any webhook. Returns the delivery, pending: follow it at GET …/webhook-deliveries/{id}. A disabled endpoint gets no request (the delivery fails: endpoint-disabled).",
+        "operationId": "ClientWebhooksController_test_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "description": "The webhook-id header: the same on every attempt and replay."
+                    },
+                    "endpointId": {
+                      "type": "string"
+                    },
+                    "tenant": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "succeeded",
+                        "failed"
+                      ]
+                    },
+                    "attempts": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextAttemptAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "lastAttemptAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "lastStatusCode": {
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "lastError": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "failureReason": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "exhausted",
+                        "rejected",
+                        "endpoint-disabled",
+                        "endpoint-deleted"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "completedAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "messageId",
+                    "endpointId",
+                    "tenant",
+                    "type",
+                    "status",
+                    "attempts",
+                    "nextAttemptAt",
+                    "lastAttemptAt",
+                    "lastStatusCode",
+                    "lastError",
+                    "failureReason",
+                    "createdAt",
+                    "completedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Send a test event to the endpoint",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-deliveries": {
+      "get": {
+        "description": "Newest first, paged by cursor (`limit`, `cursor` = the previous `nextCursor`). Filter flat (`?status=failed&endpointId=…&type.startsWith=note.&createdAt.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=-attempts`, pick fields with `fields=status,type`; `count=true` adds `total`.",
+        "operationId": "ClientWebhooksController_deliveries_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "endpointId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: endpointId =",
+            "schema": {
+              "description": "Filter: endpointId =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "endpointId.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: endpointId in",
+            "schema": {
+              "description": "Filter: endpointId in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter: status =",
+            "schema": {
+              "description": "Filter: status =",
+              "type": "string",
+              "enum": [
+                "pending",
+                "succeeded",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "status.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: status in",
+            "schema": {
+              "description": "Filter: status in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter: type =",
+            "schema": {
+              "description": "Filter: type =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "type.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: type in",
+            "schema": {
+              "description": "Filter: type in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "type.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: type startsWith",
+            "schema": {
+              "description": "Filter: type startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "attempts.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: attempts gte",
+            "schema": {
+              "description": "Filter: attempts gte",
+              "type": "number"
+            }
+          },
+          {
+            "name": "attempts.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: attempts lte",
+            "schema": {
+              "description": "Filter: attempts lte",
+              "type": "number"
+            }
+          },
+          {
+            "name": "createdAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gt",
+            "schema": {
+              "description": "Filter: createdAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gte",
+            "schema": {
+              "description": "Filter: createdAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lt",
+            "schema": {
+              "description": "Filter: createdAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lte",
+            "schema": {
+              "description": "Filter: createdAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt between",
+            "schema": {
+              "description": "Filter: createdAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"endpointId\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: endpointId (eq, in); status (eq, in); type (eq, in, startsWith); attempts (gte, lte); createdAt (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"endpointId\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: endpointId (eq, in); status (eq, in); type (eq, in, startsWith); attempts (gte, lte); createdAt (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -type. Sortable: type, attempts.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -type. Sortable: type, attempts.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: messageId,endpointId. Fields: id, messageId, endpointId, tenant, type, status, attempts, nextAttemptAt, lastAttemptAt, lastStatusCode, lastError, failureReason, createdAt, completedAt.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: messageId,endpointId. Fields: id, messageId, endpointId, tenant, type, status, attempts, nextAttemptAt, lastAttemptAt, lastStatusCode, lastError, failureReason, createdAt, completedAt.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "messageId": {
+                            "type": "string",
+                            "description": "The webhook-id header: the same on every attempt and replay."
+                          },
+                          "endpointId": {
+                            "type": "string"
+                          },
+                          "tenant": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "succeeded",
+                              "failed"
+                            ]
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "nextAttemptAt": {
+                            "nullable": true,
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          },
+                          "lastAttemptAt": {
+                            "nullable": true,
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          },
+                          "lastStatusCode": {
+                            "nullable": true,
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "lastError": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "failureReason": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": [
+                              "exhausted",
+                              "rejected",
+                              "endpoint-disabled",
+                              "endpoint-deleted"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          },
+                          "completedAt": {
+                            "nullable": true,
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "messageId",
+                          "endpointId",
+                          "tenant",
+                          "type",
+                          "status",
+                          "attempts",
+                          "nextAttemptAt",
+                          "lastAttemptAt",
+                          "lastStatusCode",
+                          "lastError",
+                          "failureReason",
+                          "createdAt",
+                          "completedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+                      "type": "string"
+                    },
+                    "page": {
+                      "description": "With `page`: this page.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextPage": {
+                      "description": "With `page`: the next page; null: no more.",
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageCount": {
+                      "description": "With `page` and `count=true`: ceil(total / limit).",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "totalCapped": {
+                      "description": "true: there are more than `total` (show \"10,000+\").",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The client's delivery log, newest first",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-deliveries/{id}": {
+      "get": {
+        "operationId": "ClientWebhooksController_delivery_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "description": "The webhook-id header: the same on every attempt and replay."
+                    },
+                    "endpointId": {
+                      "type": "string"
+                    },
+                    "tenant": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "succeeded",
+                        "failed"
+                      ]
+                    },
+                    "attempts": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nextAttemptAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "lastAttemptAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "lastStatusCode": {
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "lastError": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "failureReason": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "exhausted",
+                        "rejected",
+                        "endpoint-disabled",
+                        "endpoint-deleted"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "completedAt": {
+                      "nullable": true,
+                      "type": "number",
+                      "description": "Epoch milliseconds."
+                    },
+                    "message": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "tenant": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "body": {
+                          "type": "string",
+                          "description": "The exact JSON that was signed and sent."
+                        },
+                        "createdAt": {
+                          "type": "number",
+                          "description": "Epoch milliseconds."
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "tenant",
+                        "body",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "deliveryId": {
+                            "type": "string"
+                          },
+                          "attempt": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "at": {
+                            "type": "number",
+                            "description": "Epoch milliseconds."
+                          },
+                          "durationMs": {
+                            "type": "number"
+                          },
+                          "statusCode": {
+                            "nullable": true,
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "response": {
+                            "nullable": true,
+                            "description": "The first 4 KB of the response body.",
+                            "type": "string"
+                          },
+                          "error": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "deliveryId",
+                          "attempt",
+                          "at",
+                          "durationMs",
+                          "statusCode",
+                          "response",
+                          "error"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "durationMs": {
+                      "type": "number",
+                      "description": "Every attempt of the log together, in milliseconds."
+                    },
+                    "lastRequest": {
+                      "nullable": true,
+                      "description": "The request of the latest attempt; null before the first.",
+                      "type": "object",
+                      "properties": {
+                        "attempt": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "1-based, within its round."
+                        },
+                        "sentAt": {
+                          "type": "number",
+                          "description": "Epoch milliseconds."
+                        },
+                        "headers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          },
+                          "description": "As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret."
+                        }
+                      },
+                      "required": [
+                        "attempt",
+                        "sentAt",
+                        "headers"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "messageId",
+                    "endpointId",
+                    "tenant",
+                    "type",
+                    "status",
+                    "attempts",
+                    "nextAttemptAt",
+                    "lastAttemptAt",
+                    "lastStatusCode",
+                    "lastError",
+                    "failureReason",
+                    "createdAt",
+                    "completedAt",
+                    "message",
+                    "history",
+                    "durationMs",
+                    "lastRequest"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "One delivery, with the message sent, every attempt, their duration and the last request",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-deliveries/{id}/retry": {
+      "post": {
+        "description": "Same webhook-id and body.",
+        "operationId": "ClientWebhooksController_retry_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "retried": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "How many deliveries were sent again."
+                    }
+                  },
+                  "required": [
+                    "retried"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Send one delivery again, now",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
+    "/v1/access/clients/{clientId}/webhook-deliveries/retry": {
+      "post": {
+        "operationId": "ClientWebhooksController_retryFailed_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "endpointId": {
+                    "description": "One endpoint's failed deliveries; every endpoint's without it.",
+                    "type": "string"
+                  },
+                  "since": {
+                    "description": "Deliveries created at or after this time: the start of the outage.",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "retried": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "How many deliveries were sent again."
+                    }
+                  },
+                  "required": [
+                    "retried"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Retry every failed delivery since an outage began",
+        "tags": [
+          "webhooks",
+          "access"
         ]
       }
     },
@@ -6313,6 +8485,119 @@
                       ],
                       "additionalProperties": false,
                       "description": "The list's limits, the same on every list."
+                    },
+                    "capabilities": {
+                      "type": "object",
+                      "properties": {
+                        "tags": {
+                          "type": "boolean",
+                          "description": "Tags on the records (`…/{id}/tags`) and the `tag` filter."
+                        },
+                        "comments": {
+                          "type": "boolean",
+                          "description": "Comments and @mentions (`…/{id}/comments`)."
+                        },
+                        "attachments": {
+                          "type": "boolean",
+                          "description": "Files on the records (`…/{id}/attachments`); what a file may be is `attachmentLimits`."
+                        },
+                        "revisions": {
+                          "type": "boolean",
+                          "description": "History, diff and restore (`…/{id}/revisions`)."
+                        },
+                        "pdf": {
+                          "type": "boolean",
+                          "description": "A PDF of a record (`…/{id}/pdf`). False when this deployment has no Gotenberg (the routes answer 503)."
+                        },
+                        "bulk": {
+                          "type": "boolean",
+                          "description": "Many records at once (`…/bulk`)."
+                        },
+                        "watch": {
+                          "type": "boolean",
+                          "description": "Watching a record (`…/{id}/watch`): its watchers are told of changes."
+                        },
+                        "search": {
+                          "type": "boolean",
+                          "description": "`q=` on the list, and the records in GET /v1/search."
+                        },
+                        "transfer": {
+                          "type": "boolean",
+                          "description": "Exports and imports (POST /v1/data/exports, /v1/data/imports)."
+                        },
+                        "custom": {
+                          "type": "boolean",
+                          "description": "Custom fields (GET /v1/custom-fields?subject=…): `custom.<key>` in the list."
+                        },
+                        "events": {
+                          "type": "boolean",
+                          "description": "Webhook events of its changes (`<item>.created`…). False with WEBHOOKS=off."
+                        },
+                        "numbered": {
+                          "type": "boolean",
+                          "description": "A human-readable number (`number`, `INV-2026-00042`)."
+                        },
+                        "approvals": {
+                          "type": "boolean",
+                          "description": "An action on the records may need approval (GET /v1/approvals)."
+                        }
+                      },
+                      "required": [
+                        "tags",
+                        "comments",
+                        "attachments",
+                        "revisions",
+                        "pdf",
+                        "bulk",
+                        "watch",
+                        "search",
+                        "transfer",
+                        "custom",
+                        "events",
+                        "numbered",
+                        "approvals"
+                      ],
+                      "additionalProperties": false,
+                      "description": "What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers."
+                    },
+                    "attachmentLimits": {
+                      "nullable": true,
+                      "description": "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
+                      "type": "object",
+                      "properties": {
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.",
+                          "example": 26214400
+                        },
+                        "maxMb": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "The same, in MB (ATTACHMENT_MAX_MB).",
+                          "example": 25
+                        },
+                        "types": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.",
+                          "example": [
+                            "image/png",
+                            "application/pdf",
+                            "text/plain"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "maxBytes",
+                        "maxMb",
+                        "types"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -6322,7 +8607,9 @@
                     "search",
                     "recycleBin",
                     "defaultSort",
-                    "limits"
+                    "limits",
+                    "capabilities",
+                    "attachmentLimits"
                   ],
                   "additionalProperties": false
                 }
@@ -6353,6 +8640,108 @@
         "summary": "A subject's list: its filters, operators, sorts and fields",
         "tags": [
           "lists"
+        ]
+      }
+    },
+    "/v1/people": {
+      "get": {
+        "description": "The active members of your tenant whose name contains `q`, by name: each one's key (`user:<id>`, what `@user:<id>` mentions) and name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).",
+        "operationId": "PeopleController_list_v1",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the name, any case (`%` and `_` are themselves). Absent: the first by name.",
+            "schema": {
+              "description": "Part of the name, any case (`%` and `_` are themselves). Absent: the first by name.",
+              "example": "maya",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "The principal key, `user:<id>`: mention them with `@user:<id>`; the key comments (`author`) and revisions (`changedBy`) hold.",
+                            "example": "user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Maya Patel"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`q` empty or longer than 100 characters, `limit` over 20."
+          },
+          "401": {
+            "description": "No valid session or user token."
+          },
+          "403": {
+            "description": "Your session acts in no tenant (tenant_required)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Your tenant's people, by name: for @mentions",
+        "tags": [
+          "people"
         ]
       }
     },
@@ -25115,7 +27504,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, body, mentions, editedAt, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt.",
             "schema": {
               "type": "string"
             }
@@ -25147,6 +27536,12 @@
                           "author": {
                             "type": "string",
                             "description": "Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted."
+                          },
+                          "authorName": {
+                            "nullable": true,
+                            "description": "The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.",
+                            "example": "Maya Patel",
+                            "type": "string"
                           },
                           "body": {
                             "type": "string"
@@ -25180,6 +27575,7 @@
                           "subject",
                           "recordId",
                           "author",
+                          "authorName",
                           "body",
                           "mentions",
                           "editedAt",
@@ -25312,6 +27708,12 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted."
                     },
+                    "authorName": {
+                      "nullable": true,
+                      "description": "The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.",
+                      "example": "Maya Patel",
+                      "type": "string"
+                    },
                     "body": {
                       "type": "string"
                     },
@@ -25344,6 +27746,7 @@
                     "subject",
                     "recordId",
                     "author",
+                    "authorName",
                     "body",
                     "mentions",
                     "editedAt",
@@ -25447,6 +27850,12 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted."
                     },
+                    "authorName": {
+                      "nullable": true,
+                      "description": "The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.",
+                      "example": "Maya Patel",
+                      "type": "string"
+                    },
                     "body": {
                       "type": "string"
                     },
@@ -25479,6 +27888,7 @@
                     "subject",
                     "recordId",
                     "author",
+                    "authorName",
                     "body",
                     "mentions",
                     "editedAt",
@@ -26376,7 +28786,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedAt, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedByName, changedAt, createdAt, updatedAt.",
             "schema": {
               "type": "string"
             }
@@ -26450,6 +28860,12 @@
                             "type": "string",
                             "description": "Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept."
                           },
+                          "changedByName": {
+                            "nullable": true,
+                            "description": "The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.",
+                            "example": "Maya Patel",
+                            "type": "string"
+                          },
                           "changedAt": {
                             "type": "string",
                             "format": "date-time",
@@ -26475,6 +28891,7 @@
                           "changes",
                           "restoredFrom",
                           "changedBy",
+                          "changedByName",
                           "changedAt",
                           "createdAt",
                           "updatedAt"
@@ -26631,6 +29048,12 @@
                       "type": "string",
                       "description": "Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept."
                     },
+                    "changedByName": {
+                      "nullable": true,
+                      "description": "The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.",
+                      "example": "Maya Patel",
+                      "type": "string"
+                    },
                     "changedAt": {
                       "type": "string",
                       "format": "date-time",
@@ -26656,6 +29079,7 @@
                     "changes",
                     "restoredFrom",
                     "changedBy",
+                    "changedByName",
                     "changedAt",
                     "createdAt",
                     "updatedAt"

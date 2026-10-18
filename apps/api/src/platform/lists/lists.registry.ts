@@ -1,5 +1,6 @@
 import { Injectable, type Type } from '@nestjs/common';
 import type { List } from '../../core/http/list-query.js';
+import type { Capability } from '../records/record.js';
 
 /**
  * A subject's list, as GET /v1/lists/{subject} describes it: the same
@@ -9,6 +10,12 @@ export interface ListSource {
   readonly subject: string;
   /** Which record fields each list field reveals: its `reads` (`fieldsRead()`). */
   readonly list: List;
+  /**
+   * The capabilities its records take (record.ts, CAPABILITIES): a
+   * generated record's declaration's, a hand-written feature's own list.
+   * GET /v1/lists/{subject} answers them as `capabilities`.
+   */
+  readonly capabilities: readonly Capability[];
 }
 
 /**
@@ -39,13 +46,18 @@ export class ListsRegistry {
 
 /**
  * A provider that registers a subject's list (GET /v1/lists/{subject}),
- * for a feature module's providers: `listSource('Note', NOTE_LIST)`.
+ * and the capabilities its records take, for a feature module's providers:
+ * `listSource('Note', NOTE_LIST, NOTE_CAPABILITIES)`.
  */
-export function listSource(subject: string, list: List): Type {
+export function listSource(
+  subject: string,
+  list: List,
+  capabilities: readonly Capability[],
+): Type {
   @Injectable()
   class RegisteredList {
     constructor(registry: ListsRegistry) {
-      registry.register({ subject, list });
+      registry.register({ subject, list, capabilities });
     }
   }
   Object.defineProperty(RegisteredList, 'name', {

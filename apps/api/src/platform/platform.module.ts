@@ -34,6 +34,10 @@ import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
 import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
+import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
+import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
+import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
 import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
@@ -58,6 +62,9 @@ import { SuppressionsController } from './deliverability/suppressions.controller
 import { SuppressionsService } from './deliverability/suppressions.service.js';
 import { NoRealtime } from './realtime/no-realtime.js';
 import { Realtime } from './realtime/realtime.service.js';
+import { RecordActivity } from './realtime/record-activity.js';
+import { PeopleController } from './people/people.controller.js';
+import { PeopleService } from './people/people.service.js';
 import { switchedOn, whenOn } from './switches.js';
 import { FilesController } from './storage/files.controller.js';
 import { storage } from './storage/storage.config.js';
@@ -300,6 +307,8 @@ export class PlatformModule {
           }),
         }),
         WebhooksModule.forRootAsync({
+          // The package's HTTP transport, recording each request's headers for the delivery log.
+          transport: RecordingWebhookTransport,
           imports: [secretsModule],
           inject: [PLATFORM_SECRETS],
           useFactory: (platform: PlatformSecrets) =>
@@ -315,6 +324,9 @@ export class PlatformModule {
           'WEBHOOKS',
           WebhookEndpointsController,
           WebhookDeliveriesController,
+          WebhookEventTypesController,
+          // An administrator managing a client's webhooks on its behalf.
+          ClientWebhooksController,
         ),
         OpsController,
         FeaturesController,
@@ -331,6 +343,8 @@ export class PlatformModule {
         SubscriptionsController,
         SearchController,
         ListsController,
+        // The tenant's people, for @mentions (GET /v1/people).
+        PeopleController,
         AttachmentsController,
         DocumentsController,
         TagsController,
@@ -398,6 +412,8 @@ export class PlatformModule {
               webhooksStorage,
             ),
         },
+        // Both doors to a client's webhooks: its own routes and an administrator's.
+        WebhookManagementService,
         // Idempotency records in idempotency_keys; registers itself with IdempotencyStorage.
         DrizzleIdempotencyStore,
         OpsPolicy,
@@ -408,6 +424,10 @@ export class PlatformModule {
         switchedOn('REALTIME')
           ? Realtime
           : { provide: Realtime, useClass: NoRealtime },
+        // A record's comments and attachments changed: its open pages hear of it.
+        RecordActivity,
+        // The names behind principal keys, and the directory @mentions search.
+        PeopleService,
         // Exports and imports: features register their DataExporter / DataImporter.
         DataTransferRegistry,
         DataTransferService,
@@ -521,6 +541,8 @@ export class PlatformModule {
       ],
       exports: [
         Realtime,
+        RecordActivity,
+        PeopleService,
         BullModule,
         DataTransferRegistry,
         BulkRegistry,

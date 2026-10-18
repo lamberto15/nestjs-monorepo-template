@@ -161,12 +161,17 @@ export const numberFormat = (declaration: RecordDeclaration) => {
  */
 export const recordEventTypes = (declaration: RecordDeclaration) => {
   const key = recordKey(declaration);
+  const event = (action: string) => ({
+    type: `${key}.${action}`,
+    description: `${declaration.subject} record ${action}.`,
+    group: key,
+  });
   return takes(declaration, 'events')
     ? [
-        `${key}.created`,
-        `${key}.updated`,
-        `${key}.deleted`,
-        ...(declaration.softDelete ? [`${key}.restored`] : []),
+        event('created'),
+        event('updated'),
+        event('deleted'),
+        ...(declaration.softDelete ? [event('restored')] : []),
       ]
     : [];
 };

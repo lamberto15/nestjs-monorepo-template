@@ -1,8 +1,14 @@
-import type { WebhooksModuleOptions } from '@nestjs/webhooks';
+import type {
+  WebhookDeliveryOptions,
+  WebhooksModuleOptions,
+} from '@nestjs/webhooks';
 import { runsWorkers } from '../../core/config/core.env.js';
 import { NOTIFICATION_WEBHOOK_EVENT } from '../notifications/notification.types.js';
 import { APPROVAL_EVENT_TYPES } from '../approvals/approval-events.js';
-import type { PlatformOptions } from '../platform.options.js';
+import type {
+  PlatformOptions,
+  WebhookEventTypeDeclaration,
+} from '../platform.options.js';
 import { switchedOn } from '../switches.js';
 
 /**
@@ -12,20 +18,88 @@ import { switchedOn } from '../switches.js';
 export const loopbackAllowed = () =>
   process.env.WEBHOOKS_ALLOW_LOOPBACK === 'on';
 
+/**
+ * The test event (`POST …/webhook-endpoints/{id}/test`): reserved. It is
+ * not among the types an endpoint may subscribe to (creating one with it is
+ * a 400, as any unknown type), nor in the catalog; it reaches only the
+ * endpoint it was sent to, whatever that endpoint subscribed to.
+ */
+export const TEST_EVENT_TYPE = 'webhook.test';
+
+/** An event type as GET /v1/webhook-event-types lists it. */
+export interface WebhookEventTypeView {
+  type: string;
+  description: string | null;
+}
+
+/**
+ * Every event type API clients may subscribe to, declared: the features'
+ * (`PlatformModule.forRoot({ eventTypes })`, a record's `events`), then the
+ * platform's own (a notification to a client, as a webhook; approvals of
+ * its requests). In declaration order, each once.
+ */
+export function declaredEventTypes(
+  options: Pick<PlatformOptions, 'eventTypes'>,
+): Required<WebhookEventTypeDeclaration>[] {
+  const declared: (string | WebhookEventTypeDeclaration)[] = [
+    ...options.eventTypes,
+    {
+      type: NOTIFICATION_WEBHOOK_EVENT,
+      description: 'A notification to the API client (docs/notifications.md).',
+    },
+    ...APPROVAL_EVENT_TYPES.map((type) => ({
+      type,
+      description: `An approval request of the API client's: ${type.slice('approval.'.length).replace('-', ' ')}.`,
+    })),
+  ];
+  const byType = new Map<string, Required<WebhookEventTypeDeclaration>>();
+  for (const item of declared) {
+    const { type, description, group } =
+      typeof item === 'string' ? { type: item } : item;
+    if (!byType.has(type)) {
+      byType.set(type, {
+        type,
+        description: description ?? '',
+        group: group ?? type.split('.')[0]!,
+      });
+    }
+  }
+  return [...byType.values()];
+}
+
+/** The event types grouped (by feature: a type's group, its first segment by default), in declaration order. */
+export function eventTypeGroups(options: Pick<PlatformOptions, 'eventTypes'>) {
+  const groups = new Map<string, WebhookEventTypeView[]>();
+  for (const { type, description, group } of declaredEventTypes(options)) {
+    const types = groups.get(group) ?? [];
+    types.push({ type, description: description || null });
+    groups.set(group, types);
+  }
+  return [...groups].map(([group, types]) => ({ group, types }));
+}
+
+/**
+ * How deliveries are sent: the package's `delivery` options, which the
+ * recording transport's HTTP transport takes too (recording.transport.ts).
+ * Private networks and cloud metadata stay blocked either way.
+ */
+export function deliveryOptions(): WebhookDeliveryOptions {
+  const loopback = loopbackAllowed();
+  return {
+    timeout: '15s',
+    allowHttp: loopback,
+    allowedAddresses: loopback ? ['127.0.0.1/32'] : [],
+  };
+}
+
 export function webhooksOptions(
   options: PlatformOptions,
   /** The incoming senders' secrets, by sender name. */
   secrets: Record<string, string>,
 ): WebhooksModuleOptions {
-  const loopback = loopbackAllowed();
   return {
     // The types API clients may subscribe to; dispatch() refuses any other.
-    // The platform's own: a notification to a client, as a webhook; approvals of its requests.
-    eventTypes: [
-      ...options.eventTypes,
-      NOTIFICATION_WEBHOOK_EVENT,
-      ...APPROVAL_EVENT_TYPES,
-    ],
+    eventTypes: declaredEventTypes(options).map(({ type }) => type),
     // About two days of retries: growing from 5s to a 1h cap, then hourly.
     retry: {
       attempts: 50,
@@ -33,12 +107,7 @@ export function webhooksOptions(
     },
     // An endpoint that fails every attempt for five days is switched off.
     disableEndpointAfter: '5d',
-    delivery: {
-      timeout: '15s',
-      // Private networks and cloud metadata stay blocked either way.
-      allowHttp: loopback,
-      allowedAddresses: loopback ? ['127.0.0.1/32'] : [],
-    },
+    delivery: deliveryOptions(),
     worker: {
       enabled:
         switchedOn('WEBHOOKS') &&

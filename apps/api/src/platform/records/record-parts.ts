@@ -134,8 +134,8 @@ export function recordParts(
     RecordStore,
     RecordLifecycle,
     RecordPresenter,
-    // GET /v1/lists/{subject}: its list described.
-    listSource(declaration.subject, options.list),
+    // GET /v1/lists/{subject}: its list described, and its capabilities.
+    listSource(declaration.subject, options.list, declaration.capabilities),
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];

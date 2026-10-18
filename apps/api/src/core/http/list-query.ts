@@ -405,6 +405,12 @@ export interface ListOptions {
    * recycle bin (pass it to `access.sqlFilter(…, { deleted })`).
    */
   softDelete?: boolean;
+  /**
+   * What the list's ids look like, which a `cursor` carries: a UUID unless
+   * this says otherwise (a package's own ids, such as the webhook
+   * deliveries' `dlv_<UUIDv7>`, ordered the same way).
+   */
+  cursorId?: z.ZodType<string>;
 }
 
 const describeOps = (fields: Record<string, FilterField>) =>
@@ -493,6 +499,7 @@ export function listQuery(
   }
 
   const selectable = options.select ?? [];
+  const cursorId = options.cursorId ?? z.uuid();
   if (options.softDelete) {
     shape.deleted = z
       .enum(['true', 'false'])
@@ -541,8 +548,8 @@ export function listQuery(
         });
       } else if (cursor !== undefined) {
         const valid = sort?.length
-          ? decodeCursor(cursor, sort) !== undefined
-          : z.uuid().safeParse(cursor).success;
+          ? decodeCursor(cursor, sort, cursorId) !== undefined
+          : cursorId.safeParse(cursor).success;
         if (!valid) {
           ctx.addIssue({
             code: 'custom',
@@ -566,7 +573,7 @@ export function listQuery(
     .overwrite((query) => {
       const sort = query.sort as SortBy[] | undefined;
       if (sort?.length && typeof query.cursor === 'string') {
-        const decoded = decodeCursor(query.cursor, sort);
+        const decoded = decodeCursor(query.cursor, sort, cursorId);
         if (decoded) {
           query.cursor = decoded.id;
           query.after = decoded.after;

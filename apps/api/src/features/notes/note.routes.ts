@@ -1,4 +1,5 @@
 import type { RecordRouteSpec } from '../../platform/records/record-routes.js';
+import type { Capability } from '../../platform/records/record.js';
 
 /**
  * Notes' record-level routes, as the platform builds them (record-routes.ts):
@@ -12,6 +13,26 @@ export const NOTE_ROUTES: RecordRouteSpec = {
   className: 'Note',
   noun: 'note',
 };
+
+/**
+ * What notes take, as a generated record's `capabilities` says it
+ * (GET /v1/lists/Note answers them): notes.module.ts wires each by hand.
+ * A capability added there is added here too.
+ */
+export const NOTE_CAPABILITIES: readonly Capability[] = [
+  'tags',
+  'comments',
+  'attachments',
+  'revisions',
+  'pdf',
+  'bulk',
+  'watch',
+  'search',
+  'transfer',
+  'custom',
+  'events',
+  'numbered',
+];
 
 /** What notes' bulk operation offers (NoteBulk, note.bulk.ts). */
 export const NOTE_BULK_DOCS = {

@@ -1,8 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { fieldsRead } from '../../core/http/list-query.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
+import { ApprovalsRegistry } from '../approvals/approvals.registry.js';
+import { attachmentLimits } from '../attachments/attachment-limits.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
+import { PdfRenderer } from '../documents/pdf-renderer.js';
+import type { PlatformEnv } from '../platform.env.js';
+import { switchedOn } from '../switches.js';
+import { listCapabilities } from './list-capabilities.js';
 import { listMetadata } from './list-metadata.js';
 import type { ListMetadata } from './list-metadata.schemas.js';
 import { ListsRegistry, type ListSource } from './lists.registry.js';
@@ -18,6 +25,9 @@ export class ListsService {
     private readonly registry: ListsRegistry,
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
+    private readonly pdf: PdfRenderer,
+    private readonly approvals: ApprovalsRegistry,
+    private readonly config: ConfigService<PlatformEnv, true>,
   ) {}
 
   /** The subject's list, or a 404: before any permission is checked. */
@@ -62,11 +72,34 @@ export class ListsService {
       fieldsRead(list.fields, name).some((field) =>
         conditionalFields.has(field),
       );
-    return listMetadata(subject, list, {
-      hidden,
-      unmatchable,
-      labels: new Map(definitions.map((field) => [field.key, field.label])),
-      recycleBin: restore,
+    return {
+      ...listMetadata(subject, list, {
+        hidden,
+        unmatchable,
+        labels: new Map(definitions.map((field) => [field.key, field.label])),
+        recycleBin: restore,
+      }),
+      capabilities: this.capabilities(source),
+      // What the upload route enforces (AttachmentUpload reads the same).
+      attachmentLimits: source.capabilities.includes('attachments')
+        ? attachmentLimits(this.config)
+        : null,
+    };
+  }
+
+  /**
+   * What the subject's records take in this deployment: the declared
+   * capabilities, each switch read as its module reads it (documents
+   * through `PdfRenderer.enabled`, as GET /v1/features; WEBHOOKS through
+   * `switchedOn()`), and its approvable actions (ApprovalsRegistry).
+   */
+  private capabilities(source: ListSource) {
+    return listCapabilities(source.capabilities, {
+      documents: this.pdf.enabled,
+      webhooks: switchedOn('WEBHOOKS'),
+      approvals: this.approvals
+        .actions()
+        .some(({ declaration }) => declaration.subject === source.subject),
     });
   }
 }
