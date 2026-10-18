@@ -69,7 +69,12 @@
       "revokeConfirm": "Sperren",
       "reactivate": "Client wieder aktivieren",
       "revoked": "Client gesperrt.",
-      "reactivated": "Client wieder aktiviert."
+      "reactivated": "Client wieder aktiviert.",
+      "delete": "Client löschen",
+      "deleteTitle": "{{name}} endgültig löschen?",
+      "deleteDescription": "Seine Schlüssel funktionieren sofort nicht mehr, und seine Rollen, Nutzungsdaten und Webhook-Endpunkte werden mit ihm gelöscht. Das lässt sich nicht rückgängig machen: Um ihn zu stoppen und zu behalten, widerrufen Sie ihn stattdessen.",
+      "deleteConfirm": "Löschen",
+      "deleted": "{{name}} gelöscht."
     },
     "keys": {
       "title": "Schlüssel",
@@ -104,6 +109,13 @@
       "submit": "Schlüssel rotieren",
       "confirmTitle": "Schlüssel von {{name}} rotieren?",
       "confirmDescription": "Ein neuer Schlüssel wird erzeugt und einmal angezeigt. Die aktuellen Schlüssel enden nach der gewählten Übergangsfrist."
+    },
+    "roles": {
+      "title": "Rollen",
+      "description": "Was dieser Client zusätzlich zu dem darf, was jeder API-Client darf. Sie können nur Rollen vergeben, deren Berechtigungen Sie selbst haben.",
+      "save": "Rollen speichern",
+      "saved": "Rollen gespeichert.",
+      "ended": "Abgelaufene Zuweisungen (zählen nicht mehr): {{roles}}"
     }
   },
   "usage": {

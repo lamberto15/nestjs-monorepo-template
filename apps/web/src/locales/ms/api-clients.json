@@ -69,7 +69,12 @@
       "revokeConfirm": "Batalkan",
       "reactivate": "Aktifkan semula klien",
       "revoked": "Klien dibatalkan.",
-      "reactivated": "Klien diaktifkan semula."
+      "reactivated": "Klien diaktifkan semula.",
+      "delete": "Padam klien",
+      "deleteTitle": "Padam {{name}} secara kekal?",
+      "deleteDescription": "Kuncinya berhenti berfungsi serta-merta, dan peranan, penggunaan serta titik akhir webhooknya dipadam bersamanya. Ini tidak boleh dibuat asal: untuk menghentikannya dan menyimpannya, batalkan ia sebaliknya.",
+      "deleteConfirm": "Padam",
+      "deleted": "{{name}} dipadam."
     },
     "keys": {
       "title": "Kunci",
@@ -104,6 +109,13 @@
       "submit": "Putar kunci",
       "confirmTitle": "Putar kunci {{name}}?",
       "confirmDescription": "Kunci baharu dicipta dan dipaparkan sekali. Kunci semasa berhenti selepas tempoh tangguh yang anda pilih."
+    },
+    "roles": {
+      "title": "Peranan",
+      "description": "Apa yang boleh dilakukan oleh klien ini selain apa yang boleh dilakukan oleh setiap klien API. Anda hanya boleh memberi peranan yang kebenarannya anda miliki.",
+      "save": "Simpan peranan",
+      "saved": "Peranan disimpan.",
+      "ended": "Pemberian yang telah tamat (tidak lagi dikira): {{roles}}"
     }
   },
   "usage": {

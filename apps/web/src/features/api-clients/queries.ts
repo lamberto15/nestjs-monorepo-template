@@ -3,7 +3,11 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
+import {
+  unwrap,
+  type GetResponse,
+  type paths,
+} from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
 
 export type Client = GetResponse<'/v1/access/clients'>['items'][number];
@@ -16,6 +20,26 @@ export const clientsQuery = queryOptions({
   queryKey: [...clientsKey, 'list'],
   queryFn: () => unwrap(api.GET('/v1/access/clients')),
 });
+
+/** One client, never its keys' secrets (404: none such). */
+export const clientQuery = (id: string) =>
+  queryOptions({
+    queryKey: [...clientsKey, 'one', id],
+    queryFn: () =>
+      unwrap(api.GET('/v1/access/clients/{id}', { params: { path: { id } } })),
+  });
+
+type JsonBody<T> = T extends {
+  requestBody: { content: { 'application/json': infer B } };
+}
+  ? B
+  : never;
+
+/** What a create sends: the name, its daily quota and roles, at once. */
+export type CreateClientBody = JsonBody<paths['/v1/access/clients']['post']>;
+
+/** What a PATCH changes: active, the quota, the roles and their ends. */
+export type ClientChanges = JsonBody<paths['/v1/access/clients/{id}']['patch']>;
 
 /** Per UTC day and route, `from` to `to` included (yyyy-mm-dd). */
 export const usageQuery = (id: string, from: string, to: string) =>
@@ -66,22 +90,9 @@ export function useCreateClient() {
   return useMutation({
     gcTime: 0,
     meta: { errorToast: false },
-    mutationFn: async (input: { name: string; dailyQuota?: number }) => {
-      const created = await unwrap(
-        api.POST('/v1/access/clients', { body: { name: input.name } }),
-      );
-      if (input.dailyQuota !== undefined) {
-        // The create route has no quota: it is set on the client right after.
-        const updated = await unwrap(
-          api.PATCH('/v1/access/clients/{id}', {
-            params: { path: { id: created.id } },
-            body: { dailyQuota: input.dailyQuota },
-          }),
-        );
-        return { ...created, dailyQuota: updated.dailyQuota };
-      }
-      return created;
-    },
+    // The quota and roles go with the create, in its one transaction.
+    mutationFn: (body: CreateClientBody) =>
+      unwrap(api.POST('/v1/access/clients', { body })),
     onSettled: refresh,
   });
 }
@@ -105,7 +116,7 @@ export function useRotateKey(id: string) {
 export function useUpdateClient(id: string) {
   const refresh = useRefresh();
   return useMutation({
-    mutationFn: (body: { active?: boolean; dailyQuota?: number | null }) =>
+    mutationFn: (body: ClientChanges) =>
       unwrap(
         api.PATCH('/v1/access/clients/{id}', {
           params: { path: { id } },
@@ -125,5 +136,25 @@ export function useRevokeKey(id: string) {
       });
     },
     onSuccess: refresh,
+  });
+}
+
+/**
+ * Deletes the client for good (`DELETE /v1/access/clients/{id}`): its keys,
+ * roles, usage and webhook endpoints go with it. Revoking keeps it.
+ */
+export function useDeleteClient(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await unwrap(
+        api.DELETE('/v1/access/clients/{id}', { params: { path: { id } } }),
+      );
+    },
+    onSuccess: async () => {
+      // Its own query would 404 on a refetch: dropped, then the list.
+      queryClient.removeQueries({ queryKey: clientQuery(id).queryKey });
+      await queryClient.invalidateQueries({ queryKey: clientsKey });
+    },
   });
 }

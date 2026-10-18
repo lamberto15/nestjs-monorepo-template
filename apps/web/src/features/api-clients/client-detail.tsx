@@ -1,3 +1,4 @@
+import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import {
@@ -22,21 +23,31 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import { cn } from 'cn';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
+import { rolesQuery } from '@/features/access/api';
+import {
+  draftOf,
+  endInPast,
+  grantsBody,
+  isEnded,
+  type GrantDraft,
+} from '@/features/access/grants';
+import { RoleGrantsPicker } from '@/features/access/pickers';
 import { formatDateTime } from '@/lib/date-time';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { useFeature } from '@/lib/features';
 import { z } from '@/lib/zod';
 import {
-  clientsQuery,
+  clientQuery,
   isExpired,
+  useDeleteClient,
   useRevokeKey,
   useRotateKey,
   useUpdateClient,
@@ -46,15 +57,23 @@ import { SecretDialog } from './secret-dialog';
 
 const graces = ['0', '3600', '86400', '604800'] as const;
 
-/** One client: its keys (rotate, revoke), quota, state, last use. */
+/**
+ * One client, read on its own (`GET /v1/access/clients/{id}`): its keys
+ * (rotate, revoke), roles, quota, state (revoke, delete), last use.
+ */
 export function ClientDetail(props: { id: string }) {
   const { t } = useTranslation('api-clients');
-  const list = useQuery(clientsQuery);
-  const client = list.data?.items.find((item) => item.id === props.id);
+  // A 404 is this page's to say, not a toast's.
+  const read = useQuery({
+    ...clientQuery(props.id),
+    meta: { errorToast: false },
+  });
+  const client = read.data;
   const hasUsage = useFeature('usage');
-  if (list.isPending) {
+  if (read.isPending) {
     return <Spinner />;
   }
+  const missing = isApiError(read.error) && read.error.status === 404;
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <Link
@@ -91,11 +110,18 @@ export function ClientDetail(props: { id: string }) {
             )}
           </div>
           <KeysSection client={client} />
+          <RolesSection
+            // Refetched after a change: a fresh draft.
+            key={client.updatedAt}
+            client={client}
+          />
           <QuotaSection client={client} />
           <StateSection client={client} />
         </>
-      ) : (
+      ) : missing ? (
         <p className="text-sm text-muted-foreground">{t('detail.notFound')}</p>
+      ) : (
+        <FormAlert message={errorMessage(read.error)} />
       )}
     </div>
   );
@@ -217,6 +243,65 @@ function KeysSection({ client }: { client: Client }) {
   );
 }
 
+/**
+ * The client's roles, on top of what every client may do (the API's
+ * clientPermissions), each until a date if wanted. The API refuses roles the
+ * user couldn't grant. An ended grant isn't ticked (sent back without its
+ * end, it would come back for good).
+ */
+function RolesSection({ client }: { client: Client }) {
+  const { t } = useTranslation('api-clients');
+  const roles = useQuery(rolesQuery);
+  const update = useUpdateClient(client.id);
+  const [grants, setGrants] = useState<GrantDraft>(() => draftOf(client.roles));
+  const pastEnd = Object.values(grants).some((until) => endInPast(until));
+  const ended = client.roles.filter((grant) => isEnded(grant));
+  const names = new Map((roles.data ?? []).map((role) => [role.id, role.name]));
+  return (
+    <Section
+      title={t('detail.roles.title')}
+      description={t('detail.roles.description')}
+    >
+      {roles.isPending ? (
+        <Spinner />
+      ) : roles.isError ? (
+        <FormAlert message={errorMessage(roles.error)} />
+      ) : (
+        <RoleGrantsPicker
+          idPrefix="client"
+          roles={roles.data}
+          value={grants}
+          onChange={setGrants}
+          disabled={update.isPending}
+        />
+      )}
+      {ended.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {t('detail.roles.ended', {
+            roles: ended
+              .map((grant) => names.get(grant.roleId) ?? grant.roleId)
+              .join(', '),
+          })}
+        </p>
+      )}
+      <div>
+        <Button
+          disabled={update.isPending || pastEnd || !roles.isSuccess}
+          // A refusal (a role the user can't grant) is the global toast.
+          onClick={() =>
+            update.mutate(grantsBody(grants), {
+              onSuccess: () => toast.success(t('detail.roles.saved')),
+            })
+          }
+        >
+          {update.isPending && <Spinner />}
+          {t('detail.roles.save')}
+        </Button>
+      </div>
+    </Section>
+  );
+}
+
 function QuotaSection({ client }: { client: Client }) {
   const { t } = useTranslation('api-clients');
   const update = useUpdateClient(client.id);
@@ -288,42 +373,61 @@ function QuotaSection({ client }: { client: Client }) {
 function StateSection({ client }: { client: Client }) {
   const { t } = useTranslation('api-clients');
   const update = useUpdateClient(client.id);
+  const remove = useDeleteClient(client.id);
+  const navigate = useNavigate();
   return (
     <Section
       title={t('detail.state.title')}
       description={t('detail.state.activeDescription')}
     >
-      {client.active ? (
+      <div className="flex flex-wrap gap-2">
+        {client.active ? (
+          <ConfirmButton
+            variant="destructive"
+            title={t('detail.state.revokeTitle', { name: client.name })}
+            description={t('detail.state.revokeDescription')}
+            confirm={t('detail.state.revokeConfirm')}
+            onConfirm={async () => {
+              await update.mutateAsync({ active: false });
+              toast.success(t('detail.state.revoked'));
+            }}
+          >
+            {t('detail.state.revoke')}
+          </ConfirmButton>
+        ) : (
+          <div>
+            <Button
+              variant="outline"
+              disabled={update.isPending}
+              onClick={() =>
+                update.mutate(
+                  { active: true },
+                  {
+                    onSuccess: () =>
+                      toast.success(t('detail.state.reactivated')),
+                  },
+                )
+              }
+            >
+              {t('detail.state.reactivate')}
+            </Button>
+          </div>
+        )}
+        {/* For good, unlike revoking: asked first, its name in the question. */}
         <ConfirmButton
           variant="destructive"
-          title={t('detail.state.revokeTitle', { name: client.name })}
-          description={t('detail.state.revokeDescription')}
-          confirm={t('detail.state.revokeConfirm')}
+          title={t('detail.state.deleteTitle', { name: client.name })}
+          description={t('detail.state.deleteDescription')}
+          confirm={t('detail.state.deleteConfirm')}
           onConfirm={async () => {
-            await update.mutateAsync({ active: false });
-            toast.success(t('detail.state.revoked'));
+            await remove.mutateAsync();
+            toast.success(t('detail.state.deleted', { name: client.name }));
+            await navigate({ to: '/api-clients' });
           }}
         >
-          {t('detail.state.revoke')}
+          {t('detail.state.delete')}
         </ConfirmButton>
-      ) : (
-        <div>
-          <Button
-            variant="outline"
-            disabled={update.isPending}
-            onClick={() =>
-              update.mutate(
-                { active: true },
-                {
-                  onSuccess: () => toast.success(t('detail.state.reactivated')),
-                },
-              )
-            }
-          >
-            {t('detail.state.reactivate')}
-          </Button>
-        </div>
-      )}
+      </div>
     </Section>
   );
 }

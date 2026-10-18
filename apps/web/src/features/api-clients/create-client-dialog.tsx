@@ -8,20 +8,37 @@ import {
   DialogTitle,
 } from '@nestjs-monorepo-template/ui/components/dialog';
 import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
+import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { rolesQuery } from '@/features/access/api';
+import {
+  endInPast,
+  grantsBody,
+  type GrantDraft,
+} from '@/features/access/grants';
+import { RoleGrantsPicker } from '@/features/access/pickers';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { z } from '@/lib/zod';
+import type { CreateClientBody } from './queries';
 
-/** Name and an optional daily quota; `onCreate` makes the client. */
+/**
+ * Name, an optional daily quota and roles (on top of what every client may
+ * do, each until a date if wanted); `onCreate` makes the client with all of
+ * them in one call.
+ */
 export function CreateClientDialog(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (input: { name: string; dailyQuota?: number }) => Promise<unknown>;
+  onCreate: (body: CreateClientBody) => Promise<unknown>;
 }) {
   const { t } = useTranslation('api-clients');
   const [error, setError] = useState<string>();
+  const roles = useQuery({ ...rolesQuery, enabled: props.open });
+  const [grants, setGrants] = useState<GrantDraft>({});
+  const pastEnd = Object.values(grants).some((until) => endInPast(until));
   const form = useAppForm({
     defaultValues: { name: '', dailyQuota: '' },
     validators: {
@@ -37,14 +54,19 @@ export function CreateClientDialog(props: {
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
+      if (pastEnd) return;
+      const { roleIds, roleExpiresAt } = grantsBody(grants);
       try {
         await props.onCreate({
           name: value.name.trim(),
           ...(value.dailyQuota.trim() && {
             dailyQuota: Number(value.dailyQuota),
           }),
+          ...(roleIds.length > 0 && { roleIds }),
+          ...(Object.keys(roleExpiresAt).length > 0 && { roleExpiresAt }),
         });
         form.reset();
+        setGrants({});
         props.onOpenChange(false);
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
@@ -55,7 +77,7 @@ export function CreateClientDialog(props: {
   });
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('create.title')}</DialogTitle>
           <DialogDescription>{t('create.description')}</DialogDescription>
@@ -86,6 +108,20 @@ export function CreateClientDialog(props: {
                 />
               )}
             </form.AppField>
+            {roles.isPending ? (
+              <Spinner />
+            ) : roles.isError ? (
+              <FormAlert message={errorMessage(roles.error)} />
+            ) : (
+              roles.data.length > 0 && (
+                <RoleGrantsPicker
+                  idPrefix="client"
+                  roles={roles.data}
+                  value={grants}
+                  onChange={setGrants}
+                />
+              )
+            )}
             <DialogFooter>
               <Button
                 type="button"

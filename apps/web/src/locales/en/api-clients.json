@@ -69,7 +69,12 @@
       "revokeConfirm": "Revoke",
       "reactivate": "Reactivate client",
       "revoked": "Client revoked.",
-      "reactivated": "Client reactivated."
+      "reactivated": "Client reactivated.",
+      "delete": "Delete client",
+      "deleteTitle": "Delete {{name}} for good?",
+      "deleteDescription": "Its keys stop working at once, and its roles, usage and webhook endpoints are deleted with it. This can't be undone: to stop it and keep it, revoke it instead.",
+      "deleteConfirm": "Delete",
+      "deleted": "{{name}} deleted."
     },
     "keys": {
       "title": "Keys",
@@ -104,6 +109,13 @@
       "submit": "Rotate key",
       "confirmTitle": "Rotate the key of {{name}}?",
       "confirmDescription": "A new key is made and shown once. The current keys stop working after the grace period you chose."
+    },
+    "roles": {
+      "title": "Roles",
+      "description": "What this client may do on top of what every API client may. You can only give roles whose permissions you hold.",
+      "save": "Save roles",
+      "saved": "Roles saved.",
+      "ended": "Ended grants (no longer count): {{roles}}"
     }
   },
   "usage": {
