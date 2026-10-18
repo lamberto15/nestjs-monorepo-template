@@ -68,7 +68,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Need | Read |
 | --- | --- |
 | Where things are, the processes, how features plug in | [docs/architecture.md](docs/architecture.md) |
-| The monorepo: root scripts, Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
+| The monorepo: root scripts (`pnpm dev`: API and web; `dev:api`, `dev:web`), Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
 | The frontend (apps/web, packages/ui: Vite, TanStack Router/Query, shadcn + Dice UI) | [docs/monorepo.md](docs/monorepo.md) |
 | Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer, the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
 | A new feature: `pnpm feature:add` (`tools/feature`, the `/add-feature` skill); changing one: edit its `<item>.record.ts` (fields, capabilities), then `pnpm feature:sync` (`platform/fields`, `platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md), "Changing a feature" |

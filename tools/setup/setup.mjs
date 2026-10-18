@@ -335,7 +335,7 @@ async function wizard(values, io) {
   out(
     target === 'production'
       ? '\nNext: docker compose up -d --build (docs/deployment.md).'
-      : '\nNext: pnpm services:up && pnpm start:dev (docs/development.md).',
+      : '\nNext: pnpm services:up && pnpm dev (the API and the web app; docs/development.md).',
   );
   return 0;
 }

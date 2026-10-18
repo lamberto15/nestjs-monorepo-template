@@ -17,7 +17,7 @@ fi
 cat <<'TEXT'
 
 Ready. From /workspace:
-  pnpm start:dev        the API and the workers: http://localhost:3000/api
+  pnpm dev:api          the API and the workers: http://localhost:3000/api
   pnpm db:seed:demo     demo users and notes (their passwords are printed once)
   pnpm test:e2e         on this container's PostgreSQL and Redis
 TEXT

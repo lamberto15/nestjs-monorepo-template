@@ -47,7 +47,7 @@ generator (`pnpm feature:add`), never from a copy.
 pnpm install
 pnpm setup                # first run: a few questions, writes apps/api/.env.development (or the root .env: --target production)
 pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES), Gotenberg (PDF)
-pnpm start:dev            # http://localhost:3000/api
+pnpm dev                  # the API (http://localhost:3000/api) and the web app (http://localhost:5173)
 pnpm db:seed:demo         # optional: demo users and teams, and each feature's demo data (passwords printed once)
 ```
 

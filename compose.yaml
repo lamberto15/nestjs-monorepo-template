@@ -1,6 +1,6 @@
 # What development and production share: PostgreSQL and Redis.
 #
-#   Development:  pnpm services:up   (compose.yaml + compose.dev.yaml), then pnpm start:dev
+#   Development:  pnpm services:up   (compose.yaml + compose.dev.yaml), then pnpm dev
 #   Production:   docker compose up -d --build   (.env sets COMPOSE_FILE=compose.yaml:compose.prod.yaml)
 #
 # For a larger production, point DATABASE_URL and REDIS_URL at managed
