@@ -173,7 +173,7 @@ export function TeamMembers(props: { teamId: string }) {
               <TableCell>
                 <div className="flex flex-col">
                   <span className="font-medium">
-                    {member.name ?? member.email}
+                    {member.name || member.email}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {member.email}

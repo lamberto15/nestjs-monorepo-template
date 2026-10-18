@@ -1,3 +1,6 @@
+import type { GetResponse } from '@nestjs-monorepo-template/api-client';
+import type { RoleBody } from '@/features/access/api';
+
 /**
  * The role editor's model: `GET /v1/access/catalog` and a role's stored
  * permissions turned into what the editor shows, and back into the body of
@@ -15,48 +18,19 @@
  *   grants all of them, `[]` none of them, a list only those.
  */
 
-export interface CatalogCondition {
-  key: string;
-  label: string;
-  description: string;
-  input: { name: string; label: string; type: 'text' | 'cents' } | null;
-}
+/** `GET /v1/access/catalog`: every subject, its actions and their conditions. */
+export type Catalog = GetResponse<'/v1/access/catalog'>;
+export type CatalogSubject = Catalog['subjects'][number];
+export type CatalogAction = CatalogSubject['actions'][number];
+export type CatalogCondition = CatalogAction['conditions'][number];
+export type CatalogField = CatalogSubject['fields'][number];
 
-export interface CatalogAction {
-  action: string;
-  label: string;
-  conditions: CatalogCondition[];
-}
-
-export interface CatalogField {
-  field: string;
-  label: string;
-  sensitive: boolean;
-}
-
-export interface CatalogSubject {
-  subject: string;
-  label: string;
-  fields: CatalogField[];
-  actions: CatalogAction[];
-}
-
-export interface Catalog {
-  subjects: CatalogSubject[];
-}
-
-/** A permission as the access API takes and returns it. */
-export interface Permission {
-  subject: string;
-  action: string;
-  conditions: { key: string; params?: Record<string, unknown> }[];
-  fields?: string[] | null;
-}
+/** A permission as the access API returns it (a role's). */
+export type Permission =
+  GetResponse<'/v1/access/roles'>['items'][number]['permissions'][number];
 
 /** A permission as a role's request body takes it: `fields` left out for all. */
-export type RequestPermission = Omit<Permission, 'fields'> & {
-  fields?: string[];
-};
+export type RequestPermission = RoleBody['permissions'][number];
 
 /** One permission of an action: its conditions (all must hold) and fields. */
 export interface Rule {

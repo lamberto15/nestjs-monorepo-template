@@ -116,6 +116,15 @@ http://localhost:5173) side by side.
 
   The API does not publish a record's capabilities, so the page states
   them. Texts are in the `records` namespace.
+- **Picking people and API clients** (`components/principal-picker.tsx`,
+  `lib/principals.ts`): `<PrincipalPicker>` searches
+  `GET /v1/access/principals?q=` as one types (Dice UI's combobox); its value
+  is the principal's `key` (a setting's `scopeId`) or, with `by="id"`, the
+  user's id (`kind="user" active` for a delegate). `principalDirectoryQuery()`
+  reads them all to name ids (comment authors, mentions, a setting's
+  overrides). The route answers only callers who may list users or clients;
+  for anyone else the picker says so and the directory is empty. In tests,
+  `principalsHandler()` (`test/principals.ts`) answers it.
 - **Scripts:** `build` (`tsc -b && vite build`, to `dist/`), `lint`, `test`
   (Vitest, jsdom, Testing Library). Turborepo builds the client first.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,
