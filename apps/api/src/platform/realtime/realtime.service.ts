@@ -125,11 +125,23 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     if (!tenantId && principal.kind !== 'user') {
       return;
     }
-    this.server.to(principalRoom(principal, tenantId)).emit(event, data);
+    this.toRoom(principalRoom(principal, tenantId), event, data);
   }
 
-  /** To every connection in a room. */
+  /**
+   * To every connection in a room. Without a socket server, nothing: NestJS
+   * sets @WebSocketServer() only in an HTTP application, once its gateways
+   * start (docs.nestjs.com websockets/gateways, "Server and Namespace"), so a
+   * standalone application context (the demo seed, a script) has the gateway
+   * as a provider but no server, and nobody connected to tell. The same
+   * check as the lifecycle hooks above. The API and the worker both run the
+   * HTTP app, so they always have one.
+   */
   toRoom(room: string, event: string, data: unknown) {
+    if (!this.server) {
+      this.logger.debug(`No socket server: ${event} not sent`);
+      return;
+    }
     this.server.to(room).emit(event, data);
   }
 

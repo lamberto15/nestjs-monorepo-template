@@ -64,7 +64,11 @@ under it, Engineering), seven members (its administrator, two team leads,
 three editors, a viewer) in the seed roles, then each feature's own data
 (`FeatureDefinition.demo`; the example feature's: four tags and seven notes
 owned by those members, tagged, two with a comment that mentions a
-colleague, one with a text file attached). Everything is in the demo
+colleague, one with a text file attached). The administrator is an editor
+too, so an approver of the notes' publication: to try an approval, sign in
+as them, turn `notes.publishApproval` on, have an editor (a password the
+seed printed) write a note, and approve in the inbox what its publication
+asks for ([approvals](approvals.md#the-notes-example)). Everything is in the demo
 tenant: memberships, roles, teams, the features' records, the files (under
 `tenants/<id>/`), the audit entries. The people are
 `apps/api/src/demo/demo-data.ts`; a feature's data is its own

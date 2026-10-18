@@ -41,6 +41,31 @@ export const approvalSchema = z.object({
 });
 export type ApprovalView = z.infer<typeof approvalSchema>;
 
+/** What the reader may do with a request now: the decision routes' own checks. */
+export const approvalCanSchema = z
+  .object({
+    decide: z.boolean(),
+    cancel: z.boolean(),
+    resubmit: z.boolean(),
+  })
+  .describe('What you may do with it now.');
+
+/**
+ * A request as the inbox (`GET /approvals`) lists it: the list's fields,
+ * with the `can` and the `etag` its `GET /approvals/{id}` would give the
+ * reader, so a row can decide with `If-Match` without reading it first.
+ */
+export const approvalListItemSchema = approvalSchema.extend({
+  can: approvalCanSchema,
+  etag: z
+    .string()
+    .describe(
+      "The ETag `GET /v1/approvals/{id}` would send you now (it covers the request's stages, assignments, timeline and your `can`): send it as `If-Match` on a decision.",
+    )
+    .meta({ example: '"mZ1k…"' }),
+});
+export type ApprovalListItem = z.infer<typeof approvalListItemSchema>;
+
 export const assignmentSchema = z.object({
   id: z.uuid(),
   round: z.number().int(),
@@ -99,13 +124,7 @@ export const approvalDetailSchema = approvalSchema.extend({
       createdAt: z.iso.datetime(),
     }),
   ),
-  can: z
-    .object({
-      decide: z.boolean(),
-      cancel: z.boolean(),
-      resubmit: z.boolean(),
-    })
-    .describe('What you may do with it now.'),
+  can: approvalCanSchema,
 });
 export type ApprovalDetail = z.infer<typeof approvalDetailSchema>;
 

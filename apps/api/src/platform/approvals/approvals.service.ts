@@ -29,6 +29,7 @@ import {
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { validationException } from '../../core/http/problem-details.filter.js';
+import { etagOf } from '../../core/http/etag.js';
 import type { ListQuery } from '../../core/http/list-query.js';
 import {
   afterCursor,
@@ -65,7 +66,7 @@ import {
   requestCancelled,
   requestResubmitted,
 } from './approval-events.js';
-import { participates } from './approval.list.js';
+import { type ApprovalList, participates } from './approval.list.js';
 import { ApprovalPoliciesService } from './approval-policies.service.js';
 import type {
   ApprovalDetail,
@@ -588,9 +589,18 @@ export class ApprovalsService implements PersonalDataSource {
       : sql`(${participates(principal)} or ${oversee})`;
   }
 
-  /** A page of the requests the caller may read, by the inbox's filters. */
-  async page(principal: Principal, query: ListQuery, where: SQL | undefined) {
-    const filter = and(await this.readable(principal), where);
+  /**
+   * A page of the requests the caller may read, by the inbox's filters,
+   * with `?fields=` applied: each item with the `can` and the `etag` its
+   * `GET /approvals/{id}` would give the caller (`detailsOf()`, a handful
+   * of queries for the whole page). Neither is a field `?fields=` removes.
+   */
+  async page(
+    principal: Principal,
+    query: ListQuery,
+    list: Pick<ApprovalList, 'where' | 'pick'>,
+  ) {
+    const filter = and(await this.readable(principal), list.where(query));
     const [rows, total] = await Promise.all([
       this.db
         .select(getTableColumns(approvalRequests))
@@ -602,7 +612,17 @@ export class ApprovalsService implements PersonalDataSource {
       countPage(this.db, approvalRequests, filter, query),
     ]);
     const page = toPage(rows, query, total);
-    return { ...page, items: page.items.map(view) };
+    const details = await this.detailsOf(principal, page.items);
+    const picked = list.pick({ ...page, items: page.items.map(view) }, query);
+    return {
+      ...picked,
+      items: picked.items.map((item, index) => ({
+        ...item,
+        can: details[index]!.can,
+        // The tag GET /approvals/{id} sends: a decision's If-Match compares it.
+        etag: etagOf(details[index]!),
+      })),
+    };
   }
 
   /** The request, if the principal may read it; a 404 otherwise (its existence stays hidden). */
@@ -626,6 +646,24 @@ export class ApprovalsService implements PersonalDataSource {
     principal: Principal,
     row: ApprovalRequestRow,
   ): Promise<ApprovalDetail> {
+    return (await this.detailsOf(principal, [row]))[0]!;
+  }
+
+  /**
+   * The requests as `GET /approvals/{id}` shows them to the principal, in
+   * their order: one request (the route, a decision's If-Match) or a page
+   * of the inbox alike, in three queries whatever their number (their
+   * assignments, their timelines, the principal's delegations); `can.cancel`
+   * is the principal's ability, in memory.
+   */
+  private async detailsOf(
+    principal: Principal,
+    rows: readonly ApprovalRequestRow[],
+  ): Promise<ApprovalDetail[]> {
+    if (!rows.length) {
+      return [];
+    }
+    const ids = rows.map((row) => row.id);
     const assignments = await this.db
       .select({
         ...getTableColumns(approvalAssignments),
@@ -633,19 +671,71 @@ export class ApprovalsService implements PersonalDataSource {
       })
       .from(approvalAssignments)
       .leftJoin(users, eq(users.id, approvalAssignments.approverId))
-      .where(eq(approvalAssignments.requestId, row.id))
+      .where(inArray(approvalAssignments.requestId, ids))
       .orderBy(asc(approvalAssignments.id));
     const timeline = await this.db
       .select()
       .from(approvalEvents)
-      .where(eq(approvalEvents.requestId, row.id))
+      .where(inArray(approvalEvents.requestId, ids))
       .orderBy(asc(approvalEvents.id));
+    // Whom the principal stands in for now, of every subject or of one (held()'s rule).
+    const delegations =
+      principal.kind === 'user'
+        ? await this.db
+            .select({
+              from: approvalDelegations.fromUserId,
+              subject: approvalDelegations.subject,
+            })
+            .from(approvalDelegations)
+            .where(
+              and(
+                eq(approvalDelegations.toUserId, principal.id),
+                sql`${approvalDelegations.startsAt} <= now() and ${approvalDelegations.endsAt} > now()`,
+              ),
+            )
+        : [];
+    const details: ApprovalDetail[] = [];
+    for (const row of rows) {
+      details.push(
+        await this.detailFrom(
+          principal,
+          row,
+          assignments.filter((a) => a.requestId === row.id),
+          timeline.filter((event) => event.requestId === row.id),
+          new Set(
+            delegations
+              .filter((d) => d.subject === null || d.subject === row.subject)
+              .map((d) => d.from),
+          ),
+        ),
+      );
+    }
+    return details;
+  }
+
+  /** One request's detail, from its assignments, its timeline and whom the principal stands in for. */
+  private async detailFrom(
+    principal: Principal,
+    row: ApprovalRequestRow,
+    assignments: (typeof approvalAssignments.$inferSelect & {
+      approverName: string | null;
+    })[],
+    timeline: (typeof approvalEvents.$inferSelect)[],
+    delegators: ReadonlySet<string>,
+  ): Promise<ApprovalDetail> {
+    // held(): the current stage's assignments the principal decides, theirs or a delegator's.
     const decidable =
       row.status === 'pending' &&
       !row.stageOutcome &&
       principal.kind === 'user' &&
       row.requester !== principalKey(principal) &&
-      (await this.held(principal, row)).some((a) => a.status === 'pending');
+      assignments.some(
+        (a) =>
+          a.round === row.round &&
+          a.stage === row.currentStage &&
+          (a.approverId === principal.id || delegators.has(a.approverId)) &&
+          a.status === 'pending',
+      );
     const requester = row.requester === principalKey(principal);
     const open = (OPEN_STATUSES as readonly string[]).includes(row.status);
     return {

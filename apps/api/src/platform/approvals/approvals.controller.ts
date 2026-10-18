@@ -42,7 +42,7 @@ import type { Principal } from '../../iam/auth/principal.js';
 import { APPROVAL_LIST, approvalList } from './approval.list.js';
 import {
   approvalDetailSchema,
-  approvalSchema,
+  approvalListItemSchema,
   approveSchema,
   cancelSchema,
   type DecisionDto,
@@ -89,21 +89,17 @@ export class ApprovalsController {
   @ApiOperation({
     summary: 'Approval requests: your inbox, and what you asked for',
     description:
-      '`?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages.',
+      '`?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for; `?decidedByMe=true` what you decided (yourself, or standing in for someone): the history. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages. Each item has the `can` and the `etag` its `GET /v1/approvals/{id}` would give you (`?fields=` keeps them): decide from the list with `If-Match: <etag>`.',
   })
-  @ApiOkResponse({ standardSchema: pageSchema(approvalSchema) })
+  @ApiOkResponse({ standardSchema: pageSchema(approvalListItemSchema) })
   @ApiListQuery(APPROVAL_LIST)
   async list(
     @CurrentUser() user: Principal,
     @Query() raw: Record<string, unknown>,
   ) {
-    // The list bound to the caller: assignedToMe and requestedByMe are theirs.
+    // The list bound to the caller: assignedToMe, requestedByMe and decidedByMe are theirs.
     const list = approvalList(user);
-    const query = list.parse(raw);
-    return list.pick(
-      await this.approvals.page(user, query, list.where(query)),
-      query,
-    );
+    return this.approvals.page(user, list.parse(raw), list);
   }
 
   @Get(':id')

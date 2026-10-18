@@ -136,7 +136,11 @@ describe('demo seed (e2e)', () => {
     // administers that tenant alone: no operator.
     expect(result.tenant).toBe('Demo Company');
     expect(result.operators).toBe(false);
-    expect(credentials('Noah Fischer').roles).toEqual(['Administrator']);
+    // An editor too: an approver of the notes' publication (Note.publish).
+    expect(credentials('Noah Fischer').roles).toEqual([
+      'Administrator',
+      'Editor',
+    ]);
     const admin = await signIn('Noah Fischer');
     const me = (await admin.get('/v1/auth/me').expect(200)).body as {
       tenant: { slug: string } | null;

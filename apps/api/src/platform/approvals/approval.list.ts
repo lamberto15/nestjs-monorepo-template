@@ -32,6 +32,18 @@ export function assignedTo(userId: string): SQL {
   )!;
 }
 
+/**
+ * Decided by this user: a decision of theirs on any stage of any round,
+ * their own assignment or one they stood in for (`decidedBy`). The
+ * inbox's history.
+ */
+export function decidedBy(userId: string): SQL {
+  return exists(
+    sql`(select 1 from ${a} where ${a.requestId} = ${r.id}
+      and ${a.decidedBy} = ${userId})`,
+  );
+}
+
 /** Requests the principal takes part in: made them, was assigned, decided one, or may decide one now. */
 export function participates(principal: Principal): SQL {
   if (principal.kind !== 'user') {
@@ -48,8 +60,8 @@ export function participates(principal: Principal): SQL {
 }
 
 /**
- * The inbox's filters, sorts and fields. `assignedToMe` and `requestedByMe`
- * depend on the caller: the list is made per request with them bound
+ * The inbox's filters, sorts and fields. `assignedToMe`, `requestedByMe`
+ * and `decidedByMe` depend on the caller: the list is made per request with them bound
  * (`approvalList(principal)`); `APPROVAL_LIST` documents it.
  */
 export function approvalList(principal: Principal | null) {
@@ -74,6 +86,14 @@ export function approvalList(principal: Principal | null) {
         type: 'boolean',
         ops: ['eq'],
         conditions: mine((p) => eq(r.requester, principalKey(p))),
+      },
+      decidedByMe: {
+        column: r.id,
+        type: 'boolean',
+        ops: ['eq'],
+        conditions: mine((p) =>
+          p.kind === 'user' ? decidedBy(p.id) : sql`false`,
+        ),
       },
       status: {
         column: r.status,
@@ -112,6 +132,9 @@ export function approvalList(principal: Principal | null) {
     { select: Object.keys(approvalSchema.shape) },
   );
 }
+
+/** The inbox's list, bound to a caller. */
+export type ApprovalList = ReturnType<typeof approvalList>;
 
 /** For the docs of GET /approvals (the filters' parameters). */
 export const APPROVAL_LIST = approvalList(null);

@@ -1458,7 +1458,7 @@ export interface paths {
         };
         /**
          * Approval requests: your inbox, and what you asked for
-         * @description `?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages.
+         * @description `?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for; `?decidedByMe=true` what you decided (yourself, or standing in for someone): the history. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages. Each item has the `can` and the `etag` its `GET /v1/approvals/{id}` would give you (`?fields=` keeps them): decide from the list with `If-Match: <etag>`.
          */
         get: operations["ApprovalsController_list_v1"];
         put?: never;
@@ -9896,6 +9896,8 @@ export interface operations {
                 assignedToMe?: string;
                 /** @description Filter: requestedByMe = */
                 requestedByMe?: string;
+                /** @description Filter: decidedByMe = */
+                decidedByMe?: string;
                 /** @description Filter: status = */
                 status?: string;
                 /** @description Filter: status in */
@@ -9942,7 +9944,7 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"assignedToMe","op":"eq","value":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"assignedToMe","op":"eq","value":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); decidedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt. */
                 sort?: string;
@@ -10006,6 +10008,17 @@ export interface operations {
                             createdAt: string;
                             /** Format: date-time */
                             updatedAt: string;
+                            /** @description What you may do with it now. */
+                            can: {
+                                decide: boolean;
+                                cancel: boolean;
+                                resubmit: boolean;
+                            };
+                            /**
+                             * @description The ETag `GET /v1/approvals/{id}` would send you now (it covers the request's stages, assignments, timeline and your `can`): send it as `If-Match` on a decision.
+                             * @example "mZ1k…"
+                             */
+                            etag: string;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
