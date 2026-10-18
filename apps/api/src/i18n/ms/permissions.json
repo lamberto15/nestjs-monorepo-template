@@ -46,6 +46,10 @@
   },
   "note": {
     "label": "Nota (contoh)",
+    "names": {
+      "singular": "Nota",
+      "plural": "Nota"
+    },
     "actions": {
       "read": "Lihat nota",
       "create": "Tulis nota",

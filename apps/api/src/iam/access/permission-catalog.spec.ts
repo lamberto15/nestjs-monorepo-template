@@ -299,6 +299,42 @@ describe('PermissionCatalog texts', () => {
     });
   });
 
+  it("names a subject's records in the request language, else as declared, else by the subject", () => {
+    const named = definePermissions({
+      subjects: {
+        Invoice: {
+          label: 'Invoices',
+          names: { singular: 'Invoice', plural: 'Invoices' },
+          conditions: {},
+          actions: { read: { label: 'See invoices', conditions: [] } },
+        },
+      },
+    });
+    const catalog = new PermissionCatalog(
+      { permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS, named] },
+      german({
+        'permissions.invoice.names.singular': 'Rechnung',
+        'permissions.invoice.names.plural': 'Rechnungen',
+      }),
+    );
+    expect(catalog.subjectNames('Invoice')).toEqual({
+      singular: 'Rechnung',
+      plural: 'Rechnungen',
+    });
+    // Declared without names, and unknown: the subject's own name.
+    expect(catalog.subjectNames('Note')).toEqual({
+      singular: 'Note',
+      plural: 'Note',
+    });
+    expect(catalog.subjectNames('Nope')).toEqual({
+      singular: 'Nope',
+      plural: 'Nope',
+    });
+    expect(
+      new PermissionCatalog({ permissions: [named] }).subjectNames('Invoice'),
+    ).toEqual({ singular: 'Invoice', plural: 'Invoices' });
+  });
+
   it('is as declared without i18n', () => {
     const catalog = new PermissionCatalog({
       permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS],

@@ -36,6 +36,7 @@ export const NOTE_PERMISSIONS = definePermissions({
   subjects: {
     Note: {
       label: 'Notes (example)',
+      names: { singular: 'Note', plural: 'Notes' },
       // Field-level: a permission may grant reading or changing the text, or not.
       fields: {
         body: { label: "The note's text" },

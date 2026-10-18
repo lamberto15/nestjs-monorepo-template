@@ -8232,6 +8232,25 @@
                           "link": {
                             "nullable": true,
                             "type": "string"
+                          },
+                          "subjectLabel": {
+                            "type": "object",
+                            "properties": {
+                              "singular": {
+                                "type": "string",
+                                "example": "Note"
+                              },
+                              "plural": {
+                                "type": "string",
+                                "example": "Notes"
+                              }
+                            },
+                            "required": [
+                              "singular",
+                              "plural"
+                            ],
+                            "additionalProperties": false,
+                            "description": "How the subject is named, in the response's language: one record and several."
                           }
                         },
                         "required": [
@@ -8240,7 +8259,8 @@
                           "title",
                           "snippet",
                           "score",
-                          "link"
+                          "link",
+                          "subjectLabel"
                         ],
                         "additionalProperties": false
                       }
@@ -25314,7 +25334,7 @@
     },
     "/v1/access/audit": {
       "get": {
-        "description": "Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes.",
+        "description": "Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). GET /v1/lists/Audit describes it.",
         "operationId": "AccessController_auditLog_v1",
         "parameters": [
           {
@@ -25443,6 +25463,42 @@
             }
           },
           {
+            "name": "actorLabel",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel =",
+            "schema": {
+              "description": "Filter: actorLabel =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actorLabel.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel contains",
+            "schema": {
+              "description": "Filter: actorLabel contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actorLabel.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel startsWith",
+            "schema": {
+              "description": "Filter: actorLabel startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
             "name": "targetType",
             "required": false,
             "in": "query",
@@ -25552,9 +25608,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
               "type": "string",
               "maxLength": 20000
             }

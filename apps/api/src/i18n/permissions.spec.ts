@@ -37,6 +37,10 @@ function declaredTexts(definitions: PermissionsDefinition[]) {
     for (const [subject, declared] of Object.entries(definition.subjects)) {
       const own = subjectTextKey(subject);
       put([[own, 'label']], declared.label, subject);
+      if (declared.names) {
+        put([[own, 'names', 'singular']], declared.names.singular, subject);
+        put([[own, 'names', 'plural']], declared.names.plural, subject);
+      }
       for (const [action, details] of Object.entries(declared.actions)) {
         put([[own, 'actions', action]], details.label, subject);
       }
