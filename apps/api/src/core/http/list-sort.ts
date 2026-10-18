@@ -181,7 +181,12 @@ const cursorValue = (type: FilterField['type']) => {
  * 400): changed, made for another sort, sealed with a key no longer in
  * CURSOR_KEYS, or not a cursor.
  */
-export function decodeCursor(cursor: string, sort: readonly SortBy[]) {
+export function decodeCursor(
+  cursor: string,
+  sort: readonly SortBy[],
+  /** What the list's ids look like: UUIDs unless it says otherwise (`ListOptions.cursorId`). */
+  idSchema: z.ZodType<string> = z.uuid(),
+) {
   const plaintext = openCursor(cursor, cursorContext(sort));
   if (plaintext === undefined) {
     return undefined;
@@ -201,7 +206,7 @@ export function decodeCursor(cursor: string, sort: readonly SortBy[]) {
           ...z.ZodType[],
         ],
       ),
-      id: z.uuid(),
+      id: idSchema,
     })
     .safeParse(data);
   return parsed.success
