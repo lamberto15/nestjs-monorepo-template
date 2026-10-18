@@ -296,6 +296,13 @@ repeating the declaration:
   `recordParts()`; a hand-written list adds
   `listSource('<Subject>', LIST, CAPABILITIES)` to its module's providers
   (notes does, `NOTE_CAPABILITIES`; `platform/lists`).
+- **Not only records:** `GET /v1/lists/User` describes the access API's
+  users list (`GET /v1/access/users`, `USER_LIST`), to whoever may call
+  that route (`AccessPolicy.open`: a registration's `readable` replaces the
+  subject's `read` permission, which no permission names for users); no
+  capabilities, custom fields or recycle bin (`platform/lists/access-lists.ts`).
+  Roles and teams have none: their routes answer every item at once,
+  with nothing to filter, sort or page.
 - **Capabilities:** `capabilities` says which record panels and routes
   the subject has in this deployment, one boolean each: every capability
   of `record.ts` (`tags`, `comments`, `attachments`, `revisions`, `pdf`,
