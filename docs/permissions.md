@@ -31,12 +31,14 @@ export const NOTE_PERMISSIONS = definePermissions({
 Add it to `IamModule.forRoot({ permissions })`. `GET /v1/access/catalog` lists
 everything, for the roles screen, its texts in the request's language
 ([i18n](i18n-and-time.md)): `src/i18n/<locale>/permissions.json` holds them
-by subject (`subjects.<Subject>.label`, `.actions.<action>`,
-`.fields.<field>`, `.conditions.<key>.label|description|input`), the shared
-conditions once (`conditions.mine`, `conditions.inMyTeams`: a template's
-`translation`) and the system jobs (`systemJobs.<key>.label|description`).
-A text no catalog has shows as declared (English): a generated feature's,
-until it adds its keys. `src/i18n/permissions.spec.ts` checks the English
+by subject, under its name in kebab case, a feature's item key
+(`mail-suppression.label`, `note.actions.<action>`, `.fields.<field>`,
+`.conditions.<key>.label|description|input`, a feature's own jobs in
+`.systemJobs.<key>`), so `pnpm feature:remove` takes them with the
+feature's other texts; the shared conditions once (`conditions.mine`,
+`conditions.inMyTeams`: a template's `translation`), and the groups'
+system jobs (`systemJobs.<key>.label|description`). A text no catalog has
+shows as declared (English): a generated feature's, until it adds its keys. `src/i18n/permissions.spec.ts` checks the English
 file says what the declarations say.
 
 **Generated features** (`recordPermissions(RECORD, table)`) make both lists a

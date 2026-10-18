@@ -262,10 +262,10 @@ describe('PermissionCatalog texts', () => {
     const catalog = new PermissionCatalog(
       { permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS] },
       german({
-        'permissions.subjects.Note.label': 'Notizen',
-        'permissions.subjects.Note.actions.read': 'Notizen sehen',
-        'permissions.subjects.Note.fields.body': 'Der Text',
-        'permissions.subjects.Note.conditions.draft.label': 'Noch ein Entwurf',
+        'permissions.note.label': 'Notizen',
+        'permissions.note.actions.read': 'Notizen sehen',
+        'permissions.note.fields.body': 'Der Text',
+        'permissions.note.conditions.draft.label': 'Noch ein Entwurf',
         // A shared condition, translated once for every subject.
         'permissions.conditions.mine.label': 'Von mir erstellt',
         'permissions.systemJobs.audit-retention.label': 'Audit-Aufbewahrung',

@@ -88,6 +88,8 @@ export class PermissionCatalog {
   readonly seedRoles: SeedRole[];
   /** The jobs that run as the system principal, by key. */
   readonly systemJobs: ReadonlyMap<string, SystemJobDefinition>;
+  /** The subjects declared with each job (its feature's), where its texts may live too. */
+  private readonly jobSubjects = new Map<string, string[]>();
 
   constructor(
     @Inject(IAM_OPTIONS) options: IamOptions,
@@ -132,6 +134,11 @@ export class PermissionCatalog {
       }
     }
     const jobs = new Map<string, SystemJobDefinition>();
+    for (const definition of all) {
+      for (const job of definition.systemJobs ?? []) {
+        this.jobSubjects.set(job.key, Object.keys(definition.subjects));
+      }
+    }
     for (const job of all.flatMap((d) => d.systemJobs ?? [])) {
       if (!JOB_KEY.test(job.key)) {
         throw new Error(
@@ -253,14 +260,20 @@ export class PermissionCatalog {
   }
 
   /**
-   * A declared text in the current request's language: the i18n catalogs'
-   * `permissions.<key>` (src/i18n/<locale>/permissions.json) when one has
-   * it, else the declaration's own (English). The shipped subjects and jobs
-   * are translated; a feature's own are when it adds its keys.
+   * A declared text in the current request's language: the first of these
+   * keys the i18n catalogs have (`permissions.<key>`,
+   * src/i18n/<locale>/permissions.json), else the declaration's own
+   * (English). The shipped subjects and jobs are translated; a feature's
+   * own are when it adds its keys (permissionTextKeys()).
    */
-  private text(key: string[], declared: string) {
-    const path = `permissions.${key.map(i18nSegment).join('.')}`;
-    return this.i18n?.exists(path) ? this.i18n.translate(path) : declared;
+  private text(keys: string[][], declared: string) {
+    for (const key of keys) {
+      const path = `permissions.${key.map(i18nSegment).join('.')}`;
+      if (this.i18n?.exists(path)) {
+        return this.i18n.translate(path);
+      }
+    }
+    return declared;
   }
 
   /** The system jobs as GET /access/catalog returns them: who acts without a user, and what each may do. */
@@ -268,9 +281,12 @@ export class PermissionCatalog {
     return [...this.systemJobs.values()].map((job) => ({
       key: job.key,
       actor: `system:${job.key}`,
-      label: this.text(['systemJobs', job.key, 'label'], job.label),
+      label: this.text(
+        jobTextKeys(job.key, this.jobSubjects.get(job.key), 'label'),
+        job.label,
+      ),
       description: this.text(
-        ['systemJobs', job.key, 'description'],
+        jobTextKeys(job.key, this.jobSubjects.get(job.key), 'description'),
         job.description,
       ),
       permissions: job.permissions.map((permission) => ({
@@ -285,16 +301,10 @@ export class PermissionCatalog {
   /** The catalog as GET /access/catalog returns it, its texts in the request's language. */
   view() {
     return Object.entries(this.subjects).map(([subject, definition]) => {
-      const own = ['subjects', subject];
+      const own = subjectTextKey(subject);
       const condition = (key: string, template: ConditionTemplate) => {
-        // The subject's own texts, else a shared condition's (createdBy: `mine`).
         const text = (part: string, declared: string) =>
-          this.text(
-            [...own, 'conditions', key, part],
-            template.translation
-              ? this.text(['conditions', template.translation, part], declared)
-              : declared,
-          );
+          this.text(conditionTextKeys(subject, key, template, part), declared);
         return {
           key,
           label: text('label', template.label),
@@ -309,18 +319,18 @@ export class PermissionCatalog {
       };
       return {
         subject,
-        label: this.text([...own, 'label'], definition.label),
+        label: this.text([[own, 'label']], definition.label),
         fields: Object.entries(definition.fields ?? {}).map(
           ([field, details]) => ({
             field,
-            label: this.text([...own, 'fields', field], details.label),
+            label: this.text([[own, 'fields', field]], details.label),
             sensitive: details.sensitive ?? false,
           }),
         ),
         actions: Object.entries(definition.actions).map(
           ([action, details]) => ({
             action,
-            label: this.text([...own, 'actions', action], details.label),
+            label: this.text([[own, 'actions', action]], details.label),
             conditions: details.conditions.map((key) =>
               condition(key, definition.conditions[key]),
             ),
@@ -365,6 +375,44 @@ export class PermissionCatalog {
  * (a system job's `group.job`); a job's key never holds `_`.
  */
 export const i18nSegment = (name: string) => name.replaceAll('.', '_');
+
+/**
+ * Where the access catalog's texts are, in `permissions.json` (each key
+ * under `permissions.`). A subject's sit under its name in kebab case
+ * (`MailSuppression` → `mail-suppression`): a feature's item key, so
+ * `pnpm feature:remove` takes them with the feature's other texts.
+ */
+export const subjectTextKey = (subject: string) =>
+  subject.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+
+/** A condition's texts: its subject's own, else a shared condition's (`conditions.<translation>`: createdBy's `mine`). */
+export const conditionTextKeys = (
+  subject: string,
+  key: string,
+  template: Pick<ConditionTemplate, 'translation'>,
+  part: string,
+) => [
+  [subjectTextKey(subject), 'conditions', key, part],
+  ...(template.translation ? [['conditions', template.translation, part]] : []),
+];
+
+/**
+ * A system job's texts: under a subject declared with it (a feature's
+ * job, removed with the feature), else `systemJobs.<key>`.
+ */
+export const jobTextKeys = (
+  key: string,
+  subjects: readonly string[] = [],
+  part: string,
+) => [
+  ...subjects.map((subject) => [
+    subjectTextKey(subject),
+    'systemJobs',
+    key,
+    part,
+  ]),
+  ['systemJobs', key, part],
+];
 
 /** What an unknown condition stands for: no record, in CASL and in SQL. */
 const NO_MATCH: ConditionTemplate = {

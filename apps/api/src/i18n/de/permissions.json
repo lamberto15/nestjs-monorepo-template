@@ -1,69 +1,83 @@
 {
-  "subjects": {
-    "Access": {
-      "label": "Zugriffssteuerung",
-      "actions": {
-        "manageRoles": "Rollen anlegen, bearbeiten und löschen",
-        "manageUsers": "Benutzer einladen, ihre Rollen und Teams zuweisen, ihre Mitgliedschaften deaktivieren",
-        "manageClients": "API-Clients anlegen, ihre Schlüssel rotieren und widerrufen",
-        "manageTeams": "Teams anlegen, verschieben und löschen (was „in meinen Teams“ umfasst)",
-        "manageCustomFields": "Benutzerdefinierte Felder hinzufügen, ändern, umsortieren und deaktivieren (die Felder, die Administratoren Notizen und anderen Datensätzen hinzufügen)",
-        "manageSettings": "Einstellungen und Feature-Flags für alle, ein Team oder einen Benutzer festlegen (platform/settings)",
-        "manageTags": "Die Tags der Datensätze anlegen, umbenennen, umfärben und löschen (platform/tags)",
-        "readAudit": "Das Audit-Protokoll lesen",
-        "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
-        "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator"
+  "access": {
+    "label": "Zugriffssteuerung",
+    "actions": {
+      "manageRoles": "Rollen anlegen, bearbeiten und löschen",
+      "manageUsers": "Benutzer einladen, ihre Rollen und Teams zuweisen, ihre Mitgliedschaften deaktivieren",
+      "manageClients": "API-Clients anlegen, ihre Schlüssel rotieren und widerrufen",
+      "manageTeams": "Teams anlegen, verschieben und löschen (was „in meinen Teams“ umfasst)",
+      "manageCustomFields": "Benutzerdefinierte Felder hinzufügen, ändern, umsortieren und deaktivieren (die Felder, die Administratoren Notizen und anderen Datensätzen hinzufügen)",
+      "manageSettings": "Einstellungen und Feature-Flags für alle, ein Team oder einen Benutzer festlegen (platform/settings)",
+      "manageTags": "Die Tags der Datensätze anlegen, umbenennen, umfärben und löschen (platform/tags)",
+      "readAudit": "Das Audit-Protokoll lesen",
+      "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
+      "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator"
+    }
+  },
+  "approval": {
+    "label": "Genehmigungen",
+    "actions": {
+      "read": "Alle Genehmigungsanfragen sehen, nicht nur die eigenen",
+      "cancel": "Die Genehmigungsanfrage eines beliebigen Benutzers abbrechen",
+      "manage": "Eine genehmigte Anfrage aufgeben, deren Ergebnis nicht angewendet würde (POST /v1/approvals/{id}/abandon)",
+      "managePolicies": "Genehmigungsrichtlinien ändern (Stufen, Genehmigende, Fristen)"
+    },
+    "conditions": {
+      "ofSubject": {
+        "label": "Eines Gegenstands",
+        "description": "Nur Genehmigungsanfragen zu Datensätzen dieses Gegenstands (Note).",
+        "input": "Gegenstand"
+      }
+    }
+  },
+  "ops": {
+    "label": "Betrieb",
+    "actions": {
+      "view": "Den Outbox, die Dead Letters und die Live-Ereignisse sehen",
+      "manage": "Dead Letters erneut einreihen und löschen"
+    }
+  },
+  "mail-suppression": {
+    "label": "Mail-Sperrliste",
+    "actions": {
+      "view": "Die Adressen sehen, an die keine Mail gesendet wird, und warum",
+      "manage": "Eine Adresse zur Sperrliste hinzufügen oder entfernen"
+    }
+  },
+  "note": {
+    "label": "Notizen (Beispiel)",
+    "actions": {
+      "read": "Notizen sehen",
+      "create": "Notizen schreiben",
+      "update": "Notizen ändern",
+      "delete": "Notizen löschen",
+      "restore": "Gelöschte Notizen sehen und wiederherstellen"
+    },
+    "fields": {
+      "body": "Der Text der Notiz",
+      "custom": "Die benutzerdefinierten Felder"
+    },
+    "conditions": {
+      "draft": {
+        "label": "Noch ein Entwurf",
+        "description": "Nur noch nicht veröffentlichte Notizen."
       }
     },
-    "Approval": {
-      "label": "Genehmigungen",
-      "actions": {
-        "read": "Alle Genehmigungsanfragen sehen, nicht nur die eigenen",
-        "cancel": "Die Genehmigungsanfrage eines beliebigen Benutzers abbrechen",
-        "manage": "Eine genehmigte Anfrage aufgeben, deren Ergebnis nicht angewendet würde (POST /v1/approvals/{id}/abandon)",
-        "managePolicies": "Genehmigungsrichtlinien ändern (Stufen, Genehmigende, Fristen)"
-      },
-      "conditions": {
-        "ofSubject": {
-          "label": "Eines Gegenstands",
-          "description": "Nur Genehmigungsanfragen zu Datensätzen dieses Gegenstands (Note).",
-          "input": "Gegenstand"
-        }
+    "systemJobs": {
+      "note-publication": {
+        "label": "Veröffentlichung von Notizen",
+        "description": "Veröffentlicht Notizentwürfe, wenn ihre Wartezeit abläuft (oder bittet zuerst für ihre Eigentümer um Genehmigung)."
       }
+    }
+  },
+  "conditions": {
+    "mine": {
+      "label": "Von mir erstellt",
+      "description": "Nur Datensätze, die diese Person (oder dieser API-Client) erstellt hat."
     },
-    "Ops": {
-      "label": "Betrieb",
-      "actions": {
-        "view": "Den Outbox, die Dead Letters und die Live-Ereignisse sehen",
-        "manage": "Dead Letters erneut einreihen und löschen"
-      }
-    },
-    "MailSuppression": {
-      "label": "Mail-Sperrliste",
-      "actions": {
-        "view": "Die Adressen sehen, an die keine Mail gesendet wird, und warum",
-        "manage": "Eine Adresse zur Sperrliste hinzufügen oder entfernen"
-      }
-    },
-    "Note": {
-      "label": "Notizen (Beispiel)",
-      "actions": {
-        "read": "Notizen sehen",
-        "create": "Notizen schreiben",
-        "update": "Notizen ändern",
-        "delete": "Notizen löschen",
-        "restore": "Gelöschte Notizen sehen und wiederherstellen"
-      },
-      "fields": {
-        "body": "Der Text der Notiz",
-        "custom": "Die benutzerdefinierten Felder"
-      },
-      "conditions": {
-        "draft": {
-          "label": "Noch ein Entwurf",
-          "description": "Nur noch nicht veröffentlichte Notizen."
-        }
-      }
+    "inMyTeams": {
+      "label": "In meinen Teams",
+      "description": "Nur Datensätze der Teams, denen ich angehöre, und der Teams darunter."
     }
   },
   "systemJobs": {
@@ -127,23 +141,9 @@
       "label": "Aufbewahrung der Mail-Ereignisse",
       "description": "Löscht jede Nacht Bounce-, Beschwerde- und Zustellereignisse, die älter als MAIL_EVENTS_RETENTION_DAYS sind."
     },
-    "note-publication": {
-      "label": "Veröffentlichung von Notizen",
-      "description": "Veröffentlicht Notizentwürfe, wenn ihre Wartezeit abläuft (oder bittet zuerst für ihre Eigentümer um Genehmigung)."
-    },
     "demo-seed": {
       "label": "Demodaten",
       "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Teams und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."
-    }
-  },
-  "conditions": {
-    "mine": {
-      "label": "Von mir erstellt",
-      "description": "Nur Datensätze, die diese Person (oder dieser API-Client) erstellt hat."
-    },
-    "inMyTeams": {
-      "label": "In meinen Teams",
-      "description": "Nur Datensätze der Teams, denen ich angehöre, und der Teams darunter."
     }
   }
 }

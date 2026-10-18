@@ -1,69 +1,83 @@
 {
-  "subjects": {
-    "Access": {
-      "label": "Kawalan akses",
-      "actions": {
-        "manageRoles": "Cipta, sunting dan padam peranan",
-        "manageUsers": "Jemput pengguna, tetapkan peranan dan pasukan mereka, nyahaktifkan keahlian mereka",
-        "manageClients": "Cipta klien API, putar dan batalkan kunci mereka",
-        "manageTeams": "Cipta, alih dan padam pasukan (apa yang diliputi \"dalam pasukan saya\")",
-        "manageCustomFields": "Tambah, ubah, susun semula dan nyahaktifkan medan tersuai (medan yang ditambah oleh pentadbir pada nota dan rekod lain)",
-        "manageSettings": "Tetapkan tetapan dan bendera ciri untuk semua orang, satu pasukan atau seorang pengguna (platform/settings)",
-        "manageTags": "Cipta, namakan semula, warnakan semula dan padam tag yang dibawa oleh rekod (platform/tags)",
-        "readAudit": "Baca log audit",
-        "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
-        "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir"
+  "access": {
+    "label": "Kawalan akses",
+    "actions": {
+      "manageRoles": "Cipta, sunting dan padam peranan",
+      "manageUsers": "Jemput pengguna, tetapkan peranan dan pasukan mereka, nyahaktifkan keahlian mereka",
+      "manageClients": "Cipta klien API, putar dan batalkan kunci mereka",
+      "manageTeams": "Cipta, alih dan padam pasukan (apa yang diliputi \"dalam pasukan saya\")",
+      "manageCustomFields": "Tambah, ubah, susun semula dan nyahaktifkan medan tersuai (medan yang ditambah oleh pentadbir pada nota dan rekod lain)",
+      "manageSettings": "Tetapkan tetapan dan bendera ciri untuk semua orang, satu pasukan atau seorang pengguna (platform/settings)",
+      "manageTags": "Cipta, namakan semula, warnakan semula dan padam tag yang dibawa oleh rekod (platform/tags)",
+      "readAudit": "Baca log audit",
+      "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
+      "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir"
+    }
+  },
+  "approval": {
+    "label": "Kelulusan",
+    "actions": {
+      "read": "Lihat setiap permintaan kelulusan, bukan hanya milik sendiri",
+      "cancel": "Batalkan permintaan kelulusan sesiapa sahaja",
+      "manage": "Tinggalkan permintaan yang diluluskan yang hasilnya tidak akan digunakan (POST /v1/approvals/{id}/abandon)",
+      "managePolicies": "Ubah dasar kelulusan (peringkat, pelulus, tarikh akhir)"
+    },
+    "conditions": {
+      "ofSubject": {
+        "label": "Bagi satu subjek",
+        "description": "Hanya permintaan kelulusan tentang rekod subjek ini (Note).",
+        "input": "Subjek"
+      }
+    }
+  },
+  "ops": {
+    "label": "Operasi",
+    "actions": {
+      "view": "Lihat peti keluar, surat mati dan peristiwa langsung",
+      "manage": "Masukkan semula surat mati ke baris gilir dan padamkannya"
+    }
+  },
+  "mail-suppression": {
+    "label": "Senarai sekatan mel",
+    "actions": {
+      "view": "Lihat alamat yang tidak dihantar mel, dan sebabnya",
+      "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
+    }
+  },
+  "note": {
+    "label": "Nota (contoh)",
+    "actions": {
+      "read": "Lihat nota",
+      "create": "Tulis nota",
+      "update": "Ubah nota",
+      "delete": "Padam nota",
+      "restore": "Lihat nota yang dipadam dan pulihkannya"
+    },
+    "fields": {
+      "body": "Teks nota",
+      "custom": "Medan tersuai"
+    },
+    "conditions": {
+      "draft": {
+        "label": "Masih draf",
+        "description": "Hanya nota yang belum diterbitkan."
       }
     },
-    "Approval": {
-      "label": "Kelulusan",
-      "actions": {
-        "read": "Lihat setiap permintaan kelulusan, bukan hanya milik sendiri",
-        "cancel": "Batalkan permintaan kelulusan sesiapa sahaja",
-        "manage": "Tinggalkan permintaan yang diluluskan yang hasilnya tidak akan digunakan (POST /v1/approvals/{id}/abandon)",
-        "managePolicies": "Ubah dasar kelulusan (peringkat, pelulus, tarikh akhir)"
-      },
-      "conditions": {
-        "ofSubject": {
-          "label": "Bagi satu subjek",
-          "description": "Hanya permintaan kelulusan tentang rekod subjek ini (Note).",
-          "input": "Subjek"
-        }
+    "systemJobs": {
+      "note-publication": {
+        "label": "Penerbitan nota",
+        "description": "Menerbitkan draf nota apabila tempoh tangguhnya berlalu (atau meminta kelulusan dahulu, bagi pihak pemiliknya)."
       }
+    }
+  },
+  "conditions": {
+    "mine": {
+      "label": "Dicipta oleh saya",
+      "description": "Hanya rekod yang dicipta oleh orang ini (atau klien API ini)."
     },
-    "Ops": {
-      "label": "Operasi",
-      "actions": {
-        "view": "Lihat peti keluar, surat mati dan peristiwa langsung",
-        "manage": "Masukkan semula surat mati ke baris gilir dan padamkannya"
-      }
-    },
-    "MailSuppression": {
-      "label": "Senarai sekatan mel",
-      "actions": {
-        "view": "Lihat alamat yang tidak dihantar mel, dan sebabnya",
-        "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
-      }
-    },
-    "Note": {
-      "label": "Nota (contoh)",
-      "actions": {
-        "read": "Lihat nota",
-        "create": "Tulis nota",
-        "update": "Ubah nota",
-        "delete": "Padam nota",
-        "restore": "Lihat nota yang dipadam dan pulihkannya"
-      },
-      "fields": {
-        "body": "Teks nota",
-        "custom": "Medan tersuai"
-      },
-      "conditions": {
-        "draft": {
-          "label": "Masih draf",
-          "description": "Hanya nota yang belum diterbitkan."
-        }
-      }
+    "inMyTeams": {
+      "label": "Dalam pasukan saya",
+      "description": "Hanya rekod pasukan yang saya sertai, dan pasukan di bawahnya."
     }
   },
   "systemJobs": {
@@ -127,23 +141,9 @@
       "label": "Penyimpanan peristiwa mel",
       "description": "Memadam peristiwa lantunan, aduan dan penghantaran yang lebih lama daripada MAIL_EVENTS_RETENTION_DAYS, setiap malam."
     },
-    "note-publication": {
-      "label": "Penerbitan nota",
-      "description": "Menerbitkan draf nota apabila tempoh tangguhnya berlalu (atau meminta kelulusan dahulu, bagi pihak pemiliknya)."
-    },
     "demo-seed": {
       "label": "Data demo",
       "description": "Mencipta pengguna demo, pasukan dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."
-    }
-  },
-  "conditions": {
-    "mine": {
-      "label": "Dicipta oleh saya",
-      "description": "Hanya rekod yang dicipta oleh orang ini (atau klien API ini)."
-    },
-    "inMyTeams": {
-      "label": "Dalam pasukan saya",
-      "description": "Hanya rekod pasukan yang saya sertai, dan pasukan di bawahnya."
     }
   }
 }

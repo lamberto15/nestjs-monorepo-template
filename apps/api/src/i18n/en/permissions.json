@@ -1,69 +1,83 @@
 {
-  "subjects": {
-    "Access": {
-      "label": "Access control",
-      "actions": {
-        "manageRoles": "Create, edit and delete roles",
-        "manageUsers": "Invite users, assign their roles and teams, deactivate their memberships",
-        "manageClients": "Create API clients, rotate and revoke their keys",
-        "manageTeams": "Create, move and delete teams (what \"in my teams\" covers)",
-        "manageCustomFields": "Add, change, reorder and deactivate custom fields (the fields administrators add to notes and other records)",
-        "manageSettings": "Set settings and feature flags for everyone, a team or a user (platform/settings)",
-        "manageTags": "Create, rename, recolour and delete the tags records carry (platform/tags)",
-        "readAudit": "Read the audit log",
-        "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
-        "impersonate": "Act as another user (support), never as an administrator"
+  "access": {
+    "label": "Access control",
+    "actions": {
+      "manageRoles": "Create, edit and delete roles",
+      "manageUsers": "Invite users, assign their roles and teams, deactivate their memberships",
+      "manageClients": "Create API clients, rotate and revoke their keys",
+      "manageTeams": "Create, move and delete teams (what \"in my teams\" covers)",
+      "manageCustomFields": "Add, change, reorder and deactivate custom fields (the fields administrators add to notes and other records)",
+      "manageSettings": "Set settings and feature flags for everyone, a team or a user (platform/settings)",
+      "manageTags": "Create, rename, recolour and delete the tags records carry (platform/tags)",
+      "readAudit": "Read the audit log",
+      "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
+      "impersonate": "Act as another user (support), never as an administrator"
+    }
+  },
+  "approval": {
+    "label": "Approvals",
+    "actions": {
+      "read": "See every approval request, not only one's own",
+      "cancel": "Cancel anyone's approval request",
+      "manage": "Abandon an approved request whose outcome would not apply (POST /v1/approvals/{id}/abandon)",
+      "managePolicies": "Change approval policies (stages, approvers, deadlines)"
+    },
+    "conditions": {
+      "ofSubject": {
+        "label": "Of one subject",
+        "description": "Only approval requests about records of this subject (Note).",
+        "input": "Subject"
+      }
+    }
+  },
+  "ops": {
+    "label": "Operations",
+    "actions": {
+      "view": "See the outbox, dead letters and live events",
+      "manage": "Requeue and purge dead letters"
+    }
+  },
+  "mail-suppression": {
+    "label": "Mail suppression list",
+    "actions": {
+      "view": "See the addresses mail is not sent to, and why",
+      "manage": "Add an address to the suppression list, or remove one"
+    }
+  },
+  "note": {
+    "label": "Notes (example)",
+    "actions": {
+      "read": "See notes",
+      "create": "Write notes",
+      "update": "Change notes",
+      "delete": "Delete notes",
+      "restore": "See deleted notes and restore them"
+    },
+    "fields": {
+      "body": "The note's text",
+      "custom": "The custom fields"
+    },
+    "conditions": {
+      "draft": {
+        "label": "Still a draft",
+        "description": "Only notes not yet published."
       }
     },
-    "Approval": {
-      "label": "Approvals",
-      "actions": {
-        "read": "See every approval request, not only one's own",
-        "cancel": "Cancel anyone's approval request",
-        "manage": "Abandon an approved request whose outcome would not apply (POST /v1/approvals/{id}/abandon)",
-        "managePolicies": "Change approval policies (stages, approvers, deadlines)"
-      },
-      "conditions": {
-        "ofSubject": {
-          "label": "Of one subject",
-          "description": "Only approval requests about records of this subject (Note).",
-          "input": "Subject"
-        }
+    "systemJobs": {
+      "note-publication": {
+        "label": "Note publication",
+        "description": "Publishes draft notes when their delay passes (or asks for approval first, for their owners)."
       }
+    }
+  },
+  "conditions": {
+    "mine": {
+      "label": "Created by me",
+      "description": "Only records this person (or API client) created."
     },
-    "Ops": {
-      "label": "Operations",
-      "actions": {
-        "view": "See the outbox, dead letters and live events",
-        "manage": "Requeue and purge dead letters"
-      }
-    },
-    "MailSuppression": {
-      "label": "Mail suppression list",
-      "actions": {
-        "view": "See the addresses mail is not sent to, and why",
-        "manage": "Add an address to the suppression list, or remove one"
-      }
-    },
-    "Note": {
-      "label": "Notes (example)",
-      "actions": {
-        "read": "See notes",
-        "create": "Write notes",
-        "update": "Change notes",
-        "delete": "Delete notes",
-        "restore": "See deleted notes and restore them"
-      },
-      "fields": {
-        "body": "The note's text",
-        "custom": "The custom fields"
-      },
-      "conditions": {
-        "draft": {
-          "label": "Still a draft",
-          "description": "Only notes not yet published."
-        }
-      }
+    "inMyTeams": {
+      "label": "In my teams",
+      "description": "Only records of the teams I belong to, and of the teams below them."
     }
   },
   "systemJobs": {
@@ -127,23 +141,9 @@
       "label": "Mail events retention",
       "description": "Deletes bounce, complaint and delivery events older than MAIL_EVENTS_RETENTION_DAYS, every night."
     },
-    "note-publication": {
-      "label": "Note publication",
-      "description": "Publishes draft notes when their delay passes (or asks for approval first, for their owners)."
-    },
     "demo-seed": {
       "label": "Demo seed",
       "description": "Creates demo users, teams and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."
-    }
-  },
-  "conditions": {
-    "mine": {
-      "label": "Created by me",
-      "description": "Only records this person (or API client) created."
-    },
-    "inMyTeams": {
-      "label": "In my teams",
-      "description": "Only records of the teams I belong to, and of the teams below them."
     }
   }
 }
