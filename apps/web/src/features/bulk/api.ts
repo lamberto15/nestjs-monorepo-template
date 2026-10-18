@@ -6,7 +6,7 @@ import {
 import { queryOptions } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
-/** A feature's bulk route (`/v1/notes/bulk`): the same shape under every path. */
+/** A feature's bulk route (`/v1/<plural>/bulk`): the same shape under every path. */
 export type BulkPath = Extract<keyof paths, `/v1/${string}/bulk`>;
 export type BulkAction = 'delete' | 'restore' | 'update';
 

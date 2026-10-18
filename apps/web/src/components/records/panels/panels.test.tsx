@@ -1,39 +1,69 @@
-import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import i18next from 'i18next';
-import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { describe, expect, it } from 'vitest';
-import { resourcesFrom } from '@/i18n';
-import { createQueryClient } from '@/lib/errors';
-import { meQuery } from '@/lib/session';
-import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
-import { MAYA, sampleRevisions, usePanelsApi } from '@/test/panels-api';
-import { renderApp } from '@/test/render-app';
+import { recordKeys } from '@/lib/records';
+import {
+  MAYA,
+  TEST_RECORD,
+  sampleRevisions,
+  usePanelsApi,
+} from '@/test/panels-api';
+import { renderComponent } from '@/test/render-component';
 import { findToast } from '@/test/toast';
 import { signedInUser } from '@/test/server';
 import { splitMentions } from './comment-text';
-import { RecordPanels } from './record-panels';
+import { RecordPanels, type RecordCapabilities } from './record-panels';
 
+// The panels on a test-only subject's record (TEST_RECORD), mounted alone:
+// no feature's page hosts them, so they stand without any feature.
+const ID = '0199a3f2-0000-7000-8000-000000000601';
 const ALL = [
-  'Note.read',
-  'Note.create',
-  'Note.update',
-  'Note.delete',
-  'Note.restore',
+  'TestItem.read',
+  'TestItem.create',
+  'TestItem.update',
+  'TestItem.delete',
+  'TestItem.restore',
 ];
 const ME = `user:${signedInUser.user.id}`;
+const EVERY_PANEL: RecordCapabilities = {
+  comments: true,
+  attachments: true,
+  tags: true,
+  revisions: true,
+};
+/** The record's ETag, as its page would have cached it with the record. */
+const ETAG = `"${ID}-1"`;
+
+async function mountPanels(
+  can: string[],
+  capabilities: RecordCapabilities = EVERY_PANEL,
+) {
+  const view = await renderComponent(
+    <RecordPanels
+      subject={TEST_RECORD.subject}
+      path={TEST_RECORD.path}
+      id={ID}
+      capabilities={capabilities}
+      tags={[{ id: 't1', name: 'Internal', color: '#6b7280' }]}
+    />,
+    { can },
+  );
+  view.queryClient.setQueryData(
+    recordKeys.detail(TEST_RECORD.path.replace('/{id}', ''), ID),
+    { etag: ETAG },
+  );
+  return view;
+}
+
 const open = async (tab: string) => {
-  // No pause between keystrokes: each one re-renders the whole page.
+  // No pause between keystrokes: each one re-renders the panels.
   const user = userEvent.setup({ delay: null });
-  await screen.findByRole('heading', { name: 'Q3 targets' });
   await user.click(await screen.findByRole('tab', { name: tab }));
   return user;
 };
 
 describe('comments', () => {
   it('shows the thread with mentions marked, as plain text', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     usePanelsApi({
       users: [MAYA],
       comments: [
@@ -44,7 +74,7 @@ describe('comments', () => {
         { author: ME, body: 'Mine' },
       ],
     });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     await open('Comments');
     const thread = await screen.findByRole('list', { name: 'Comments' });
     const mentions = thread.querySelectorAll('[data-mention]');
@@ -58,9 +88,8 @@ describe('comments', () => {
   });
 
   it('writes a mention into the body and sends exactly that text', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi({ users: [MAYA] });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('Comments');
     const box = await screen.findByLabelText('Write a comment');
     // One keystroke after the "@": with the list open, each key makes the
@@ -72,7 +101,7 @@ describe('comments', () => {
     await user.click(screen.getByText('Comment', { selector: 'button' }));
     await waitFor(() => expect(calls.commented).toHaveLength(1));
     expect(calls.commented[0]).toEqual({
-      id: NOTE_ID,
+      id: ID,
       body: { body: 'Please check, @maya@example.com thanks' },
     });
     await waitFor(() =>
@@ -83,14 +112,13 @@ describe('comments', () => {
   });
 
   it('edits and deletes only what the user may', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
     const calls = usePanelsApi({
       comments: [
         { id: 'theirs', author: `user:${MAYA.id}`, body: 'Theirs' },
         { id: 'mine', author: ME, body: 'Mine' },
       ],
     });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(['TestItem.read']);
     const user = await open('Comments');
     const items = await screen.findAllByRole('listitem');
     const theirs = items.find((i) => i.dataset.comment === 'theirs')!;
@@ -116,9 +144,8 @@ describe('comments', () => {
   });
 
   it('has no mention list when the directory is forbidden', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     usePanelsApi({ users: 'forbidden' });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('Comments');
     await user.type(await screen.findByLabelText('Write a comment'), '@x');
     expect(screen.queryByRole('option')).toBeNull();
@@ -135,9 +162,8 @@ describe('comments', () => {
 
 describe('attachments', () => {
   it('uploads a file as multipart and lists it', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi();
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('Attachments');
     const input = document.querySelector(
       'input[type="file"]',
@@ -162,9 +188,8 @@ describe('attachments', () => {
   });
 
   it("shows the API's refusal of a type", async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     usePanelsApi({ uploadStatus: 415 });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('Attachments');
     const input = document.querySelector(
       'input[type="file"]',
@@ -180,7 +205,6 @@ describe('attachments', () => {
   });
 
   it('lists size and type, and deletes after a confirmation', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi({
       attachments: [
         {
@@ -200,7 +224,7 @@ describe('attachments', () => {
         },
       ],
     });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('Attachments');
     const row = (await screen.findByText('contract.pdf')).closest('li')!;
     expect(row).toHaveTextContent('PDF');
@@ -223,9 +247,8 @@ describe('attachments', () => {
   });
 
   it('offers no upload to a reader', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
     usePanelsApi();
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(['TestItem.read']);
     await open('Attachments');
     await screen.findByText('No files attached.');
     expect(document.querySelector('input[type="file"]')).toBeNull();
@@ -239,9 +262,8 @@ describe('tags', () => {
   ];
 
   it('replaces the record’s tags with the chosen ones', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi({ tags });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Edit tags' }));
     await user.click(
@@ -249,15 +271,14 @@ describe('tags', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
-      expect(calls.tagged).toEqual([{ id: NOTE_ID, tagIds: ['t1', 't2'] }]),
+      expect(calls.tagged).toEqual([{ id: ID, tagIds: ['t1', 't2'] }]),
     );
     expect(calls.tagsCreated).toEqual([]);
   });
 
   it('creates a new tag first when the user may manage tags', async () => {
-    useNotesApi({ can: [...ALL, 'Access.manageTags'], notes: [sampleNote()] });
     const calls = usePanelsApi({ tags });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels([...ALL, 'Access.manageTags']);
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Edit tags' }));
     await user.type(
@@ -266,14 +287,13 @@ describe('tags', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(calls.tagged).toHaveLength(1));
-    expect(calls.tagsCreated).toEqual([{ subject: 'Note', name: 'Fresh' }]);
+    expect(calls.tagsCreated).toEqual([{ subject: 'TestItem', name: 'Fresh' }]);
     expect(calls.tagged[0]!.tagIds).toEqual(['t1', 'new-Fresh']);
   });
 
   it('refuses an unknown name without the right to create tags', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi({ tags });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Edit tags' }));
     await user.type(
@@ -287,9 +307,8 @@ describe('tags', () => {
   });
 
   it('cannot edit without the right to change the record', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
     usePanelsApi({ tags });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(['TestItem.read']);
     expect(await screen.findByText('Internal')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Edit tags' })).toBeNull();
   });
@@ -297,9 +316,8 @@ describe('tags', () => {
 
 describe('revisions', () => {
   it('compares two revisions side by side', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi({ users: [MAYA], revisions: sampleRevisions });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('History');
     await screen.findByText('Revision 3');
     expect(screen.getByText('By Maya Patel')).toBeVisible();
@@ -322,9 +340,8 @@ describe('revisions', () => {
   });
 
   it('restores a revision after a confirmation, with the ETag', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi({ revisions: sampleRevisions });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('History');
     await screen.findByText('Revision 1');
     // The current revision has no restore.
@@ -339,18 +356,17 @@ describe('revisions', () => {
     await waitFor(() => expect(calls.restored).toHaveLength(1));
     expect(calls.restored[0]).toEqual({
       number: '1',
-      ifMatch: expect.stringContaining(NOTE_ID),
+      ifMatch: ETAG,
     });
     await findToast('Revision restored');
   });
 
   it('shows the conflict alert on a 412 and reloads on request', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = usePanelsApi({
       revisions: sampleRevisions,
       restoreEtag: '"never"',
     });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(ALL);
     const user = await open('History');
     await screen.findByText('Revision 1');
     await user.click(screen.getAllByRole('button', { name: 'Restore' })[1]!);
@@ -370,9 +386,8 @@ describe('revisions', () => {
   });
 
   it('offers no restore to a reader', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
     usePanelsApi({ revisions: sampleRevisions });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await mountPanels(['TestItem.read']);
     await open('History');
     await screen.findByText('Revision 1');
     expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull();
@@ -380,67 +395,30 @@ describe('revisions', () => {
 });
 
 describe('the panels on a record', () => {
-  async function mount(
-    can: string[],
-    capabilities: Parameters<typeof RecordPanels>[0]['capabilities'],
-  ) {
-    const i18n = i18next.createInstance();
-    await i18n.use(initReactI18next).init({
-      lng: 'en',
-      resources: resourcesFrom(
-        import.meta.glob<Record<string, unknown>>('@/locales/en/*.json', {
-          eager: true,
-          import: 'default',
-        }),
-      ),
-      defaultNS: 'common',
-    });
-    const queryClient = createQueryClient(() => undefined);
-    queryClient.setQueryData(meQuery.queryKey, {
-      ...signedInUser,
-      can: Object.fromEntries(can.map((p) => [p, true])),
-    } as never);
-    return render(
-      <I18nextProvider i18n={i18n}>
-        <QueryClientProvider client={queryClient}>
-          <RecordPanels
-            subject="Note"
-            path="/v1/notes/{id}"
-            id={NOTE_ID}
-            capabilities={capabilities}
-            tags={[]}
-          />
-        </QueryClientProvider>
-      </I18nextProvider>,
-    );
-  }
-
   it('shows only the panels the feature supports', async () => {
-    useNotesApi({ can: ALL, notes: [] });
     usePanelsApi();
-    await mount(ALL, { comments: true, revisions: true });
+    await mountPanels(ALL, { comments: true, revisions: true });
     expect(await screen.findByRole('tab', { name: 'Comments' })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'History' })).toBeVisible();
     expect(screen.queryByRole('tab', { name: 'Attachments' })).toBeNull();
     expect(screen.queryByText('Tags')).toBeNull();
   });
 
+  // The router's outlet and the toaster are all there is then.
+  const nothingShown = () => {
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByText('Tags')).toBeNull();
+  };
+
   it('shows nothing when the feature supports none', async () => {
-    useNotesApi({ can: ALL, notes: [] });
     usePanelsApi();
-    const { container } = await mount(ALL, {});
-    expect(container).toBeEmptyDOMElement();
+    await mountPanels(ALL, {});
+    nothingShown();
   });
 
   it('shows nothing to a user who may not read the record', async () => {
-    useNotesApi({ can: ALL, notes: [] });
     usePanelsApi();
-    const { container } = await mount([], {
-      comments: true,
-      attachments: true,
-      tags: true,
-      revisions: true,
-    });
-    expect(container).toBeEmptyDOMElement();
+    await mountPanels([]);
+    nothingShown();
   });
 });

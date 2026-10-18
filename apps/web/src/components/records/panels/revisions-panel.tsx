@@ -92,7 +92,7 @@ function DiffTable(props: {
  * conflict alert offers to reload.
  */
 export function RevisionsPanel(props: {
-  /** The record's list route (`/v1/notes`), as the record pages key it. */
+  /** The record's list route (`/v1/<plural>`), as the record pages key it. */
   listPath: string;
   base: string;
   id: string;

@@ -32,7 +32,7 @@ const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
  */
 export function TagsPanel(props: {
   subject: string;
-  /** The record's list route (`/v1/notes`): its queries are refreshed. */
+  /** The record's list route (`/v1/<plural>`): its queries are refreshed. */
   listPath: string;
   base: string;
   id: string;

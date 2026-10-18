@@ -40,14 +40,12 @@ describe('mergeNav', () => {
 
   it('collects the feature nav files into the app menu', () => {
     const workspace = nav.find((g) => g.id === 'workspace');
-    expect(workspace?.items.map((i) => i.to)).toEqual([
-      '/',
-      '/notifications',
-      '/approvals',
-      '/notes',
-      '/transfers',
-      '/reports',
-    ]);
+    const tos = workspace?.items.map((i) => i.to) ?? [];
+    // The platform's entries, in order; a feature's own (its nav.ts, gone
+    // with `pnpm feature:remove`) sits among them by its `order`.
+    const platform = ['/notifications', '/approvals', '/transfers', '/reports'];
+    expect(tos[0]).toBe('/');
+    expect(tos.filter((to) => platform.includes(to))).toEqual(platform);
   });
 });
 

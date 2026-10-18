@@ -8,9 +8,10 @@ import {
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
+import { renderComponent } from '@/test/render-component';
+import { ApprovalBanner } from './record-banner';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
@@ -32,19 +33,21 @@ beforeEach(() => {
 });
 
 const REQUEST_ID = '0199a3f2-0000-7000-8000-000000000701';
+// The record asked about: a test-only subject's, no feature's.
+const RECORD_ID = '0199a3f2-0000-7000-8000-000000000501';
 const OTHER_USER = '0199a3f2-0000-7000-8000-000000000009';
 
 const item = (over: Record<string, unknown> = {}) => ({
   id: REQUEST_ID,
-  key: 'Note.publish',
-  subject: 'Note',
-  recordId: NOTE_ID,
+  key: 'TestItem.publish',
+  subject: 'TestItem',
+  recordId: RECORD_ID,
   action: 'publish',
   status: 'pending',
   requester: `user:${OTHER_USER}`,
   requesterName: 'Maya Patel',
   title: 'Q3 targets',
-  link: `/notes/${NOTE_ID}`,
+  link: `/test-items/${RECORD_ID}`,
   payload: { title: 'Q3 targets' },
   policyVersion: 0,
   round: 0,
@@ -256,8 +259,8 @@ describe('the nav badge', () => {
     act(() =>
       connections[0]!.emit('approval.assigned', {
         id: 'c',
-        subject: 'Note',
-        recordId: NOTE_ID,
+        subject: 'TestItem',
+        recordId: RECORD_ID,
         action: 'publish',
         stage: 0,
       }),
@@ -275,8 +278,9 @@ describe('the inbox', () => {
     ).toBeVisible();
     expect(
       await screen.findByRole('link', { name: 'Q3 targets' }),
-    ).toHaveAttribute('href', `/notes/${NOTE_ID}`);
-    expect(screen.getByText(/Publish a note/)).toBeVisible();
+    ).toHaveAttribute('href', `/test-items/${RECORD_ID}`);
+    // A key with no name in approvals:actions shows as itself.
+    expect(screen.getByText(/TestItem\.publish/)).toBeVisible();
     expect(screen.getByText(/Editor review \(stage 1 of 2\)/)).toBeVisible();
     expect(screen.getByText(/Requested by Maya Patel/)).toBeVisible();
   });
@@ -523,11 +527,17 @@ describe('the approval page', () => {
 });
 
 describe('the banner on a record', () => {
+  // As a record's page shows it, for a test-only subject's record.
+  const renderBanner = () =>
+    renderComponent(
+      <ApprovalBanner subject="TestItem" recordId={RECORD_ID} />,
+      { can: ['TestItem.read'] },
+    );
+
   it('shows the open approval and lets an approver decide', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
     const api = useApprovalsApi({ request: detail() });
     const user = userEvent.setup();
-    await renderApp(`/notes/${NOTE_ID}`);
+    await renderBanner();
     expect(
       await screen.findByText(
         'Awaiting approval: stage 1 of 2 (Editor review)',
@@ -536,7 +546,8 @@ describe('the banner on a record', () => {
     expect(screen.getByText(/Requested by Maya Patel/)).toBeVisible();
     expect(
       api.listQueries.some(
-        (q) => q.get('subject') === 'Note' && q.get('recordId') === NOTE_ID,
+        (q) =>
+          q.get('subject') === 'TestItem' && q.get('recordId') === RECORD_ID,
       ),
     ).toBe(true);
     await user.click(screen.getByRole('button', { name: 'Approve' }));
@@ -547,13 +558,12 @@ describe('the banner on a record', () => {
   });
 
   it('shows the status without actions to someone who cannot decide', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
     useApprovalsApi({
       request: detail({
         can: { decide: false, cancel: false, resubmit: false },
       }),
     });
-    await renderApp(`/notes/${NOTE_ID}`);
+    await renderBanner();
     expect(await screen.findByText(/Awaiting approval/)).toBeVisible();
     expect(
       screen.queryByRole('button', { name: 'Approve' }),
@@ -561,10 +571,14 @@ describe('the banner on a record', () => {
   });
 
   it('shows nothing when the record has no open approval', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
-    useApprovalsApi();
-    await renderApp(`/notes/${NOTE_ID}`);
-    await screen.findByRole('heading', { name: 'Q3 targets' });
+    const api = useApprovalsApi();
+    await renderBanner();
+    // Asked, and answered with nothing.
+    await waitFor(() =>
+      expect(api.listQueries.some((q) => q.get('recordId') === RECORD_ID)).toBe(
+        true,
+      ),
+    );
     expect(screen.queryByText(/Awaiting approval/)).not.toBeInTheDocument();
   });
 });

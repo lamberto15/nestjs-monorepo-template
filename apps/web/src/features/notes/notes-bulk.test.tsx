@@ -3,8 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
-import { sampleNote, useNotesApi, type TestNote } from '@/test/notes-api';
+import {
+  sampleNote,
+  useNotesApi,
+  type TestNote,
+} from '@/features/notes/test/notes-api';
 import { problem, server } from '@/test/server';
+
+// The bulk actions (features/bulk) as the notes list offers them. Here, with
+// the notes: `pnpm feature:remove notes` takes these tests with the list.
 
 const ALL = ['Note.read', 'Note.delete', 'Note.restore'];
 const A = '0199a3f2-0000-7000-8000-000000000601';

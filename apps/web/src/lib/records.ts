@@ -8,7 +8,7 @@ import { useMe } from '@/lib/features';
  * "Record pages", describes): the query keys, so a write invalidates the lists
  * and the record it changed, and the two problems pages branch on.
  *
- * `path` is the feature's list route (`/v1/notes`), as in ListPage.
+ * `path` is the feature's list route (`/v1/<plural>`), as in ListPage.
  */
 export const recordKeys = {
   /** Every page of the feature's list (ListPage's key is `['list', path, params]`). */
@@ -48,13 +48,13 @@ export type RecordCan = { update: boolean; delete: boolean; restore: boolean };
 /**
  * What the user may do with one record now: its routes' own answer, which
  * the API sends with `?include=can` (`can: { update, delete, restore }`,
- * conditions included: an editor may not change a published note). A record
+ * conditions included: a role may be refused a record in some state). A record
  * read without it (the create's answer has none) falls back to
  * `/me.can['<Subject>.<action>']`, the permission without its conditions.
  * Returns a function, so a list's row actions can ask per row:
  *
- *   const canOf = useRecordCan('Note');
- *   canOf(note).update && <Edit />
+ *   const canOf = useRecordCan('Invoice');
+ *   canOf(invoice).update && <Edit />
  */
 export function useRecordCan(subject: string) {
   const can = useMe()?.can;

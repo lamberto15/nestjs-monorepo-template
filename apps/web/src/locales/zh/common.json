@@ -4,8 +4,7 @@
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard",
-    "notes": "笔记"
+    "dashboard": "Dashboard"
   },
   "dashboard": {
     "title": "Dashboard",
