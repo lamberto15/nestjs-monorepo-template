@@ -10,6 +10,7 @@ import { meQuery } from '@/lib/session';
 import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
 import { MAYA, sampleRevisions, usePanelsApi } from '@/test/panels-api';
 import { renderApp } from '@/test/render-app';
+import { findToast } from '@/test/toast';
 import { signedInUser } from '@/test/server';
 import { splitMentions } from './comment-text';
 import { RecordPanels } from './record-panels';
@@ -279,7 +280,7 @@ describe('tags', () => {
       await screen.findByLabelText('Tags of this record'),
       'Fresh{Enter}',
     );
-    expect(await screen.findByText(/There is no tag “Fresh”/)).toBeVisible();
+    await findToast(/There is no tag “Fresh”/);
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(calls.tagged).toHaveLength(1));
     expect(calls.tagged[0]!.tagIds).toEqual(['t1']);
@@ -340,7 +341,7 @@ describe('revisions', () => {
       number: '1',
       ifMatch: expect.stringContaining(NOTE_ID),
     });
-    expect(await screen.findByText('Revision restored')).toBeVisible();
+    await findToast('Revision restored');
   });
 
   it('shows the conflict alert on a 412 and reloads on request', async () => {

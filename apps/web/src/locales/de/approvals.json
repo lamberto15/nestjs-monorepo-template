@@ -1,0 +1,172 @@
+{
+  "nav": {
+    "title": "Genehmigungen"
+  },
+  "inbox": {
+    "title": "Genehmigungen",
+    "error": "Die Genehmigungen konnten nicht geladen werden.",
+    "loadMore": "Mehr laden"
+  },
+  "tabs": {
+    "mine": "Auf mich wartend",
+    "requested": "Von mir angefragt",
+    "history": "Verlauf"
+  },
+  "empty": {
+    "mine": "Nichts wartet auf Ihre Entscheidung.",
+    "requested": "Sie haben keine Genehmigung angefragt.",
+    "history": "Noch keine abgeschlossenen Genehmigungen."
+  },
+  "actions": {
+    "Note": {
+      "publish": "Eine Notiz veröffentlichen"
+    }
+  },
+  "row": {
+    "stage": "{{name}} (Stufe {{current}} von {{count}})",
+    "requested": "Angefragt von {{name}} am {{date}}",
+    "details": "Details"
+  },
+  "status": {
+    "pending": "Offen",
+    "changes_requested": "Änderungen angefragt",
+    "approved": "Genehmigt",
+    "rejected": "Abgelehnt",
+    "cancelled": "Abgebrochen",
+    "expired": "Abgelaufen",
+    "failed": "Fehlgeschlagen"
+  },
+  "decision": {
+    "approve": {
+      "title": "Genehmigen",
+      "button": "Genehmigen",
+      "submit": "Genehmigen",
+      "done": "Genehmigt."
+    },
+    "reject": {
+      "title": "Ablehnen",
+      "button": "Ablehnen",
+      "submit": "Ablehnen",
+      "done": "Abgelehnt."
+    },
+    "cancel": {
+      "title": "Anfrage abbrechen",
+      "button": "Anfrage abbrechen",
+      "submit": "Anfrage abbrechen",
+      "done": "Anfrage abgebrochen."
+    },
+    "comment": "Kommentar (optional)",
+    "commentRequiredLabel": "Grund der Ablehnung",
+    "commentRequired": "Geben Sie an, warum Sie ablehnen."
+  },
+  "conflict": {
+    "title": "Diese Anfrage hat sich geändert",
+    "description": "Jemand hat entschieden oder sie geändert, seit Sie sie geöffnet haben.",
+    "reload": "Neu laden"
+  },
+  "delegations": {
+    "open": "Delegieren",
+    "title": "Meine Genehmigungen delegieren",
+    "description": "Während Ihrer Abwesenheit kann jemand anderes die Ihnen zugewiesenen Genehmigungen entscheiden. Die Entscheidung wird in dessen Namen für Sie erfasst.",
+    "list": "Delegierungen",
+    "none": "Sie haben nichts delegiert und keine Delegierung erhalten.",
+    "given": "Sie haben an {{name}} delegiert",
+    "held": "{{name}} hat an Sie delegiert",
+    "period": "{{from}} bis {{to}}",
+    "end": "Beenden",
+    "person": "Delegieren an",
+    "choose": "Person wählen",
+    "from": "Von",
+    "to": "Bis",
+    "hint": "Sie können im Zeitraum weiterhin selbst entscheiden.",
+    "create": "Delegieren",
+    "created": "Delegierung erstellt.",
+    "errors": {
+      "person": "Wählen Sie eine Person.",
+      "dates": "Geben Sie beide Daten an.",
+      "order": "Das Ende muss nach dem Beginn liegen.",
+      "people": "Die Personenliste konnte nicht geladen werden (Benutzerverwaltung erforderlich)."
+    }
+  },
+  "detail": {
+    "back": "Zurück zu den Genehmigungen",
+    "notFound": {
+      "title": "Genehmigung nicht gefunden",
+      "description": "Sie existiert nicht oder Sie dürfen sie nicht sehen."
+    },
+    "error": {
+      "title": "Die Genehmigung konnte nicht geladen werden",
+      "generic": "Etwas ist schiefgelaufen.",
+      "retry": "Erneut versuchen"
+    },
+    "status": "Status",
+    "record": "Datensatz",
+    "requester": "Angefragt von",
+    "requestedAt": "Angefragt am",
+    "comment": "Kommentar des Antragstellers",
+    "dueAt": "Fällig",
+    "outcome": "Ergebnis"
+  },
+  "outcome": {
+    "overdue": "Nicht rechtzeitig entschieden",
+    "not_resubmitted": "Nicht rechtzeitig erneut eingereicht",
+    "no_approvers": "Es war kein Genehmiger mehr übrig",
+    "record_changed": "Der Datensatz hat sich währenddessen geändert",
+    "apply_failed": "Die genehmigte Änderung konnte nicht angewendet werden",
+    "abandoned": "Von einem Administrator beendet",
+    "record_deleted": "Der Datensatz wurde gelöscht"
+  },
+  "stages": {
+    "title": "Stufen",
+    "name": "Stufe {{current}} von {{count}}: {{name}}",
+    "state": {
+      "waiting": "Wartet",
+      "active": "In Bearbeitung",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt",
+      "changes_requested": "Zur Änderung zurückgegeben",
+      "closed": "Geschlossen"
+    },
+    "mode": {
+      "any": "Ein Genehmiger entscheidet",
+      "all": "Alle müssen genehmigen",
+      "quorum": "{{n}} Genehmigungen nötig"
+    },
+    "noApprovers": "Keine Genehmiger.",
+    "assignment": {
+      "pending": "Wartet",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt",
+      "changes_requested": "Änderungen angefragt",
+      "closed": "Geschlossen"
+    },
+    "by": "durch {{name}}",
+    "escalated": "eskaliert"
+  },
+  "history": {
+    "title": "Verlauf",
+    "stage": "Stufe {{stage}}",
+    "type": {
+      "requested": "Angefragt",
+      "stage_started": "Stufe gestartet",
+      "decided": "Entscheidung",
+      "stage_approved": "Stufe genehmigt",
+      "reminded": "Erinnerung gesendet",
+      "escalated": "Eskaliert",
+      "approver_removed": "Genehmiger entfernt",
+      "resubmitted": "Erneut eingereicht",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt",
+      "changes_requested": "Änderungen angefragt",
+      "cancelled": "Abgebrochen",
+      "expired": "Abgelaufen",
+      "failed": "Fehlgeschlagen"
+    }
+  },
+  "banner": {
+    "awaiting": "Wartet auf Genehmigung: Stufe {{current}} von {{count}} ({{name}})",
+    "changesRequested": "Änderungen wurden angefragt: Der Antragsteller muss erneut einreichen",
+    "requestedBy": "Angefragt von {{name}}",
+    "details": "Details der Genehmigung"
+  }
+}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SETTING_VALUE_TYPES } from './setting-value-schema.js';
 import { SETTING_SCOPES } from './setting.types.js';
 
 /** A declared key: `notes.publishDelay`. */
@@ -30,6 +31,37 @@ export const settingViewSchema = z.object({
     .enum([...SETTING_SCOPES, 'rollout', 'default'])
     .describe('Where your value comes from.'),
   default: z.unknown(),
+  type: z
+    .enum(SETTING_VALUE_TYPES)
+    .describe(
+      "The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.",
+    ),
+  options: z
+    .array(z.union([z.string(), z.number()]))
+    .optional()
+    .describe('`enum`: the values it takes.'),
+  min: z.number().optional().describe('`number`: the smallest it takes.'),
+  max: z.number().optional().describe('`number`: the largest it takes.'),
+  integer: z.boolean().optional().describe('`number`: whole numbers only.'),
+  maxLength: z
+    .int()
+    .optional()
+    .describe('`string`: the most characters it takes.'),
+  schema: z
+    .record(z.string(), z.unknown())
+    .describe(
+      "The value's JSON Schema (draft 2020-12), generated from the declaration: patterns, exclusive bounds, an object's shape. What it can't express (a refinement) is still checked on PUT.",
+    ),
+  canEdit: z
+    .boolean()
+    .describe(
+      'You may set and remove its value for the tenant, a team or a principal (PUT and DELETE /v1/settings/{key}, every scope it takes): Access.manageSettings, not while impersonating.',
+    ),
+  canSetMine: z
+    .boolean()
+    .describe(
+      'You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`.',
+    ),
 });
 
 /** A stored override, for those who manage settings. */

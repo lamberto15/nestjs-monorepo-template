@@ -401,4 +401,79 @@ describe('settings (e2e)', () => {
       source: 'rollout',
     });
   });
+
+  it('describes each value (type, options, bounds, JSON Schema) and whether the caller may set it', async () => {
+    const manager = await node.user([await role(['Access', 'manageSettings'])]);
+    const editor = await node.user(['editor']);
+
+    const managed = await manager.agent.get('/v1/settings').expect(200);
+    // Derived from each declaration's Zod schema (test-item-settings.ts, approval-settings.ts).
+    expect(settingOf(managed.body, 'testItems.pageLimit')).toMatchObject({
+      type: 'number',
+      min: 1,
+      max: 100,
+      integer: true,
+      schema: { type: 'integer', minimum: 1, maximum: 100 },
+      canEdit: true,
+      canSetMine: false,
+    });
+    expect(settingOf(managed.body, VIEW)).toMatchObject({
+      type: 'enum',
+      options: ['table', 'cards'],
+      schema: { type: 'string', enum: ['table', 'cards'] },
+      canEdit: true,
+      canSetMine: true,
+    });
+    expect(settingOf(managed.body, FLAG)).toMatchObject({
+      type: 'boolean',
+      schema: { type: 'boolean' },
+      canEdit: true,
+    });
+    expect(settingOf(managed.body, FLAG)).not.toHaveProperty('options');
+    // One setting answers the same.
+    const one = await manager.agent.get(`/v1/settings/${VIEW}`).expect(200);
+    expect(one.body).toMatchObject({
+      type: 'enum',
+      options: ['table', 'cards'],
+      canEdit: true,
+    });
+
+    // A plain user: the values described too, set only for themselves (user-scoped ones).
+    const plain = await editor.agent.get('/v1/settings').expect(200);
+    for (const item of plain.body.items as { canEdit: boolean }[]) {
+      expect(item.canEdit).toBe(false);
+    }
+    expect(settingOf(plain.body, VIEW)).toMatchObject({
+      type: 'enum',
+      canEdit: false,
+      canSetMine: true,
+    });
+    expect(
+      (await editor.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+    ).toMatchObject({ type: 'boolean', canEdit: false, canSetMine: true });
+    // What canEdit says is what the routes do.
+    await editor.agent
+      .put(`/v1/settings/${VIEW}`)
+      .send({ value: 'cards' })
+      .expect(403);
+    await editor.agent
+      .put(`/v1/settings/${VIEW}/mine`)
+      .send({ value: 'cards' })
+      .expect(200);
+
+    // The administrator holds everything.
+    const admin = await node.admin().get(`/v1/settings/${KEY}`).expect(200);
+    expect(admin.body).toMatchObject({ type: 'number', canEdit: true });
+
+    // DELETE answers 204 with no body (the typed client's unwrap(): undefined).
+    await manager.agent
+      .put(`/v1/settings/${VIEW}`)
+      .send({ value: 'cards' })
+      .expect(200);
+    const removed = await manager.agent
+      .delete(`/v1/settings/${VIEW}`)
+      .expect(204);
+    expect(removed.text).toBe('');
+    expect(removed.headers['content-type']).toBeUndefined();
+  });
 });

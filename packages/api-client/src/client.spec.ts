@@ -158,8 +158,15 @@ describe('createApiClient', () => {
       const revoked: undefined = await unwrap(
         api.DELETE('/v1/auth/sessions/{id}', { params: { path: { id: 's' } } }),
       );
+      // DELETE /v1/settings/{key} declares its 204 too (#111).
+      const reset: undefined = await unwrap(
+        api.DELETE('/v1/settings/{key}', {
+          params: { path: { key: 'notes.richText' } },
+        }),
+      );
       expect(switched).toBeUndefined();
       expect(revoked).toBeUndefined();
+      expect(reset).toBeUndefined();
       // A 200 with an empty body counts as no content too.
       const empty = createApiClient({
         baseUrl: BASE,
