@@ -345,7 +345,27 @@
         "lte": "不晚于",
         "gt": "晚于",
         "gte": "不早于"
-      }
+      },
+      "selectAll": "全选",
+      "selectRow": "选择行"
+    },
+    "bulk": {
+      "label": "所选项的操作",
+      "selected_one": "已选择 {{count}} 项",
+      "selected_other": "已选择 {{count}} 项",
+      "selectAll_one": "选择全部 {{count}} 个匹配项",
+      "selectAll_other": "选择全部 {{count}} 个匹配项",
+      "onlyChosen": "仅所选行",
+      "tooMany": "一次最多选择 {{max}} 行：请筛选列表并改为选择全部匹配项。",
+      "clear": "清除选择"
     }
+  },
+  "principals": {
+    "placeholder": "Search by name or address",
+    "searching": "Searching…",
+    "none": "Nobody matches.",
+    "failed": "The search failed.",
+    "forbidden": "You may not search people and clients.",
+    "client": "(API client)"
   }
 }

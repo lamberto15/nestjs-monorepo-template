@@ -538,3 +538,20 @@ export function useListQuery<P extends ListPath>(
 
   return { ...result, params, q, search };
 }
+
+/**
+ * The part of a list's query that says WHICH records: the advanced `filter`
+ * and the search `q`, as the list route and the export, bulk and report
+ * routes (which take the list's own filters) read them. Page, sort and
+ * fields say how to show them and are left out.
+ */
+export function listFilters(
+  params: Record<string, string>,
+): Record<string, string> {
+  const filters: Record<string, string> = {};
+  for (const key of ['filter', 'q']) {
+    const value = params[key];
+    if (value) filters[key] = value;
+  }
+  return filters;
+}

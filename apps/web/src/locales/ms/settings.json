@@ -17,7 +17,6 @@
   "noOverrides": "Nothing is set: the default applies.",
   "flag": "Flag",
   "managersOnly": "Managers only",
-  "authNote": "Sign-in policy settings: only managers can see and change them, and a value the deployment does not allow is refused.",
   "rolloutOf": "{{percent}}% of principals",
   "scopeLabel": "Scope",
   "valueLabel": "Value",
@@ -44,7 +43,16 @@
     "number": "Enter a number.",
     "string": "Enter a value.",
     "json": "Enter valid JSON.",
-    "rollout": "Enter a percentage from 0 to 100."
+    "rollout": "Enter a percentage from 0 to 100.",
+    "integer": "Enter a whole number.",
+    "min": "Enter {{limit}} or more.",
+    "max": "Enter {{limit}} or less.",
+    "maxLength": "Enter at most {{limit}} characters.",
+    "enum": "Choose one of the values.",
+    "scopeId": {
+      "team": "Choose a team.",
+      "user": "Choose a user or an API client."
+    }
   },
   "source": {
     "tenant": "Tenant",
@@ -69,5 +77,14 @@
     "saved": "Preference saved.",
     "reset": "Reset to default",
     "resetDone": "Preference reset."
+  },
+  "readOnly": "Read-only",
+  "hiddenNote": "Only people who manage settings see this setting.",
+  "scopeIdHint": "A user or an API client: type a part of a name or an address.",
+  "bounds": {
+    "between": "From {{min}} to {{max}}.",
+    "min": "{{min}} or more.",
+    "max": "{{max}} or less.",
+    "maxLength": "At most {{maxLength}} characters."
   }
 }

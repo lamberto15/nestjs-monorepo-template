@@ -11,25 +11,22 @@ import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
 import { SourceBadge } from './source-badge';
+import { fromDraft, settingsQuery, toDraft, type Setting } from './settings';
 import {
-  fromDraft,
-  kindOf,
-  settingsQuery,
-  toDraft,
-  type Setting,
-} from './settings';
-import { ValueInput, formatValue } from './value-input';
+  ValueInput,
+  boundsHint,
+  formatValue,
+  invalidText,
+} from './value-input';
 
-/** The settings this user may set for themselves (scopes include `user`). */
+/** The settings this user may set for themselves (`canSetMine`). */
 export function Preferences() {
   const { t } = useTranslation('settings');
   const { data, isPending } = useQuery(settingsQuery);
   if (isPending) {
     return <Skeleton className="h-40 w-full" />;
   }
-  const mine = (data ?? []).filter((setting) =>
-    setting.scopes.includes('user'),
-  );
+  const mine = (data ?? []).filter((setting) => setting.canSetMine);
   if (mine.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">{t('preferences.empty')}</p>
@@ -47,18 +44,18 @@ export function Preferences() {
 function PreferenceRow({ setting }: { setting: Setting }) {
   const { t } = useTranslation('settings');
   const queryClient = useQueryClient();
-  const kind = kindOf(setting);
-  const [draft, setDraft] = useState(toDraft(kind, setting.value));
+  const [draft, setDraft] = useState(toDraft(setting, setting.value));
   const [error, setError] = useState<string>();
-  const parsed = fromDraft(kind, draft);
-  const dirty = draft !== toDraft(kind, setting.value);
+  const parsed = fromDraft(setting, draft);
+  const dirty = draft !== toDraft(setting, setting.value);
+  const hint = boundsHint(setting, t);
 
   // The answer is the setting as the user now sees it: put it in the list.
   const stored = (next: Setting) => {
     queryClient.setQueryData(settingsQuery.queryKey, (old) =>
       old?.map((item) => (item.key === next.key ? next : item)),
     );
-    setDraft(toDraft(kindOf(next), next.value));
+    setDraft(toDraft(next, next.value));
   };
   const save = useMutation({
     mutationFn: (value: unknown) =>
@@ -111,12 +108,17 @@ function PreferenceRow({ setting }: { setting: Setting }) {
         <ValueInput
           id={id}
           label={setting.label}
-          kind={kind}
+          spec={setting}
           value={draft}
           onChange={setDraft}
+          invalid={!parsed.ok}
         />
-        {!parsed.ok && (
-          <p className="text-sm text-destructive">{t(`invalid.${kind}`)}</p>
+        {parsed.ok ? (
+          hint && <p className="text-sm text-muted-foreground">{hint}</p>
+        ) : (
+          <p className="text-sm text-destructive">
+            {invalidText(parsed.invalid, t)}
+          </p>
         )}
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <SourceBadge source={setting.source} />

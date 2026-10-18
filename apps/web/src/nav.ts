@@ -14,6 +14,12 @@ export type NavItem = {
   feature?: FeatureName;
   /** Shown only with this permission, `Subject.action` (`me.can`). */
   permission?: Permission;
+  /**
+   * A hook returning a count shown next to the label (undefined or 0: none).
+   * A hook, so the entry's feature owns its query; the menu calls it in a
+   * component of its own per entry, so the hook's identity must be stable.
+   */
+  badge?: () => number | undefined;
 };
 
 /** The sidebar's sections, in this order. */

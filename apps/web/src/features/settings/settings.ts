@@ -27,65 +27,106 @@ export const overridesQuery = (key: string) =>
   });
 
 /**
- * How a value is edited. The API does not describe a setting's type (only
- * `default` and `flag`), so it is read from the default: a boolean (or a
- * flag) is a switch, a number a number input, a string a text input,
- * anything else (null, an object, an array) JSON.
+ * How a value is edited: the setting's declared `type` (docs/settings.md,
+ * "What a setting describes"). A boolean (a flag) is a switch, an enum a
+ * select of its `options`, a number a number input within `min`/`max`, a
+ * string a text input up to `maxLength`; `json` (an object, a union) JSON.
  */
-export type Kind = 'boolean' | 'number' | 'string' | 'json';
+export type Kind = Setting['type'];
 
-export function kindOf(setting: Pick<Setting, 'flag' | 'default'>): Kind {
-  if (setting.flag) {
-    return 'boolean';
-  }
-  switch (typeof setting.default) {
-    case 'boolean':
-      return 'boolean';
-    case 'number':
-      return 'number';
-    case 'string':
-      return 'string';
-    default:
-      return 'json';
-  }
-}
+/** What the input and the checks need of a setting. */
+export type ValueSpec = Pick<
+  Setting,
+  'type' | 'options' | 'min' | 'max' | 'integer' | 'maxLength'
+>;
 
-/** A draft is what the input holds: a boolean, or the text typed. */
+/** A draft is what the input holds: a boolean, or the text typed or picked. */
 export type Draft = boolean | string;
 
-export function toDraft(kind: Kind, value: unknown): Draft {
-  switch (kind) {
+export function toDraft(spec: ValueSpec, value: unknown): Draft {
+  switch (spec.type) {
     case 'boolean':
       return value === true;
     case 'number':
       return typeof value === 'number' ? String(value) : '';
     case 'string':
       return typeof value === 'string' ? value : '';
+    case 'enum':
+      return typeof value === 'string' || typeof value === 'number'
+        ? String(value)
+        : '';
     default:
       return JSON.stringify(value ?? null, null, 2);
   }
 }
 
-export type Parsed = { ok: true; value: unknown } | { ok: false };
+/** Why a draft is refused: the `invalid.*` text to show, with its values. */
+export type Invalid = {
+  reason:
+    | 'boolean'
+    | 'number'
+    | 'integer'
+    | 'min'
+    | 'max'
+    | 'string'
+    | 'maxLength'
+    | 'enum'
+    | 'json';
+  limit?: number;
+};
 
-export function fromDraft(kind: Kind, draft: Draft): Parsed {
-  if (kind === 'boolean') {
+export type Parsed =
+  { ok: true; value: unknown } | { ok: false; invalid: Invalid };
+
+const refuse = (reason: Invalid['reason'], limit?: number): Parsed => ({
+  ok: false,
+  invalid: limit === undefined ? { reason } : { reason, limit },
+});
+
+/**
+ * The value of a draft, checked against what the setting declares. The API
+ * checks again on PUT (its JSON Schema says more: patterns, refinements):
+ * this only spares a round trip for what the form can tell.
+ */
+export function fromDraft(spec: ValueSpec, draft: Draft): Parsed {
+  if (spec.type === 'boolean') {
     return { ok: true, value: draft === true };
   }
   const text = String(draft);
-  if (kind === 'string') {
-    return { ok: true, value: text };
-  }
-  if (kind === 'number') {
-    const number = Number(text);
-    return text.trim() === '' || !Number.isFinite(number)
-      ? { ok: false }
-      : { ok: true, value: number };
-  }
-  try {
-    return { ok: true, value: JSON.parse(text) as unknown };
-  } catch {
-    return { ok: false };
+  switch (spec.type) {
+    case 'string':
+      return spec.maxLength !== undefined && text.length > spec.maxLength
+        ? refuse('maxLength', spec.maxLength)
+        : { ok: true, value: text };
+    case 'enum': {
+      // Options may be numbers: the draft is their text, the value theirs.
+      const option = spec.options?.find((o) => String(o) === text);
+      return option === undefined
+        ? refuse('enum')
+        : { ok: true, value: option };
+    }
+    case 'number': {
+      const number = Number(text);
+      if (text.trim() === '' || !Number.isFinite(number)) {
+        return refuse('number');
+      }
+      if (spec.integer && !Number.isInteger(number)) {
+        return refuse('integer');
+      }
+      if (spec.min !== undefined && number < spec.min) {
+        return refuse('min', spec.min);
+      }
+      if (spec.max !== undefined && number > spec.max) {
+        return refuse('max', spec.max);
+      }
+      return { ok: true, value: number };
+    }
+    default:
+      try {
+        return { ok: true, value: JSON.parse(text) as unknown };
+      } catch {
+        return refuse('json');
+      }
   }
 }
 

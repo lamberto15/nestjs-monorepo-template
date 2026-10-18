@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
+import { findToast } from '@/test/toast';
 
 const ALL = [
   'Note.read',
@@ -162,11 +163,11 @@ describe('deleting and restoring', () => {
 
     await waitFor(() => expect(api.calls.deleted).toEqual([NOTE_ID]));
     await waitFor(() => expect(router.state.location.pathname).toBe('/notes'));
-    expect(await screen.findByText('Note deleted')).toBeVisible();
+    await findToast('Note deleted');
 
     await user.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(api.calls.restored).toEqual([NOTE_ID]));
-    expect(await screen.findByText('Note restored')).toBeVisible();
+    await findToast('Note restored');
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(`/notes/${NOTE_ID}`),
     );
@@ -216,6 +217,6 @@ describe('the list', () => {
     await user.click(screen.getByRole('button', { name: /Open actions/ }));
     await user.click(await screen.findByRole('menuitem', { name: 'Restore' }));
     await waitFor(() => expect(api.calls.restored).toEqual([NOTE_ID]));
-    expect(await screen.findByText('Note restored')).toBeVisible();
+    await findToast('Note restored');
   });
 });

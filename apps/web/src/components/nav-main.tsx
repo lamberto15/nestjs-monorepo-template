@@ -3,12 +3,13 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { useTranslation } from 'react-i18next';
 import { useFeatures, useMe } from '@/lib/features';
-import { nav, visibleGroups } from '@/nav';
+import { nav, visibleGroups, type NavItem } from '@/nav';
 
 export function NavMain() {
   const { t } = useTranslation();
@@ -33,9 +34,16 @@ export function NavMain() {
               <item.icon />
               <span>{t(item.label)}</span>
             </SidebarMenuButton>
+            {item.badge && <NavBadge useCount={item.badge} />}
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
     </SidebarGroup>
   ));
+}
+
+/** The count of an entry (`NavItem.badge`); a component, since it calls a hook. */
+function NavBadge(props: { useCount: NonNullable<NavItem['badge']> }) {
+  const count = props.useCount();
+  return count ? <SidebarMenuBadge>{count}</SidebarMenuBadge> : null;
 }

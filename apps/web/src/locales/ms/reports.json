@@ -1,0 +1,87 @@
+{
+  "nav": "Laporan berjadual",
+  "title": "Laporan berjadual",
+  "description": "Eksport yang dijalankan untuk anda mengikut jadual, failnya dihantar melalui e-mel dengan pautan muat turun. Sesiapa yang memegang e-mel itu boleh memuat turun fail sehingga pautan tamat tempoh.",
+  "create": "Jadualkan laporan",
+  "empty": "Belum ada laporan. Jadualkan satu di sini, atau daripada senarai dengan penapisnya.",
+  "error": "Laporan tidak dapat dimuatkan.",
+  "retry": "Cuba lagi",
+  "never": "Belum dijalankan",
+  "recipients_one": "{{count}} penerima",
+  "recipients_other": "{{count}} penerima",
+  "toggle": "{{name}} aktif",
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel"
+  },
+  "every": {
+    "daily": "Harian",
+    "weekly": "Mingguan",
+    "monthly": "Bulanan"
+  },
+  "schedule": {
+    "action": "Jadualkan",
+    "daily": "Setiap hari pada {{at}}",
+    "weekly": "Setiap {{weekday}} pada {{at}}",
+    "monthly": "Setiap bulan pada hari {{day}} pada {{at}}"
+  },
+  "lastStatus": {
+    "completed": "Dihantar",
+    "failed": "Gagal"
+  },
+  "columns": {
+    "name": "Laporan",
+    "schedule": "Jadual",
+    "nextRun": "Larian seterusnya",
+    "lastRun": "Larian terakhir",
+    "active": "Aktif",
+    "actions": "Tindakan"
+  },
+  "actions": {
+    "label": "Tindakan untuk {{name}}",
+    "run": "Jalankan sekarang",
+    "edit": "Edit",
+    "delete": "Padam"
+  },
+  "run": {
+    "started": "{{name}} sedang berjalan.",
+    "title": "{{name}}",
+    "description": "Eksport larian ini. Penerima mendapat e-mel apabila ia selesai.",
+    "close": "Tutup"
+  },
+  "delete": {
+    "title": "Padam laporan ini?",
+    "description": "{{name}} berhenti dijalankan. Fail yang sudah dihantar kekal pada penerimanya.",
+    "done": "{{name}} telah dipadam."
+  },
+  "form": {
+    "createTitle": "Jadualkan laporan",
+    "editTitle": "Edit laporan",
+    "description": "Eksport yang dijalankan untuk anda mengikut jadual, pada satu jam dalam zon waktunya, dan dihantar melalui e-mel kepada penerimanya.",
+    "name": "Nama",
+    "namePlaceholder": "Draf mingguan",
+    "nameRequired": "Masukkan nama.",
+    "exporter": "Data",
+    "exporterPlaceholder": "Pilih apa yang hendak dieksport",
+    "exporterRequired": "Pilih apa yang hendak dieksport.",
+    "filters": "Penapis",
+    "noFilters": "Tiada: setiap rekod yang anda boleh baca. Jadualkan daripada senarai untuk mengekalkan penapisnya.",
+    "format": "Format",
+    "every": "Berulang",
+    "weekday": "Pada",
+    "day": "Hari dalam bulan",
+    "hour": "Pada jam",
+    "timezone": "Zon waktu",
+    "timezoneDefault": "Zon waktu anda",
+    "recipients": "Penerima",
+    "recipientsPlaceholder": "name@example.com",
+    "recipientsHint": "Sehingga {{max}} alamat. Tiada: alamat anda sendiri. Mereka menerima data anda; tiada alamat disahkan.",
+    "recipientInvalid": "Masukkan alamat e-mel yang sah.",
+    "tooManyRecipients": "Paling banyak {{max}} penerima.",
+    "active": "Aktif",
+    "cancel": "Batal",
+    "create": "Jadualkan",
+    "save": "Simpan"
+  }
+}

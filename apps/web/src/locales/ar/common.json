@@ -353,7 +353,35 @@
         "gte": "في أو بعد"
       },
       "rowsSelected_few": "تم تحديد {{count}} صفوف.",
-      "notShown_few": "{{count}} غير معروضة"
+      "notShown_few": "{{count}} غير معروضة",
+      "selectAll": "تحديد الكل",
+      "selectRow": "تحديد الصف"
+    },
+    "bulk": {
+      "label": "إجراءات التحديد",
+      "selected_one": "تم تحديد واحد",
+      "selected_other": "المحدد: {{count}}",
+      "selectAll_one": "تحديد النتيجة المطابقة",
+      "selectAll_other": "تحديد كل النتائج المطابقة ({{count}})",
+      "onlyChosen": "الصفوف المختارة فقط",
+      "tooMany": "{{max}} صفًا مختارًا على الأكثر في المرة الواحدة: صفِّ القائمة وحدد كل النتائج المطابقة بدلًا من ذلك.",
+      "clear": "مسح التحديد",
+      "selected_zero": "المحدد: {{count}}",
+      "selected_two": "المحدد: {{count}}",
+      "selected_few": "المحدد: {{count}}",
+      "selected_many": "المحدد: {{count}}",
+      "selectAll_zero": "تحديد كل النتائج المطابقة ({{count}})",
+      "selectAll_two": "تحديد كل النتائج المطابقة ({{count}})",
+      "selectAll_few": "تحديد كل النتائج المطابقة ({{count}})",
+      "selectAll_many": "تحديد كل النتائج المطابقة ({{count}})"
     }
+  },
+  "principals": {
+    "placeholder": "Search by name or address",
+    "searching": "Searching…",
+    "none": "Nobody matches.",
+    "failed": "The search failed.",
+    "forbidden": "You may not search people and clients.",
+    "client": "(API client)"
   }
 }

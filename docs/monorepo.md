@@ -116,6 +116,38 @@ http://localhost:5173) side by side.
 
   The API does not publish a record's capabilities, so the page states
   them. Texts are in the `records` namespace.
+- **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
+  is the example): `ListPage`'s `listActions` gets the list's `params`, for
+  `<ExportButton exporter="notes" filters={exportFilters(params)} />` and
+  `<ScheduleReportButton …/>` (each shown only when `GET /v1/data` lists the
+  export); `<ImportButton importer="notes" />` links to `/transfers/import`.
+  `bulkActions` turns on row selection and Dice UI's action bar:
+  `useBulkActions('/v1/notes/bulk', specs)` gives its `render` and the
+  `dialogs` to mount next to the list (confirmation, then the run: 200 at
+  once or a 202 job polled at `GET /v1/bulk/{id}`). Selecting the whole page
+  of a filtered list offers "all N matching", a run by the list's filter.
+  `/transfers` lists the exports and imports this browser started (the API
+  has no list of them yet), `/reports` the scheduled reports (`REPORTS=off`
+  hides it).
+- **Picking people and API clients** (`components/principal-picker.tsx`,
+  `lib/principals.ts`): `<PrincipalPicker>` searches
+  `GET /v1/access/principals?q=` as one types (Dice UI's combobox); its value
+  is the principal's `key` (a setting's `scopeId`) or, with `by="id"`, the
+  user's id (`kind="user" active` for a delegate). `principalDirectoryQuery()`
+  reads them all to name ids (comment authors, mentions, a setting's
+  overrides). The route answers only callers who may list users or clients;
+  for anyone else the picker says so and the directory is empty. In tests,
+  `principalsHandler()` (`test/principals.ts`) answers it.
+- **Search palette** (`features/search`): the header's search button and
+  Cmd/Ctrl+K open it. Typing calls `GET /v1/search` (debounced, grouped by
+  subject); `>` lists the nav entries the user sees. Snippets keep only
+  `<b>` (as `<mark>`, everything else stays text) and a hit's `link` is
+  followed only when it is a path of this app. A searchable feature names
+  its group in `locales/<lng>/search.json`, `subjects.<Subject>`; without
+  it the subject itself is shown.
+- **Audit log** (`features/audit`, `/audit`): `GET /v1/access/audit` with
+  filters and server paging, for `Access.readAudit` only (nav entry and
+  route gate).
 - **Scripts:** `build` (`tsc -b && vite build`, to `dist/`), `lint`, `test`
   (Vitest, jsdom, Testing Library). Turborepo builds the client first.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,

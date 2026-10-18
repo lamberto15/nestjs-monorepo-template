@@ -19,6 +19,7 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
@@ -30,8 +31,13 @@ import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/se
 import { Route as AppApiClientsIndexRouteImport } from './routes/_app/api-clients/index'
 import { Route as AppApiClientsIdRouteImport } from './routes/_app/api-clients/$id'
 import { Route as AppApiClientsUsageRouteImport } from './routes/_app/api-clients/usage'
+import { Route as AppApprovalsIndexRouteImport } from './routes/_app/approvals/index'
+import { Route as AppApprovalsIdRouteImport } from './routes/_app/approvals/$id'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
+import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
+import { Route as AppTransfersIndexRouteImport } from './routes/_app/transfers/index'
+import { Route as AppTransfersImportRouteImport } from './routes/_app/transfers/import'
 import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
 import { Route as AppAccessRolesRoleIdRouteImport } from './routes/_app/access/roles/$roleId'
 import { Route as AppAccessRolesNewRouteImport } from './routes/_app/access/roles/new'
@@ -89,6 +95,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -144,6 +155,16 @@ const AppApiClientsUsageRoute = AppApiClientsUsageRouteImport.update({
   path: '/api-clients/usage',
   getParentRoute: () => AppRoute,
 } as any)
+const AppApprovalsIndexRoute = AppApprovalsIndexRouteImport.update({
+  id: '/approvals/',
+  path: '/approvals/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppApprovalsIdRoute = AppApprovalsIdRouteImport.update({
+  id: '/approvals/$id',
+  path: '/approvals/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
   id: '/notes/',
   path: '/notes/',
@@ -152,6 +173,21 @@ const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
 const AppNotesNewRoute = AppNotesNewRouteImport.update({
   id: '/notes/new',
   path: '/notes/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransfersIndexRoute = AppTransfersIndexRouteImport.update({
+  id: '/transfers/',
+  path: '/transfers/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransfersImportRoute = AppTransfersImportRouteImport.update({
+  id: '/transfers/import',
+  path: '/transfers/import',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccessRolesIndexRoute = AppAccessRolesIndexRouteImport.update({
@@ -200,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/audit': typeof AppAuditRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/access/users': typeof AppAccessUsersRoute
@@ -209,10 +246,15 @@ export interface FileRoutesByFullPath {
   '/account/security': typeof AppAccountSecurityRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
   '/api-clients/usage': typeof AppApiClientsUsageRoute
+  '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
+  '/transfers/import': typeof AppTransfersImportRoute
   '/account/': typeof AppAccountIndexRoute
   '/api-clients/': typeof AppApiClientsIndexRoute
+  '/approvals/': typeof AppApprovalsIndexRoute
   '/notes/': typeof AppNotesIndexRoute
+  '/reports/': typeof AppReportsIndexRoute
+  '/transfers/': typeof AppTransfersIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
   '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
@@ -230,6 +272,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/audit': typeof AppAuditRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
@@ -240,10 +283,15 @@ export interface FileRoutesByTo {
   '/account/security': typeof AppAccountSecurityRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
   '/api-clients/usage': typeof AppApiClientsUsageRoute
+  '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
+  '/transfers/import': typeof AppTransfersImportRoute
   '/account': typeof AppAccountIndexRoute
   '/api-clients': typeof AppApiClientsIndexRoute
+  '/approvals': typeof AppApprovalsIndexRoute
   '/notes': typeof AppNotesIndexRoute
+  '/reports': typeof AppReportsIndexRoute
+  '/transfers': typeof AppTransfersIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
   '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
@@ -263,6 +311,7 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/_app/audit': typeof AppAuditRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
@@ -273,10 +322,15 @@ export interface FileRoutesById {
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/api-clients/$id': typeof AppApiClientsIdRoute
   '/_app/api-clients/usage': typeof AppApiClientsUsageRoute
+  '/_app/approvals/$id': typeof AppApprovalsIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
+  '/_app/transfers/import': typeof AppTransfersImportRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/api-clients/': typeof AppApiClientsIndexRoute
+  '/_app/approvals/': typeof AppApprovalsIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
+  '/_app/transfers/': typeof AppTransfersIndexRoute
   '/_app/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/_app/access/roles/new': typeof AppAccessRolesNewRoute
   '/_app/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
@@ -297,6 +351,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/audit'
     | '/notifications'
     | '/settings'
     | '/access/users'
@@ -306,10 +361,15 @@ export interface FileRouteTypes {
     | '/account/security'
     | '/api-clients/$id'
     | '/api-clients/usage'
+    | '/approvals/$id'
     | '/notes/new'
+    | '/transfers/import'
     | '/account/'
     | '/api-clients/'
+    | '/approvals/'
     | '/notes/'
+    | '/reports/'
+    | '/transfers/'
     | '/access/roles/$roleId'
     | '/access/roles/new'
     | '/access/teams/$teamId'
@@ -327,6 +387,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/audit'
     | '/notifications'
     | '/settings'
     | '/'
@@ -337,10 +398,15 @@ export interface FileRouteTypes {
     | '/account/security'
     | '/api-clients/$id'
     | '/api-clients/usage'
+    | '/approvals/$id'
     | '/notes/new'
+    | '/transfers/import'
     | '/account'
     | '/api-clients'
+    | '/approvals'
     | '/notes'
+    | '/reports'
+    | '/transfers'
     | '/access/roles/$roleId'
     | '/access/roles/new'
     | '/access/teams/$teamId'
@@ -359,6 +425,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/_app/audit'
     | '/_app/notifications'
     | '/_app/settings'
     | '/_app/'
@@ -369,10 +436,15 @@ export interface FileRouteTypes {
     | '/_app/account/security'
     | '/_app/api-clients/$id'
     | '/_app/api-clients/usage'
+    | '/_app/approvals/$id'
     | '/_app/notes/new'
+    | '/_app/transfers/import'
     | '/_app/account/'
     | '/_app/api-clients/'
+    | '/_app/approvals/'
     | '/_app/notes/'
+    | '/_app/reports/'
+    | '/_app/transfers/'
     | '/_app/access/roles/$roleId'
     | '/_app/access/roles/new'
     | '/_app/access/teams/$teamId'
@@ -466,6 +538,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -543,6 +622,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppApiClientsUsageRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/approvals/': {
+      id: '/_app/approvals/'
+      path: '/approvals'
+      fullPath: '/approvals/'
+      preLoaderRoute: typeof AppApprovalsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/approvals/$id': {
+      id: '/_app/approvals/$id'
+      path: '/approvals/$id'
+      fullPath: '/approvals/$id'
+      preLoaderRoute: typeof AppApprovalsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notes/': {
       id: '/_app/notes/'
       path: '/notes'
@@ -555,6 +648,27 @@ declare module '@tanstack/react-router' {
       path: '/notes/new'
       fullPath: '/notes/new'
       preLoaderRoute: typeof AppNotesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports/': {
+      id: '/_app/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AppReportsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transfers/': {
+      id: '/_app/transfers/'
+      path: '/transfers'
+      fullPath: '/transfers/'
+      preLoaderRoute: typeof AppTransfersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transfers/import': {
+      id: '/_app/transfers/import'
+      path: '/transfers/import'
+      fullPath: '/transfers/import'
+      preLoaderRoute: typeof AppTransfersImportRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/access/roles/': {
@@ -610,6 +724,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAuditRoute: typeof AppAuditRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -620,10 +735,15 @@ interface AppRouteChildren {
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
   AppApiClientsUsageRoute: typeof AppApiClientsUsageRoute
+  AppApprovalsIdRoute: typeof AppApprovalsIdRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
+  AppTransfersImportRoute: typeof AppTransfersImportRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
+  AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
+  AppTransfersIndexRoute: typeof AppTransfersIndexRoute
   AppAccessRolesRoleIdRoute: typeof AppAccessRolesRoleIdRoute
   AppAccessRolesNewRoute: typeof AppAccessRolesNewRoute
   AppAccessTeamsTeamIdRoute: typeof AppAccessTeamsTeamIdRoute
@@ -634,6 +754,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAuditRoute: AppAuditRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
@@ -644,10 +765,15 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountSecurityRoute: AppAccountSecurityRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,
   AppApiClientsUsageRoute: AppApiClientsUsageRoute,
+  AppApprovalsIdRoute: AppApprovalsIdRoute,
   AppNotesNewRoute: AppNotesNewRoute,
+  AppTransfersImportRoute: AppTransfersImportRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppApiClientsIndexRoute: AppApiClientsIndexRoute,
+  AppApprovalsIndexRoute: AppApprovalsIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
+  AppReportsIndexRoute: AppReportsIndexRoute,
+  AppTransfersIndexRoute: AppTransfersIndexRoute,
   AppAccessRolesRoleIdRoute: AppAccessRolesRoleIdRoute,
   AppAccessRolesNewRoute: AppAccessRolesNewRoute,
   AppAccessTeamsTeamIdRoute: AppAccessTeamsTeamIdRoute,

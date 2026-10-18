@@ -1,0 +1,76 @@
+{
+  "nav": "Exporte und Importe",
+  "kind": {
+    "export": "Export",
+    "import": "Import"
+  },
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel (.xlsx)"
+  },
+  "export": {
+    "action": "Exportieren",
+    "title": "Exportieren",
+    "filtered": "Die Datensätze, die die Liste gerade zeigt: ihr Filter und ihre Suche. Die Datei wird im Hintergrund erstellt.",
+    "unfiltered": "Alle Datensätze, die Sie lesen dürfen. Filtern oder durchsuchen Sie die Liste zuerst, um weniger zu exportieren. Die Datei wird im Hintergrund erstellt.",
+    "format": "Format",
+    "start": "Export starten",
+    "mine": "Ihre Exporte und Importe",
+    "done_one": "{{count}} Zeile exportiert.",
+    "done_other": "{{count}} Zeilen exportiert.",
+    "download": "Herunterladen ({{format}})"
+  },
+  "mine": {
+    "title": "Exporte und Importe",
+    "import": "Datei importieren",
+    "description": "Die in diesem Browser gestarteten Exporte und Importe. Ein Download-Link gilt 30 Minuten nach Erstellung der Datei; öffnen Sie den Export erneut für einen neuen.",
+    "empty": "Noch nichts. Exportieren Sie aus einer Liste oder importieren Sie eine Datei."
+  },
+  "import": {
+    "action": "Importieren",
+    "title": "Datei importieren",
+    "nothing": "Sie dürfen nichts importieren.",
+    "description": "Jede Zeile wird geprüft, als würde sie von Hand angelegt; gültige Zeilen werden geschrieben, abgelehnte kommen mit dem Grund zurück. Spalten werden über ihren Kopfnamen zugeordnet.",
+    "subject": "Importieren in",
+    "columns": "Erwartete Spalten",
+    "column": "Spalte",
+    "type": "Typ",
+    "required": "Pflicht",
+    "yes": "Ja",
+    "no": "Nein",
+    "template": "Eine Vorlage zum Ausfüllen:",
+    "drop": "CSV-, JSON- oder Excel-Datei hier ablegen",
+    "limit": "Eine Datei, bis zu {{max}}.",
+    "choose": "Datei auswählen",
+    "remove": "Datei entfernen",
+    "rejected": "{{name}} wurde nicht hinzugefügt: {{reason}}",
+    "tooLarge": "sie ist größer als {{max}}",
+    "dryRun": "Datei nur prüfen",
+    "dryRunHint": "Jede Zeile wird geprüft; nichts wird geschrieben.",
+    "writeHint": "Gültige Zeilen werden jetzt geschrieben; abgelehnte werden danach aufgelistet.",
+    "check": "Datei prüfen",
+    "start": "Importieren",
+    "mine": "Ihre Exporte und Importe",
+    "uploading": "Hochladen",
+    "uploadingPercent": "Wird hochgeladen… {{percent}} %",
+    "checked": "{{rows}} Zeilen geprüft: {{valid}} gültig, {{failed}} abgelehnt. Nichts wurde geschrieben.",
+    "imported": "{{rows}} Zeilen gelesen: {{imported}} importiert, {{failed}} abgelehnt.",
+    "errorsTitle": "Abgelehnte Zeilen",
+    "row": "Zeile",
+    "field": "Feld",
+    "message": "Grund",
+    "moreErrors_one": "Und {{count}} weitere im Bericht.",
+    "moreErrors_other": "Und {{count}} weitere im Bericht.",
+    "downloadErrors": "Abgelehnte Zeilen herunterladen (CSV)"
+  },
+  "status": {
+    "queued": "Wartet auf einen Worker…",
+    "running_one": "In Arbeit… bisher {{count}} Zeile.",
+    "running_other": "In Arbeit… bisher {{count}} Zeilen.",
+    "progressLabel": "Fortschritt",
+    "failed": "Fehlgeschlagen. Versuchen Sie es erneut.",
+    "notFound": "Diese Übertragung ist nicht mehr verfügbar.",
+    "error": "Ihr Status konnte nicht geladen werden."
+  }
+}

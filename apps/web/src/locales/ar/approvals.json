@@ -1,0 +1,171 @@
+{
+  "nav": {
+    "title": "الموافقات"
+  },
+  "inbox": {
+    "title": "الموافقات",
+    "error": "تعذّر تحميل الموافقات.",
+    "loadMore": "تحميل المزيد"
+  },
+  "tabs": {
+    "mine": "بانتظاري",
+    "requested": "طلبتُها أنا",
+    "history": "السجل"
+  },
+  "empty": {
+    "mine": "لا شيء ينتظر قرارك.",
+    "requested": "لم تطلب أي موافقة.",
+    "history": "لا توجد موافقات منتهية بعد."
+  },
+  "actions": {
+    "Note": {
+      "publish": "نشر ملاحظة"
+    }
+  },
+  "row": {
+    "stage": "{{name}} (المرحلة {{current}} من {{count}})",
+    "requested": "طلبها {{name}} في {{date}}",
+    "details": "التفاصيل"
+  },
+  "status": {
+    "pending": "قيد الانتظار",
+    "changes_requested": "مطلوب تعديلات",
+    "approved": "تمت الموافقة",
+    "rejected": "مرفوض",
+    "cancelled": "ملغى",
+    "expired": "منتهي الصلاحية",
+    "failed": "فشل"
+  },
+  "decision": {
+    "approve": {
+      "title": "موافقة",
+      "button": "موافقة",
+      "submit": "موافقة",
+      "done": "تمت الموافقة."
+    },
+    "reject": {
+      "title": "رفض",
+      "button": "رفض",
+      "submit": "رفض",
+      "done": "تم الرفض."
+    },
+    "cancel": {
+      "title": "إلغاء الطلب",
+      "button": "إلغاء الطلب",
+      "submit": "إلغاء الطلب",
+      "done": "تم إلغاء الطلب."
+    },
+    "comment": "تعليق (اختياري)",
+    "commentRequiredLabel": "سبب الرفض",
+    "commentRequired": "اذكر سبب الرفض."
+  },
+  "conflict": {
+    "title": "تغيّر هذا الطلب",
+    "description": "قرّر أحدهم أو غيّره منذ فتحته.",
+    "reload": "إعادة التحميل"
+  },
+  "delegations": {
+    "open": "تفويض",
+    "title": "تفويض موافقاتي",
+    "description": "أثناء غيابك يمكن لشخص آخر البتّ في الموافقات المسندة إليك. يُسجَّل قراره باسمه نيابةً عنك.",
+    "list": "التفويضات",
+    "none": "لم تفوّض أحدًا ولم تتلقَّ أي تفويض.",
+    "given": "فوّضتَ {{name}}",
+    "held": "فوّضك {{name}}",
+    "period": "من {{from}} إلى {{to}}",
+    "end": "إنهاء",
+    "person": "تفويض إلى",
+    "choose": "اختر شخصًا",
+    "from": "من",
+    "to": "حتى",
+    "hint": "يمكنك البتّ بنفسك خلال هذه الفترة.",
+    "create": "تفويض",
+    "created": "تم إنشاء التفويض.",
+    "errors": {
+      "person": "اختر شخصًا.",
+      "dates": "حدّد التاريخين.",
+      "order": "يجب أن تكون النهاية بعد البداية."
+    }
+  },
+  "detail": {
+    "back": "العودة إلى الموافقات",
+    "notFound": {
+      "title": "الموافقة غير موجودة",
+      "description": "غير موجودة أو لا يحق لك رؤيتها."
+    },
+    "error": {
+      "title": "تعذّر تحميل الموافقة",
+      "generic": "حدث خطأ ما.",
+      "retry": "أعد المحاولة"
+    },
+    "status": "الحالة",
+    "record": "السجل",
+    "requester": "طلبها",
+    "requestedAt": "تاريخ الطلب",
+    "comment": "تعليق صاحب الطلب",
+    "dueAt": "الاستحقاق",
+    "outcome": "النتيجة"
+  },
+  "outcome": {
+    "overdue": "لم يُبتّ فيها في الوقت المحدد",
+    "not_resubmitted": "لم تُعَد في الوقت المحدد",
+    "no_approvers": "لم يبقَ أي موافق للبتّ",
+    "record_changed": "تغيّر السجل أثناء الانتظار",
+    "apply_failed": "تعذّر تطبيق التغيير المعتمد",
+    "abandoned": "أنهاها مسؤول",
+    "record_deleted": "حُذف السجل"
+  },
+  "stages": {
+    "title": "المراحل",
+    "name": "المرحلة {{current}} من {{count}}: {{name}}",
+    "state": {
+      "waiting": "بانتظار الدور",
+      "active": "جارية",
+      "approved": "تمت الموافقة",
+      "rejected": "مرفوضة",
+      "changes_requested": "أُعيدت للتعديل",
+      "closed": "مغلقة"
+    },
+    "mode": {
+      "any": "يقرّر موافق واحد",
+      "all": "يجب أن يوافق الجميع",
+      "quorum": "مطلوب {{n}} موافقات"
+    },
+    "noApprovers": "لا يوجد موافقون.",
+    "assignment": {
+      "pending": "بانتظار القرار",
+      "approved": "وافق",
+      "rejected": "رفض",
+      "changes_requested": "طلب تعديلات",
+      "closed": "مغلق"
+    },
+    "by": "بواسطة {{name}}",
+    "escalated": "تم التصعيد"
+  },
+  "history": {
+    "title": "السجل",
+    "stage": "المرحلة {{stage}}",
+    "type": {
+      "requested": "تم الطلب",
+      "stage_started": "بدأت المرحلة",
+      "decided": "قرار",
+      "stage_approved": "تمت الموافقة على المرحلة",
+      "reminded": "أُرسل تذكير",
+      "escalated": "تم التصعيد",
+      "approver_removed": "أُزيل موافق",
+      "resubmitted": "أُعيد الإرسال",
+      "approved": "تمت الموافقة",
+      "rejected": "مرفوض",
+      "changes_requested": "مطلوب تعديلات",
+      "cancelled": "ملغى",
+      "expired": "منتهي الصلاحية",
+      "failed": "فشل"
+    }
+  },
+  "banner": {
+    "awaiting": "بانتظار الموافقة: المرحلة {{current}} من {{count}} ({{name}})",
+    "changesRequested": "طُلبت تعديلات: على صاحب الطلب إعادة الإرسال",
+    "requestedBy": "طلبها {{name}}",
+    "details": "تفاصيل الموافقة"
+  }
+}

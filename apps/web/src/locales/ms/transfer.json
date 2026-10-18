@@ -1,0 +1,76 @@
+{
+  "nav": "Eksport dan import",
+  "kind": {
+    "export": "Eksport",
+    "import": "Import"
+  },
+  "formats": {
+    "csv": "CSV",
+    "json": "JSON",
+    "xlsx": "Excel (.xlsx)"
+  },
+  "export": {
+    "action": "Eksport",
+    "title": "Eksport",
+    "filtered": "Rekod yang ditunjukkan oleh senarai sekarang: penapis dan cariannya. Fail dibuat di latar belakang.",
+    "unfiltered": "Setiap rekod yang anda boleh baca. Tapis atau cari senarai dahulu untuk mengeksport lebih sedikit. Fail dibuat di latar belakang.",
+    "format": "Format",
+    "start": "Mulakan eksport",
+    "mine": "Eksport dan import anda",
+    "done_one": "{{count}} baris dieksport.",
+    "done_other": "{{count}} baris dieksport.",
+    "download": "Muat turun ({{format}})"
+  },
+  "mine": {
+    "title": "Eksport dan import",
+    "import": "Import fail",
+    "description": "Eksport dan import yang dimulakan dalam pelayar ini. Pautan muat turun berfungsi selama 30 minit selepas fail dibuat; buka eksport semula untuk pautan baharu.",
+    "empty": "Belum ada. Eksport daripada senarai, atau import fail."
+  },
+  "import": {
+    "action": "Import",
+    "title": "Import fail",
+    "nothing": "Tiada apa yang anda boleh import.",
+    "description": "Setiap baris disemak seolah-olah dicipta secara manual; baris yang sah ditulis, baris yang ditolak dikembalikan dengan sebabnya. Lajur dipadankan mengikut nama pengepalanya.",
+    "subject": "Import ke dalam",
+    "columns": "Lajur yang diterima",
+    "column": "Lajur",
+    "type": "Jenis",
+    "required": "Wajib",
+    "yes": "Ya",
+    "no": "Tidak",
+    "template": "Templat untuk diisi:",
+    "drop": "Lepaskan fail CSV, JSON atau Excel di sini",
+    "limit": "Satu fail, sehingga {{max}}.",
+    "choose": "Pilih fail",
+    "remove": "Buang fail",
+    "rejected": "{{name}} tidak ditambah: {{reason}}",
+    "tooLarge": "ia lebih besar daripada {{max}}",
+    "dryRun": "Semak fail sahaja",
+    "dryRunHint": "Setiap baris disemak; tiada apa yang ditulis.",
+    "writeHint": "Baris yang sah ditulis sekarang; baris yang ditolak disenaraikan selepas itu.",
+    "check": "Semak fail",
+    "start": "Import",
+    "mine": "Eksport dan import anda",
+    "uploading": "Memuat naik",
+    "uploadingPercent": "Memuat naik… {{percent}}%",
+    "checked": "{{rows}} baris disemak: {{valid}} sah, {{failed}} ditolak. Tiada apa yang ditulis.",
+    "imported": "{{rows}} baris dibaca: {{imported}} diimport, {{failed}} ditolak.",
+    "errorsTitle": "Baris yang ditolak",
+    "row": "Baris",
+    "field": "Medan",
+    "message": "Sebab",
+    "moreErrors_one": "Dan {{count}} lagi dalam laporan.",
+    "moreErrors_other": "Dan {{count}} lagi dalam laporan.",
+    "downloadErrors": "Muat turun baris yang ditolak (CSV)"
+  },
+  "status": {
+    "queued": "Menunggu pekerja…",
+    "running_one": "Sedang berjalan… {{count}} baris setakat ini.",
+    "running_other": "Sedang berjalan… {{count}} baris setakat ini.",
+    "progressLabel": "Kemajuan",
+    "failed": "Ia gagal. Cuba lagi.",
+    "notFound": "Pemindahan ini tidak lagi tersedia.",
+    "error": "Statusnya tidak dapat dimuatkan."
+  }
+}

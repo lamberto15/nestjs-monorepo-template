@@ -45,3 +45,6 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+
+// Nor scrollIntoView, which cmdk (the command palette) calls on the selected item.
+Element.prototype.scrollIntoView = () => {};

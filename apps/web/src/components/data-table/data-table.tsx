@@ -254,7 +254,9 @@ function DataTableRowImpl<TData extends RowData>({
                   const target = event.target as HTMLElement;
                   if (
                     event.currentTarget.contains(target) &&
-                    !target.closest('a, button, [role="menuitem"]')
+                    !target.closest(
+                      'a, button, [role="menuitem"], [role="checkbox"]',
+                    )
                   ) {
                     onRowClick(row.original);
                   }

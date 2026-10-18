@@ -60,7 +60,7 @@ export function MemberSheet(props: {
         {props.member && (
           <>
             <SheetHeader>
-              <SheetTitle>{props.member.name ?? props.member.email}</SheetTitle>
+              <SheetTitle>{props.member.name || props.member.email}</SheetTitle>
               <SheetDescription>{props.member.email}</SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-6 px-4 pb-6">

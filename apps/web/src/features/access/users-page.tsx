@@ -141,7 +141,7 @@ function Members() {
                       className="flex flex-col items-start text-start hover:underline"
                       onClick={() => setSelected(m.id)}
                     >
-                      <span className="font-medium">{m.name ?? m.email}</span>
+                      <span className="font-medium">{m.name || m.email}</span>
                       <span className="text-xs text-muted-foreground">
                         {m.email}
                       </span>

@@ -1,0 +1,171 @@
+{
+  "nav": {
+    "title": "Kelulusan"
+  },
+  "inbox": {
+    "title": "Kelulusan",
+    "error": "Kelulusan tidak dapat dimuatkan.",
+    "loadMore": "Muat lagi"
+  },
+  "tabs": {
+    "mine": "Menunggu saya",
+    "requested": "Diminta oleh saya",
+    "history": "Sejarah"
+  },
+  "empty": {
+    "mine": "Tiada apa yang menunggu keputusan anda.",
+    "requested": "Anda belum meminta sebarang kelulusan.",
+    "history": "Belum ada kelulusan yang selesai."
+  },
+  "actions": {
+    "Note": {
+      "publish": "Terbitkan nota"
+    }
+  },
+  "row": {
+    "stage": "{{name}} (peringkat {{current}} daripada {{count}})",
+    "requested": "Diminta oleh {{name}} pada {{date}}",
+    "details": "Butiran"
+  },
+  "status": {
+    "pending": "Menunggu",
+    "changes_requested": "Pindaan diminta",
+    "approved": "Diluluskan",
+    "rejected": "Ditolak",
+    "cancelled": "Dibatalkan",
+    "expired": "Tamat tempoh",
+    "failed": "Gagal"
+  },
+  "decision": {
+    "approve": {
+      "title": "Luluskan",
+      "button": "Luluskan",
+      "submit": "Luluskan",
+      "done": "Diluluskan."
+    },
+    "reject": {
+      "title": "Tolak",
+      "button": "Tolak",
+      "submit": "Tolak",
+      "done": "Ditolak."
+    },
+    "cancel": {
+      "title": "Batalkan permintaan",
+      "button": "Batalkan permintaan",
+      "submit": "Batalkan permintaan",
+      "done": "Permintaan dibatalkan."
+    },
+    "comment": "Komen (pilihan)",
+    "commentRequiredLabel": "Sebab penolakan",
+    "commentRequired": "Nyatakan sebab anda menolak."
+  },
+  "conflict": {
+    "title": "Permintaan ini telah berubah",
+    "description": "Seseorang telah memutuskan atau mengubahnya sejak anda membukanya.",
+    "reload": "Muat semula"
+  },
+  "delegations": {
+    "open": "Wakilkan",
+    "title": "Wakilkan kelulusan saya",
+    "description": "Semasa anda tiada, orang lain boleh memutuskan kelulusan yang diberikan kepada anda. Keputusannya direkodkan atas namanya, bagi pihak anda.",
+    "list": "Perwakilan",
+    "none": "Anda tidak mewakilkan sesiapa dan tidak menerima perwakilan.",
+    "given": "Anda mewakilkan kepada {{name}}",
+    "held": "{{name}} mewakilkan kepada anda",
+    "period": "{{from}} hingga {{to}}",
+    "end": "Tamatkan",
+    "person": "Wakilkan kepada",
+    "choose": "Pilih seseorang",
+    "from": "Dari",
+    "to": "Hingga",
+    "hint": "Anda masih boleh memutuskan sendiri dalam tempoh ini.",
+    "create": "Wakilkan",
+    "created": "Perwakilan dibuat.",
+    "errors": {
+      "person": "Pilih seseorang.",
+      "dates": "Tetapkan kedua-dua tarikh.",
+      "order": "Penamat mesti selepas permulaan."
+    }
+  },
+  "detail": {
+    "back": "Kembali ke kelulusan",
+    "notFound": {
+      "title": "Kelulusan tidak ditemui",
+      "description": "Ia tidak wujud, atau anda tidak boleh melihatnya."
+    },
+    "error": {
+      "title": "Kelulusan tidak dapat dimuatkan",
+      "generic": "Sesuatu telah berlaku.",
+      "retry": "Cuba lagi"
+    },
+    "status": "Status",
+    "record": "Rekod",
+    "requester": "Diminta oleh",
+    "requestedAt": "Diminta pada",
+    "comment": "Komen pemohon",
+    "dueAt": "Tarikh akhir",
+    "outcome": "Hasil"
+  },
+  "outcome": {
+    "overdue": "Tidak diputuskan tepat pada masanya",
+    "not_resubmitted": "Tidak dihantar semula tepat pada masanya",
+    "no_approvers": "Tiada pelulus yang tinggal untuk memutuskan",
+    "record_changed": "Rekod berubah semasa menunggu",
+    "apply_failed": "Perubahan yang diluluskan tidak dapat dilaksanakan",
+    "abandoned": "Ditamatkan oleh pentadbir",
+    "record_deleted": "Rekod telah dipadam"
+  },
+  "stages": {
+    "title": "Peringkat",
+    "name": "Peringkat {{current}} daripada {{count}}: {{name}}",
+    "state": {
+      "waiting": "Menunggu",
+      "active": "Sedang berjalan",
+      "approved": "Diluluskan",
+      "rejected": "Ditolak",
+      "changes_requested": "Dikembalikan untuk pindaan",
+      "closed": "Ditutup"
+    },
+    "mode": {
+      "any": "Mana-mana seorang pelulus memutuskan",
+      "all": "Semua mesti meluluskan",
+      "quorum": "{{n}} kelulusan diperlukan"
+    },
+    "noApprovers": "Tiada pelulus.",
+    "assignment": {
+      "pending": "Menunggu",
+      "approved": "Diluluskan",
+      "rejected": "Ditolak",
+      "changes_requested": "Meminta pindaan",
+      "closed": "Ditutup"
+    },
+    "by": "oleh {{name}}",
+    "escalated": "dinaikkan"
+  },
+  "history": {
+    "title": "Sejarah",
+    "stage": "Peringkat {{stage}}",
+    "type": {
+      "requested": "Diminta",
+      "stage_started": "Peringkat bermula",
+      "decided": "Keputusan",
+      "stage_approved": "Peringkat diluluskan",
+      "reminded": "Peringatan dihantar",
+      "escalated": "Dinaikkan",
+      "approver_removed": "Pelulus dialih keluar",
+      "resubmitted": "Dihantar semula",
+      "approved": "Diluluskan",
+      "rejected": "Ditolak",
+      "changes_requested": "Pindaan diminta",
+      "cancelled": "Dibatalkan",
+      "expired": "Tamat tempoh",
+      "failed": "Gagal"
+    }
+  },
+  "banner": {
+    "awaiting": "Menunggu kelulusan: peringkat {{current}} daripada {{count}} ({{name}})",
+    "changesRequested": "Pindaan diminta: pemohon mesti menghantar semula",
+    "requestedBy": "Diminta oleh {{name}}",
+    "details": "Butiran kelulusan"
+  }
+}

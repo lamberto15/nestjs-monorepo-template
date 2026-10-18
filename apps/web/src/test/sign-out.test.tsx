@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { problem, server, signedInUser } from '@/test/server';
+import { findToast } from '@/test/toast';
 
 async function signOutFromMenu() {
   const user = userEvent.setup();
@@ -19,7 +20,7 @@ describe('signing out', () => {
     );
     const { router, queryClient } = await renderApp('/');
     await signOutFromMenu();
-    expect(await screen.findByText('unavailable (test)')).toBeVisible();
+    await findToast('unavailable (test)');
     expect(router.state.location.pathname).toBe('/');
     expect(queryClient.getQueryData(['auth', 'me'])).toEqual(signedInUser);
   });

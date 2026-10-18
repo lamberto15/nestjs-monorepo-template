@@ -1,0 +1,46 @@
+{
+  "run": {
+    "title": {
+      "delete": "Deleting",
+      "restore": "Restoring",
+      "update": "Changing"
+    },
+    "description": "Each record goes through the same checks as one at a time; one that fails does not stop the others.",
+    "starting": "Starting…",
+    "queued": "Waiting for a worker…",
+    "progress": "{{processed}} processed: {{done}} done, {{failed}} failed.",
+    "progressLabel": "Progress",
+    "result": "{{done}} done, {{failed}} failed, {{skipped}} skipped.",
+    "failed": "The run stopped. Records already done stay done; run it again to do the rest.",
+    "error": "Its progress could not be loaded.",
+    "problems": "Records not done",
+    "item": {
+      "done": "done",
+      "failed": "failed",
+      "skipped": "skipped (not found, or not yours to change)"
+    },
+    "more_one": "And {{count}} more.",
+    "more_other": "And {{count}} more.",
+    "close": "Close"
+  },
+  "confirm": {
+    "delete": {
+      "title_one": "Delete {{count}} record?",
+      "title_other": "Delete {{count}} records?",
+      "description_one": "It goes to the recycle bin, where it can be restored.",
+      "description_other": "They go to the recycle bin, where they can be restored."
+    },
+    "restore": {
+      "title_one": "Restore {{count}} record?",
+      "title_other": "Restore {{count}} records?",
+      "description_one": "It comes back from the recycle bin.",
+      "description_other": "They come back from the recycle bin."
+    },
+    "update": {
+      "title_one": "Change {{count}} record?",
+      "title_other": "Change {{count}} records?",
+      "description_one": "The change is applied to it.",
+      "description_other": "The change is applied to each of them."
+    }
+  }
+}
