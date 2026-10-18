@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw/http';
-import { panelHandlers } from '@/test/panels-api';
+import { panelHandlers, panelsDescription } from '@/test/panels-api';
 import { problem, server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
 
@@ -56,6 +56,8 @@ const description = {
   recycleBin: true,
   defaultSort: '-createdAt',
   limits: { defaultLimit: 50, maxLimit: 100 },
+  // Notes take every panel (note.record.ts).
+  ...panelsDescription(),
 };
 
 type NoteCan = { update: boolean; delete: boolean; restore: boolean };

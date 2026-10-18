@@ -35,7 +35,8 @@ export function connectionKey(me: NonNullable<ReturnType<typeof useMe>>) {
  * One socket per signed-in session (docs/webhooks-and-realtime.md,
  * "Realtime"), only when the deployment has `realtime` on. Mounted inside
  * the `_app` layout, so it ends with the session. On every reconnect the
- * notifications queries are refetched: events sent while offline are lost.
+ * notifications and the record panels' queries are refetched: events sent
+ * while offline are lost.
  * Other features read the socket with `useRealtime` / `useRealtimeEvent`.
  */
 export function RealtimeProvider(props: { children: ReactNode }) {
@@ -67,6 +68,8 @@ export function RealtimeProvider(props: { children: ReactNode }) {
     const onConnect = () => {
       if (connectedOnce) {
         void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        // components/records/panels (panelKeys): their comments and files.
+        void queryClient.invalidateQueries({ queryKey: ['panels'] });
       }
       connectedOnce = true;
     };
