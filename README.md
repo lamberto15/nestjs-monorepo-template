@@ -2,7 +2,7 @@
 
 A production-ready starting point for NestJS 12 REST APIs: everything a
 project would otherwise rebuild is here, so a new project only writes its own
-features. JSON in, JSON out; Swagger UI at `/api` is the only page.
+features. JSON in, JSON out; Swagger UI at `/api` is the API's only page.
 
 You choose the shape once, with the first-run wizard (`pnpm setup`: one
 organization or many, which optional services and security switches are on);
@@ -11,8 +11,9 @@ standard, so you write only the business logic; and you deploy without
 downtime with Docker Compose (rolling or blue-green) or Docker Swarm.
 
 A pnpm + Turborepo monorepo: the API in `apps/api`, its typed client in
-`packages/api-client`, and room for your frontends in `apps/`
-([monorepo](docs/monorepo.md)).
+`packages/api-client`, a web app on that client in `apps/web` (React, Vite,
+TanStack Router and Query, shadcn/ui and Dice UI from `packages/ui`), and
+room for more frontends in `apps/` ([monorepo](docs/monorepo.md)).
 
 ## What's in it
 
@@ -30,6 +31,7 @@ A pnpm + Turborepo monorepo: the API in `apps/api`, its typed client in
 | Approvals | Declare "this action needs approval" once: multi-stage policies (any, all, quorum, your own modes), approvers by role, team, permission or your own rules, reminders and escalation, delegation, an inbox, policies changed at runtime and versioned, on durable workflows | [approvals](docs/approvals.md) |
 | Platform | PostgreSQL 18 (UUIDv7 keys), Redis 8, file storage (local or S3, signed URLs), http-client with resilience, i18n (en, de, ar, zh, ms), time zones | [i18n and time](docs/i18n-and-time.md) |
 | Money | Amounts as bigint minor units with their ISO 4217 currency (strings in the API), rounding modes (half-up by default, banker's), allocation without losing a cent, formatting in every locale, the ECB's daily rates and conversion through the euro | [money](docs/money.md) |
+| Web app | A React single-page app on the typed client, served by Caddy beside the API: sign-in with every method, the account pages, users, roles, teams and grants, API clients and usage, approvals, notifications, settings and flags, the audit log, global search, exports, imports, scheduled reports and bulk operations, and the example feature's list and record pages (tags, comments, attachments, revisions) | [monorepo](docs/monorepo.md#the-web-app) |
 | Clients | A typed client package for web, mobile and scripts: REST types generated from the OpenAPI document, the conventions applied (credentials, idempotency keys, problem details, pages, ETags), typed realtime events | [api-client](packages/api-client/README.md) |
 | Operations | Separate API and worker processes, health checks, JSON logs with request ids and redaction, Prometheus metrics and alert rules, backups, Docker Compose for development and production with resource limits, Caddy HTTPS, CI with scans, published images, Dependabot | [deployment](docs/deployment.md) |
 | Deploys | Zero-downtime deploys three ways, with graceful shutdown and Caddy holding requests while replicas restart: rolling (`pnpm deploy:rolling`), blue-green with an instant rollback (`pnpm deploy:blue-green`), Docker Swarm with automatic rollback (`pnpm deploy:swarm`) | [deployment](docs/deployment.md#zero-downtime-deploys-three-ways), [rolling](docs/deploy-rolling.md), [blue-green](docs/deploy-blue-green.md), [Swarm](docs/deploy-swarm.md) |
@@ -48,17 +50,21 @@ pnpm install
 pnpm setup                # first run: a few questions, writes apps/api/.env.development (or the root .env: --target production)
 pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES), Gotenberg (PDF)
 pnpm dev                  # the API (http://localhost:3000/api) and the web app (http://localhost:5173)
-pnpm db:seed:demo         # optional: demo users and teams, and each feature's demo data (passwords printed once)
+pnpm db:seed:demo         # optional, from a second terminal: demo users and teams, and each feature's demo data (passwords printed once)
 ```
+
+Open http://localhost:5173 and sign in as the administrator (below) or a
+demo member the seed printed ([monorepo](docs/monorepo.md#running-it)).
 
 `pnpm setup` asks what shapes a project (one organization or many, mail,
 storage, sign-up, bot protection, the deployment switches), keeps the
 rest off, and generates the secrets; without it, copy `apps/api/env.development.example` to
 `apps/api/.env.development` by hand ([configuration](docs/configuration.md),
 "First setup"). The first start creates the administrator (`ADMIN_EMAIL`; the password is
-logged once unless `ADMIN_PASSWORD` is set). Or open the repository in its
-devcontainer (`.devcontainer/`): the same services, nothing to install. More
-in [development](docs/development.md).
+logged once unless `ADMIN_PASSWORD` is set, which `pnpm setup` does). Or open
+the repository in its devcontainer (`.devcontainer/`): the same services,
+nothing to install; it runs the API, not yet the web app (#147). More in
+[development](docs/development.md).
 
 ## Start a new project
 
@@ -66,7 +72,7 @@ in [development](docs/development.md).
 git clone https://github.com/lamberto15/nestjs-monorepo-template my-app   # keeps the history: template updates merge
 cd my-app && git remote rename origin template
 pnpm install
-pnpm feature:remove notes   # the example feature, its tests and texts
+pnpm feature:remove notes   # the example feature, its tests and texts (the API's; the web's notes pages stay: #149)
 pnpm db:generate            # the migration that drops its table
 pnpm feature:add invoices --fields "number:string!unique,total:money,dueOn:date?" --with tags,comments,attachments,pdf
 pnpm db:generate && pnpm client:generate
@@ -89,8 +95,8 @@ docker compose up -d --build             # the first start; later deploys: one o
 By hand instead: `cp env.example .env && chmod 600 .env`; `env.example` says
 which values are required and how to generate each secret.
 
-Caddy (HTTPS) → `api` replicas; `worker` replicas for the background work;
-PostgreSQL and Redis; migrations once per deploy. Later deploys keep serving
+Caddy (HTTPS, and the web app's files) → `api` replicas; `worker` replicas
+for the background work; PostgreSQL and Redis; migrations once per deploy. Later deploys keep serving
 while the new version starts ([deployment](docs/deployment.md#zero-downtime-deploys-three-ways)):
 
 | Method | Command | Rollback |
@@ -121,7 +127,7 @@ Getting started
 - [Development](docs/development.md): setup, commands, tests, the demo seed, the typed client, the database, the git workflow
 - [Configuration](docs/configuration.md): `pnpm setup` and every variable
 - [Architecture](docs/architecture.md): the repository, the groups, the processes, how features plug in
-- [Monorepo](docs/monorepo.md): the root scripts, Turborepo, adding a frontend app
+- [Monorepo](docs/monorepo.md): the root scripts, Turborepo, the web app (running it, its pages, its tests), adding a frontend app
 
 Building features
 

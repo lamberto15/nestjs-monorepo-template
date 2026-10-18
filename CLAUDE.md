@@ -2,7 +2,9 @@
 
 A **NestJS 12 REST backend template**: the starting point for new projects.
 A pnpm + Turborepo monorepo: the API in `apps/api`, the typed client in
-`packages/api-client`, frontends next to them. Commands run from the root.
+`packages/api-client`, the web app in `apps/web` (components in
+`packages/ui`). Commands run from the root; `pnpm dev` runs the API and the
+web app (http://localhost:5173).
 Details live in `docs/`: read the file a task needs, not all of them.
 
 ## Owner's rules (always apply)
@@ -36,7 +38,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
   `pnpm feature:add`/`feature:sync`, `pnpm db:generate`, `pnpm client:generate`,
   and the router's generated route tree. In the frontend, check Dice UI first,
   then shadcn, before writing any component.
-- **REST only, no HTML.** The only page is Swagger UI at `/api`.
+- **REST only, no HTML** from the API: its only page is Swagger UI at `/api`.
 - **Never hand-write migrations or DDL.** Change a `*.tables.ts`, run
   `pnpm db:generate`, commit `apps/api/drizzle/`.
 - **Generic naming:** `user` (people), `client` (systems); "staff" and the
@@ -69,8 +71,8 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | --- | --- |
 | Where things are, the processes, how features plug in | [docs/architecture.md](docs/architecture.md) |
 | The monorepo: root scripts (`pnpm dev`: API and web; `dev:api`, `dev:web`), Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
-| The frontend (apps/web, packages/ui: Vite, TanStack Router/Query, shadcn + Dice UI) | [docs/monorepo.md](docs/monorepo.md) |
-| Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer, the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
+| The web app (apps/web, packages/ui): running it and signing in locally, its pages, nav, i18n, components (shadcn + Dice UI), record pages, tests (`renderApp`, msw, `findToast`), adding a page | [docs/monorepo.md](docs/monorepo.md), "The web app" |
+| Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer (API only for now), the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
 | A new feature: `pnpm feature:add` (`tools/feature`, the `/add-feature` skill); changing one: edit its `<item>.record.ts` (fields, capabilities), then `pnpm feature:sync` (`platform/fields`, `platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md), "Changing a feature" |
 | Load tests: k6 on the production stack, the baseline (manual runs), a 2× regression, accepting a change (`loadtest/run.sh`) | [docs/development.md](docs/development.md), "Load tests" |
 | Outgoing and incoming webhooks, the ops API, realtime (socket.io), health | [docs/webhooks-and-realtime.md](docs/webhooks-and-realtime.md) |
@@ -120,8 +122,8 @@ pnpm db:check                                           # after table changes
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 
-Current state: CI on `main` is green (unit and e2e tests, lint, the image, the
-scans). Edge cases live in `apps/api/test/edge-*.e2e-spec.ts`, security
+Current state: CI on `main` is green (unit, web and e2e tests, lint, the image,
+the scans). Edge cases live in `apps/api/test/edge-*.e2e-spec.ts`, security
 regressions in `apps/api/test/security.e2e-spec.ts`. Test counts are not kept
 here: every pull request changed them, so every pair of open pull requests
 conflicted on this line.

@@ -54,7 +54,7 @@ Filling `.env` (each step is commented in `env.example`):
 
 | Service | What | Scale |
 | --- | --- | --- |
-| `caddy` | HTTPS (Let's Encrypt via Cloudflare DNS), load-balances the API | 1 |
+| `caddy` | HTTPS (Let's Encrypt via Cloudflare DNS), load-balances the API, serves the web app's files | 1 |
 | `api` | `node dist/main`, `APP_ROLE=api` | `API_REPLICAS` (2) |
 | `worker` | `node dist/worker`, `APP_ROLE=worker` | `WORKER_REPLICAS` (1) |
 | `migrate` | `node dist/migrate`, once per deploy, before api and worker: the migrations as the owner, then the app role | one-off |
@@ -981,8 +981,12 @@ merged migration fails it already):
 
 | Job | What |
 | --- | --- |
-| `check` | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests |
+| `check` | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests; lint, build and tests are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, isn't built in CI yet (#150) |
 | `e2e` | the e2e tests in 2 shards (`--shard=1/2`, `2/2`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
+| `compose-secrets` | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`) |
+| `swarm-stack` | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`) |
+| `feature-smoke` | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md)) |
+| `template-without-notes` | `pnpm feature:remove notes`, then lint, build, `db:check`, `client:generate`, unit tests and the e2e tests in 2 shards: the core stands without the example (the web app's notes pages aren't removed yet: #149) |
 | `security` | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles |
 | `image` | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`) |
 | `backup-image` | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it |
