@@ -380,7 +380,7 @@ jobs:
         run: pnpm db:generate
       - name: Nothing of notes is left outside docs and generated files
         run: |
-          if grep -rn --include='*.ts' -e 'features/notes' -e "'/v1/notes" apps/api/src apps/api/test; then
+          if grep -rn --include='*.ts' --include='*.tsx' -e 'features/notes' -e "'/v1/notes" apps/api/src apps/api/test apps/web/src; then
             echo "Still referenced after pnpm feature:remove notes" >&2
             exit 1
           fi
@@ -390,7 +390,12 @@ jobs:
       - run: pnpm build
       - run: pnpm db:check
       - run: pnpm client:generate
-      - name: 'Unit tests (once: shard 1)'
+      # The web app types its calls with the client: built again on the one
+      # without notes (Turborepo rebuilds the client and the web app only).
+      - name: 'Build on the regenerated client (once: shard 1)'
+        if: matrix.shard == 1
+        run: pnpm build
+      - name: 'Unit and web tests (once: shard 1)'
         if: matrix.shard == 1
         run: pnpm test
       - name: Every e2e test (this shard's half)
