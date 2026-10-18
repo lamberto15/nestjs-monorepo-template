@@ -218,7 +218,26 @@ describe('bulk operations (e2e)', () => {
     });
     expect(await titles(owner.auth)).toEqual(['Other']);
 
+    // GET /v1/bulk lists it, its counts without the result per item (#136).
+    const runs = await as(owner.auth, 'get', '/v1/bulk').expect(200);
+    expect(runs.body).toEqual({
+      items: [
+        {
+          id: started.body.id,
+          name: 'test-items',
+          action: 'delete',
+          status: 'completed',
+          progress: status.progress,
+          result: { done: 3, failed: 0, skipped: 0 },
+        },
+      ],
+      nextCursor: null,
+    });
+
     const stranger = await node.client();
+    expect(
+      (await as(stranger.auth, 'get', '/v1/bulk').expect(200)).body.items,
+    ).toEqual([]);
     await as(stranger.auth, 'get', `/v1/bulk/${started.body.id}`).expect(404);
     await as(owner.auth, 'get', `/v1/bulk/${randomUUID()}`).expect(404);
 

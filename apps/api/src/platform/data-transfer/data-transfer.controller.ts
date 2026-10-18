@@ -32,6 +32,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { z } from 'zod';
+import {
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+  pageSchema,
+} from '../../core/http/pagination.js';
 import { timezone } from '../../iam/account/account.schemas.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import {
@@ -86,6 +91,77 @@ const importFieldsSchema = z.object({
       'Required. CSV, JSON (an array) or Excel (.xlsx), at most 50 MB. GET /v1/data/imports/{name}/template gives one to fill.',
   }),
 });
+const catalogSchema = z.object({
+  exports: z
+    .array(
+      z.object({
+        name: z.string().meta({ example: 'notes' }),
+        columns: z
+          .array(z.string())
+          .describe("The file's columns, in order (custom fields included)."),
+        formats: z.array(z.enum(TRANSFER_FORMATS)),
+      }),
+    )
+    .describe('The data you may export: POST /v1/data/exports { name }.'),
+  imports: z
+    .array(
+      z.object({
+        name: z.string().meta({ example: 'notes' }),
+        formats: z.array(z.enum(TRANSFER_FORMATS)),
+        columns: z
+          .array(
+            z.object({
+              name: z
+                .string()
+                .describe(
+                  'The header (a datetime column gets the zone in a template: `dueAt (Asia/Dubai)`).',
+                ),
+              type: z.enum([
+                'text',
+                'number',
+                'boolean',
+                'date',
+                'datetime',
+                'list',
+              ]),
+              required: z.boolean(),
+              description: z.string().optional(),
+              options: z
+                .array(z.string())
+                .optional()
+                .describe('The values allowed (one, or several for a list).'),
+              min: z
+                .number()
+                .optional()
+                .describe(
+                  'Length for text, value for a number, entries for a list.',
+                ),
+              max: z.number().optional(),
+              example: z.unknown().optional(),
+            }),
+          )
+          .describe(
+            'The columns you may fill (fields your permissions hide left out).',
+          ),
+        template: z
+          .string()
+          .meta({ example: '/v1/data/imports/notes/template' })
+          .describe('A file to fill: add ?format=csv|json|xlsx.'),
+      }),
+    )
+    .describe('The data you may import: POST /v1/data/imports (name, file).'),
+});
+const transfersQuerySchema = z.object({
+  kind: z
+    .enum(['export', 'import'])
+    .optional()
+    .describe('Only exports, or only imports. Default: both.'),
+  limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
+  cursor: z
+    .uuid()
+    .optional()
+    .describe('`nextCursor` of the previous page (the same `kind`).'),
+});
 const startedSchema = z.object({ id: z.string(), status: z.literal('queued') });
 const statusSchema = z.object({
   id: z.string(),
@@ -130,6 +206,7 @@ export class DataTransferController {
 
   @Get()
   @ApiOperation({ summary: 'What you may export and import' })
+  @ApiOkResponse({ standardSchema: catalogSchema })
   catalog(@CurrentUser() user: RequestPrincipal) {
     return this.transfers.catalog(user);
   }
@@ -226,6 +303,21 @@ export class DataTransferController {
       type,
       disposition: `attachment; filename="${filename}"`,
     });
+  }
+
+  @Get('transfers')
+  @ApiOperation({
+    summary: 'The exports and imports you started in this tenant',
+    description:
+      'Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account export (POST /v1/account/export) is followed by its id only.',
+  })
+  @ApiOkResponse({ standardSchema: pageSchema(statusSchema) })
+  list(
+    @CurrentUser() user: RequestPrincipal,
+    @Query({ schema: transfersQuerySchema })
+    query: z.infer<typeof transfersQuerySchema>,
+  ) {
+    return this.transfers.list(user, query);
   }
 
   @Get('transfers/:id')

@@ -534,6 +534,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/data/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The exports and imports you started in this tenant
+         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account export (POST /v1/account/export) is followed by its id only.
+         */
+        get: operations["DataTransferController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/data/transfers/{id}": {
         parameters: {
             query?: never;
@@ -543,6 +563,26 @@ export interface paths {
         };
         /** An export or import you started: progress, then the result and its links */
         get: operations["DataTransferController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The bulk runs you handed to the workers in this tenant
+         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.
+         */
+        get: operations["BulkController_list_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4811,7 +4851,44 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @description The data you may export: POST /v1/data/exports { name }. */
+                        exports: {
+                            /** @example notes */
+                            name: string;
+                            /** @description The file's columns, in order (custom fields included). */
+                            columns: string[];
+                            formats: ("csv" | "json" | "xlsx")[];
+                        }[];
+                        /** @description The data you may import: POST /v1/data/imports (name, file). */
+                        imports: {
+                            /** @example notes */
+                            name: string;
+                            formats: ("csv" | "json" | "xlsx")[];
+                            /** @description The columns you may fill (fields your permissions hide left out). */
+                            columns: {
+                                /** @description The header (a datetime column gets the zone in a template: `dueAt (Asia/Dubai)`). */
+                                name: string;
+                                /** @enum {string} */
+                                type: "text" | "number" | "boolean" | "date" | "datetime" | "list";
+                                required: boolean;
+                                description?: string;
+                                /** @description The values allowed (one, or several for a list). */
+                                options?: string[];
+                                /** @description Length for text, value for a number, entries for a list. */
+                                min?: number;
+                                max?: number;
+                                example?: unknown;
+                            }[];
+                            /**
+                             * @description A file to fill: add ?format=csv|json|xlsx.
+                             * @example /v1/data/imports/notes/template
+                             */
+                            template: string;
+                        }[];
+                    };
+                };
             };
         };
     };
@@ -4937,6 +5014,74 @@ export interface operations {
             };
         };
     };
+    DataTransferController_list_v1: {
+        parameters: {
+            query?: {
+                /** @description Only exports, or only imports. Default: both. */
+                kind?: "export" | "import";
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `kind`). */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @enum {string} */
+                            kind: "export" | "import";
+                            name: string;
+                            /** @enum {string} */
+                            format: "csv" | "json" | "xlsx";
+                            /** @enum {string} */
+                            status: "queued" | "running" | "completed" | "failed";
+                            progress: {
+                                [key: string]: number;
+                            };
+                            result?: {
+                                rows: number;
+                                /**
+                                 * Format: uri
+                                 * @description The file, for 30m.
+                                 */
+                                url?: string;
+                                imported?: number;
+                                failed?: number;
+                                dryRun?: boolean;
+                                /**
+                                 * Format: uri
+                                 * @description A CSV of the refused rows: row, field, message.
+                                 */
+                                errorsUrl?: string;
+                            };
+                            error?: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+        };
+    };
     DataTransferController_status_v1: {
         parameters: {
             query?: never;
@@ -4990,6 +5135,63 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    BulkController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            name: string;
+                            action: string;
+                            /** @enum {string} */
+                            status: "queued" | "running" | "completed" | "failed";
+                            /** @description processed, done, failed: every 100 items. */
+                            progress: {
+                                [key: string]: number;
+                            };
+                            /** @description The counts; GET /v1/bulk/{id} has the result per item. */
+                            result?: {
+                                done: number;
+                                failed: number;
+                                /** @description Ids not found, or not yours to act on (code not_found). */
+                                skipped: number;
+                                /** @description A background job keeps 10000 results; true when there were more. */
+                                truncated?: boolean;
+                            };
+                            error?: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
             };
         };
     };

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 import { z } from 'zod';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
@@ -20,6 +20,7 @@ import {
   type RequestPrincipal,
 } from '../../iam/auth/principal.js';
 import type { PlatformEnv } from '../platform.env.js';
+import { JobIndex, type JobPage } from '../queues/job-index.js';
 import { BulkRegistry } from './bulk.registry.js';
 import { BulkTally, itemError, skipped } from './bulk.results.js';
 import {
@@ -97,6 +98,7 @@ export class BulkService {
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly config: ConfigService<PlatformEnv, true>,
+    private readonly jobs: JobIndex,
   ) {}
 
   /** Runs it now (the result), or queues it (`{ id, status: 'queued' }`). */
@@ -300,14 +302,50 @@ export class BulkService {
    * Another tenant's run is a 404, even the same person's.
    */
   async status(principal: Principal, id: string) {
-    let job = await this.queue.getJob(id);
-    if (
-      !job ||
-      job.data.tenantId !== requireTenantId('A bulk run') ||
-      principalKey(job.data.principal) !== principalKey(principal)
-    ) {
+    const job = await this.queue.getJob(id);
+    if (!job || !isOwn(principal, job)) {
       throw new NotFoundException(`Bulk run ${id} not found.`);
     }
+    return this.view(job);
+  }
+
+  /**
+   * The runs this principal handed to the workers in this tenant, newest
+   * first, by cursor (the last id of the previous page), each as
+   * `status()` tells it without the result per item (its counts stay):
+   * GET /v1/bulk/{id} has them. Those BullMQ still keeps (7 days after
+   * they end); runs answered in the request were never jobs.
+   */
+  async list(
+    principal: RequestPrincipal,
+    query: { limit: number; cursor?: string },
+  ): Promise<JobPage<BulkRunView>> {
+    return this.jobs.page(
+      BULK,
+      requireTenantId('A bulk run'),
+      principal,
+      query,
+      async (id) => {
+        const job = await this.queue.getJob(id);
+        if (!job || !isOwn(principal, job)) {
+          return null;
+        }
+        const run = await this.view(job);
+        if (!run.result) {
+          return run;
+        }
+        const { results: _results, ...counts } = run.result;
+        return { ...run, result: counts };
+      },
+    );
+  }
+
+  /** A run's state, progress and result. */
+  private async view(
+    read: Job<BulkJob, BulkResult>,
+  ): Promise<Omit<BulkRunView, 'result'> & { result?: BulkResult }> {
+    const id = read.id!;
+    let job = read;
     const state = await job.getState();
     if (
       (state === 'completed' && job.returnvalue == null) ||
@@ -316,7 +354,7 @@ export class BulkService {
       // It ended between the two reads (the job was read while it ran): read
       // it again, with its result or its reason. Without this a failure read
       // that way had no reason, and answered the generic message.
-      job = (await this.queue.getJob(id))!;
+      job = (await this.queue.getJob(id)) ?? job;
     }
     const base = {
       id,
@@ -380,8 +418,11 @@ export class BulkService {
   }
 
   private async enqueue(job: BulkJob) {
+    const jobId = randomUUID();
+    // Listed for its principal (GET /bulk) before it is queued.
+    await this.jobs.add([BULK], job.tenantId, job.principal, jobId);
     const added = await this.queue.add(job.name, job, {
-      jobId: randomUUID(),
+      jobId,
       // Never retried blindly: the items done would be done twice.
       attempts: 1,
       removeOnComplete: { age: 7 * 24 * 3600 },
@@ -389,6 +430,25 @@ export class BulkService {
     await this.started(job, added.id!);
     return { id: added.id!, status: 'queued' as const };
   }
+}
+
+/**
+ * Whether the principal may see this run: theirs, started in this tenant.
+ * Another tenant's run is unseen, even the same person's.
+ */
+const isOwn = (principal: Principal, job: Job<BulkJob, BulkResult>) =>
+  job.data.tenantId === requireTenantId('A bulk run') &&
+  principalKey(job.data.principal) === principalKey(principal);
+
+/** A run as an item of GET /v1/bulk: its result's counts, not each item's. */
+export interface BulkRunView {
+  id: string;
+  name: string;
+  action: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  progress: Record<string, number>;
+  result?: Omit<BulkResult, 'results'>;
+  error?: string;
 }
 
 /** The one reason a person can act on; anything else (a database error) stays in the logs. */
