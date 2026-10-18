@@ -50,7 +50,10 @@
       "title": "Act as {{email}}?",
       "description": "Your session becomes theirs for a limited time, and everything you do is recorded as you acting as them. Stop from the banner to get your own session back.",
       "confirm": "Impersonate"
-    }
+    },
+    "allTeams": "Alle Teams",
+    "team": "Team",
+    "readOnly": "Sie können dieses Mitglied sehen. Um seine Rollen, Teams oder seinen Zugang zu ändern, brauchen Sie die Berechtigung, Benutzer zu verwalten."
   },
   "grants": {
     "roles": "Roles",
@@ -85,7 +88,7 @@
     "expired": "Expired",
     "resend": "Resend",
     "resendTitle": "Send {{email}} a new link?",
-    "resendDescription": "The current link stops working and a new one is emailed, with the same roles and teams. End dates of roles aren't kept.",
+    "resendDescription": "Der aktuelle Link funktioniert nicht mehr, und ein neuer wird per E-Mail gesendet. Die Rollen, ihre Enddaten und die Teams bleiben, wie sie waren.",
     "resent": "A new link was sent to {{email}}.",
     "revoke": "Revoke",
     "revokeTitle": "Revoke the invitation to {{email}}?",

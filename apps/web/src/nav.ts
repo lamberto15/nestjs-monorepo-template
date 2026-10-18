@@ -12,8 +12,11 @@ export type NavItem = {
   icon: LucideIcon;
   /** Shown only when this switch is on (`GET /v1/features`). */
   feature?: FeatureName;
-  /** Shown only with this permission, `Subject.action` (`me.can`). */
-  permission?: Permission;
+  /**
+   * Shown only with this permission, `Subject.action` (`me.can`), or with
+   * any of a list.
+   */
+  permission?: Permission | readonly Permission[];
   /**
    * A hook returning a count shown next to the label (undefined or 0: none).
    * A hook, so the entry's feature owns its query; the menu calls it in a

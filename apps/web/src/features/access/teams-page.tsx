@@ -24,24 +24,30 @@ import {
 import { orderedTree } from '@/features/access/pickers';
 import { TeamDialog } from '@/features/access/team-dialog';
 import { errorMessage } from '@/lib/errors';
+import { useCan } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
 
 /**
  * The team tree (docs/permissions.md, "Organization hierarchy"): what
  * "in my teams" covers. Deleting wants an empty team (409 otherwise).
+ * Whoever manages users reads it too (to reach a team's members); changing
+ * the tree wants manageTeams.
  */
 export function TeamsPage() {
   const { t } = useTranslation('access');
   const teams = useQuery(teamsQuery);
+  const mayChange = useCan('Access.manageTeams');
   const [editing, setEditing] = useState<Team | 'new'>();
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-medium">{t('teams.title')}</h1>
-        <Button className="ms-auto" onClick={() => setEditing('new')}>
-          <PlusIcon />
-          {t('teams.new')}
-        </Button>
+        {mayChange && (
+          <Button className="ms-auto" onClick={() => setEditing('new')}>
+            <PlusIcon />
+            {t('teams.new')}
+          </Button>
+        )}
       </div>
       {teams.isPending ? (
         <Spinner />
@@ -71,6 +77,7 @@ export function TeamsPage() {
                 <TeamRow
                   key={team.id}
                   team={team}
+                  mayChange={mayChange}
                   onEdit={() => setEditing(team)}
                 />
               ))}
@@ -88,7 +95,11 @@ export function TeamsPage() {
   );
 }
 
-function TeamRow(props: { team: Team; onEdit: () => void }) {
+function TeamRow(props: {
+  team: Team;
+  mayChange: boolean;
+  onEdit: () => void;
+}) {
   const { t } = useTranslation('access');
   const { team } = props;
   const queryClient = useQueryClient();
@@ -114,21 +125,23 @@ function TeamRow(props: { team: Team; onEdit: () => void }) {
       </TableCell>
       <TableCell>{team.members}</TableCell>
       <TableCell>
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={props.onEdit}>
-            {t('teams.edit')}
-          </Button>
-          <ConfirmButton
-            size="sm"
-            variant="ghost"
-            title={t('teams.deleteTitle', { name: team.name })}
-            description={t('teams.deleteDescription')}
-            confirm={t('teams.delete')}
-            onConfirm={() => remove.mutateAsync()}
-          >
-            {t('teams.delete')}
-          </ConfirmButton>
-        </div>
+        {props.mayChange && (
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={props.onEdit}>
+              {t('teams.edit')}
+            </Button>
+            <ConfirmButton
+              size="sm"
+              variant="ghost"
+              title={t('teams.deleteTitle', { name: team.name })}
+              description={t('teams.deleteDescription')}
+              confirm={t('teams.delete')}
+              onConfirm={() => remove.mutateAsync()}
+            >
+              {t('teams.delete')}
+            </ConfirmButton>
+          </div>
+        )}
       </TableCell>
     </TableRow>
   );

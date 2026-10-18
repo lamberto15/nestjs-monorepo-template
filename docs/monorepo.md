@@ -145,12 +145,16 @@ tests (#97). The API has all of them.
   new page is a file there.
 - **Menu:** a feature's entries are `features/<feature>/nav.ts` (default
   export: one entry or an array; `group`, `order`, `to`, an i18n `label`,
-  `icon`, optional `feature`, `permission` and `badge`, a hook giving a
-  count). `src/nav.ts` collects them (`import.meta.glob`) into the groups
+  `icon`, optional `feature`, `permission` (one, or a list: any of them)
+  and `badge`, a hook giving a count). `src/nav.ts` collects them (`import.meta.glob`) into the groups
   `workspace`, `administration`, `operators` (sorted by `order`; a group with
   nothing visible is hidden), so a feature never edits a shared file.
 - **Gates:** `useFeature('<switch>')` and `<Feature>`, `useCan('<Subject>.<action>')`
-  (`lib/features.tsx`), from `GET /v1/features` and `/v1/auth/me`.
+  (`lib/features.tsx`), from `GET /v1/features` and `/v1/auth/me`. A route's
+  `beforeLoad: requirePermission(...permissions)` (`features/access/gate.ts`)
+  admits whoever holds any of them: the users page is for whoever manages
+  users or teams or impersonates (the API's `AccessPolicy.open`), read-only
+  without manageUsers; the teams page for whoever manages teams or users.
 - **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
   `realtime` is on, reopened when the session changes (tenant switch,
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The

@@ -1,11 +1,24 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
-import { everything, ids, signedInWith } from '@/features/access/test/fixtures';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  bob,
+  everything,
+  ids,
+  invitation,
+  signedInWith,
+} from '@/features/access/test/fixtures';
 import { nav, visibleGroups } from '@/nav';
+import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server, signedInUser } from '@/test/server';
+import { findToast } from '@/test/toast';
+
+// Tests that watch which requests go out listen to msw's events.
+afterEach(() => {
+  server.events.removeAllListeners();
+});
 
 /** Records what each request sent. */
 function capture(
@@ -129,21 +142,7 @@ describe('users: invitations', () => {
 
     server.use(
       http.get('/v1/access/invitations', () =>
-        HttpResponse.json({
-          items: [
-            {
-              id: ids.invitation,
-              email: 'new@example.com',
-              name: null,
-              roleIds: [ids.editor],
-              teamIds: [],
-              invitedBy: 'ada@example.com',
-              expired: false,
-              expiresAt: '2026-10-20T00:00:00.000Z',
-              createdAt: '2026-10-17T00:00:00.000Z',
-            },
-          ],
-        }),
+        HttpResponse.json({ items: [invitation] }),
       ),
     );
     const revoked = capture('delete', '/v1/access/invitations/:id');
@@ -156,6 +155,78 @@ describe('users: invitations', () => {
     );
     await waitFor(() => expect(revoked).toHaveLength(1));
     expect(revoked[0]!.url).toMatch(`/v1/access/invitations/${ids.invitation}`);
+  });
+});
+
+describe('users: resending an invitation', () => {
+  it('resends through its own route (a recent sign-in asked first) and shows when its roles end', async () => {
+    signedInWith(everything);
+    server.use(
+      http.get('/v1/access/invitations', () =>
+        HttpResponse.json({ items: [invitation] }),
+      ),
+    );
+    const invited = capture('post', '/v1/access/users', 202);
+    // The first try is refused for an old sign-in; the dialog confirms it's
+    // Ada, then the same request goes again.
+    let tries = 0;
+    const resent: string[] = [];
+    server.use(
+      http.post('/v1/access/invitations/:id/resend', ({ request }) => {
+        tries += 1;
+        if (tries === 1) {
+          return HttpResponse.json(
+            {
+              status: 403,
+              code: 'reauthentication_required',
+              detail: 'Confirm it is you.',
+              methods: ['password'],
+            },
+            {
+              status: 403,
+              headers: { 'content-type': 'application/problem+json' },
+            },
+          );
+        }
+        resent.push(request.url);
+        return HttpResponse.json(
+          {
+            id: ids.invitation,
+            email: invitation.email,
+            expiresAt: '2026-10-25T00:00:00.000Z',
+          },
+          { status: 202 },
+        );
+      }),
+      http.post('/v1/auth/reauthenticate', () =>
+        HttpResponse.json({ ok: true }),
+      ),
+    );
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('tab', { name: 'Invitations' }));
+    const row = (await screen.findByText('new@example.com')).closest('tr')!;
+    expect(row).toHaveTextContent('Editor');
+    expect(row).toHaveTextContent(/Viewer · until/);
+    expect(row).not.toHaveTextContent(/Editor · until/);
+
+    await user.click(within(row).getByRole('button', { name: 'Resend' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Resend',
+      }),
+    );
+    const reauth = await screen.findByRole('dialog', { name: /confirm/i });
+    await user.type(within(reauth).getByLabelText(/Password/), 'secret');
+    await user.click(within(reauth).getByRole('button', { name: /Confirm/ }));
+
+    await findToast('A new link was sent to new@example.com.');
+    expect(resent).toHaveLength(1);
+    expect(resent[0]).toMatch(
+      `/v1/access/invitations/${ids.invitation}/resend`,
+    );
+    // Never a second invitation in its place.
+    expect(invited).toHaveLength(0);
   });
 });
 
@@ -209,25 +280,183 @@ describe('users: roles of a member', () => {
   });
 });
 
+describe('roles: one role', () => {
+  it('reads the role on its own, not from the list', async () => {
+    signedInWith(everything);
+    let listed = 0;
+    server.use(
+      http.get('/v1/access/roles', () => {
+        listed += 1;
+        return HttpResponse.json({ items: [] });
+      }),
+    );
+    await renderApp(`/access/roles/${ids.editor}`);
+    expect(
+      await screen.findByRole('heading', { name: 'Editor' }),
+    ).toBeVisible();
+    expect(await screen.findByLabelText('Name')).toHaveValue('Editor');
+    expect(listed).toBe(0);
+  });
+
+  it('says so when there is no such role (404)', async () => {
+    signedInWith(everything);
+    await renderApp('/access/roles/00000000-0000-7000-8000-00000000ffff');
+    expect(
+      await screen.findByText("This role doesn't exist (any more)."),
+    ).toBeVisible();
+  });
+});
+
+describe('users: the members', () => {
+  it('narrows the list to a team (`?teamId=`)', async () => {
+    signedInWith(everything);
+    const asked: (string | null)[] = [];
+    server.events.on('request:start', ({ request }) => {
+      const url = new URL(request.url);
+      if (url.pathname === '/v1/access/users') {
+        asked.push(url.searchParams.get('teamId'));
+      }
+    });
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+    expect(
+      await screen.findByRole('button', { name: /Carol Admin/ }),
+    ).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: 'Team' }));
+    await user.click(await screen.findByRole('option', { name: /Sales/ }));
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Carol Admin/ })).toBeNull(),
+    );
+    expect(screen.getByRole('button', { name: /Bob Builder/ })).toBeVisible();
+    expect(asked).toContain(ids.sales);
+  });
+
+  it('opens a member as the API reads them, not as the row had them', async () => {
+    signedInWith(everything);
+    server.use(
+      http.get('/v1/access/users/:id', () =>
+        HttpResponse.json({
+          ...bob,
+          updatedAt: '2026-10-02T10:00:00.000Z',
+          teamIds: [ids.north],
+        }),
+      ),
+    );
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /Bob Builder/ }),
+    );
+    const sheet = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(
+        within(sheet).getByRole('checkbox', { name: 'North' }),
+      ).toBeChecked(),
+    );
+    expect(
+      within(sheet).getByRole('checkbox', { name: 'Sales' }),
+    ).not.toBeChecked();
+  });
+});
+
+describe('teams: a team’s members', () => {
+  it('lists the team’s members with `?teamId=`, and adds someone found by search', async () => {
+    signedInWith(everything);
+    const teamIds: (string | null)[] = [];
+    server.events.on('request:start', ({ request }) => {
+      const url = new URL(request.url);
+      if (url.pathname === '/v1/access/users') {
+        teamIds.push(url.searchParams.get('teamId'));
+      }
+    });
+    server.use(
+      principalsHandler([
+        userPrincipal({
+          id: ids.carol,
+          email: 'carol@example.com',
+          name: 'Carol Admin',
+        }),
+      ]),
+    );
+    const changed = capture('patch', '/v1/access/users/:id');
+    await renderApp(`/access/teams/${ids.north}`);
+    const user = userEvent.setup();
+    expect(
+      await screen.findByText('Nobody is in this team directly.'),
+    ).toBeVisible();
+    expect(teamIds).toEqual([ids.north]);
+
+    await user.type(screen.getByLabelText('Add a member'), 'carol');
+    await user.click(await screen.findByRole('option', { name: /Carol/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await findToast('carol@example.com added.');
+    expect(changed).toHaveLength(1);
+    expect(changed[0]!.url).toMatch(`/v1/access/users/${ids.carol}`);
+    // Her teams as the single read had them, plus this one.
+    expect(changed[0]!.body).toEqual({ teamIds: [ids.north] });
+  });
+});
+
 describe('gating', () => {
-  it('shows each entry only with its permission', () => {
+  it('shows each entry to whoever may read it', () => {
     const labels = (can: Record<string, boolean>) =>
       visibleGroups(nav, allFeatures, can)
         .flatMap((group) => group.items)
         .map((item) => item.to)
         .filter((to) => to.startsWith('/access'));
-    expect(labels({ 'Access.manageUsers': true })).toEqual(['/access/users']);
+    expect(labels({ 'Access.manageUsers': true })).toEqual([
+      '/access/users',
+      '/access/teams',
+    ]);
     expect(
       labels({ 'Access.manageRoles': true, 'Access.manageTeams': true }),
-    ).toEqual(['/access/roles', '/access/teams']);
+    ).toEqual(['/access/users', '/access/roles', '/access/teams']);
+    // The API lets whoever impersonates list the users, to find whom.
+    expect(labels({ 'Access.impersonate': true })).toEqual(['/access/users']);
     expect(labels({ 'Access.readAudit': true })).toEqual([]);
+  });
+
+  it('shows the members read-only to whoever only manages teams', async () => {
+    signedInWith({ 'Access.manageTeams': true });
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /Bob Builder/ }),
+    );
+    const sheet = await screen.findByRole('dialog');
+    expect(
+      await within(sheet).findByText(/needs the permission to manage users/),
+    ).toBeVisible();
+    expect(
+      within(sheet).getByRole('checkbox', { name: /Editor/ }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(
+      within(sheet).queryByRole('button', { name: 'Save roles' }),
+    ).toBeNull();
+    expect(
+      within(sheet).queryByRole('button', {
+        name: 'Remove from this workspace',
+      }),
+    ).toBeNull();
+    // No invitations (manageUsers only) and nobody to invite.
+    expect(screen.queryByRole('tab', { name: 'Invitations' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Invite' })).toBeNull();
+  });
+
+  it('lets whoever manages users read the teams, without changing the tree', async () => {
+    signedInWith({ 'Access.manageUsers': true });
+    await renderApp('/access/teams');
+    expect(await screen.findByRole('link', { name: 'Sales' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'New team' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 
   it.each([
     ['/access/users', 'Access.manageRoles'],
     ['/access/roles', 'Access.manageUsers'],
     [`/access/roles/${ids.editor}`, 'Access.manageUsers'],
-    ['/access/teams', 'Access.manageUsers'],
+    ['/access/teams', 'Access.manageRoles'],
+    ['/access/teams', 'Access.impersonate'],
   ])(
     'sends %s to the dashboard without its permission',
     async (path, other) => {

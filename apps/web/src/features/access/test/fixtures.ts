@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw/http';
 import type { Member, Role, Team } from '@/features/access/api';
 import type { Catalog } from '@/features/access/permissions';
 import type { Me } from '@/lib/session';
-import { allFeatures, server, signedInUser } from '@/test/server';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 // The access API as the tests see it, typed by the client: the catalog,
 // roles, teams and members as the API lists them.
@@ -222,16 +222,29 @@ export function signedInWith(
     ),
     http.get('/v1/access/catalog', () => HttpResponse.json(catalog)),
     http.get('/v1/access/roles', () => HttpResponse.json({ items: roles })),
+    http.get('/v1/access/roles/:id', ({ params }) => {
+      const role = roles.find((item) => item.id === params.id);
+      return role ? HttpResponse.json(role) : problem(404, 'not_found');
+    }),
     http.get('/v1/access/teams', () => HttpResponse.json({ items: teams })),
-    http.get('/v1/access/users', () =>
-      HttpResponse.json({
-        items: [bob, carol],
+    // `?teamId=`: a team's direct members, as the API filters them.
+    http.get('/v1/access/users', ({ request }) => {
+      const teamId = new URL(request.url).searchParams.get('teamId');
+      const items = [bob, carol].filter(
+        (member) => !teamId || member.teamIds.includes(teamId),
+      );
+      return HttpResponse.json({
+        items,
         page: 1,
         nextPage: null,
         pageCount: 1,
-        total: 2,
-      }),
-    ),
+        total: items.length,
+      });
+    }),
+    http.get('/v1/access/users/:id', ({ params }) => {
+      const member = [bob, carol].find((item) => item.id === params.id);
+      return member ? HttpResponse.json(member) : problem(404, 'not_found');
+    }),
     http.get('/v1/notifications/unread-count', () =>
       HttpResponse.json({ unread: 0 }),
     ),
@@ -239,6 +252,21 @@ export function signedInWith(
   );
   return me;
 }
+
+/** A pending invitation as `GET /v1/access/invitations` lists it. */
+export const invitation = {
+  id: ids.invitation,
+  email: 'new@example.com',
+  name: null,
+  roleIds: [ids.editor, ids.viewer],
+  // Viewer ends a while after it is accepted; Editor never does.
+  roleExpiresAt: { [ids.viewer]: '2026-12-31T00:00:00.000Z' },
+  teamIds: [],
+  invitedBy: 'ada@example.com',
+  expired: false,
+  expiresAt: '2026-10-20T00:00:00.000Z',
+  createdAt: '2026-10-17T00:00:00.000Z',
+};
 
 export const everything = {
   'Access.manageRoles': true,

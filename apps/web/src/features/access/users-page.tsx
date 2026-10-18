@@ -17,6 +17,13 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@nestjs-monorepo-template/ui/components/select';
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -30,45 +37,59 @@ import { ConfirmButton } from '@/components/confirm-button';
 import {
   invalidateAccess,
   invitationsQuery,
-  invite,
   membersQuery,
+  resendInvitation,
   revokeInvitation,
   rolesQuery,
+  teamsQuery,
   type Invitation,
   type Role,
 } from '@/features/access/api';
 import { isEnded } from '@/features/access/grants';
 import { InviteDialog } from '@/features/access/invite-dialog';
 import { MemberSheet } from '@/features/access/member-sheet';
+import { orderedTree } from '@/features/access/pickers';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
+import { useCan } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
 
-/** The tenant's members and its pending invitations. */
+/**
+ * The tenant's members and, for whoever manages users, its pending
+ * invitations. Whoever only manages teams or impersonates reads the members
+ * (AccessPolicy.open): the invitations and every change want manageUsers.
+ */
 export function UsersPage() {
   const { t } = useTranslation('access');
+  const mayManage = useCan('Access.manageUsers');
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-medium">{t('users.title')}</h1>
-        <div className="ms-auto">
-          <InviteDialog />
-        </div>
+        {mayManage && (
+          <div className="ms-auto">
+            <InviteDialog />
+          </div>
+        )}
       </div>
-      <Tabs defaultValue="members">
-        <TabsList>
-          <TabsTrigger value="members">{t('users.tabs.members')}</TabsTrigger>
-          <TabsTrigger value="invitations">
-            {t('users.tabs.invitations')}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="members">
-          <Members />
-        </TabsContent>
-        <TabsContent value="invitations">
-          <Invitations />
-        </TabsContent>
-      </Tabs>
+      {mayManage ? (
+        <Tabs defaultValue="members">
+          <TabsList>
+            <TabsTrigger value="members">{t('users.tabs.members')}</TabsTrigger>
+            <TabsTrigger value="invitations">
+              {t('users.tabs.invitations')}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="members">
+            <Members />
+          </TabsContent>
+          <TabsContent value="invitations">
+            <Invitations />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Members />
+      )}
     </section>
   );
 }
@@ -81,35 +102,66 @@ function Members() {
   const { t } = useTranslation('access');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [teamId, setTeamId] = useState<string | null>(null);
   const q = useDeferredValue(search.trim());
   const members = useQuery({
-    ...membersQuery(page, q),
+    ...membersQuery(page, q, teamId ?? ''),
     placeholderData: keepPreviousData,
   });
   const roles = useQuery(rolesQuery);
+  const teams = useQuery(teamsQuery);
   const roleById = new Map((roles.data ?? []).map((role) => [role.id, role]));
   const [selected, setSelected] = useState<string>();
-  // The member as the latest page has them (after a change, refetched).
-  const member = members.data?.items.find((m) => m.id === selected);
+  // The row, shown while the sheet reads the member itself.
+  const row = members.data?.items.find((m) => m.id === selected);
+  const teamOptions = [
+    { value: null, label: t('users.allTeams') },
+    ...orderedTree(teams.data ?? []).map((team) => ({
+      value: team.id as string | null,
+      label: `${'\u2003'.repeat(team.depth)}${team.name}`,
+    })),
+  ];
 
   return (
     <div className="flex flex-col gap-3 pt-2">
-      <div className="relative w-full max-w-xs">
-        <SearchIcon
-          aria-hidden
-          className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          type="search"
-          className="ps-8"
-          aria-label={t('users.search')}
-          placeholder={t('users.search')}
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-xs">
+          <SearchIcon
+            aria-hidden
+            className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            className="ps-8"
+            aria-label={t('users.search')}
+            placeholder={t('users.search')}
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        {/* A team's direct members (`?teamId=`). */}
+        <Select
+          items={teamOptions}
+          value={teamId}
+          onValueChange={(value) => {
+            setTeamId(value as string | null);
             setPage(1);
           }}
-        />
+        >
+          <SelectTrigger aria-label={t('users.team')} className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {teamOptions.map((option) => (
+              <SelectItem key={option.value ?? ''} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {members.isPending ? (
         <Spinner />
@@ -201,7 +253,11 @@ function Members() {
           </div>
         </>
       )}
-      <MemberSheet member={member} onClose={() => setSelected(undefined)} />
+      <MemberSheet
+        memberId={selected}
+        row={row}
+        onClose={() => setSelected(undefined)}
+      />
     </div>
   );
 }
@@ -239,7 +295,7 @@ function Invitations() {
           <InvitationRow
             key={invitation.id}
             invitation={invitation}
-            roles={roleNames(roleById, invitation.roleIds)}
+            roles={roleById}
           />
         ))}
       </TableBody>
@@ -247,7 +303,10 @@ function Invitations() {
   );
 }
 
-function InvitationRow(props: { invitation: Invitation; roles: string[] }) {
+function InvitationRow(props: {
+  invitation: Invitation;
+  roles: Map<string, Role>;
+}) {
   const { t } = useTranslation('access');
   const { invitation } = props;
   const queryClient = useQueryClient();
@@ -258,16 +317,9 @@ function InvitationRow(props: { invitation: Invitation; roles: string[] }) {
       await invalidateAccess(queryClient);
     },
   });
-  // No resend route: inviting the address again replaces the pending
-  // invitation (a new link, a new expiry), with the same roles and teams.
+  // A new link and expiry; the roles, their ends and the teams stay.
   const resend = useMutation({
-    mutationFn: () =>
-      invite({
-        email: invitation.email,
-        ...(invitation.name && { name: invitation.name }),
-        roleIds: invitation.roleIds,
-        teamIds: invitation.teamIds,
-      }),
+    mutationFn: () => resendInvitation(invitation.id),
     onSuccess: async () => {
       toast.success(t('invitations.resent', { email: invitation.email }));
       await invalidateAccess(queryClient);
@@ -285,11 +337,17 @@ function InvitationRow(props: { invitation: Invitation; roles: string[] }) {
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
-          {props.roles.map((name) => (
-            <Badge key={name} variant="outline">
-              {name}
-            </Badge>
-          ))}
+          {invitation.roleIds.map((roleId) => {
+            // When the grant ends once accepted (none: never).
+            const until = invitation.roleExpiresAt[roleId];
+            return (
+              <Badge key={roleId} variant="outline">
+                {roleNames(props.roles, [roleId])[0]}
+                {until &&
+                  ` · ${t('grants.untilShort', { date: formatDateTime(until) })}`}
+              </Badge>
+            );
+          })}
         </div>
       </TableCell>
       <TableCell>

@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
 import {
   invalidateAccess,
+  memberQuery,
   rolesQuery,
   teamsQuery,
   updateMember,
@@ -38,42 +39,63 @@ import { ImpersonateButton } from '@/features/access/impersonate-button';
 import { RoleGrantsPicker, TeamsPicker } from '@/features/access/pickers';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
-import { useMe } from '@/lib/features';
+import { useCan, useMe } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
 
 /**
  * A member of the tenant: their roles (with ends), teams and status, and
  * what an administrator may do about them (`PATCH /v1/access/users/{id}`,
  * docs/tenancy.md "Accounts and sessions"): never their name or password.
+ * The member is read on their own (`GET /v1/access/users/{id}`); the list's
+ * row stands in until then.
  */
 export function MemberSheet(props: {
-  member: Member | undefined;
+  memberId: string | undefined;
+  row?: Member;
   onClose: () => void;
 }) {
   const { t } = useTranslation('access');
+  const read = useQuery({
+    ...memberQuery(props.memberId ?? ''),
+    enabled: props.memberId !== undefined,
+    placeholderData: props.row,
+  });
+  const member = props.memberId === undefined ? undefined : read.data;
   return (
     <Sheet
-      open={props.member !== undefined}
+      open={props.memberId !== undefined}
       onOpenChange={(open) => !open && props.onClose()}
     >
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        {props.member && (
+        {member ? (
           <>
             <SheetHeader>
-              <SheetTitle>{props.member.name || props.member.email}</SheetTitle>
-              <SheetDescription>{props.member.email}</SheetDescription>
+              <SheetTitle>{member.name || member.email}</SheetTitle>
+              <SheetDescription>{member.email}</SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-6 px-4 pb-6">
               <MemberDetail
                 // A new member, a fresh draft.
-                key={props.member.id + props.member.updatedAt}
-                member={props.member}
+                key={member.id + member.updatedAt}
+                member={member}
                 onDone={props.onClose}
               />
             </div>
           </>
+        ) : (
+          <>
+            <SheetHeader>
+              <SheetTitle>{t('users.title')}</SheetTitle>
+            </SheetHeader>
+            <div className="px-4">
+              {read.isError ? (
+                <FormAlert message={errorMessage(read.error)} />
+              ) : (
+                <Spinner />
+              )}
+            </div>
+          </>
         )}
-        {!props.member && <span className="sr-only">{t('users.title')}</span>}
       </SheetContent>
     </Sheet>
   );
@@ -84,6 +106,8 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
   const { member } = props;
   const me = useMe();
   const self = me?.user.id === member.id;
+  // Read-only for whoever reads the members without managing them.
+  const mayManage = useCan('Access.manageUsers');
   const queryClient = useQueryClient();
   const roles = useQuery(rolesQuery);
   const teams = useQuery(teamsQuery);
@@ -127,12 +151,17 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
         </span>
       </div>
       <FormAlert message={error} />
+      {!mayManage && (
+        <Alert>
+          <AlertDescription>{t('users.readOnly')}</AlertDescription>
+        </Alert>
+      )}
 
       <section className="flex flex-col gap-3" aria-labelledby="member-roles">
         <h3 id="member-roles" className="font-medium">
           {t('users.roles')}
         </h3>
-        {self && (
+        {self && mayManage && (
           <Alert>
             <AlertDescription>{t('users.selfRoles')}</AlertDescription>
           </Alert>
@@ -147,22 +176,26 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
             roles={roles.data}
             value={grants}
             onChange={setGrants}
-            disabled={change.isPending}
+            disabled={!mayManage || change.isPending}
           />
         )}
         {ended.length > 0 && (
           <EndedGrants roles={roleById} ended={ended.map((g) => g.roleId)} />
         )}
-        <Button
-          className="self-start"
-          disabled={change.isPending || pastEnd || !roles.isSuccess}
-          onClick={() =>
-            void run(grantsBody(grants), t('users.rolesSaved')).catch(() => {})
-          }
-        >
-          {change.isPending && <Spinner />}
-          {t('users.saveRoles')}
-        </Button>
+        {mayManage && (
+          <Button
+            className="self-start"
+            disabled={change.isPending || pastEnd || !roles.isSuccess}
+            onClick={() =>
+              void run(grantsBody(grants), t('users.rolesSaved')).catch(
+                () => {},
+              )
+            }
+          >
+            {change.isPending && <Spinner />}
+            {t('users.saveRoles')}
+          </Button>
+        )}
       </section>
 
       <Separator />
@@ -182,10 +215,10 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
             value={teamIds}
             onChange={setTeamIds}
             // The API refuses changing one's own teams.
-            disabled={self || change.isPending}
+            disabled={!mayManage || self || change.isPending}
           />
         )}
-        {self ? (
+        {!mayManage ? null : self ? (
           <p className="text-xs text-muted-foreground">
             {t('users.selfTeams')}
           </p>
@@ -206,7 +239,7 @@ function MemberDetail(props: { member: Member; onDone: () => void }) {
       <Separator />
 
       <section className="flex flex-wrap gap-2" aria-label={t('actions')}>
-        {member.active ? (
+        {!mayManage ? null : member.active ? (
           !self && (
             <ConfirmButton
               variant="destructive"

@@ -50,7 +50,10 @@
       "title": "Act as {{email}}?",
       "description": "Your session becomes theirs for a limited time, and everything you do is recorded as you acting as them. Stop from the banner to get your own session back.",
       "confirm": "Impersonate"
-    }
+    },
+    "allTeams": "Semua pasukan",
+    "team": "Pasukan",
+    "readOnly": "Anda boleh melihat ahli ini. Menukar peranan, pasukan atau akses mereka memerlukan kebenaran untuk mengurus pengguna."
   },
   "grants": {
     "roles": "Roles",
@@ -85,7 +88,7 @@
     "expired": "Expired",
     "resend": "Resend",
     "resendTitle": "Send {{email}} a new link?",
-    "resendDescription": "The current link stops working and a new one is emailed, with the same roles and teams. End dates of roles aren't kept.",
+    "resendDescription": "Pautan semasa berhenti berfungsi dan pautan baharu dihantar melalui e-mel. Peranan, tarikh tamatnya dan pasukan kekal seperti sebelumnya.",
     "resent": "A new link was sent to {{email}}.",
     "revoke": "Revoke",
     "revokeTitle": "Revoke the invitation to {{email}}?",
