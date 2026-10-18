@@ -12,13 +12,6 @@ import {
   Field,
   FieldLabel,
 } from '@nestjs-monorepo-template/ui/components/field';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@nestjs-monorepo-template/ui/components/select';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
   Table,
@@ -33,9 +26,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { PrincipalPicker } from '@/components/principal-picker';
 import {
-  allMembersQuery,
   invalidateAccess,
+  memberQuery,
+  teamMembersQuery,
   teamsQuery,
   updateMember,
   type Member,
@@ -45,19 +40,22 @@ import { useCan, useMe } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
 
 /**
- * A team's direct members. Membership is the member's (`teamIds` of
- * `PATCH /v1/access/users/{id}`), so adding and removing want
- * Access.manageUsers, not manageTeams, and nobody changes their own teams.
- * The users list has no team filter: every member is read, then filtered.
+ * A team's direct members (`GET /v1/access/users?teamId=`). Membership is
+ * the member's (`teamIds` of `PATCH /v1/access/users/{id}`), so adding and
+ * removing want Access.manageUsers, not manageTeams, and nobody changes
+ * their own teams. Whom to add is searched (`GET /v1/access/principals`),
+ * then read on their own for the teams they already have.
  */
 export function TeamMembers(props: { teamId: string }) {
   const { t } = useTranslation('access');
   const teams = useQuery(teamsQuery);
-  const members = useQuery(allMembersQuery);
+  const members = useQuery(teamMembersQuery(props.teamId));
   const mayChange = useCan('Access.manageUsers');
   const me = useMe();
   const queryClient = useQueryClient();
-  const [adding, setAdding] = useState<string | null>(null);
+  const [adding, setAdding] = useState('');
+  // A new picker (an empty input) after each addition.
+  const [picker, setPicker] = useState(0);
   const [error, setError] = useState<string>();
   const change = useMutation({
     mutationFn: (args: { member: Member; teamIds: string[] }) =>
@@ -75,6 +73,35 @@ export function TeamMembers(props: { teamId: string }) {
       throw caught;
     }
   };
+  const add = async (teamId: string) => {
+    setError(undefined);
+    let member: Member;
+    try {
+      // Their teams as they are now: the PATCH replaces the whole list.
+      member = await queryClient.fetchQuery({
+        ...memberQuery(adding),
+        staleTime: 0,
+      });
+    } catch (caught) {
+      setError(errorMessage(caught));
+      return;
+    }
+    if (member.teamIds.includes(teamId)) {
+      setAdding('');
+      setPicker((n) => n + 1);
+      return;
+    }
+    await run(
+      member,
+      [...member.teamIds, teamId],
+      t('teams.memberAdded', { email: member.email }),
+    )
+      .then(() => {
+        setAdding('');
+        setPicker((n) => n + 1);
+      })
+      .catch(() => {});
+  };
 
   if (teams.isPending || members.isPending) return <Spinner />;
   if (teams.isError || members.isError) {
@@ -84,14 +111,12 @@ export function TeamMembers(props: { teamId: string }) {
   if (!team) {
     return <FormAlert message={t('teams.notFound')} />;
   }
-  const inTeam = members.data.filter((m) => m.teamIds.includes(team.id));
-  const others = members.data.filter(
-    (m) => m.active && !m.teamIds.includes(team.id) && m.id !== me?.user.id,
-  );
-  const options = others.map((m) => ({
-    value: m.id,
-    label: m.name ? `${m.name} (${m.email})` : m.email,
-  }));
+  const inTeam = members.data;
+  // Nobody adds themselves, nor someone already in.
+  const exclude = [
+    ...inTeam.map((m) => m.id),
+    ...(me?.user.id ? [me.user.id] : []),
+  ];
 
   return (
     <section className="flex flex-col gap-4">
@@ -115,36 +140,22 @@ export function TeamMembers(props: { teamId: string }) {
         <div className="flex flex-wrap items-end gap-2">
           <Field className="max-w-sm">
             <FieldLabel htmlFor="team-add">{t('teams.addMember')}</FieldLabel>
-            <Select
-              items={options}
+            <PrincipalPicker
+              key={picker}
+              id="team-add"
+              label={t('teams.addMember')}
+              placeholder={t('teams.pickMember')}
+              kind="user"
+              active
+              by="id"
+              exclude={exclude}
               value={adding}
-              onValueChange={(value) => setAdding(value as string | null)}
-            >
-              <SelectTrigger id="team-add" className="w-full">
-                <SelectValue placeholder={t('teams.pickMember')} />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(value) => setAdding(value)}
+            />
           </Field>
           <Button
             disabled={!adding || change.isPending}
-            onClick={() => {
-              const member = others.find((m) => m.id === adding);
-              if (!member) return;
-              void run(
-                member,
-                [...member.teamIds, team.id],
-                t('teams.memberAdded', { email: member.email }),
-              )
-                .then(() => setAdding(null))
-                .catch(() => {});
-            }}
+            onClick={() => void add(team.id)}
           >
             {change.isPending && <Spinner />}
             {t('teams.add')}

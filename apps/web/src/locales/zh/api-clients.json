@@ -69,7 +69,12 @@
       "revokeConfirm": "撤销",
       "reactivate": "重新启用客户端",
       "revoked": "客户端已撤销。",
-      "reactivated": "客户端已重新启用。"
+      "reactivated": "客户端已重新启用。",
+      "delete": "删除客户端",
+      "deleteTitle": "永久删除 {{name}}？",
+      "deleteDescription": "其密钥立即失效，其角色、用量和 webhook 端点也会一并删除。此操作无法撤销：如需停用并保留它，请改为撤销。",
+      "deleteConfirm": "删除",
+      "deleted": "已删除 {{name}}。"
     },
     "keys": {
       "title": "密钥",
@@ -104,6 +109,13 @@
       "submit": "轮换密钥",
       "confirmTitle": "轮换 {{name}} 的密钥？",
       "confirmDescription": "将生成新密钥并显示一次。当前密钥在你选择的宽限期后失效。"
+    },
+    "roles": {
+      "title": "角色",
+      "description": "此客户端在所有 API 客户端都能做的事之外还能做什么。你只能授予你自己拥有其权限的角色。",
+      "save": "保存角色",
+      "saved": "角色已保存。",
+      "ended": "已结束的授予（不再生效）：{{roles}}"
     }
   },
   "usage": {

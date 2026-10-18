@@ -1,8 +1,9 @@
+import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useTranslation } from 'react-i18next';
-import { rolesQuery } from '@/features/access/api';
+import { roleQuery } from '@/features/access/api';
 import { requirePermission } from '@/features/access/gate';
 import { RoleForm } from '@/features/access/role-form';
 import { errorMessage } from '@/lib/errors';
@@ -13,26 +14,27 @@ export const Route = createFileRoute('/_app/access/roles/$roleId')({
   component: EditRole,
 });
 
-// No GET of one role: the list has every role, with its permissions.
+/** One role, read on its own (`GET /v1/access/roles/{id}`). */
 function EditRole() {
   const { t } = useTranslation('access');
   const { roleId } = Route.useParams();
-  const roles = useQuery(rolesQuery);
-  const role = roles.data?.find((item) => item.id === roleId);
+  // A 404 is this page's to say, not a toast's.
+  const role = useQuery({ ...roleQuery(roleId), meta: { errorToast: false } });
+  const missing = isApiError(role.error) && role.error.status === 404;
   return (
     <section className="flex max-w-3xl flex-col gap-4">
       <h1 className="text-xl font-medium">
-        {role ? role.name : t('roles.editTitle')}
+        {role.data ? role.data.name : t('roles.editTitle')}
       </h1>
-      {roles.isPending ? (
+      {role.isPending ? (
         <Spinner />
-      ) : roles.isError ? (
-        <FormAlert message={errorMessage(roles.error)} />
-      ) : role ? (
-        // A role changed elsewhere and refetched: a fresh form.
-        <RoleForm key={role.updatedAt} role={role} />
-      ) : (
+      ) : missing ? (
         <FormAlert message={t('roles.notFound')} />
+      ) : role.isError ? (
+        <FormAlert message={errorMessage(role.error)} />
+      ) : (
+        // A role changed elsewhere and refetched: a fresh form.
+        <RoleForm key={role.data.updatedAt} role={role.data} />
       )}
     </section>
   );

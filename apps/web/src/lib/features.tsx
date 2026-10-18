@@ -51,8 +51,25 @@ export function Can(props: {
   return useCan(props.permission) ? props.children : (props.fallback ?? null);
 }
 
-/** What `feature?` and `permission?` gate: a nav entry, a section. */
-export type Gated = { feature?: FeatureName; permission?: Permission };
+/**
+ * What `feature?` and `permission?` gate: a nav entry, a section. A list of
+ * permissions admits whoever holds any of them (a page several kinds of
+ * administrator read, as the API's read routes do).
+ */
+export type Gated = {
+  feature?: FeatureName;
+  permission?: Permission | readonly Permission[];
+};
+
+/** Whether `can` holds the permission, or any of the list. */
+export function holds(
+  can: Record<string, boolean> | undefined,
+  permission: Permission | readonly Permission[],
+): boolean {
+  const any: readonly Permission[] =
+    typeof permission === 'string' ? [permission] : permission;
+  return any.some((name) => can?.[name] === true);
+}
 
 /** The entries this user sees: their switch on, their permission held. */
 export function visible<T extends Gated>(
@@ -63,6 +80,6 @@ export function visible<T extends Gated>(
   return items.filter(
     (item) =>
       (!item.feature || features?.[item.feature] === true) &&
-      (!item.permission || can?.[item.permission] === true),
+      (!item.permission || holds(can, item.permission)),
   );
 }

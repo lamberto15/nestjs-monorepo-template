@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
   Alert,
@@ -35,7 +40,12 @@ import { z } from '@/lib/zod';
 
 /** A new role, or an existing one (read-only when built in). */
 export function RoleForm(props: { role?: Role }) {
-  const catalog = useQuery(catalogQuery);
+  const { i18n } = useTranslation();
+  // Labels in the UI's language; the previous ones stay while the new load.
+  const catalog = useQuery({
+    ...catalogQuery(i18n.language),
+    placeholderData: keepPreviousData,
+  });
   if (catalog.isPending) {
     return <Spinner />;
   }

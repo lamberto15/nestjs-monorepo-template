@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/render-app';
-import { allFeatures, server, signedInUser } from '@/test/server';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
+import { findToast } from '@/test/toast';
 import { rangeFor } from './usage-page';
 
 const SECRET = 'sk_abc123_supersecretvalue';
@@ -19,6 +20,21 @@ const key = (id: string, extra: object = {}) => ({
   ...extra,
 });
 
+const ROLE = '0199a3f2-0000-7000-8000-0000000000r1';
+const OTHER_ROLE = '0199a3f2-0000-7000-8000-0000000000r2';
+const role = (id: string, name: string) => ({
+  id,
+  tenantId: signedInUser.tenant!.id,
+  key: null,
+  name,
+  description: '',
+  system: false,
+  permissions: [],
+  members: 0,
+  createdAt: '2026-10-10T08:00:00.000Z',
+  updatedAt: '2026-10-10T08:00:00.000Z',
+});
+
 const client = (extra: object = {}) => ({
   id: '0199a3f2-0000-7000-8000-00000000c001',
   name: 'Billing exporter',
@@ -27,7 +43,7 @@ const client = (extra: object = {}) => ({
   createdAt: '2026-10-10T08:00:00.000Z',
   updatedAt: '2026-10-10T08:00:00.000Z',
   keys: [key('1', { lastUsedAt: '2026-10-16T08:00:00.000Z' })],
-  roles: [],
+  roles: [] as { roleId: string; expiresAt: string | null }[],
   ...extra,
 });
 
@@ -41,6 +57,7 @@ function api(
     rotated: undefined as unknown,
     revokedKeys: [] as string[],
     patches: [] as unknown[],
+    deleted: [] as string[],
     usageQueries: [] as URLSearchParams[],
   };
   server.use(
@@ -55,6 +72,20 @@ function api(
     ),
     http.get('/v1/access/clients', () =>
       HttpResponse.json({ items: state.clients }),
+    ),
+    http.get('/v1/access/clients/:id', ({ params }) => {
+      const found = state.clients.find((entry) => entry.id === params.id);
+      return found ? HttpResponse.json(found) : problem(404, 'not_found');
+    }),
+    http.delete('/v1/access/clients/:id', ({ params }) => {
+      state.deleted.push(String(params.id));
+      state.clients = state.clients.filter((entry) => entry.id !== params.id);
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.get('/v1/access/roles', () =>
+      HttpResponse.json({
+        items: [role(ROLE, 'Exporter'), role(OTHER_ROLE, 'Importer')],
+      }),
     ),
     http.post('/v1/access/clients', async ({ request }) => {
       state.created = await request.json();
@@ -76,8 +107,24 @@ function api(
     http.patch('/v1/access/clients/:id', async ({ request }) => {
       const body = (await request.json()) as object;
       state.patches.push(body);
+      const { roleIds, roleExpiresAt, ...rest } = body as {
+        roleIds?: string[];
+        roleExpiresAt?: Record<string, string>;
+      };
       state.clients = state.clients.map((entry, index) =>
-        index === 0 ? { ...entry, ...body } : entry,
+        index === 0
+          ? {
+              ...entry,
+              ...rest,
+              ...(roleIds && {
+                roles: roleIds.map((roleId) => ({
+                  roleId,
+                  expiresAt: roleExpiresAt?.[roleId] ?? null,
+                })),
+              }),
+              updatedAt: new Date().toISOString(),
+            }
+          : entry,
       );
       return HttpResponse.json(state.clients[0]);
     }),
@@ -184,7 +231,7 @@ describe('creating a client: the key is shown once', () => {
     expect(queries).not.toContain(SECRET);
   });
 
-  it('sends the quota in a second request, when one is typed', async () => {
+  it('sends the quota and the roles with the create, in one request', async () => {
     const state = api();
     const user = userEvent.setup();
     await renderApp('/api-clients');
@@ -192,9 +239,15 @@ describe('creating a client: the key is shown once', () => {
     await user.click(screen.getByRole('button', { name: 'New client' }));
     await user.type(screen.getByLabelText('Name'), 'Mail relay');
     await user.type(screen.getByLabelText(/Daily quota/), '250');
+    await user.click(await screen.findByRole('checkbox', { name: 'Exporter' }));
     await user.click(screen.getByRole('button', { name: 'Create client' }));
     await screen.findByRole('dialog', { name: 'Copy the key of Mail relay' });
-    expect(state.patches).toEqual([{ dailyQuota: 250 }]);
+    expect(state.created).toEqual({
+      name: 'Mail relay',
+      dailyQuota: 250,
+      roleIds: [ROLE],
+    });
+    expect(state.patches).toEqual([]);
   });
 });
 
@@ -267,6 +320,56 @@ describe('a client', () => {
     expect(
       await screen.findByRole('button', { name: 'Reactivate client' }),
     ).toBeVisible();
+  });
+
+  it('reads the client on its own, and says so when there is none (404)', async () => {
+    api();
+    await renderApp('/api-clients/0199a3f2-0000-7000-8000-00000000cfff');
+    expect(await screen.findByText('No such client.')).toBeVisible();
+  });
+
+  it('gives the client roles', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp(path);
+    await screen.findByRole('heading', { name: 'Billing exporter' });
+    await user.click(await screen.findByRole('checkbox', { name: 'Importer' }));
+    await user.click(screen.getByRole('button', { name: 'Save roles' }));
+    await findToast('Roles saved.');
+    expect(state.patches).toEqual([
+      { roleIds: [OTHER_ROLE], roleExpiresAt: {} },
+    ]);
+    // The refetched client has it.
+    expect(screen.getByRole('checkbox', { name: 'Importer' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
+
+  it('asks before deleting the client for good, then goes back to the list', async () => {
+    const state = api();
+    const user = userEvent.setup();
+    const { router } = await renderApp(path);
+    await screen.findByRole('heading', { name: 'Billing exporter' });
+    await user.click(screen.getByRole('button', { name: 'Delete client' }));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(confirm).toHaveTextContent('Delete Billing exporter for good?');
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(state.deleted).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Delete client' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+    await findToast('Billing exporter deleted.');
+    expect(state.deleted).toEqual(['0199a3f2-0000-7000-8000-00000000c001']);
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/api-clients'),
+    );
+    expect(await screen.findByText('No API clients yet.')).toBeVisible();
   });
 
   it('saves and removes the quota', async () => {
