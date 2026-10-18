@@ -34,8 +34,10 @@ import type {
   FilterOption,
   FilterVariant,
   JoinOperator,
+  OptionSearch,
 } from '@/lib/data-table-types';
 import { getActiveFilters, parseFilterDate } from '@/lib/data-table-utils';
+import type { RefSources } from '@/lib/list-refs';
 
 /**
  * GET /v1/lists/{subject} turned into what a data table needs, and the
@@ -85,15 +87,8 @@ export interface FilterSpec {
   /** The registry's operators this field's API operators can express. */
   operators: FilterOperator[];
   options?: FilterOption[];
-}
-
-/**
- * A field that points at a tag (docs/tags.md: `?tag=<id>`, `?tag.in=<id>,<id>`):
- * a uuid named `tag`. The list metadata has no flag for it, so the name and
- * type mark it; its filter becomes a picker of the tenant's tags.
- */
-export function isTagField(field: ListField): boolean {
-  return !field.custom && field.name === 'tag' && field.type === 'uuid';
+  /** The API searches the options as one types (users). */
+  search?: OptionSearch;
 }
 
 /**
@@ -104,7 +99,7 @@ export function isTagField(field: ListField): boolean {
  */
 export function filterSpec(
   field: ListField,
-  tagOptions: FilterOption[] = [],
+  refs: RefSources = {},
 ): FilterSpec | undefined {
   const has = new Set<ApiOperator>(field.operators);
   const operators: FilterOperator[] = [];
@@ -118,15 +113,30 @@ export function filterSpec(
   let variant: FilterVariant;
   let options: FilterOption[] | undefined;
 
-  if (isTagField(field)) {
-    // A picker of the tenant's tags: `in` takes several, `eq` one.
+  const source = field.ref ? refs[field.ref] : undefined;
+  if (source) {
+    // A picker of what the field points at (tags, teams, users): `in` takes
+    // several, `eq` one; the id (or key) is the value.
     const multiple = has.has('in');
-    if (!multiple && !has.has('eq')) return undefined;
-    return {
-      variant: multiple ? 'multiSelect' : 'select',
-      operators: [multiple ? 'inArray' : 'eq'],
-      options: tagOptions,
-    };
+    if (!source.unavailable) {
+      if (multiple) {
+        add(true, 'inArray');
+        add(has.has('notIn'), 'notInArray');
+      } else {
+        add(has.has('eq'), 'eq');
+        add(has.has('ne'), 'ne');
+      }
+    }
+    // Values this caller can't read: "is empty" still needs none.
+    empty();
+    return operators.length > 0
+      ? {
+          variant: multiple ? 'multiSelect' : 'select',
+          operators,
+          options: source.options,
+          ...(source.search && { search: source.search }),
+        }
+      : undefined;
   }
 
   switch (field.type) {
@@ -192,18 +202,18 @@ export function filterSpec(
 /**
  * The caller's columns (cells, headers) completed from the list's metadata:
  * which are filterable (variant, operators, options) and sortable. A column
- * the list doesn't know is neither. `meta.label` stays the caller's. The tag
- * filter's options are the tenant's tags.
+ * the list doesn't know is neither. `meta.label` stays the caller's. A
+ * reference field's options come from `refs` (useListRefs).
  */
 export function withListMeta<TData extends RowData>(
   columns: ListColumn<TData>[],
   description: ListDescription,
-  tagOptions?: FilterOption[],
+  refs?: RefSources,
 ): ListColumn<TData>[] {
   const fields = new Map(description.fields.map((f) => [f.name, f]));
   return columns.map((column) => {
     const field = column.id ? fields.get(column.id) : undefined;
-    const spec = field && filterSpec(field, tagOptions);
+    const spec = field && filterSpec(field, refs);
     return {
       ...column,
       enableSorting: field?.sortable ?? false,
@@ -215,6 +225,7 @@ export function withListMeta<TData extends RowData>(
           variant: spec.variant,
           operators: spec.operators,
           ...(spec.options && { options: spec.options }),
+          ...(spec.search && { search: spec.search }),
         }),
       },
     } as ListColumn<TData>;

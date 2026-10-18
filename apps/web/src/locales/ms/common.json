@@ -252,7 +252,8 @@
       "generic": "Sesuatu telah berlaku. Cuba lagi.",
       "retry": "Cuba lagi"
     },
-    "tag": "Tag",
+    "fields": { "tag": "Tag", "ownerId": "Pemilik", "teamId": "Pasukan" },
+    "refs": { "searching": "Mencari…", "failed": "Carian gagal." },
     "yes": "Ya",
     "no": "Tidak",
     "table": {

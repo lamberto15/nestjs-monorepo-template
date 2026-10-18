@@ -252,7 +252,8 @@
       "generic": "Something went wrong. Try again.",
       "retry": "Try again"
     },
-    "tag": "Tag",
+    "fields": { "tag": "Tag", "ownerId": "Owner", "teamId": "Team" },
+    "refs": { "searching": "Searching…", "failed": "The search failed." },
     "yes": "Yes",
     "no": "No",
     "table": {

@@ -105,7 +105,7 @@ async function renderList(searchParams = '', lng: 'en' | 'de' = 'en') {
   return render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
-        <NuqsTestingAdapter searchParams={searchParams}>
+        <NuqsTestingAdapter searchParams={searchParams} hasMemory>
           <TestListPage
             subject="TestItem"
             path={PATH}
@@ -215,6 +215,18 @@ describe('ListPage', () => {
       const url = request?.url ?? '';
       if (url.includes('/v1/lists/')) return json(list);
       if (url.includes('/v1/tags')) return json(extra.tags);
+      if (url.includes('/v1/people')) {
+        const people = extra.people as (url: URL) => unknown;
+        return json(people(new URL(url)));
+      }
+      if (url.includes('/v1/access/teams')) {
+        return extra.teams
+          ? json(extra.teams)
+          : json({ status: 403, code: 'forbidden', detail: 'No.' }, 403);
+      }
+      if (url.includes('/v1/access/principals')) {
+        return json({ status: 403, code: 'forbidden', detail: 'No.' }, 403);
+      }
       return json({
         items: [
           {
@@ -293,6 +305,7 @@ describe('ListPage', () => {
             operators: ['eq', 'in'],
             sortable: false,
             custom: false,
+            ref: 'tag',
           },
         ],
       },
@@ -309,6 +322,129 @@ describe('ListPage', () => {
     });
     // Never a column of its own, never asked for.
     expect(list?.searchParams.get('fields')).toBe('title,status');
+  });
+
+  // jsdom has neither, and the popovers and the lists measure and scroll.
+  const stubLayout = () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    Element.prototype.scrollIntoView = () => {};
+  };
+
+  const withRefs = {
+    ...description,
+    fields: [
+      ...description.fields,
+      {
+        name: 'ownerId',
+        type: 'string',
+        operators: ['eq'],
+        sortable: false,
+        custom: false,
+        ref: 'principal',
+      },
+      {
+        name: 'teamId',
+        type: 'uuid',
+        operators: ['eq', 'in', 'isNull'],
+        sortable: false,
+        custom: false,
+        ref: 'team',
+      },
+    ],
+    select: [...description.select, 'ownerId', 'teamId'],
+  };
+
+  it('filters by a user found by name, and names them in the filter', async () => {
+    stubLayout();
+    respond(withRefs, {
+      // Found by name: nobody before the search.
+      people: (url: URL) => ({
+        items:
+          url.searchParams.get('q') === 'ad'
+            ? [{ key: 'user:1', name: 'Ada Lovelace' }]
+            : [{ key: 'user:2', name: 'Grace Hopper' }],
+      }),
+    });
+    await renderList();
+    expect(await screen.findByText('First')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Add filter' }),
+    );
+    // The first filterable column is the title: pick the owner instead.
+    await userEvent.click(screen.getByRole('button', { name: 'Title' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Owner' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Owner filter value/i }),
+    );
+    await userEvent.type(
+      await screen.findByLabelText('Search Owner options'),
+      'ad',
+    );
+    await userEvent.click(
+      await screen.findByText('Ada Lovelace', { selector: '[cmdk-item] *' }),
+    );
+    await waitFor(() => {
+      const last = urls()
+        .filter((url) => url.pathname === PATH)
+        .at(-1);
+      expect(JSON.parse(last?.searchParams.get('filter') ?? 'null')).toEqual({
+        and: [{ field: 'ownerId', op: 'eq', value: 'user:1' }],
+      });
+    });
+    const searched = urls().filter((url) => url.pathname === '/v1/people');
+    expect(searched.at(-1)?.searchParams.get('q')).toBe('ad');
+    // The chosen value shows the name, not the key.
+    expect(
+      screen.getByRole('button', { name: /Owner filter value/i }),
+    ).toHaveTextContent('Ada Lovelace');
+  });
+
+  it('names the teams of the filter, and offers only emptiness without access', async () => {
+    stubLayout();
+    respond(withRefs, {
+      teams: {
+        items: [
+          { id: 'team-1', name: 'North', parentId: null, depth: 0, members: 2 },
+        ],
+      },
+    });
+    const first = await renderList('?teamId=in.team-1');
+    expect(await screen.findByText('First')).toBeInTheDocument();
+    const list = urls().find((url) => url.pathname === PATH);
+    expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
+      and: [{ field: 'teamId', op: 'in', value: ['team-1'] }],
+    });
+    // Ref columns the list may select start hidden: `fields=` is unchanged.
+    expect(list?.searchParams.get('fields')).toBe('title,status');
+    await userEvent.click(screen.getByRole('button', { name: /Filter/ }));
+    expect(
+      await screen.findByRole('button', { name: /Team filter value/i }),
+    ).toHaveTextContent('North');
+    first.unmount();
+
+    // Teams are for access administrators: anyone else gets "is empty".
+    mocks.fetch.mockReset();
+    respond(withRefs);
+    await renderList('?teamId=is.empty');
+    expect(await screen.findByText('First')).toBeInTheDocument();
+    await waitFor(() => {
+      const last = urls()
+        .filter((url) => url.pathname === PATH)
+        .at(-1);
+      expect(JSON.parse(last?.searchParams.get('filter') ?? 'null')).toEqual({
+        and: [{ field: 'teamId', op: 'isNull', value: true }],
+      });
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it("translates the table's texts", async () => {

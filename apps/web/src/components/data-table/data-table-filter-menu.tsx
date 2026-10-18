@@ -13,9 +13,18 @@ import type {
   ColumnFilterItem,
   FilterOperator,
   FilterOperatorOption,
+  FilterOption,
   FilterVariant,
   JoinOperator,
+  OptionSearch,
 } from '@/lib/data-table-types';
+// Patched in: the API's search of a select's options (SearchSelectFilterValue).
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 
 import {
   getDefaultFilter,
@@ -695,7 +704,12 @@ function FilterValueInput<TData extends RowData>(
 
     case 'select':
     case 'multiSelect':
-      return <SelectFilterValue {...props} />;
+      // Keyed: another column's search is another query.
+      return columnMeta?.search ? (
+        <SearchSelectFilterValue key={column.id} {...props} />
+      ) : (
+        <SelectFilterValue {...props} />
+      );
 
     case 'date':
     case 'dateRange':
@@ -818,6 +832,123 @@ function SelectFilterValue<TData extends RowData>({
     </Faceted>
   );
 }
+
+/**
+ * Patched in (not in the registry): a select whose options the API finds as
+ * one types (`meta.search`, the users of a `ref: principal` field), too many
+ * to list. The values already picked keep their names: `meta.options` and
+ * every earlier search's answers name them.
+ */
+function SearchSelectFilterValue<TData extends RowData>({
+  filter,
+  column,
+  inputId,
+  open,
+  onOpenChange,
+  onFilterUpdate,
+}: FilterValueInputProps<TData>) {
+  const { t } = useTranslation();
+  const dir = useDirection();
+  const listboxId = `${inputId}-listbox`;
+  const columnMeta = column.columnDef.meta;
+  const search = columnMeta?.search as OptionSearch;
+  const multiple = filter.variant === 'multiSelect';
+  const [input, setInput] = React.useState('');
+  const [term, setTerm] = React.useState('');
+  const debounced = useDebouncedCallback((next: string) => setTerm(next), 250);
+  const queryClient = useQueryClient();
+  const found = useQuery({
+    ...search.query(term),
+    enabled: open,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+    retry: false,
+    meta: { errorToast: false },
+  });
+  const results = found.data ?? NO_OPTIONS;
+
+  // Names of the values: known ones, then whatever any search found (read
+  // on every render: a search's answer re-renders this, with more names).
+  const labels = new Map<string, string>();
+  for (const option of columnMeta?.options ?? []) {
+    labels.set(option.value, option.label);
+  }
+  for (const [, options] of queryClient.getQueriesData<FilterOption[]>({
+    queryKey: search.key,
+  })) {
+    for (const option of options ?? []) labels.set(option.value, option.label);
+  }
+  const items = [...labels].map(([value, label]) => ({ value, label }));
+
+  return (
+    <Faceted
+      open={open}
+      onOpenChange={onOpenChange}
+      value={getSelectFilterValue(filter)}
+      onValueChange={(value) =>
+        onFilterUpdate(filter.filterId, { value: value ?? '' })
+      }
+      items={items}
+      multiple={multiple}
+    >
+      <FacetedTrigger
+        render={
+          <Button
+            id={inputId}
+            aria-controls={listboxId}
+            aria-label={t('list.table.valueAria', { label: columnMeta?.label })}
+            variant="outline"
+            className="w-full hover:bg-muted/50 aria-expanded:bg-background dark:aria-expanded:bg-input/30"
+          />
+        }
+      >
+        <FacetedValue
+          placeholder={
+            columnMeta?.placeholder ??
+            t(multiple ? 'list.table.selectOptions' : 'list.table.selectOption')
+          }
+        />
+      </FacetedTrigger>
+      <FacetedContent
+        dir={dir}
+        id={listboxId}
+        className="w-60"
+        shouldFilter={false}
+      >
+        <FacetedInput
+          aria-label={t('list.table.searchOptionsAria', {
+            label: columnMeta?.label,
+          })}
+          placeholder={columnMeta?.placeholder ?? t('list.table.searchOptions')}
+          value={input}
+          onValueChange={(next) => {
+            setInput(next);
+            debounced(next);
+          }}
+        />
+        <FacetedList>
+          <FacetedEmpty>
+            {found.isError
+              ? t('list.refs.failed')
+              : found.isFetching
+                ? t('list.refs.searching')
+                : t('list.table.noOptions')}
+          </FacetedEmpty>
+          <FacetedGroup>
+            {results.map((option) => (
+              <FacetedItem key={option.value} value={option.value}>
+                <span className="flex-1 truncate">{option.label}</span>
+                <FacetedItemIndicator />
+              </FacetedItem>
+            ))}
+          </FacetedGroup>
+        </FacetedList>
+      </FacetedContent>
+    </Faceted>
+  );
+}
+
+const NO_OPTIONS: FilterOption[] = [];
 
 function DateFilterValue<TData extends RowData>({
   filter,

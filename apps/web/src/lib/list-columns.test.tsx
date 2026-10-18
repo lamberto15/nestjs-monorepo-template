@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   customFieldColumns,
   customValue,
-  tagFilterColumns,
+  fieldLabel,
+  refColumns,
 } from '@/lib/list-columns';
 import type { ListDescription } from '@/lib/list-query';
 
@@ -25,6 +26,23 @@ const description = {
       operators: ['eq', 'in'],
       sortable: false,
       custom: false,
+      ref: 'tag',
+    },
+    {
+      name: 'ownerId',
+      type: 'string',
+      operators: ['eq'],
+      sortable: false,
+      custom: false,
+      ref: 'principal',
+    },
+    {
+      name: 'invoiceId',
+      type: 'uuid',
+      operators: ['eq'],
+      sortable: false,
+      custom: false,
+      ref: 'Invoice',
     },
     {
       name: 'custom.region',
@@ -43,6 +61,7 @@ const description = {
       custom: true,
     },
   ],
+  select: ['title', 'ownerId', 'invoiceId'],
 } as unknown as ListDescription;
 
 describe('customFieldColumns', () => {
@@ -63,15 +82,43 @@ describe('customFieldColumns', () => {
   });
 });
 
-describe('tagFilterColumns', () => {
-  it('adds a never-shown column for the tag field only', () => {
-    const columns = tagFilterColumns(description, 'Tag');
-    expect(columns).toHaveLength(1);
+describe('refColumns', () => {
+  const refs = {
+    tag: { options: [] },
+    principal: { options: [{ label: 'Ada Lovelace', value: 'user:1' }] },
+  };
+
+  it('adds a column per ref field with a source, filter-only when not selectable', () => {
+    const columns = refColumns<Record<string, unknown>>(description, refs, t);
+    // A record's subject (Invoice) has no source here.
+    expect(columns.map((c) => c.id)).toEqual(['tag', 'ownerId']);
     expect(columns[0]).toMatchObject({
       id: 'tag',
       enableHiding: false,
-      meta: { label: 'Tag' },
+      meta: { label: 'list.fields.tag' },
     });
+    expect(columns[1]).toMatchObject({
+      id: 'ownerId',
+      meta: { label: 'list.fields.ownerId' },
+    });
+    expect(columns[1]?.enableHiding).toBeUndefined();
+  });
+
+  it('shows names, and the value itself when its name is unknown', () => {
+    const [, owner] = refColumns<Record<string, unknown>>(
+      description,
+      refs,
+      t,
+    ) as unknown as { accessorFn: (row: unknown) => string }[];
+    expect(owner?.accessorFn({ ownerId: 'user:1' })).toBe('Ada Lovelace');
+    expect(owner?.accessorFn({ ownerId: 'client:9' })).toBe('client:9');
+    expect(owner?.accessorFn({ ownerId: null })).toBe('');
+  });
+
+  it('labels a field by its name when no translation has it', () => {
+    expect(fieldLabel('ownerId')).toBe('Owner');
+    expect(fieldLabel('approvedById')).toBe('Approved by');
+    expect(fieldLabel('tag')).toBe('Tag');
   });
 });
 

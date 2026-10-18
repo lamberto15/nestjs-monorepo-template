@@ -252,7 +252,11 @@
       "generic": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
       "retry": "Erneut versuchen"
     },
-    "tag": "Tag",
+    "fields": { "tag": "Tag", "ownerId": "Eigentümer", "teamId": "Team" },
+    "refs": {
+      "searching": "Wird gesucht…",
+      "failed": "Die Suche ist fehlgeschlagen."
+    },
     "yes": "Ja",
     "no": "Nein",
     "table": {

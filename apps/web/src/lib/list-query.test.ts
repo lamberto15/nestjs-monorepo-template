@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ColumnFilterItem } from '@/lib/data-table-types';
 import {
   filterSpec,
@@ -243,28 +243,71 @@ describe('filterSpec', () => {
     expect(filterSpec(field({ operators: [] }))).toBeUndefined();
   });
 
-  it('turns a uuid field named tag into a picker of the given tags', () => {
+  it("turns a field with a ref into a picker of its source's options", () => {
     const options = [{ label: 'Urgent', value: 'id-1' }];
+    const refs = { tag: { options } };
     expect(
       filterSpec(
-        field({ name: 'tag', type: 'uuid', operators: ['eq', 'in'] }),
-        options,
+        field({
+          name: 'tag',
+          type: 'uuid',
+          operators: ['eq', 'in'],
+          ref: 'tag',
+        }),
+        refs,
       ),
     ).toEqual({ variant: 'multiSelect', operators: ['inArray'], options });
     expect(
-      filterSpec(field({ name: 'tag', type: 'uuid', operators: ['eq'] })),
-    ).toEqual({ variant: 'select', operators: ['eq'], options: [] });
-    // Any other uuid stays free text; a custom field called tag is not a tag.
+      filterSpec(
+        field({ name: 'labels', type: 'uuid', operators: ['eq'], ref: 'tag' }),
+        refs,
+      ),
+    ).toEqual({ variant: 'select', operators: ['eq'], options });
+    // The name says nothing: a uuid named tag without a ref stays free text.
+    expect(
+      filterSpec(field({ name: 'tag', type: 'uuid', operators: ['eq'] }), refs)
+        ?.variant,
+    ).toBe('text');
+    // A ref with no source here (a record's subject) keeps its own filter.
     expect(
       filterSpec(
-        field({ name: 'teamId', type: 'uuid', operators: ['eq', 'in'] }),
+        field({
+          name: 'invoiceId',
+          type: 'uuid',
+          operators: ['eq'],
+          ref: 'Invoice',
+        }),
+        refs,
       )?.variant,
     ).toBe('text');
+  });
+
+  it('offers a searched picker for users, and only emptiness without access', () => {
+    const search = { key: ['people'], query: vi.fn() };
     expect(
       filterSpec(
-        field({ name: 'tag', type: 'uuid', operators: ['eq'], custom: true }),
-      )?.variant,
-    ).toBe('text');
+        field({ name: 'ownerId', operators: ['eq'], ref: 'principal' }),
+        { principal: { options: [], search } },
+      ),
+    ).toEqual({ variant: 'select', operators: ['eq'], options: [], search });
+    const team = field({
+      name: 'teamId',
+      type: 'uuid',
+      operators: ['eq', 'in', 'isNull'],
+      ref: 'team',
+    });
+    expect(
+      filterSpec(team, { team: { options: [], unavailable: true } }),
+    ).toEqual({
+      variant: 'multiSelect',
+      operators: ['isEmpty', 'isNotEmpty'],
+      options: [],
+    });
+    expect(
+      filterSpec(field({ name: 'teamId', operators: ['eq'], ref: 'team' }), {
+        team: { options: [], unavailable: true },
+      }),
+    ).toBeUndefined();
   });
 
   it('offers dates the operators their conversion needs, never "relative"', () => {
@@ -401,14 +444,21 @@ describe('withListMeta', () => {
     });
   });
 
-  it('gives the tag column the tags as its options', () => {
+  it("gives a ref column its source's options", () => {
     const options = [{ label: 'Urgent', value: 'id-1' }];
     const [tag] = withListMeta<{ id: string }>(
       [{ id: 'tag' }],
       {
-        fields: [field({ name: 'tag', type: 'uuid', operators: ['eq', 'in'] })],
+        fields: [
+          field({
+            name: 'tag',
+            type: 'uuid',
+            operators: ['eq', 'in'],
+            ref: 'tag',
+          }),
+        ],
       } as unknown as ListDescription,
-      options,
+      { tag: { options } },
     );
     expect(tag).toMatchObject({
       enableColumnFilter: true,

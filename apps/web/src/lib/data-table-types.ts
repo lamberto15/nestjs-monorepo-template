@@ -23,9 +23,26 @@ export interface DataTableColumnMeta {
    */
   operators?: FilterOperator[];
   options?: FilterOption[];
+  /**
+   * Patched in (not in the registry): a select whose options the API
+   * searches as one types (the users of a `ref: principal` field), too
+   * many to list. `options` then only name values already known.
+   */
+  search?: OptionSearch;
   range?: [number, number];
   unit?: string;
   icon?: React.ComponentType<React.ComponentProps<'svg'>>;
+}
+
+/** The options of a select found by the API, for what the user typed. */
+export interface OptionSearch {
+  /** The prefix of every search's query key: names found before stay known. */
+  key: readonly unknown[];
+  /** The query for a term ('' for the first ones). */
+  query: (term: string) => {
+    queryKey: readonly unknown[];
+    queryFn: () => Promise<FilterOption[]>;
+  };
 }
 
 export interface DataTableQueryKeys {
