@@ -75,5 +75,9 @@
     "title": "Die Notiz konnte nicht geladen werden",
     "generic": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
     "retry": "Erneut versuchen"
+  },
+  "bulk": {
+    "delete": "Löschen",
+    "restore": "Wiederherstellen"
   }
 }

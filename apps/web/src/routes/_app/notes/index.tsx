@@ -2,7 +2,7 @@ import type { paths } from '@nestjs-monorepo-template/api-client';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import type { HeaderContext } from '@tanstack/react-table';
-import { PlusIcon } from 'lucide-react';
+import { ArchiveRestoreIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,7 +16,15 @@ import {
   RecycleBinToggle,
   useRecycleBin,
 } from '@/components/records/recycle-bin';
+import {
+  useBulkActions,
+  type BulkActionSpec,
+} from '@/features/bulk/use-bulk-actions';
 import { NOTES_PATH } from '@/features/notes/api';
+import { ScheduleReportButton } from '@/features/reports/schedule-button';
+import { exportFilters } from '@/features/transfer/api';
+import { ExportButton } from '@/features/transfer/export-button';
+import { ImportButton } from '@/features/transfer/import-button';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { TagBadge } from '@/lib/tags';
 import { Can, useCan } from '@/lib/features';
@@ -41,6 +49,49 @@ function Notes() {
   const canDelete = useCan('Note.delete');
   const canRestore = useCan('Note.restore');
   const { ask, restore, dialog } = useNoteDelete();
+
+  // The selection's actions (POST /v1/notes/bulk): what the user may do here.
+  const bulkSpecs = useMemo<BulkActionSpec[]>(
+    () =>
+      bin.deleted
+        ? canRestore
+          ? [
+              {
+                action: 'restore',
+                label: t('bulk.restore'),
+                icon: ArchiveRestoreIcon,
+              },
+            ]
+          : []
+        : canDelete
+          ? [
+              {
+                action: 'delete',
+                label: t('bulk.delete'),
+                icon: Trash2Icon,
+                confirm: true,
+              },
+            ]
+          : [],
+    [t, bin.deleted, canDelete, canRestore],
+  );
+  const bulk = useBulkActions('/v1/notes/bulk', bulkSpecs);
+
+  // Export and schedule what the list shows (its filter and search); the
+  // recycle bin is not exported.
+  const listActions = useCallback(
+    ({ params }: { params: Record<string, string> }) =>
+      bin.deleted ? null : (
+        <>
+          <ExportButton exporter="notes" filters={exportFilters(params)} />
+          <ScheduleReportButton
+            exporter="notes"
+            filters={exportFilters(params)}
+          />
+        </>
+      ),
+    [bin.deleted],
+  );
 
   // Cells and headers only: whether a column filters or sorts, and how, comes
   // from GET /v1/lists/Note (see withListMeta).
@@ -160,8 +211,11 @@ function Notes() {
         // The bin's notes are gone from the detail route (404).
         rowHref={bin.deleted ? undefined : (note) => `/notes/${note.id}`}
         rowActions={rowActions}
+        listActions={listActions}
+        bulkActions={bulkSpecs.length > 0 ? bulk.render : undefined}
         toolbarActions={
           <>
+            {!bin.deleted && <ImportButton importer="notes" />}
             <Can permission="Note.restore">
               <RecycleBinToggle
                 label={t('bin.label')}
@@ -179,6 +233,7 @@ function Notes() {
         }
       />
       {dialog}
+      {bulk.dialogs}
     </>
   );
 }

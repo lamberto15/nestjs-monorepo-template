@@ -75,5 +75,9 @@
     "title": "Nota tidak dapat dimuatkan",
     "generic": "Sesuatu telah berlaku. Cuba lagi.",
     "retry": "Cuba lagi"
+  },
+  "bulk": {
+    "delete": "Padam",
+    "restore": "Pulihkan"
   }
 }

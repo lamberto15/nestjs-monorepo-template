@@ -345,7 +345,19 @@
         "lte": "Pada atau sebelum",
         "gt": "Selepas",
         "gte": "Pada atau selepas"
-      }
+      },
+      "selectAll": "Pilih semua",
+      "selectRow": "Pilih baris"
+    },
+    "bulk": {
+      "label": "Tindakan pilihan",
+      "selected_one": "{{count}} dipilih",
+      "selected_other": "{{count}} dipilih",
+      "selectAll_one": "Pilih semua {{count}} yang sepadan",
+      "selectAll_other": "Pilih semua {{count}} yang sepadan",
+      "onlyChosen": "Hanya baris yang dipilih",
+      "tooMany": "Paling banyak {{max}} baris dipilih sekali gus: tapis senarai dan pilih semua yang sepadan.",
+      "clear": "Kosongkan pilihan"
     }
   }
 }

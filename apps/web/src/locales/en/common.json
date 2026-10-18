@@ -345,7 +345,19 @@
         "lte": "Is on or before",
         "gt": "Is after",
         "gte": "Is on or after"
-      }
+      },
+      "selectAll": "Select all",
+      "selectRow": "Select row"
+    },
+    "bulk": {
+      "label": "Selection actions",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected",
+      "selectAll_one": "Select all {{count}} matching",
+      "selectAll_other": "Select all {{count}} matching",
+      "onlyChosen": "Only the chosen rows",
+      "tooMany": "At most {{max}} chosen rows at once: filter the list and select all matching instead.",
+      "clear": "Clear the selection"
     }
   }
 }

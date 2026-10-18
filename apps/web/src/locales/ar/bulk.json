@@ -1,0 +1,74 @@
+{
+  "run": {
+    "title": {
+      "delete": "جارٍ الحذف",
+      "restore": "جارٍ الاستعادة",
+      "update": "جارٍ التغيير"
+    },
+    "description": "يخضع كل سجل للفحوص نفسها كما لو عولج منفردًا؛ وفشل أحدها لا يوقف البقية.",
+    "starting": "جارٍ البدء…",
+    "queued": "في انتظار عامل…",
+    "progress": "عولج {{processed}}: تم {{done}}، وفشل {{failed}}.",
+    "progressLabel": "التقدم",
+    "result": "تم {{done}}، فشل {{failed}}، تُخطي {{skipped}}.",
+    "failed": "توقفت العملية. تبقى السجلات المنجزة كما هي؛ شغّلها مرة أخرى لإكمال الباقي.",
+    "error": "تعذر تحميل تقدمها.",
+    "problems": "السجلات غير المنجزة",
+    "item": {
+      "done": "تم",
+      "failed": "فشل",
+      "skipped": "تُخطي (غير موجود أو ليس لك)"
+    },
+    "more_one": "وواحد آخر.",
+    "more_other": "و{{count}} أخرى.",
+    "close": "إغلاق",
+    "more_zero": "و{{count}} أخرى.",
+    "more_two": "و{{count}} أخرى.",
+    "more_few": "و{{count}} أخرى.",
+    "more_many": "و{{count}} أخرى."
+  },
+  "confirm": {
+    "delete": {
+      "title_one": "حذف سجل واحد؟",
+      "title_other": "حذف {{count}} من السجلات؟",
+      "description_one": "سيُنقل إلى سلة المحذوفات حيث يمكن استعادته.",
+      "description_other": "ستُنقل إلى سلة المحذوفات حيث يمكن استعادتها.",
+      "title_zero": "حذف {{count}} من السجلات؟",
+      "title_two": "حذف {{count}} من السجلات؟",
+      "title_few": "حذف {{count}} من السجلات؟",
+      "title_many": "حذف {{count}} من السجلات؟",
+      "description_zero": "ستُنقل إلى سلة المحذوفات حيث يمكن استعادتها.",
+      "description_two": "ستُنقل إلى سلة المحذوفات حيث يمكن استعادتها.",
+      "description_few": "ستُنقل إلى سلة المحذوفات حيث يمكن استعادتها.",
+      "description_many": "ستُنقل إلى سلة المحذوفات حيث يمكن استعادتها."
+    },
+    "restore": {
+      "title_one": "استعادة سجل واحد؟",
+      "title_other": "استعادة {{count}} من السجلات؟",
+      "description_one": "سيعود من سلة المحذوفات.",
+      "description_other": "ستعود من سلة المحذوفات.",
+      "title_zero": "استعادة {{count}} من السجلات؟",
+      "title_two": "استعادة {{count}} من السجلات؟",
+      "title_few": "استعادة {{count}} من السجلات؟",
+      "title_many": "استعادة {{count}} من السجلات؟",
+      "description_zero": "ستعود من سلة المحذوفات.",
+      "description_two": "ستعود من سلة المحذوفات.",
+      "description_few": "ستعود من سلة المحذوفات.",
+      "description_many": "ستعود من سلة المحذوفات."
+    },
+    "update": {
+      "title_one": "تغيير سجل واحد؟",
+      "title_other": "تغيير {{count}} من السجلات؟",
+      "description_one": "سيُطبق التغيير عليه.",
+      "description_other": "سيُطبق التغيير على كل منها.",
+      "title_zero": "تغيير {{count}} من السجلات؟",
+      "title_two": "تغيير {{count}} من السجلات؟",
+      "title_few": "تغيير {{count}} من السجلات؟",
+      "title_many": "تغيير {{count}} من السجلات؟",
+      "description_zero": "سيُطبق التغيير على كل منها.",
+      "description_two": "سيُطبق التغيير على كل منها.",
+      "description_few": "سيُطبق التغيير على كل منها.",
+      "description_many": "سيُطبق التغيير على كل منها."
+    }
+  }
+}
