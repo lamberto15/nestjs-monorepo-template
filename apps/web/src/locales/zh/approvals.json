@@ -1,0 +1,172 @@
+{
+  "nav": {
+    "title": "审批"
+  },
+  "inbox": {
+    "title": "审批",
+    "error": "无法加载审批。",
+    "loadMore": "加载更多"
+  },
+  "tabs": {
+    "mine": "待我处理",
+    "requested": "我发起的",
+    "history": "历史"
+  },
+  "empty": {
+    "mine": "没有等待你决定的事项。",
+    "requested": "你还没有发起任何审批。",
+    "history": "还没有已结束的审批。"
+  },
+  "actions": {
+    "Note": {
+      "publish": "发布笔记"
+    }
+  },
+  "row": {
+    "stage": "{{name}}（第 {{current}} 阶段，共 {{count}} 个）",
+    "requested": "由 {{name}} 于 {{date}} 发起",
+    "details": "详情"
+  },
+  "status": {
+    "pending": "待处理",
+    "changes_requested": "已要求修改",
+    "approved": "已批准",
+    "rejected": "已拒绝",
+    "cancelled": "已取消",
+    "expired": "已过期",
+    "failed": "失败"
+  },
+  "decision": {
+    "approve": {
+      "title": "批准",
+      "button": "批准",
+      "submit": "批准",
+      "done": "已批准。"
+    },
+    "reject": {
+      "title": "拒绝",
+      "button": "拒绝",
+      "submit": "拒绝",
+      "done": "已拒绝。"
+    },
+    "cancel": {
+      "title": "取消申请",
+      "button": "取消申请",
+      "submit": "取消申请",
+      "done": "申请已取消。"
+    },
+    "comment": "备注（可选）",
+    "commentRequiredLabel": "拒绝原因",
+    "commentRequired": "请说明拒绝的原因。"
+  },
+  "conflict": {
+    "title": "此申请已变更",
+    "description": "自你打开后，有人已做出决定或修改了它。",
+    "reload": "重新加载"
+  },
+  "delegations": {
+    "open": "委托",
+    "title": "委托我的审批",
+    "description": "你不在时，其他人可以处理分配给你的审批，其决定将以其本人名义代你记录。",
+    "list": "委托",
+    "none": "你没有委托他人，也没有收到委托。",
+    "given": "你已委托给 {{name}}",
+    "held": "{{name}} 委托给你",
+    "period": "{{from}} 至 {{to}}",
+    "end": "结束",
+    "person": "委托给",
+    "choose": "选择一个人",
+    "from": "从",
+    "to": "至",
+    "hint": "在此期间你仍可自己做决定。",
+    "create": "委托",
+    "created": "委托已创建。",
+    "errors": {
+      "person": "请选择一个人。",
+      "dates": "请填写两个日期。",
+      "order": "结束时间必须晚于开始时间。",
+      "people": "无法加载人员列表（需要用户管理权限）。"
+    }
+  },
+  "detail": {
+    "back": "返回审批",
+    "notFound": {
+      "title": "未找到审批",
+      "description": "它不存在，或你无权查看。"
+    },
+    "error": {
+      "title": "无法加载审批",
+      "generic": "出了点问题。",
+      "retry": "重试"
+    },
+    "status": "状态",
+    "record": "记录",
+    "requester": "发起人",
+    "requestedAt": "发起时间",
+    "comment": "发起人备注",
+    "dueAt": "截止",
+    "outcome": "结果"
+  },
+  "outcome": {
+    "overdue": "未及时决定",
+    "not_resubmitted": "未及时重新提交",
+    "no_approvers": "没有可决定的审批人",
+    "record_changed": "等待期间记录已变更",
+    "apply_failed": "已批准的变更无法应用",
+    "abandoned": "由管理员结束",
+    "record_deleted": "记录已被删除"
+  },
+  "stages": {
+    "title": "阶段",
+    "name": "第 {{current}} 阶段，共 {{count}} 个：{{name}}",
+    "state": {
+      "waiting": "等待中",
+      "active": "进行中",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "changes_requested": "退回修改",
+      "closed": "已关闭"
+    },
+    "mode": {
+      "any": "任一审批人决定",
+      "all": "所有人都须批准",
+      "quorum": "需要 {{n}} 人批准"
+    },
+    "noApprovers": "没有审批人。",
+    "assignment": {
+      "pending": "待处理",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "changes_requested": "要求修改",
+      "closed": "已关闭"
+    },
+    "by": "由 {{name}}",
+    "escalated": "已升级"
+  },
+  "history": {
+    "title": "历史",
+    "stage": "第 {{stage}} 阶段",
+    "type": {
+      "requested": "已发起",
+      "stage_started": "阶段开始",
+      "decided": "决定",
+      "stage_approved": "阶段已批准",
+      "reminded": "已发送提醒",
+      "escalated": "已升级",
+      "approver_removed": "审批人已移除",
+      "resubmitted": "已重新提交",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "changes_requested": "已要求修改",
+      "cancelled": "已取消",
+      "expired": "已过期",
+      "failed": "失败"
+    }
+  },
+  "banner": {
+    "awaiting": "等待批准：第 {{current}} 阶段，共 {{count}} 个（{{name}}）",
+    "changesRequested": "已要求修改：发起人须重新提交",
+    "requestedBy": "由 {{name}} 发起",
+    "details": "审批详情"
+  }
+}

@@ -69,6 +69,10 @@ export const handlers = [
   http.get('/v1/auth/me', () => problem(401, 'unauthorized')),
   http.get('/v1/auth/methods', () => HttpResponse.json(allMethods)),
   http.get('/v1/features', () => HttpResponse.json(allFeatures)),
+  // The sidebar's approvals badge asks for its count on every signed-in page.
+  http.get('/v1/approvals', () =>
+    HttpResponse.json({ items: [], nextCursor: null, total: 0 }),
+  ),
   http.get('/v1/auth/tenants', () =>
     HttpResponse.json({
       items: [
