@@ -3610,28 +3610,6 @@ export interface operations {
                         tenancy: "multi" | "single";
                         /** @description The languages the API answers in; the first is the default. */
                         locales: string[];
-                        /** @description What a record's attachment may be, as the upload route enforces it. */
-                        attachments: {
-                            /**
-                             * @description The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.
-                             * @example 26214400
-                             */
-                            maxBytes: number;
-                            /**
-                             * @description The same, in MB (ATTACHMENT_MAX_MB).
-                             * @example 25
-                             */
-                            maxMb: number;
-                            /**
-                             * @description The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.
-                             * @example [
-                             *       "image/png",
-                             *       "application/pdf",
-                             *       "text/plain"
-                             *     ]
-                             */
-                            types: string[];
-                        };
                     };
                 };
             };
@@ -5917,7 +5895,7 @@ export interface operations {
                             tags: boolean;
                             /** @description Comments and @mentions (`…/{id}/comments`). */
                             comments: boolean;
-                            /** @description Files on the records (`…/{id}/attachments`); the limits are in GET /v1/features. */
+                            /** @description Files on the records (`…/{id}/attachments`); what a file may be is `attachmentLimits`. */
                             attachments: boolean;
                             /** @description History, diff and restore (`…/{id}/revisions`). */
                             revisions: boolean;
@@ -5940,6 +5918,28 @@ export interface operations {
                             /** @description An action on the records may need approval (GET /v1/approvals). */
                             approvals: boolean;
                         };
+                        /** @description What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments. */
+                        attachmentLimits: {
+                            /**
+                             * @description The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.
+                             * @example 26214400
+                             */
+                            maxBytes: number;
+                            /**
+                             * @description The same, in MB (ATTACHMENT_MAX_MB).
+                             * @example 25
+                             */
+                            maxMb: number;
+                            /**
+                             * @description The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.
+                             * @example [
+                             *       "image/png",
+                             *       "application/pdf",
+                             *       "text/plain"
+                             *     ]
+                             */
+                            types: string[];
+                        } | null;
                     };
                 };
             };
@@ -8707,21 +8707,21 @@ export interface operations {
     ApprovalsController_list_v1: {
         parameters: {
             query?: {
-                limit?: number;
+                limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
+                page?: string;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
+                count?: string;
                 /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: assignedToMe = */
-                assignedToMe?: "true" | "false";
+                assignedToMe?: string;
                 /** @description Filter: requestedByMe = */
-                requestedByMe?: "true" | "false";
+                requestedByMe?: string;
                 /** @description Filter: status = */
-                status?: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                status?: string;
                 /** @description Filter: status in */
                 "status.in"?: string;
                 /** @description Filter: status notIn */
@@ -8745,7 +8745,7 @@ export interface operations {
                 /** @description Filter: dueAt gte */
                 "dueAt.gte"?: string;
                 /** @description Filter: dueAt isNull */
-                "dueAt.isNull"?: "true" | "false";
+                "dueAt.isNull"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -13609,13 +13609,13 @@ export interface operations {
             query?: {
                 /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
                 include?: string;
-                limit?: number;
+                limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
+                page?: string;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
+                count?: string;
                 /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: q = */
@@ -13629,9 +13629,9 @@ export interface operations {
                 /** @description Filter: number startsWith */
                 "number.startsWith"?: string;
                 /** @description Filter: status = */
-                status?: "draft" | "published";
+                status?: string;
                 /** @description Filter: status ne */
-                "status.ne"?: "draft" | "published";
+                "status.ne"?: string;
                 /** @description Filter: status in */
                 "status.in"?: string;
                 /** @description Filter: status notIn */
@@ -13651,7 +13651,7 @@ export interface operations {
                 /** @description Filter: teamId in */
                 "teamId.in"?: string;
                 /** @description Filter: teamId isNull */
-                "teamId.isNull"?: "true" | "false";
+                "teamId.isNull"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -13683,13 +13683,13 @@ export interface operations {
                 /** @description Filter: publishedAt between */
                 "publishedAt.between"?: string;
                 /** @description Filter: publishedAt isNull */
-                "publishedAt.isNull"?: "true" | "false";
+                "publishedAt.isNull"?: string;
                 /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"q","op":"eq","value":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt. */
                 sort?: string;
                 /** @description true: the recycle bin (deleted records), for those who may restore them. */
-                deleted?: "true" | "false";
+                deleted?: string;
                 /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
                 fields?: string;
                 /** @description Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`. */
@@ -14317,13 +14317,14 @@ export interface operations {
     NoteCommentsController_list_v1: {
         parameters: {
             query?: {
-                limit?: number;
+                limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
+                page?: string;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
+                count?: string;
+                /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: author = */
                 author?: string;
@@ -14899,18 +14900,19 @@ export interface operations {
     NoteRevisionsController_list_v1: {
         parameters: {
             query?: {
-                limit?: number;
+                limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
+                page?: string;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
+                count?: string;
+                /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: number gte */
-                "number.gte"?: number;
+                "number.gte"?: string;
                 /** @description Filter: number lte */
-                "number.lte"?: number;
+                "number.lte"?: string;
                 /** @description Filter: number between */
                 "number.between"?: string;
                 /** @description Filter: changedBy = */

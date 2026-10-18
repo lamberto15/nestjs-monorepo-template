@@ -1343,44 +1343,6 @@
                         "type": "string"
                       },
                       "description": "The languages the API answers in; the first is the default."
-                    },
-                    "attachments": {
-                      "type": "object",
-                      "properties": {
-                        "maxBytes": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991,
-                          "description": "The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.",
-                          "example": 26214400
-                        },
-                        "maxMb": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991,
-                          "description": "The same, in MB (ATTACHMENT_MAX_MB).",
-                          "example": 25
-                        },
-                        "types": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "description": "The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.",
-                          "example": [
-                            "image/png",
-                            "application/pdf",
-                            "text/plain"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "maxBytes",
-                        "maxMb",
-                        "types"
-                      ],
-                      "additionalProperties": false,
-                      "description": "What a record's attachment may be, as the upload route enforces it."
                     }
                   },
                   "required": [
@@ -1396,8 +1358,7 @@
                     "magicLink",
                     "documents",
                     "tenancy",
-                    "locales",
-                    "attachments"
+                    "locales"
                   ],
                   "additionalProperties": false
                 }
@@ -6366,7 +6327,7 @@
                         },
                         "attachments": {
                           "type": "boolean",
-                          "description": "Files on the records (`…/{id}/attachments`); the limits are in GET /v1/features."
+                          "description": "Files on the records (`…/{id}/attachments`); what a file may be is `attachmentLimits`."
                         },
                         "revisions": {
                           "type": "boolean",
@@ -6426,6 +6387,45 @@
                       ],
                       "additionalProperties": false,
                       "description": "What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers."
+                    },
+                    "attachmentLimits": {
+                      "nullable": true,
+                      "description": "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
+                      "type": "object",
+                      "properties": {
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.",
+                          "example": 26214400
+                        },
+                        "maxMb": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "The same, in MB (ATTACHMENT_MAX_MB).",
+                          "example": 25
+                        },
+                        "types": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.",
+                          "example": [
+                            "image/png",
+                            "application/pdf",
+                            "text/plain"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "maxBytes",
+                        "maxMb",
+                        "types"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -6436,7 +6436,8 @@
                     "recycleBin",
                     "defaultSort",
                     "limits",
-                    "capabilities"
+                    "capabilities",
+                    "attachmentLimits"
                   ],
                   "additionalProperties": false
                 }
@@ -12613,393 +12614,296 @@
             "required": false,
             "in": "query",
             "schema": {
-              "default": 50,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
+              "type": "string"
             }
           },
           {
             "name": "cursor",
             "required": false,
             "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "description": "`nextCursor` of the previous page (the same `sort`).",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 4000
-            },
-            "description": "`nextCursor` of the previous page (the same `sort`)."
+              "type": "string"
+            }
           },
           {
             "name": "page",
             "required": false,
             "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991
-            },
-            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`."
+              "type": "string"
+            }
           },
           {
             "name": "count",
             "required": false,
             "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
-              "default": "false",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "true: add `total` (counted up to a cap; `totalCapped`)."
+              "type": "string"
+            }
           },
           {
             "name": "lang",
             "required": false,
             "in": "query",
+            "description": "The language of the answer.",
             "schema": {
-              "type": "string",
-              "maxLength": 35
-            },
-            "description": "The language of the answer."
+              "type": "string"
+            }
           },
           {
             "name": "assignedToMe",
             "required": false,
             "in": "query",
+            "description": "Filter: assignedToMe =",
             "schema": {
-              "description": "Filter: assignedToMe =",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "Filter: assignedToMe ="
+              "type": "string"
+            }
           },
           {
             "name": "requestedByMe",
             "required": false,
             "in": "query",
+            "description": "Filter: requestedByMe =",
             "schema": {
-              "description": "Filter: requestedByMe =",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "Filter: requestedByMe ="
+              "type": "string"
+            }
           },
           {
             "name": "status",
             "required": false,
             "in": "query",
+            "description": "Filter: status =",
             "schema": {
-              "description": "Filter: status =",
-              "type": "string",
-              "enum": [
-                "pending",
-                "approved",
-                "rejected",
-                "changes_requested",
-                "cancelled",
-                "expired",
-                "failed"
-              ]
-            },
-            "description": "Filter: status ="
+              "type": "string"
+            }
           },
           {
             "name": "status.in",
             "required": false,
             "in": "query",
+            "description": "Filter: status in",
             "schema": {
-              "description": "Filter: status in",
               "type": "string"
-            },
-            "description": "Filter: status in"
+            }
           },
           {
             "name": "status.notIn",
             "required": false,
             "in": "query",
+            "description": "Filter: status notIn",
             "schema": {
-              "description": "Filter: status notIn",
               "type": "string"
-            },
-            "description": "Filter: status notIn"
+            }
           },
           {
             "name": "subject",
             "required": false,
             "in": "query",
+            "description": "Filter: subject =",
             "schema": {
-              "description": "Filter: subject =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: subject ="
+              "type": "string"
+            }
           },
           {
             "name": "subject.in",
             "required": false,
             "in": "query",
+            "description": "Filter: subject in",
             "schema": {
-              "description": "Filter: subject in",
               "type": "string"
-            },
-            "description": "Filter: subject in"
+            }
           },
           {
             "name": "action",
             "required": false,
             "in": "query",
+            "description": "Filter: action =",
             "schema": {
-              "description": "Filter: action =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: action ="
+              "type": "string"
+            }
           },
           {
             "name": "action.in",
             "required": false,
             "in": "query",
+            "description": "Filter: action in",
             "schema": {
-              "description": "Filter: action in",
               "type": "string"
-            },
-            "description": "Filter: action in"
+            }
           },
           {
             "name": "recordId",
             "required": false,
             "in": "query",
+            "description": "Filter: recordId =",
             "schema": {
-              "description": "Filter: recordId =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: recordId ="
+              "type": "string"
+            }
           },
           {
             "name": "requester",
             "required": false,
             "in": "query",
+            "description": "Filter: requester =",
             "schema": {
-              "description": "Filter: requester =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: requester ="
+              "type": "string"
+            }
           },
           {
             "name": "dueAt.lt",
             "required": false,
             "in": "query",
+            "description": "Filter: dueAt lt",
             "schema": {
-              "description": "Filter: dueAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: dueAt lt"
+              "type": "string"
+            }
           },
           {
             "name": "dueAt.lte",
             "required": false,
             "in": "query",
+            "description": "Filter: dueAt lte",
             "schema": {
-              "description": "Filter: dueAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: dueAt lte"
+              "type": "string"
+            }
           },
           {
             "name": "dueAt.gte",
             "required": false,
             "in": "query",
+            "description": "Filter: dueAt gte",
             "schema": {
-              "description": "Filter: dueAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: dueAt gte"
+              "type": "string"
+            }
           },
           {
             "name": "dueAt.isNull",
             "required": false,
             "in": "query",
+            "description": "Filter: dueAt isNull",
             "schema": {
-              "description": "Filter: dueAt isNull",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "Filter: dueAt isNull"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.gt",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt gt",
             "schema": {
-              "description": "Filter: createdAt gt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt gt"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.gte",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt gte",
             "schema": {
-              "description": "Filter: createdAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt gte"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.lt",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt lt",
             "schema": {
-              "description": "Filter: createdAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt lt"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.lte",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt lte",
             "schema": {
-              "description": "Filter: createdAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt lte"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.between",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt between",
             "schema": {
-              "description": "Filter: createdAt between",
               "type": "string"
-            },
-            "description": "Filter: createdAt between"
+            }
           },
           {
             "name": "updatedAt.gt",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt gt",
             "schema": {
-              "description": "Filter: updatedAt gt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt gt"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.gte",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt gte",
             "schema": {
-              "description": "Filter: updatedAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt gte"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.lt",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt lt",
             "schema": {
-              "description": "Filter: updatedAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt lt"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.lte",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt lte",
             "schema": {
-              "description": "Filter: updatedAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt lte"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.between",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt between",
             "schema": {
-              "description": "Filter: updatedAt between",
               "type": "string"
-            },
-            "description": "Filter: updatedAt between"
+            }
           },
           {
             "name": "filter",
             "required": false,
             "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"assignedToMe\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"assignedToMe\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
-              "type": "string",
-              "maxLength": 20000
-            },
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"assignedToMe\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between)."
+              "type": "string"
+            }
           },
           {
             "name": "sort",
             "required": false,
             "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt.",
             "schema": {
-              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt.",
-              "type": "string",
-              "maxLength": 500
-            },
-            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt."
+              "type": "string"
+            }
           },
           {
             "name": "fields",
             "required": false,
             "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, createdAt, updatedAt.",
               "type": "string"
-            },
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, createdAt, updatedAt."
+            }
           }
         ],
         "responses": {
@@ -23904,497 +23808,377 @@
             "required": false,
             "in": "query",
             "schema": {
-              "default": 50,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
+              "type": "string"
             }
           },
           {
             "name": "cursor",
             "required": false,
             "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "description": "`nextCursor` of the previous page (the same `sort`).",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 4000
-            },
-            "description": "`nextCursor` of the previous page (the same `sort`)."
+              "type": "string"
+            }
           },
           {
             "name": "page",
             "required": false,
             "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991
-            },
-            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`."
+              "type": "string"
+            }
           },
           {
             "name": "count",
             "required": false,
             "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
-              "default": "false",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "true: add `total` (counted up to a cap; `totalCapped`)."
+              "type": "string"
+            }
           },
           {
             "name": "lang",
             "required": false,
             "in": "query",
+            "description": "The language of the answer.",
             "schema": {
-              "type": "string",
-              "maxLength": 35
-            },
-            "description": "The language of the answer."
+              "type": "string"
+            }
           },
           {
             "name": "q",
             "required": false,
             "in": "query",
+            "description": "Filter: q =",
             "schema": {
-              "description": "Filter: q =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: q ="
+              "type": "string"
+            }
           },
           {
             "name": "tag",
             "required": false,
             "in": "query",
+            "description": "Filter: tag =",
             "schema": {
-              "description": "Filter: tag =",
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            },
-            "description": "Filter: tag ="
+              "type": "string"
+            }
           },
           {
             "name": "tag.in",
             "required": false,
             "in": "query",
+            "description": "Filter: tag in",
             "schema": {
-              "description": "Filter: tag in",
               "type": "string"
-            },
-            "description": "Filter: tag in"
+            }
           },
           {
             "name": "number",
             "required": false,
             "in": "query",
+            "description": "Filter: number =",
             "schema": {
-              "description": "Filter: number =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: number ="
+              "type": "string"
+            }
           },
           {
             "name": "number.startsWith",
             "required": false,
             "in": "query",
+            "description": "Filter: number startsWith",
             "schema": {
-              "description": "Filter: number startsWith",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: number startsWith"
+              "type": "string"
+            }
           },
           {
             "name": "status",
             "required": false,
             "in": "query",
+            "description": "Filter: status =",
             "schema": {
-              "description": "Filter: status =",
-              "type": "string",
-              "enum": [
-                "draft",
-                "published"
-              ]
-            },
-            "description": "Filter: status ="
+              "type": "string"
+            }
           },
           {
             "name": "status.ne",
             "required": false,
             "in": "query",
+            "description": "Filter: status ne",
             "schema": {
-              "description": "Filter: status ne",
-              "type": "string",
-              "enum": [
-                "draft",
-                "published"
-              ]
-            },
-            "description": "Filter: status ne"
+              "type": "string"
+            }
           },
           {
             "name": "status.in",
             "required": false,
             "in": "query",
+            "description": "Filter: status in",
             "schema": {
-              "description": "Filter: status in",
               "type": "string"
-            },
-            "description": "Filter: status in"
+            }
           },
           {
             "name": "status.notIn",
             "required": false,
             "in": "query",
+            "description": "Filter: status notIn",
             "schema": {
-              "description": "Filter: status notIn",
               "type": "string"
-            },
-            "description": "Filter: status notIn"
+            }
           },
           {
             "name": "title.contains",
             "required": false,
             "in": "query",
+            "description": "Filter: title contains",
             "schema": {
-              "description": "Filter: title contains",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: title contains"
+              "type": "string"
+            }
           },
           {
             "name": "title.notContains",
             "required": false,
             "in": "query",
+            "description": "Filter: title notContains",
             "schema": {
-              "description": "Filter: title notContains",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: title notContains"
+              "type": "string"
+            }
           },
           {
             "name": "title.startsWith",
             "required": false,
             "in": "query",
+            "description": "Filter: title startsWith",
             "schema": {
-              "description": "Filter: title startsWith",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: title startsWith"
+              "type": "string"
+            }
           },
           {
             "name": "title.endsWith",
             "required": false,
             "in": "query",
+            "description": "Filter: title endsWith",
             "schema": {
-              "description": "Filter: title endsWith",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: title endsWith"
+              "type": "string"
+            }
           },
           {
             "name": "ownerId",
             "required": false,
             "in": "query",
+            "description": "Filter: ownerId =",
             "schema": {
-              "description": "Filter: ownerId =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            },
-            "description": "Filter: ownerId ="
+              "type": "string"
+            }
           },
           {
             "name": "teamId",
             "required": false,
             "in": "query",
+            "description": "Filter: teamId =",
             "schema": {
-              "description": "Filter: teamId =",
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            },
-            "description": "Filter: teamId ="
+              "type": "string"
+            }
           },
           {
             "name": "teamId.in",
             "required": false,
             "in": "query",
+            "description": "Filter: teamId in",
             "schema": {
-              "description": "Filter: teamId in",
               "type": "string"
-            },
-            "description": "Filter: teamId in"
+            }
           },
           {
             "name": "teamId.isNull",
             "required": false,
             "in": "query",
+            "description": "Filter: teamId isNull",
             "schema": {
-              "description": "Filter: teamId isNull",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "Filter: teamId isNull"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.gt",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt gt",
             "schema": {
-              "description": "Filter: createdAt gt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt gt"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.gte",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt gte",
             "schema": {
-              "description": "Filter: createdAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt gte"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.lt",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt lt",
             "schema": {
-              "description": "Filter: createdAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt lt"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.lte",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt lte",
             "schema": {
-              "description": "Filter: createdAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: createdAt lte"
+              "type": "string"
+            }
           },
           {
             "name": "createdAt.between",
             "required": false,
             "in": "query",
+            "description": "Filter: createdAt between",
             "schema": {
-              "description": "Filter: createdAt between",
               "type": "string"
-            },
-            "description": "Filter: createdAt between"
+            }
           },
           {
             "name": "updatedAt.gt",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt gt",
             "schema": {
-              "description": "Filter: updatedAt gt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt gt"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.gte",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt gte",
             "schema": {
-              "description": "Filter: updatedAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt gte"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.lt",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt lt",
             "schema": {
-              "description": "Filter: updatedAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt lt"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.lte",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt lte",
             "schema": {
-              "description": "Filter: updatedAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: updatedAt lte"
+              "type": "string"
+            }
           },
           {
             "name": "updatedAt.between",
             "required": false,
             "in": "query",
+            "description": "Filter: updatedAt between",
             "schema": {
-              "description": "Filter: updatedAt between",
               "type": "string"
-            },
-            "description": "Filter: updatedAt between"
+            }
           },
           {
             "name": "publishedAt.gt",
             "required": false,
             "in": "query",
+            "description": "Filter: publishedAt gt",
             "schema": {
-              "description": "Filter: publishedAt gt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: publishedAt gt"
+              "type": "string"
+            }
           },
           {
             "name": "publishedAt.gte",
             "required": false,
             "in": "query",
+            "description": "Filter: publishedAt gte",
             "schema": {
-              "description": "Filter: publishedAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: publishedAt gte"
+              "type": "string"
+            }
           },
           {
             "name": "publishedAt.lt",
             "required": false,
             "in": "query",
+            "description": "Filter: publishedAt lt",
             "schema": {
-              "description": "Filter: publishedAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: publishedAt lt"
+              "type": "string"
+            }
           },
           {
             "name": "publishedAt.lte",
             "required": false,
             "in": "query",
+            "description": "Filter: publishedAt lte",
             "schema": {
-              "description": "Filter: publishedAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            },
-            "description": "Filter: publishedAt lte"
+              "type": "string"
+            }
           },
           {
             "name": "publishedAt.between",
             "required": false,
             "in": "query",
+            "description": "Filter: publishedAt between",
             "schema": {
-              "description": "Filter: publishedAt between",
               "type": "string"
-            },
-            "description": "Filter: publishedAt between"
+            }
           },
           {
             "name": "publishedAt.isNull",
             "required": false,
             "in": "query",
+            "description": "Filter: publishedAt isNull",
             "schema": {
-              "description": "Filter: publishedAt isNull",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "Filter: publishedAt isNull"
+              "type": "string"
+            }
           },
           {
             "name": "filter",
             "required": false,
             "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull).",
-              "type": "string",
-              "maxLength": 20000
-            },
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull)."
+              "type": "string"
+            }
           },
           {
             "name": "sort",
             "required": false,
             "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt.",
             "schema": {
-              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt.",
-              "type": "string",
-              "maxLength": 500
-            },
-            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt."
+              "type": "string"
+            }
           },
           {
             "name": "deleted",
             "required": false,
             "in": "query",
+            "description": "true: the recycle bin (deleted records), for those who may restore them.",
             "schema": {
-              "description": "true: the recycle bin (deleted records), for those who may restore them.",
-              "default": "false",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            },
-            "description": "true: the recycle bin (deleted records), for those who may restore them."
+              "type": "string"
+            }
           },
           {
             "name": "fields",
             "required": false,
             "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags.",
               "type": "string"
-            },
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags."
+            }
           },
           {
             "name": "custom.<key>[.<op>]",
@@ -25379,10 +25163,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "default": 50,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
+              "type": "string"
             }
           },
           {
@@ -25391,10 +25172,7 @@
             "in": "query",
             "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "description": "`nextCursor` of the previous page (the same `sort`).",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 4000
+              "type": "string"
             }
           },
           {
@@ -25403,10 +25181,7 @@
             "in": "query",
             "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991
+              "type": "string"
             }
           },
           {
@@ -25415,22 +25190,16 @@
             "in": "query",
             "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
-              "default": "false",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "lang",
             "required": false,
             "in": "query",
+            "description": "The language of the answer.",
             "schema": {
-              "type": "string",
-              "maxLength": 35
+              "type": "string"
             }
           },
           {
@@ -25439,10 +25208,7 @@
             "in": "query",
             "description": "Filter: author =",
             "schema": {
-              "description": "Filter: author =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
+              "type": "string"
             }
           },
           {
@@ -25451,7 +25217,6 @@
             "in": "query",
             "description": "Filter: author in",
             "schema": {
-              "description": "Filter: author in",
               "type": "string"
             }
           },
@@ -25461,10 +25226,7 @@
             "in": "query",
             "description": "Filter: createdAt gt",
             "schema": {
-              "description": "Filter: createdAt gt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25473,10 +25235,7 @@
             "in": "query",
             "description": "Filter: createdAt gte",
             "schema": {
-              "description": "Filter: createdAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25485,10 +25244,7 @@
             "in": "query",
             "description": "Filter: createdAt lt",
             "schema": {
-              "description": "Filter: createdAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25497,10 +25253,7 @@
             "in": "query",
             "description": "Filter: createdAt lte",
             "schema": {
-              "description": "Filter: createdAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25509,7 +25262,6 @@
             "in": "query",
             "description": "Filter: createdAt between",
             "schema": {
-              "description": "Filter: createdAt between",
               "type": "string"
             }
           },
@@ -25519,10 +25271,7 @@
             "in": "query",
             "description": "Filter: updatedAt gt",
             "schema": {
-              "description": "Filter: updatedAt gt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25531,10 +25280,7 @@
             "in": "query",
             "description": "Filter: updatedAt gte",
             "schema": {
-              "description": "Filter: updatedAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25543,10 +25289,7 @@
             "in": "query",
             "description": "Filter: updatedAt lt",
             "schema": {
-              "description": "Filter: updatedAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25555,10 +25298,7 @@
             "in": "query",
             "description": "Filter: updatedAt lte",
             "schema": {
-              "description": "Filter: updatedAt lte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -25567,7 +25307,6 @@
             "in": "query",
             "description": "Filter: updatedAt between",
             "schema": {
-              "description": "Filter: updatedAt between",
               "type": "string"
             }
           },
@@ -25577,9 +25316,7 @@
             "in": "query",
             "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"author\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: author (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"author\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: author (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
-              "type": "string",
-              "maxLength": 20000
+              "type": "string"
             }
           },
           {
@@ -25588,9 +25325,7 @@
             "in": "query",
             "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt.",
             "schema": {
-              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt.",
-              "type": "string",
-              "maxLength": 500
+              "type": "string"
             }
           },
           {
@@ -25599,7 +25334,6 @@
             "in": "query",
             "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -26720,10 +26454,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "default": 50,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
+              "type": "string"
             }
           },
           {
@@ -26732,10 +26463,7 @@
             "in": "query",
             "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "description": "`nextCursor` of the previous page (the same `sort`).",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 4000
+              "type": "string"
             }
           },
           {
@@ -26744,10 +26472,7 @@
             "in": "query",
             "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991
+              "type": "string"
             }
           },
           {
@@ -26756,22 +26481,16 @@
             "in": "query",
             "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
-              "default": "false",
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "lang",
             "required": false,
             "in": "query",
+            "description": "The language of the answer.",
             "schema": {
-              "type": "string",
-              "maxLength": 35
+              "type": "string"
             }
           },
           {
@@ -26780,8 +26499,7 @@
             "in": "query",
             "description": "Filter: number gte",
             "schema": {
-              "description": "Filter: number gte",
-              "type": "number"
+              "type": "string"
             }
           },
           {
@@ -26790,8 +26508,7 @@
             "in": "query",
             "description": "Filter: number lte",
             "schema": {
-              "description": "Filter: number lte",
-              "type": "number"
+              "type": "string"
             }
           },
           {
@@ -26800,7 +26517,6 @@
             "in": "query",
             "description": "Filter: number between",
             "schema": {
-              "description": "Filter: number between",
               "type": "string"
             }
           },
@@ -26810,10 +26526,7 @@
             "in": "query",
             "description": "Filter: changedBy =",
             "schema": {
-              "description": "Filter: changedBy =",
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
+              "type": "string"
             }
           },
           {
@@ -26822,7 +26535,6 @@
             "in": "query",
             "description": "Filter: changedBy in",
             "schema": {
-              "description": "Filter: changedBy in",
               "type": "string"
             }
           },
@@ -26832,10 +26544,7 @@
             "in": "query",
             "description": "Filter: createdAt gte",
             "schema": {
-              "description": "Filter: createdAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -26844,10 +26553,7 @@
             "in": "query",
             "description": "Filter: createdAt lt",
             "schema": {
-              "description": "Filter: createdAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -26856,7 +26562,6 @@
             "in": "query",
             "description": "Filter: createdAt between",
             "schema": {
-              "description": "Filter: createdAt between",
               "type": "string"
             }
           },
@@ -26866,10 +26571,7 @@
             "in": "query",
             "description": "Filter: updatedAt gte",
             "schema": {
-              "description": "Filter: updatedAt gte",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -26878,10 +26580,7 @@
             "in": "query",
             "description": "Filter: updatedAt lt",
             "schema": {
-              "description": "Filter: updatedAt lt",
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              "type": "string"
             }
           },
           {
@@ -26890,7 +26589,6 @@
             "in": "query",
             "description": "Filter: updatedAt between",
             "schema": {
-              "description": "Filter: updatedAt between",
               "type": "string"
             }
           },
@@ -26900,9 +26598,7 @@
             "in": "query",
             "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"number\",\"op\":\"gte\",\"value\":…},{…}]}. Fields and operators: number (gte, lte, between); changedBy (eq, in); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"number\",\"op\":\"gte\",\"value\":…},{…}]}. Fields and operators: number (gte, lte, between); changedBy (eq, in); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
-              "type": "string",
-              "maxLength": 20000
+              "type": "string"
             }
           },
           {
@@ -26911,9 +26607,7 @@
             "in": "query",
             "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt.",
             "schema": {
-              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt.",
-              "type": "string",
-              "maxLength": 500
+              "type": "string"
             }
           },
           {
@@ -26922,7 +26616,6 @@
             "in": "query",
             "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedByName, changedAt, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedByName, changedAt, createdAt, updatedAt.",
               "type": "string"
             }
           }

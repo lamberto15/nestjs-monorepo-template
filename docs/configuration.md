@@ -173,8 +173,7 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
   "magicLink": true,
   "documents": false,
   "tenancy": "multi",
-  "locales": ["en", "de", "ar", "zh", "ms"],
-  "attachments": { "maxBytes": 26214400, "maxMb": 25, "types": ["image/png", "application/pdf", "…"] }
+  "locales": ["en", "de", "ar", "zh", "ms"]
 }
 ```
 
@@ -186,7 +185,6 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
 | `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
 | `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
 | `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |
-| `attachments`                              | `ATTACHMENT_MAX_MB`, `ATTACHMENT_ALLOWED_TYPES`                            | not a switch: what an upload may be (larger: 413; another type: 415), as the upload route reads it     |
 
 The values are fixed at startup (a change needs a restart). A new switch
 adds its key to `features.schemas.ts` and `FeaturesService`, reading it the

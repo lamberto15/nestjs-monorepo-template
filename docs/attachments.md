@@ -42,9 +42,9 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   (`ATTACHMENT_ALLOWED_TYPES`), or not the type the client declared (a
   "PNG" that is text): 415 `unsupported_media_type`. Over
   `ATTACHMENT_MAX_MB` (25): 413 `payload_too_large`. Both are published
-  in `GET /v1/features` (`attachments: { maxBytes, maxMb, types }`, read
-  as the upload reads them: `attachmentLimits()`), so a client checks a
-  file before sending it.
+  in `GET /v1/lists/{subject}` (`attachmentLimits: { maxBytes, maxMb,
+  types }`, read as the upload reads them: `attachmentLimits()`), so a
+  client checks a file before sending it.
 - **Realtime**: an upload, a removal or an issued PDF sends
   `record.attachments.changed` (`{ subject, recordId, attachmentId,
   action }`) to the record's watchers and the uploader's other tabs who

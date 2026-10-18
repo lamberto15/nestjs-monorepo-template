@@ -35,12 +35,6 @@ describe('GET /v1/features (e2e)', () => {
       documents: false,
       tenancy: 'single',
       locales: ['en', 'de', 'ar', 'zh', 'ms'],
-      // What the upload route enforces (ATTACHMENT_MAX_MB, ATTACHMENT_ALLOWED_TYPES).
-      attachments: {
-        maxBytes: 25 * 1024 * 1024,
-        maxMb: 25,
-        types: expect.arrayContaining(['image/png', 'application/pdf']),
-      },
     });
   });
 

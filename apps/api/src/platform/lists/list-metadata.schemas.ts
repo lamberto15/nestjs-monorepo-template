@@ -46,7 +46,7 @@ const CAPABILITY_DOCS = {
   tags: 'Tags on the records (`…/{id}/tags`) and the `tag` filter.',
   comments: 'Comments and @mentions (`…/{id}/comments`).',
   attachments:
-    'Files on the records (`…/{id}/attachments`); the limits are in GET /v1/features.',
+    'Files on the records (`…/{id}/attachments`); what a file may be is `attachmentLimits`.',
   revisions: 'History, diff and restore (`…/{id}/revisions`).',
   pdf: 'A PDF of a record (`…/{id}/pdf`). False when this deployment has no Gotenberg (the routes answer 503).',
   bulk: 'Many records at once (`…/bulk`).',
@@ -74,6 +74,33 @@ export const listCapabilitiesSchema = z
   )
   .describe(
     "What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers.",
+  );
+
+/** What an attachment may be (ATTACHMENT_MAX_MB, ATTACHMENT_ALLOWED_TYPES). */
+export const attachmentLimitsSchema = z
+  .object({
+    maxBytes: z
+      .number()
+      .int()
+      .describe(
+        'The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.',
+      )
+      .meta({ example: 26_214_400 }),
+    maxMb: z
+      .number()
+      .int()
+      .describe('The same, in MB (ATTACHMENT_MAX_MB).')
+      .meta({ example: 25 }),
+    types: z
+      .array(z.string())
+      .describe(
+        'The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.',
+      )
+      .meta({ example: ['image/png', 'application/pdf', 'text/plain'] }),
+  })
+  .nullable()
+  .describe(
+    "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
   );
 
 /** What GET /v1/lists/{subject} answers. */
@@ -127,6 +154,7 @@ export const listMetadataSchema = z.object({
     })
     .describe("The list's limits, the same on every list."),
   capabilities: listCapabilitiesSchema,
+  attachmentLimits: attachmentLimitsSchema,
 });
 
 export type ListField = z.infer<typeof listFieldSchema>;

@@ -13,8 +13,8 @@ export interface AttachmentLimits {
 
 /**
  * The limits the upload route enforces (AttachmentUpload), read once from
- * the configuration for both it and GET /v1/features, so what a client is
- * told is what the route refuses.
+ * the configuration for both it and GET /v1/lists/{subject}
+ * (`attachmentLimits`), so what a client is told is what the route refuses.
  */
 export function attachmentLimits(
   config: ConfigService<PlatformEnv, true>,

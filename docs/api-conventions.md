@@ -256,7 +256,8 @@ repeating the declaration:
               "maxSort": 3, "maxConditions": 30, "maxDepth": 3, "maxValues": 50 },
   "capabilities": { "tags": true, "comments": true, "attachments": true, "revisions": true,
                     "pdf": false, "bulk": true, "watch": true, "search": true, "transfer": true,
-                    "custom": true, "events": true, "numbered": true, "approvals": true }
+                    "custom": true, "events": true, "numbered": true, "approvals": true },
+  "attachmentLimits": { "maxBytes": 26214400, "maxMb": 25, "types": ["image/png", "application/pdf", "…"] }
 }
 ```
 
@@ -303,8 +304,10 @@ repeating the declaration:
   the subject is declared approvable). `pdf` is false without Gotenberg
   (`GET /v1/features` `documents`), `events` with `WEBHOOKS=off`. Whether
   the caller may use one on a record is the record's `can` and the
-  routes' answers. The attachment limits are in `GET /v1/features`
-  (`attachments`).
+  routes' answers.
+- **Attachment limits:** `attachmentLimits` is `{ maxBytes, maxMb, types }`
+  (`ATTACHMENT_MAX_MB`, `ATTACHMENT_ALLOWED_TYPES`, as the upload route
+  enforces them) when the subject takes attachments, else null.
 
 ## Using it from a data table
 

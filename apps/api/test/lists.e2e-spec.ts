@@ -83,6 +83,12 @@ describe('list metadata (e2e)', () => {
         numbered: true,
         approvals: true,
       },
+      // What the upload route enforces (ATTACHMENT_MAX_MB, ATTACHMENT_ALLOWED_TYPES).
+      attachmentLimits: {
+        maxBytes: 25 * 1024 * 1024,
+        maxMb: 25,
+        types: expect.arrayContaining(['image/png', 'application/pdf']),
+      },
     });
     const fields = body.fields as Field[];
     expect(fields.find((field) => field.name === 'title')).toEqual({

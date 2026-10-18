@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { fieldsRead } from '../../core/http/list-query.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { ApprovalsRegistry } from '../approvals/approvals.registry.js';
+import { attachmentLimits } from '../attachments/attachment-limits.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { PdfRenderer } from '../documents/pdf-renderer.js';
+import type { PlatformEnv } from '../platform.env.js';
 import { switchedOn } from '../switches.js';
 import { listCapabilities } from './list-capabilities.js';
 import { listMetadata } from './list-metadata.js';
@@ -24,6 +27,7 @@ export class ListsService {
     private readonly customFields: CustomFieldsService,
     private readonly pdf: PdfRenderer,
     private readonly approvals: ApprovalsRegistry,
+    private readonly config: ConfigService<PlatformEnv, true>,
   ) {}
 
   /** The subject's list, or a 404: before any permission is checked. */
@@ -76,6 +80,10 @@ export class ListsService {
         recycleBin: restore,
       }),
       capabilities: this.capabilities(source),
+      // What the upload route enforces (AttachmentUpload reads the same).
+      attachmentLimits: source.capabilities.includes('attachments')
+        ? attachmentLimits(this.config)
+        : null,
     };
   }
 

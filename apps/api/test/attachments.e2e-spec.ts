@@ -371,9 +371,9 @@ describe('attachments (e2e)', () => {
     ).toEqual([]);
   });
 
-  it('publishes the limits it enforces in GET /v1/features (ATTACHMENT_MAX_MB=1 here)', async () => {
-    const { body } = await node.admin().get('/v1/features').expect(200);
-    expect(body.attachments).toEqual({
+  it('publishes the limits it enforces in GET /v1/lists/{subject} (ATTACHMENT_MAX_MB=1 here)', async () => {
+    const { body } = await node.admin().get('/v1/lists/TestItem').expect(200);
+    expect(body.attachmentLimits).toEqual({
       maxBytes: 1024 * 1024,
       maxMb: 1,
       types: expect.arrayContaining([

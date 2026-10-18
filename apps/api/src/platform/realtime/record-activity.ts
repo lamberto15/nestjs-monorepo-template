@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  type BeforeApplicationShutdown,
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+} from '@nestjs/common';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import { PeopleService } from '../people/people.service.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
@@ -29,12 +34,18 @@ const BATCH = 10;
  *
  * After the commit, as every push; REALTIME=off does nothing (not even
  * the checks). A failure is logged, never the request's: the change is
- * committed. Custom code: the gateway has rooms per principal, not per
+ * committed. Shutdown waits for the pushes under way (before the gateway
+ * and its Redis adapter close), so none publishes on a closed connection.
+ * Custom code: the gateway has rooms per principal, not per
  * record (Realtime), and @nestjs/websockets knows nothing of permissions.
  */
 @Injectable()
-export class RecordActivity {
+export class RecordActivity
+  implements OnModuleDestroy, BeforeApplicationShutdown
+{
   private readonly logger = new Logger('RecordActivity');
+  /** The pushes under way: shutdown waits for them. */
+  private readonly pending = new Set<Promise<void>>();
 
   constructor(
     private readonly realtime: Realtime,
@@ -42,7 +53,37 @@ export class RecordActivity {
     private readonly people: PeopleService,
   ) {}
 
-  async push(
+  /** Sends the event; callers don't await it (the answer doesn't wait for the checks). */
+  push(
+    record: RecordRef,
+    event: (typeof RECORD_EVENTS)[keyof typeof RECORD_EVENTS],
+    data: Record<string, unknown>,
+    options: {
+      by: Principal;
+      canRead: (principal: Principal) => Promise<boolean>;
+    },
+  ): Promise<void> {
+    if (!switchedOn('REALTIME')) {
+      return Promise.resolve();
+    }
+    const sent = this.send(record, event, data, options).finally(() =>
+      this.pending.delete(sent),
+    );
+    this.pending.add(sent);
+    return sent;
+  }
+
+  /** As early as shutdown can (the database pool may close in another module's hook). */
+  async onModuleDestroy() {
+    await Promise.allSettled(this.pending);
+  }
+
+  /** And again before the gateway and its Redis adapter close. */
+  async beforeApplicationShutdown() {
+    await Promise.allSettled(this.pending);
+  }
+
+  private async send(
     record: RecordRef,
     event: (typeof RECORD_EVENTS)[keyof typeof RECORD_EVENTS],
     data: Record<string, unknown>,
@@ -54,9 +95,6 @@ export class RecordActivity {
       canRead: (principal: Principal) => Promise<boolean>;
     },
   ) {
-    if (!switchedOn('REALTIME')) {
-      return;
-    }
     try {
       const keys = new Set(await this.subscriptions.watchers(record));
       if (by.kind !== 'system') {

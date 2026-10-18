@@ -23,7 +23,7 @@ import {
   ApiOkResponse,
   ApiOperation,
 } from '@nestjs/swagger';
-import type { ListQuery } from '../../core/http/list-query.js';
+import { ApiListQuery } from '../../core/http/list-docs.js';
 import { pageSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
@@ -63,12 +63,13 @@ export function commentRoutes(spec: RecordRouteSpec): Type {
         'Cursor pages; `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`.',
     })
     @ApiOkResponse({ standardSchema: pageSchema(commentSchema) })
+    @ApiListQuery(COMMENT_LIST)
     async list(
       @CurrentUser() user: Principal,
       @Param('id', ParseUUIDPipe) id: string,
-      // Validated and documented by the list's schema, as attachments' (its types: `limit` a number).
-      @Query({ schema: COMMENT_LIST.schema }) query: ListQuery,
+      @Query() raw: Record<string, unknown>,
     ) {
+      const query = COMMENT_LIST.parse(raw);
       return COMMENT_LIST.pick(
         await this.comments.list(user, record(id), query),
         query,
