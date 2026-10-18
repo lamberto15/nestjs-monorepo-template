@@ -20,8 +20,8 @@ its work to the packages:
 | Root script | Runs |
 | --- | --- |
 | `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e` | `turbo run <task>`: the task in every package that has it, dependencies first |
-| `pnpm dev:web` | `turbo run dev --filter=@nestjs-monorepo-template/web` (the client builds first) |
-| `pnpm start:dev`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump` | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api` |
+| `pnpm dev`, `pnpm dev:api`, `pnpm dev:web` | `turbo run dev --env-mode=loose` in every app, or `--filter` one: the API's `nest start --watch` and the web's `vite` (the client builds first) |
+| `pnpm start:dev`, `pnpm start:debug`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump` | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api` |
 | `pnpm client:generate`, `pnpm client:check` | the API's dump, then the client's generator |
 | `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes` | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md)) |
 | `pnpm services:up` / `services:down`, `pnpm format` | at the root |
@@ -46,6 +46,7 @@ its work to the packages:
 | `lint` | `^build` (the API's tests read the client's types) | yes |
 | `test` | `^build` | yes |
 | `test:e2e` | `^build` (the API's e2e imports the built client) | no: it needs Docker or the services |
+| `dev` | `^build` (the apps run on the built client) | no: persistent, it runs until stopped |
 
 - A task whose inputs (its package's files, its dependencies' builds, the
   lockfile, `.oxlintrc.json`) didn't change is replayed from `.turbo/cache`:
@@ -57,14 +58,20 @@ its work to the packages:
   `test:e2e` passes `REDIS_URL`, `TEST_DATABASE_URL`, `TEST_LOGS`. A
   frontend's build-time variable (`VITE_API_URL`…) goes into its task's
   `env`, so a change rebuilds it. The `pnpm --filter` scripts (`start:dev`,
-  `migrate`) see the whole shell.
+  `migrate`) see the whole shell, and so do the `dev` scripts: they pass
+  `--env-mode=loose` (Turborepo's flag for it), because the `dev` task is
+  never cached, so there's no hash to protect, and the API reads well over
+  a hundred variables (each feature may add more) that a shell or the
+  devcontainer sets over `apps/api/.env.development`: a `passThroughEnv`
+  list would drift. In strict mode they'd vanish (`DATABASE_URL: expected
+  string`).
 - CI keeps the cache between runs (`actions/cache`, `.github/workflows/ci.yml`).
 
 ## The web app
 
 `apps/web` is a React single-page app; `packages/ui` holds its components.
-Run the API (`pnpm start:dev`) and the app (`pnpm dev:web`,
-http://localhost:5173) side by side.
+`pnpm dev` runs the API and the app (http://localhost:5173) side by side;
+`pnpm dev:api` or `pnpm dev:web` runs one.
 
 - **Stack:** Vite, TanStack Router (file routes in `src/routes`, code
   splitting, `routeTree.gen.ts` written by its Vite plugin and committed),
@@ -189,9 +196,10 @@ Any framework fits the same way.
    Turborepo builds the client first (`^build`). Add the framework's output
    to `build.outputs` in `turbo.json` when it isn't `dist/` (Next.js:
    `".next/**", "!.next/cache/**"`). The `dev` task exists
-   (`{ "dependsOn": ["^build"], "cache": false, "persistent": true }`); add a
-   root script like `dev:web`. A build-time variable (`VITE_API_URL`…) goes
-   into the build task's `env`.
+   (`{ "dependsOn": ["^build"], "cache": false, "persistent": true }`): give
+   the app a `dev` script and `pnpm dev` starts it with the others; add a
+   root script like `dev:web` to run it alone. A build-time variable
+   (`VITE_API_URL`…) goes into the build task's `env`.
 4. **Call the API** with the typed client
    ([its README](../packages/api-client/README.md)):
 

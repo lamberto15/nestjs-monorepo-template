@@ -4,8 +4,7 @@
 pnpm install
 pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
-pnpm start:dev            # the API and the workers, with reload: http://localhost:3000/api
-pnpm dev:web              # the web app (Vite), in a second terminal: http://localhost:5173
+pnpm dev                  # the API and its workers (http://localhost:3000/api) and the web app (http://localhost:5173), with reload
 pnpm db:seed:demo         # optional: demo users, teams and each feature's demo data (passwords printed once)
 ```
 
@@ -76,7 +75,7 @@ tenant: memberships, roles, teams, the features' records, the files (under
   job never holds `all.manage`). The notes are their users' (so `mine`
   and "in my units" show something), created on their behalf. What the
   seed starts (the notes' publication, their webhooks) waits in PostgreSQL
-  for the app's workers: `pnpm start:dev` runs them.
+  for the app's workers: `pnpm dev` runs them.
 - **Members with passwords, though adding people is invite-only**
   ([auth](auth.md)): no route lets an administrator set a password, and
   none is reopened for this. The seed uses the system-only path the first
@@ -145,8 +144,8 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **On creation** (`.devcontainer/post-create.sh`): `pnpm install`, and
   `apps/api/.env.development` copied from `apps/api/env.development.example`
   when there is none (yours, if you have one, comes with the repository's
-  folder). Then `pnpm start:dev` (port 3000 is forwarded; Mailpit's inbox
-  as `mailpit:8025`) and `pnpm db:seed:demo`.
+  folder). Then `pnpm dev:api` (port 3000 is forwarded, and 5173 for the
+  web app; Mailpit's inbox as `mailpit:8025`) and `pnpm db:seed:demo`.
 - **The services' addresses:** the workspace shares PostgreSQL's network,
   so the file's `127.0.0.1:5432` reaches it; Redis, Mailpit and Gotenberg
   are reached by name, set in the container's environment
@@ -173,7 +172,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **`pnpm migrate`** (what a deploy runs, also making the maintenance role
   of `DATABASE_MAINTENANCE_URL`) reads the environment only, as on the
   host: `set -a; . apps/api/.env.development; set +a; pnpm migrate` (the
-  file's `MAIL_FROM` line upsets `sh`: harmless). `pnpm start:dev` and
+  file's `MAIL_FROM` line upsets `sh`: harmless). `pnpm dev` and
   `pnpm db:seed:demo` migrate on start (`MIGRATE_ON_START`).
 - **`devcontainer up` asks for `--allow=fs.read=…`** with a recent Docker
   (buildx bake checks the CLI's generated Dockerfile in a temporary
@@ -186,8 +185,9 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | Command | Does |
 | --- | --- |
 | `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
-| `pnpm start:dev` | API and workers, with reload |
-| `pnpm dev:web` | the web app's dev server, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
+| `pnpm dev` | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first) |
+| `pnpm dev:api` / `pnpm start:dev` | the API and its workers alone, with reload (through Turborepo / straight through pnpm) |
+| `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |

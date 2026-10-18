@@ -1,5 +1,5 @@
 # Development: the backing services on localhost (PostgreSQL, Redis, Mailpit,
-# Floci, Gotenberg); the app runs on your machine (`pnpm start:dev`: instant
+# Floci, Gotenberg); the apps run on your machine (`pnpm dev`: instant
 # reloads, the debugger). `pnpm services:up` runs them as the project
 # `<name>-dev`, apart from a production stack on the same machine, with
 # dev/compose.env as its variables (never .env: production's secrets).
