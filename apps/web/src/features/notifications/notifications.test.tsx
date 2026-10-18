@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server, signedInUser } from '@/test/server';
+import { findToast } from '@/test/toast';
 
 const connections: FakeRealtime[] = [];
 vi.mock('@nestjs-monorepo-template/api-client', async (importOriginal) => ({
@@ -156,7 +157,9 @@ describe('the bell and realtime', () => {
   it('refetches after a reconnect, not at the first connection', async () => {
     const state = api();
     await renderApp('/');
-    await bell();
+    // The bell shows before the count arrives: wait for the count, which is
+    // the first unread-count request answered.
+    await bellWith(2);
     expect(state.unreadCalls).toBe(1);
 
     act(() => connections[0]!.emit('connect'));
@@ -264,7 +267,7 @@ describe('preferences', () => {
         'note.published': { email: 'daily' },
       }),
     );
-    expect(await screen.findByText('Settings saved.')).toBeVisible();
+    await findToast('Settings saved.');
 
     await user.click(
       screen.getByRole('combobox', { name: 'New sign-in: Email' }),
