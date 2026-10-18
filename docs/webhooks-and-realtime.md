@@ -12,7 +12,10 @@ run. The webhooks package stays registered, so incoming webhooks are unchanged
 and the code that dispatches (notifications, approvals, your features) does not
 fail; the outbox relay keeps running because notification delivery uses it.
 Deliveries to endpoints created earlier wait until it is turned on again.
-`REALTIME=off`: no `/realtime` gateway; `Realtime` pushes do nothing.
+`REALTIME=off`: no `/realtime` gateway; `Realtime` pushes do nothing. They
+do nothing either in a standalone application context (the demo seed, a
+script): NestJS gives a gateway its socket server only in an HTTP app
+(the API and the worker both are one).
 
 Per API client, by design: the client is the package's tenant (`tenant` =
 its id), so a client sees and receives only its own. There are no endpoints of
