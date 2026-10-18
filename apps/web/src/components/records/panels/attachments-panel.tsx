@@ -23,6 +23,7 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { RelativeTime } from '@/features/notifications/relative-time';
 import { errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
+import { useRealtime } from '@/lib/realtime';
 import {
   downloadUrl,
   listAttachments,
@@ -33,13 +34,10 @@ import {
 } from './api';
 
 /**
- * ATTACHMENT_MAX_MB (25, env.example). The API does not publish its limits,
- * so this is the default; a deployment that changes it is still held to by
- * the API (413 `payload_too_large`, shown as the upload's error). The types
- * are not checked here either: the API reads them from the bytes
- * (415 `unsupported_media_type`).
+ * What a file may be, as the upload route enforces it (`attachmentLimits` of
+ * `GET /v1/lists/{subject}`: ATTACHMENT_MAX_MB, ATTACHMENT_ALLOWED_TYPES).
  */
-export const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+export type AttachmentLimits = { maxBytes: number; types: readonly string[] };
 
 /** "1.5 MB" in the UI's language. */
 export function formatSize(bytes: number, language: string): string {
@@ -59,31 +57,58 @@ export function formatSize(bytes: number, language: string): string {
 }
 
 /** The file's type for people: "PDF", "PNG"… from the detected MIME type. */
+const OFFICE: Record<string, string> = {
+  'wordprocessingml.document': 'DOCX',
+  'spreadsheetml.sheet': 'XLSX',
+  'presentationml.presentation': 'PPTX',
+};
+
 function typeLabel(contentType: string) {
   const subtype = contentType.split('/')[1] ?? contentType;
   if (contentType === 'text/plain') return 'TXT';
+  const office = Object.entries(OFFICE).find(([end]) => subtype.endsWith(end));
+  if (office) return office[1];
   return (subtype.split(/[.+-]/).at(-1) ?? subtype).toUpperCase();
 }
 
-function UploadZone(props: { base: string; id: string; onDone: () => void }) {
+/** Why the browser refuses a file before the upload: `onFileValidate`'s answer. */
+const TYPE_REFUSED = 'type';
+
+function UploadZone(props: {
+  base: string;
+  id: string;
+  limits: AttachmentLimits;
+  onDone: () => void;
+}) {
   const { t, i18n } = useTranslation('records');
   const [files, setFiles] = useState<File[]>([]);
+  const { maxBytes, types } = props.limits;
+  const max = formatSize(maxBytes, i18n.language);
   return (
     <FileUpload
       value={files}
       onValueChange={setFiles}
-      maxSize={ATTACHMENT_MAX_BYTES}
+      maxSize={maxBytes}
       multiple
+      // The API recognizes the type from the bytes; the browser guesses it
+      // from the name. A file the browser names a type the API refuses is
+      // refused here; one it can't name (empty type) goes to the API, which
+      // decides (415). `accept` would refuse those too, so it's not used.
+      onFileValidate={(file) =>
+        file.type && types.length > 0 && !types.includes(file.type)
+          ? TYPE_REFUSED
+          : null
+      }
       onFileReject={(file, message) =>
         toast.error(
           t('attachments.rejected', {
             name: file.name,
             reason:
-              message === 'File too large'
-                ? t('attachments.tooLarge', {
-                    max: formatSize(ATTACHMENT_MAX_BYTES, i18n.language),
-                  })
-                : message,
+              message === TYPE_REFUSED
+                ? t('attachments.typeRefused')
+                : message === 'File too large'
+                  ? t('attachments.tooLarge', { max })
+                  : message,
           }),
         )
       }
@@ -112,7 +137,8 @@ function UploadZone(props: { base: string; id: string; onDone: () => void }) {
           <p className="text-sm font-medium">{t('attachments.drop')}</p>
           <p className="text-xs text-muted-foreground">
             {t('attachments.limit', {
-              max: formatSize(ATTACHMENT_MAX_BYTES, i18n.language),
+              max,
+              types: [...new Set(types.map(typeLabel))].join(', '),
             })}
           </p>
         </div>
@@ -217,15 +243,19 @@ export function AttachmentsPanel(props: {
   base: string;
   id: string;
   canWrite: boolean;
+  limits: AttachmentLimits;
 }) {
   const { t } = useTranslation('records');
   const queryClient = useQueryClient();
   const me = useMe()?.user.id;
+  const live = useRealtime() !== undefined;
   const key = panelKeys.attachments(props.base, props.id);
   const query = useQuery({
     queryKey: key,
     queryFn: () => listAttachments(props.base, props.id),
-    refetchInterval: 60_000,
+    // `record.attachments.changed` reloads it (RecordPanels); polled only
+    // without realtime.
+    refetchInterval: live ? false : 60_000,
   });
   const refresh = () => queryClient.invalidateQueries({ queryKey: key });
 
@@ -235,6 +265,7 @@ export function AttachmentsPanel(props: {
         <UploadZone
           base={props.base}
           id={props.id}
+          limits={props.limits}
           onDone={() => void refresh()}
         />
       )}

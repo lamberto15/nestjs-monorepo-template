@@ -49,7 +49,8 @@ describe('the note detail page', () => {
     ).toBeVisible();
     expect(screen.getByText('NOTE-2026-00001')).toBeVisible();
     expect(screen.getByText('Draft')).toBeVisible();
-    expect(screen.getByText('Internal')).toBeVisible();
+    // The tags panel, once the API said notes take tags.
+    expect(await screen.findByText('Internal')).toBeVisible();
     expect(screen.getByText('Renewals first.')).toBeVisible();
   });
 
@@ -90,7 +91,8 @@ describe('the note detail page', () => {
     expect(
       screen.queryByRole('button', { name: 'Actions for this note' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText('Internal')).toBeVisible();
+    // The tags panel, once the API said notes take tags.
+    expect(await screen.findByText('Internal')).toBeVisible();
     expect(
       screen.queryByRole('button', { name: 'Edit tags' }),
     ).not.toBeInTheDocument();

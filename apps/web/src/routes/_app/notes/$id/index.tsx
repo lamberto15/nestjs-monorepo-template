@@ -20,14 +20,6 @@ import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { useRecordCan } from '@/lib/records';
 
-/** What notes keep (note-comments/-attachments/-tags/-revisions.ts in the API). */
-const NOTE_PANELS = {
-  comments: true,
-  attachments: true,
-  tags: true,
-  revisions: true,
-};
-
 export const Route = createFileRoute('/_app/notes/$id/')({
   component: NoteDetail,
 });
@@ -156,7 +148,6 @@ function NoteView({ note }: { note: Note }) {
         subject="Note"
         path="/v1/notes/{id}"
         id={note.id}
-        capabilities={NOTE_PANELS}
         canUpdate={canUpdate}
         tags={note.tags}
       />

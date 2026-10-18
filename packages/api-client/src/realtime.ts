@@ -89,6 +89,24 @@ export interface RealtimeEvents {
     recordId: string;
     attachmentId: string;
   }) => void;
+  /**
+   * A comment on a record you watch (or one you wrote, for your other tabs)
+   * was added, edited or removed: ids only, fetch the thread
+   * (docs/webhooks-and-realtime.md, "Record events").
+   */
+  'record.commented': (event: {
+    subject: string;
+    recordId: string;
+    commentId: string;
+    action: 'added' | 'edited' | 'removed';
+  }) => void;
+  /** A file on a record you watch was uploaded, removed or issued (a PDF): ids only. */
+  'record.attachments.changed': (event: {
+    subject: string;
+    recordId: string;
+    attachmentId: string;
+    action: 'added' | 'removed';
+  }) => void;
   /** A document you asked for failed for good; `error` says why, for people. */
   'document.failed': (event: {
     id: string;

@@ -7,6 +7,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useCan, type Permission } from '@/lib/features';
+import { useListDescription } from '@/lib/list-query';
 import { useRealtimeEvent } from '@/lib/realtime';
 import type { Tag } from '@/lib/tags';
 import { panelKeys } from './api';
@@ -16,26 +17,13 @@ import { RevisionsPanel } from './revisions-panel';
 import { TagsPanel } from './tags-panel';
 
 /**
- * What the record's feature keeps (its `commentRoutes()`, `attachmentRoutes()`,
- * `tagRoutes()`, `revisionRoutes()`; docs/adding-a-feature.md). The API does
- * not publish this (backend finding: `GET /v1/lists/{subject}` could), so the
- * feature's page says it, from the `.record.ts` it generated.
- */
-export type RecordCapabilities = {
-  comments?: boolean;
-  attachments?: boolean;
-  tags?: boolean;
-  revisions?: boolean;
-};
-
-/**
- * The panels of a record's detail page, each shown only when the feature
- * supports it and the user may read the record, and writable only with
- * `<Subject>.update` (the API checks the same):
+ * The panels of a record's detail page, each shown only when the subject
+ * takes it (`capabilities` of `GET /v1/lists/{subject}`, from the feature's
+ * `<item>.record.ts`) and the user may read the record, and writable only
+ * with `<Subject>.update` (the API checks the same):
  *
  *   <RecordPanels subject="Invoice" path="/v1/invoices/{id}" id={invoice.id}
- *     capabilities={{ comments: true, attachments: true, tags: true, revisions: true }}
- *     tags={invoice.tags} />
+ *     tags={invoice.tags} canUpdate={can.update} />
  *
  * `path` is the record's route with `{id}`; the panels' routes hang off it.
  * `tags` are the record's own (they come with it). `canUpdate` is the
@@ -44,13 +32,17 @@ export type RecordCapabilities = {
  * record the user may not change shows its panels read-only. Left out, the
  * permission `<Subject>.update` decides. The record's queries
  * (`recordKeys`, list path = `path` without `/{id}`) are refreshed after a
- * tag change or a restore.
+ * tag change or a restore. Uploads are held to the list's
+ * `attachmentLimits`.
+ *
+ * The realtime events of the record (`record.commented`,
+ * `record.attachments.changed`: docs/webhooks-and-realtime.md, "Record
+ * events") reload its comments or attachments.
  */
 export function RecordPanels(props: {
   subject: string;
   path: `${string}/{id}`;
   id: string;
-  capabilities: RecordCapabilities;
   tags?: readonly Pick<Tag, 'id' | 'name' | 'color'>[];
   canUpdate?: boolean;
 }) {
@@ -59,27 +51,34 @@ export function RecordPanels(props: {
   const canRead = useCan(`${props.subject}.read` as Permission);
   const mayUpdate = useCan(`${props.subject}.update` as Permission);
   const canUpdate = props.canUpdate ?? mayUpdate;
-  const { capabilities } = props;
+  const description = useListDescription(props.subject, canRead).data;
   const listPath = props.path.replace(/\/\{id\}$/, '');
 
-  // No event carries comments or attachments (backend finding): a
-  // notification (mentions and watched records arrive as one) or an issued
-  // document is the best hint that the panels are stale.
-  const refresh = () =>
-    void queryClient.invalidateQueries({
-      queryKey: panelKeys.all(props.path, props.id),
-    });
-  useRealtimeEvent('notification', refresh);
-  useRealtimeEvent('document.ready', (event) => {
-    if (event.recordId === props.id) refresh();
+  const ours = (event: { subject: string; recordId: string }) =>
+    event.subject === props.subject && event.recordId === props.id;
+  useRealtimeEvent('record.commented', (event) => {
+    if (ours(event)) {
+      void queryClient.invalidateQueries({
+        queryKey: panelKeys.comments(props.path, props.id),
+      });
+    }
+  });
+  useRealtimeEvent('record.attachments.changed', (event) => {
+    if (ours(event)) {
+      void queryClient.invalidateQueries({
+        queryKey: panelKeys.attachments(props.path, props.id),
+      });
+    }
   });
 
-  if (!canRead) {
+  // Nothing until the subject says what it takes.
+  if (!canRead || !description) {
     return null;
   }
+  const { capabilities, attachmentLimits } = description;
   const tabs = [
     capabilities.comments && 'comments',
-    capabilities.attachments && 'attachments',
+    capabilities.attachments && attachmentLimits && 'attachments',
     capabilities.revisions && 'revisions',
   ].filter((tab): tab is 'comments' | 'attachments' | 'revisions' => !!tab);
 
@@ -122,12 +121,13 @@ export function RecordPanels(props: {
               />
             </TabsContent>
           )}
-          {capabilities.attachments && (
+          {capabilities.attachments && attachmentLimits && (
             <TabsContent value="attachments" className="pt-4">
               <AttachmentsPanel
                 base={props.path}
                 id={props.id}
                 canWrite={canUpdate}
+                limits={attachmentLimits}
               />
             </TabsContent>
           )}
