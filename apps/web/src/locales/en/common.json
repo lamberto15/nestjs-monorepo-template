@@ -366,5 +366,11 @@
     "failed": "The search failed.",
     "forbidden": "You may not search people and clients.",
     "client": "(API client)"
+  },
+  "people": {
+    "placeholder": "Search by name",
+    "searching": "Searching…",
+    "none": "Nobody matches.",
+    "failed": "The search failed."
   }
 }

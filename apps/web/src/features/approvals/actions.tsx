@@ -2,15 +2,19 @@ import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMe } from '@/lib/features';
-import type { Approval } from './api';
+import type { ApprovalItem } from './api';
 import { DecisionDialog, type DecisionTarget } from './decision-dialog';
 
 /**
  * What the user may do with a request now: approve or reject (`can.decide`),
- * cancel (`can.cancel`). Nothing while acting as someone else: the API
- * refuses it (403 `approval_impersonation`).
+ * cancel (`can.cancel`), sent with `If-Match: <etag>`. A request's page and
+ * the inbox's rows both carry `can` and the ETag. Nothing while acting as
+ * someone else: the API refuses it (403 `approval_impersonation`).
  */
-export function ApprovalActions(props: { approval: Approval; etag?: string }) {
+export function ApprovalActions(props: {
+  approval: Pick<ApprovalItem, 'id' | 'title' | 'can'>;
+  etag?: string;
+}) {
   const { t } = useTranslation('approvals');
   const impersonating = !!useMe()?.user.impersonator;
   const [target, setTarget] = useState<DecisionTarget | null>(null);

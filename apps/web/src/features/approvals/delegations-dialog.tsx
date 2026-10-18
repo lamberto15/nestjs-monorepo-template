@@ -18,11 +18,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { PrincipalPicker } from '@/components/principal-picker';
+import { PersonPicker } from '@/components/person-picker';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { personUserId } from '@/lib/people';
 import { z } from '@/lib/zod';
 import { delegationsQuery, useCreateDelegation, useEndDelegation } from './api';
 
@@ -143,7 +144,7 @@ function DelegationForm() {
       setError(undefined);
       try {
         await create.mutateAsync({
-          toUserId: value.toUserId,
+          toUserId: personUserId(value.toUserId),
           startsAt: new Date(value.startsAt).toISOString(),
           endsAt: new Date(value.endsAt).toISOString(),
         });
@@ -166,8 +167,9 @@ function DelegationForm() {
     >
       <FieldGroup>
         <FormAlert message={error} />
-        {/* People are searched (GET /v1/access/principals): active users,
-            not yourself; the value is the user's id. */}
+        {/* People are searched (GET /v1/people, any member may): active
+            users, not yourself. The field holds the key, `user:<id>` (named
+            as the API's field, so its errors land on it); the id is sent. */}
         <form.Field name="toUserId">
           {(field) => {
             const invalid =
@@ -177,14 +179,11 @@ function DelegationForm() {
                 <FieldLabel htmlFor="delegation-person">
                   {t('delegations.person')}
                 </FieldLabel>
-                <PrincipalPicker
+                <PersonPicker
                   id="delegation-person"
                   label={t('delegations.person')}
                   placeholder={t('delegations.choose')}
-                  kind="user"
-                  active
-                  by="id"
-                  exclude={me ? [me.user.id] : []}
+                  exclude={me ? [`user:${me.user.id}`] : []}
                   value={field.state.value}
                   onChange={(value) => field.handleChange(value)}
                   invalid={invalid}

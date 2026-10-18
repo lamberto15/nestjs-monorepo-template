@@ -15,7 +15,7 @@
   "empty": {
     "mine": "Nothing is waiting for your decision.",
     "requested": "You have not asked for any approval.",
-    "history": "No finished approvals yet."
+    "history": "You have not decided any approval yet."
   },
   "actions": {
     "Note": {

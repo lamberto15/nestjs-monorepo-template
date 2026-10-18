@@ -27,9 +27,6 @@ export const approvalsKey = ['approvals'] as const;
 export const tabs = ['mine', 'requested', 'history'] as const;
 export type Tab = (typeof tabs)[number];
 
-/** The statuses of a request that is over. */
-const ended = 'approved,rejected,cancelled,expired,failed';
-
 /** What each inbox tab asks the API for (docs/approvals.md, "The API"). */
 function tabFilter(tab: Tab): Record<string, string> {
   switch (tab) {
@@ -37,8 +34,9 @@ function tabFilter(tab: Tab): Record<string, string> {
       return { assignedToMe: 'true' };
     case 'requested':
       return { requestedByMe: 'true' };
+    // What the user decided, themselves or standing in for someone.
     case 'history':
-      return { 'status.in': ended };
+      return { decidedByMe: 'true' };
   }
 }
 

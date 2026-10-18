@@ -382,5 +382,11 @@
     "failed": "The search failed.",
     "forbidden": "You may not search people and clients.",
     "client": "(API client)"
+  },
+  "people": {
+    "placeholder": "ابحث بالاسم",
+    "searching": "جارٍ البحث…",
+    "none": "لا أحد يطابق.",
+    "failed": "فشل البحث."
   }
 }
