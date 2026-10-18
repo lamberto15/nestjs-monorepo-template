@@ -1,5 +1,6 @@
 import { Injectable, type Type } from '@nestjs/common';
 import type { List } from '../../core/http/list-query.js';
+import type { Principal } from '../../iam/auth/principal.js';
 import type { Capability } from '../records/record.js';
 
 /**
@@ -16,6 +17,12 @@ export interface ListSource {
    * GET /v1/lists/{subject} answers them as `capabilities`.
    */
   readonly capabilities: readonly Capability[];
+  /**
+   * Who may read the description, when not whoever may `read` the subject
+   * (ListPolicy): a list that isn't of records, as the access API's users
+   * (`AccessPolicy.open`), whose subject no permission names.
+   */
+  readonly readable?: (principal: Principal | null) => Promise<boolean>;
 }
 
 /**

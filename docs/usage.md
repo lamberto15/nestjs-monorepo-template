@@ -14,6 +14,7 @@ but never enforced (no `429 quota_exceeded`, no `X-Quota-*` headers).
 | `GET /v1/access/clients/{id}/usage?from=&to=` | `Access.manageClients`; 404 for an unknown client |
 | `GET /v1/usage?from=&to=` | the calling API client's own; a user gets a 403 |
 | `PATCH /v1/access/clients/{id} { dailyQuota }` | `Access.manageClients`; an integer ≥ 1, `null` removes it; audited as `client.quota-changed`; clients' responses show `dailyQuota` |
+| `POST /v1/access/clients { name, dailyQuota }` | the quota from the start, in the client's transaction (`client.created` records it) |
 
 Both usage routes answer `{ from, to, days: [{ day, total, routes: { "GET /v1/notes/{id}": 2, … } }], total }`:
 UTC days (`yyyy-mm-dd`), both ends included, every day of the range (zeros

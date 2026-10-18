@@ -70,6 +70,7 @@ import { EmailController } from './account/email.controller.js';
 import { SoftDeletePurgeJob } from './resources/soft-delete-purge.job.js';
 import { RecordPurgeRegistry } from './resources/record-purge.registry.js';
 import { UserLifecycleRegistry } from './auth/user-lifecycle.registry.js';
+import { ApiClientLifecycleRegistry } from './access/api-client-lifecycle.registry.js';
 import { SignInContext, signInMetadata } from './auth/sign-in-context.js';
 import { ProviderReauthentications } from './account/oidc-reauthentication.js';
 import { AccountService } from './account/account.service.js';
@@ -150,6 +151,7 @@ export class IamModule {
       // The platform's data about records goes with them when they are purged.
       RecordPurgeRegistry,
       UserLifecycleRegistry,
+      ApiClientLifecycleRegistry,
       // Work without a user runs as the system principal (seeds, cron jobs, workflows).
       SystemContext,
       // Tenants (docs/tenancy.md): the operators' routes and the tests make them.
@@ -384,6 +386,7 @@ export class IamModule {
         SoftDeletePurgeJob,
         RecordPurgeRegistry,
         UserLifecycleRegistry,
+        ApiClientLifecycleRegistry,
         AccessPolicy,
       ],
       exports: exported,

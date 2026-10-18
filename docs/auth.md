@@ -309,6 +309,7 @@ with the password (and with a token client's passkey).
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
 | `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
 | `POST /v1/access/users`, only with non-empty `roleIds` | an invitation with privileges (one without roles isn't asked) |
+| `POST /v1/access/invitations/{id}/resend` | a new link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks) |
 | `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
 
@@ -765,7 +766,7 @@ and the typed client either way (each lists the 404).
 | --- | --- | --- |
 | `IMPERSONATION` | `off` | `POST /v1/access/users/{id}/impersonate` and `POST /v1/auth/impersonation/stop` answer 404. A running impersonation ends at its next request (401): the session is refused while the switch is off; the administrator signs in again. |
 | `AUTH_MFA` | `on` | `POST /v1/auth/mfa/enroll` and `/confirm` answer 404: nobody can set two-factor up. Accounts that **already have it** are still asked for a code at sign-in and can still use their recovery codes or turn it off themselves (`GET`, `/verify`, `/recovery-codes`, `DELETE`): switching it off never weakens an account silently. |
-| `API_CLIENTS` | `on` | `/v1/access/clients…` (list, create, rotate, revoke a key, change) and a client's usage answer 404, and a bearer key (`sk_…`) no longer authenticates (401, as a revoked one). Users are unaffected. Clients and keys stay stored and work again when it is turned on. |
+| `API_CLIENTS` | `on` | `/v1/access/clients…` (list, read one, create, rotate, revoke a key, change, delete) and a client's usage answer 404, and a bearer key (`sk_…`) no longer authenticates (401, as a revoked one). Users are unaffected. Clients and keys stay stored and work again when it is turned on. |
 
 Impersonation is a privileged support tool, so it is opt in: set
 `IMPERSONATION=on` (the development example does).
@@ -858,7 +859,23 @@ stored). `POST /v1/access/clients` (the key is shown once),
 working for the grace period; both want a recent sign-in), `DELETE /v1/access/clients/{id}/keys/{keyId}`,
 `PATCH /v1/access/clients/{id} { active, roleIds }`. Keys may expire and
 record their last use. A client may do what every client may
-(`clientPermissions`) and what its roles grant.
+(`clientPermissions`) and what its roles grant. `POST` takes its
+`roleIds` (with `roleExpiresAt`) and `dailyQuota` too, all in the client's
+transaction; `GET /v1/access/clients/{id}` reads one (never a key).
+
+**Revoke or delete.** `PATCH { active: false }` revokes a client: its keys
+are refused from the next request, and `active: true` brings them back.
+`DELETE /v1/access/clients/{id}` (204) deletes it for good: its keys stop at
+once, its role grants and usage go with its row (foreign keys), its webhook
+endpoints and live connections after the commit
+(`ApiClientLifecycleRegistry`: the platform's webhooks and realtime listen);
+`client.deleted` is audited in the deletion's transaction, with its name.
+A hard delete, as for roles, teams and invitations, rather than the
+recycle bin: the bin is for records people delete by mistake, and a
+client already has its reversible state (revoked); the audit log keeps
+what it did (`client:<id>`). Both want authority over the client (you hold
+every permission its roles give, 403 `authority_required`), as rotating
+its key does; neither asks a recent sign-in (they only take access away).
 
 Each client's requests are counted per day and route, and a `dailyQuota`
 (`PATCH /v1/access/clients/{id}`) caps them (429 `quota_exceeded`): see

@@ -29,7 +29,17 @@ export const NOTE_PERMISSIONS = definePermissions({
 ```
 
 Add it to `IamModule.forRoot({ permissions })`. `GET /v1/access/catalog` lists
-everything, for the roles screen.
+everything, for the roles screen, its texts in the request's language
+([i18n](i18n-and-time.md)): `src/i18n/<locale>/permissions.json` holds them
+by subject, under its name in kebab case, a feature's item key
+(`mail-suppression.label`, `note.actions.<action>`, `.fields.<field>`,
+`.conditions.<key>.label|description|input`, a feature's own jobs in
+`.systemJobs.<key>`), so `pnpm feature:remove` takes them with the
+feature's other texts; the shared conditions once (`conditions.mine`,
+`conditions.inMyTeams`: a template's `translation`), and the groups'
+system jobs (`systemJobs.<key>.label|description`). A text no catalog has
+shows as declared (English): a generated feature's, until it adds its keys. `src/i18n/permissions.spec.ts` checks the English
+file says what the declarations say.
 
 **Generated features** (`recordPermissions(RECORD, table)`) make both lists a
 choice of the feature's `<item>.record.ts`, not code. `clientAccess: 'own'`
@@ -160,6 +170,15 @@ when it is made; a user's roles are their membership's in the tenant the
 session acts in. `Access.manageTenants` (creating tenants) answers only in
 the operator tenant.
 
+- **Reading** the access API (`GET` of the catalog, roles, users, teams,
+  API clients, principals; one role, user or client by id) takes any
+  permission of access administration (`AccessPolicy.open`: `Access.manageRoles`,
+  `manageUsers`, `manageClients`, `manageTeams`, `impersonate` or
+  `readAudit`): whoever manages teams lists them and their members, whoever
+  impersonates finds whom. Changing takes the matching permission.
+  `GET /v1/access/users?teamId=<id>` (or `teamId.in=`) lists a team's own
+  members (not those of the teams below); `GET /v1/lists/User` describes
+  that list ([api-conventions](api-conventions.md), "List metadata").
 - `/v1/access/roles`: roles of permissions. A permission may carry
   conditions and `fields` (absent: all; `[]`: none of the restrictable ones).
 - You can only grant what you hold without conditions (fields included).
@@ -189,7 +208,7 @@ GET /v1/access/principals?q=ada&kind=user&limit=20
 
 - **Who:** the callers who may already list users and clients
   (`AccessPolicy.open`: any of `Access.manageRoles`, `manageUsers`,
-  `manageClients`, `readAudit`), as users (an API key is no credential on
+  `manageClients`, `manageTeams`, `impersonate`, `readAudit`), as users (an API key is no credential on
   the access API, 401). Anyone else: 403. It shows nothing those two lists
   don't: the same people and clients, their name and address, which the
   access lists show to the same callers whole (no field-level rules apply

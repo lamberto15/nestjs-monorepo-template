@@ -93,11 +93,7 @@ export class InvitationsService {
   async create(tx: Transaction, input: InvitationInput, inviter: Principal) {
     const tenantId = this.tenancy.tenantId('An invitation');
     const email = normalizeEmail(input.email);
-    const token = `inv_${tenantId}_${randomBytes(32).toString('base64url')}`;
-    const expiresAt = new Date(
-      Date.now() +
-        this.config.get('INVITATION_TTL_HOURS', { infer: true }) * 3_600_000,
-    );
+    const { token, tokenHash, expiresAt } = this.newLink(tenantId);
     await tx
       .delete(invitations)
       .where(and(eq(invitations.email, email), isNull(invitations.acceptedAt)));
@@ -109,12 +105,51 @@ export class InvitationsService {
         roleIds: [...new Set(input.roleIds)],
         roleExpiresAt: input.roleExpiresAt ?? {},
         teamIds: input.teamIds ?? [],
-        tokenHash: hashOf(token),
+        tokenHash,
         invitedBy: principalKey(inviter),
         expiresAt,
       })
       .returning();
     return { invitation: invitation!, token };
+  }
+
+  /** A pending invitation of the tenant (expired or not), or null. */
+  async findPending(id: string) {
+    const [invitation] = await this.db
+      .select()
+      .from(invitations)
+      .where(and(eq(invitations.id, id), isNull(invitations.acceptedAt)));
+    return invitation ?? null;
+  }
+
+  /**
+   * A pending invitation's new link and expiry, in `tx` (the caller's, with
+   * its audit entry): the old link stops working. Null when it was
+   * accepted or withdrawn. `send()` mails the token after the commit.
+   */
+  async renew(tx: Transaction, id: string) {
+    const { token, tokenHash, expiresAt } = this.newLink(
+      this.tenancy.tenantId('An invitation'),
+    );
+    const [invitation] = await tx
+      .update(invitations)
+      .set({ tokenHash, expiresAt })
+      .where(and(eq(invitations.id, id), isNull(invitations.acceptedAt)))
+      .returning();
+    return invitation ? { invitation, token } : null;
+  }
+
+  /** A link's token (`inv_<tenant>_<secret>`), its stored hash, and when it ends. */
+  private newLink(tenantId: string) {
+    const token = `inv_${tenantId}_${randomBytes(32).toString('base64url')}`;
+    return {
+      token,
+      tokenHash: hashOf(token),
+      expiresAt: new Date(
+        Date.now() +
+          this.config.get('INVITATION_TTL_HOURS', { infer: true }) * 3_600_000,
+      ),
+    };
   }
 
   /** Mails the link (after the invitation's commit), in the inviter's language. */
@@ -143,6 +178,7 @@ export class InvitationsService {
         email: invitations.email,
         name: invitations.name,
         roleIds: invitations.roleIds,
+        roleExpiresAt: invitations.roleExpiresAt,
         teamIds: invitations.teamIds,
         invitedBy: invitations.invitedBy,
         expiresAt: invitations.expiresAt,

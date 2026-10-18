@@ -21,6 +21,7 @@ import {
   toPage,
 } from '../../core/http/pagination.js';
 import { AccessAdminService } from '../../iam/access/access-admin.service.js';
+import { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { apiClients } from '../../iam/iam.tables.js';
@@ -73,7 +74,36 @@ export class WebhookManagementService {
     private readonly admin: AccessAdminService,
     private readonly audit: AuditService,
     @Inject(PLATFORM_OPTIONS) private readonly options: PlatformOptions,
-  ) {}
+    clientLifecycle: ApiClientLifecycleRegistry,
+  ) {
+    // A deleted client's endpoints go with it: nothing is sent to a client
+    // that no longer exists (its pending deliveries fail as
+    // `endpoint-deleted`; the log stays). After the deletion committed:
+    // the package's store is its own connection.
+    clientLifecycle.register({
+      name: 'webhooks',
+      afterDeletion: (clientId) => this.deleteAllEndpoints(clientId),
+    });
+  }
+
+  /** Every endpoint of a client: listed a page at a time (the package's default is 50), then deleted. */
+  private async deleteAllEndpoints(clientId: string) {
+    const ids: string[] = [];
+    for (let offset = 0; ; offset += 100) {
+      const page = await this.endpoints.list({
+        tenant: clientId,
+        limit: 100,
+        offset,
+      });
+      ids.push(...page.map((endpoint) => endpoint.id));
+      if (page.length < 100) {
+        break;
+      }
+    }
+    for (const id of ids) {
+      await this.endpoints.delete(id, { tenant: clientId });
+    }
+  }
 
   private get db() {
     return database(this.txHost);
