@@ -19,7 +19,12 @@ native speaker review them.
   recipient's request: always pass their `locale`.
 - A new language: a folder in `apps/api/src/i18n` with every file, templates in
   `apps/api/src/mail/templates`, and its code in `LOCALES`. `apps/api/src/i18n/catalogs.spec.ts`
-  fails while a key, a placeholder or a plural form is missing.
+  fails while a key, a placeholder or a plural form is missing. The web app
+  has its own texts: a folder in `apps/web/src/locales` and the code in
+  `languages` (`apps/web/src/i18n.ts`); [monorepo](monorepo.md), "Languages".
+- The web app sends its language as `Accept-Language` with each request and
+  switches to the user's saved one; it shows times in their time zone, else
+  the browser's (`apps/web/src/lib/date-time.ts`).
 
 ## Time
 

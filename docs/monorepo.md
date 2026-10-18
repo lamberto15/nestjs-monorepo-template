@@ -69,46 +69,140 @@ its work to the packages:
 
 ## The web app
 
-`apps/web` is a React single-page app; `packages/ui` holds its components.
-`pnpm dev` runs the API and the app (http://localhost:5173) side by side;
-`pnpm dev:api` or `pnpm dev:web` runs one.
+`apps/web` is a React single-page app on the typed client; `packages/ui`
+holds its components. It talks to the API only through REST and socket.io,
+same-origin: in development through Vite's proxy, in production through
+Caddy.
+
+### Running it
+
+```bash
+pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci, Gotenberg
+pnpm dev                  # the API on :3000 and the web app on http://localhost:5173
+pnpm db:seed:demo         # optional, from a second terminal: the demo tenant and its members
+```
+
+`pnpm dev` runs Turborepo's `dev` task in both apps (the client is built
+first); `pnpm dev:api` or `pnpm dev:web` runs one. Every screen of the
+web app needs the API, so `dev:web` alone suits an API already running.
+
+- **Open http://localhost:5173**, not the API's port: Vite's `server.proxy`
+  (`vite.config.ts`) sends `/v1`, `/health` and `/socket.io` (`ws: true`) to
+  `http://localhost:3000`, so the `__Host-sid` cookie is the app's own. The
+  target is fixed there: an API on another `PORT` needs that line changed.
+  Swagger UI stays at http://localhost:3000/api.
+- **Signing in:** the administrator the API's first start creates
+  (`ADMIN_EMAIL`, `admin@example.com` unless set; the password is
+  `ADMIN_PASSWORD` in `apps/api/.env.development` when `pnpm setup` wrote it,
+  otherwise logged once in the API's output). That account is in the
+  operators' tenant, which holds no demo data. For a populated app, run
+  `pnpm db:seed:demo` and sign in as one of the members it prints
+  (`<first>.<last>@demo.example.com`, passwords printed once): the
+  administrator sees every screen, the editors and the viewer see what their
+  roles allow ([development](development.md), "Demo data").
+- **Mail** (invitations, magic links, password resets, verification) is in
+  Mailpit, http://localhost:8025; its links open the web app (`WEB_URL`,
+  `http://localhost:5173` in `apps/api/env.development.example`).
+- **What shows** follows the API: `GET /v1/features` (the deployment
+  switches, `REPORTS=off` hides the reports page…) and `GET /v1/auth/me`'s
+  `can` (the permissions). Hiding is for the user; the API refuses either way.
+- **Not in the devcontainer yet:** `apps/web` and `packages/ui` have no
+  `node_modules` volume there (#147); run the web app on the host.
+
+### What's in it
+
+| Area | Routes (`src/routes`) | Code |
+| --- | --- | --- |
+| Signed out | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion` | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts` |
+| Account | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself) | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings` |
+| Workspace | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports` | `features/*` |
+| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/audit`, `/settings` (values, overrides, feature flags) | `features/access`, `features/api-clients`, `features/audit`, `features/settings` |
+| Everywhere | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up) | `features/search`, `components/` |
+
+Not in the web app yet (open issues): webhooks (#89), PDF documents (#93),
+custom fields administration (#94), tenants for operators (#95), the privacy
+pages (data export, account deletion, consents: #96), browser end-to-end
+tests (#97). The API has all of them.
+
+### How it's built
 
 - **Stack:** Vite, TanStack Router (file routes in `src/routes`, code
   splitting, `routeTree.gen.ts` written by its Vite plugin and committed),
-  TanStack Query, nuqs (URL state), react-i18next, Tailwind 4, zod.
-- **Calls the API** through `src/lib/api.ts`, the typed client with `baseUrl:
-  ''` and `credentials: 'include'`. `server.proxy` in `vite.config.ts` sends
-  `/v1`, `/health` and `/socket.io` (`ws: true`) to `http://localhost:3000`, so
-  the API is same-origin (the `__Host-sid` cookie needs it).
+  TanStack Query, TanStack Form (`lib/form.tsx`), TanStack Table under Dice
+  UI's data table, nuqs (URL state), react-i18next, Tailwind 4, sonner
+  (toasts), zod (imported from `@/lib/zod`, see [deployment](deployment.md),
+  "Caddy serves the web app too").
+- **Calls the API** through `src/lib/api.ts`: the typed client with `baseUrl:
+  ''` and `credentials: 'include'`, plus a middleware that answers 403
+  `reauthentication_required` with the re-authenticate dialog and retries.
+  Errors go through `lib/errors.ts` (TanStack Query's cache `onError`): a 401
+  while signed in ends the session (to sign-in, back to the page after),
+  anything else is a toast with the problem's `detail` unless the query sets
+  `meta: { errorToast: false }`.
 - **Routes:** `__root.tsx` (router context `{ queryClient, session }`),
-  `_app.tsx` (the signed-in layout, shadcn's `sidebar-07` block), `_app/index.tsx`
-  (dashboard), `sign-in.tsx`. A new page is a file there; its menu entry is
-  `features/<feature>/nav.ts` (default export: `group`, `order`, `to`, an
-  i18n `label`, `icon`, optional `feature` and `permission`). `src/nav.ts`
-  collects them (`import.meta.glob`) into the groups `workspace`,
-  `administration`, `operators` (sorted by `order`; a group with nothing
-  visible is hidden), so a feature never edits a shared file.
-- **Languages:** `src/locales/<lng>/<ns>.json` for the API's five locales; every
-  file is the namespace `<ns>` (loaded eagerly, `import.meta.glob` in `i18n.ts`).
-  A feature's texts: `locales/<lng>/<feature>.json`, used with
-  `useTranslation('<feature>')`; `common` is the default; `nav` holds the group
-  titles. A key missing in a language falls back to `en`.
-  `en` is complete; the others are copies of it until translated. `<html lang>`
-  and `dir` (`rtl` for `ar`) follow the language; the theme (light, dark,
-  system) is a class on `<html>`.
-- **Components** come from the CLIs, never by hand: run them in `apps/web`
-  and the files land in `packages/ui/src/components` (imports
-  `@nestjs-monorepo-template/ui/components/<name>`):
+  `_app.tsx` (the signed-in layout and its guard, shadcn's `sidebar-07`
+  block), `_app/index.tsx` (dashboard), the signed-out pages beside them. A
+  new page is a file there.
+- **Menu:** a feature's entries are `features/<feature>/nav.ts` (default
+  export: one entry or an array; `group`, `order`, `to`, an i18n `label`,
+  `icon`, optional `feature`, `permission` and `badge`, a hook giving a
+  count). `src/nav.ts` collects them (`import.meta.glob`) into the groups
+  `workspace`, `administration`, `operators` (sorted by `order`; a group with
+  nothing visible is hidden), so a feature never edits a shared file.
+- **Gates:** `useFeature('<switch>')` and `<Feature>`, `useCan('<Subject>.<action>')`
+  (`lib/features.tsx`), from `GET /v1/features` and `/v1/auth/me`.
+- **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
+  `realtime` is on, reopened when the session changes (tenant switch,
+  re-authentication, impersonation); `useRealtimeEvent()` reads it. The
+  notifications are refetched on every reconnect.
+- **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
+  title …>` is a server-paginated, filterable, sortable list of any subject;
+  its filters, sorts, custom-field columns and tag filter come from
+  `GET /v1/lists/{subject}`, its state is in the URL
+  ([api-conventions](api-conventions.md), "Using it from a data table").
 
-  ```bash
-  cd apps/web
-  pnpm dlx shadcn@4.22.0 add button          # shadcn/ui, style base-nova (Base UI)
-  pnpm dlx shadcn@4.22.0 add @diceui/<name>  # Dice UI (https://diceui.com): look here first
-  ```
+### Languages
 
-  Both packages have a `components.json` with the same style, icon library
-  and base colour. Prettier skips `packages/ui` and the lint rules are
-  relaxed there, so a CLI update stays a clean diff.
+`src/locales/<lng>/<ns>.json` for the API's five locales (`en`, `de`, `ar`,
+`zh`, `ms`); every file is the namespace `<ns>` (loaded eagerly,
+`import.meta.glob` in `i18n.ts`). A feature's texts:
+`locales/<lng>/<feature>.json`, used with `useTranslation('<feature>')`;
+`common` is the default; `nav` holds the group titles. A key missing in a
+language falls back to `en`. `en` is complete; the others are copies of it
+until translated. `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+theme (light, dark, system) is a class on `<html>`.
+
+### Components
+
+Components come from the CLIs, never by hand: run them in `apps/web`
+and the files land in `packages/ui/src/components` (imports
+`@nestjs-monorepo-template/ui/components/<name>`):
+
+```bash
+cd apps/web
+pnpm dlx shadcn@4.22.0 add button          # shadcn/ui, style base-nova (Base UI)
+pnpm dlx shadcn@4.22.0 add @diceui/<name>  # Dice UI (https://diceui.com): look here first
+```
+
+Both packages have a `components.json` with the same style, icon library
+and base colour. Prettier skips `packages/ui` and the lint rules are
+relaxed there, so a CLI update stays a clean diff.
+
+### Record pages
+
+What a feature's record pages share; `features/notes` and
+`routes/_app/notes/` are the example to follow.
+
+- **What one record allows** (`useRecordCan('<Subject>')` in `lib/records.ts`):
+  read records with `?include=can` (detail and list, see `features/notes/api.ts`)
+  and gate edit, delete and restore on `canOf(record)`, which is the record's
+  own `can` (a published note an editor may no longer change) and falls back to
+  `/me.can` for a record read without it. A create answers with the ETag a read
+  would: `seedCreatedNote()` puts the note and that ETag in the cache, so the
+  page it opens and a first edit (`If-Match`) need no second read. Text limits
+  (`NOTE_LIMITS`) mirror the schema's `maxLength`; a test compares them with
+  `packages/api-client/openapi.json` (importing that 1 MB file would bloat the
+  bundle).
 - **Record panels** (`components/records/panels/`): comments with
   @mentions, attachments, tags and revisions on a record's detail page. A
   feature mounts them with one element, each panel shown only when the
@@ -121,20 +215,12 @@ its work to the packages:
     tags={note.tags} />
   ```
 
-  The API does not publish a record's capabilities, so the page states
-  them. Texts are in the `records` namespace. Pass `canUpdate` (the record's
-  own `can.update`) when the page has it: the panels' writes take the
-  record's PATCH check, conditions included.
-- **What one record allows** (`useRecordCan('<Subject>')` in `lib/records.ts`):
-  read records with `?include=can` (detail and list, see `features/notes/api.ts`)
-  and gate edit, delete and restore on `canOf(record)`, which is the record's
-  own `can` (a published note an editor may no longer change) and falls back to
-  `/me.can` for a record read without it. A create answers with the ETag a read
-  would: `seedCreatedNote()` puts the note and that ETag in the cache, so the
-  page it opens and a first edit (`If-Match`) need no second read. Text limits
-  (`NOTE_LIMITS`) mirror the schema's `maxLength`; a test compares them with
-  `packages/api-client/openapi.json` (importing that 1 MB file would bloat the
-  bundle).
+  The page states the capabilities for now: the API publishes them in
+  `GET /v1/lists/{subject}` (`capabilities`, [api-conventions](api-conventions.md)),
+  which the panels don't read yet (#141). Texts are in the `records`
+  namespace. Pass `canUpdate` (the record's own `can.update`) when the page
+  has it: the panels' writes take the record's PATCH check, conditions
+  included.
 - **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
   is the example): `ListPage`'s `listActions` gets the list's `params`, for
   `<ExportButton exporter="notes" filters={exportFilters(params)} />` and
@@ -167,8 +253,64 @@ its work to the packages:
 - **Audit log** (`features/audit`, `/audit`): `GET /v1/access/audit` with
   filters and server paging, for `Access.readAudit` only (nav entry and
   route gate).
-- **Scripts:** `build` (`tsc -b && vite build`, to `dist/`), `lint`, `test`
-  (Vitest, jsdom, Testing Library). Turborepo builds the client first.
+
+### Tests
+
+`pnpm test` runs them with every package's; one package or one file:
+
+```bash
+pnpm --filter @nestjs-monorepo-template/web test
+pnpm --filter @nestjs-monorepo-template/web test src/features/notes/notes.test.tsx
+```
+
+Vitest in jsdom with Testing Library and [msw](https://mswjs.io): tests sit
+next to the code (`*.test.ts(x)`); most render the whole app at a path
+rather than a component alone.
+
+- **`renderApp(path)`** (`src/test/render-app.tsx`): the app with every
+  provider, the router on a memory history, English texts, queries without
+  retries; returns `{ router, queryClient, history }`. It waits for the first
+  navigation (the session) before rendering.
+- **The API is msw** (`src/test/server.ts`): the defaults answer as nobody
+  signed in; a test overrides with `server.use(http.get(…))`. A request no
+  handler answers fails the test (`onUnhandledFrame: 'error'`). Helpers:
+  `signedInUser`, `allFeatures`, `allMethods`, `problem(status, code)`;
+  `useNotesApi()` (`test/notes-api.ts`, the notes routes in memory with ETags,
+  `can` and the recycle bin), `panelHandlers()` / `usePanelsApi()`
+  (`test/panels-api.ts`), `principalsHandler()` (`test/principals.ts`),
+  `createFakeRealtime()` (`test/fake-realtime.ts`: emit what the API would push).
+- **`findToast(text)`** (`src/test/toast.ts`) waits until a sonner toast is
+  visible: sonner mounts it hidden, so `findByText` alone may return it
+  before `toBeVisible()` holds.
+- **Timing** (`vitest.config.ts`, `src/test/setup.ts`): `maxWorkers: '50%'`,
+  because `pnpm test` runs every package's Vitest at once; `testTimeout`
+  15 s and Testing Library's `asyncUtilTimeout` 3 s, headroom for a loaded
+  machine; `fsModuleCache: false`, since Vitest's module cache kept stale
+  `import.meta.glob` results (the nav and the locales). The setup also stubs
+  what jsdom lacks (`matchMedia`, pointer capture, `ResizeObserver`,
+  `scrollIntoView`) and dismisses toasts between tests.
+
+### Adding a page for a feature
+
+`pnpm feature:add` writes the API side only; the web side is written by
+hand, after `pnpm client:generate` (the client then types the new routes):
+
+1. `features/<feature>/`: its queries (`api.ts`, as `features/notes/api.ts`:
+   `?include=can`, the keys of `lib/records.ts`), its forms and its
+   `nav.ts`.
+2. `routes/_app/<plural>/`: `index.tsx` (a `ListPage`), `$id/index.tsx`
+   (the detail with `RecordPanels`), `new.tsx`, `$id/edit.tsx`. The router's
+   plugin rewrites `routeTree.gen.ts` while `pnpm dev:web` or the build runs;
+   commit it.
+3. `locales/<lng>/<feature>.json` in every language, and the group name in
+   `search.json` if it is searchable.
+4. A test with `renderApp()` and msw handlers for its routes.
+
+### Scripts and production
+
+- **Scripts:** `dev` (`vite`), `build` (`tsc -b && vite build`, to `dist/`),
+  `preview`, `lint` (type-aware oxlint), `test` (`vitest run`). Turborepo
+  builds the client first. `packages/ui` has `lint` and `typecheck`.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,
   which serves it next to the API ([deployment](deployment.md)). The API's
   image leaves `apps/web` and `packages/ui` out (`.dockerignore`).

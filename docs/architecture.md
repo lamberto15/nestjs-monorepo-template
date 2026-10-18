@@ -1,7 +1,8 @@
 # Architecture
 
-A NestJS 12 REST backend (JSON only; Swagger UI at `/api` is the only page)
-in a pnpm workspace run by Turborepo, so frontends can live next to it.
+A NestJS 12 REST backend (JSON only; Swagger UI at `/api` is its only page)
+in a pnpm workspace run by Turborepo, with a web app on its typed client next
+to it ([monorepo](monorepo.md), "The web app").
 
 ## The repository
 
@@ -16,6 +17,12 @@ apps/
     nest-cli.json, tsconfig*.json, vitest.config*.ts, drizzle.config.ts
     env.development.example   → .env.development (development settings)
   web/                 the web app, a React SPA (@nestjs-monorepo-template/web): docs/monorepo.md
+    src/routes/        file routes (TanStack Router; routeTree.gen.ts is generated)
+    src/features/      one folder per area: its queries, pages' parts, nav.ts, tests
+    src/components/, src/lib/   shared parts: the list page, record panels, session, errors, realtime
+    src/locales/       texts, one folder per language, one file per namespace
+    src/test/          the test helpers (renderApp, the msw server, findToast)
+    vite.config.ts, vitest.config.ts, components.json
 packages/
   api-client/          the typed client (@nestjs-monorepo-template/api-client)
   ui/                  shared components, shadcn/ui and Dice UI as source (@nestjs-monorepo-template/ui)
@@ -25,7 +32,7 @@ compose*.yaml          Docker Compose: shared, development, production, blue-gre
 env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
 pnpm-workspace.yaml    the workspace: apps/*, packages/*
-turbo.json             the tasks (build, lint, test, test:e2e) and their cache
+turbo.json             the tasks (build, lint, test, test:e2e, dev) and their cache
 tools/                 scripts: setup (first-run wizard), feature (generator), deploy (rolling, blue-green, Swarm), migration lint, release notes
 .changeset/            the typed client's pending changes (pnpm changeset)
 ```
@@ -63,7 +70,7 @@ src/
 | --- | --- |
 | `core/` | config (Zod), database (Drizzle on PostgreSQL 18), tenancy (the tenant scope, row-level security, the pool that sets it: [tenancy](tenancy.md)), Redis, HTTP (security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
 | `iam/` | sessions, tokens, API clients and keys, accounts (passwords, two-factor, OAuth, magic links, invitations, impersonation), roles and permissions (CASL, field-level, expiring grants), teams, resource declarations, the audit log, the system principal (`SystemContext.run()`: work without a user) |
-| `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, notifications, record subscriptions, global search, sequences, scheduled reports, record revisions, settings and feature flags, approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API, the switches report (`GET /v1/features`) |
+| `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, tags, comments, attachments, list descriptions (`GET /v1/lists/{subject}`), the people directory (`GET /v1/people`), notifications, record subscriptions, global search, sequences, scheduled reports, record revisions, settings and feature flags, API clients' usage and quotas, email deliverability, approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API, the switches report (`GET /v1/features`) |
 | `features/` | one folder and module per feature |
 
 ## Rules

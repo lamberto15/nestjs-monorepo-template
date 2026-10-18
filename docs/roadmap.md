@@ -56,6 +56,7 @@ first project is built on the template; until then they report only.
 | `pnpm setup` and deployment switches | **Done** (#36, #43 here): the first-run wizard (`tools/setup`); `IDEMPOTENCY` (#35), `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (#37), `AUTH_MFA`, `API_CLIENTS`, `IMPERSONATION` (default off, #39); runtime auth policies `auth.requireMfa` and `auth.passwordMinLength` under the env's ceiling (#44). docs/configuration.md. |
 | Zero-downtime deploys | **Done** (#49 to #54 here): Caddy holds requests while replicas restart (#49); `pnpm deploy:rolling` (#53), `pnpm deploy:blue-green` (#52), `pnpm deploy:swarm` (#54); replicas exit right after their last response. docs/deployment.md, "Zero-downtime deploys: three ways". |
 | Fixes of 2026-10-17 | **Done**: a unique field of a soft-delete record is unique among live rows (#47); the record export has a tags column (#34); `RecentSignInGuard` named so the guard-order check passes (#50). |
+| 7. Frontend starter | **Mostly built** (#64 to #143 here): `apps/web` and `packages/ui`: sign-in, the account pages, notifications, approvals, the list and record pages, access, API clients, settings, search, the audit log, data transfer and bulk work; what's open is listed in item 7. docs/monorepo.md, "The web app". |
 | Everything else | Not started. |
 
 ### Open follow-ups
@@ -414,11 +415,18 @@ Planned as:
 
 ## 7. Frontend starter (`apps/web`)
 
-After 8; it grows with each auth item. **Started:** the scaffold is in (`apps/web`,
-`packages/ui`; [monorepo](monorepo.md), "Adding a frontend app"): Vite, TanStack Router
-(file routes, not React Router) and Query, nuqs, react-i18next with the five locales,
-shadcn/ui on Base UI and Dice UI, the `sidebar-07` shell, Caddy serving it. Sign-in and
-the rest of the list below are still to do.
+After 8; it grows with each auth item. **Mostly built** ([monorepo](monorepo.md), "The
+web app"): Vite, TanStack Router (file routes, not React Router) and Query, nuqs,
+react-i18next with the five locales, shadcn/ui on Base UI and Dice UI, the `sidebar-07`
+shell, Caddy serving it with a CSP (#64, #80); sign-in with every method, the session
+guard, step-up and the account pages (#78); the generic list page (#70, #81);
+per-feature texts and grouped navigation (#98); notifications (#101); the notes' record
+pages and panels (#100, #112, #137); settings (#105, #135); access administration
+(#108); API clients and usage (#109); approvals (#121); search and the audit log
+(#125); exports, imports, reports and bulk work (#131). Open: webhooks (#89), PDF
+documents (#93), custom fields (#94), tenants for operators (#95), privacy (#96),
+Playwright with accessibility checks (#97), the panels on the API's capabilities
+(#141), the devcontainer (#147), removing the web's notes with the feature (#149).
 
 - Decision 2 above sets the framework (Vite SPA recommended).
 - Decision 1 settles cookies. With the single-origin recommendation, the SPA is

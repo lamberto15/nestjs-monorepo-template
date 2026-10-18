@@ -5,11 +5,17 @@ pnpm install
 pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
 pnpm dev                  # the API and its workers (http://localhost:3000/api) and the web app (http://localhost:5173), with reload
-pnpm db:seed:demo         # optional: demo users, teams and each feature's demo data (passwords printed once)
+pnpm db:seed:demo         # optional, from a second terminal: demo users, teams and each feature's demo data (passwords printed once)
 ```
 
+Then open the web app, http://localhost:5173, and sign in: as the
+administrator the first start made (below), or as a demo member the seed
+printed ([monorepo](monorepo.md), "Running it"). Swagger UI is at
+http://localhost:3000/api.
+
 Or open the repository in its [devcontainer](#devcontainer): the same
-services, Node.js and pnpm at the repository's versions, nothing to install.
+services, Node.js and pnpm at the repository's versions, nothing to install
+(the API only, for now: #147).
 
 Every command runs from the repository root. The API lives in `apps/api`
 ([architecture](architecture.md)); the root's scripts run its tasks there,
@@ -144,8 +150,12 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **On creation** (`.devcontainer/post-create.sh`): `pnpm install`, and
   `apps/api/.env.development` copied from `apps/api/env.development.example`
   when there is none (yours, if you have one, comes with the repository's
-  folder). Then `pnpm dev:api` (port 3000 is forwarded, and 5173 for the
-  web app; Mailpit's inbox as `mailpit:8025`) and `pnpm db:seed:demo`.
+  folder). Then `pnpm dev:api` (port 3000 is forwarded; Mailpit's inbox as
+  `mailpit:8025`) and `pnpm db:seed:demo`.
+- **The web app doesn't run there yet** (#147): `apps/web` and
+  `packages/ui` have no `node_modules` volume, so the container would use,
+  and rewrite, the host's. Port 5173 is forwarded already. Until the fix,
+  work on the web app on the host (the commands at the top of this page).
 - **The services' addresses:** the workspace shares PostgreSQL's network,
   so the file's `127.0.0.1:5432` reaches it; Redis, Mailpit and Gotenberg
   are reached by name, set in the container's environment
@@ -187,12 +197,14 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 | `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
 | `pnpm dev` | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first) |
 | `pnpm dev:api` / `pnpm start:dev` | the API and its workers alone, with reload (through Turborepo / straight through pnpm) |
+| `pnpm start:debug` | the same with the Node.js inspector (`nest start --debug --watch`) |
 | `pnpm dev:web` | the web app's dev server alone, http://localhost:5173; it proxies `/v1`, `/health` and `/socket.io` to the API on :3000, so the session cookie is same-origin |
 | `pnpm build && pnpm lint && pnpm test && pnpm test:e2e` | the check before every commit (Turborepo: a task whose inputs didn't change is replayed from `.turbo/cache`) |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
 | `pnpm db:check` | the migrations match the schema |
+| `pnpm db:studio` | Drizzle Studio on the development database |
 | `pnpm migrate` | apply migrations as `DATABASE_OWNER_URL`, then make or check the app role of `DATABASE_URL` (what a deploy runs) |
 | `pnpm db:seed:demo` | demo users, teams and each feature's demo data on a development database ("Demo data") |
 | `pnpm feature:add <plural> --fields "…" [--with …]` | a new feature from its declaration ([adding a feature](adding-a-feature.md)) |
@@ -206,7 +218,14 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 
 ## Tests
 
-- **Unit** (`*.spec.ts` next to the code): Vitest.
+- **Unit** (`*.spec.ts` next to the code, in `apps/api` and
+  `packages/api-client`): Vitest.
+- **Web** (`*.test.ts(x)` next to the code, in `apps/web`): Vitest in jsdom,
+  Testing Library, the API answered by msw; part of `pnpm test`. One file:
+  `pnpm --filter @nestjs-monorepo-template/web test src/features/notes/notes.test.tsx`.
+  The helpers (`renderApp()`, `findToast()`, the msw handlers) and the
+  timing settings: [monorepo](monorepo.md), "Tests". Browser end-to-end
+  tests don't exist yet (#97).
 - **End to end** (`apps/api/test/*.e2e-spec.ts`): the whole app on real PostgreSQL 18
   and Redis, mail in memory (`node.waitForMail()`), storage in memory, a
   manual workflow clock. `apps/api/test/setup-env.ts` sets the environment before
@@ -531,7 +550,7 @@ They look at the staged files only, so a commit waits a second or two:
 
 | Hook | Runs |
 | --- | --- |
-| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the API's staged files |
+| `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`) |
 | `commit-msg` | commitlint (`commitlint.config.js`): `type(scope)!: subject`, types `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert`; any scope, several with commas. Merge commits (`git merge origin/main`) and git's `Revert "…"` pass |
 
 - **Not in the hooks:** the build, the tests, `db:check`, `client:check`. The
