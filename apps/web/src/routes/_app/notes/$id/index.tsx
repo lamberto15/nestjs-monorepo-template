@@ -18,7 +18,7 @@ import { RecordState } from '@/components/records/record-state';
 import { noteQuery, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useDateTimeFormat } from '@/lib/date-time';
-import { useCan } from '@/lib/features';
+import { useRecordCan } from '@/lib/records';
 
 /** What notes keep (note-comments/-attachments/-tags/-revisions.ts in the API). */
 const NOTE_PANELS = {
@@ -67,8 +67,8 @@ function NoteView({ note }: { note: Note }) {
   const { t } = useTranslation('notes');
   const date = useDateTimeFormat();
   const navigate = useNavigate();
-  const canUpdate = useCan('Note.update');
-  const canDelete = useCan('Note.delete');
+  // The note's own `can`: its conditions too, not only the permission.
+  const { update: canUpdate, delete: canDelete } = useRecordCan('Note')(note);
   const { ask, dialog } = useNoteDelete({
     onDeleted: () => void navigate({ to: '/notes' }),
     onRestored: (restored) =>
@@ -157,6 +157,7 @@ function NoteView({ note }: { note: Note }) {
         path="/v1/notes/{id}"
         id={note.id}
         capabilities={NOTE_PANELS}
+        canUpdate={canUpdate}
         tags={note.tags}
       />
       {dialog}
