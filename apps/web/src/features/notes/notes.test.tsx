@@ -4,7 +4,11 @@ import openapi from '@nestjs-monorepo-template/api-client/openapi.json';
 import { describe, expect, it } from 'vitest';
 import { NOTE_LIMITS } from '@/features/notes/api';
 import { renderApp } from '@/test/render-app';
-import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
+import {
+  NOTE_ID,
+  sampleNote,
+  useNotesApi,
+} from '@/features/notes/test/notes-api';
 import { findToast } from '@/test/toast';
 
 /** The request schemas of the API's routes, as the typed client's document has them. */

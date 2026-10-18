@@ -186,3 +186,91 @@ C=3
     );
   });
 });
+
+describe('removeFeature on the web app', () => {
+  let root;
+  const web = (...parts) => path.join(root, 'apps/web/src', ...parts);
+  const read = (file) => readFileSync(file, 'utf8');
+  const write = (file, text) => {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, text);
+  };
+  const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
+
+  before(() => {
+    root = mkdtempSync(path.join(tmpdir(), 'feature-remove-web-'));
+    // A web side only: the API's part was removed before (or never was).
+    write(web('features/invoices/api.ts'), 'export const PATH = 1;\n');
+    write(web('features/invoices/nav.ts'), 'export default {};\n');
+    write(web('features/invoices/test/invoices-api.ts'), '');
+    write(
+      web('routes/_app/invoices/index.tsx'),
+      "import { PATH } from '@/features/invoices/api';\n",
+    );
+    write(web('routes/_app/invoices/$id/index.tsx'), '');
+    write(web('features/tasks/api.ts'), '');
+    write(web('routes/_app/tasks/index.tsx'), '');
+    write(web('nav.ts'), "import.meta.glob('./features/*/nav.ts');\n");
+    for (const locale of LOCALES) {
+      write(web(`locales/${locale}/invoices.json`), json({ title: 'x' }));
+      write(web(`locales/${locale}/tasks.json`), json({ title: 'x' }));
+      write(
+        web(`locales/${locale}/search.json`),
+        json({ title: 'Search', subjects: { Invoice: 'I', Task: 'T' } }),
+      );
+      write(
+        web(`locales/${locale}/settings.json`),
+        json({ groups: { auth: 'Sign-in', invoices: 'Invoices' } }),
+      );
+      write(
+        web(`locales/${locale}/approvals.json`),
+        json({ actions: { Invoice: { send: 'Send' }, Task: {} } }),
+      );
+    }
+  });
+  after(() => rmSync(root, { recursive: true, force: true }));
+
+  it('refuses while another web file imports from the feature', async () => {
+    write(
+      web('components/total.tsx'),
+      "import { PATH } from '@/features/invoices/api';\n",
+    );
+    await assert.rejects(
+      () => removeFeature(root, { name: 'invoices' }),
+      /components\/total\.tsx/,
+    );
+    assert.ok(existsSync(web('features/invoices')));
+    rmSync(web('components'), { recursive: true });
+  });
+
+  it('removes its folder, routes, namespace and texts, leaving the rest', async () => {
+    const result = await removeFeature(root, { name: 'invoices' });
+    assert.equal(result.item, 'invoice');
+    assert.ok(result.deleted.includes('apps/web/src/features/invoices'));
+    assert.ok(!existsSync(web('features/invoices')));
+    assert.ok(!existsSync(web('routes/_app/invoices')));
+    assert.ok(existsSync(web('features/tasks')));
+    assert.ok(existsSync(web('routes/_app/tasks/index.tsx')));
+    assert.ok(existsSync(web('nav.ts')));
+    for (const locale of LOCALES) {
+      assert.ok(!existsSync(web(`locales/${locale}/invoices.json`)));
+      assert.ok(existsSync(web(`locales/${locale}/tasks.json`)));
+      assert.equal(
+        read(web(`locales/${locale}/search.json`)),
+        json({ title: 'Search', subjects: { Task: 'T' } }),
+      );
+      assert.equal(
+        read(web(`locales/${locale}/settings.json`)),
+        json({ groups: { auth: 'Sign-in' } }),
+      );
+      assert.equal(
+        read(web(`locales/${locale}/approvals.json`)),
+        json({ actions: { Task: {} } }),
+      );
+    }
+    await assert.rejects(
+      () => removeFeature(root, { name: 'invoices' }),
+      /no features\/invoices/,
+    );
+  });
+});

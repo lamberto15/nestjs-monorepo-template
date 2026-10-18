@@ -38,9 +38,9 @@ import {
 } from '@/lib/list-query';
 
 export interface ListPageProps<P extends ListPath> {
-  /** The subject of GET /v1/lists/{subject} (`Note`). */
+  /** The subject of GET /v1/lists/{subject} (`Invoice`). */
   subject: string;
-  /** The list route (`/v1/notes`). */
+  /** The list route (`/v1/<plural>`). */
   path: P;
   /** Cells and headers; filters and sorting come from the list's metadata. */
   columns: ListColumn<ListRow<P>>[];

@@ -1,9 +1,14 @@
 import { http, HttpResponse } from 'msw/http';
 import { panelHandlers } from '@/test/panels-api';
-import { allFeatures, problem, server, signedInUser } from '@/test/server';
+import { problem, server } from '@/test/server';
+import { useSignedIn } from '@/test/signed-in';
 
 // The notes API as the record pages see it, in memory (msw): enough of
 // POST/GET/PATCH/DELETE/restore, ETags and the recycle bin to drive the pages.
+// Here, not in src/test: `pnpm feature:remove notes` takes it with the feature.
+
+/** The note's record route, as the detail page gives it to RecordPanels. */
+export const NOTE_RECORD = { subject: 'Note', path: '/v1/notes/{id}' } as const;
 
 export interface TestNote {
   id: string;
@@ -95,26 +100,11 @@ export function useNotesApi(options: {
     notes.set(id, { ...notes.get(id)!, ...changes });
   };
 
+  useSignedIn(options.can);
   server.use(
     // The detail page mounts the record panels: empty ones unless a test sets them.
-    ...panelHandlers().handlers,
-    http.get('/v1/auth/me', () =>
-      HttpResponse.json({
-        ...signedInUser,
-        can: Object.fromEntries(options.can.map((p) => [p, true])),
-      }),
-    ),
-    // The sidebar's bell asks for its count; without realtime there is no socket.
-    http.get('/v1/features', () =>
-      HttpResponse.json({ ...allFeatures, realtime: false }),
-    ),
-    http.get('/v1/notifications/unread-count', () =>
-      HttpResponse.json({ unread: 0 }),
-    ),
+    ...panelHandlers({ record: NOTE_RECORD }).handlers,
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
-    // The list's export and import buttons ask what the user may run: nothing
-    // unless a test says so (features/transfer).
-    http.get('/v1/data', () => HttpResponse.json({ exports: [], imports: [] })),
     http.get('/v1/notes', ({ request }) => {
       const url = new URL(request.url);
       calls.listQueries.push(url.search);

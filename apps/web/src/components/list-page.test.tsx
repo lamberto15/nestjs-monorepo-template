@@ -4,12 +4,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18next from 'i18next';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import type { ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de/common.json';
 import en from '@/locales/en/common.json';
-import { ListPage } from './list-page';
-import type { ListColumn, ListRow } from '@/lib/list-query';
+import { ListPage, type ListPageProps } from './list-page';
+import type { ListColumn, ListPath } from '@/lib/list-query';
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn() }));
 // The real client on a mocked fetch: the URLs it builds are what is checked.
@@ -21,11 +22,28 @@ vi.mock('@/lib/api', () => ({
   }),
 }));
 
-// The notes list's row, as the API describes it (the mock sends fewer fields).
-type Row = ListRow<'/v1/notes'>;
+// A test-only subject's list (as the API's tests use TestItem): ListPage is
+// the same for every list route, so no feature's route is needed.
+const PATH = '/v1/test-items';
+type Row = {
+  id: string;
+  title: string;
+  status: string;
+  custom?: Record<string, unknown>;
+};
+/**
+ * ListPage on that list. Its `path` is typed on the client's list routes,
+ * which have no test-only one: the one cast, here.
+ */
+const TestListPage = ListPage as unknown as (
+  props: Omit<ListPageProps<ListPath>, 'path' | 'columns'> & {
+    path: string;
+    columns: ListColumn<Row>[];
+  },
+) => ReactNode;
 
 const description = {
-  subject: 'Note',
+  subject: 'TestItem',
   fields: [
     {
       name: 'title',
@@ -88,10 +106,10 @@ async function renderList(searchParams = '', lng: 'en' | 'de' = 'en') {
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
         <NuqsTestingAdapter searchParams={searchParams}>
-          <ListPage
-            subject="Note"
-            path="/v1/notes"
-            title="Notes"
+          <TestListPage
+            subject="TestItem"
+            path={PATH}
+            title="Test items"
             columns={columns}
           />
         </NuqsTestingAdapter>
@@ -111,7 +129,7 @@ describe('ListPage', () => {
       request?.url.includes('/v1/lists/')
         ? json(description)
         : json({
-            items: [{ id: '1', title: 'First note', status: 'draft' }],
+            items: [{ id: '1', title: 'First item', status: 'draft' }],
             nextCursor: null,
             page: 1,
             nextPage: null,
@@ -121,8 +139,8 @@ describe('ListPage', () => {
     );
     await renderList();
 
-    expect(await screen.findByText('First note')).toBeInTheDocument();
-    const list = urls().find((url) => url.pathname === '/v1/notes');
+    expect(await screen.findByText('First item')).toBeInTheDocument();
+    const list = urls().find((url) => url.pathname === PATH);
     expect(list?.searchParams.get('page')).toBe('1');
     expect(list?.searchParams.get('limit')).toBe('20');
     expect(list?.searchParams.get('count')).toBe('true');
@@ -145,9 +163,9 @@ describe('ListPage', () => {
     await renderList('?title=report&sort=title.asc&q=hello');
 
     await waitFor(() =>
-      expect(urls().some((url) => url.pathname === '/v1/notes')).toBe(true),
+      expect(urls().some((url) => url.pathname === PATH)).toBe(true),
     );
-    const list = urls().find((url) => url.pathname === '/v1/notes');
+    const list = urls().find((url) => url.pathname === PATH);
     expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
       and: [{ field: 'title', op: 'contains', value: 'report' }],
     });
@@ -178,14 +196,14 @@ describe('ListPage', () => {
             {
               status: 403,
               code: 'forbidden',
-              detail: 'You may not read notes.',
+              detail: 'You may not read test items.',
             },
             403,
           ),
     );
     await renderList();
     expect(
-      await screen.findByText('You may not read notes.'),
+      await screen.findByText('You may not read test items.'),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Try again' }),
@@ -234,7 +252,7 @@ describe('ListPage', () => {
     expect(
       screen.queryByRole('columnheader', { name: /Region/ }),
     ).not.toBeInTheDocument();
-    const list = urls().find((url) => url.pathname === '/v1/notes');
+    const list = urls().find((url) => url.pathname === PATH);
     expect(list?.searchParams.get('fields')).toBe('title,status');
     expect(list?.searchParams.get('sort')).toBe('custom.region');
     expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
@@ -255,7 +273,7 @@ describe('ListPage', () => {
     await userEvent.click(await screen.findByText('Region'));
     await waitFor(() => {
       const last = urls()
-        .filter((url) => url.pathname === '/v1/notes')
+        .filter((url) => url.pathname === PATH)
         .at(-1);
       expect(last?.searchParams.get('fields')).toBe(
         'title,status,custom.region',
@@ -284,8 +302,8 @@ describe('ListPage', () => {
 
     expect(await screen.findByText('First')).toBeInTheDocument();
     const tags = urls().find((url) => url.pathname === '/v1/tags');
-    expect(tags?.searchParams.get('subject')).toBe('Note');
-    const list = urls().find((url) => url.pathname === '/v1/notes');
+    expect(tags?.searchParams.get('subject')).toBe('TestItem');
+    const list = urls().find((url) => url.pathname === PATH);
     expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
       and: [{ field: 'tag', op: 'in', value: ['t1'] }],
     });

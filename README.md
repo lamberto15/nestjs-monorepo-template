@@ -72,10 +72,11 @@ nothing to install; `pnpm dev` runs the API and the web app there. More in
 git clone https://github.com/lamberto15/nestjs-monorepo-template my-app   # keeps the history: template updates merge
 cd my-app && git remote rename origin template
 pnpm install
-pnpm feature:remove notes   # the example feature, its tests and texts (the API's; the web's notes pages stay: #149)
+pnpm feature:remove notes   # the example feature: the API's and the web app's (pages, tests, texts)
 pnpm db:generate            # the migration that drops its table
 pnpm feature:add invoices --fields "number:string!unique,total:money,dueOn:date?" --with tags,comments,attachments,pdf
 pnpm db:generate && pnpm client:generate
+pnpm build                  # the web's build regenerates its route tree
 ```
 
 Then run `pnpm setup` and rename it (the root `package.json` `name`, the `@nestjs-monorepo-template/`

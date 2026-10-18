@@ -16,7 +16,7 @@ import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
 
 const hit = (id: string, extra: object = {}) => ({
-  subject: 'Note',
+  subject: 'TestItem',
   id,
   title: `Title ${id}`,
   snippet: `about <b>note</b> ${id}`,
@@ -77,12 +77,12 @@ describe('snippets', () => {
 describe('grouping', () => {
   it('groups hits by subject, in the order of each subject’s best hit', () => {
     const groups = groupBySubject([
-      hit('1', { subject: 'Note' }),
+      hit('1', { subject: 'TestItem' }),
       hit('2', { subject: 'Task' }),
-      hit('3', { subject: 'Note' }),
+      hit('3', { subject: 'TestItem' }),
     ]);
     expect(groups.map((g) => [g.subject, g.items.map((i) => i.id)])).toEqual([
-      ['Note', ['1', '3']],
+      ['TestItem', ['1', '3']],
       ['Task', ['2']],
     ]);
   });
@@ -144,7 +144,8 @@ describe('the palette', () => {
     await user.type(await screen.findByRole('combobox'), 'note');
 
     expect(await screen.findByText('Title 1')).toBeInTheDocument();
-    expect(screen.getByText('Notes')).toBeInTheDocument();
+    // A subject with no name in search:subjects shows as itself.
+    expect(screen.getByText('TestItem')).toBeInTheDocument();
     expect(screen.getByText('Task')).toBeInTheDocument();
     expect(
       within(screen.getByRole('dialog')).getAllByText('note')[0]!.tagName,

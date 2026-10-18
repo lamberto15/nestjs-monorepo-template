@@ -1,5 +1,6 @@
 {
   "title": "Notizen",
+  "nav": "Notizen",
   "columns": {
     "number": "Nummer",
     "title": "Titel",

@@ -4,8 +4,7 @@
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard",
-    "notes": "Notes"
+    "dashboard": "Dashboard"
   },
   "dashboard": {
     "title": "Dashboard",

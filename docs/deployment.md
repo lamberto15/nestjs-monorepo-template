@@ -986,7 +986,7 @@ merged migration fails it already):
 | `compose-secrets` | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`) |
 | `swarm-stack` | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`) |
 | `feature-smoke` | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md)) |
-| `template-without-notes` | `pnpm feature:remove notes`, then lint, build, `db:check`, `client:generate`, unit tests and the e2e tests in 2 shards: the core stands without the example (the web app's notes pages aren't removed yet: #149) |
+| `template-without-notes` | `pnpm feature:remove notes` (the API's and the web app's part), no `notes` left in `apps/api` or `apps/web`, then lint, build, `db:check`, `client:generate`, the build again on that client, unit and web tests, and the e2e tests in 2 shards: the core and the web app stand without the example |
 | `security` | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles |
 | `image` | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`) |
 | `backup-image` | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it |

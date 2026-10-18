@@ -16,7 +16,7 @@ import { recordKeys, useInvalidateRecords } from '@/lib/records';
  * and the `dialog` to render once; `restore(record)` is for a bin's rows.
  * The feature supplies the two calls and its texts:
  *
- *   const { ask, dialog } = useRecordDelete({ path: '/v1/notes', remove, restore, texts });
+ *   const { ask, dialog } = useRecordDelete({ path: '/v1/invoices', remove, restore, texts });
  */
 export function useRecordDelete<T>(options: {
   /** The feature's list route: its lists and records are refreshed. */

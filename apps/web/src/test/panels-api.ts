@@ -2,12 +2,18 @@ import { http, HttpResponse } from 'msw/http';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { problem, server, signedInUser } from '@/test/server';
 
-// The record panels' routes for a Note (comments, attachments, tags,
-// revisions, the user directory), in memory. `panelHandlers()` with nothing
-// given answers empty lists, which the note page needs; the panels' tests
-// pass what they need and read `calls`.
+// The record panels' routes (comments, attachments, tags, revisions, the
+// user directory) under one record route, in memory. `panelHandlers()` with
+// nothing given answers empty lists, which a record page needs; the panels'
+// tests pass what they need and read `calls`. The route is the test-only
+// subject's unless `record` names a feature's: no feature is assumed, so the
+// shared tests stand without any (`pnpm feature:remove`).
 
-const NOTE = '/v1/notes/:id';
+/** The test-only subject's record route and subject, as RecordPanels takes them. */
+export const TEST_RECORD = {
+  subject: 'TestItem',
+  path: '/v1/test-items/{id}',
+} as const;
 
 export const MAYA = {
   id: '0199a3f2-0000-7000-8000-000000000002',
@@ -17,7 +23,7 @@ export const MAYA = {
 
 type Comment = {
   id: string;
-  subject: 'Note';
+  subject: string;
   recordId: string;
   author: string;
   body: string;
@@ -53,6 +59,8 @@ export const sampleRevisions: TestRevision[] = [
 
 export function panelHandlers(
   options: {
+    /** The record's route and subject (`{ subject: 'Invoice', path: '/v1/invoices/{id}' }`). */
+    record?: { subject: string; path: `${string}/{id}` };
     users?: (typeof MAYA)[] | 'forbidden';
     comments?: Partial<Comment>[];
     attachments?: {
@@ -70,6 +78,9 @@ export function panelHandlers(
     uploadStatus?: number;
   } = {},
 ) {
+  const { subject, path } = options.record ?? TEST_RECORD;
+  // msw's form of the route: `/v1/test-items/:id`.
+  const route = path.replace('{id}', ':id');
   const calls = {
     commented: [] as { id: string; body: unknown }[],
     edited: [] as { commentId: string; body: unknown }[],
@@ -83,7 +94,7 @@ export function panelHandlers(
   };
   const comments: Comment[] = (options.comments ?? []).map((c, i) => ({
     id: `c${i}`,
-    subject: 'Note',
+    subject,
     recordId: 'x',
     author: `user:${MAYA.id}`,
     body: '',
@@ -113,13 +124,13 @@ export function panelHandlers(
         { status: 201 },
       );
     }),
-    http.get(`${NOTE}/comments`, () => page(comments)),
-    http.post(`${NOTE}/comments`, async ({ params, request }) => {
+    http.get(`${route}/comments`, () => page(comments)),
+    http.post(`${route}/comments`, async ({ params, request }) => {
       const body = (await request.json()) as { body: string };
       calls.commented.push({ id: params.id as string, body });
       const comment: Comment = {
         id: `n${comments.length}`,
-        subject: 'Note',
+        subject,
         recordId: params.id as string,
         author: `user:${signedInUser.user.id}`,
         body: body.body,
@@ -131,7 +142,7 @@ export function panelHandlers(
       comments.push(comment);
       return HttpResponse.json(comment, { status: 201 });
     }),
-    http.patch(`${NOTE}/comments/:commentId`, async ({ params, request }) => {
+    http.patch(`${route}/comments/:commentId`, async ({ params, request }) => {
       const body = (await request.json()) as { body: string };
       calls.edited.push({ commentId: params.commentId as string, body });
       const comment = comments.find((c) => c.id === params.commentId)!;
@@ -139,7 +150,7 @@ export function panelHandlers(
       comment.editedAt = '2026-10-17T10:05:00.000Z';
       return HttpResponse.json(comment);
     }),
-    http.delete(`${NOTE}/comments/:commentId`, ({ params }) => {
+    http.delete(`${route}/comments/:commentId`, ({ params }) => {
       calls.removedComments.push(params.commentId as string);
       comments.splice(
         comments.findIndex((c) => c.id === params.commentId),
@@ -147,10 +158,10 @@ export function panelHandlers(
       );
       return new HttpResponse(null, { status: 204 });
     }),
-    http.get(`${NOTE}/attachments`, () =>
+    http.get(`${route}/attachments`, () =>
       page(
         attachments.map((a) => ({
-          subject: 'Note',
+          subject,
           recordId: 'x',
           locked: false,
           createdAt: '2026-10-17T09:40:00.000Z',
@@ -159,7 +170,7 @@ export function panelHandlers(
         })),
       ),
     ),
-    http.post(`${NOTE}/attachments`, async ({ request }) => {
+    http.post(`${route}/attachments`, async ({ request }) => {
       if (options.uploadStatus && options.uploadStatus >= 400) {
         return problem(options.uploadStatus, 'unsupported_media_type');
       }
@@ -189,16 +200,16 @@ export function panelHandlers(
       );
       return new HttpResponse(null, { status: 204 });
     }),
-    http.put(`${NOTE}/tags`, async ({ params, request }) => {
+    http.put(`${route}/tags`, async ({ params, request }) => {
       const body = (await request.json()) as { tagIds: string[] };
       calls.tagged.push({ id: params.id as string, tagIds: body.tagIds });
       return HttpResponse.json({ items: [] });
     }),
-    http.get(`${NOTE}/revisions`, () =>
+    http.get(`${route}/revisions`, () =>
       page(
         revisions.map((r) => ({
           id: `r${r.number}`,
-          subject: 'Note',
+          subject,
           recordId: 'x',
           snapshot: {},
           restoredFrom: null,
@@ -209,7 +220,7 @@ export function panelHandlers(
         })),
       ),
     ),
-    http.get(`${NOTE}/revisions/:a/diff/:b`, ({ params }) => {
+    http.get(`${route}/revisions/:a/diff/:b`, ({ params }) => {
       calls.diffs.push(`${String(params.a)}-${String(params.b)}`);
       return HttpResponse.json({
         from: Number(params.a),
@@ -217,7 +228,7 @@ export function panelHandlers(
         changes: { title: { from: 'Draft', to: 'Q3 targets' } },
       });
     }),
-    http.post(`${NOTE}/revisions/:number/restore`, ({ params, request }) => {
+    http.post(`${route}/revisions/:number/restore`, ({ params, request }) => {
       const ifMatch = request.headers.get('if-match');
       calls.restored.push({ number: params.number as string, ifMatch });
       if (options.restoreEtag && ifMatch !== options.restoreEtag) {
@@ -229,7 +240,7 @@ export function panelHandlers(
   return { calls, handlers };
 }
 
-/** Serves the panels' routes for this test (over notes-api's empty defaults). */
+/** Serves the panels' routes for this test (over a record page's empty defaults). */
 export function usePanelsApi(
   options: Parameters<typeof panelHandlers>[0] = {},
 ) {

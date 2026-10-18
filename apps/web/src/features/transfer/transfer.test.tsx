@@ -3,37 +3,47 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
-import { sampleNote, useNotesApi } from '@/test/notes-api';
+import { renderComponent } from '@/test/render-component';
 import { problem, server, signedInUser } from '@/test/server';
-import { readHistory, remember } from './api';
+import { useSignedIn } from '@/test/signed-in';
+import { catalogQuery, readHistory, remember } from './api';
 import { parseCsv, parseRowErrors } from './csv';
+import { ExportButton } from './export-button';
+import { ImportButton } from './import-button';
 
-const ALL = ['Note.read', 'Note.create', 'Note.delete', 'Note.restore'];
+// The exports and imports of a test-only subject (`test-items`): what a
+// feature's list offers, without any feature's pages.
+const ALL = [
+  'TestItem.read',
+  'TestItem.create',
+  'TestItem.delete',
+  'TestItem.restore',
+];
 
 const catalog = {
   exports: [
     {
-      name: 'notes',
+      name: 'test-items',
       columns: ['id', 'title', 'createdAt'],
       formats: ['csv', 'json', 'xlsx'],
     },
   ],
   imports: [
     {
-      name: 'notes',
+      name: 'test-items',
       formats: ['csv', 'json', 'xlsx'],
       columns: [
         { name: 'title', type: 'string', required: true, max: 200 },
         { name: 'body', type: 'string', required: false },
       ],
-      template: '/v1/data/imports/notes/template',
+      template: '/v1/data/imports/test-items/template',
     },
   ],
 };
 
 type Transfer = Record<string, unknown>;
 
-/** The data routes over the notes list's API; `transfers` answers by id. */
+/** The data routes; `transfers` answers by id. */
 function useTransferApi(
   options: {
     catalog?: typeof catalog;
@@ -45,26 +55,6 @@ function useTransferApi(
     imports: [] as Record<string, string>[],
   };
   server.use(
-    // The notes list searches (`q`), so an export has a filter to carry.
-    http.get('/v1/lists/:subject', () =>
-      HttpResponse.json({
-        subject: 'Note',
-        fields: [
-          {
-            name: 'title',
-            type: 'string',
-            operators: ['contains'],
-            sortable: true,
-            custom: false,
-          },
-        ],
-        select: ['id', 'title', 'createdAt'],
-        search: true,
-        recycleBin: true,
-        defaultSort: '-createdAt',
-        limits: { defaultLimit: 50, maxLimit: 100 },
-      }),
-    ),
     http.get('/v1/data', () => HttpResponse.json(options.catalog ?? catalog)),
     http.post('/v1/data/exports', async ({ request }) => {
       calls.exports.push(await request.json());
@@ -104,21 +94,24 @@ beforeEach(() => {
 
 describe('exporting from a list', () => {
   it('exports what the list shows, then offers the file', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     const calls = useTransferApi({
       transfers: {
         'export-1': {
           id: 'export-1',
           kind: 'export',
-          name: 'notes',
+          name: 'test-items',
           format: 'xlsx',
           status: 'completed',
           progress: { processed: 3 },
-          result: { rows: 3, url: 'https://files.test/notes.xlsx' },
+          result: { rows: 3, url: 'https://files.test/test-items.xlsx' },
         },
       },
     });
-    await renderApp('/notes?q=Q3');
+    // As a list searched for "Q3" renders it (exportFilters(params)).
+    await renderComponent(
+      <ExportButton exporter="test-items" filters={{ q: 'Q3' }} />,
+      { can: ALL },
+    );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Export' }));
     const dialog = await screen.findByRole('dialog', { name: 'Export' });
@@ -136,26 +129,38 @@ describe('exporting from a list', () => {
     const download = await within(dialog).findByRole('link', {
       name: 'Download (xlsx)',
     });
-    expect(download).toHaveAttribute('href', 'https://files.test/notes.xlsx');
+    expect(download).toHaveAttribute(
+      'href',
+      'https://files.test/test-items.xlsx',
+    );
     expect(within(dialog).getByText('3 rows exported.')).toBeVisible();
     expect(calls.exports).toEqual([
-      { name: 'notes', format: 'xlsx', filters: { q: 'Q3' } },
+      { name: 'test-items', format: 'xlsx', filters: { q: 'Q3' } },
     ]);
     // Remembered for "Exports and imports" (the API lists none).
     expect(readHistory(signedInUser.user.id)).toEqual([
       expect.objectContaining({
         id: 'export-1',
         kind: 'export',
-        name: 'notes',
+        name: 'test-items',
       }),
     ]);
   });
 
   it('offers no export or import the user may not run', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     useTransferApi({ catalog: { exports: [], imports: [] } });
-    await renderApp('/notes');
-    await screen.findByText('Q3 targets');
+    const { queryClient } = await renderComponent(
+      <>
+        <ExportButton exporter="test-items" filters={{}} />
+        <ImportButton importer="test-items" />
+      </>,
+      { can: ALL },
+    );
+    await waitFor(() =>
+      expect(queryClient.getQueryState(catalogQuery.queryKey)?.status).toBe(
+        'success',
+      ),
+    );
     expect(
       screen.queryByRole('button', { name: 'Export' }),
     ).not.toBeInTheDocument();
@@ -165,13 +170,12 @@ describe('exporting from a list', () => {
   });
 
   it('shows a failed export', async () => {
-    useNotesApi({ can: ALL, notes: [sampleNote()] });
     useTransferApi({
       transfers: {
         'export-1': {
           id: 'export-1',
           kind: 'export',
-          name: 'notes',
+          name: 'test-items',
           format: 'csv',
           status: 'failed',
           progress: {},
@@ -179,7 +183,9 @@ describe('exporting from a list', () => {
         },
       },
     });
-    await renderApp('/notes');
+    await renderComponent(<ExportButton exporter="test-items" filters={{}} />, {
+      can: ALL,
+    });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Export' }));
     const dialog = await screen.findByRole('dialog', { name: 'Export' });
@@ -195,9 +201,9 @@ describe('exporting from a list', () => {
 
 describe('importing a file', () => {
   it('shows the columns and the templates', async () => {
-    useNotesApi({ can: ALL, notes: [] });
+    useSignedIn(ALL);
     useTransferApi();
-    await renderApp('/transfers/import?name=notes');
+    await renderApp('/transfers/import?name=test-items');
     const columns = await screen.findByRole('table', {
       name: 'Columns it takes',
     });
@@ -205,22 +211,22 @@ describe('importing a file', () => {
     expect(within(title).getByText('Yes')).toBeVisible();
     expect(screen.getByRole('link', { name: 'CSV' })).toHaveAttribute(
       'href',
-      '/v1/data/imports/notes/template?format=csv',
+      '/v1/data/imports/test-items/template?format=csv',
     );
     expect(screen.getByRole('link', { name: 'Excel (.xlsx)' })).toHaveAttribute(
       'href',
-      '/v1/data/imports/notes/template?format=xlsx',
+      '/v1/data/imports/test-items/template?format=xlsx',
     );
   });
 
   it('checks a file without writing, then lists the refused rows', async () => {
-    useNotesApi({ can: ALL, notes: [] });
+    useSignedIn(ALL);
     const calls = useTransferApi({
       transfers: {
         'import-1': {
           id: 'import-1',
           kind: 'import',
-          name: 'notes',
+          name: 'test-items',
           format: 'csv',
           status: 'completed',
           progress: { processed: 3 },
@@ -244,7 +250,7 @@ describe('importing a file', () => {
           ),
       ),
     );
-    await renderApp('/transfers/import?name=notes');
+    await renderApp('/transfers/import?name=test-items');
     const user = userEvent.setup();
     const check = await screen.findByRole('button', { name: 'Check the file' });
     expect(check).toBeDisabled();
@@ -253,7 +259,7 @@ describe('importing a file', () => {
     ) as HTMLInputElement;
     await user.upload(
       input,
-      new File(['title\nA\nB\n'], 'notes.csv', { type: 'text/csv' }),
+      new File(['title\nA\nB\n'], 'test-items.csv', { type: 'text/csv' }),
     );
     await user.click(check);
 
@@ -268,18 +274,18 @@ describe('importing a file', () => {
       screen.getByRole('link', { name: 'Download the refused rows (CSV)' }),
     ).toHaveAttribute('href', 'https://files.test/errors.csv');
     expect(calls.imports).toEqual([
-      { name: 'notes', dryRun: 'true', file: 'notes.csv' },
+      { name: 'test-items', dryRun: 'true', file: 'test-items.csv' },
     ]);
   });
 
   it('writes the rows when the check is turned off', async () => {
-    useNotesApi({ can: ALL, notes: [] });
+    useSignedIn(ALL);
     const calls = useTransferApi({
       transfers: {
         'import-1': {
           id: 'import-1',
           kind: 'import',
-          name: 'notes',
+          name: 'test-items',
           format: 'csv',
           status: 'completed',
           progress: { processed: 2 },
@@ -287,7 +293,7 @@ describe('importing a file', () => {
         },
       },
     });
-    await renderApp('/transfers/import?name=notes');
+    await renderApp('/transfers/import?name=test-items');
     const user = userEvent.setup();
     await user.click(
       await screen.findByRole('switch', { name: 'Only check the file' }),
@@ -297,19 +303,19 @@ describe('importing a file', () => {
     ) as HTMLInputElement;
     await user.upload(
       input,
-      new File(['title\nA\nB\n'], 'notes.csv', { type: 'text/csv' }),
+      new File(['title\nA\nB\n'], 'test-items.csv', { type: 'text/csv' }),
     );
     await user.click(screen.getByRole('button', { name: 'Import' }));
     expect(
       await screen.findByText('2 rows read: 2 imported, 0 refused.'),
     ).toBeVisible();
     expect(calls.imports).toEqual([
-      { name: 'notes', dryRun: 'false', file: 'notes.csv' },
+      { name: 'test-items', dryRun: 'false', file: 'test-items.csv' },
     ]);
   });
 
   it('says so when there is nothing to import', async () => {
-    useNotesApi({ can: ['Note.read'], notes: [] });
+    useSignedIn(['TestItem.read']);
     useTransferApi({ catalog: { ...catalog, imports: [] } });
     await renderApp('/transfers/import');
     expect(
@@ -320,13 +326,13 @@ describe('importing a file', () => {
 
 describe('your exports and imports', () => {
   it("lists this browser's transfers and forgets those the API no longer has", async () => {
-    useNotesApi({ can: ALL, notes: [] });
+    useSignedIn(ALL);
     useTransferApi({
       transfers: {
         running: {
           id: 'running',
           kind: 'export',
-          name: 'notes',
+          name: 'test-items',
           format: 'csv',
           status: 'running',
           progress: { processed: 40 },
@@ -337,13 +343,13 @@ describe('your exports and imports', () => {
     remember(userId, {
       id: 'gone',
       kind: 'import',
-      name: 'notes',
+      name: 'test-items',
       at: '2026-10-17T08:00:00.000Z',
     });
     remember(userId, {
       id: 'running',
       kind: 'export',
-      name: 'notes',
+      name: 'test-items',
       at: '2026-10-17T09:00:00.000Z',
     });
     await renderApp('/transfers');
@@ -362,7 +368,7 @@ describe('your exports and imports', () => {
   });
 
   it('says when there is nothing yet', async () => {
-    useNotesApi({ can: ALL, notes: [] });
+    useSignedIn(ALL);
     useTransferApi();
     await renderApp('/transfers');
     expect(

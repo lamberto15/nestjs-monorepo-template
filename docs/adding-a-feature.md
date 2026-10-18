@@ -447,6 +447,7 @@ scope of the packages, `API_TITLE` in `apps/api/src/openapi.ts`,
 pnpm feature:remove notes   # --dry-run shows what goes
 pnpm db:generate
 pnpm client:generate
+pnpm build                  # first: the web's build regenerates its route tree
 ```
 
 `pnpm feature:remove <name>` removes any feature the same way: its folder,
@@ -454,8 +455,15 @@ its tests (`test/<name>.e2e-spec.ts`, `test/features/<name>/`), its lines in
 `features/index.ts`, `tables.ts` and `env.ts`, its texts (the `<item>` key of
 each locale's files), its PDF template, and its variables (the
 `feature:<name> begin … end` blocks in `env.example`,
-`apps/api/env.development.example` and `test/setup-env.ts`). It refuses while
-another feature refers to it. On a live database, dropping a table is a
+`apps/api/env.development.example` and `test/setup-env.ts`). In the web app
+it takes the paths every feature's pages use (docs/monorepo.md, "Adding a page
+for a feature"): `apps/web/src/features/<name>/` (its queries, forms, nav
+entry and tests), `routes/_app/<name>/`, `locales/<lng>/<name>.json`, and its
+names in the shared texts (`search.json`'s `subjects.<Subject>`,
+`settings.json`'s `groups.<name>`, `approvals.json`'s `actions.<Subject>`).
+The router's plugin then rewrites `routeTree.gen.ts` on the next build or
+`pnpm dev:web`. It refuses while another feature refers to it, or another web
+file imports from its folder. On a live database, dropping a table is a
 contract step: release the code that no longer uses it first
 (docs/development.md, migrations).
 
@@ -463,7 +471,9 @@ Nothing else depends on a feature: the platform's own tests run on a
 test-only record (`apps/api/test/fixtures/test-items`, made by the generator,
 its migrations in `test/fixtures/drizzle`, `pnpm db:generate:fixtures`), and
 CI's `template-without-notes` job removes notes on every change and runs
-everything. A feature's own tests live in `test/<name>.e2e-spec.ts` or
+everything. The web app's shared tests do the same: they mount the shared
+components alone (`renderComponent()`) on a test-only subject (`TestItem`),
+and the tests of a feature's pages sit in its folder. A feature's own tests live in `test/<name>.e2e-spec.ts` or
 `test/features/<name>/`, with their helpers next to them.
 
 ### A feature's demo data

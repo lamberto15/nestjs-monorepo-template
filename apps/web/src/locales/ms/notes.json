@@ -1,5 +1,6 @@
 {
   "title": "Nota",
+  "nav": "Nota",
   "columns": {
     "number": "Nombor",
     "title": "Tajuk",

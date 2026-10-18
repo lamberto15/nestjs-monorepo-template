@@ -10,9 +10,12 @@ import { postMultipart } from '@/lib/upload';
  * The record panels' routes (docs/comments.md, attachments.md, tags.md,
  * revisions.md). Every feature that registers a target has the same routes
  * under its own path, with the same shapes; the generated client types them
- * per feature, so the Note's types stand for all and `at()` is the one cast.
+ * per feature, so the types below are those routes' answers, whichever
+ * features have them. No feature's path is named here: `pnpm feature:remove`
+ * may take any of them, the last one included. (Named schemas in the client,
+ * #157, would type them without any feature.)
  *
- * `base` is the record's route, `/v1/notes/{id}`.
+ * `base` is the record's route, `/v1/<plural>/{id}`.
  */
 type Suffix =
   | '/comments'
@@ -23,30 +26,64 @@ type Suffix =
   | '/revisions/{number}/restore'
   | '/revisions/{a}/diff/{b}';
 
-type NotePath<S extends Suffix> = `/v1/notes/{id}${S}` & keyof paths;
-
-function at<S extends Suffix>(base: string, suffix: S): NotePath<S> {
-  // Same shapes under any feature's path; openapi-fetch only fills the
-  // `{…}` parameters, so the Note's literal type stands for the others.
-  return `${base}${suffix}` as NotePath<S>;
-}
+/** Every feature's route ending in the suffix (`/v1/<plural>/{id}/comments`). */
+type At<S extends Suffix> = Extract<keyof paths, `/v1/${string}/{id}${S}`>;
 
 type Json<T> = T extends { content: { 'application/json': infer B } }
   ? B
   : never;
 
-export type Comment = Json<
-  paths['/v1/notes/{id}/comments']['get']['responses'][200]
->['items'][number];
-export type Attachment = Json<
-  paths['/v1/notes/{id}/attachments']['get']['responses'][200]
->['items'][number];
-export type Revision = Json<
-  paths['/v1/notes/{id}/revisions']['get']['responses'][200]
->['items'][number];
-export type RevisionDiff = Json<
-  paths['/v1/notes/{id}/revisions/{a}/diff/{b}']['get']['responses'][200]
+/**
+ * The 200 answer of `GET <base><suffix>`. With no feature keeping the route
+ * (none has comments, say), nothing renders its panel: `any` then only lets
+ * this module and the panels compile.
+ */
+type Answer<S extends Suffix> = [At<S>] extends [never]
+  ? any
+  : paths[At<S>] extends { get: { responses: { 200: infer R } } }
+    ? Json<R>
+    : never;
+
+export type Comment = Answer<'/comments'>['items'][number];
+export type Attachment = Answer<'/attachments'>['items'][number];
+export type Revision = Answer<'/revisions'>['items'][number];
+export type RevisionDiff = Answer<'/revisions/{a}/diff/{b}'>;
+
+type Init = {
+  params: {
+    path: Record<string, string | number>;
+    query?: Record<string, string | number | undefined>;
+    header?: Record<string, string>;
+  };
+  body?: unknown;
+};
+type Call = (
+  path: string,
+  init: Init,
+) => Promise<{ data?: unknown; response: Response }>;
+
+/**
+ * The client for these routes. openapi-fetch types a call by its literal
+ * path, and these hang off any feature's path (or none's): one cast, as
+ * lib/list-query.ts's fetchPage and features/bulk do; the answers are typed
+ * by the functions below.
+ */
+const client = api as unknown as Record<
+  'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  Call
 >;
+
+/** `GET`, `POST`… on `<base><suffix>`, answering `T`. */
+const call = <T>(
+  method: keyof typeof client,
+  base: string,
+  suffix: Suffix,
+  init: Init,
+) =>
+  client[method](`${base}${suffix}`, init) as Promise<{
+    data?: T;
+    response: Response;
+  }>;
 
 /** Pages of 100, at most 10: far past what a thread or a list can use. */
 const PAGE_SIZE = 100;
@@ -80,11 +117,13 @@ async function allPages<T>(
   return items;
 }
 
+type Page<T> = { items: T[]; nextCursor?: string | null };
+
 /** The thread, oldest first (the newest last). */
 export const listComments = (base: string, id: string) =>
   allPages((cursor) =>
     unwrap(
-      api.GET(at(base, '/comments'), {
+      call<Page<Comment>>('GET', base, '/comments', {
         params: {
           path: { id },
           query: { limit: String(PAGE_SIZE), sort: 'createdAt', cursor },
@@ -95,7 +134,7 @@ export const listComments = (base: string, id: string) =>
 
 export const addComment = (base: string, id: string, body: string) =>
   unwrap(
-    api.POST(at(base, '/comments'), {
+    call<Comment>('POST', base, '/comments', {
       params: { path: { id } },
       body: { body },
     }),
@@ -108,7 +147,7 @@ export const editComment = (
   body: string,
 ) =>
   unwrap(
-    api.PATCH(at(base, '/comments/{commentId}'), {
+    call<Comment>('PATCH', base, '/comments/{commentId}', {
       params: { path: { id, commentId } },
       body: { body },
     }),
@@ -116,7 +155,7 @@ export const editComment = (
 
 export const removeComment = (base: string, id: string, commentId: string) =>
   unwrap(
-    api.DELETE(at(base, '/comments/{commentId}'), {
+    call<unknown>('DELETE', base, '/comments/{commentId}', {
       params: { path: { id, commentId } },
     }),
   );
@@ -124,7 +163,7 @@ export const removeComment = (base: string, id: string, commentId: string) =>
 export const listAttachments = (base: string, id: string) =>
   allPages((cursor) =>
     unwrap(
-      api.GET(at(base, '/attachments'), {
+      call<Page<Attachment>>('GET', base, '/attachments', {
         params: { path: { id }, query: { limit: PAGE_SIZE, cursor } },
       }),
     ),
@@ -154,7 +193,7 @@ export function uploadAttachment(
   const form = new FormData();
   form.append('file', file);
   return postMultipart<Attachment>(
-    at(base, '/attachments').replace('{id}', id),
+    `${base}/attachments`.replace('{id}', id),
     form,
     onProgress,
   );
@@ -162,13 +201,16 @@ export function uploadAttachment(
 
 export const setTags = (base: string, id: string, tagIds: string[]) =>
   unwrap(
-    api.PUT(at(base, '/tags'), { params: { path: { id } }, body: { tagIds } }),
+    call<unknown>('PUT', base, '/tags', {
+      params: { path: { id } },
+      body: { tagIds },
+    }),
   );
 
 export const listRevisions = (base: string, id: string) =>
   allPages((cursor) =>
     unwrap(
-      api.GET(at(base, '/revisions'), {
+      call<Page<Revision>>('GET', base, '/revisions', {
         params: { path: { id }, query: { limit: String(PAGE_SIZE), cursor } },
       }),
     ),
@@ -176,7 +218,7 @@ export const listRevisions = (base: string, id: string) =>
 
 export const diffRevisions = (base: string, id: string, a: number, b: number) =>
   unwrap(
-    api.GET(at(base, '/revisions/{a}/diff/{b}'), {
+    call<RevisionDiff>('GET', base, '/revisions/{a}/diff/{b}', {
       params: { path: { id, a, b } },
     }),
   );
@@ -188,12 +230,17 @@ export async function restoreRevision(
   number: number,
   etag?: string,
 ) {
-  const result = await api.POST(at(base, '/revisions/{number}/restore'), {
-    params: {
-      path: { id, number },
-      ...(etag && { header: { 'If-Match': etag } }),
+  const result = await call<unknown>(
+    'POST',
+    base,
+    '/revisions/{number}/restore',
+    {
+      params: {
+        path: { id, number },
+        ...(etag && { header: { 'If-Match': etag } }),
+      },
     },
-  });
+  );
   return {
     record: await unwrap(Promise.resolve(result)),
     etag: etagOf(result),

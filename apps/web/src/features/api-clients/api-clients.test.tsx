@@ -98,7 +98,7 @@ function api(
             ? {
                 day,
                 total: 40,
-                routes: { 'GET /v1/notes': 30, 'POST /v1/notes': 10 },
+                routes: { 'GET /v1/tags': 30, 'POST /v1/tags': 10 },
               }
             : { day, total: 0, routes: {} },
         );
@@ -300,10 +300,10 @@ describe('usage', () => {
 
     const table = screen.getByRole('table');
     const rows = within(table).getAllByRole('row');
-    expect(rows[1]).toHaveTextContent('GET /v1/notes');
+    expect(rows[1]).toHaveTextContent('GET /v1/tags');
     expect(rows[1]).toHaveTextContent('30');
     expect(rows[1]).toHaveTextContent('75%');
-    expect(rows[2]).toHaveTextContent('POST /v1/notes');
+    expect(rows[2]).toHaveTextContent('POST /v1/tags');
     const query = state.usageQueries[0]!;
     expect({ from: query.get('from'), to: query.get('to') }).toEqual(
       rangeFor('30'),

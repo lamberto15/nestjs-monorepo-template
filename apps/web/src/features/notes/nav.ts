@@ -5,7 +5,7 @@ export default {
   group: 'workspace',
   order: 100,
   to: '/notes',
-  label: 'nav.notes',
+  label: 'notes:nav',
   icon: StickyNoteIcon,
   permission: 'Note.read',
 } satisfies NavContribution;

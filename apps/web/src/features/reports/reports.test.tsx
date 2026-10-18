@@ -3,16 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
-import { sampleNote, useNotesApi } from '@/test/notes-api';
+import { renderComponent } from '@/test/render-component';
 import { allFeatures, problem, server } from '@/test/server';
+import { useSignedIn } from '@/test/signed-in';
 import { findToast } from '@/test/toast';
+import { ScheduleReportButton } from './schedule-button';
 
 const REPORT_ID = '0199a3f2-0000-7000-8000-000000000901';
 
 const report = (over: object = {}) => ({
   id: REPORT_ID,
   name: 'Weekly drafts',
-  exporter: 'notes',
+  exporter: 'test-items',
   format: 'xlsx',
   filters: { q: 'draft' },
   timezone: 'Asia/Manila',
@@ -28,11 +30,11 @@ const report = (over: object = {}) => ({
   ...over,
 });
 
-/** The reports API in memory, over the notes list (the app's shell). */
+/** The reports API in memory, for a test-only subject's export (`test-items`). */
 function useReportsApi(
   options: { reports?: ReturnType<typeof report>[]; reportsOn?: boolean } = {},
 ) {
-  useNotesApi({ can: ['Note.read'], notes: [sampleNote()] });
+  useSignedIn([]);
   const store = { reports: [...(options.reports ?? [report()])] };
   const calls = {
     created: [] as unknown[],
@@ -48,21 +50,10 @@ function useReportsApi(
         reports: options.reportsOn ?? true,
       }),
     ),
-    http.get('/v1/lists/:subject', () =>
-      HttpResponse.json({
-        subject: 'Note',
-        fields: [],
-        select: ['id', 'title'],
-        search: true,
-        recycleBin: false,
-        defaultSort: '-createdAt',
-        limits: { defaultLimit: 50, maxLimit: 100 },
-      }),
-    ),
     http.get('/v1/data', () =>
       HttpResponse.json({
         exports: [
-          { name: 'notes', columns: ['title'], formats: ['csv', 'xlsx'] },
+          { name: 'test-items', columns: ['title'], formats: ['csv', 'xlsx'] },
         ],
         imports: [],
       }),
@@ -106,7 +97,7 @@ function useReportsApi(
       HttpResponse.json({
         id: params.id,
         kind: 'export',
-        name: 'notes',
+        name: 'test-items',
         format: 'xlsx',
         status: 'completed',
         progress: { processed: 4 },
@@ -168,9 +159,9 @@ describe('scheduling a report', () => {
     const dialog = await screen.findByRole('dialog', {
       name: 'Schedule a report',
     });
-    await user.type(within(dialog).getByLabelText('Name'), 'Daily notes');
+    await user.type(within(dialog).getByLabelText('Name'), 'Daily items');
     await user.click(within(dialog).getByRole('combobox', { name: 'Data' }));
-    await user.click(await screen.findByRole('option', { name: 'notes' }));
+    await user.click(await screen.findByRole('option', { name: 'test-items' }));
     await user.click(within(dialog).getByRole('combobox', { name: 'Repeats' }));
     await user.click(await screen.findByRole('option', { name: 'Daily' }));
     await user.click(within(dialog).getByRole('combobox', { name: 'At' }));
@@ -183,15 +174,15 @@ describe('scheduling a report', () => {
 
     await waitFor(() => expect(calls.created).toHaveLength(1));
     expect(calls.created[0]).toEqual({
-      name: 'Daily notes',
-      exporter: 'notes',
+      name: 'Daily items',
+      exporter: 'test-items',
       format: 'csv',
       filters: {},
       schedule: { every: 'daily', hour: 7 },
       active: true,
       recipients: ['team@example.com'],
     });
-    expect(await rowOf('Daily notes')).toBeVisible();
+    expect(await rowOf('Daily items')).toBeVisible();
   });
 
   it('checks the form before it sends anything', async () => {
@@ -222,7 +213,7 @@ describe('scheduling a report', () => {
     });
     await user.type(within(dialog).getByLabelText('Name'), 'Taken');
     await user.click(within(dialog).getByRole('combobox', { name: 'Data' }));
-    await user.click(await screen.findByRole('option', { name: 'notes' }));
+    await user.click(await screen.findByRole('option', { name: 'test-items' }));
     await user.click(within(dialog).getByRole('button', { name: 'Schedule' }));
     expect(
       await within(dialog).findByText('You may not run it.'),
@@ -231,7 +222,10 @@ describe('scheduling a report', () => {
 
   it("schedules a list's export with the list's search", async () => {
     const calls = useReportsApi({ reports: [] });
-    await renderApp('/notes?q=Q3');
+    // As a list searched for "Q3" renders it (exportFilters(params)).
+    await renderComponent(
+      <ScheduleReportButton exporter="test-items" filters={{ q: 'Q3' }} />,
+    );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Schedule' }));
     const dialog = await screen.findByRole('dialog', {
@@ -239,12 +233,12 @@ describe('scheduling a report', () => {
     });
     const filters = within(dialog).getByRole('list', { name: 'Filters' });
     expect(within(filters).getByText('q: Q3')).toBeVisible();
-    await user.type(within(dialog).getByLabelText('Name'), 'Q3 notes');
+    await user.type(within(dialog).getByLabelText('Name'), 'Q3 items');
     await user.click(within(dialog).getByRole('button', { name: 'Schedule' }));
     await waitFor(() => expect(calls.created).toHaveLength(1));
     expect(calls.created[0]).toMatchObject({
-      name: 'Q3 notes',
-      exporter: 'notes',
+      name: 'Q3 items',
+      exporter: 'test-items',
       filters: { q: 'Q3' },
       schedule: { every: 'weekly', weekday: 1, hour: 8 },
     });
@@ -307,7 +301,7 @@ describe("a report's actions", () => {
     await waitFor(() => expect(calls.patched).toHaveLength(1));
     expect(calls.patched[0]).toMatchObject({
       name: 'Monday drafts',
-      exporter: 'notes',
+      exporter: 'test-items',
       format: 'xlsx',
       filters: { q: 'draft' },
       timezone: 'Asia/Manila',

@@ -33,9 +33,9 @@ export type RecordCapabilities = {
  * supports it and the user may read the record, and writable only with
  * `<Subject>.update` (the API checks the same):
  *
- *   <RecordPanels subject="Note" path="/v1/notes/{id}" id={note.id}
+ *   <RecordPanels subject="Invoice" path="/v1/invoices/{id}" id={invoice.id}
  *     capabilities={{ comments: true, attachments: true, tags: true, revisions: true }}
- *     tags={note.tags} />
+ *     tags={invoice.tags} />
  *
  * `path` is the record's route with `{id}`; the panels' routes hang off it.
  * `tags` are the record's own (they come with it). `canUpdate` is the
