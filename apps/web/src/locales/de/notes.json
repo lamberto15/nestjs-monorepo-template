@@ -25,13 +25,19 @@
     "title": "Neue Notiz"
   },
   "edit": {
-    "title": "Notiz bearbeiten"
+    "title": "Notiz bearbeiten",
+    "locked": {
+      "title": "Sie können diese Notiz derzeit nicht bearbeiten",
+      "description": "Ihre Berechtigungen erlauben keine Änderung in ihrem aktuellen Zustand (zum Beispiel bei einer veröffentlichten Notiz).",
+      "back": "Zurück zur Notiz"
+    }
   },
   "form": {
     "title": "Titel",
     "body": "Text",
     "titleRequired": "Geben Sie einen Titel ein.",
     "titleTooLong": "Der Titel darf höchstens 200 Zeichen lang sein.",
+    "bodyTooLong": "Der Text darf höchstens 10.000 Zeichen lang sein.",
     "create": "Notiz erstellen",
     "save": "Änderungen speichern",
     "cancel": "Abbrechen",

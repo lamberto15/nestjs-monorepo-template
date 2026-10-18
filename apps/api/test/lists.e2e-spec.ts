@@ -66,6 +66,29 @@ describe('list metadata (e2e)', () => {
         maxDepth: 3,
         maxValues: 50,
       },
+      // From its declaration (test-item.record.ts): pdf off without
+      // Gotenberg, events on with WEBHOOKS, approvals from its declared action.
+      capabilities: {
+        tags: true,
+        comments: true,
+        attachments: true,
+        revisions: true,
+        pdf: false,
+        bulk: true,
+        watch: true,
+        search: true,
+        transfer: true,
+        custom: true,
+        events: true,
+        numbered: true,
+        approvals: true,
+      },
+      // What the upload route enforces (ATTACHMENT_MAX_MB, ATTACHMENT_ALLOWED_TYPES).
+      attachmentLimits: {
+        maxBytes: 25 * 1024 * 1024,
+        maxMb: 25,
+        types: expect.arrayContaining(['image/png', 'application/pdf']),
+      },
     });
     const fields = body.fields as Field[];
     expect(fields.find((field) => field.name === 'title')).toEqual({

@@ -226,6 +226,16 @@ describe('the advanced list query on GET /v1/notes (e2e)', () => {
       .set('Authorization', auth)
       .expect(200);
     expect(body).toMatchObject({ subject: 'Note', search: true });
+    // What notes take (NOTE_CAPABILITIES): pdf off without Gotenberg; publishing may need approval.
+    expect(body.capabilities).toMatchObject({
+      comments: true,
+      attachments: true,
+      tags: true,
+      revisions: true,
+      watch: true,
+      pdf: false,
+      approvals: true,
+    });
     expect(
       body.fields.find((field: { name: string }) => field.name === 'status'),
     ).toEqual({

@@ -41,7 +41,16 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
   as text (served as `text/plain`, HTML included). Not allowed
   (`ATTACHMENT_ALLOWED_TYPES`), or not the type the client declared (a
   "PNG" that is text): 415 `unsupported_media_type`. Over
-  `ATTACHMENT_MAX_MB` (25): 413 `payload_too_large`.
+  `ATTACHMENT_MAX_MB` (25): 413 `payload_too_large`. Both are published
+  in `GET /v1/lists/{subject}` (`attachmentLimits: { maxBytes, maxMb,
+  types }`, read as the upload reads them: `attachmentLimits()`), so a
+  client checks a file before sending it.
+- **Realtime**: an upload, a removal or an issued PDF sends
+  `record.attachments.changed` (`{ subject, recordId, attachmentId,
+  action }`) to the record's watchers and the uploader's other tabs who
+  may read it ([webhooks-and-realtime.md](webhooks-and-realtime.md),
+  "Record events"); a feature that calls `attachStored()` in its own
+  transaction calls `attachments.changed()` after the commit.
 - **Downloads** are the disk's signed links: served at `/files` on a local
   disk, by the bucket on S3, with `Content-Disposition: attachment` and
   the file's name, `nosniff`.

@@ -1,6 +1,7 @@
 import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { useMe } from '@/lib/features';
 
 /**
  * What every feature's record pages share (the pattern docs/monorepo.md,
@@ -38,5 +39,35 @@ export function useInvalidateRecords(path: string) {
         queryClient.invalidateQueries({ queryKey: recordKeys.details(path) }),
       ]),
     [queryClient, path],
+  );
+}
+
+/** A record's `can` (`?include=can`): `restore` is true only in the bin. */
+export type RecordCan = { update: boolean; delete: boolean; restore: boolean };
+
+/**
+ * What the user may do with one record now: its routes' own answer, which
+ * the API sends with `?include=can` (`can: { update, delete, restore }`,
+ * conditions included: an editor may not change a published note). A record
+ * read without it (the create's answer has none) falls back to
+ * `/me.can['<Subject>.<action>']`, the permission without its conditions.
+ * Returns a function, so a list's row actions can ask per row:
+ *
+ *   const canOf = useRecordCan('Note');
+ *   canOf(note).update && <Edit />
+ */
+export function useRecordCan(subject: string) {
+  const can = useMe()?.can;
+  return useCallback(
+    (record?: { can?: Partial<RecordCan> }): RecordCan => {
+      const held = (action: keyof RecordCan) =>
+        record?.can?.[action] ?? can?.[`${subject}.${action}`] === true;
+      return {
+        update: held('update'),
+        delete: held('delete'),
+        restore: held('restore'),
+      };
+    },
+    [can, subject],
   );
 }

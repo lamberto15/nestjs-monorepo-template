@@ -8485,6 +8485,119 @@
                       ],
                       "additionalProperties": false,
                       "description": "The list's limits, the same on every list."
+                    },
+                    "capabilities": {
+                      "type": "object",
+                      "properties": {
+                        "tags": {
+                          "type": "boolean",
+                          "description": "Tags on the records (`…/{id}/tags`) and the `tag` filter."
+                        },
+                        "comments": {
+                          "type": "boolean",
+                          "description": "Comments and @mentions (`…/{id}/comments`)."
+                        },
+                        "attachments": {
+                          "type": "boolean",
+                          "description": "Files on the records (`…/{id}/attachments`); what a file may be is `attachmentLimits`."
+                        },
+                        "revisions": {
+                          "type": "boolean",
+                          "description": "History, diff and restore (`…/{id}/revisions`)."
+                        },
+                        "pdf": {
+                          "type": "boolean",
+                          "description": "A PDF of a record (`…/{id}/pdf`). False when this deployment has no Gotenberg (the routes answer 503)."
+                        },
+                        "bulk": {
+                          "type": "boolean",
+                          "description": "Many records at once (`…/bulk`)."
+                        },
+                        "watch": {
+                          "type": "boolean",
+                          "description": "Watching a record (`…/{id}/watch`): its watchers are told of changes."
+                        },
+                        "search": {
+                          "type": "boolean",
+                          "description": "`q=` on the list, and the records in GET /v1/search."
+                        },
+                        "transfer": {
+                          "type": "boolean",
+                          "description": "Exports and imports (POST /v1/data/exports, /v1/data/imports)."
+                        },
+                        "custom": {
+                          "type": "boolean",
+                          "description": "Custom fields (GET /v1/custom-fields?subject=…): `custom.<key>` in the list."
+                        },
+                        "events": {
+                          "type": "boolean",
+                          "description": "Webhook events of its changes (`<item>.created`…). False with WEBHOOKS=off."
+                        },
+                        "numbered": {
+                          "type": "boolean",
+                          "description": "A human-readable number (`number`, `INV-2026-00042`)."
+                        },
+                        "approvals": {
+                          "type": "boolean",
+                          "description": "An action on the records may need approval (GET /v1/approvals)."
+                        }
+                      },
+                      "required": [
+                        "tags",
+                        "comments",
+                        "attachments",
+                        "revisions",
+                        "pdf",
+                        "bulk",
+                        "watch",
+                        "search",
+                        "transfer",
+                        "custom",
+                        "events",
+                        "numbered",
+                        "approvals"
+                      ],
+                      "additionalProperties": false,
+                      "description": "What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers."
+                    },
+                    "attachmentLimits": {
+                      "nullable": true,
+                      "description": "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
+                      "type": "object",
+                      "properties": {
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.",
+                          "example": 26214400
+                        },
+                        "maxMb": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "The same, in MB (ATTACHMENT_MAX_MB).",
+                          "example": 25
+                        },
+                        "types": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.",
+                          "example": [
+                            "image/png",
+                            "application/pdf",
+                            "text/plain"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "maxBytes",
+                        "maxMb",
+                        "types"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -8494,7 +8607,9 @@
                     "search",
                     "recycleBin",
                     "defaultSort",
-                    "limits"
+                    "limits",
+                    "capabilities",
+                    "attachmentLimits"
                   ],
                   "additionalProperties": false
                 }
@@ -8525,6 +8640,108 @@
         "summary": "A subject's list: its filters, operators, sorts and fields",
         "tags": [
           "lists"
+        ]
+      }
+    },
+    "/v1/people": {
+      "get": {
+        "description": "The active members of your tenant whose name contains `q`, by name: each one's key (`user:<id>`, what `@user:<id>` mentions) and name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).",
+        "operationId": "PeopleController_list_v1",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the name, any case (`%` and `_` are themselves). Absent: the first by name.",
+            "schema": {
+              "description": "Part of the name, any case (`%` and `_` are themselves). Absent: the first by name.",
+              "example": "maya",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "The principal key, `user:<id>`: mention them with `@user:<id>`; the key comments (`author`) and revisions (`changedBy`) hold.",
+                            "example": "user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Maya Patel"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`q` empty or longer than 100 characters, `limit` over 20."
+          },
+          "401": {
+            "description": "No valid session or user token."
+          },
+          "403": {
+            "description": "Your session acts in no tenant (tenant_required)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Your tenant's people, by name: for @mentions",
+        "tags": [
+          "people"
         ]
       }
     },
@@ -27287,7 +27504,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, body, mentions, editedAt, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt.",
             "schema": {
               "type": "string"
             }
@@ -27319,6 +27536,12 @@
                           "author": {
                             "type": "string",
                             "description": "Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted."
+                          },
+                          "authorName": {
+                            "nullable": true,
+                            "description": "The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.",
+                            "example": "Maya Patel",
+                            "type": "string"
                           },
                           "body": {
                             "type": "string"
@@ -27352,6 +27575,7 @@
                           "subject",
                           "recordId",
                           "author",
+                          "authorName",
                           "body",
                           "mentions",
                           "editedAt",
@@ -27484,6 +27708,12 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted."
                     },
+                    "authorName": {
+                      "nullable": true,
+                      "description": "The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.",
+                      "example": "Maya Patel",
+                      "type": "string"
+                    },
                     "body": {
                       "type": "string"
                     },
@@ -27516,6 +27746,7 @@
                     "subject",
                     "recordId",
                     "author",
+                    "authorName",
                     "body",
                     "mentions",
                     "editedAt",
@@ -27619,6 +27850,12 @@
                       "type": "string",
                       "description": "Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted."
                     },
+                    "authorName": {
+                      "nullable": true,
+                      "description": "The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.",
+                      "example": "Maya Patel",
+                      "type": "string"
+                    },
                     "body": {
                       "type": "string"
                     },
@@ -27651,6 +27888,7 @@
                     "subject",
                     "recordId",
                     "author",
+                    "authorName",
                     "body",
                     "mentions",
                     "editedAt",
@@ -28548,7 +28786,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedAt, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedByName, changedAt, createdAt, updatedAt.",
             "schema": {
               "type": "string"
             }
@@ -28622,6 +28860,12 @@
                             "type": "string",
                             "description": "Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept."
                           },
+                          "changedByName": {
+                            "nullable": true,
+                            "description": "The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.",
+                            "example": "Maya Patel",
+                            "type": "string"
+                          },
                           "changedAt": {
                             "type": "string",
                             "format": "date-time",
@@ -28647,6 +28891,7 @@
                           "changes",
                           "restoredFrom",
                           "changedBy",
+                          "changedByName",
                           "changedAt",
                           "createdAt",
                           "updatedAt"
@@ -28803,6 +29048,12 @@
                       "type": "string",
                       "description": "Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept."
                     },
+                    "changedByName": {
+                      "nullable": true,
+                      "description": "The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.",
+                      "example": "Maya Patel",
+                      "type": "string"
+                    },
                     "changedAt": {
                       "type": "string",
                       "format": "date-time",
@@ -28828,6 +29079,7 @@
                     "changes",
                     "restoredFrom",
                     "changedBy",
+                    "changedByName",
                     "changedAt",
                     "createdAt",
                     "updatedAt"

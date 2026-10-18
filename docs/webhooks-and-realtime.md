@@ -166,6 +166,26 @@ through the same connection.
 Every message is authenticated again, so a revoked session or key stops
 working mid-connection.
 
+### Record events
+
+A record page reloads a panel when it hears of a change on it, instead of
+polling (`RecordActivity`, `platform/realtime/record-activity.ts`):
+
+| Event | When | Data |
+| --- | --- | --- |
+| `record.commented` | a comment added, edited or removed | `{ subject, recordId, commentId, action }` (`added`, `edited`, `removed`) |
+| `record.attachments.changed` | an attachment uploaded, removed, or a PDF issued | `{ subject, recordId, attachmentId, action }` (`added`, `removed`) |
+
+- **To whom:** the record's watchers (`…/{id}/watch`, the creator and
+  commenters watch by default) and the one who made the change (their
+  other tabs), in their room of the record's tenant, and only those who
+  may read the record when it is sent (the feature's `canRead`, asked as
+  each of them): a watcher who lost access hears nothing.
+- **Ids only**, never the content: the page fetches the panel with its
+  own permissions.
+- After the commit, not awaited by the request; a failure is logged.
+  `REALTIME=off`: nothing is sent, and no check runs.
+
 Across instances, the Redis adapter fans events out. Long-polling needs one
 replica per client: Caddy's `lb_replica` cookie keeps it there
 (`caddy/Caddyfile`); `transports: ['websocket']` avoids polling altogether.

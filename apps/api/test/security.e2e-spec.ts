@@ -1,16 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { getDrizzleToken } from '@nestjs/drizzle';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { AccountService } from '../src/iam/account/account.service.js';
 import { PasskeysService } from '../src/iam/account/passkeys.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
+import { AccessService } from '../src/iam/access/access.service.js';
 import {
+  apiClientRoles,
   magicLinks,
   passkeys,
   sessions,
   userIdentities,
+  userRoles,
   users,
 } from '../src/iam/iam.tables.js';
 import { SoftwareAuthenticator } from './software-authenticator.js';
@@ -113,6 +116,184 @@ describe('security (e2e)', () => {
       .expect(200);
     const user = users.body.items.find((u: { id: string }) => u.id === id);
     expect(new Date(user.roles[0].expiresAt).toISOString()).toBe(end);
+  });
+
+  describe('an ended temporary grant is gone, never revived (#114)', () => {
+    const later = () => new Date(Date.now() + 3_600_000).toISOString();
+
+    const administratorRole = async () =>
+      (
+        (await node.admin().get('/v1/access/roles').expect(200)).body.items as {
+          id: string;
+          system: boolean;
+        }[]
+      ).find((candidate) => candidate.system)!.id;
+
+    /** Ends a grant now, as time would, and drops the cached abilities. */
+    async function endGrant(
+      kind: 'user' | 'client',
+      id: string,
+      roleId: string,
+    ) {
+      const past = new Date(Date.now() - 60_000);
+      if (kind === 'user') {
+        await node.db
+          .update(userRoles)
+          .set({ expiresAt: past })
+          .where(and(eq(userRoles.userId, id), eq(userRoles.roleId, roleId)));
+      } else {
+        await node.db
+          .update(apiClientRoles)
+          .set({ expiresAt: past })
+          .where(
+            and(
+              eq(apiClientRoles.clientId, id),
+              eq(apiClientRoles.roleId, roleId),
+            ),
+          );
+      }
+      node.app.get(AccessService).invalidate();
+    }
+
+    /** Every grant row of a user or client, ended ones included. */
+    const grantsOf = async (kind: 'user' | 'client', id: string) =>
+      (kind === 'user'
+        ? await node.db.select().from(userRoles).where(eq(userRoles.userId, id))
+        : await node.db
+            .select()
+            .from(apiClientRoles)
+            .where(eq(apiClientRoles.clientId, id))
+      ).map(({ roleId, expiresAt }) => ({ roleId, expiresAt }));
+
+    /** A member with Access.manageUsers whose temporary Administrator grant has ended. */
+    async function memberWithEndedAdmin() {
+      const manage = await role(['Access', 'manageUsers']);
+      const admin = await administratorRole();
+      const member = await node.user([manage]);
+      await node
+        .admin()
+        .patch(`/v1/access/users/${member.id}`)
+        .send({ roleIds: [manage, admin], roleExpiresAt: { [admin]: later() } })
+        .expect(204);
+      await endGrant('user', member.id, admin);
+      return { manage, admin, member };
+    }
+
+    it('refuses a member giving their own ended grant back, with or without an end', async () => {
+      const { manage, admin, member } = await memberWithEndedAdmin();
+      const before = await grantsOf('user', member.id);
+      // Without an end, it used to come back permanent.
+      await member.agent
+        .patch(`/v1/access/users/${member.id}`)
+        .send({ roleIds: [manage, admin] })
+        .expect(403);
+      // With one, it is a grant like any other: only an administrator gives it.
+      await member.agent
+        .patch(`/v1/access/users/${member.id}`)
+        .send({ roleIds: [manage, admin], roleExpiresAt: { [admin]: later() } })
+        .expect(403);
+      expect(await grantsOf('user', member.id)).toEqual(before);
+      const ended = before.find((grant) => grant.roleId === admin)!;
+      expect(ended.expiresAt!.getTime()).toBeLessThan(Date.now());
+    });
+
+    it('changes nothing when a member echoes the roles it read after a grant ended', async () => {
+      const { manage, member } = await memberWithEndedAdmin();
+      const list = await member.agent
+        .get('/v1/access/users?limit=100')
+        .expect(200);
+      const self = list.body.items.find(
+        (user: { id: string }) => user.id === member.id,
+      );
+      // The ended grant isn't reported…
+      expect(self.roleIds).toEqual([manage]);
+      expect(self.roles).toEqual([{ roleId: manage, expiresAt: null }]);
+      // …so sending back what was read restores nothing (and drops the ended row).
+      await member.agent
+        .patch(`/v1/access/users/${member.id}`)
+        .send({ roleIds: self.roleIds })
+        .expect(204);
+      expect(await grantsOf('user', member.id)).toEqual([
+        { roleId: manage, expiresAt: null },
+      ]);
+    });
+
+    it('lets an administrator give an ended grant again, with an end or for good', async () => {
+      const { manage, admin, member } = await memberWithEndedAdmin();
+      const end = later();
+      await node
+        .admin()
+        .patch(`/v1/access/users/${member.id}`)
+        .send({ roleIds: [manage, admin], roleExpiresAt: { [admin]: end } })
+        .expect(204);
+      expect(await grantsOf('user', member.id)).toContainEqual({
+        roleId: admin,
+        expiresAt: new Date(end),
+      });
+      await endGrant('user', member.id, admin);
+      await node
+        .admin()
+        .patch(`/v1/access/users/${member.id}`)
+        .send({ roleIds: [manage, admin] })
+        .expect(204);
+      expect(await grantsOf('user', member.id)).toContainEqual({
+        roleId: admin,
+        expiresAt: null,
+      });
+    });
+
+    it('never revives an API client’s ended grant from an echo; giving it again is a grant', async () => {
+      const [viewer] = await node.roleIds('viewer');
+      const client = await node.client();
+      await node
+        .admin()
+        .patch(`/v1/access/clients/${client.id}`)
+        .send({ roleIds: [viewer], roleExpiresAt: { [viewer]: later() } })
+        .expect(200);
+      await endGrant('client', client.id, viewer);
+      const list = await node.admin().get('/v1/access/clients').expect(200);
+      const view = list.body.items.find(
+        (item: { id: string }) => item.id === client.id,
+      );
+      expect(view.roles).toEqual([]);
+      // The roles it read, sent back: nothing restored, the ended row gone.
+      await node
+        .admin()
+        .patch(`/v1/access/clients/${client.id}`)
+        .send({
+          roleIds: view.roles.map((grant: { roleId: string }) => grant.roleId),
+        })
+        .expect(200);
+      expect(await grantsOf('client', client.id)).toEqual([]);
+      // Given again with an end: that end.
+      const end = later();
+      const changed = await node
+        .admin()
+        .patch(`/v1/access/clients/${client.id}`)
+        .send({ roleIds: [viewer], roleExpiresAt: { [viewer]: end } })
+        .expect(200);
+      expect(changed.body.roles).toEqual([{ roleId: viewer, expiresAt: end }]);
+    });
+
+    it('refuses giving an API client’s ended grant back without the right to grant it', async () => {
+      const [viewer] = await node.roleIds('viewer');
+      const manager = await node.user([
+        await role(['Access', 'manageClients']),
+      ]);
+      const client = await node.client();
+      await node
+        .admin()
+        .patch(`/v1/access/clients/${client.id}`)
+        .send({ roleIds: [viewer], roleExpiresAt: { [viewer]: later() } })
+        .expect(200);
+      await endGrant('client', client.id, viewer);
+      const before = await grantsOf('client', client.id);
+      await manager.agent
+        .patch(`/v1/access/clients/${client.id}`)
+        .send({ roleIds: [viewer] })
+        .expect(403);
+      expect(await grantsOf('client', client.id)).toEqual(before);
+    });
   });
 
   it('never lets impersonation reach more rights, nor manage access meanwhile', async () => {
