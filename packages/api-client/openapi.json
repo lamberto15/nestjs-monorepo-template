@@ -28156,7 +28156,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, createdAt, updatedAt.",
             "schema": {
               "type": "string"
             }
@@ -28205,6 +28205,17 @@
                             },
                             "description": "The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`."
                           },
+                          "mentionNames": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "description": "The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ \"user:<id>\": \"Maya Patel\" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.",
+                            "example": {
+                              "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                            }
+                          },
                           "editedAt": {
                             "nullable": true,
                             "type": "string",
@@ -28230,6 +28241,7 @@
                           "authorName",
                           "body",
                           "mentions",
+                          "mentionNames",
                           "editedAt",
                           "createdAt",
                           "updatedAt"
@@ -28376,6 +28388,17 @@
                       },
                       "description": "The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`."
                     },
+                    "mentionNames": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "description": "The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ \"user:<id>\": \"Maya Patel\" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.",
+                      "example": {
+                        "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                      }
+                    },
                     "editedAt": {
                       "nullable": true,
                       "type": "string",
@@ -28401,6 +28424,7 @@
                     "authorName",
                     "body",
                     "mentions",
+                    "mentionNames",
                     "editedAt",
                     "createdAt",
                     "updatedAt"
@@ -28518,6 +28542,17 @@
                       },
                       "description": "The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`."
                     },
+                    "mentionNames": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "description": "The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ \"user:<id>\": \"Maya Patel\" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.",
+                      "example": {
+                        "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                      }
+                    },
                     "editedAt": {
                       "nullable": true,
                       "type": "string",
@@ -28543,6 +28578,7 @@
                     "authorName",
                     "body",
                     "mentions",
+                    "mentionNames",
                     "editedAt",
                     "createdAt",
                     "updatedAt"

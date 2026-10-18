@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { OutboxRelay } from '@nestjs/outbox';
+import { eq } from 'drizzle-orm';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
+import { comments } from '../src/platform/comments/comments.tables.js';
 import { recordSubscriptions } from '../src/platform/subscriptions/subscriptions.tables.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
@@ -11,6 +13,7 @@ interface Comment {
   authorName: string | null;
   body: string;
   mentions: string[];
+  mentionNames: Record<string, string | null>;
   editedAt: string | null;
 }
 
@@ -73,6 +76,7 @@ describe('comments and mentions on test items (e2e)', () => {
       authorName: 'Owen',
       body: 'First!',
       mentions: [],
+      mentionNames: {},
       editedAt: null,
     });
     const second = await comment(viewer.agent, itemId, 'Second');
@@ -216,6 +220,7 @@ describe('comments and mentions on test items (e2e)', () => {
       `@${colleague.email.toUpperCase()}, @${outsider.email} and @nobody@example.com: please check.`,
     );
     expect(mentioning.mentions).toEqual([colleague.key]);
+    expect(mentioning.mentionNames).toEqual({ [colleague.key]: 'Cleo' });
     await deliver();
 
     const mentioned = await inbox(colleague.agent, 'comment.mentioned');
@@ -342,10 +347,86 @@ describe('comments and mentions on test items (e2e)', () => {
       author: owner.key,
       body: 'Asking @[deleted] and @[deleted].',
       mentions: [],
+      mentionNames: {},
     });
     expect(after.find((c) => c.id === aboutOtto.id)).toMatchObject({
       body: 'Ask @[deleted].',
     });
+  });
+
+  it("names the people a comment mentions, in one page's query: a member who left keeps their name, another tenant's people have none", async () => {
+    const owner = await person(['editor'], 'Owen');
+    const viewer = await person(['viewer'], 'Vera');
+    const colleague = await person(['viewer'], 'Cleo');
+    const itemId = await writeItem(owner.agent);
+    const other = await node.otherTenant();
+    const theirs = await other.user(['viewer']);
+    const theirKey = `user:${theirs.id}`;
+
+    const both = await comment(
+      owner.agent,
+      itemId,
+      `@user:${viewer.id} and @${colleague.email}, with @user:${theirs.id} and @${theirs.email}`,
+    );
+    // Another tenant's person is nobody here: not mentioned, not named.
+    expect(both.mentions).toEqual([viewer.key, colleague.key]);
+    expect(both.mentionNames).toEqual({
+      [viewer.key]: 'Vera',
+      [colleague.key]: 'Cleo',
+    });
+    const one = await comment(viewer.agent, itemId, `@user:${colleague.id}`);
+    expect(one.mentionNames).toEqual({ [colleague.key]: 'Cleo' });
+
+    // An edit answers with the names of what it now mentions.
+    const edited = await owner.agent
+      .patch(`/v1/test-items/${itemId}/comments/${both.id}`)
+      .send({ body: `Only @user:${viewer.id}` })
+      .expect(200);
+    expect(edited.body.mentionNames).toEqual({ [viewer.key]: 'Vera' });
+
+    // The list names them for every reader; `fields=` picks them.
+    const listed = await colleague.agent
+      .get(`/v1/test-items/${itemId}/comments`)
+      .expect(200);
+    expect((listed.body.items as Comment[]).map((c) => c.mentionNames)).toEqual(
+      [{ [viewer.key]: 'Vera' }, { [colleague.key]: 'Cleo' }],
+    );
+    const picked = await colleague.agent
+      .get(`/v1/test-items/${itemId}/comments?fields=mentions,mentionNames`)
+      .expect(200);
+    expect(picked.body.items[0]).toEqual({
+      id: both.id,
+      mentions: [viewer.key],
+      mentionNames: { [viewer.key]: 'Vera' },
+    });
+
+    // A member who left the tenant keeps their name on what mentions them, as an author does.
+    await node
+      .admin()
+      .patch(`/v1/access/users/${viewer.id}`)
+      .send({ active: false })
+      .expect(204);
+    // A key of another tenant's person (stored before they were a member
+    // elsewhere, say) never shows their name here.
+    await node.db
+      .update(comments)
+      .set({ mentions: [colleague.key, theirKey] })
+      .where(eq(comments.id, one.id));
+    const later = (
+      await owner.agent.get(`/v1/test-items/${itemId}/comments`).expect(200)
+    ).body.items as Comment[];
+    expect(later.map((c) => c.mentionNames)).toEqual([
+      { [viewer.key]: 'Vera' },
+      { [colleague.key]: 'Cleo', [theirKey]: null },
+    ]);
+    // Their tenant's comments name its own people, never ours.
+    const theirItem = await writeItem(other.admin);
+    const theirs1 = await comment(
+      other.admin,
+      theirItem,
+      `@user:${theirs.id} and @user:${colleague.id}`,
+    );
+    expect(theirs1.mentionNames).toEqual({ [theirKey]: theirs.email });
   });
 
   it('mentions an address with dots in its local part (`@first.last@sub.example.com`)', async () => {

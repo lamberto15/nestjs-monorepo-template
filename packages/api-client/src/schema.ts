@@ -15862,7 +15862,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, mentionNames, editedAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -15894,6 +15894,15 @@ export interface operations {
                             body: string;
                             /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                             mentions: string[];
+                            /**
+                             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+                             * @example {
+                             *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                             *     }
+                             */
+                            mentionNames: {
+                                [key: string]: string | null;
+                            };
                             /** Format: date-time */
                             editedAt: string | null;
                             /** Format: date-time */
@@ -15977,6 +15986,15 @@ export interface operations {
                         body: string;
                         /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                         mentions: string[];
+                        /**
+                         * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+                         * @example {
+                         *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                         *     }
+                         */
+                        mentionNames: {
+                            [key: string]: string | null;
+                        };
                         /** Format: date-time */
                         editedAt: string | null;
                         /** Format: date-time */
@@ -16096,6 +16114,15 @@ export interface operations {
                         body: string;
                         /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                         mentions: string[];
+                        /**
+                         * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+                         * @example {
+                         *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+                         *     }
+                         */
+                        mentionNames: {
+                            [key: string]: string | null;
+                        };
                         /** Format: date-time */
                         editedAt: string | null;
                         /** Format: date-time */

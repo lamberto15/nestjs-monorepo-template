@@ -89,7 +89,8 @@ const MENTION =
  * `<subject>.commented`. The author watches the record from their first
  * comment on it. After the commit, the record's open pages hear of it
  * (`record.commented`, RecordActivity). Each comment carries its author's
- * name (PeopleService), as every member sees it.
+ * name and those of the people it mentions (PeopleService), as every
+ * member sees them.
  */
 @Injectable()
 export class CommentsService implements PersonalDataSource {
@@ -135,11 +136,15 @@ export class CommentsService implements PersonalDataSource {
       countPage(this.db, comments, where, query),
     ]);
     const page = toPage(rows, query, total);
-    // The authors' names in one query, whatever the page's size.
-    const names = await this.people.names(page.items.map((row) => row.author));
+    // The authors' and the mentioned people's names in one query, whatever the page's size.
+    const names = await this.people.names(
+      page.items.flatMap((row) => [row.author, ...row.mentions]),
+    );
     return {
       ...page,
-      items: page.items.map((row) => view(row, names.get(row.author) ?? null)),
+      items: page.items.map((row) =>
+        view(row, names.get(row.author) ?? null, names),
+      ),
     };
   }
 
@@ -183,7 +188,7 @@ export class CommentsService implements PersonalDataSource {
     });
     this.notifications.deliverNow();
     this.pushed(target, principal, row, 'added');
-    return view(row, principal.name);
+    return view(row, principal.name, await this.people.names(row.mentions));
   }
 
   /** Changes the text of the principal's own comment; the people newly mentioned are told. */
@@ -200,7 +205,11 @@ export class CommentsService implements PersonalDataSource {
       throw new ForbiddenException('Only its author may change a comment.');
     }
     if (comment.body === body) {
-      return view(comment, principal.name);
+      return view(
+        comment,
+        principal.name,
+        await this.people.names(comment.mentions),
+      );
     }
     const mentions = await this.mentions(target, record, body, principal);
     const row = await inTransaction(this.txHost, async (tx) => {
@@ -227,7 +236,7 @@ export class CommentsService implements PersonalDataSource {
     });
     this.notifications.deliverNow();
     this.pushed(target, principal, row, 'edited');
-    return view(row, principal.name);
+    return view(row, principal.name, await this.people.names(row.mentions));
   }
 
   /** Removes a comment for good: its author, or a moderator of the record. */
@@ -281,7 +290,11 @@ export class CommentsService implements PersonalDataSource {
         .orderBy(desc(comments.id))
         .limit(1000);
       if (rows.length === 0) return;
-      yield rows.map((row) => view(row, user.name));
+      // Not the names of those they mentioned: other people's data (their keys stay).
+      yield rows.map((row) => {
+        const { mentionNames: _, ...own } = view(row, user.name, new Map());
+        return own;
+      });
       cursor = rows[rows.length - 1]!.id;
     }
   }
@@ -477,7 +490,12 @@ export class CommentsService implements PersonalDataSource {
   }
 }
 
-const view = (row: Comment, authorName: string | null): CommentView => ({
+/** A comment as the API shows it; `names` holds at least its mentions' (PeopleService.names). */
+const view = (
+  row: Comment,
+  authorName: string | null,
+  names: ReadonlyMap<string, string | null>,
+): CommentView => ({
   id: row.id,
   subject: row.subject,
   recordId: row.recordId,
@@ -485,6 +503,9 @@ const view = (row: Comment, authorName: string | null): CommentView => ({
   authorName,
   body: row.body,
   mentions: row.mentions,
+  mentionNames: Object.fromEntries(
+    row.mentions.map((key) => [key, names.get(key) ?? null]),
+  ),
   editedAt: row.editedAt?.toISOString() ?? null,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
