@@ -253,7 +253,10 @@ repeating the declaration:
   "recycleBin": false,
   "defaultSort": "-createdAt",
   "limits": { "defaultLimit": 50, "maxLimit": 100, "maxOffset": 10000, "countCap": 10000,
-              "maxSort": 3, "maxConditions": 30, "maxDepth": 3, "maxValues": 50 }
+              "maxSort": 3, "maxConditions": 30, "maxDepth": 3, "maxValues": 50 },
+  "capabilities": { "tags": true, "comments": true, "attachments": true, "revisions": true,
+                    "pdf": false, "bulk": true, "watch": true, "search": true, "transfer": true,
+                    "custom": true, "events": true, "numbered": true, "approvals": true }
 }
 ```
 
@@ -289,8 +292,19 @@ repeating the declaration:
   false when `q` reads one. The list route refuses the same (403
   `field_forbidden`).
 - Every feature has it: a generated record registers its list through
-  `recordParts()`; a hand-written list adds `listSource('<Subject>', LIST)`
-  to its module's providers (notes does; `platform/lists`).
+  `recordParts()`; a hand-written list adds
+  `listSource('<Subject>', LIST, CAPABILITIES)` to its module's providers
+  (notes does, `NOTE_CAPABILITIES`; `platform/lists`).
+- **Capabilities:** `capabilities` says which record panels and routes
+  the subject has in this deployment, one boolean each: every capability
+  of `record.ts` (`tags`, `comments`, `attachments`, `revisions`, `pdf`,
+  `bulk`, `watch`, `search`, `transfer`, `custom`, `events`, `numbered`),
+  from the declaration (`<item>.record.ts`), and `approvals` (an action of
+  the subject is declared approvable). `pdf` is false without Gotenberg
+  (`GET /v1/features` `documents`), `events` with `WEBHOOKS=off`. Whether
+  the caller may use one on a record is the record's `can` and the
+  routes' answers. The attachment limits are in `GET /v1/features`
+  (`attachments`).
 
 ## Using it from a data table
 

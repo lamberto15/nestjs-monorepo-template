@@ -317,7 +317,9 @@ the controller (`notes.*`); singular for what describes one record
    - Described to clients at `GET /v1/lists/<Subject>` (filters, operators,
      sorts, custom fields: [api-conventions.md](api-conventions.md), "List
      metadata"): a generated record's comes with `recordParts()`; by hand,
-     `listSource('<Subject>', LIST)` among the module's providers.
+     `listSource('<Subject>', LIST, CAPABILITIES)` among the module's
+     providers (the capabilities its records take, for
+     `GET /v1/lists/{subject}`).
    - With custom fields: `@Query() raw` + `@ApiListQuery(LIST, …)`, then
      `customFields.extendList(LIST, subject)`, `list.parse(raw)`, and
      `select({ ...getTableColumns(t), ...list.sortSelect(query) })`

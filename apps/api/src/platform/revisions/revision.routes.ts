@@ -23,7 +23,7 @@ import {
 } from '@nestjs/swagger';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { assertUnchanged, Etag, ifMatchHeader } from '../../core/http/etag.js';
-import { ApiListQuery } from '../../core/http/list-docs.js';
+import type { ListQuery } from '../../core/http/list-query.js';
 import { pageSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
@@ -78,13 +78,12 @@ export function revisionRoutes(
         `Revision 1 is the ${noun} as written; each change adds one, with what changed (\`changes\`, from → to). Cursor pages; \`?changedBy=user:<id>\`, \`?number.gte=\`.`,
     })
     @ApiOkResponse({ standardSchema: pageSchema(revisionSchema) })
-    @ApiListQuery(REVISION_LIST)
     async list(
       @CurrentUser() user: Principal,
       @Param('id', ParseUUIDPipe) id: string,
-      @Query() raw: Record<string, unknown>,
+      // Validated and documented by the list's schema, as attachments' (its types: `limit` a number).
+      @Query({ schema: REVISION_LIST.schema }) query: ListQuery,
     ) {
-      const query = REVISION_LIST.parse(raw);
       return REVISION_LIST.pick(
         await this.revisions.list(user, record(id), query),
         query,

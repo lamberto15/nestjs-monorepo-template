@@ -35,6 +35,13 @@ export const revisionSchema = z.object({
     .describe(
       'Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept.',
     ),
+  changedByName: z
+    .string()
+    .nullable()
+    .describe(
+      'The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.',
+    )
+    .meta({ example: 'Maya Patel' }),
   changedAt: z.iso.datetime(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),

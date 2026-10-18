@@ -29,6 +29,11 @@ describe('WEBHOOKS=off (e2e)', () => {
     await node.admin().get('/v1/notifications').expect(200);
   });
 
+  it("says so in a list's capabilities: no `events` for TestItem, its other capabilities on", async () => {
+    const { body } = await node.admin().get('/v1/lists/TestItem').expect(200);
+    expect(body.capabilities).toMatchObject({ events: false, comments: true });
+  });
+
   it('does not run the delivery worker, whatever WEBHOOKS_WORKER says', () => {
     expect(webhooksOptions({ eventTypes: [] }, {}).worker?.enabled).toBe(false);
   });

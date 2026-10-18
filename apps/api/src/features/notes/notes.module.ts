@@ -17,6 +17,7 @@ import { commentRoutes } from '../../platform/comments/comment.routes.js';
 import { NoteTags } from './note-tags.js';
 import {
   NOTE_BULK_DOCS,
+  NOTE_CAPABILITIES,
   NOTE_DOCUMENT_DOCS,
   NOTE_REVISION_DOCS,
   NOTE_ROUTES,
@@ -81,8 +82,8 @@ import { NOTE_LIST } from './note.list.js';
     NoteRevisions,
     NotePublishApproval,
     NoteDocuments,
-    // GET /v1/lists/Note: the list described (a generated record's comes from recordParts).
-    listSource('Note', NOTE_LIST),
+    // GET /v1/lists/Note: the list described, and what notes take (a generated record's comes from recordParts).
+    listSource('Note', NOTE_LIST, NOTE_CAPABILITIES),
   ],
   // The demo seed (src/demo) writes notes through it.
   exports: [NotesService, NotesDemo],

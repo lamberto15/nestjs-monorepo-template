@@ -21,6 +21,13 @@ export const commentSchema = z.object({
     .describe(
       'Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted.',
     ),
+  authorName: z
+    .string()
+    .nullable()
+    .describe(
+      "The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.",
+    )
+    .meta({ example: 'Maya Patel' }),
   body: z.string(),
   mentions: z
     .array(z.string())

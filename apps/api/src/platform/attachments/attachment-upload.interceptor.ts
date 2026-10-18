@@ -19,6 +19,7 @@ import {
   ATTACHMENT_SAMPLE_BYTES,
   detectAttachmentType,
 } from './attachment-types.js';
+import { attachmentLimits } from './attachment-limits.js';
 import { AttachmentsService, attachmentKey } from './attachments.service.js';
 
 /**
@@ -50,6 +51,7 @@ export function AttachmentUpload(
       config: ConfigService<PlatformEnv, true>,
       private readonly attachments: AttachmentsService,
     ) {
+      const limits = attachmentLimits(config);
       const Upload = FileInterceptor('file');
       this.multer = new Upload({
         storage: uploadToDisk({
@@ -62,15 +64,12 @@ export function AttachmentUpload(
               file.extension,
             );
           },
-          contentTypes: config.get('ATTACHMENT_ALLOWED_TYPES', {
-            infer: true,
-          }),
+          contentTypes: limits.types,
           detectContentType: detectAttachmentType,
           contentTypeSampleBytes: ATTACHMENT_SAMPLE_BYTES,
         }),
         limits: {
-          fileSize:
-            config.get('ATTACHMENT_MAX_MB', { infer: true }) * 1024 * 1024,
+          fileSize: limits.maxBytes,
           files: 1,
         },
         // Browsers send file names in UTF-8; busboy would read them as latin1.

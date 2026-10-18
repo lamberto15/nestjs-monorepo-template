@@ -200,6 +200,31 @@ GET /v1/access/principals?q=ada&kind=user&limit=20
   ([api-conventions.md](api-conventions.md)).
 - Rate-limited as every route (600 a minute per IP).
 
+## The people directory
+
+`GET /v1/people?q=` is the light lookup **any member** may read (a user
+without a role too), for @mention autocomplete and the like
+(`platform/people`):
+
+```
+GET /v1/people?q=may&limit=10
+{ "items": [{ "key": "user:…", "name": "Maya Patel" }] }
+```
+
+- **What:** a key (`user:<id>`, what `@user:<id>` mentions and what
+  `author`, `changedBy`, `ownerId` hold) and a name, nothing else: no
+  address, no role, no status. Managing people stays on the access API.
+- **Whose:** the current tenant's active members (an active account and an
+  active membership in it), by name; never another tenant's, never an API
+  client. `q` is a part of the name, whatever the case (1 to 100
+  characters; `%` and `_` are the characters), `limit` 1 to 20 (default
+  10). Users only: an API key is no credential here (401).
+- **Names on records:** comments carry `authorName` and revisions
+  `changedByName` (`PeopleService.names()`, one query a page): the name of
+  a user who is or was a member of the tenant, or of the tenant's API
+  client; null for `anonymous`, `anonymized`, `unknown`, or anyone the
+  tenant never had.
+
 ## Organization hierarchy
 
 Teams form a tree (`/v1/access/teams`; a closure table, so "under X"

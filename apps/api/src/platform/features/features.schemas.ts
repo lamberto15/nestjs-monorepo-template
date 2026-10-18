@@ -40,5 +40,29 @@ export const featuresSchema = z.object({
   locales: z
     .array(z.string())
     .describe('The languages the API answers in; the first is the default.'),
+  attachments: z
+    .object({
+      maxBytes: z
+        .number()
+        .int()
+        .describe(
+          'The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.',
+        )
+        .meta({ example: 26_214_400 }),
+      maxMb: z
+        .number()
+        .int()
+        .describe('The same, in MB (ATTACHMENT_MAX_MB).')
+        .meta({ example: 25 }),
+      types: z
+        .array(z.string())
+        .describe(
+          'The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.',
+        )
+        .meta({ example: ['image/png', 'application/pdf', 'text/plain'] }),
+    })
+    .describe(
+      "What a record's attachment may be, as the upload route enforces it.",
+    ),
 });
 export type Features = z.infer<typeof featuresSchema>;

@@ -29,6 +29,7 @@ import {
   PersonalDataRegistry,
   type PersonalDataSource,
 } from '../account/personal-data.registry.js';
+import { PeopleService } from '../people/people.service.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
 import { REVISION_LIST } from './revision.list.js';
 import type { RevisionView } from './revision.schemas.js';
@@ -68,6 +69,7 @@ export class RevisionsService implements PersonalDataSource {
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly registry: RevisionsRegistry,
+    private readonly people: PeopleService,
     personalData: PersonalDataRegistry,
     purges: RecordPurgeRegistry,
   ) {
@@ -296,7 +298,7 @@ export class RevisionsService implements PersonalDataSource {
       : items;
   }
 
-  /** Revisions as the API shows them: hidden fields left out of the snapshot and the changes. */
+  /** Revisions as the API shows them: hidden fields left out of the snapshot and the changes, with who changed them by name. */
   private async views(
     principal: Principal,
     target: RevisionTarget,
@@ -309,6 +311,8 @@ export class RevisionsService implements PersonalDataSource {
       record,
       rows.map((row) => ({ snapshot: row.snapshot, changes: row.changes })),
     );
+    // Their names in one query, whatever the page's size.
+    const names = await this.people.names(rows.map((row) => row.changedBy));
     return rows.map((row, index) => {
       const { snapshot, changes } = shown[index]!;
       return {
@@ -320,6 +324,7 @@ export class RevisionsService implements PersonalDataSource {
         changes,
         restoredFrom: row.restoredFrom,
         changedBy: row.changedBy,
+        changedByName: names.get(row.changedBy) ?? null,
         changedAt: row.changedAt.toISOString(),
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),

@@ -66,6 +66,23 @@ describe('list metadata (e2e)', () => {
         maxDepth: 3,
         maxValues: 50,
       },
+      // From its declaration (test-item.record.ts): pdf off without
+      // Gotenberg, events on with WEBHOOKS, approvals from its declared action.
+      capabilities: {
+        tags: true,
+        comments: true,
+        attachments: true,
+        revisions: true,
+        pdf: false,
+        bulk: true,
+        watch: true,
+        search: true,
+        transfer: true,
+        custom: true,
+        events: true,
+        numbered: true,
+        approvals: true,
+      },
     });
     const fields = body.fields as Field[];
     expect(fields.find((field) => field.name === 'title')).toEqual({

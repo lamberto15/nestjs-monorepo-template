@@ -38,6 +38,7 @@ import {
   PersonalDataRegistry,
   type PersonalDataSource,
 } from '../account/personal-data.registry.js';
+import { RECORD_EVENTS, RecordActivity } from '../realtime/record-activity.js';
 import { isTenantFileKey, tenantFileKey } from '../storage/storage.config.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
 import { ATTACHMENT_LIST } from './attachment.list.js';
@@ -82,6 +83,11 @@ function assertOwnFile(key: string) {
  * record's attachments, and who may add them, is the feature's answer
  * (`canRead`, `canWrite`); an uploader may always remove their own.
  *
+ * After an upload or a removal commits, the record's open pages hear of
+ * it (`record.attachments.changed`, RecordActivity); a caller that
+ * attaches in its own transaction (`attachStored`) calls `changed()`
+ * after its commit.
+ *
  * Personal data: a user's uploads (the rows, not the files) are part of
  * their data export; when their account is deleted the rows stay, the
  * uploader becoming `anonymized`.
@@ -101,6 +107,7 @@ export class AttachmentsService implements PersonalDataSource {
     private readonly disk: StorageDisk,
     private readonly audit: AuditService,
     private readonly registry: AttachmentsRegistry,
+    private readonly activity: RecordActivity,
     personalData: PersonalDataRegistry,
   ) {
     personalData.register(this);
@@ -203,6 +210,7 @@ export class AttachmentsService implements PersonalDataSource {
         );
         return row!;
       });
+      this.changed(principal, row, row.id, 'added');
       return view(row);
     } catch (error) {
       await this.disk.delete(file.key).catch(() => undefined);
@@ -307,12 +315,36 @@ export class AttachmentsService implements PersonalDataSource {
         tx,
       );
     });
+    this.changed(principal, row, row.id, 'removed');
     // After the commit: a failed delete leaves a file nothing points at, never a row without its file.
     await this.disk.delete(row.key).catch((error: unknown) =>
       this.logger.warn('An attachment file was not deleted', {
         key: row.key,
         error: String(error),
       }),
+    );
+  }
+
+  /**
+   * After the commit of an attachment's change: `record.attachments.changed`
+   * to the record's watchers and `by`'s other tabs who may read it
+   * (RecordActivity). Not awaited: the answer doesn't wait for the
+   * permission checks, and a failure is logged.
+   */
+  changed(
+    by: Principal,
+    record: RecordRef,
+    attachmentId: string,
+    action: 'added' | 'removed',
+  ) {
+    const target = this.registry.get(record.subject);
+    if (!target) return;
+    const ref = { subject: record.subject, recordId: record.recordId };
+    void this.activity.push(
+      ref,
+      RECORD_EVENTS.attachmentsChanged,
+      { attachmentId, action },
+      { by, canRead: (principal) => target.canRead(principal, ref.recordId) },
     );
   }
 

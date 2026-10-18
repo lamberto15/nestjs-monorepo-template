@@ -167,6 +167,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/ops/outbox',
         '/v1/ops/queues',
         '/v1/ops/queues/{name}/retry-failed',
+        '/v1/people',
         '/v1/reports',
         '/v1/reports/{id}',
         '/v1/reports/{id}/run',

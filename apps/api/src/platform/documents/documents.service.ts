@@ -375,6 +375,13 @@ export class DocumentsService implements PersonalDataSource {
         return issued;
       });
       written = false; // issued: the file is the attachment's now
+      // The record's open pages: its attachments changed (an issued document is one).
+      this.attachments.changed(
+        principal,
+        { subject: row.subject, recordId: row.recordId },
+        issued.attachmentId!,
+        'added',
+      );
       // After the commit: a client never hears of a document that rolled back.
       this.realtime.toPrincipal(principal, 'document.ready', {
         id: issued.id,

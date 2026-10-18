@@ -33,12 +33,23 @@ this.comments.add(user, { subject: 'Note', recordId: id }, dto.body, ip);
 - **Mentions**: `@ada@example.com` or `@user:<id>` in the body. Active
   users who may read the record are stored in `mentions` and get
   `comment.mentioned` (email at once by default; not mandatory); anyone
-  else is dropped silently, so a mention never reveals who exists. An
-  edit tells only the people it newly mentions.
+  else is dropped silently, so a mention never reveals who exists (a
+  draft only its owner reads mentions nobody else). An address's local
+  part may hold dots (`@maya.patel@demo.example.com`). An edit tells only
+  the people it newly mentions. Autocomplete searches `GET /v1/people?q=`
+  ([permissions.md](permissions.md), "The people directory"), open to
+  every member, and inserts `@user:<id>`.
+- **Author's name**: each comment carries `authorName` beside `author`,
+  the name every member sees (null for `anonymous`).
 - **Watchers** (subscriptions) get the feature's `<subject>.commented`,
   collapsed per record, but the author and those mentioned. The author
   watches the record from their first comment on it (while an earlier
   comment of theirs remains, unwatching sticks).
+- **Realtime**: after each add, edit or removal, `record.commented`
+  (`{ subject, recordId, commentId, action }`) reaches the watchers and
+  the author's other tabs who may read the record
+  ([webhooks-and-realtime.md](webhooks-and-realtime.md), "Record events"),
+  so an open page reloads the panel instead of polling.
 - **Audit**: `comment.added`, `comment.edited`, `comment.removed`, the
   comment as target, `subject` and `recordId` in the details (never the
   text: the log outlives the author's account).

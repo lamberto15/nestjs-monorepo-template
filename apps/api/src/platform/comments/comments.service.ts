@@ -41,6 +41,8 @@ import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import type { NotificationType } from '../notifications/notification.types.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { PeopleService } from '../people/people.service.js';
+import { RECORD_EVENTS, RecordActivity } from '../realtime/record-activity.js';
 import type { RecordRef } from '../subscriptions/subscriptions.service.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import {
@@ -85,7 +87,9 @@ const MENTION =
  * record get `comment.mentioned`; the record's watchers (subscriptions),
  * but the author and those mentioned, get the feature's
  * `<subject>.commented`. The author watches the record from their first
- * comment on it.
+ * comment on it. After the commit, the record's open pages hear of it
+ * (`record.commented`, RecordActivity). Each comment carries its author's
+ * name (PeopleService), as every member sees it.
  */
 @Injectable()
 export class CommentsService implements PersonalDataSource {
@@ -103,6 +107,8 @@ export class CommentsService implements PersonalDataSource {
     private readonly users: UsersRepository,
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly people: PeopleService,
+    private readonly activity: RecordActivity,
     personalData: PersonalDataRegistry,
     purges: RecordPurgeRegistry,
   ) {
@@ -129,7 +135,12 @@ export class CommentsService implements PersonalDataSource {
       countPage(this.db, comments, where, query),
     ]);
     const page = toPage(rows, query, total);
-    return { ...page, items: page.items.map(view) };
+    // The authors' names in one query, whatever the page's size.
+    const names = await this.people.names(page.items.map((row) => row.author));
+    return {
+      ...page,
+      items: page.items.map((row) => view(row, names.get(row.author) ?? null)),
+    };
   }
 
   /** Adds a comment; notifies those mentioned and the record's watchers. */
@@ -171,7 +182,8 @@ export class CommentsService implements PersonalDataSource {
       return created!;
     });
     this.notifications.deliverNow();
-    return view(row);
+    this.pushed(target, principal, row, 'added');
+    return view(row, principal.name);
   }
 
   /** Changes the text of the principal's own comment; the people newly mentioned are told. */
@@ -188,7 +200,7 @@ export class CommentsService implements PersonalDataSource {
       throw new ForbiddenException('Only its author may change a comment.');
     }
     if (comment.body === body) {
-      return view(comment);
+      return view(comment, principal.name);
     }
     const mentions = await this.mentions(target, record, body, principal);
     const row = await inTransaction(this.txHost, async (tx) => {
@@ -214,7 +226,8 @@ export class CommentsService implements PersonalDataSource {
       return updated!;
     });
     this.notifications.deliverNow();
-    return view(row);
+    this.pushed(target, principal, row, 'edited');
+    return view(row, principal.name);
   }
 
   /** Removes a comment for good: its author, or a moderator of the record. */
@@ -248,6 +261,7 @@ export class CommentsService implements PersonalDataSource {
         tx,
       );
     });
+    this.pushed(target, principal, comment, 'removed');
   }
 
   /** A user's own comments, newest first, in batches (their data export: `POST /account/export`). */
@@ -267,7 +281,7 @@ export class CommentsService implements PersonalDataSource {
         .orderBy(desc(comments.id))
         .limit(1000);
       if (rows.length === 0) return;
-      yield rows.map(view);
+      yield rows.map((row) => view(row, user.name));
       cursor = rows[rows.length - 1]!.id;
     }
   }
@@ -418,6 +432,29 @@ export class CommentsService implements PersonalDataSource {
     });
   }
 
+  /**
+   * After the commit: `record.commented` to the record's watchers and the
+   * author's other tabs who may read it (RecordActivity). Not awaited: the
+   * answer doesn't wait for the permission checks, and a failure is logged.
+   */
+  private pushed(
+    target: CommentTarget,
+    by: Principal,
+    comment: Comment,
+    action: 'added' | 'edited' | 'removed',
+  ) {
+    const record = { subject: comment.subject, recordId: comment.recordId };
+    void this.activity.push(
+      record,
+      RECORD_EVENTS.commented,
+      { commentId: comment.id, action },
+      {
+        by,
+        canRead: (principal) => target.canRead(principal, record.recordId),
+      },
+    );
+  }
+
   private of(record: RecordRef) {
     return and(
       eq(comments.subject, record.subject),
@@ -440,11 +477,12 @@ export class CommentsService implements PersonalDataSource {
   }
 }
 
-const view = (row: Comment): CommentView => ({
+const view = (row: Comment, authorName: string | null): CommentView => ({
   id: row.id,
   subject: row.subject,
   recordId: row.recordId,
   author: row.author,
+  authorName,
   body: row.body,
   mentions: row.mentions,
   editedAt: row.editedAt?.toISOString() ?? null,

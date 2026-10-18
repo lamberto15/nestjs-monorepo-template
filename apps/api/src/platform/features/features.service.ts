@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { IamEnv } from '../../iam/iam.env.js';
+import { attachmentLimits } from '../attachments/attachment-limits.js';
 import { PdfRenderer } from '../documents/pdf-renderer.js';
+import type { PlatformEnv } from '../platform.env.js';
 import { switchedOn } from '../switches.js';
 import type { Features } from './features.schemas.js';
 
@@ -10,14 +12,18 @@ import type { Features } from './features.schemas.js';
  * Which switches this deployment has on, for a frontend that hides what is
  * off. Every value is read the way the module it names reads it (the
  * platform switches through `switchedOn()`, the IAM ones through
- * ConfigService, documents through `PdfRenderer.enabled`), so this can't
+ * ConfigService, documents through `PdfRenderer.enabled`, the attachment
+ * limits through `attachmentLimits()` as the upload does), so this can't
  * disagree with the routes. Custom code: no @nestjs package reports an
  * app's own switches.
  */
 @Injectable()
 export class FeaturesService {
   constructor(
-    private readonly config: ConfigService<CoreEnv & IamEnv, true>,
+    private readonly config: ConfigService<
+      CoreEnv & IamEnv & PlatformEnv,
+      true
+    >,
     private readonly pdf: PdfRenderer,
   ) {}
 
@@ -38,6 +44,8 @@ export class FeaturesService {
       documents: this.pdf.enabled,
       tenancy: get('TENANCY'),
       locales: get('LOCALES'),
+      // What the upload route enforces (AttachmentUpload reads the same).
+      attachments: attachmentLimits(this.config),
     };
   }
 }

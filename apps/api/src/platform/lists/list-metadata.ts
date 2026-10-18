@@ -32,7 +32,8 @@ export const LIST_LIMITS: ListMetadata['limits'] = {
  * A list declaration (`listQuery()`, extended with the custom fields when
  * the subject takes them) as a client builds its filter menus, sort and
  * column pickers from it: read from the declaration itself, so it can't
- * drift from what the list route accepts.
+ * drift from what the list route accepts. The subject's capabilities come
+ * from its registration (ListsService).
  *
  * - `hidden(name)`: a field the caller may not read; it is left out of
  *   `fields` and `select`.
@@ -58,7 +59,7 @@ export function listMetadata(
     /** Whether the caller may list the recycle bin (with `softDelete`). */
     recycleBin?: boolean;
   } = {},
-): ListMetadata {
+): Omit<ListMetadata, 'capabilities'> {
   // `q` reads the search document's fields: off with any of them hidden, or
   // shown on some records only.
   const searchable = 'q' in list.fields;

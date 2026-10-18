@@ -15,6 +15,8 @@ function service(env: Record<string, unknown> = {}, documents = false) {
     AUTH_MAGIC_LINK: true,
     TENANCY: 'multi',
     LOCALES: ['en', 'de'],
+    ATTACHMENT_MAX_MB: 25,
+    ATTACHMENT_ALLOWED_TYPES: ['image/png', 'application/pdf'],
     ...env,
   };
   const config = {
@@ -55,6 +57,11 @@ describe('FeaturesService', () => {
       documents: false,
       tenancy: 'multi',
       locales: ['en', 'de'],
+      attachments: {
+        maxBytes: 25 * 1024 * 1024,
+        maxMb: 25,
+        types: ['image/png', 'application/pdf'],
+      },
     });
   });
 
@@ -99,5 +106,14 @@ describe('FeaturesService', () => {
   it('says documents are on while the PDF renderer is (GOTENBERG_URL is set)', () => {
     expect(service({}, true).current().documents).toBe(true);
     expect(service({}, false).current().documents).toBe(false);
+  });
+
+  it('publishes the attachment limits the upload route enforces (ATTACHMENT_MAX_MB, ATTACHMENT_ALLOWED_TYPES)', () => {
+    expect(
+      service({
+        ATTACHMENT_MAX_MB: 3,
+        ATTACHMENT_ALLOWED_TYPES: ['text/csv'],
+      }).current().attachments,
+    ).toEqual({ maxBytes: 3_145_728, maxMb: 3, types: ['text/csv'] });
   });
 });
