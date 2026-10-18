@@ -426,7 +426,8 @@ pages and panels (#100, #112, #137); settings (#105, #135); access administratio
 (#125); exports, imports, reports and bulk work (#131). Open: webhooks (#89), PDF
 documents (#93), custom fields (#94), tenants for operators (#95), privacy (#96),
 Playwright with accessibility checks (#97), the panels on the API's capabilities
-(#141), the devcontainer (#147), removing the web's notes with the feature (#149).
+(#141), the devcontainer (#147). Done since: removing the web's notes with the
+feature (#149).
 
 - Decision 2 above sets the framework (Vite SPA recommended).
 - Decision 1 settles cookies. With the single-origin recommendation, the SPA is

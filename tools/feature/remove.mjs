@@ -6,13 +6,23 @@
 // (between `# feature:<name> begin` and `# feature:<name> end`). It refuses
 // while another feature imports from the folder (a `ref(...)` to its table).
 //
+// The web app's part goes with it, found by the paths docs/monorepo.md
+// ("Adding a page for a feature") gives every feature: apps/web/src/
+// features/<name>/ (its nav entry is the folder's nav.ts),
+// routes/_app/<name>/, locales/<lng>/<name>.json, and its texts in the
+// shared namespaces (WEB_TEXTS). It refuses while another web file imports
+// from features/<name>/. Either side may be gone already: a project that
+// removed the API's part before keeps the web's removable.
+//
 //   pnpm feature:remove notes
 //   pnpm feature:remove notes --dry-run          # the plan, nothing changed
 //   node --test tools/feature/remove.test.mjs    # its tests
 //
 // Then: pnpm db:generate (drops the table: on a live project that is an
 // expand/contract change, docs/development.md), pnpm client:generate, and
-// the check before every commit (CLAUDE.md).
+// the check before every commit (CLAUDE.md). `pnpm build` comes first: the
+// web's build regenerates its route tree (src/routeTree.gen.ts, the TanStack
+// Router plugin's) before it type-checks, and the tests import that tree.
 import {
   existsSync,
   readdirSync,
@@ -34,15 +44,64 @@ const REPO = path.resolve(
 /** The barrels a feature is listed in; they may import it. */
 const BARRELS = ['index.ts', 'tables.ts', 'env.ts'];
 
-/** All files under `dir` with the extension, as absolute paths. */
-function walk(dir, extension) {
+/**
+ * A feature's texts in the web's shared namespaces (locales/<lng>/<file>),
+ * as key paths: the search palette's group name, the settings page's group,
+ * its approval actions' names.
+ */
+const WEB_TEXTS = [
+  { file: 'search.json', key: ({ Subject }) => ['subjects', Subject] },
+  { file: 'settings.json', key: ({ plural }) => ['groups', plural] },
+  { file: 'approvals.json', key: ({ Subject }) => ['actions', Subject] },
+];
+
+/** All files under `dir` with one of the extensions, as absolute paths. */
+function walk(dir, ...extensions) {
   const found = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
-    if (entry.isDirectory()) found.push(...walk(file, extension));
-    else if (file.endsWith(extension)) found.push(file);
+    if (entry.isDirectory()) found.push(...walk(file, ...extensions));
+    else if (extensions.some((e) => file.endsWith(e))) found.push(file);
   }
   return found;
+}
+
+/** `invoice-line` → `InvoiceLine`: the permission subject. */
+const pascal = (kebab) =>
+  kebab
+    .split('-')
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join('');
+
+/** `json` without the key path; false when it had none. */
+function deleteKey(json, keys) {
+  const parent = keys
+    .slice(0, -1)
+    .reduce(
+      (node, key) => (node && typeof node === 'object' ? node[key] : undefined),
+      json,
+    );
+  const last = keys.at(-1);
+  if (!parent || typeof parent !== 'object' || !Object.hasOwn(parent, last)) {
+    return false;
+  }
+  delete parent[last];
+  return true;
+}
+
+/** The web app's files of the feature (relative to `web`), those that exist. */
+function webPaths(web, plural) {
+  const locales = path.join(web, 'locales');
+  return [
+    path.join(web, 'features', plural),
+    path.join(web, 'routes/_app', plural),
+    path.join(web, 'routes/_app', `${plural}.tsx`),
+    ...(existsSync(locales)
+      ? readdirSync(locales).map((lng) =>
+          path.join(locales, lng, `${plural}.json`),
+        )
+      : []),
+  ].filter((file) => existsSync(file));
 }
 
 /**
@@ -119,10 +178,14 @@ export async function removeFeature(root, options) {
   const api = path.join(root, 'apps/api');
   const features = path.join(api, 'src/features');
   const dir = path.join(features, plural);
-  if (!/^[a-z][a-z0-9-]*$/.test(plural) || !existsSync(dir)) {
+  const web = path.join(root, 'apps/web/src');
+  const valid = /^[a-z][a-z0-9-]*$/.test(plural);
+  const hasApi = valid && existsSync(dir);
+  const webFiles = valid && existsSync(web) ? webPaths(web, plural) : [];
+  if (!hasApi && webFiles.length === 0) {
     throw new Error(`There is no features/${plural}.`);
   }
-  const offenders = walk(features, '.ts')
+  const offenders = (hasApi ? walk(features, '.ts') : [])
     .filter((file) => !file.startsWith(dir + path.sep))
     .filter(
       (file) =>
@@ -141,12 +204,29 @@ export async function removeFeature(root, options) {
       `Other files import from features/${plural}; remove those uses first (a ref(${plural}) field, for one):\n${offenders.map((f) => `  ${f}`).join('\n')}`,
     );
   }
-  const item = itemKey(dir, plural);
+  // The web's: a page or a shared file built on the feature's queries.
+  const webOffenders = (webFiles.length ? walk(web, '.ts', '.tsx') : [])
+    .filter(
+      (file) =>
+        !webFiles.some((p) => file === p || file.startsWith(p + path.sep)),
+    )
+    .filter((file) =>
+      readFileSync(file, 'utf8').includes(`'@/features/${plural}/`),
+    )
+    .map((file) => path.relative(root, file));
+  if (webOffenders.length) {
+    throw new Error(
+      `Other web files import from features/${plural}; remove those uses first:\n${webOffenders.map((f) => `  ${f}`).join('\n')}`,
+    );
+  }
+  const item = hasApi
+    ? itemKey(dir, plural)
+    : (singularize(plural) ?? names(plural).singular);
 
   // Compute every edit first, so a failure leaves the tree as it was.
   const edits = []; // [file, new text]
   const removed = [];
-  for (const name of BARRELS) {
+  for (const name of hasApi ? BARRELS : []) {
     const file = path.join(features, name);
     if (!existsSync(file)) continue;
     const text = readFileSync(file, 'utf8');
@@ -183,11 +263,31 @@ export async function removeFeature(root, options) {
       removed.push(`"${item}" in ${path.relative(root, file)}`);
     }
   }
+  const locales = path.join(web, 'locales');
+  if (existsSync(locales)) {
+    const forms = { plural, Subject: pascal(item) };
+    for (const lng of readdirSync(locales)) {
+      for (const text of WEB_TEXTS) {
+        const file = path.join(locales, lng, text.file);
+        if (!existsSync(file)) continue;
+        const json = JSON.parse(readFileSync(file, 'utf8'));
+        const keys = text.key(forms);
+        if (!deleteKey(json, keys)) continue;
+        edits.push([file, `${JSON.stringify(json, null, 2)}\n`]);
+        removed.push(`"${keys.join('.')}" in ${path.relative(root, file)}`);
+      }
+    }
+  }
   const deletions = [
-    dir,
-    path.join(api, 'test', `${plural}.e2e-spec.ts`),
-    path.join(api, 'test/features', plural),
-    path.join(api, 'src/documents/templates', `${item}.html`),
+    ...(hasApi
+      ? [
+          dir,
+          path.join(api, 'test', `${plural}.e2e-spec.ts`),
+          path.join(api, 'test/features', plural),
+          path.join(api, 'src/documents/templates', `${item}.html`),
+        ]
+      : []),
+    ...webFiles,
   ].filter((file) => existsSync(file));
 
   if (!options.dryRun) {
@@ -231,7 +331,8 @@ async function main() {
 Next:
   pnpm db:generate        # drops the table; on a live project that is an expand/contract change (docs/development.md)
   pnpm client:generate    # the typed client
-  pnpm lint && pnpm build && pnpm test`);
+  pnpm build              # first: the web's build regenerates its route tree (src/routeTree.gen.ts)
+  pnpm lint && pnpm test`);
 }
 
 if (

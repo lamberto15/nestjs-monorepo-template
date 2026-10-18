@@ -275,10 +275,18 @@ rather than a component alone.
   signed in; a test overrides with `server.use(http.get(…))`. A request no
   handler answers fails the test (`onUnhandledFrame: 'error'`). Helpers:
   `signedInUser`, `allFeatures`, `allMethods`, `problem(status, code)`;
-  `useNotesApi()` (`test/notes-api.ts`, the notes routes in memory with ETags,
-  `can` and the recycle bin), `panelHandlers()` / `usePanelsApi()`
-  (`test/panels-api.ts`), `principalsHandler()` (`test/principals.ts`),
+  `useSignedIn(can)` (`test/signed-in.ts`: signed in with these permissions,
+  and what every page asks), `panelHandlers()` / `usePanelsApi()`
+  (`test/panels-api.ts`, on the test-only record `TEST_RECORD` unless given a
+  feature's), `principalsHandler()` (`test/principals.ts`),
   `createFakeRealtime()` (`test/fake-realtime.ts`: emit what the API would push).
+- **`renderComponent(ui, { can })`** (`src/test/render-component.tsx`): one
+  shared component with the app's providers and a router for its links, no
+  page around it. Shared code is tested this way on a test-only subject
+  (`TestItem`, `/v1/test-items`), as the API's tests are, so it needs no
+  feature; a feature's pages are tested in its own folder
+  (`features/notes/notes.test.tsx`, its helpers in `features/notes/test/`),
+  which `pnpm feature:remove` takes with it.
 - **`findToast(text)`** (`src/test/toast.ts`) waits until a sonner toast is
   visible: sonner mounts it hidden, so `findByText` alone may return it
   before `toBeVisible()` holds.
@@ -304,11 +312,17 @@ hand, after `pnpm client:generate` (the client then types the new routes):
    commit it.
 3. `locales/<lng>/<feature>.json` in every language, and the group name in
    `search.json` if it is searchable.
-4. A test with `renderApp()` and msw handlers for its routes.
+4. A test with `renderApp()` and msw handlers for its routes, in
+   `features/<feature>/` with its helpers (`features/<feature>/test/`).
+
+`pnpm feature:remove <plural>` takes these paths, by this convention, with
+the API's part (docs/adding-a-feature.md).
 
 ### Scripts and production
 
-- **Scripts:** `dev` (`vite`), `build` (`tsc -b && vite build`, to `dist/`),
+- **Scripts:** `dev` (`vite`), `build` (`vite build && tsc -b`, to `dist/`:
+  Vite first, as TanStack Router's examples do, since its plugin regenerates
+  `routeTree.gen.ts` that the type check reads),
   `preview`, `lint` (type-aware oxlint), `test` (`vitest run`). Turborepo
   builds the client first. `packages/ui` has `lint` and `typecheck`.
 - **Production:** `caddy/Dockerfile` builds the app into the Caddy image,

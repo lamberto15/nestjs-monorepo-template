@@ -219,7 +219,9 @@ async function wizard(values, io) {
     keys: templateKeys(templateText),
     existing,
     current: existing ?? tpl,
-    hasNotes: existsSync(path.join(root, 'apps/api/src/features/notes')),
+    hasNotes:
+      existsSync(path.join(root, 'apps/api/src/features/notes')) ||
+      existsSync(path.join(root, 'apps/web/src/features/notes')),
   };
 
   out(
@@ -329,7 +331,7 @@ async function wizard(values, io) {
     const code = (io.runRemove ?? runRemove)(root);
     if (code !== 0) return code;
     out(
-      '\nNext: pnpm db:generate (drops the notes tables), then pnpm client:generate.',
+      "\nNext: pnpm db:generate (drops the notes tables), pnpm client:generate, then pnpm build (it regenerates the web app's route tree).",
     );
   }
   out(

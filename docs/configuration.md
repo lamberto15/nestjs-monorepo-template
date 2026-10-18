@@ -104,8 +104,9 @@ template's text, keeping its comments, order and unknown keys).
 -hex 24`, keys `-base64 32`) and never printed: the first
   administrator's password is `ADMIN_PASSWORD` in the file it wrote.
 - **The example feature:** the last question removes `notes`
-  (`pnpm feature:remove notes`; default yes in production); then run `pnpm
-db:generate`.
+  (`pnpm feature:remove notes`, the API's and the web app's part; default
+  yes in production); then run `pnpm db:generate`, `pnpm client:generate`
+  and `pnpm build`.
 - **Re-running** reads the existing file for its defaults, keeps its secrets
   (`--rotate` makes new ones: keys are put in front of the old ones, so old
   data stays readable), shows the changes masked, asks before writing and
