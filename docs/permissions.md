@@ -245,8 +245,8 @@ GET /v1/people?q=may&limit=10
   client. `q` is a part of the name, whatever the case (1 to 100
   characters; `%` and `_` are the characters), `limit` 1 to 20 (default
   10). Users only: an API key is no credential here (401).
-- **Names on records:** comments carry `authorName` and revisions
-  `changedByName` (`PeopleService.names()`, one query a page): the name of
+- **Names on records:** comments carry `authorName` and `mentionNames`,
+  revisions `changedByName` (`PeopleService.names()`, one query a page): the name of
   a user who is or was a member of the tenant, or of the tenant's API
   client; null for `anonymous`, `anonymized`, `unknown`, or anyone the
   tenant never had.
