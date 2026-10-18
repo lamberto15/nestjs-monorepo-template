@@ -17,6 +17,7 @@ interface Revision {
   changes: Record<string, { from: unknown; to: unknown }> | null;
   restoredFrom: number | null;
   changedBy: string;
+  changedByName: string | null;
 }
 
 describe('record revisions of test items (e2e)', () => {
@@ -57,6 +58,8 @@ describe('record revisions of test items (e2e)', () => {
       changes: null,
       restoredFrom: null,
       changedBy: `user:${editor.id}`,
+      // Their name, as every member sees it (node.user() names them by address).
+      changedByName: editor.email,
     });
     expect(page.items[1]!.changes).toEqual({
       title: { from: 'Draft', to: 'Plan' },
@@ -244,6 +247,9 @@ describe('record revisions of test items (e2e)', () => {
     expect(
       (await revisions(node.admin(), id)).items.map((r) => r.changedBy),
     ).toEqual(['anonymized', 'anonymized']);
+    expect(
+      (await revisions(node.admin(), id)).items.map((r) => r.changedByName),
+    ).toEqual([null, null]);
   });
 
   it('restoring the current state writes nothing', async () => {
@@ -344,6 +350,7 @@ describe('record revisions of test items (e2e)', () => {
       snapshot: { title: 'Old', body: 'b' },
       changes: null,
       changedBy: 'unknown',
+      changedByName: null,
     });
     expect(page.items[0]).toMatchObject({
       changes: { title: { from: 'Old', to: 'New' } },

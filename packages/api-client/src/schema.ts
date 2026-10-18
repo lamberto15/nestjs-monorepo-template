@@ -844,6 +844,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your tenant's people, by name: for @mentions
+         * @description The active members of your tenant whose name contains `q`, by name: each one's key (`user:<id>`, what `@user:<id>` mentions) and name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
+         */
+        get: operations["PeopleController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/attachments/{id}/download": {
         parameters: {
             query?: never;
@@ -5869,6 +5889,57 @@ export interface operations {
                             /** @description Values of one `in` or `notIn`. */
                             maxValues: number;
                         };
+                        /** @description What the subject's records take, from their declaration (`<item>.record.ts`): a client shows a record's panels (comments, attachments, tags, revisions, PDF, approvals…) only where they are true. Whether the caller may use one on a record is the record's `can` (`?include=can`) and the routes' answers. */
+                        capabilities: {
+                            /** @description Tags on the records (`…/{id}/tags`) and the `tag` filter. */
+                            tags: boolean;
+                            /** @description Comments and @mentions (`…/{id}/comments`). */
+                            comments: boolean;
+                            /** @description Files on the records (`…/{id}/attachments`); what a file may be is `attachmentLimits`. */
+                            attachments: boolean;
+                            /** @description History, diff and restore (`…/{id}/revisions`). */
+                            revisions: boolean;
+                            /** @description A PDF of a record (`…/{id}/pdf`). False when this deployment has no Gotenberg (the routes answer 503). */
+                            pdf: boolean;
+                            /** @description Many records at once (`…/bulk`). */
+                            bulk: boolean;
+                            /** @description Watching a record (`…/{id}/watch`): its watchers are told of changes. */
+                            watch: boolean;
+                            /** @description `q=` on the list, and the records in GET /v1/search. */
+                            search: boolean;
+                            /** @description Exports and imports (POST /v1/data/exports, /v1/data/imports). */
+                            transfer: boolean;
+                            /** @description Custom fields (GET /v1/custom-fields?subject=…): `custom.<key>` in the list. */
+                            custom: boolean;
+                            /** @description Webhook events of its changes (`<item>.created`…). False with WEBHOOKS=off. */
+                            events: boolean;
+                            /** @description A human-readable number (`number`, `INV-2026-00042`). */
+                            numbered: boolean;
+                            /** @description An action on the records may need approval (GET /v1/approvals). */
+                            approvals: boolean;
+                        };
+                        /** @description What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments. */
+                        attachmentLimits: {
+                            /**
+                             * @description The largest file, in bytes (ATTACHMENT_MAX_MB × 1024²): larger is a 413 `payload_too_large`.
+                             * @example 26214400
+                             */
+                            maxBytes: number;
+                            /**
+                             * @description The same, in MB (ATTACHMENT_MAX_MB).
+                             * @example 25
+                             */
+                            maxMb: number;
+                            /**
+                             * @description The types a file may be (ATTACHMENT_ALLOWED_TYPES), recognized from its bytes: another is a 415 `unsupported_media_type`.
+                             * @example [
+                             *       "image/png",
+                             *       "application/pdf",
+                             *       "text/plain"
+                             *     ]
+                             */
+                            types: string[];
+                        } | null;
                     };
                 };
             };
@@ -5888,6 +5959,61 @@ export interface operations {
             };
             /** @description No list of that subject (not_found). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PeopleController_list_v1: {
+        parameters: {
+            query?: {
+                /** @description Part of the name, any case (`%` and `_` are themselves). Absent: the first by name. */
+                q?: string;
+                limit?: number;
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * @description The principal key, `user:<id>`: mention them with `@user:<id>`; the key comments (`author`) and revisions (`changedBy`) hold.
+                             * @example user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d
+                             */
+                            key: string;
+                            /** @example Maya Patel */
+                            name: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description `q` empty or longer than 100 characters, `limit` over 20. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14228,7 +14354,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, body, mentions, editedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, author, authorName, body, mentions, editedAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -14252,6 +14378,11 @@ export interface operations {
                             recordId: string;
                             /** @description Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted. */
                             author: string;
+                            /**
+                             * @description The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.
+                             * @example Maya Patel
+                             */
+                            authorName: string | null;
                             body: string;
                             /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                             mentions: string[];
@@ -14330,6 +14461,11 @@ export interface operations {
                         recordId: string;
                         /** @description Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted. */
                         author: string;
+                        /**
+                         * @description The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.
+                         * @example Maya Patel
+                         */
+                        authorName: string | null;
                         body: string;
                         /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                         mentions: string[];
@@ -14444,6 +14580,11 @@ export interface operations {
                         recordId: string;
                         /** @description Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted. */
                         author: string;
+                        /**
+                         * @description The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.
+                         * @example Maya Patel
+                         */
+                        authorName: string | null;
                         body: string;
                         /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
                         mentions: string[];
@@ -14794,7 +14935,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, number, snapshot, changes, restoredFrom, changedBy, changedByName, changedAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -14841,6 +14982,11 @@ export interface operations {
                             restoredFrom: number | null;
                             /** @description Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept. */
                             changedBy: string;
+                            /**
+                             * @description The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.
+                             * @example Maya Patel
+                             */
+                            changedByName: string | null;
                             /** Format: date-time */
                             changedAt: string;
                             /** Format: date-time */
@@ -14926,6 +15072,11 @@ export interface operations {
                         restoredFrom: number | null;
                         /** @description Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept. */
                         changedBy: string;
+                        /**
+                         * @description The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.
+                         * @example Maya Patel
+                         */
+                        changedByName: string | null;
                         /** Format: date-time */
                         changedAt: string;
                         /** Format: date-time */

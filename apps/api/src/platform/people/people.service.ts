@@ -1,0 +1,160 @@
+import { Injectable } from '@nestjs/common';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import { and, asc, eq, ilike, inArray } from 'drizzle-orm';
+import {
+  database,
+  type DrizzleTransactions,
+} from '../../core/database/transactions.js';
+import { escapeLike } from '../../core/http/list-query.js';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
+import { apiClients, memberships, users } from '../../iam/iam.tables.js';
+import type { Principal } from '../../iam/auth/principal.js';
+import { UsersRepository } from '../../iam/auth/users.repository.js';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** Who someone is, as any member of the tenant may see them: their key and name. */
+export interface Person {
+  /** `user:<id>`: what `@user:<id>` mentions, and what `author`, `changedBy`, `ownerId` hold. */
+  key: string;
+  name: string;
+}
+
+/**
+ * The people of the current tenant, as its members see each other: the
+ * names behind the principal keys records store (a comment's `author`, a
+ * revision's `changedBy`), and the directory @mention autocomplete
+ * searches (GET /v1/people). Only a key and a name, never an address or
+ * a role: the access API (`Access.manageUsers`) is where members are
+ * managed. Users are global (docs/tenancy.md): every query is held to
+ * the tenant's memberships, so a key of someone outside it has no name
+ * here. API clients are tenant rows behind row-level security.
+ * Custom code: no @nestjs package resolves the app's own principals.
+ */
+@Injectable()
+export class PeopleService {
+  /** The current transaction, or the database outside one (core/database/transactions.ts). */
+  private get db() {
+    return database(this.txHost);
+  }
+
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly users: UsersRepository,
+  ) {}
+
+  /**
+   * The names of these principal keys, in two queries whatever their
+   * number (a page's authors): a user who is or was a member of the
+   * tenant (their membership may be inactive since: the name stays on
+   * what they wrote), an API client of the tenant. Anything else (a
+   * deleted account's `anonymous`, `unknown`, another tenant's user, a
+   * removed client) is null.
+   */
+  async names(keys: Iterable<string>): Promise<Map<string, string | null>> {
+    const tenantId = requireTenantId('A name');
+    const all = [...new Set(keys)];
+    const ids = (kind: string) =>
+      all
+        .filter((key) => key.startsWith(`${kind}:`))
+        .map((key) => key.slice(kind.length + 1))
+        .filter((id) => UUID.test(id));
+    const userIds = ids('user');
+    const clientIds = ids('client');
+    const [people, clients] = await Promise.all([
+      userIds.length
+        ? this.db
+            .select({ id: users.id, name: users.name })
+            .from(users)
+            .innerJoin(
+              memberships,
+              and(
+                eq(memberships.userId, users.id),
+                eq(memberships.tenantId, tenantId),
+              ),
+            )
+            .where(inArray(users.id, userIds))
+        : [],
+      clientIds.length
+        ? this.db
+            .select({ id: apiClients.id, name: apiClients.name })
+            .from(apiClients)
+            .where(
+              and(
+                inArray(apiClients.id, clientIds),
+                eq(apiClients.tenantId, tenantId),
+              ),
+            )
+        : [],
+    ]);
+    const found = new Map<string, string>([
+      ...people.map((row) => [`user:${row.id}`, row.name] as const),
+      ...clients.map((row) => [`client:${row.id}`, row.name] as const),
+    ]);
+    return new Map(all.map((key) => [key, found.get(key) ?? null]));
+  }
+
+  /**
+   * The tenant's active members (an active account, an active membership
+   * in this tenant) whose name contains `q` (any case; `%` and `_` are
+   * themselves), by name: for @mention autocomplete. Without `q`, the
+   * first by name. API clients are not people here: a mention names a user.
+   */
+  async directory(q: string | undefined, limit: number): Promise<Person[]> {
+    const tenantId = requireTenantId('The directory');
+    const rows = await this.db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .innerJoin(
+        memberships,
+        and(
+          eq(memberships.userId, users.id),
+          eq(memberships.tenantId, tenantId),
+          eq(memberships.active, true),
+        ),
+      )
+      .where(
+        and(
+          eq(users.active, true),
+          q ? ilike(users.name, `%${escapeLike(q)}%`) : undefined,
+        ),
+      )
+      .orderBy(asc(users.name), asc(users.id))
+      .limit(limit);
+    return rows.map((row) => ({ key: `user:${row.id}`, name: row.name }));
+  }
+
+  /**
+   * The principal behind a key, as it is now in the current tenant: an
+   * active member, an active API client of the tenant; null for anyone
+   * else (deactivated, gone, another tenant's). What a push to someone
+   * checks their permissions with (a record's watchers: RecordActivity).
+   */
+  async principal(key: string): Promise<Principal | null> {
+    const tenantId = requireTenantId('A principal');
+    const [kind, id] = key.split(':') as [string, string | undefined];
+    if (!id || !UUID.test(id)) {
+      return null;
+    }
+    if (kind === 'user') {
+      const user = await this.users.inTenant(id, tenantId);
+      return user?.tenantId === tenantId ? user : null;
+    }
+    if (kind !== 'client') {
+      return null;
+    }
+    const [client] = await this.db
+      .select()
+      .from(apiClients)
+      .where(and(eq(apiClients.id, id), eq(apiClients.tenantId, tenantId)));
+    return client?.active
+      ? {
+          kind: 'client',
+          id: client.id,
+          name: client.name,
+          tenantId: client.tenantId,
+          dailyQuota: client.dailyQuota,
+        }
+      : null;
+  }
+}

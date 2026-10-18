@@ -6,7 +6,7 @@ import { auditLog } from '../src/iam/iam.tables.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { AttachmentSweepJob } from '../src/platform/attachments/attachment-sweep.job.js';
 import { attachments } from '../src/platform/attachments/attachments.tables.js';
-import { bootApp, type TestApp } from './support.js';
+import { bootApp, connect, type TestApp } from './support.js';
 
 // A small limit, so the test of it sends 1 MB, not 25 (read when AppModule loads).
 vi.hoisted(() => {
@@ -369,6 +369,53 @@ describe('attachments (e2e)', () => {
         .from(attachments)
         .where(eq(attachments.recordId, note.id)),
     ).toEqual([]);
+  });
+
+  it('publishes the limits it enforces in GET /v1/lists/{subject} (ATTACHMENT_MAX_MB=1 here)', async () => {
+    const { body } = await node.admin().get('/v1/lists/TestItem').expect(200);
+    expect(body.attachmentLimits).toEqual({
+      maxBytes: 1024 * 1024,
+      maxMb: 1,
+      types: expect.arrayContaining([
+        'image/png',
+        'application/pdf',
+        'text/plain',
+      ]),
+    });
+  });
+
+  it("tells the record's open pages when its attachments change (record.attachments.changed), ids only", async () => {
+    const { editor, note } = await noteOfEditor();
+    const token = (
+      await node
+        .http()
+        .post('/v1/auth/token')
+        .send({ email: editor.email, password: editor.password })
+        .expect(200)
+    ).body.accessToken as string;
+    const socket = await connect(node, token);
+    const heard: Record<string, unknown>[] = [];
+    socket.on('record.attachments.changed', (data: Record<string, unknown>) =>
+      heard.push(data),
+    );
+    try {
+      const added = await editor.agent
+        .post(`/v1/test-items/${note.id}/attachments`)
+        .attach('file', PNG, { filename: 'dot.png', contentType: 'image/png' })
+        .expect(201);
+      await editor.agent.delete(`/v1/attachments/${added.body.id}`).expect(204);
+      await vi.waitFor(() => expect(heard).toHaveLength(2), { timeout: 5000 });
+      expect(heard).toEqual(
+        ['added', 'removed'].map((action) => ({
+          subject: 'TestItem',
+          recordId: note.id,
+          attachmentId: added.body.id,
+          action,
+        })),
+      );
+    } finally {
+      socket.disconnect();
+    }
   });
 
   it("lists a user's uploads in their data export (the rows, not the files)", async () => {

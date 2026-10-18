@@ -58,6 +58,9 @@ import { SuppressionsController } from './deliverability/suppressions.controller
 import { SuppressionsService } from './deliverability/suppressions.service.js';
 import { NoRealtime } from './realtime/no-realtime.js';
 import { Realtime } from './realtime/realtime.service.js';
+import { RecordActivity } from './realtime/record-activity.js';
+import { PeopleController } from './people/people.controller.js';
+import { PeopleService } from './people/people.service.js';
 import { switchedOn, whenOn } from './switches.js';
 import { FilesController } from './storage/files.controller.js';
 import { storage } from './storage/storage.config.js';
@@ -331,6 +334,8 @@ export class PlatformModule {
         SubscriptionsController,
         SearchController,
         ListsController,
+        // The tenant's people, for @mentions (GET /v1/people).
+        PeopleController,
         AttachmentsController,
         DocumentsController,
         TagsController,
@@ -408,6 +413,10 @@ export class PlatformModule {
         switchedOn('REALTIME')
           ? Realtime
           : { provide: Realtime, useClass: NoRealtime },
+        // A record's comments and attachments changed: its open pages hear of it.
+        RecordActivity,
+        // The names behind principal keys, and the directory @mentions search.
+        PeopleService,
         // Exports and imports: features register their DataExporter / DataImporter.
         DataTransferRegistry,
         DataTransferService,
@@ -521,6 +530,8 @@ export class PlatformModule {
       ],
       exports: [
         Realtime,
+        RecordActivity,
+        PeopleService,
         BullModule,
         DataTransferRegistry,
         BulkRegistry,

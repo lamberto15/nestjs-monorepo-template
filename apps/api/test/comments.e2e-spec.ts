@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { OutboxRelay } from '@nestjs/outbox';
 import { AccountDeletionJob } from '../src/platform/account/account-deletion.job.js';
-import { bootApp, type TestApp } from './support.js';
+import { recordSubscriptions } from '../src/platform/subscriptions/subscriptions.tables.js';
+import { bootApp, connect, type TestApp } from './support.js';
 
 type Agent = ReturnType<TestApp['admin']>;
 interface Comment {
   id: string;
   author: string;
+  authorName: string | null;
   body: string;
   mentions: string[];
   editedAt: string | null;
@@ -68,6 +70,7 @@ describe('comments and mentions on test items (e2e)', () => {
       subject: 'TestItem',
       recordId: itemId,
       author: owner.key,
+      authorName: 'Owen',
       body: 'First!',
       mentions: [],
       editedAt: null,
@@ -108,6 +111,13 @@ describe('comments and mentions on test items (e2e)', () => {
       .get(`/v1/test-items/${itemId}/comments?author=${viewer.key}&fields=body`)
       .expect(200);
     expect(byViewer.body.items).toEqual([{ id: second.id, body: 'Second' }]);
+    // Each author by name, for every reader (GET /v1/people's names).
+    expect(
+      page1.body.items.map((c: Comment) => [c.author, c.authorName]),
+    ).toEqual([
+      [owner.key, 'Owen'],
+      [viewer.key, 'Vera'],
+    ]);
 
     // Who may not read the note sees none of it, nor writes.
     await outsider.agent.get(`/v1/test-items/${itemId}/comments`).expect(403);
@@ -325,6 +335,7 @@ describe('comments and mentions on test items (e2e)', () => {
     ).body.items as Comment[];
     expect(after.find((c) => c.id === mine.id)).toMatchObject({
       author: 'anonymous',
+      authorName: null,
       body: '[deleted]',
     });
     expect(after.find((c) => c.id === aboutAda.id)).toMatchObject({
@@ -335,5 +346,86 @@ describe('comments and mentions on test items (e2e)', () => {
     expect(after.find((c) => c.id === aboutOtto.id)).toMatchObject({
       body: 'Ask @[deleted].',
     });
+  });
+
+  it('mentions an address with dots in its local part (`@first.last@sub.example.com`)', async () => {
+    const owner = await person(['editor'], 'Owen');
+    const email = `maya.patel.${randomUUID().slice(0, 6)}@demo.example.com`;
+    const name = `Maya ${randomUUID().slice(0, 6)}`;
+    const token = await node.invite(node.admin(), {
+      email,
+      name,
+      roleIds: await node.roleIds('viewer'),
+    });
+    await node.acceptAsNew(token);
+    const [maya] = (
+      await node
+        .admin()
+        .get(`/v1/people?q=${encodeURIComponent(name)}`)
+        .expect(200)
+    ).body.items as { key: string }[];
+    const itemId = await writeItem(owner.agent);
+    const mentioning = await comment(
+      owner.agent,
+      itemId,
+      `Hi @${email}, have a look.`,
+    );
+    expect(mentioning.mentions).toEqual([maya!.key]);
+  });
+
+  it("tells the record's open pages of its comments over realtime: those who may read it, never the content", async () => {
+    const owner = await person(['editor'], 'Owen');
+    const viewer = await person(['viewer'], 'Vera');
+    const outsider = await person(['editor'], 'Otto');
+    const itemId = await writeItem(owner.agent);
+    const tokenOf = async (who: { email: string; password: string }) =>
+      (
+        await node
+          .http()
+          .post('/v1/auth/token')
+          .send({ email: who.email, password: who.password })
+          .expect(200)
+      ).body.accessToken as string;
+    // The outsider watches the item but may not read it: nothing reaches them.
+    await node.db.insert(recordSubscriptions).values({
+      tenantId: node.tenantId,
+      subject: 'TestItem',
+      recordId: itemId,
+      subscriber: outsider.key,
+    });
+    const sockets = await Promise.all(
+      [owner, outsider].map(async (who) => connect(node, await tokenOf(who))),
+    );
+    const heard: Record<string, unknown>[][] = [[], []];
+    sockets.forEach((socket, index) =>
+      socket.on('record.commented', (data: Record<string, unknown>) =>
+        heard[index]!.push(data),
+      ),
+    );
+    try {
+      // The owner watches their item (its creator): told of the viewer's comments.
+      const added = await comment(viewer.agent, itemId, 'A thought');
+      await viewer.agent
+        .patch(`/v1/test-items/${itemId}/comments/${added.id}`)
+        .send({ body: 'A better thought' })
+        .expect(200);
+      await viewer.agent
+        .delete(`/v1/test-items/${itemId}/comments/${added.id}`)
+        .expect(204);
+      await vi.waitFor(() => expect(heard[0]).toHaveLength(3), {
+        timeout: 5000,
+      });
+      expect(heard[0]).toEqual(
+        ['added', 'edited', 'removed'].map((action) => ({
+          subject: 'TestItem',
+          recordId: itemId,
+          commentId: added.id,
+          action,
+        })),
+      );
+      expect(heard[1]).toEqual([]);
+    } finally {
+      sockets.forEach((socket) => socket.disconnect());
+    }
   });
 });

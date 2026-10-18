@@ -56,6 +56,10 @@ await this.revisions.record(tx, 'Note', note.id, { snapshot: noteSnapshot(row), 
   change is diffed against it). `run()` returns the count.
 - **Personal data**: none of the person's own (a revisions source exports
   nothing); an account's deletion sets `changedBy` to `anonymized`.
+- **Who, by name**: each revision carries `changedByName` beside
+  `changedBy`, the name every member sees
+  ([permissions.md](permissions.md), "The people directory"); null for
+  `anonymized` and `unknown`.
 - A record deleted for good: its revisions go in the same transaction.
   The soft-delete purge does it by itself (`RecordPurgeRegistry`, with
   comments, tag links and watchers); a feature that deletes outright calls
