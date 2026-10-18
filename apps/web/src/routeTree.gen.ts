@@ -19,6 +19,7 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
@@ -89,6 +90,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/audit': typeof AppAuditRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/access/users': typeof AppAccessUsersRoute
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/audit': typeof AppAuditRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/_app/audit': typeof AppAuditRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
@@ -315,6 +324,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/audit'
     | '/notifications'
     | '/settings'
     | '/access/users'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/audit'
     | '/notifications'
     | '/settings'
     | '/'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/verify-email'
+    | '/_app/audit'
     | '/_app/notifications'
     | '/_app/settings'
     | '/_app/'
@@ -488,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -648,6 +667,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAuditRoute: typeof AppAuditRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -674,6 +694,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAuditRoute: AppAuditRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
