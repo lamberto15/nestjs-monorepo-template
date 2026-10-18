@@ -12,7 +12,8 @@ import { postMultipart } from '@/lib/upload';
  * under its own path, with the same shapes; the generated client types them
  * per feature, so the types below are those routes' answers, whichever
  * features have them. No feature's path is named here: `pnpm feature:remove`
- * may take any of them, the last one included.
+ * may take any of them, the last one included. (Named schemas in the client,
+ * #157, would type them without any feature.)
  *
  * `base` is the record's route, `/v1/<plural>/{id}`.
  */
