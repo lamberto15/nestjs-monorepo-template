@@ -210,8 +210,10 @@ full-text search, on a generated `tsvector` column with a GIN index; the
 `simple` configuration (every language, no stemming).
 
 `GET /v1/search?q=…[&subject=Note&limit=20]` searches every kind of record
-the caller may read at once: `{ subject, id, title, snippet, score, link }`,
-best first; the snippet marks matches with `<b>…</b>` and is null for a text
+the caller may read at once: `{ subject, subjectLabel, id, title, snippet,
+score, link }`, best first; `subjectLabel` is `{ singular, plural }`
+(`Note`, `Notes`), in the response's language (the subject's `names`,
+[permissions](permissions.md)); the snippet marks matches with `<b>…</b>` and is null for a text
 the caller may not read. A text the caller may read on no record isn't
 matched at all (only the rest of the record's text, without the index);
 on a list, `q` is then a 403 (Filters, above). A feature joins by registering a `SearchSource`
@@ -299,7 +301,9 @@ repeating the declaration:
 - **Not only records:** `GET /v1/lists/User` describes the access API's
   users list (`GET /v1/access/users`, `USER_LIST`), to whoever may call
   that route (`AccessPolicy.open`: a registration's `readable` replaces the
-  subject's `read` permission, which no permission names for users); no
+  subject's `read` permission, which no permission names for users), and
+  `GET /v1/lists/Audit` the audit log (`GET /v1/access/audit`,
+  `AUDIT_LIST`), to whoever has `Access.readAudit`; no
   capabilities, custom fields or recycle bin (`platform/lists/access-lists.ts`).
   Roles and teams have none: their routes answer every item at once,
   with nothing to filter, sort or page.

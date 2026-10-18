@@ -11,6 +11,7 @@ export const NOTE_PERMISSIONS = definePermissions({
   subjects: {
     Note: {
       label: 'Notes',
+      names: { singular: 'Note', plural: 'Notes' },        // how texts name its records
       fields: { body: { label: 'The text' } },            // restrictable one by one
       conditions: {
         mine: createdBy('ownerId', notes.ownerId),       // "Created by me"
@@ -32,13 +33,17 @@ Add it to `IamModule.forRoot({ permissions })`. `GET /v1/access/catalog` lists
 everything, for the roles screen, its texts in the request's language
 ([i18n](i18n-and-time.md)): `src/i18n/<locale>/permissions.json` holds them
 by subject, under its name in kebab case, a feature's item key
-(`mail-suppression.label`, `note.actions.<action>`, `.fields.<field>`,
+(`mail-suppression.label`, `note.names.singular|plural`, `note.actions.<action>`, `.fields.<field>`,
 `.conditions.<key>.label|description|input`, a feature's own jobs in
 `.systemJobs.<key>`), so `pnpm feature:remove` takes them with the
 feature's other texts; the shared conditions once (`conditions.mine`,
 `conditions.inMyTeams`: a template's `translation`), and the groups'
 system jobs (`systemJobs.<key>.label|description`). A text no catalog has
-shows as declared (English): a generated feature's, until it adds its keys. `src/i18n/permissions.spec.ts` checks the English
+shows as declared (English): a generated feature's, until it adds its keys.
+`names` (one record, several) is how other responses name the subject's
+records, translated the same way (`PermissionCatalog.subjectNames()`: the
+global search's `subjectLabel`); a generated feature's come from its
+`noun` and `path`, a subject declared without them is named by itself. `src/i18n/permissions.spec.ts` checks the English
 file says what the declarations say.
 
 **Generated features** (`recordPermissions(RECORD, table)`) make both lists a
@@ -386,5 +391,16 @@ before, after }, tx)`: creates and deletes record the values, updates
 record only what changed (from → to); `sensitive` fields are redacted;
 `audit: { expand: ['custom'] }` diffs an object field key by key
 (`custom.region`, see [custom fields](custom-fields.md)).
-`GET /v1/access/audit` filters by action, actor, target, time. A nightly job
+`GET /v1/access/audit` filters by action, actor, target, time
+(`GET /v1/lists/Audit` describes it, to whoever has `Access.readAudit`).
+Who acted is a key (`actor=user:<id>`, a picker's from
+`GET /v1/access/principals`) or a name or address
+(`actorLabel`, `actorLabel.contains`, `actorLabel.startsWith`, whatever the
+case, `%` and `_` as the characters): the label the entry stored (a user's
+address, `admin as user`, a client's name, `System: …`), or the current
+name or address of the member, or the name of the API client, the entry
+names. Only members (a membership in the entry's tenant) and clients of
+the entry's tenant are looked up, and only the caller's tenant's entries
+are read: another tenant's people never match, and nothing is matched that
+the access lists don't already show the caller (`readAudit` opens them). A nightly job
 deletes entries older than `AUDIT_RETENTION_DAYS`.

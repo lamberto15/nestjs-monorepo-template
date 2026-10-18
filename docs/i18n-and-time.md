@@ -16,7 +16,9 @@ native speaker review them.
   messages with `t('auth.invalidLink')`.
 - The access catalog's labels (`GET /v1/access/catalog`: subjects, actions,
   fields, conditions, system jobs) come from `permissions.json`, else as
-  declared ([permissions](permissions.md)).
+  declared ([permissions](permissions.md)); so do the subjects' names
+  (`<subject>.names.singular|plural`), which `GET /v1/search` returns with
+  each hit as `subjectLabel`.
 - Mail: a template per language (`reset-password.ar.html`; `layout.ar.html`
   sets `dir="rtl"`); subjects from `mail.json`. Mail is sent outside the
   recipient's request: always pass their `locale`.

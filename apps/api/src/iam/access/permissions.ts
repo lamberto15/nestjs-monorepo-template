@@ -61,8 +61,20 @@ export interface FieldDefinition {
   sensitive?: boolean;
 }
 
+/** How texts name one record of a subject and several: `Note`, `Notes`. */
+export interface SubjectNames {
+  singular: string;
+  plural: string;
+}
+
 export interface SubjectDefinition {
   label: string;
+  /**
+   * How a result list or a heading names one of its records and several
+   * (GET /v1/search's `subjectLabel`), translated in `permissions.json`
+   * (`<subject>.names.singular`, `.plural`). Default: the subject's name.
+   */
+  names?: SubjectNames;
   conditions: Record<string, ConditionTemplate>;
   actions: Record<string, ActionDefinition>;
   /**

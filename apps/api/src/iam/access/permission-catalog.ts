@@ -12,6 +12,7 @@ import {
   type PermissionsDefinition,
   type SeedRole,
   type SubjectDefinition,
+  type SubjectNames,
   type SystemJobDefinition,
   isAll,
 } from './permissions.js';
@@ -338,6 +339,27 @@ export class PermissionCatalog {
         ),
       };
     });
+  }
+
+  /**
+   * How texts name one record of `subject` and several, in the request's
+   * language: `permissions.<subject>.names.*` of the i18n catalogs, else
+   * the declared names, else the subject's own name (a subject no
+   * declaration names, or one declared without names).
+   */
+  subjectNames(subject: string): SubjectNames {
+    const own = subjectTextKey(subject);
+    const declared = this.subjects[subject]?.names;
+    return {
+      singular: this.text(
+        [[own, 'names', 'singular']],
+        declared?.singular ?? subject,
+      ),
+      plural: this.text(
+        [[own, 'names', 'plural']],
+        declared?.plural ?? subject,
+      ),
+    };
   }
 
   /** The fields of `subject` permissions grant one by one. */
