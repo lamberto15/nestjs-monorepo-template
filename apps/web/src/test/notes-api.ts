@@ -53,9 +53,31 @@ const description = {
   limits: { defaultLimit: 50, maxLimit: 100 },
 };
 
-/** Signs the user in with these permissions and serves the notes in `notes`. */
-export function useNotesApi(options: { can: string[]; notes: TestNote[] }) {
+type NoteCan = { update: boolean; delete: boolean; restore: boolean };
+
+/**
+ * Signs the user in with these permissions and serves the notes in `notes`.
+ * With `?include=can` each note carries its `can`: by default the
+ * permissions (restore only in the bin); `recordCan` decides per note, as the
+ * API's conditions would (a published note an editor may not change).
+ */
+export function useNotesApi(options: {
+  can: string[];
+  notes: TestNote[];
+  recordCan?: (note: TestNote) => Partial<NoteCan>;
+}) {
   const notes = new Map(options.notes.map((note) => [note.id, { ...note }]));
+  const held = new Set(options.can);
+  const canOf = (note: TestNote): NoteCan => ({
+    update: held.has('Note.update'),
+    delete: held.has('Note.delete'),
+    restore: !!note.deletedAt && held.has('Note.restore'),
+    ...options.recordCan?.(note),
+  });
+  const withCan = (note: TestNote, url: string) =>
+    new URL(url).searchParams.get('include') === 'can'
+      ? { ...note, can: canOf(note) }
+      : note;
   let version = 1;
   const etagOf = (note: TestNote) => `"${note.id}-${version}-${note.title}"`;
   const calls = {
@@ -64,6 +86,8 @@ export function useNotesApi(options: { can: string[]; notes: TestNote[] }) {
     deleted: [] as string[],
     restored: [] as string[],
     listQueries: [] as string[],
+    /** The ids `GET /v1/notes/{id}` was asked for. */
+    reads: [] as string[],
   };
   /** Another user's write: the note changes, its ETag with it. */
   const changeElsewhere = (id: string, changes: Partial<TestNote>) => {
@@ -95,7 +119,9 @@ export function useNotesApi(options: { can: string[]; notes: TestNote[] }) {
       const url = new URL(request.url);
       calls.listQueries.push(url.search);
       const bin = url.searchParams.get('deleted') === 'true';
-      const items = [...notes.values()].filter((n) => !!n.deletedAt === bin);
+      const items = [...notes.values()]
+        .filter((n) => !!n.deletedAt === bin)
+        .map((n) => withCan(n, request.url));
       return HttpResponse.json({ items, page: 1, pageCount: 1 });
     }),
     http.post('/v1/notes', async ({ request }) => {
@@ -108,12 +134,20 @@ export function useNotesApi(options: { can: string[]; notes: TestNote[] }) {
       }
       const note = sampleNote({ ...body, id: CREATED_ID });
       notes.set(note.id, note);
-      return HttpResponse.json(note, { status: 201 });
+      // The ETag a read would send (#118), no `can` (the create takes no include).
+      return HttpResponse.json(note, {
+        status: 201,
+        headers: { etag: etagOf(note) },
+      });
     }),
-    http.get('/v1/notes/:id', ({ params }) => {
+    http.get('/v1/notes/:id', ({ params, request }) => {
+      calls.reads.push(params.id as string);
       const note = notes.get(params.id as string);
       if (!note || note.deletedAt) return problem(404, 'not_found');
-      return HttpResponse.json(note, { headers: { etag: etagOf(note) } });
+      // `can` is not part of the ETag.
+      return HttpResponse.json(withCan(note, request.url), {
+        headers: { etag: etagOf(note) },
+      });
     }),
     http.patch('/v1/notes/:id', async ({ params, request }) => {
       const id = params.id as string;

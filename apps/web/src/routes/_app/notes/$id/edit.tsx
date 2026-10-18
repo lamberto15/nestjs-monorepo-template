@@ -1,9 +1,17 @@
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@nestjs-monorepo-template/ui/components/alert';
+import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { Link, createFileRoute, redirect } from '@tanstack/react-router';
+import { LockIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { RecordState } from '@/components/records/record-state';
 import { noteQuery } from '@/features/notes/api';
 import { NoteForm } from '@/features/notes/note-form';
+import { useRecordCan } from '@/lib/records';
 
 export const Route = createFileRoute('/_app/notes/$id/edit')({
   beforeLoad: ({ context, params }) => {
@@ -17,6 +25,7 @@ export const Route = createFileRoute('/_app/notes/$id/edit')({
 function EditNote() {
   const { id } = Route.useParams();
   const { t } = useTranslation('notes');
+  const canOf = useRecordCan('Note');
   // The form is made from one read and sent back with its ETag: a refetch in
   // the background (focus, reconnect) must not replace it under the user's
   // typing. Reloading after a 412 is the one refetch, and it is asked for.
@@ -40,10 +49,31 @@ function EditNote() {
           retry: t('error.retry'),
         }}
       >
-        {({ note, etag }) => (
-          // Keyed by the ETag: a reload gives the form the new version.
-          <NoteForm key={etag ?? note.updatedAt} note={note} etag={etag} />
-        )}
+        {({ note, etag }) =>
+          // The permission alone let the user in (beforeLoad); the note's own
+          // `can` says whether its conditions allow it now (a published note).
+          canOf(note).update ? (
+            // Keyed by the ETag: a reload gives the form the new version.
+            <NoteForm key={etag ?? note.updatedAt} note={note} etag={etag} />
+          ) : (
+            <Alert role="alert">
+              <LockIcon />
+              <AlertTitle>{t('edit.locked.title')}</AlertTitle>
+              <AlertDescription>
+                <p>{t('edit.locked.description')}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  nativeButton={false}
+                  render={<Link to="/notes/$id" params={{ id: note.id }} />}
+                >
+                  {t('edit.locked.back')}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )
+        }
       </RecordState>
     </section>
   );

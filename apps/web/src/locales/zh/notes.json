@@ -25,13 +25,19 @@
     "title": "新建笔记"
   },
   "edit": {
-    "title": "编辑笔记"
+    "title": "编辑笔记",
+    "locked": {
+      "title": "您现在无法编辑此笔记",
+      "description": "您的权限不允许在其当前状态下更改它（例如已发布的笔记）。",
+      "back": "返回笔记"
+    }
   },
   "form": {
     "title": "标题",
     "body": "正文",
     "titleRequired": "请输入标题。",
     "titleTooLong": "标题最多 200 个字符。",
+    "bodyTooLong": "正文最多 10,000 个字符。",
     "create": "创建笔记",
     "save": "保存更改",
     "cancel": "取消",

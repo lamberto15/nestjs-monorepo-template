@@ -115,7 +115,19 @@ http://localhost:5173) side by side.
   ```
 
   The API does not publish a record's capabilities, so the page states
-  them. Texts are in the `records` namespace.
+  them. Texts are in the `records` namespace. Pass `canUpdate` (the record's
+  own `can.update`) when the page has it: the panels' writes take the
+  record's PATCH check, conditions included.
+- **What one record allows** (`useRecordCan('<Subject>')` in `lib/records.ts`):
+  read records with `?include=can` (detail and list, see `features/notes/api.ts`)
+  and gate edit, delete and restore on `canOf(record)`, which is the record's
+  own `can` (a published note an editor may no longer change) and falls back to
+  `/me.can` for a record read without it. A create answers with the ETag a read
+  would: `seedCreatedNote()` puts the note and that ETag in the cache, so the
+  page it opens and a first edit (`If-Match`) need no second read. Text limits
+  (`NOTE_LIMITS`) mirror the schema's `maxLength`; a test compares them with
+  `packages/api-client/openapi.json` (importing that 1 MB file would bloat the
+  bundle).
 - **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
   is the example): `ListPage`'s `listActions` gets the list's `params`, for
   `<ExportButton exporter="notes" filters={exportFilters(params)} />` and

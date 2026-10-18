@@ -38,7 +38,11 @@ export type RecordCapabilities = {
  *     tags={note.tags} />
  *
  * `path` is the record's route with `{id}`; the panels' routes hang off it.
- * `tags` are the record's own (they come with it). The record's queries
+ * `tags` are the record's own (they come with it). `canUpdate` is the
+ * record's own `can.update` (useRecordCan) when the page has it: the panels'
+ * writes take the same check as the record's PATCH (its conditions), so a
+ * record the user may not change shows its panels read-only. Left out, the
+ * permission `<Subject>.update` decides. The record's queries
  * (`recordKeys`, list path = `path` without `/{id}`) are refreshed after a
  * tag change or a restore.
  */
@@ -48,11 +52,13 @@ export function RecordPanels(props: {
   id: string;
   capabilities: RecordCapabilities;
   tags?: readonly Pick<Tag, 'id' | 'name' | 'color'>[];
+  canUpdate?: boolean;
 }) {
   const { t } = useTranslation('records');
   const queryClient = useQueryClient();
   const canRead = useCan(`${props.subject}.read` as Permission);
-  const canUpdate = useCan(`${props.subject}.update` as Permission);
+  const mayUpdate = useCan(`${props.subject}.update` as Permission);
+  const canUpdate = props.canUpdate ?? mayUpdate;
   const { capabilities } = props;
   const listPath = props.path.replace(/\/\{id\}$/, '');
 
