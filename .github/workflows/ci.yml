@@ -612,6 +612,44 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
+  # Caddy's image (caddy/Dockerfile, built from the repository root as
+  # compose.prod.yaml does; caddy/Dockerfile.dockerignore picks what goes
+  # in): the web app's production build (apps/web), the xcaddy build with
+  # the Cloudflare DNS plugin, then the same scan. Its own cache scope. Not
+  # published: compose.prod.yaml builds it on every deploy.
+  caddy-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the Caddy image (with the web app)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: caddy/Dockerfile
+          load: true
+          tags: caddy:ci
+          cache-from: type=gha,scope=caddy
+          cache-to: type=gha,scope=caddy,mode=max
+      - name: The web app is in the image
+        run: docker run --rm --entrypoint test caddy:ci -f /srv/web/index.html
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: caddy:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+
   # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
   # top of), which renders the PDF documents: its pins agree with each other
   # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
@@ -671,7 +709,8 @@ jobs:
           cache-dir: ${{ runner.temp }}/trivy
 
   # main and v* tags, once check, security and image passed (backup-image
-  # and gotenberg-image gate pull requests; their images aren't published):
+  # and caddy-image gate pull requests; their images aren't published;
+  # Gotenberg's is, by publish-gotenberg):
   # the image is built again (from the cache the image job left), scanned,
   # then pushed to ghcr.io/<owner>/<repo> as the full commit SHA, `main` or
   # the version.

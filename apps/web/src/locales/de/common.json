@@ -370,5 +370,11 @@
     "failed": "The search failed.",
     "forbidden": "You may not search people and clients.",
     "client": "(API client)"
+  },
+  "people": {
+    "placeholder": "Nach Namen suchen",
+    "searching": "Suche läuft…",
+    "none": "Niemand passt.",
+    "failed": "Die Suche ist fehlgeschlagen."
   }
 }

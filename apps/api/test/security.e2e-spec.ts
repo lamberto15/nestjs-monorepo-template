@@ -443,6 +443,84 @@ describe('security (e2e)', () => {
       .expect(200);
   });
 
+  it("lists only the caller's own transfers and bulk runs, in its tenant only (#136)", async () => {
+    // A person who belongs to two tenants: an editor here, then in the other.
+    const person = await node.user(['editor']);
+    const colleague = await node.user(['editor']);
+    const other = await node.otherTenant();
+    const editorThere = (
+      (await other.admin.get('/v1/access/roles').expect(200)).body.items as {
+        id: string;
+        key: string | null;
+      }[]
+    ).find((role) => role.key === 'editor')!;
+    const token = await node.invite(other.admin, {
+      email: person.email,
+      roleIds: [editorThere.id],
+    });
+    await person.agent
+      .post('/v1/auth/invitations/accept')
+      .send({ token })
+      .expect(200);
+    const switchTo = (tenantId: string) =>
+      person.agent.post('/v1/auth/tenant').send({ tenantId }).expect(204);
+    const exportAs = async (agent: request.Agent) =>
+      (
+        await agent
+          .post('/v1/data/exports')
+          .send({ name: 'test-items', format: 'csv' })
+          .expect(202)
+      ).body.id as string;
+    const bulkAs = async (agent: request.Agent) =>
+      (
+        await agent
+          .post('/v1/test-items/bulk')
+          .set('Idempotency-Key', randomUUID())
+          .send({ action: 'delete', filter: { 'title.startsWith': 'None' } })
+          .expect(202)
+      ).body.id as string;
+    const listed = async (agent: request.Agent, path: string) =>
+      ((await agent.get(path).expect(200)).body.items as { id: string }[]).map(
+        (item) => item.id,
+      );
+
+    await switchTo(node.tenantId);
+    const hereExport = await exportAs(person.agent);
+    const hereBulk = await bulkAs(person.agent);
+    await switchTo(other.id);
+    const thereExport = await exportAs(person.agent);
+    const thereBulk = await bulkAs(person.agent);
+
+    // In the other tenant, the same person sees that tenant's only…
+    expect(await listed(person.agent, '/v1/data/transfers')).toEqual([
+      thereExport,
+    ]);
+    expect(await listed(person.agent, '/v1/bulk')).toEqual([thereBulk]);
+    // …and a cursor from the first tenant is no cursor here (no leak, no page).
+    await person.agent
+      .get(`/v1/data/transfers?cursor=${hereExport}`)
+      .expect(400);
+    await person.agent.get(`/v1/bulk?cursor=${hereBulk}`).expect(400);
+    // Their other tenant's administrator sees none of them.
+    expect(await listed(other.admin, '/v1/data/transfers')).toEqual([]);
+    expect(await listed(other.admin, '/v1/bulk')).toEqual([]);
+
+    await switchTo(node.tenantId);
+    expect(await listed(person.agent, '/v1/data/transfers')).toEqual([
+      hereExport,
+    ]);
+    expect(await listed(person.agent, '/v1/bulk')).toEqual([hereBulk]);
+    // A colleague in the same tenant, and its administrator, see none of them.
+    for (const agent of [colleague.agent, node.admin()]) {
+      expect(await listed(agent, '/v1/data/transfers')).not.toContain(
+        hereExport,
+      );
+      expect(await listed(agent, '/v1/bulk')).not.toContain(hereBulk);
+      await agent.get(`/v1/data/transfers?cursor=${hereExport}`).expect(400);
+      await agent.get(`/v1/data/transfers/${hereExport}`).expect(404);
+    }
+  });
+
   it('refuses keys that would already have expired', async () => {
     const past = new Date(Date.now() - 60_000).toISOString();
     await node

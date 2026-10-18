@@ -81,6 +81,7 @@ import { BulkController } from './bulk/bulk.controller.js';
 import { BulkProcessor } from './bulk/bulk.processor.js';
 import { BulkRegistry } from './bulk/bulk.registry.js';
 import { BULK, BulkService } from './bulk/bulk.service.js';
+import { JobIndex } from './queues/job-index.js';
 import { CustomFieldPolicy } from './custom-fields/custom-field.policy.js';
 import { CustomFieldsController } from './custom-fields/custom-fields.controller.js';
 import { CustomFieldsService } from './custom-fields/custom-fields.service.js';
@@ -121,6 +122,7 @@ import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
 import { SubscriptionsRegistry } from './subscriptions/subscriptions.registry.js';
 import { SearchController } from './search/search.controller.js';
 import { SearchRegistry } from './search/search.registry.js';
+import { SearchService } from './search/search.service.js';
 import { ListsController } from './lists/lists.controller.js';
 import { AccessListSources } from './lists/access-lists.js';
 import { ListPolicy } from './lists/list.policy.js';
@@ -429,6 +431,8 @@ export class PlatformModule {
         RecordActivity,
         // The names behind principal keys, and the directory @mentions search.
         PeopleService,
+        // Who queued which transfers and bulk runs (their lists).
+        JobIndex,
         // Exports and imports: features register their DataExporter / DataImporter.
         DataTransferRegistry,
         DataTransferService,
@@ -474,11 +478,12 @@ export class PlatformModule {
         SubscriptionsRegistry,
         // Global search: features register a SearchSource.
         SearchRegistry,
+        SearchService,
         // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
         ListsRegistry,
         ListsService,
         ListPolicy,
-        // The access API's users list (GET /v1/lists/User).
+        // The access API's users and audit lists (GET /v1/lists/User, /Audit).
         AccessListSources,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,

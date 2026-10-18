@@ -46,6 +46,10 @@
   },
   "note": {
     "label": "Notes (example)",
+    "names": {
+      "singular": "Note",
+      "plural": "Notes"
+    },
     "actions": {
       "read": "See notes",
       "create": "Write notes",

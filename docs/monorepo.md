@@ -261,11 +261,17 @@ What a feature's record pages share; `features/notes` and
   `lib/principals.ts`): `<PrincipalPicker>` searches
   `GET /v1/access/principals?q=` as one types (Dice UI's combobox); its value
   is the principal's `key` (a setting's `scopeId`) or, with `by="id"`, the
-  user's id (`kind="user" active` for a delegate). `principalDirectoryQuery()`
+  user's id. `principalDirectoryQuery()`
   reads them all to name ids (comment authors, mentions, a setting's
   overrides). The route answers only callers who may list users or clients;
   for anyone else the picker says so and the directory is empty. In tests,
   `principalsHandler()` (`test/principals.ts`) answers it.
+- **Picking a member, for any member** (`components/person-picker.tsx`,
+  `lib/people.ts`): `<PersonPicker>` searches `GET /v1/people?q=` (active
+  members, a key and a name; every member may read it), the same combobox;
+  its value is the key, `user:<id>` (`personUserId()` strips the prefix). The
+  approvals' delegate picker and the comments' @mentions use it. In tests,
+  `peopleHandler()` (`test/people.ts`) answers it.
 - **Search palette** (`features/search`): the header's search button and
   Cmd/Ctrl+K open it. Typing calls `GET /v1/search` (debounced, grouped by
   subject); `>` lists the nav entries the user sees. Snippets keep only
@@ -302,6 +308,7 @@ rather than a component alone.
   and what every page asks), `panelHandlers()` / `usePanelsApi()`
   (`test/panels-api.ts`, on the test-only record `TEST_RECORD` unless given a
   feature's), `principalsHandler()` (`test/principals.ts`),
+  `peopleHandler()` (`test/people.ts`),
   `createFakeRealtime()` (`test/fake-realtime.ts`: emit what the API would push).
 - **`renderComponent(ui, { can })`** (`src/test/render-component.tsx`): one
   shared component with the app's providers and a router for its links, no

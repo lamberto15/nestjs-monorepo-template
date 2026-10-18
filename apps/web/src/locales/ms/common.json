@@ -367,5 +367,11 @@
     "failed": "The search failed.",
     "forbidden": "You may not search people and clients.",
     "client": "(API client)"
+  },
+  "people": {
+    "placeholder": "Cari mengikut nama",
+    "searching": "Mencari…",
+    "none": "Tiada yang sepadan.",
+    "failed": "Carian gagal."
   }
 }

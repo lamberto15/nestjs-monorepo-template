@@ -85,3 +85,11 @@ export const bulkStatusSchema = z.object({
   result: bulkResultSchema.optional(),
   error: z.string().optional(),
 });
+
+/** An item of GET /v1/bulk: a run as GET /v1/bulk/{id} tells it, without the result per item. */
+export const bulkRunSchema = bulkStatusSchema.extend({
+  result: bulkResultSchema
+    .omit({ results: true })
+    .optional()
+    .describe('The counts; GET /v1/bulk/{id} has the result per item.'),
+});

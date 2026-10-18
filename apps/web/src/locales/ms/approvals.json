@@ -15,7 +15,7 @@
   "empty": {
     "mine": "Tiada apa yang menunggu keputusan anda.",
     "requested": "Anda belum meminta sebarang kelulusan.",
-    "history": "Belum ada kelulusan yang selesai."
+    "history": "Anda belum memutuskan sebarang kelulusan."
   },
   "actions": {
     "Note": {

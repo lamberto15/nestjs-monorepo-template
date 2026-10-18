@@ -367,5 +367,11 @@
     "failed": "The search failed.",
     "forbidden": "You may not search people and clients.",
     "client": "(API client)"
+  },
+  "people": {
+    "placeholder": "按姓名搜索",
+    "searching": "正在搜索…",
+    "none": "没有匹配的人。",
+    "failed": "搜索失败。"
   }
 }
