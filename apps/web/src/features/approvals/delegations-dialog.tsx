@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { allMembersQuery } from '@/features/access/api';
+import { PrincipalPicker } from '@/components/principal-picker';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { useMe } from '@/lib/features';
@@ -115,12 +115,8 @@ function DelegationsBody() {
 function DelegationForm() {
   const { t } = useTranslation('approvals');
   const me = useMe();
-  const members = useQuery({ ...allMembersQuery, meta: { errorToast: false } });
   const create = useCreateDelegation();
   const [error, setError] = useState<string>();
-  const people = (members.data ?? []).filter(
-    (member) => member.active && member.id !== me?.user.id,
-  );
   // The default period, fixed when the form opens: now, for a week.
   const [period] = useState(() => {
     const now = new Date();
@@ -170,21 +166,34 @@ function DelegationForm() {
     >
       <FieldGroup>
         <FormAlert message={error} />
-        {members.isError && (
-          <FormAlert message={t('delegations.errors.people')} />
-        )}
-        <form.AppField name="toUserId">
-          {(field) => (
-            <field.SelectField
-              label={t('delegations.person')}
-              placeholder={t('delegations.choose')}
-              options={people.map((member) => ({
-                value: member.id,
-                label: member.name ?? member.email,
-              }))}
-            />
-          )}
-        </form.AppField>
+        {/* People are searched (GET /v1/access/principals): active users,
+            not yourself; the value is the user's id. */}
+        <form.Field name="toUserId">
+          {(field) => {
+            const invalid =
+              field.state.meta.isTouched && !field.state.meta.isValid;
+            return (
+              <Field data-invalid={invalid}>
+                <FieldLabel htmlFor="delegation-person">
+                  {t('delegations.person')}
+                </FieldLabel>
+                <PrincipalPicker
+                  id="delegation-person"
+                  label={t('delegations.person')}
+                  placeholder={t('delegations.choose')}
+                  kind="user"
+                  active
+                  by="id"
+                  exclude={me ? [me.user.id] : []}
+                  value={field.state.value}
+                  onChange={(value) => field.handleChange(value)}
+                  invalid={invalid}
+                />
+                {invalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            );
+          }}
+        </form.Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <form.Field name="startsAt">
             {(field) => (

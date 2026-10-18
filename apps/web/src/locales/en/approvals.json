@@ -75,7 +75,7 @@
     "period": "{{from}} to {{to}}",
     "end": "End",
     "person": "Delegate to",
-    "choose": "Choose a person",
+    "choose": "Search for a person",
     "from": "From",
     "to": "Until",
     "hint": "You can still decide yourself during the period.",
@@ -84,8 +84,7 @@
     "errors": {
       "person": "Choose a person.",
       "dates": "Set both dates.",
-      "order": "The end must be after the start.",
-      "people": "The list of people could not be loaded (managing users is required)."
+      "order": "The end must be after the start."
     }
   },
   "detail": {

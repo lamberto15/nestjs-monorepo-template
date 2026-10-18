@@ -4,8 +4,8 @@ import type { Catalog } from '@/features/access/permissions';
 import type { Me } from '@/lib/session';
 import { allFeatures, server, signedInUser } from '@/test/server';
 
-// The access API as the tests see it: GET /v1/access/catalog's shape
-// (PermissionCatalog.view), roles and members as the API lists them.
+// The access API as the tests see it, typed by the client: the catalog,
+// roles, teams and members as the API lists them.
 
 export const catalog: Catalog = {
   subjects: [
@@ -93,6 +93,7 @@ export const catalog: Catalog = {
       ],
     },
   ],
+  systemJobs: [],
 };
 
 export const ids = {
@@ -104,6 +105,7 @@ export const ids = {
   bob: '00000000-0000-7000-8000-00000000c001',
   carol: '00000000-0000-7000-8000-00000000c002',
   invitation: '00000000-0000-7000-8000-00000000d001',
+  tenant: '00000000-0000-7000-8000-00000000e001',
 };
 
 const at = '2026-10-01T10:00:00.000Z';
@@ -111,6 +113,7 @@ const at = '2026-10-01T10:00:00.000Z';
 export const roles: Role[] = [
   {
     id: ids.admin,
+    tenantId: ids.tenant,
     key: 'administrator',
     name: 'Administrator',
     description: 'Everything.',
@@ -122,6 +125,7 @@ export const roles: Role[] = [
   },
   {
     id: ids.editor,
+    tenantId: ids.tenant,
     key: 'editor',
     name: 'Editor',
     description: 'Writes records.',
@@ -136,6 +140,7 @@ export const roles: Role[] = [
   },
   {
     id: ids.viewer,
+    tenantId: ids.tenant,
     key: 'viewer',
     name: 'Viewer',
     description: 'Sees everything.',
@@ -170,9 +175,12 @@ export const teams: Team[] = [
 
 export const bob: Member = {
   id: ids.bob,
+  kind: 'user',
   email: 'bob@example.com',
   name: 'Bob Builder',
   emailVerified: true,
+  locale: null,
+  timezone: null,
   active: true,
   hasPassword: true,
   createdAt: at,
@@ -212,9 +220,7 @@ export function signedInWith(
         impersonation: options.impersonation ?? false,
       }),
     ),
-    http.get('/v1/access/catalog', () =>
-      HttpResponse.json({ ...catalog, systemJobs: [] }),
-    ),
+    http.get('/v1/access/catalog', () => HttpResponse.json(catalog)),
     http.get('/v1/access/roles', () => HttpResponse.json({ items: roles })),
     http.get('/v1/access/teams', () => HttpResponse.json({ items: teams })),
     http.get('/v1/access/users', () =>

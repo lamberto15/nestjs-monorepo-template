@@ -1,10 +1,17 @@
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOTE_ID, sampleNote, useNotesApi } from '@/test/notes-api';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
+import { principalsHandler, userPrincipal } from '@/test/principals';
 import { findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
@@ -127,6 +134,7 @@ function useApprovalsApi(options: Options = {}) {
       ifMatch: string | null;
     }[],
     delegations: [] as unknown[],
+    principalQueries: [] as URLSearchParams[],
     ended: [] as string[],
   };
   const user = options.impersonating
@@ -197,25 +205,26 @@ function useApprovalsApi(options: Options = {}) {
       state.waiting = [];
       return HttpResponse.json(item({ status: 'approved' }));
     }),
-    http.get('/v1/access/users', () =>
-      HttpResponse.json({
-        items: [
-          {
-            id: OTHER_USER,
-            email: 'maya@example.com',
-            name: 'Maya Patel',
-            active: true,
-          },
-          {
-            id: signedInUser.user.id,
-            email: 'ada@example.com',
-            name: 'Ada',
-            active: true,
-          },
-        ],
-        page: 1,
-        nextPage: null,
-      }),
+    principalsHandler(
+      [
+        userPrincipal({
+          id: OTHER_USER,
+          email: 'maya@example.com',
+          name: 'Maya Patel',
+        }),
+        userPrincipal({
+          id: signedInUser.user.id,
+          email: 'ada@example.com',
+          name: 'Ada',
+        }),
+        userPrincipal({
+          id: '0199a3f2-0000-7000-8000-000000000010',
+          email: 'max@example.com',
+          name: 'Max Gone',
+          active: false,
+        }),
+      ],
+      state.principalQueries,
     ),
   );
   return state;
@@ -380,10 +389,27 @@ describe('the inbox', () => {
     await renderApp('/approvals');
     await user.click(await screen.findByRole('button', { name: 'Delegate' }));
     const dialog = await screen.findByRole('dialog');
-    await user.click(
-      await within(dialog).findByRole('combobox', { name: 'Delegate to' }),
+    const person = await within(dialog).findByRole('combobox', {
+      name: 'Delegate to',
+    });
+    // Searched as typed: active users only, never yourself. (Dice UI takes
+    // the text a frame later: typed at once, not key by key.)
+    await user.click(person);
+    fireEvent.change(person, { target: { value: 'ma' } });
+    await waitFor(() =>
+      expect(
+        api.principalQueries.some(
+          (query) =>
+            query.get('q') === 'ma' &&
+            query.get('kind') === 'user' &&
+            query.get('active') === 'true',
+        ),
+      ).toBe(true),
     );
-    await user.click(await screen.findByRole('option', { name: 'Maya Patel' }));
+    const maya = await screen.findByRole('option', { name: /Maya Patel/ });
+    expect(screen.queryByRole('option', { name: /Max Gone/ })).toBeNull();
+    expect(screen.queryByRole('option', { name: /Ada/ })).toBeNull();
+    await user.click(maya);
     fireEvent.change(within(dialog).getByLabelText('From'), {
       target: { value: '2026-11-01T09:00' },
     });
@@ -410,7 +436,7 @@ describe('the inbox', () => {
     await user.click(
       await within(dialog).findByRole('combobox', { name: 'Delegate to' }),
     );
-    await user.click(await screen.findByRole('option', { name: 'Maya Patel' }));
+    await user.click(await screen.findByRole('option', { name: /Maya Patel/ }));
     fireEvent.change(within(dialog).getByLabelText('From'), {
       target: { value: '2026-11-08T09:00' },
     });

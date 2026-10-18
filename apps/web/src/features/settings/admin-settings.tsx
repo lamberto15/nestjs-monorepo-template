@@ -50,7 +50,9 @@ export function AdminSettings() {
     const group = groupOf(setting.key);
     groups.set(group, [...(groups.get(group) ?? []), setting]);
   }
-  const current = data?.find((setting) => setting.key === editing);
+  const current = data?.find(
+    (setting) => setting.key === editing && setting.canEdit,
+  );
   return (
     <div className="flex flex-col gap-6">
       <Input
@@ -72,12 +74,6 @@ export function AdminSettings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {group === 'auth' && (
-              <Alert>
-                <InfoIcon />
-                <AlertDescription>{t('authNote')}</AlertDescription>
-              </Alert>
-            )}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -122,14 +118,22 @@ export function AdminSettings() {
                       {formatValue(setting.default, t('on'), t('off'))}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label={t('editNamed', { label: setting.label })}
-                        onClick={() => setEditing(setting.key)}
-                      >
-                        {t('edit')}
-                      </Button>
+                      {/* The API says who may set it (`canEdit`): never
+                          guessed from `public` or the key. */}
+                      {setting.canEdit ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={t('editNamed', { label: setting.label })}
+                          onClick={() => setEditing(setting.key)}
+                        >
+                          {t('edit')}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t('readOnly')}
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -154,7 +158,7 @@ export function AdminSettings() {
               {!current.public && (
                 <Alert>
                   <InfoIcon />
-                  <AlertDescription>{t('authNote')}</AlertDescription>
+                  <AlertDescription>{t('hiddenNote')}</AlertDescription>
                 </Alert>
               )}
               <OverrideEditor setting={current} />
