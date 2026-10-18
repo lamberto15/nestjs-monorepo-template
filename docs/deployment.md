@@ -981,7 +981,7 @@ merged migration fails it already):
 
 | Job | What |
 | --- | --- |
-| `check` | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests; lint, build and tests are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, isn't built in CI yet (#150) |
+| `check` | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests; lint, build and tests are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
 | `e2e` | the e2e tests in 2 shards (`--shard=1/2`, `2/2`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
 | `compose-secrets` | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`) |
 | `swarm-stack` | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`) |
@@ -990,6 +990,7 @@ merged migration fails it already):
 | `security` | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles |
 | `image` | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`) |
 | `backup-image` | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it |
+| `caddy-image` | builds Caddy's image (`caddy/Dockerfile`, from the repository root): the web app's production build and the xcaddy build with the Cloudflare plugin; checks the web app is in it, then the same Trivy scan. Not published: a deploy builds it (`compose.prod.yaml`); Swarm's `CADDY_IMAGE` is pushed by hand ([Swarm](deploy-swarm.md)) |
 | `gotenberg-image` | checks that `gotenberg/Dockerfile`'s `FROM`, its `GOTENBERG_VERSION` and `compose.dev.yaml`'s image are one release, and that both Compose files give Gotenberg the same flags; builds the image (`gotenberg/`, its Debian upgrade fresh each run) and runs the same Trivy scan |
 | `openapi-diff` | pull requests only: oasdiff compares the typed client's `openapi.json` with the base branch's and lists breaking changes and the changelog in the job summary. Report-only until `OASDIFF_FAIL_ON` is set (development.md, "Typed client") |
 | `migration-lint` | pull requests only, in `migrations.yml` (a label change runs it again): squawk reads the migrations the pull request adds under `apps/api/drizzle/` and lists destructive statements (drops, renames, retypes, `SET NOT NULL`, NOT NULL without a default, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, `MERGE`'s deletes and updates) in the job summary, with file and line. Report-only until `MIGRATION_LINT_FAIL` is `on` (pitfalls.md, "Migrations: expand/contract"). Always failing: an edited or deleted merged migration or journal entry, a `squawk-ignore` comment. The `destructive-migration` label accepts both when added after the latest push |
