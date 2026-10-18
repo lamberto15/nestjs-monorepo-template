@@ -4,6 +4,7 @@ import type documents from './en/documents.json';
 import type mail from './en/mail.json';
 import type money from './en/money.json';
 import type notifications from './en/notifications.json';
+import type permissions from './en/permissions.json';
 import type transfer from './en/transfer.json';
 import type validation from './en/validation.json';
 
@@ -19,6 +20,7 @@ export interface Translations {
   mail: typeof mail;
   money: typeof money;
   notifications: typeof notifications;
+  permissions: typeof permissions;
   transfer: typeof transfer;
   validation: typeof validation;
 }

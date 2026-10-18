@@ -1,4 +1,5 @@
 import { createMongoAbility, subject } from '@casl/ability';
+import type { I18nService } from '@nestjs/i18n';
 import { eq } from 'drizzle-orm';
 import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { PLATFORM_PERMISSIONS } from '../../platform/ops/ops.policy.js';
@@ -246,5 +247,64 @@ describe('PermissionCatalog', () => {
         fields: null,
       },
     });
+  });
+});
+
+describe('PermissionCatalog texts', () => {
+  /** A stand-in for I18nService: these `permissions.<key>` texts, in German. */
+  const german = (texts: Record<string, string>) =>
+    ({
+      exists: (key: string) => key in texts,
+      translate: (key: string) => texts[key]!,
+    }) as unknown as I18nService;
+
+  it('shows the request language’s texts, and the declared ones where none', () => {
+    const catalog = new PermissionCatalog(
+      { permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS] },
+      german({
+        'permissions.subjects.Note.label': 'Notizen',
+        'permissions.subjects.Note.actions.read': 'Notizen sehen',
+        'permissions.subjects.Note.fields.body': 'Der Text',
+        'permissions.subjects.Note.conditions.draft.label': 'Noch ein Entwurf',
+        // A shared condition, translated once for every subject.
+        'permissions.conditions.mine.label': 'Von mir erstellt',
+        'permissions.systemJobs.audit-retention.label': 'Audit-Aufbewahrung',
+      }),
+    );
+    const note = catalog.view().find((s) => s.subject === 'Note')!;
+    expect(note.label).toBe('Notizen');
+    expect(note.fields).toEqual([
+      { field: 'body', label: 'Der Text', sensitive: false },
+    ]);
+    const read = note.actions.find((a) => a.action === 'read')!;
+    expect(read.label).toBe('Notizen sehen');
+    expect(read.conditions[0]).toMatchObject({
+      key: 'mine',
+      label: 'Von mir erstellt',
+      // Not translated: as declared.
+      description: 'Only records this person (or API client) created.',
+    });
+    const update = note.actions.find((a) => a.action === 'update')!;
+    expect(update.label).toBe('Change notes');
+    expect(update.conditions[1]).toMatchObject({
+      key: 'draft',
+      label: 'Noch ein Entwurf',
+    });
+    expect(
+      catalog.systemJobsView().find((job) => job.key === 'audit-retention'),
+    ).toMatchObject({
+      label: 'Audit-Aufbewahrung',
+      description:
+        'Deletes audit entries older than AUDIT_RETENTION_DAYS, every night.',
+    });
+  });
+
+  it('is as declared without i18n', () => {
+    const catalog = new PermissionCatalog({
+      permissions: [PLATFORM_PERMISSIONS, NOTE_PERMISSIONS],
+    });
+    expect(catalog.view().find((s) => s.subject === 'Note')!.label).toBe(
+      'Notes',
+    );
   });
 });

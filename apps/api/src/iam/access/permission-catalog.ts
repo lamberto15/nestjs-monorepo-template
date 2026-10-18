@@ -1,4 +1,5 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { I18nService } from '@nestjs/i18n';
 import { type SQL, sql } from 'drizzle-orm';
 import type { Principal } from '../auth/principal.js';
 import { IAM_OPTIONS, type IamOptions } from '../iam.options.js';
@@ -25,7 +26,10 @@ export const ACCESS_PERMISSIONS = definePermissions({
       actions: {
         manageRoles: { label: 'Create, edit and delete roles', conditions: [] },
         manageUsers: {
-          label: 'Create users, assign roles, reset passwords',
+          // Never passwords: an administrator manages the membership, not
+          // the account (docs/tenancy.md).
+          label:
+            'Invite users, assign their roles and teams, deactivate their memberships',
           conditions: [],
         },
         manageClients: {
@@ -85,7 +89,11 @@ export class PermissionCatalog {
   /** The jobs that run as the system principal, by key. */
   readonly systemJobs: ReadonlyMap<string, SystemJobDefinition>;
 
-  constructor(@Inject(IAM_OPTIONS) options: IamOptions) {
+  constructor(
+    @Inject(IAM_OPTIONS) options: IamOptions,
+    // Absent in unit tests that build a catalog alone: the declared texts.
+    @Optional() private readonly i18n?: I18nService,
+  ) {
     const all: PermissionsDefinition[] = [
       ACCESS_PERMISSIONS,
       ...options.permissions,
@@ -244,13 +252,27 @@ export class PermissionCatalog {
     });
   }
 
+  /**
+   * A declared text in the current request's language: the i18n catalogs'
+   * `permissions.<key>` (src/i18n/<locale>/permissions.json) when one has
+   * it, else the declaration's own (English). The shipped subjects and jobs
+   * are translated; a feature's own are when it adds its keys.
+   */
+  private text(key: string[], declared: string) {
+    const path = `permissions.${key.map(i18nSegment).join('.')}`;
+    return this.i18n?.exists(path) ? this.i18n.translate(path) : declared;
+  }
+
   /** The system jobs as GET /access/catalog returns them: who acts without a user, and what each may do. */
   systemJobsView() {
     return [...this.systemJobs.values()].map((job) => ({
       key: job.key,
       actor: `system:${job.key}`,
-      label: job.label,
-      description: job.description,
+      label: this.text(['systemJobs', job.key, 'label'], job.label),
+      description: this.text(
+        ['systemJobs', job.key, 'description'],
+        job.description,
+      ),
       permissions: job.permissions.map((permission) => ({
         subject: permission.subject,
         action: permission.action,
@@ -260,32 +282,52 @@ export class PermissionCatalog {
     }));
   }
 
-  /** The catalog as GET /access/catalog returns it. */
+  /** The catalog as GET /access/catalog returns it, its texts in the request's language. */
   view() {
-    return Object.entries(this.subjects).map(([subject, definition]) => ({
-      subject,
-      label: definition.label,
-      fields: Object.entries(definition.fields ?? {}).map(
-        ([field, details]) => ({
-          field,
-          label: details.label,
-          sensitive: details.sensitive ?? false,
-        }),
-      ),
-      actions: Object.entries(definition.actions).map(([action, details]) => ({
-        action,
-        label: details.label,
-        conditions: details.conditions.map((key) => {
-          const template = definition.conditions[key];
-          return {
-            key,
-            label: template.label,
-            description: template.description,
-            input: template.paramsInput ?? null,
-          };
-        }),
-      })),
-    }));
+    return Object.entries(this.subjects).map(([subject, definition]) => {
+      const own = ['subjects', subject];
+      const condition = (key: string, template: ConditionTemplate) => {
+        // The subject's own texts, else a shared condition's (createdBy: `mine`).
+        const text = (part: string, declared: string) =>
+          this.text(
+            [...own, 'conditions', key, part],
+            template.translation
+              ? this.text(['conditions', template.translation, part], declared)
+              : declared,
+          );
+        return {
+          key,
+          label: text('label', template.label),
+          description: text('description', template.description),
+          input: template.paramsInput
+            ? {
+                ...template.paramsInput,
+                label: text('input', template.paramsInput.label),
+              }
+            : null,
+        };
+      };
+      return {
+        subject,
+        label: this.text([...own, 'label'], definition.label),
+        fields: Object.entries(definition.fields ?? {}).map(
+          ([field, details]) => ({
+            field,
+            label: this.text([...own, 'fields', field], details.label),
+            sensitive: details.sensitive ?? false,
+          }),
+        ),
+        actions: Object.entries(definition.actions).map(
+          ([action, details]) => ({
+            action,
+            label: this.text([...own, 'actions', action], details.label),
+            conditions: details.conditions.map((key) =>
+              condition(key, definition.conditions[key]),
+            ),
+          }),
+        ),
+      };
+    });
   }
 
   /** The fields of `subject` permissions grant one by one. */
@@ -317,6 +359,12 @@ export class PermissionCatalog {
     return NO_MATCH;
   }
 }
+
+/**
+ * A name as one segment of an i18n key: the catalogs split keys on `.`
+ * (a system job's `group.job`); a job's key never holds `_`.
+ */
+export const i18nSegment = (name: string) => name.replaceAll('.', '_');
 
 /** What an unknown condition stands for: no record, in CASL and in SQL. */
 const NO_MATCH: ConditionTemplate = {

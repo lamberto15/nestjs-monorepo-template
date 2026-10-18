@@ -1,0 +1,149 @@
+{
+  "subjects": {
+    "Access": {
+      "label": "访问控制",
+      "actions": {
+        "manageRoles": "创建、编辑和删除角色",
+        "manageUsers": "邀请用户、分配其角色和团队、停用其成员资格",
+        "manageClients": "创建 API 客户端，轮换和吊销其密钥",
+        "manageTeams": "创建、移动和删除团队（“在我的团队中”所涵盖的范围）",
+        "manageCustomFields": "添加、更改、重新排序和停用自定义字段（管理员为笔记和其他记录添加的字段）",
+        "manageSettings": "为所有人、某个团队或某个用户设置设置项和功能开关（platform/settings）",
+        "manageTags": "创建、重命名、更改颜色和删除记录所带的标签（platform/tags）",
+        "readAudit": "查看审计日志",
+        "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
+        "impersonate": "以其他用户身份操作（支持），绝不以管理员身份"
+      }
+    },
+    "Approval": {
+      "label": "审批",
+      "actions": {
+        "read": "查看所有审批请求，而不仅是自己的",
+        "cancel": "取消任何人的审批请求",
+        "manage": "放弃结果无法应用的已批准请求（POST /v1/approvals/{id}/abandon）",
+        "managePolicies": "更改审批策略（阶段、审批人、期限）"
+      },
+      "conditions": {
+        "ofSubject": {
+          "label": "限于某一对象",
+          "description": "仅限关于此对象记录的审批请求（Note）。",
+          "input": "对象"
+        }
+      }
+    },
+    "Ops": {
+      "label": "运维",
+      "actions": {
+        "view": "查看发件箱、死信和实时事件",
+        "manage": "重新排队和清除死信"
+      }
+    },
+    "MailSuppression": {
+      "label": "邮件屏蔽列表",
+      "actions": {
+        "view": "查看不发送邮件的地址及其原因",
+        "manage": "向屏蔽列表添加或移除地址"
+      }
+    },
+    "Note": {
+      "label": "笔记（示例）",
+      "actions": {
+        "read": "查看笔记",
+        "create": "撰写笔记",
+        "update": "更改笔记",
+        "delete": "删除笔记",
+        "restore": "查看已删除的笔记并恢复"
+      },
+      "fields": {
+        "body": "笔记的正文",
+        "custom": "自定义字段"
+      },
+      "conditions": {
+        "draft": {
+          "label": "仍为草稿",
+          "description": "仅限尚未发布的笔记。"
+        }
+      }
+    }
+  },
+  "systemJobs": {
+    "seed": {
+      "label": "首次启动初始化",
+      "description": "首次启动时创建内置和声明的角色以及第一位管理员。"
+    },
+    "audit-retention": {
+      "label": "审计保留",
+      "description": "每晚删除早于 AUDIT_RETENTION_DAYS 的审计条目。"
+    },
+    "soft-delete-purge": {
+      "label": "清空回收站",
+      "description": "每晚永久删除删除时间超过其保留期的记录。"
+    },
+    "account-deletion": {
+      "label": "账户删除",
+      "description": "每晚将删除宽限期已过的账户匿名化，并清除其个人数据。"
+    },
+    "usage-rollup": {
+      "label": "用量汇总",
+      "description": "每晚将 API 客户端的每日用量计数从 Redis 复制到数据库。"
+    },
+    "attachment-sweep": {
+      "label": "附件清理",
+      "description": "每晚删除其记录已不存在的附件的文件和数据行。"
+    },
+    "revisions-retention": {
+      "label": "修订保留",
+      "description": "每晚删除早于 REVISIONS_RETENTION_DAYS 的记录修订（绝不删除记录的最新修订）。"
+    },
+    "notification-retention": {
+      "label": "通知保留",
+      "description": "每晚删除超过 NOTIFICATIONS_RETENTION_DAYS 的已读通知，以及超过 NOTIFICATIONS_MAX_AGE_DAYS 的所有通知。"
+    },
+    "notification-digests": {
+      "label": "通知摘要",
+      "description": "每小时发送到期的通知摘要邮件。"
+    },
+    "notification-delivery": {
+      "label": "通知投递",
+      "description": "从发件箱通过各渠道（实时、邮件、webhook）投递已存储的通知。"
+    },
+    "report-runner": {
+      "label": "定时报表",
+      "description": "启动到期的定时报表（以其所有者身份），暂停无法再运行的报表，并记录每次运行的结果。"
+    },
+    "approvals": {
+      "label": "审批",
+      "description": "运行审批请求的工作流：启动阶段、提醒、升级、过期，并应用结果。"
+    },
+    "exchange-rates": {
+      "label": "汇率",
+      "description": "在每个工作日欧洲央行发布欧元参考汇率后获取并存储。"
+    },
+    "mail-intake": {
+      "label": "邮件事件接收",
+      "description": "记录邮件服务商报告的退信和投诉（通过 SNS 的 SES），并据此维护屏蔽列表。"
+    },
+    "mail-events-retention": {
+      "label": "邮件事件保留",
+      "description": "每晚删除早于 MAIL_EVENTS_RETENTION_DAYS 的退信、投诉和投递事件。"
+    },
+    "note-publication": {
+      "label": "笔记发布",
+      "description": "在延迟期满时发布草稿笔记（或先代其所有者申请审批）。"
+    },
+    "demo-seed": {
+      "label": "演示数据",
+      "description": "在开发数据库上创建演示用户、团队和各功能的演示数据（pnpm db:seed:demo）；拒绝其他任何数据库。"
+    }
+  },
+  "conditions": {
+    "mine": {
+      "label": "由我创建",
+      "description": "仅限此人（或此 API 客户端）创建的记录。"
+    },
+    "inMyTeams": {
+      "label": "在我的团队中",
+      "description": "仅限我所属团队及其下级团队的记录。"
+    }
+  }
+}

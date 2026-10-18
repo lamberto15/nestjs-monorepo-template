@@ -1,0 +1,149 @@
+{
+  "subjects": {
+    "Access": {
+      "label": "Zugriffssteuerung",
+      "actions": {
+        "manageRoles": "Rollen anlegen, bearbeiten und löschen",
+        "manageUsers": "Benutzer einladen, ihre Rollen und Teams zuweisen, ihre Mitgliedschaften deaktivieren",
+        "manageClients": "API-Clients anlegen, ihre Schlüssel rotieren und widerrufen",
+        "manageTeams": "Teams anlegen, verschieben und löschen (was „in meinen Teams“ umfasst)",
+        "manageCustomFields": "Benutzerdefinierte Felder hinzufügen, ändern, umsortieren und deaktivieren (die Felder, die Administratoren Notizen und anderen Datensätzen hinzufügen)",
+        "manageSettings": "Einstellungen und Feature-Flags für alle, ein Team oder einen Benutzer festlegen (platform/settings)",
+        "manageTags": "Die Tags der Datensätze anlegen, umbenennen, umfärben und löschen (platform/tags)",
+        "readAudit": "Das Audit-Protokoll lesen",
+        "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
+        "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator"
+      }
+    },
+    "Approval": {
+      "label": "Genehmigungen",
+      "actions": {
+        "read": "Alle Genehmigungsanfragen sehen, nicht nur die eigenen",
+        "cancel": "Die Genehmigungsanfrage eines beliebigen Benutzers abbrechen",
+        "manage": "Eine genehmigte Anfrage aufgeben, deren Ergebnis nicht angewendet würde (POST /v1/approvals/{id}/abandon)",
+        "managePolicies": "Genehmigungsrichtlinien ändern (Stufen, Genehmigende, Fristen)"
+      },
+      "conditions": {
+        "ofSubject": {
+          "label": "Eines Gegenstands",
+          "description": "Nur Genehmigungsanfragen zu Datensätzen dieses Gegenstands (Note).",
+          "input": "Gegenstand"
+        }
+      }
+    },
+    "Ops": {
+      "label": "Betrieb",
+      "actions": {
+        "view": "Den Outbox, die Dead Letters und die Live-Ereignisse sehen",
+        "manage": "Dead Letters erneut einreihen und löschen"
+      }
+    },
+    "MailSuppression": {
+      "label": "Mail-Sperrliste",
+      "actions": {
+        "view": "Die Adressen sehen, an die keine Mail gesendet wird, und warum",
+        "manage": "Eine Adresse zur Sperrliste hinzufügen oder entfernen"
+      }
+    },
+    "Note": {
+      "label": "Notizen (Beispiel)",
+      "actions": {
+        "read": "Notizen sehen",
+        "create": "Notizen schreiben",
+        "update": "Notizen ändern",
+        "delete": "Notizen löschen",
+        "restore": "Gelöschte Notizen sehen und wiederherstellen"
+      },
+      "fields": {
+        "body": "Der Text der Notiz",
+        "custom": "Die benutzerdefinierten Felder"
+      },
+      "conditions": {
+        "draft": {
+          "label": "Noch ein Entwurf",
+          "description": "Nur noch nicht veröffentlichte Notizen."
+        }
+      }
+    }
+  },
+  "systemJobs": {
+    "seed": {
+      "label": "Ersteinrichtung",
+      "description": "Legt beim ersten Start die eingebauten und deklarierten Rollen sowie den ersten Administrator an."
+    },
+    "audit-retention": {
+      "label": "Audit-Aufbewahrung",
+      "description": "Löscht jede Nacht Audit-Einträge, die älter als AUDIT_RETENTION_DAYS sind."
+    },
+    "soft-delete-purge": {
+      "label": "Papierkorb leeren",
+      "description": "Löscht jede Nacht endgültig die Datensätze, deren Löschung länger als ihre Aufbewahrungsfrist zurückliegt."
+    },
+    "account-deletion": {
+      "label": "Kontolöschung",
+      "description": "Anonymisiert jede Nacht die Konten, deren Löschfrist abgelaufen ist, und löscht ihre personenbezogenen Daten."
+    },
+    "usage-rollup": {
+      "label": "Nutzungsauswertung",
+      "description": "Überträgt jede Nacht die täglichen Nutzungszähler der API-Clients aus Redis in die Datenbank."
+    },
+    "attachment-sweep": {
+      "label": "Anhänge aufräumen",
+      "description": "Löscht jede Nacht die Dateien und Zeilen von Anhängen, deren Datensatz nicht mehr existiert."
+    },
+    "revisions-retention": {
+      "label": "Aufbewahrung der Revisionen",
+      "description": "Löscht jede Nacht Revisionen von Datensätzen, die älter als REVISIONS_RETENTION_DAYS sind (nie die neueste eines Datensatzes)."
+    },
+    "notification-retention": {
+      "label": "Aufbewahrung der Benachrichtigungen",
+      "description": "Löscht jede Nacht gelesene Benachrichtigungen nach NOTIFICATIONS_RETENTION_DAYS und alle nach NOTIFICATIONS_MAX_AGE_DAYS."
+    },
+    "notification-digests": {
+      "label": "Benachrichtigungszusammenfassungen",
+      "description": "Versendet stündlich die fälligen Zusammenfassungen von Benachrichtigungen."
+    },
+    "notification-delivery": {
+      "label": "Zustellung der Benachrichtigungen",
+      "description": "Stellt gespeicherte Benachrichtigungen über ihre Kanäle (Echtzeit, Mail, Webhook) aus dem Outbox zu."
+    },
+    "report-runner": {
+      "label": "Geplante Berichte",
+      "description": "Startet die fälligen geplanten Berichte (als ihre Eigentümer), pausiert die, die nicht mehr laufen können, und hält fest, wie jeder Lauf endete."
+    },
+    "approvals": {
+      "label": "Genehmigungen",
+      "description": "Führt die Abläufe der Genehmigungsanfragen aus: startet Stufen, erinnert, eskaliert, lässt ablaufen und wendet das Ergebnis an."
+    },
+    "exchange-rates": {
+      "label": "Wechselkurse",
+      "description": "Ruft die Euro-Referenzkurse der EZB ab, sobald sie an jedem Arbeitstag veröffentlicht sind, und speichert sie."
+    },
+    "mail-intake": {
+      "label": "Mail-Eingang",
+      "description": "Erfasst die Bounces und Beschwerden, die ein Mail-Anbieter meldet (SES über SNS), und führt daraus die Sperrliste."
+    },
+    "mail-events-retention": {
+      "label": "Aufbewahrung der Mail-Ereignisse",
+      "description": "Löscht jede Nacht Bounce-, Beschwerde- und Zustellereignisse, die älter als MAIL_EVENTS_RETENTION_DAYS sind."
+    },
+    "note-publication": {
+      "label": "Veröffentlichung von Notizen",
+      "description": "Veröffentlicht Notizentwürfe, wenn ihre Wartezeit abläuft (oder bittet zuerst für ihre Eigentümer um Genehmigung)."
+    },
+    "demo-seed": {
+      "label": "Demodaten",
+      "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Teams und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."
+    }
+  },
+  "conditions": {
+    "mine": {
+      "label": "Von mir erstellt",
+      "description": "Nur Datensätze, die diese Person (oder dieser API-Client) erstellt hat."
+    },
+    "inMyTeams": {
+      "label": "In meinen Teams",
+      "description": "Nur Datensätze der Teams, denen ich angehöre, und der Teams darunter."
+    }
+  }
+}

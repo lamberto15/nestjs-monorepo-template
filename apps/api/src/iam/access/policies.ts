@@ -75,12 +75,18 @@ export class AccessPolicy {
     );
   }
 
-  /** The access API's read routes: any Access permission. */
+  /**
+   * The access API's read routes (the catalog, roles, users, teams, API
+   * clients, principals): any permission of access administration, so
+   * whoever manages teams lists them and whoever impersonates finds whom.
+   */
   async open(user: Principal | null) {
     return (
       (await this.manageRoles(user)) ||
       (await this.manageUsers(user)) ||
       (await this.manageClients(user)) ||
+      (await this.manageTeams(user)) ||
+      (await this.impersonate(user)) ||
       (await this.readAudit(user))
     );
   }

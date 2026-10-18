@@ -2365,7 +2365,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** One role, with its permissions and member count */
+        get: operations["AccessController_role_v1"];
         put?: never;
         post?: never;
         /** Delete a role: its members lose its permissions */
@@ -2385,7 +2386,7 @@ export interface paths {
         };
         /**
          * The users, with their role ids, newest first
-         * @description Filter flat (`?active=true&email.contains=@example.com`) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes.
+         * @description Filter flat (`?active=true&email.contains=@example.com`, a team's members with `?teamId=<id>` or `?teamId.in=<id>,<id>`: those in it, not in the teams below) or with `filter` (and/or groups), sort with `sort=-createdAt`, pick fields with `fields=email,name`; each parameter lists what it takes. GET /v1/lists/User describes it.
          */
         get: operations["AccessController_users_v1"];
         put?: never;
@@ -2407,7 +2408,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** One member of this tenant, with their role grants and teams */
+        get: operations["AccessController_user_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2431,6 +2433,26 @@ export interface paths {
         get: operations["AccessController_invitations_v1"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/invitations/{id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a pending invitation again: a new link and expiry
+         * @description Expired or not. The previous link stops working; the roles, their ends (`roleExpiresAt`) and the teams stay as they were. You must be able to grant its roles, as when inviting.
+         */
+        post: operations["AccessController_resendInvitation_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2504,12 +2526,37 @@ export interface paths {
         /** The API clients (never their keys) */
         get: operations["AccessController_apiClients_v1"];
         put?: never;
-        /** Create an API client: its key is in the response, this once */
+        /**
+         * Create an API client: its key is in the response, this once
+         * @description With its roles and daily quota at once, in one transaction: never a client without them.
+         */
         post: operations["AccessController_createClient_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One API client (never its keys) */
+        get: operations["AccessController_apiClient_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an API client for good: its keys stop at once
+         * @description Its keys, role grants, usage and webhook endpoints go with it; the audit log keeps what it did. To stop it and keep it, revoke it instead (PATCH `active: false`).
+         */
+        delete: operations["AccessController_deleteClient_v1"];
+        options?: never;
+        head?: never;
+        /** Revoke (active: false) or reactivate a client; change its roles or daily quota */
+        patch: operations["AccessController_updateClient_v1"];
         trace?: never;
     };
     "/v1/access/clients/{id}/rotate": {
@@ -2544,23 +2591,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/v1/access/clients/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Revoke (active: false) or reactivate a client; change its roles or daily quota */
-        patch: operations["AccessController_updateClient_v1"];
         trace?: never;
     };
     "/v1/access/audit": {
@@ -13302,6 +13332,77 @@ export interface operations {
             };
         };
     };
+    AccessController_role_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        tenantId: string;
+                        /** @description The code's name of a built-in or seeded role (`administrator`, `editor`); null for roles made through the API. */
+                        key: string | null;
+                        name: string;
+                        description: string;
+                        /** @description Built in: never edited nor deleted. */
+                        system: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        permissions: {
+                            subject: string;
+                            action: string;
+                            conditions: {
+                                /** @example mine */
+                                key: string;
+                                params?: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            /** @description Only these restrictable fields; absent: all of them. */
+                            fields?: string[];
+                        }[];
+                        /** @description The users who hold it. */
+                        members: number;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccessController_deleteRole_v1: {
         parameters: {
             query?: never;
@@ -13443,6 +13544,10 @@ export interface operations {
                 active?: "true" | "false";
                 /** @description Filter: emailVerified = */
                 emailVerified?: "true" | "false";
+                /** @description Filter: teamId = */
+                teamId?: string;
+                /** @description Filter: teamId in */
+                "teamId.in"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -13463,7 +13568,7 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"email","op":"eq","value":…},{…}]}. Fields and operators: email (eq, contains, startsWith, endsWith); name (contains, startsWith); active (eq); emailVerified (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"email","op":"eq","value":…},{…}]}. Fields and operators: email (eq, contains, startsWith, endsWith); name (contains, startsWith); active (eq); emailVerified (eq); teamId (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -email. Sortable: email, name, createdAt, updatedAt. */
                 sort?: string;
@@ -13601,6 +13706,79 @@ export interface operations {
             };
         };
     };
+    AccessController_user_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        kind: "user";
+                        email: string;
+                        name: string;
+                        emailVerified: boolean;
+                        /** @description The language they chose, or null. */
+                        locale: string | null;
+                        /** @description Their IANA time zone, or null (APP_TIMEZONE). */
+                        timezone: string | null;
+                        /** @description The membership in this tenant and the account, together. */
+                        active: boolean;
+                        /** @description false: invited, or signs in only with a provider. */
+                        hasPassword: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        roleIds: string[];
+                        roles: {
+                            /** Format: uuid */
+                            roleId: string;
+                            /**
+                             * Format: date-time
+                             * @description When the grant ends; null: never.
+                             */
+                            expiresAt: string | null;
+                        }[];
+                        teamIds: string[];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a member of this tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccessController_updateUser_v1: {
         parameters: {
             query?: never;
@@ -13683,6 +13861,10 @@ export interface operations {
                             expiresAt: string;
                             name: string | null;
                             roleIds: string[];
+                            /** @description When each grant ends once accepted, by role id; the others never do. */
+                            roleExpiresAt: {
+                                [key: string]: string;
+                            };
                             teamIds: string[];
                             invitedBy: string;
                             expired: boolean;
@@ -13701,6 +13883,54 @@ export interface operations {
             };
             /** @description Not allowed by your permissions. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_resendInvitation_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        email: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No pending invitation of this id. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13970,6 +14200,8 @@ export interface operations {
             content: {
                 "application/json": {
                     name: string;
+                    /** @description Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota. */
+                    dailyQuota?: number | null;
                     /**
                      * @description Roles on top of what every client may do (clientPermissions).
                      * @default []
@@ -14056,6 +14288,214 @@ export interface operations {
             };
             /** @description An API client with this name exists. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_apiClient_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        name: string;
+                        active: boolean;
+                        /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
+                        dailyQuota: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description Never the keys themselves, nor their hashes. */
+                        keys: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @description The key's public id: the middle of <prefix>_<id>_<secret>. */
+                            keyId: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            expiresAt: string | null;
+                            /** Format: date-time */
+                            revokedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description Recorded at most once a minute.
+                             */
+                            lastUsedAt: string | null;
+                        }[];
+                        roles: {
+                            /** Format: uuid */
+                            roleId: string;
+                            /** Format: date-time */
+                            expiresAt: string | null;
+                        }[];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_deleteClient_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_updateClient_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description false: every key is refused from the next request. */
+                    active?: boolean;
+                    /** @description Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota. */
+                    dailyQuota?: number | null;
+                    roleIds?: string[];
+                    /** @description When each grant ends, by role id (temporary access); the others never do. */
+                    roleExpiresAt?: {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        name: string;
+                        active: boolean;
+                        /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
+                        dailyQuota: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description Never the keys themselves, nor their hashes. */
+                        keys: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @description The key's public id: the middle of <prefix>_<id>_<secret>. */
+                            keyId: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            expiresAt: string | null;
+                            /** Format: date-time */
+                            revokedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description Recorded at most once a minute.
+                             */
+                            lastUsedAt: string | null;
+                        }[];
+                        roles: {
+                            /** Format: uuid */
+                            roleId: string;
+                            /** Format: date-time */
+                            expiresAt: string | null;
+                        }[];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14183,97 +14623,6 @@ export interface operations {
                 content?: never;
             };
             /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description feature_off: API_CLIENTS=off in this deployment. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AccessController_updateClient_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description false: every key is refused from the next request. */
-                    active?: boolean;
-                    /** @description Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota. */
-                    dailyQuota?: number | null;
-                    roleIds?: string[];
-                    /** @description When each grant ends, by role id (temporary access); the others never do. */
-                    roleExpiresAt?: {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        name: string;
-                        active: boolean;
-                        /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
-                        dailyQuota: number | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description Never the keys themselves, nor their hashes. */
-                        keys: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @description The key's public id: the middle of <prefix>_<id>_<secret>. */
-                            keyId: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            expiresAt: string | null;
-                            /** Format: date-time */
-                            revokedAt: string | null;
-                            /**
-                             * Format: date-time
-                             * @description Recorded at most once a minute.
-                             */
-                            lastUsedAt: string | null;
-                        }[];
-                        roles: {
-                            /** Format: uuid */
-                            roleId: string;
-                            /** Format: date-time */
-                            expiresAt: string | null;
-                        }[];
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
             403: {
                 headers: {
                     [name: string]: unknown;

@@ -1,6 +1,24 @@
-import { type AnyColumn, ilike, or, sql } from 'drizzle-orm';
+import {
+  type AnyColumn,
+  and,
+  eq,
+  exists,
+  ilike,
+  inArray,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { escapeLike, listQuery } from '../../core/http/list-query.js';
-import { auditLog, memberships, users } from '../iam.tables.js';
+import { auditLog, memberships, userTeams, users } from '../iam.tables.js';
+
+/** Members of these teams (directly, not of the teams below them). */
+const inTeams = (teamIds: string[]) =>
+  exists(
+    sql`(select 1 from ${userTeams} where ${and(
+      eq(userTeams.userId, users.id),
+      inArray(userTeams.teamId, teamIds),
+    )})`,
+  );
 
 /** What GET /access/users can be filtered, sorted and narrowed by. */
 export const USER_LIST = listQuery(
@@ -24,6 +42,18 @@ export const USER_LIST = listQuery(
       column: users.emailVerified,
       type: 'boolean',
       ops: ['eq'],
+    },
+    // A team's members (`?teamId=`): those in it, not in the teams below
+    // it. Row-level security keeps user_teams to the tenant.
+    teamId: {
+      column: users.id,
+      type: 'uuid',
+      ops: ['eq', 'in'],
+      ref: 'team',
+      conditions: {
+        eq: (value) => inTeams([value as string]),
+        in: (value) => inTeams(value as string[]),
+      },
     },
     createdAt: {
       column: users.createdAt,

@@ -32,6 +32,12 @@ export interface AccessContext {
 export interface ConditionTemplate<P = any> {
   label: string;
   description: string;
+  /**
+   * A shared condition's texts in the i18n catalogs, when the subject has
+   * none of its own: `permissions.conditions.<translation>` (createdBy:
+   * `mine`, inMyTeams: `inMyTeams`). See PermissionCatalog.view().
+   */
+  translation?: string;
   /** Validates what the access API receives. */
   params?: z.ZodType<P>;
   /** For a frontend: the parameter's input type. */
@@ -150,6 +156,7 @@ export const createdBy = (
   column: AnyPgColumn,
 ): ConditionTemplate => ({
   label: 'Created by me',
+  translation: 'mine',
   description: 'Only records this person (or API client) created.',
   casl: (principal) => ({ [field]: principalKey(principal) }),
   sql: (principal) => eq(column, principalKey(principal)),
@@ -167,6 +174,7 @@ export const inMyTeams = (
   column: AnyPgColumn,
 ): ConditionTemplate => ({
   label: 'In my teams',
+  translation: 'inMyTeams',
   description:
     'Only records of the teams I belong to, and of the teams below them.',
   casl: (_principal, _params, context) => ({

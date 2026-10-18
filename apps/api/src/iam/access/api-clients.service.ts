@@ -92,12 +92,12 @@ export class ApiClientsService {
   async create(
     tx: Transaction,
     actor: UserPrincipal,
-    input: { name: string; keyExpiresAt?: string },
+    input: { name: string; keyExpiresAt?: string; dailyQuota?: number | null },
     ip?: string,
   ) {
     const [client] = await tx
       .insert(apiClients)
-      .values({ name: input.name })
+      .values({ name: input.name, dailyQuota: input.dailyQuota ?? null })
       .returning()
       .catch((error: unknown) => {
         throw uniqueToConflict(error, 'An API client with this name exists.');
@@ -109,7 +109,11 @@ export class ApiClientsService {
         action: 'client.created',
         targetType: 'client',
         targetId: client.id,
-        details: { name: client.name, keyId: apiKeyId(key) },
+        details: {
+          name: client.name,
+          keyId: apiKeyId(key),
+          ...(client.dailyQuota !== null && { dailyQuota: client.dailyQuota }),
+        },
         ip,
       },
       tx,
@@ -247,6 +251,34 @@ export class ApiClientsService {
       },
       tx,
     );
+  }
+
+  /**
+   * Deletes a client for good, in `tx` with its audit entry: its keys stop
+   * at once (their rows go with it, as its role grants and usage do,
+   * through the foreign keys). What it did stays in the audit log, under
+   * `client:<id>` and the name the entry records.
+   */
+  async remove(tx: Transaction, actor: UserPrincipal, id: string, ip?: string) {
+    const [row] = await tx
+      .delete(apiClients)
+      .where(eq(apiClients.id, id))
+      .returning();
+    if (!row) {
+      throw new NotFoundException(`API client ${id} not found.`);
+    }
+    await this.audit.record(
+      actor,
+      {
+        action: 'client.deleted',
+        targetType: 'client',
+        targetId: id,
+        details: { name: row.name },
+        ip,
+      },
+      tx,
+    );
+    return row;
   }
 
   /** Sets (or, with null, removes) the client's daily request quota. */
