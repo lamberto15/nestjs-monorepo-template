@@ -14778,7 +14778,7 @@
     },
     "/v1/approvals": {
       "get": {
-        "description": "`?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages.",
+        "description": "`?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for; `?decidedByMe=true` what you decided (yourself, or standing in for someone): the history. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages. Each item has the `can` and the `etag` its `GET /v1/approvals/{id}` would give you (`?fields=` keeps them): decide from the list with `If-Match: <etag>`.",
         "operationId": "ApprovalsController_list_v1",
         "parameters": [
           {
@@ -14839,6 +14839,15 @@
             "required": false,
             "in": "query",
             "description": "Filter: requestedByMe =",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "decidedByMe",
+            "required": false,
+            "in": "query",
+            "description": "Filter: decidedByMe =",
             "schema": {
               "type": "string"
             }
@@ -15054,7 +15063,7 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"assignedToMe\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"assignedToMe\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); decidedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
               "type": "string"
             }
@@ -15201,6 +15210,32 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "can": {
+                            "type": "object",
+                            "properties": {
+                              "decide": {
+                                "type": "boolean"
+                              },
+                              "cancel": {
+                                "type": "boolean"
+                              },
+                              "resubmit": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "decide",
+                              "cancel",
+                              "resubmit"
+                            ],
+                            "additionalProperties": false,
+                            "description": "What you may do with it now."
+                          },
+                          "etag": {
+                            "type": "string",
+                            "description": "The ETag `GET /v1/approvals/{id}` would send you now (it covers the request's stages, assignments, timeline and your `can`): send it as `If-Match` on a decision.",
+                            "example": "\"mZ1k…\""
                           }
                         },
                         "required": [
@@ -15225,7 +15260,9 @@
                           "outcomeReason",
                           "endedAt",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "can",
+                          "etag"
                         ],
                         "additionalProperties": false
                       }

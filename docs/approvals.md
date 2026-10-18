@@ -217,7 +217,7 @@ switches it per requester.
 
 | Route | Does |
 | --- | --- |
-| `GET /v1/approvals` | the inbox: `?assignedToMe=true` (pending on you now, yours and those of people you stand in for), `?requestedByMe=true`, `status`, `subject`, `action`, `recordId`, `dueAt`, `createdAt`, `updatedAt`; cursor pages; ETag |
+| `GET /v1/approvals` | the inbox: `?assignedToMe=true` (pending on you now, yours and those of people you stand in for), `?requestedByMe=true`, `?decidedByMe=true` (what you decided, yourself or standing in for someone: the history), `status`, `subject`, `action`, `recordId`, `dueAt`, `createdAt`, `updatedAt`; cursor pages; ETag. Each item has its `can` and `etag` (below) |
 | `GET /v1/approvals/{id}` | the request: `stages` (their state in the current round), `assignments` (every round), `timeline`, and `can` (`decide`, `cancel`, `resubmit`); ETag |
 | `POST /v1/approvals/{id}/approve` | `{ comment? }`: for your assignment and those of the people you stand in for |
 | `POST /v1/approvals/{id}/reject` | `{ comment }` (required) |
@@ -229,6 +229,22 @@ switches it per requester.
 
 Every decision route takes `If-Match` (412 `precondition_failed` when the
 request changed since read) and answers the request as `GET` does.
+
+- **The inbox's rows** carry what `GET /v1/approvals/{id}` would give you:
+  `can` (`decide`, `cancel`, `resubmit`: what the routes would allow you
+  now) and `etag` (the tag of that `GET`, which covers the stages,
+  assignments, timeline and your `can`), so a row decides with
+  `If-Match: <etag>` without reading the request first. Both are the
+  single request's own computation (`detailsOf()`), for the whole page in
+  three queries (assignments, timelines, your delegations), whatever its
+  size; `?fields=` keeps them (and can't name them). The list's own ETag
+  changes when any of them does.
+- **`decidedByMe`**: requests with a decision of yours, in any stage or
+  round, your own assignment or one you stood in for (`decidedBy`). A
+  delegate's decision is the delegate's history, not the delegator's.
+  `false` is what you take part in (or may read) and didn't decide. Like
+  `assignedToMe` and `requestedByMe` it narrows what you may read, never
+  widens it; an API client decides nothing, so it matches nothing for one.
 
 - **Who sees what**: anyone reads the requests they made, are or were
   assigned to, decided, or may decide now as a delegate; `Approval.read`
@@ -266,7 +282,9 @@ making a new one: the round counts it, every assignment says its round.
 ## Delegation
 
 `POST /v1/approvals/delegations { toUserId, startsAt, endsAt, subject? }`
-(users only): between `startsAt` and `endsAt` the delegate may decide
+(users only; pick the delegate from the people directory,
+`GET /v1/people?q=`, which any member may read: `toUserId` is a person's
+`key` without `user:`): between `startsAt` and `endsAt` the delegate may decide
 the approvals assigned to you, of every subject or of `subject`. They are
 told of new assignments and reminders with you, find them under
 `assignedToMe`, and their decision is recorded as theirs, `onBehalfOf`
@@ -306,6 +324,11 @@ approved, the approval's workflow runs `onApproved`, which publishes it
 content's hash is compared before publishing: a note changed behind the
 approvers isn't published (`failed`, `record_changed`). A rejected note
 stays a draft; deleting one sent back for changes withdraws its request.
+In the demo data (`pnpm db:seed:demo`) the administrator is an editor too:
+signed in as them, turn the flag on, have an editor (a password the seed
+printed) write a note, then approve in the inbox what its publication asks
+for (after `notes.publishDelay`, 10 seconds). The administrator's own
+notes go to the other editors.
 The tests: `apps/api/test/approvals.e2e-spec.ts`.
 
 ## When the outcome won't apply
