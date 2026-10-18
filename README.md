@@ -63,7 +63,7 @@ rest off, and generates the secrets; without it, copy `apps/api/env.development.
 "First setup"). The first start creates the administrator (`ADMIN_EMAIL`; the password is
 logged once unless `ADMIN_PASSWORD` is set, which `pnpm setup` does). Or open
 the repository in its devcontainer (`.devcontainer/`): the same services,
-nothing to install; it runs the API, not yet the web app (#147). More in
+nothing to install; `pnpm dev` runs the API and the web app there. More in
 [development](docs/development.md).
 
 ## Start a new project
