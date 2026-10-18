@@ -21,9 +21,26 @@ export interface IncomingWebhookSender {
   secretEnv: string;
 }
 
+/**
+ * A webhook event type with what GET /v1/webhook-event-types says of it.
+ * A plain string declares the type alone.
+ */
+export interface WebhookEventTypeDeclaration {
+  /** `note.published`: full-stop delimited segments. */
+  type: string;
+  /** One sentence for a subscription screen: what happened. */
+  description?: string;
+  /** The heading it is listed under; default its first segment (`note`). */
+  group?: string;
+}
+
 export interface PlatformOptions {
-  /** Every event type API clients may subscribe to; `dispatch()` refuses any other. */
-  eventTypes: readonly string[];
+  /**
+   * Every event type API clients may subscribe to; `dispatch()` refuses any
+   * other. A string, or a declaration with a description
+   * (GET /v1/webhook-event-types).
+   */
+  eventTypes: readonly (string | WebhookEventTypeDeclaration)[];
   incomingWebhooks?: IncomingWebhookSender[];
   /**
    * BullMQ queues the features use, by name: registered here (inject with

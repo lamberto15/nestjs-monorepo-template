@@ -34,6 +34,10 @@ import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
 import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
+import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
+import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
+import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
 import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
@@ -303,6 +307,8 @@ export class PlatformModule {
           }),
         }),
         WebhooksModule.forRootAsync({
+          // The package's HTTP transport, recording each request's headers for the delivery log.
+          transport: RecordingWebhookTransport,
           imports: [secretsModule],
           inject: [PLATFORM_SECRETS],
           useFactory: (platform: PlatformSecrets) =>
@@ -318,6 +324,9 @@ export class PlatformModule {
           'WEBHOOKS',
           WebhookEndpointsController,
           WebhookDeliveriesController,
+          WebhookEventTypesController,
+          // An administrator managing a client's webhooks on its behalf.
+          ClientWebhooksController,
         ),
         OpsController,
         FeaturesController,
@@ -403,6 +412,8 @@ export class PlatformModule {
               webhooksStorage,
             ),
         },
+        // Both doors to a client's webhooks: its own routes and an administrator's.
+        WebhookManagementService,
         // Idempotency records in idempotency_keys; registers itself with IdempotencyStorage.
         DrizzleIdempotencyStore,
         OpsPolicy,

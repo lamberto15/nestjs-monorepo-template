@@ -40,7 +40,10 @@ export interface paths {
         delete: operations["WebhookEndpointsController_delete_v1"];
         options?: never;
         head?: never;
-        /** Change an endpoint; only what is sent changes */
+        /**
+         * Change an endpoint; only what is sent changes
+         * @description `description: null` clears it; an empty string is a 400.
+         */
         patch: operations["WebhookEndpointsController_update_v1"];
         trace?: never;
     };
@@ -64,6 +67,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhook-endpoints/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test event to the endpoint
+         * @description Sends the reserved `webhook.test` event (`data`: `{ endpointId, test: true }`) to this endpoint alone, whatever it subscribed to, signed and retried as any webhook. Returns the delivery, pending: follow it at GET …/webhook-deliveries/{id}. A disabled endpoint gets no request (the delivery fails: endpoint-disabled).
+         */
+        post: operations["WebhookEndpointsController_test_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhook-deliveries": {
         parameters: {
             query?: never;
@@ -71,7 +94,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The delivery log, newest first */
+        /**
+         * The delivery log, newest first
+         * @description Newest first, paged by cursor (`limit`, `cursor` = the previous `nextCursor`). Filter flat (`?status=failed&endpointId=…&type.startsWith=note.&createdAt.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=-attempts`, pick fields with `fields=status,type`; `count=true` adds `total`.
+         */
         get: operations["WebhookDeliveriesController_list_v1"];
         put?: never;
         post?: never;
@@ -88,7 +114,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One delivery, with the message sent and every attempt */
+        /** One delivery, with the message sent, every attempt, their duration and the last request */
         get: operations["WebhookDeliveriesController_get_v1"];
         put?: never;
         post?: never;
@@ -129,6 +155,183 @@ export interface paths {
         put?: never;
         /** Retry every failed delivery since an outage began */
         post: operations["WebhookDeliveriesController_retryFailed_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-event-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The event types an endpoint may subscribe to, by feature
+         * @description Declared by the features (`PlatformModule.forRoot({ eventTypes })`, a record's `events`) and the platform (notifications, approvals), each with its description when one is declared. `"*"` subscribes to all of them; any other type is a 400 on create. The reserved test event (`webhook.test`) is not among them.
+         */
+        get: operations["WebhookEventTypesController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The client's endpoints */
+        get: operations["ClientWebhooksController_list_v1"];
+        put?: never;
+        /**
+         * Subscribe a URL to the client's events
+         * @description The secret is in the response, this once. Send an Idempotency-Key to retry safely.
+         */
+        post: operations["ClientWebhooksController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-endpoints/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One of its endpoints */
+        get: operations["ClientWebhooksController_get_v1"];
+        put?: never;
+        post?: never;
+        /** Unsubscribe */
+        delete: operations["ClientWebhooksController_delete_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change an endpoint; only what is sent changes
+         * @description `description: null` clears it; an empty string is a 400.
+         */
+        patch: operations["ClientWebhooksController_update_v1"];
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-endpoints/{id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the endpoint's signing secret
+         * @description The new secret is in the response, this once; the old one keeps signing next to it for 24 hours.
+         */
+        post: operations["ClientWebhooksController_rotateSecret_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-endpoints/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test event to the endpoint
+         * @description Sends the reserved `webhook.test` event (`data`: `{ endpointId, test: true }`) to this endpoint alone, whatever it subscribed to, signed and retried as any webhook. Returns the delivery, pending: follow it at GET …/webhook-deliveries/{id}. A disabled endpoint gets no request (the delivery fails: endpoint-disabled).
+         */
+        post: operations["ClientWebhooksController_test_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The client's delivery log, newest first
+         * @description Newest first, paged by cursor (`limit`, `cursor` = the previous `nextCursor`). Filter flat (`?status=failed&endpointId=…&type.startsWith=note.&createdAt.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=-attempts`, pick fields with `fields=status,type`; `count=true` adds `total`.
+         */
+        get: operations["ClientWebhooksController_deliveries_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-deliveries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One delivery, with the message sent, every attempt, their duration and the last request */
+        get: operations["ClientWebhooksController_delivery_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-deliveries/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send one delivery again, now
+         * @description Same webhook-id and body.
+         */
+        post: operations["ClientWebhooksController_retry_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/clients/{clientId}/webhook-deliveries/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry every failed delivery since an outage began */
+        post: operations["ClientWebhooksController_retryFailed_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2907,7 +3110,7 @@ export interface operations {
                 "application/json": {
                     /** @description A public https:// URL. Private and cloud-metadata addresses are refused. */
                     url: string;
-                    /** @description Event types to receive (see the API description), or "*" for all. */
+                    /** @description Event types to receive (GET /v1/webhook-event-types), or "*" for all. An unknown type is a 400; so is the reserved webhook.test. */
                     eventTypes: string[];
                     description?: string;
                 };
@@ -3049,8 +3252,9 @@ export interface operations {
             content: {
                 "application/json": {
                     url?: string;
-                    /** @description Event types to receive (see the API description), or "*" for all. */
+                    /** @description Event types to receive (GET /v1/webhook-event-types), or "*" for all. An unknown type is a 400; so is the reserved webhook.test. */
                     eventTypes?: string[];
+                    /** @description null clears it (an empty string is refused: 400); absent leaves it as it is. */
                     description?: string | null;
                     enabled?: boolean;
                 };
@@ -3132,13 +3336,107 @@ export interface operations {
             };
         };
     };
+    WebhookEndpointsController_test_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @description The webhook-id header: the same on every attempt and replay. */
+                        messageId: string;
+                        endpointId: string;
+                        tenant: string | null;
+                        type: string;
+                        /** @enum {string} */
+                        status: "pending" | "succeeded" | "failed";
+                        attempts: number;
+                        /** @description Epoch milliseconds. */
+                        nextAttemptAt: number | null;
+                        /** @description Epoch milliseconds. */
+                        lastAttemptAt: number | null;
+                        lastStatusCode: number | null;
+                        lastError: string | null;
+                        /** @enum {string|null} */
+                        failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                        /** @description Epoch milliseconds. */
+                        createdAt: number;
+                        /** @description Epoch milliseconds. */
+                        completedAt: number | null;
+                    };
+                };
+            };
+            /** @description Missing or unknown API key. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     WebhookDeliveriesController_list_v1: {
         parameters: {
             query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: endpointId = */
                 endpointId?: string;
+                /** @description Filter: endpointId in */
+                "endpointId.in"?: string;
+                /** @description Filter: status = */
                 status?: "pending" | "succeeded" | "failed";
-                /** @description An event type, such as note.published. */
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: type = */
                 type?: string;
+                /** @description Filter: type in */
+                "type.in"?: string;
+                /** @description Filter: type startsWith */
+                "type.startsWith"?: string;
+                /** @description Filter: attempts gte */
+                "attempts.gte"?: number;
+                /** @description Filter: attempts lte */
+                "attempts.lte"?: number;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"endpointId","op":"eq","value":…},{…}]}. Fields and operators: endpointId (eq, in); status (eq, in); type (eq, in, startsWith); attempts (gte, lte); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -type. Sortable: type, attempts. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: messageId,endpointId. Fields: id, messageId, endpointId, tenant, type, status, attempts, nextAttemptAt, lastAttemptAt, lastStatusCode, lastError, failureReason, createdAt, completedAt. */
+                fields?: string;
             };
             header?: never;
             path?: never;
@@ -3175,6 +3473,18 @@ export interface operations {
                             /** @description Epoch milliseconds. */
                             completedAt: number | null;
                         }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
                     };
                 };
             };
@@ -3245,6 +3555,19 @@ export interface operations {
                             response: string | null;
                             error: string | null;
                         }[];
+                        /** @description Every attempt of the log together, in milliseconds. */
+                        durationMs: number;
+                        /** @description The request of the latest attempt; null before the first. */
+                        lastRequest: {
+                            /** @description 1-based, within its round. */
+                            attempt: number;
+                            /** @description Epoch milliseconds. */
+                            sentAt: number;
+                            /** @description As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret. */
+                            headers: {
+                                [key: string]: string;
+                            };
+                        } | null;
                     };
                 };
             };
@@ -3334,6 +3657,829 @@ export interface operations {
             };
             /** @description Missing or unknown API key. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WebhookEventTypesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @description The feature: the types' first segment unless declared. */
+                            group: string;
+                            types: {
+                                /** @example note.published */
+                                type: string;
+                                description: string | null;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            tenant: string | null;
+                            url: string;
+                            eventTypes: string[];
+                            description: string | null;
+                            enabled: boolean;
+                            /** @enum {string|null} */
+                            disabledReason: "manual" | "failing" | "gone" | null;
+                            /** @description Epoch milliseconds. */
+                            failingSince: number | null;
+                            /** @description Epoch milliseconds. */
+                            createdAt: number;
+                            /** @description Epoch milliseconds. */
+                            updatedAt: number;
+                        }[];
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
+                 *
+                 *     In Swagger UI, leave `generate` to send a new key on every Execute, or type your own key and Execute twice to see a retry replayed.
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A public https:// URL. Private and cloud-metadata addresses are refused. */
+                    url: string;
+                    /** @description Event types to receive (GET /v1/webhook-event-types), or "*" for all. An unknown type is a 400; so is the reserved webhook.test. */
+                    eventTypes: string[];
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        tenant: string | null;
+                        url: string;
+                        eventTypes: string[];
+                        description: string | null;
+                        enabled: boolean;
+                        /** @enum {string|null} */
+                        disabledReason: "manual" | "failing" | "gone" | null;
+                        /** @description Epoch milliseconds. */
+                        failingSince: number | null;
+                        /** @description Epoch milliseconds. */
+                        createdAt: number;
+                        /** @description Epoch milliseconds. */
+                        updatedAt: number;
+                        /** @description Standard Webhooks whsec_…: verify the signatures with it. Shown this once. */
+                        secret: string;
+                    };
+                };
+            };
+            /** @description A refused URL (not https, a private or cloud-metadata address) or an unknown event type. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        tenant: string | null;
+                        url: string;
+                        eventTypes: string[];
+                        description: string | null;
+                        enabled: boolean;
+                        /** @enum {string|null} */
+                        disabledReason: "manual" | "failing" | "gone" | null;
+                        /** @description Epoch milliseconds. */
+                        failingSince: number | null;
+                        /** @description Epoch milliseconds. */
+                        createdAt: number;
+                        /** @description Epoch milliseconds. */
+                        updatedAt: number;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_delete_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    url?: string;
+                    /** @description Event types to receive (GET /v1/webhook-event-types), or "*" for all. An unknown type is a 400; so is the reserved webhook.test. */
+                    eventTypes?: string[];
+                    /** @description null clears it (an empty string is refused: 400); absent leaves it as it is. */
+                    description?: string | null;
+                    enabled?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        tenant: string | null;
+                        url: string;
+                        eventTypes: string[];
+                        description: string | null;
+                        enabled: boolean;
+                        /** @enum {string|null} */
+                        disabledReason: "manual" | "failing" | "gone" | null;
+                        /** @description Epoch milliseconds. */
+                        failingSince: number | null;
+                        /** @description Epoch milliseconds. */
+                        createdAt: number;
+                        /** @description Epoch milliseconds. */
+                        updatedAt: number;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_rotateSecret_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description The new whsec_…. The old one keeps signing next to it for 24 hours. */
+                        secret: string;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_test_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @description The webhook-id header: the same on every attempt and replay. */
+                        messageId: string;
+                        endpointId: string;
+                        tenant: string | null;
+                        type: string;
+                        /** @enum {string} */
+                        status: "pending" | "succeeded" | "failed";
+                        attempts: number;
+                        /** @description Epoch milliseconds. */
+                        nextAttemptAt: number | null;
+                        /** @description Epoch milliseconds. */
+                        lastAttemptAt: number | null;
+                        lastStatusCode: number | null;
+                        lastError: string | null;
+                        /** @enum {string|null} */
+                        failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                        /** @description Epoch milliseconds. */
+                        createdAt: number;
+                        /** @description Epoch milliseconds. */
+                        completedAt: number | null;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_deliveries_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: endpointId = */
+                endpointId?: string;
+                /** @description Filter: endpointId in */
+                "endpointId.in"?: string;
+                /** @description Filter: status = */
+                status?: "pending" | "succeeded" | "failed";
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: type = */
+                type?: string;
+                /** @description Filter: type in */
+                "type.in"?: string;
+                /** @description Filter: type startsWith */
+                "type.startsWith"?: string;
+                /** @description Filter: attempts gte */
+                "attempts.gte"?: number;
+                /** @description Filter: attempts lte */
+                "attempts.lte"?: number;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"endpointId","op":"eq","value":…},{…}]}. Fields and operators: endpointId (eq, in); status (eq, in); type (eq, in, startsWith); attempts (gte, lte); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -type. Sortable: type, attempts. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: messageId,endpointId. Fields: id, messageId, endpointId, tenant, type, status, attempts, nextAttemptAt, lastAttemptAt, lastStatusCode, lastError, failureReason, createdAt, completedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @description The webhook-id header: the same on every attempt and replay. */
+                            messageId: string;
+                            endpointId: string;
+                            tenant: string | null;
+                            type: string;
+                            /** @enum {string} */
+                            status: "pending" | "succeeded" | "failed";
+                            attempts: number;
+                            /** @description Epoch milliseconds. */
+                            nextAttemptAt: number | null;
+                            /** @description Epoch milliseconds. */
+                            lastAttemptAt: number | null;
+                            lastStatusCode: number | null;
+                            lastError: string | null;
+                            /** @enum {string|null} */
+                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                            /** @description Epoch milliseconds. */
+                            createdAt: number;
+                            /** @description Epoch milliseconds. */
+                            completedAt: number | null;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_delivery_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @description The webhook-id header: the same on every attempt and replay. */
+                        messageId: string;
+                        endpointId: string;
+                        tenant: string | null;
+                        type: string;
+                        /** @enum {string} */
+                        status: "pending" | "succeeded" | "failed";
+                        attempts: number;
+                        /** @description Epoch milliseconds. */
+                        nextAttemptAt: number | null;
+                        /** @description Epoch milliseconds. */
+                        lastAttemptAt: number | null;
+                        lastStatusCode: number | null;
+                        lastError: string | null;
+                        /** @enum {string|null} */
+                        failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                        /** @description Epoch milliseconds. */
+                        createdAt: number;
+                        /** @description Epoch milliseconds. */
+                        completedAt: number | null;
+                        message: {
+                            id: string;
+                            type: string;
+                            tenant: string | null;
+                            /** @description The exact JSON that was signed and sent. */
+                            body: string;
+                            /** @description Epoch milliseconds. */
+                            createdAt: number;
+                        };
+                        history: {
+                            deliveryId: string;
+                            attempt: number;
+                            /** @description Epoch milliseconds. */
+                            at: number;
+                            durationMs: number;
+                            statusCode: number | null;
+                            /** @description The first 4 KB of the response body. */
+                            response: string | null;
+                            error: string | null;
+                        }[];
+                        /** @description Every attempt of the log together, in milliseconds. */
+                        durationMs: number;
+                        /** @description The request of the latest attempt; null before the first. */
+                        lastRequest: {
+                            /** @description 1-based, within its round. */
+                            attempt: number;
+                            /** @description Epoch milliseconds. */
+                            sentAt: number;
+                            /** @description As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret. */
+                            headers: {
+                                [key: string]: string;
+                            };
+                        } | null;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_retry_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description How many deliveries were sent again. */
+                        retried: number;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ClientWebhooksController_retryFailed_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description One endpoint's failed deliveries; every endpoint's without it. */
+                    endpointId?: string;
+                    /**
+                     * Format: date-time
+                     * @description Deliveries created at or after this time: the start of the outage.
+                     */
+                    since?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description How many deliveries were sent again. */
+                        retried: number;
+                    };
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description feature_off: API_CLIENTS=off in this deployment.
+             *
+             *     No such client in your tenant, endpoint or delivery.
+             */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

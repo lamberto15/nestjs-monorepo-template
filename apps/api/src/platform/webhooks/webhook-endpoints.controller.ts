@@ -6,12 +6,12 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   Patch,
   Post,
 } from '@nestjs/common';
 import {
+  ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -24,7 +24,6 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Idempotent } from '@nestjs/idempotency';
-import { WebhookEndpoints } from '@nestjs/webhooks';
 import { idempotencyKeyHeader } from '../idempotency/idempotency.openapi.js';
 import {
   CurrentClient,
@@ -36,10 +35,16 @@ import {
   createEndpointSchema,
   rotatedSecretSchema,
   updateEndpointSchema,
+  webhookDeliverySchema,
   webhookEndpointSchema,
   type CreateEndpointDto,
   type UpdateEndpointDto,
 } from './webhook.schemas.js';
+import { WebhookManagementService } from './webhook-management.service.js';
+
+/** What the test route says (the delegated one says the same). */
+export const TEST_EVENT_DESCRIPTION =
+  'Sends the reserved `webhook.test` event (`data`: `{ endpointId, test: true }`) to this endpoint alone, whatever it subscribed to, signed and retried as any webhook. Returns the delivery, pending: follow it at GET …/webhook-deliveries/{id}. A disabled endpoint gets no request (the delivery fails: endpoint-disabled).';
 
 /** An API client's subscriptions. Every call is scoped to the client: another client's endpoint is a 404. */
 @ApiTags('webhooks')
@@ -48,7 +53,7 @@ import {
 @Controller('webhook-endpoints')
 @ClientOnly()
 export class WebhookEndpointsController {
-  constructor(private readonly webhookEndpoints: WebhookEndpoints) {}
+  constructor(private readonly webhooks: WebhookManagementService) {}
 
   /** Returns the endpoint and its secret. The secret is shown this once. */
   @Post()
@@ -71,37 +76,29 @@ export class WebhookEndpointsController {
     @CurrentClient() client: Client,
     @Body({ schema: createEndpointSchema }) dto: CreateEndpointDto,
   ) {
-    return this.webhookEndpoints.create({
-      url: dto.url,
-      eventTypes: dto.eventTypes,
-      description: dto.description ?? null,
-      tenant: client.id,
-    });
+    return this.webhooks.createEndpoint({ clientId: client.id }, dto);
   }
 
   @Get()
   @ApiOperation({ summary: "The client's endpoints" })
   @ApiOkResponse({ standardSchema: listSchema(webhookEndpointSchema) })
-  async list(@CurrentClient() client: Client) {
-    return { items: await this.webhookEndpoints.list({ tenant: client.id }) };
+  list(@CurrentClient() client: Client) {
+    return this.webhooks.listEndpoints({ clientId: client.id });
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'One endpoint' })
   @ApiOkResponse({ standardSchema: webhookEndpointSchema })
   @ApiNotFoundResponse()
-  async get(@CurrentClient() client: Client, @Param('id') id: string) {
-    const endpoint = await this.webhookEndpoints.get(id, {
-      tenant: client.id,
-    });
-    if (!endpoint) {
-      throw new NotFoundException(`Webhook endpoint ${id} not found`);
-    }
-    return endpoint;
+  get(@CurrentClient() client: Client, @Param('id') id: string) {
+    return this.webhooks.getEndpoint({ clientId: client.id }, id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Change an endpoint; only what is sent changes' })
+  @ApiOperation({
+    summary: 'Change an endpoint; only what is sent changes',
+    description: '`description: null` clears it; an empty string is a 400.',
+  })
   @ApiOkResponse({ standardSchema: webhookEndpointSchema })
   @ApiNotFoundResponse()
   update(
@@ -109,7 +106,7 @@ export class WebhookEndpointsController {
     @Param('id') id: string,
     @Body({ schema: updateEndpointSchema }) dto: UpdateEndpointDto,
   ) {
-    return this.webhookEndpoints.update(id, dto, { tenant: client.id });
+    return this.webhooks.updateEndpoint({ clientId: client.id }, id, dto);
   }
 
   @Delete(':id')
@@ -118,7 +115,7 @@ export class WebhookEndpointsController {
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
   async delete(@CurrentClient() client: Client, @Param('id') id: string) {
-    await this.webhookEndpoints.delete(id, { tenant: client.id });
+    await this.webhooks.deleteEndpoint({ clientId: client.id }, id);
   }
 
   /** A new secret. The old one keeps signing for 24 hours, so the client can switch without a gap. */
@@ -131,11 +128,19 @@ export class WebhookEndpointsController {
   })
   @ApiOkResponse({ standardSchema: rotatedSecretSchema })
   @ApiNotFoundResponse()
-  async rotateSecret(@CurrentClient() client: Client, @Param('id') id: string) {
-    return {
-      secret: await this.webhookEndpoints.rotateSecret(id, {
-        tenant: client.id,
-      }),
-    };
+  rotateSecret(@CurrentClient() client: Client, @Param('id') id: string) {
+    return this.webhooks.rotateSecret({ clientId: client.id }, id);
+  }
+
+  @Post(':id/test')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Send a test event to the endpoint',
+    description: TEST_EVENT_DESCRIPTION,
+  })
+  @ApiAcceptedResponse({ standardSchema: webhookDeliverySchema })
+  @ApiNotFoundResponse()
+  test(@CurrentClient() client: Client, @Param('id') id: string) {
+    return this.webhooks.sendTest({ clientId: client.id }, id);
   }
 }
