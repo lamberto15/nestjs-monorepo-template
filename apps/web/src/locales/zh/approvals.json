@@ -15,7 +15,7 @@
   "empty": {
     "mine": "没有等待你决定的事项。",
     "requested": "你还没有发起任何审批。",
-    "history": "还没有已结束的审批。"
+    "history": "你还没有决定过任何审批。"
   },
   "actions": {
     "Note": {

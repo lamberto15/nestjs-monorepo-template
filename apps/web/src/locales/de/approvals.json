@@ -15,7 +15,7 @@
   "empty": {
     "mine": "Nichts wartet auf Ihre Entscheidung.",
     "requested": "Sie haben keine Genehmigung angefragt.",
-    "history": "Noch keine abgeschlossenen Genehmigungen."
+    "history": "Sie haben noch über keine Genehmigung entschieden."
   },
   "actions": {
     "Note": {

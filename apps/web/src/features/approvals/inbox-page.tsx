@@ -10,9 +10,9 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDateTimeFormat } from '@/lib/date-time';
-import { useFeature, useMe } from '@/lib/features';
+import { useFeature } from '@/lib/features';
 import { inboxQuery, tabs, type ApprovalItem, type Tab } from './api';
-import { DecisionDialog, type DecisionTarget } from './decision-dialog';
+import { ApprovalActions } from './actions';
 import { DelegationsDialog } from './delegations-dialog';
 import { pollInterval } from './use-approval-count';
 import { StatusBadge } from './status';
@@ -22,12 +22,9 @@ export function InboxPage(props: { tab: Tab }) {
   const { t } = useTranslation('approvals');
   const navigate = useNavigate();
   const realtime = useFeature('realtime');
-  // Deciding is refused while acting as someone else (403 approval_impersonation).
-  const canDecide = !useMe()?.user.impersonator && props.tab === 'mine';
   const list = useInfiniteQuery(
     inboxQuery(props.tab, realtime ? false : pollInterval),
   );
-  const [target, setTarget] = useState<DecisionTarget | null>(null);
   const [delegating, setDelegating] = useState(false);
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -69,14 +66,7 @@ export function InboxPage(props: { tab: Tab }) {
       ) : (
         <ul className="rounded-lg border" aria-label={t(`tabs.${props.tab}`)}>
           {items.map((item) => (
-            <ApprovalRow
-              key={item.id}
-              item={item}
-              canDecide={canDecide}
-              onDecide={(decision) =>
-                setTarget({ id: item.id, title: item.title, decision })
-              }
-            />
+            <ApprovalRow key={item.id} item={item} />
           ))}
         </ul>
       )}
@@ -91,7 +81,6 @@ export function InboxPage(props: { tab: Tab }) {
           {t('inbox.loadMore')}
         </Button>
       )}
-      <DecisionDialog target={target} onClose={() => setTarget(null)} />
       <DelegationsDialog open={delegating} onOpenChange={setDelegating} />
     </div>
   );
@@ -104,11 +93,13 @@ export function useActionLabel() {
     t(`actions.${item.key}`, { defaultValue: item.key });
 }
 
-function ApprovalRow(props: {
-  item: ApprovalItem;
-  canDecide: boolean;
-  onDecide: (decision: 'approve' | 'reject') => void;
-}) {
+/**
+ * One request. Its decisions are the ones its `can` allows, in any tab (a
+ * requester may cancel from "Requested by me"), sent with its `etag`: a
+ * request that changed since the list was read is refused (412) and the
+ * dialog says so.
+ */
+function ApprovalRow(props: { item: ApprovalItem }) {
   const { t } = useTranslation('approvals');
   const date = useDateTimeFormat();
   const actionLabel = useActionLabel();
@@ -143,20 +134,7 @@ function ApprovalRow(props: {
         </p>
       </div>
       <div className="flex items-center gap-2">
-        {props.canDecide && (
-          <>
-            <Button size="sm" onClick={() => props.onDecide('approve')}>
-              {t('decision.approve.button')}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => props.onDecide('reject')}
-            >
-              {t('decision.reject.button')}
-            </Button>
-          </>
-        )}
+        <ApprovalActions approval={item} etag={item.etag} />
         <Button
           size="sm"
           variant="ghost"

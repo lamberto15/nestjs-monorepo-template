@@ -12,7 +12,7 @@ import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
 import { ApprovalBanner } from './record-banner';
-import { principalsHandler, userPrincipal } from '@/test/principals';
+import { peopleHandler } from '@/test/people';
 import { findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
@@ -60,8 +60,14 @@ const item = (over: Record<string, unknown> = {}) => ({
   endedAt: null,
   createdAt: '2026-10-17T08:00:00.000Z',
   updatedAt: '2026-10-17T08:00:00.000Z',
+  // What the user may do, and the tag to send back: the list carries both.
+  can: { decide: true, cancel: false, resubmit: false },
+  etag: '"v1"',
   ...over,
 });
+
+/** A request the user may not act on (one they asked for, one that ended). */
+const noActions = { decide: false, cancel: false, resubmit: false };
 
 const detail = (over: Record<string, unknown> = {}) => ({
   ...item(),
@@ -119,7 +125,7 @@ const detail = (over: Record<string, unknown> = {}) => ({
 type Options = {
   waiting?: ReturnType<typeof item>[];
   requested?: ReturnType<typeof item>[];
-  ended?: ReturnType<typeof item>[];
+  decided?: ReturnType<typeof item>[];
   can?: Record<string, boolean>;
   realtime?: boolean;
   impersonating?: boolean;
@@ -137,7 +143,7 @@ function useApprovalsApi(options: Options = {}) {
       ifMatch: string | null;
     }[],
     delegations: [] as unknown[],
-    principalQueries: [] as URLSearchParams[],
+    peopleQueries: [] as string[],
     ended: [] as string[],
   };
   const user = options.impersonating
@@ -179,7 +185,9 @@ function useApprovalsApi(options: Options = {}) {
         ? state.waiting
         : query.get('requestedByMe')
           ? (options.requested ?? [])
-          : (options.ended ?? []);
+          : query.get('decidedByMe')
+            ? (options.decided ?? [])
+            : [];
       return HttpResponse.json({ items, nextCursor: null });
     }),
     http.get('/v1/approvals/delegations', () =>
@@ -208,26 +216,13 @@ function useApprovalsApi(options: Options = {}) {
       state.waiting = [];
       return HttpResponse.json(item({ status: 'approved' }));
     }),
-    principalsHandler(
+    // Active members only, as the API gives them; the user among them.
+    peopleHandler(
       [
-        userPrincipal({
-          id: OTHER_USER,
-          email: 'maya@example.com',
-          name: 'Maya Patel',
-        }),
-        userPrincipal({
-          id: signedInUser.user.id,
-          email: 'ada@example.com',
-          name: 'Ada',
-        }),
-        userPrincipal({
-          id: '0199a3f2-0000-7000-8000-000000000010',
-          email: 'max@example.com',
-          name: 'Max Gone',
-          active: false,
-        }),
+        { id: OTHER_USER, name: 'Maya Patel' },
+        { id: signedInUser.user.id, name: 'Ada' },
       ],
-      state.principalQueries,
+      state.peopleQueries,
     ),
   );
   return state;
@@ -285,10 +280,14 @@ describe('the inbox', () => {
     expect(screen.getByText(/Requested by Maya Patel/)).toBeVisible();
   });
 
-  it('asks the API for each tab, and offers decisions only on the first', async () => {
+  it('asks the API for each tab, and offers what each row can', async () => {
     const api = useApprovalsApi({
-      requested: [item({ id: 'r', title: 'Mine', status: 'approved' })],
-      ended: [item({ id: 'e', title: 'Old', status: 'rejected' })],
+      requested: [
+        item({ id: 'r', title: 'Mine', status: 'approved', can: noActions }),
+      ],
+      decided: [
+        item({ id: 'e', title: 'Old', status: 'rejected', can: noActions }),
+      ],
     });
     const user = userEvent.setup();
     await renderApp('/approvals');
@@ -307,12 +306,93 @@ describe('the inbox', () => {
 
     await user.click(screen.getByRole('tab', { name: 'History' }));
     expect(await screen.findByText('Old')).toBeVisible();
+    // What I decided, not every request that ended.
+    expect(api.listQueries.some((q) => q.get('decidedByMe') === 'true')).toBe(
+      true,
+    );
+    expect(api.listQueries.some((q) => q.has('status.in'))).toBe(false);
     expect(
-      api.listQueries.some(
-        (q) =>
-          q.get('status.in') === 'approved,rejected,cancelled,expired,failed',
+      screen.queryByRole('button', { name: 'Approve' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says so when the user decided nothing yet', async () => {
+    useApprovalsApi();
+    await renderApp('/approvals?tab=history');
+    expect(
+      await screen.findByText('You have not decided any approval yet.'),
+    ).toBeVisible();
+  });
+
+  it('shows only the decisions a row can, in any tab', async () => {
+    const api = useApprovalsApi({
+      waiting: [
+        item({ id: 'a', title: 'Decidable' }),
+        item({ id: 'b', title: 'Not mine to decide', can: noActions }),
+      ],
+      requested: [
+        item({
+          id: 'c',
+          title: 'Asked by me',
+          can: { decide: false, cancel: true, resubmit: false },
+          etag: '"v7"',
+        }),
+      ],
+    });
+    const user = userEvent.setup();
+    await renderApp('/approvals');
+    const list = await screen.findByRole('list', {
+      name: 'Waiting for me',
+    });
+    const rows = within(list).getAllByRole('listitem');
+    expect(
+      within(rows[0]!).getByRole('button', { name: 'Approve' }),
+    ).toBeVisible();
+    expect(
+      within(rows[0]!).queryByRole('button', { name: 'Cancel request' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(rows[1]!).queryByRole('button', { name: /Approve|Reject|Cancel/ }),
+    ).not.toBeInTheDocument();
+
+    // The requester cancels from their tab, with that row's ETag.
+    await user.click(screen.getByRole('tab', { name: 'Requested by me' }));
+    await screen.findByText('Asked by me');
+    expect(
+      screen.queryByRole('button', { name: 'Approve' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel request' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Cancel request' }),
+    );
+    await findToast('Request cancelled.');
+    expect(api.decisions).toEqual([
+      { path: 'cancel', body: {}, ifMatch: '"v7"' },
+    ]);
+  });
+
+  it('tells the user a row changed since the list was read (412), and reloads it', async () => {
+    const api = useApprovalsApi();
+    server.use(
+      http.post('/v1/approvals/:id/approve', () =>
+        problem(412, 'precondition_failed'),
       ),
-    ).toBe(true);
+    );
+    const user = userEvent.setup();
+    await renderApp('/approvals');
+    await user.click(await screen.findByRole('button', { name: 'Approve' }));
+    const dialog = await screen.findByRole('dialog');
+    const before = api.listQueries.filter((q) => q.get('assignedToMe')).length;
+    await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
+    expect(
+      await within(dialog).findByText('This request changed'),
+    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        api.listQueries.filter((q) => q.get('assignedToMe')).length,
+      ).toBeGreaterThan(before),
+    );
   });
 
   it('opens on the tab named in the URL', async () => {
@@ -336,7 +416,7 @@ describe('the inbox', () => {
       await screen.findByText('Nothing is waiting for your decision.'),
     ).toBeVisible();
     expect(api.decisions).toEqual([
-      { path: 'approve', body: { comment: 'Looks good' }, ifMatch: null },
+      { path: 'approve', body: { comment: 'Looks good' }, ifMatch: '"v1"' },
     ]);
   });
 
@@ -371,7 +451,7 @@ describe('the inbox', () => {
       await screen.findByText('Nothing is waiting for your decision.'),
     ).toBeVisible();
     expect(api.decisions).toEqual([
-      { path: 'reject', body: { comment: 'Not yet' }, ifMatch: null },
+      { path: 'reject', body: { comment: 'Not yet' }, ifMatch: '"v1"' },
     ]);
   });
 
@@ -396,24 +476,17 @@ describe('the inbox', () => {
     const person = await within(dialog).findByRole('combobox', {
       name: 'Delegate to',
     });
-    // Searched as typed: active users only, never yourself. (Dice UI takes
-    // the text a frame later: typed at once, not key by key.)
+    // Searched as typed among the people any member may see (not the access
+    // directory), never yourself. (Dice UI takes the text a frame later:
+    // typed at once, not key by key.)
     await user.click(person);
+    expect(
+      await screen.findByRole('option', { name: 'Maya Patel' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('option', { name: 'Ada' })).toBeNull();
     fireEvent.change(person, { target: { value: 'ma' } });
-    await waitFor(() =>
-      expect(
-        api.principalQueries.some(
-          (query) =>
-            query.get('q') === 'ma' &&
-            query.get('kind') === 'user' &&
-            query.get('active') === 'true',
-        ),
-      ).toBe(true),
-    );
-    const maya = await screen.findByRole('option', { name: /Maya Patel/ });
-    expect(screen.queryByRole('option', { name: /Max Gone/ })).toBeNull();
-    expect(screen.queryByRole('option', { name: /Ada/ })).toBeNull();
-    await user.click(maya);
+    await waitFor(() => expect(api.peopleQueries).toContain('ma'));
+    await user.click(await screen.findByRole('option', { name: 'Maya Patel' }));
     fireEvent.change(within(dialog).getByLabelText('From'), {
       target: { value: '2026-11-01T09:00' },
     });
