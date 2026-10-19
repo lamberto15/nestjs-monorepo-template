@@ -121,6 +121,12 @@ describe('users: invitations', () => {
   it('invites an address with a role, and revokes a pending invitation', async () => {
     signedInWith(everything);
     const sent = capture('post', '/v1/access/users', 202);
+    // The invitation pending once the invite is sent.
+    server.use(
+      http.get('/v1/access/invitations', () =>
+        HttpResponse.json({ items: [invitation] }),
+      ),
+    );
     await renderApp('/access/users');
     const user = userEvent.setup();
 
@@ -140,13 +146,8 @@ describe('users: invitations', () => {
       teamIds: [ids.north],
     });
 
-    server.use(
-      http.get('/v1/access/invitations', () =>
-        HttpResponse.json({ items: [invitation] }),
-      ),
-    );
     const revoked = capture('delete', '/v1/access/invitations/:id');
-    await user.click(screen.getByRole('tab', { name: 'Invitations' }));
+    await screen.findByRole('heading', { name: 'Invitations' });
     await user.click(await screen.findByRole('button', { name: 'Revoke' }));
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', {
@@ -204,7 +205,7 @@ describe('users: resending an invitation', () => {
     );
     await renderApp('/access/users');
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('tab', { name: 'Invitations' }));
+    await screen.findByRole('heading', { name: 'Invitations' });
     const row = (await screen.findByText('new@example.com')).closest('tr')!;
     expect(row).toHaveTextContent('Editor');
     expect(row).toHaveTextContent(/Viewer · until/);
@@ -308,27 +309,78 @@ describe('roles: one role', () => {
 });
 
 describe('users: the members', () => {
-  it('narrows the list to a team (`?teamId=`)', async () => {
+  it('asks the list for the members by the list state: team filter and sort', async () => {
     signedInWith(everything);
-    const asked: (string | null)[] = [];
+    const asked: URL[] = [];
     server.events.on('request:start', ({ request }) => {
       const url = new URL(request.url);
-      if (url.pathname === '/v1/access/users') {
-        asked.push(url.searchParams.get('teamId'));
-      }
+      if (url.pathname === '/v1/access/users') asked.push(url);
+    });
+    await renderApp(`/access/users?teamId=in.${ids.sales}&sort=email.asc`);
+    // Carol is in no team: only Sales' members are listed.
+    expect(await screen.findByText('Bob Builder')).toBeVisible();
+    expect(screen.queryByText('Carol Admin')).toBeNull();
+    const last = asked.at(-1)!;
+    expect(JSON.parse(last.searchParams.get('filter') ?? 'null')).toEqual({
+      and: [{ field: 'teamId', op: 'in', value: [ids.sales] }],
+    });
+    expect(last.searchParams.get('sort')).toBe('email');
+    // The columns shown are the fields asked for.
+    expect(last.searchParams.get('fields')).toBe('name,email,roles,active');
+    expect(last.searchParams.get('page')).toBe('1');
+  });
+
+  it('filters by a team picked in the filter menu, named by the teams route', async () => {
+    signedInWith(everything);
+    const asked: URL[] = [];
+    server.events.on('request:start', ({ request }) => {
+      const url = new URL(request.url);
+      if (url.pathname === '/v1/access/users') asked.push(url);
     });
     await renderApp('/access/users');
     const user = userEvent.setup();
-    expect(
-      await screen.findByRole('button', { name: /Carol Admin/ }),
-    ).toBeVisible();
-    await user.click(screen.getByRole('combobox', { name: 'Team' }));
-    await user.click(await screen.findByRole('option', { name: /Sales/ }));
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /Carol Admin/ })).toBeNull(),
+    expect(await screen.findByText('Carol Admin')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: /Filter/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add filter' }));
+    // The first filterable column is the name: pick the team instead.
+    const menu = await screen.findByRole('dialog');
+    await user.click(within(menu).getByRole('button', { name: 'Name' }));
+    await user.click(await screen.findByRole('option', { name: 'Team' }));
+    await user.click(
+      await screen.findByRole('button', { name: /Team filter value/i }),
     );
-    expect(screen.getByRole('button', { name: /Bob Builder/ })).toBeVisible();
-    expect(asked).toContain(ids.sales);
+    await user.click(await screen.findByRole('option', { name: 'Sales' }));
+    await waitFor(() => expect(screen.queryByText('Carol Admin')).toBeNull());
+    expect(screen.getByText('Bob Builder')).toBeVisible();
+    expect(
+      JSON.parse(asked.at(-1)!.searchParams.get('filter') ?? 'null'),
+    ).toEqual({ and: [{ field: 'teamId', op: 'in', value: [ids.sales] }] });
+  });
+
+  it('opens the member sheet from the row’s menu, where access is removed or restored', async () => {
+    signedInWith(everything);
+    const changed = capture('patch', '/v1/access/users/:id');
+    await renderApp('/access/users');
+    const user = userEvent.setup();
+    await screen.findByText('Bob Builder');
+    await user.click(
+      screen.getAllByRole('button', { name: /open actions/i })[0]!,
+    );
+    await user.click(await screen.findByRole('menuitem', { name: 'Open' }));
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText('bob@example.com')).toBeVisible();
+    await user.click(
+      await within(sheet).findByRole('button', {
+        name: 'Remove from this workspace',
+      }),
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Remove',
+      }),
+    );
+    await waitFor(() => expect(changed).toHaveLength(1));
+    expect(changed[0]!.url).toMatch(`/v1/access/users/${ids.bob}`);
   });
 
   it('opens a member as the API reads them, not as the row had them', async () => {
@@ -439,7 +491,7 @@ describe('gating', () => {
       }),
     ).toBeNull();
     // No invitations (manageUsers only) and nobody to invite.
-    expect(screen.queryByRole('tab', { name: 'Invitations' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Invitations' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Invite' })).toBeNull();
   });
 
