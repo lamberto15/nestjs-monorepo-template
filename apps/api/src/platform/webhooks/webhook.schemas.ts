@@ -53,6 +53,7 @@ export type RetryDeliveriesDto = z.infer<typeof retryDeliveriesSchema>;
 const DELIVERY_STATUSES = ['pending', 'succeeded', 'failed'] as const;
 
 const epochMs = z.number().describe('Epoch milliseconds.');
+const isoTime = z.iso.datetime();
 
 /** A webhook endpoint, as the API returns it (never with its secret). */
 export const webhookEndpointSchema = z.object({
@@ -85,6 +86,18 @@ export const rotatedSecretSchema = z.object({
     ),
 });
 
+/** A signing secret, by its creation time: its identifier. Never the secret. */
+export const signingSecretSchema = z.object({
+  createdAt: isoTime.describe(
+    "When the secret was made (the creation or the rotation that issued it): its identifier, to match with the rotations' times.",
+  ),
+  expiresAt: isoTime
+    .nullable()
+    .describe(
+      'When it stops signing: a rotated-out secret, 24 hours after the rotation; null for the current one.',
+    ),
+});
+
 /** One delivery of a message to an endpoint. */
 export const webhookDeliverySchema = z.object({
   id: z.string(),
@@ -96,15 +109,15 @@ export const webhookDeliverySchema = z.object({
   type: z.string(),
   status: z.enum(DELIVERY_STATUSES),
   attempts: z.int(),
-  nextAttemptAt: epochMs.nullable(),
-  lastAttemptAt: epochMs.nullable(),
+  nextAttemptAt: isoTime.nullable(),
+  lastAttemptAt: isoTime.nullable(),
   lastStatusCode: z.int().nullable(),
   lastError: z.string().nullable(),
   failureReason: z
     .enum(['exhausted', 'rejected', 'endpoint-disabled', 'endpoint-deleted'])
     .nullable(),
-  createdAt: epochMs,
-  completedAt: epochMs.nullable(),
+  createdAt: isoTime,
+  completedAt: isoTime.nullable(),
 });
 
 /** A delivery with the message that was sent and every attempt. */
@@ -114,13 +127,13 @@ export const webhookDeliveryDetailsSchema = webhookDeliverySchema.extend({
     type: z.string(),
     tenant: z.string().nullable(),
     body: z.string().describe('The exact JSON that was signed and sent.'),
-    createdAt: epochMs,
+    createdAt: isoTime,
   }),
   history: z.array(
     z.object({
       deliveryId: z.string(),
       attempt: z.int(),
-      at: epochMs,
+      at: isoTime,
       durationMs: z.number(),
       statusCode: z.int().nullable(),
       response: z
@@ -143,11 +156,17 @@ export const webhookDeliveryViewSchema = webhookDeliveryDetailsSchema.extend({
   lastRequest: z
     .object({
       attempt: z.int().describe('1-based, within its round.'),
-      sentAt: epochMs,
+      sentAt: isoTime,
       headers: z
         .record(z.string(), z.string())
         .describe(
           'As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret.',
+        ),
+      signedWith: z
+        .array(signingSecretSchema)
+        .nullable()
+        .describe(
+          'The secrets that signed that attempt, newest first, in the order of the v1,… signatures: one normally, two during the overlap after a rotation. Identified by when each was made, never revealed. Null: not recorded (a delivery from before this was kept).',
         ),
     })
     .nullable()

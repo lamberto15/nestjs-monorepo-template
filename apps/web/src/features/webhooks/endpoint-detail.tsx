@@ -325,7 +325,7 @@ function DeliveriesSection(props: { clientId: string; endpoint: Endpoint }) {
                     <TableCell>
                       {delivery.lastStatusCode ?? delivery.lastError ?? ''}
                     </TableCell>
-                    <TableCell>{format(fromMs(delivery.createdAt))}</TableCell>
+                    <TableCell>{format(delivery.createdAt)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

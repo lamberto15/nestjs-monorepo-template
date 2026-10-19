@@ -314,6 +314,12 @@ repeating the declaration:
   `GET /v1/lists/Audit` the audit log (`GET /v1/access/audit`,
   `AUDIT_LIST`), to whoever has `Access.readAudit`; no
   capabilities, custom fields or recycle bin (`platform/lists/access-lists.ts`).
+  `GET /v1/lists/WebhookDelivery` describes the webhook delivery log
+  (`GET /v1/webhook-deliveries` and
+  `GET /v1/access/clients/{clientId}/webhook-deliveries`, `DELIVERY_LIST`),
+  to an API client or a user with `Access.manageClients`, with `WEBHOOKS` on;
+  it describes the list, and the client stays in the path
+  (`platform/webhooks/webhook-lists.ts`, [webhooks](webhooks-and-realtime.md)).
   Roles and teams have none: their routes answer every item at once,
   with nothing to filter, sort or page.
 - **Capabilities:** `capabilities` says which record panels and routes

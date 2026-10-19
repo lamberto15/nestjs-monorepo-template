@@ -14,12 +14,7 @@ import { toast } from 'sonner';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
-import {
-  deliveryQuery,
-  fromMs,
-  prettyPayload,
-  useRetryDelivery,
-} from './queries';
+import { deliveryQuery, prettyPayload, useRetryDelivery } from './queries';
 import { DeliveryBadge } from './status';
 
 /** A block of text a remote system sent or received: text, never markup. */
@@ -91,7 +86,7 @@ export function DeliveryDialog(props: {
               </dt>
               <dd>{t('delivery.ms', { ms: delivery.durationMs })}</dd>
               <dt className="text-muted-foreground">{t('delivery.created')}</dt>
-              <dd>{format(fromMs(delivery.createdAt))}</dd>
+              <dd>{format(delivery.createdAt)}</dd>
               {delivery.failureReason && (
                 <>
                   <dt className="text-muted-foreground">
@@ -117,7 +112,7 @@ export function DeliveryDialog(props: {
                   <p className="text-xs text-muted-foreground">
                     {t('delivery.sentAt', {
                       attempt: delivery.lastRequest.attempt,
-                      date: format(fromMs(delivery.lastRequest.sentAt)),
+                      date: format(delivery.lastRequest.sentAt),
                     })}
                   </p>
                   <Raw label={t('delivery.headers')}>
@@ -145,7 +140,7 @@ export function DeliveryDialog(props: {
                     <p className="text-xs text-muted-foreground">
                       {t('delivery.attemptLine', {
                         attempt: attempt.attempt,
-                        date: format(fromMs(attempt.at)),
+                        date: format(attempt.at),
                         status: attempt.statusCode ?? t('delivery.noStatus'),
                         ms: attempt.durationMs,
                       })}

@@ -1,0 +1,1 @@
+ALTER TABLE "webhook_delivery_requests" ADD COLUMN "signed_with" jsonb;

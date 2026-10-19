@@ -143,6 +143,66 @@ describe('JobIndex', () => {
     expect([...members!.keys()].sort()).toEqual(['job-1', 'job-2', 'job-4']);
   });
 
+  it('keeps the entries a filter refuses, stepping the cursor over them', async () => {
+    const { redis, index } = setup();
+    for (let n = 1; n <= 8; n++) {
+      await index.add(['list'], tenant, alice, `job-${n}`, 1000 + n);
+    }
+    const even = (item: { id: string }) => Number(item.id.slice(4)) % 2 === 0;
+    const first = await index.page(
+      'list',
+      tenant,
+      alice,
+      { limit: 2 },
+      found,
+      even,
+    );
+    expect(ids(first)).toEqual(['job-8', 'job-6']);
+    expect(first.nextCursor).toBe('job-6');
+    const last = await index.page(
+      'list',
+      tenant,
+      alice,
+      { limit: 2, cursor: first.nextCursor! },
+      found,
+      even,
+    );
+    expect(last).toEqual({
+      items: [{ id: 'job-4' }, { id: 'job-2' }],
+      nextCursor: null,
+    });
+    // Refused is not gone: nothing was removed from the index.
+    expect([...[...redis.sets.values()][0]!.keys()]).toHaveLength(8);
+  });
+
+  it('hands on a cursor when a filter refuses everything it read', async () => {
+    const { index } = setup();
+    // More entries than a page reads in its rounds (MAX_ROUNDS of limit + 1).
+    for (let n = 1; n <= 20; n++) {
+      await index.add(['list'], tenant, alice, `job-${n}`, 1000 + n);
+    }
+    const only = (item: { id: string }) => item.id === 'job-1';
+    const first = await index.page(
+      'list',
+      tenant,
+      alice,
+      { limit: 2 },
+      found,
+      only,
+    );
+    expect(first.items).toEqual([]);
+    expect(first.nextCursor).not.toBeNull();
+    const next = await index.page(
+      'list',
+      tenant,
+      alice,
+      { limit: 2, cursor: first.nextCursor! },
+      found,
+      only,
+    );
+    expect(next).toEqual({ items: [{ id: 'job-1' }], nextCursor: null });
+  });
+
   it('drops entries older than their jobs when it adds one', async () => {
     const { redis, index } = setup();
     const now = 10 * JOB_INDEX_TTL_MS;

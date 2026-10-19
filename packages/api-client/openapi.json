@@ -616,13 +616,15 @@
                     },
                     "nextAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastStatusCode": {
                       "nullable": true,
@@ -645,13 +647,15 @@
                       ]
                     },
                     "createdAt": {
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "completedAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     }
                   },
                   "required": [
@@ -994,13 +998,15 @@
                           },
                           "nextAttemptAt": {
                             "nullable": true,
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "lastAttemptAt": {
                             "nullable": true,
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "lastStatusCode": {
                             "nullable": true,
@@ -1023,13 +1029,15 @@
                             ]
                           },
                           "createdAt": {
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "completedAt": {
                             "nullable": true,
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           }
                         },
                         "required": [
@@ -1163,13 +1171,15 @@
                     },
                     "nextAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastStatusCode": {
                       "nullable": true,
@@ -1192,13 +1202,15 @@
                       ]
                     },
                     "createdAt": {
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "completedAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "message": {
                       "type": "object",
@@ -1218,8 +1230,9 @@
                           "description": "The exact JSON that was signed and sent."
                         },
                         "createdAt": {
-                          "type": "number",
-                          "description": "Epoch milliseconds."
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         }
                       },
                       "required": [
@@ -1245,8 +1258,9 @@
                             "maximum": 9007199254740991
                           },
                           "at": {
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "durationMs": {
                             "type": "number"
@@ -1295,8 +1309,9 @@
                           "description": "1-based, within its round."
                         },
                         "sentAt": {
-                          "type": "number",
-                          "description": "Epoch milliseconds."
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         },
                         "headers": {
                           "type": "object",
@@ -1304,12 +1319,41 @@
                             "type": "string"
                           },
                           "description": "As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret."
+                        },
+                        "signedWith": {
+                          "nullable": true,
+                          "description": "The secrets that signed that attempt, newest first, in the order of the v1,… signatures: one normally, two during the overlap after a rotation. Identified by when each was made, never revealed. Null: not recorded (a delivery from before this was kept).",
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "description": "When the secret was made (the creation or the rotation that issued it): its identifier, to match with the rotations' times."
+                              },
+                              "expiresAt": {
+                                "nullable": true,
+                                "description": "When it stops signing: a rotated-out secret, 24 hours after the rotation; null for the current one.",
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "createdAt",
+                              "expiresAt"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
                         "attempt",
                         "sentAt",
-                        "headers"
+                        "headers",
+                        "signedWith"
                       ],
                       "additionalProperties": false
                     }
@@ -2284,13 +2328,15 @@
                     },
                     "nextAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastStatusCode": {
                       "nullable": true,
@@ -2313,13 +2359,15 @@
                       ]
                     },
                     "createdAt": {
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "completedAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     }
                   },
                   "required": [
@@ -2678,13 +2726,15 @@
                           },
                           "nextAttemptAt": {
                             "nullable": true,
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "lastAttemptAt": {
                             "nullable": true,
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "lastStatusCode": {
                             "nullable": true,
@@ -2707,13 +2757,15 @@
                             ]
                           },
                           "createdAt": {
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "completedAt": {
                             "nullable": true,
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           }
                         },
                         "required": [
@@ -2866,13 +2918,15 @@
                     },
                     "nextAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastAttemptAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "lastStatusCode": {
                       "nullable": true,
@@ -2895,13 +2949,15 @@
                       ]
                     },
                     "createdAt": {
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "completedAt": {
                       "nullable": true,
-                      "type": "number",
-                      "description": "Epoch milliseconds."
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "message": {
                       "type": "object",
@@ -2921,8 +2977,9 @@
                           "description": "The exact JSON that was signed and sent."
                         },
                         "createdAt": {
-                          "type": "number",
-                          "description": "Epoch milliseconds."
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         }
                       },
                       "required": [
@@ -2948,8 +3005,9 @@
                             "maximum": 9007199254740991
                           },
                           "at": {
-                            "type": "number",
-                            "description": "Epoch milliseconds."
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "durationMs": {
                             "type": "number"
@@ -2998,8 +3056,9 @@
                           "description": "1-based, within its round."
                         },
                         "sentAt": {
-                          "type": "number",
-                          "description": "Epoch milliseconds."
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         },
                         "headers": {
                           "type": "object",
@@ -3007,12 +3066,41 @@
                             "type": "string"
                           },
                           "description": "As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret."
+                        },
+                        "signedWith": {
+                          "nullable": true,
+                          "description": "The secrets that signed that attempt, newest first, in the order of the v1,… signatures: one normally, two during the overlap after a rotation. Identified by when each was made, never revealed. Null: not recorded (a delivery from before this was kept).",
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "description": "When the secret was made (the creation or the rotation that issued it): its identifier, to match with the rotations' times."
+                              },
+                              "expiresAt": {
+                                "nullable": true,
+                                "description": "When it stops signing: a rotated-out secret, 24 hours after the rotation; null for the current one.",
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "createdAt",
+                              "expiresAt"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
                         "attempt",
                         "sentAt",
-                        "headers"
+                        "headers",
+                        "signedWith"
                       ],
                       "additionalProperties": false
                     }
@@ -3988,6 +4076,22 @@
             }
           },
           {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+            "schema": {
+              "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          },
+          {
             "name": "limit",
             "required": false,
             "in": "query",
@@ -4342,9 +4446,40 @@
     },
     "/v1/bulk": {
       "get": {
-        "description": "Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.",
+        "description": "Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?status=` and `?kind=` keep some (a filtered page may hold fewer than `limit` items, or none, while `nextCursor` is set: follow it until it is null). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.",
         "operationId": "BulkController_list_v1",
         "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+            "schema": {
+              "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "description": "Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches.",
+            "schema": {
+              "description": "Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches.",
+              "type": "string",
+              "enum": [
+                "delete",
+                "restore",
+                "update"
+              ]
+            }
+          },
           {
             "name": "limit",
             "required": false,
@@ -4407,6 +4542,26 @@
                             },
                             "description": "processed, done, failed: every 100 items."
                           },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When it was handed to the workers."
+                          },
+                          "startedAt": {
+                            "nullable": true,
+                            "description": "When a worker took it up; null while it is queued.",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "finishedAt": {
+                            "nullable": true,
+                            "description": "When it completed or failed; null while it waits or runs.",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
                           "result": {
                             "description": "The counts; GET /v1/bulk/{id} has the result per item.",
                             "type": "object",
@@ -4442,7 +4597,10 @@
                           "name",
                           "action",
                           "status",
-                          "progress"
+                          "progress",
+                          "createdAt",
+                          "startedAt",
+                          "finishedAt"
                         ],
                         "additionalProperties": false
                       }
@@ -4556,6 +4714,26 @@
                       },
                       "description": "processed, done, failed: every 100 items."
                     },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When it was handed to the workers."
+                    },
+                    "startedAt": {
+                      "nullable": true,
+                      "description": "When a worker took it up; null while it is queued.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "finishedAt": {
+                      "nullable": true,
+                      "description": "When it completed or failed; null while it waits or runs.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
                     "result": {
                       "type": "object",
                       "properties": {
@@ -4652,7 +4830,10 @@
                     "name",
                     "action",
                     "status",
-                    "progress"
+                    "progress",
+                    "createdAt",
+                    "startedAt",
+                    "finishedAt"
                   ],
                   "additionalProperties": false
                 }
@@ -25642,6 +25823,12 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "webhookEndpoints": {
+                            "description": "How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
@@ -25856,6 +26043,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "webhookEndpoints": {
+                      "description": "How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
                     "key": {
                       "type": "string",
                       "description": "The API key: `Authorization: Bearer <key>`. Shown this once."
@@ -26027,6 +26220,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "webhookEndpoints": {
+                      "description": "How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
@@ -26229,6 +26428,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "webhookEndpoints": {
+                      "description": "How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
@@ -26458,6 +26663,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "webhookEndpoints": {
+                      "description": "How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     },
                     "key": {
                       "type": "string",
@@ -32119,7 +32330,7 @@
               "nullable": true,
               "type": "string"
             },
-            "description": "The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ \"user:<id>\": \"Maya Patel\" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.",
+            "description": "The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ \"user:<id>\": \"Maya Patel\" }`. A mention written as an address (`@maya@example.com`) is named under that address too (lower-cased), so a client can show the name where the body has the address; an address that mentioned nobody has no entry. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.",
             "example": {
               "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
             }

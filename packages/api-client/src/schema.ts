@@ -580,7 +580,7 @@ export interface paths {
         };
         /**
          * The bulk runs you handed to the workers in this tenant
-         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.
+         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?status=` and `?kind=` keep some (a filtered page may hold fewer than `limit` items, or none, while `nextCursor` is set: follow it until it is null). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.
          */
         get: operations["BulkController_list_v1"];
         put?: never;
@@ -3364,7 +3364,7 @@ export interface components {
             /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
             mentions: string[];
             /**
-             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A mention written as an address (`@maya@example.com`) is named under that address too (lower-cased), so a client can show the name where the body has the address; an address that mentioned nobody has no entry. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
              * @example {
              *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
              *     }
@@ -3884,18 +3884,18 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                     };
                 };
             };
@@ -3982,18 +3982,18 @@ export interface operations {
                             /** @enum {string} */
                             status: "pending" | "succeeded" | "failed";
                             attempts: number;
-                            /** @description Epoch milliseconds. */
-                            nextAttemptAt: number | null;
-                            /** @description Epoch milliseconds. */
-                            lastAttemptAt: number | null;
+                            /** Format: date-time */
+                            nextAttemptAt: string | null;
+                            /** Format: date-time */
+                            lastAttemptAt: string | null;
                             lastStatusCode: number | null;
                             lastError: string | null;
                             /** @enum {string|null} */
                             failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
-                            /** @description Epoch milliseconds. */
-                            completedAt: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            completedAt: string | null;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -4045,32 +4045,32 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                         message: {
                             id: string;
                             type: string;
                             tenant: string | null;
                             /** @description The exact JSON that was signed and sent. */
                             body: string;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
+                            /** Format: date-time */
+                            createdAt: string;
                         };
                         history: {
                             deliveryId: string;
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            at: number;
+                            /** Format: date-time */
+                            at: string;
                             durationMs: number;
                             statusCode: number | null;
                             /** @description The first 4 KB of the response body. */
@@ -4083,12 +4083,25 @@ export interface operations {
                         lastRequest: {
                             /** @description 1-based, within its round. */
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            sentAt: number;
+                            /** Format: date-time */
+                            sentAt: string;
                             /** @description As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret. */
                             headers: {
                                 [key: string]: string;
                             };
+                            /** @description The secrets that signed that attempt, newest first, in the order of the v1,… signatures: one normally, two during the overlap after a rotation. Identified by when each was made, never revealed. Null: not recorded (a delivery from before this was kept). */
+                            signedWith: {
+                                /**
+                                 * Format: date-time
+                                 * @description When the secret was made (the creation or the rotation that issued it): its identifier, to match with the rotations' times.
+                                 */
+                                createdAt: string;
+                                /**
+                                 * Format: date-time
+                                 * @description When it stops signing: a rotated-out secret, 24 hours after the rotation; null for the current one.
+                                 */
+                                expiresAt: string | null;
+                            }[] | null;
                         } | null;
                     };
                 };
@@ -4629,18 +4642,18 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                     };
                 };
             };
@@ -4741,18 +4754,18 @@ export interface operations {
                             /** @enum {string} */
                             status: "pending" | "succeeded" | "failed";
                             attempts: number;
-                            /** @description Epoch milliseconds. */
-                            nextAttemptAt: number | null;
-                            /** @description Epoch milliseconds. */
-                            lastAttemptAt: number | null;
+                            /** Format: date-time */
+                            nextAttemptAt: string | null;
+                            /** Format: date-time */
+                            lastAttemptAt: string | null;
                             lastStatusCode: number | null;
                             lastError: string | null;
                             /** @enum {string|null} */
                             failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
-                            /** @description Epoch milliseconds. */
-                            completedAt: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            completedAt: string | null;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -4823,32 +4836,32 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                         message: {
                             id: string;
                             type: string;
                             tenant: string | null;
                             /** @description The exact JSON that was signed and sent. */
                             body: string;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
+                            /** Format: date-time */
+                            createdAt: string;
                         };
                         history: {
                             deliveryId: string;
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            at: number;
+                            /** Format: date-time */
+                            at: string;
                             durationMs: number;
                             statusCode: number | null;
                             /** @description The first 4 KB of the response body. */
@@ -4861,12 +4874,25 @@ export interface operations {
                         lastRequest: {
                             /** @description 1-based, within its round. */
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            sentAt: number;
+                            /** Format: date-time */
+                            sentAt: string;
                             /** @description As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret. */
                             headers: {
                                 [key: string]: string;
                             };
+                            /** @description The secrets that signed that attempt, newest first, in the order of the v1,… signatures: one normally, two during the overlap after a rotation. Identified by when each was made, never revealed. Null: not recorded (a delivery from before this was kept). */
+                            signedWith: {
+                                /**
+                                 * Format: date-time
+                                 * @description When the secret was made (the creation or the rotation that issued it): its identifier, to match with the rotations' times.
+                                 */
+                                createdAt: string;
+                                /**
+                                 * Format: date-time
+                                 * @description When it stops signing: a rotated-out secret, 24 hours after the rotation; null for the current one.
+                                 */
+                                expiresAt: string | null;
+                            }[] | null;
                         } | null;
                     };
                 };
@@ -5473,6 +5499,8 @@ export interface operations {
             query?: {
                 /** @description Only exports, or only imports. Default: both. */
                 kind?: "export" | "import";
+                /** @description Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all. */
+                status?: "queued" | "running" | "completed" | "failed";
                 limit?: number;
                 /** @description `nextCursor` of the previous page (the same `kind`). */
                 cursor?: string;
@@ -5625,6 +5653,10 @@ export interface operations {
     BulkController_list_v1: {
         parameters: {
             query?: {
+                /** @description Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all. */
+                status?: "queued" | "running" | "completed" | "failed";
+                /** @description Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches. */
+                kind?: "delete" | "restore" | "update";
                 limit?: number;
                 /** @description `nextCursor` of the previous page. */
                 cursor?: string;
@@ -5651,6 +5683,21 @@ export interface operations {
                             progress: {
                                 [key: string]: number;
                             };
+                            /**
+                             * Format: date-time
+                             * @description When it was handed to the workers.
+                             */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When a worker took it up; null while it is queued.
+                             */
+                            startedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it completed or failed; null while it waits or runs.
+                             */
+                            finishedAt: string | null;
                             /** @description The counts; GET /v1/bulk/{id} has the result per item. */
                             result?: {
                                 done: number;
@@ -5705,6 +5752,21 @@ export interface operations {
                         progress: {
                             [key: string]: number;
                         };
+                        /**
+                         * Format: date-time
+                         * @description When it was handed to the workers.
+                         */
+                        createdAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When a worker took it up; null while it is queued.
+                         */
+                        startedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it completed or failed; null while it waits or runs.
+                         */
+                        finishedAt: string | null;
                         result?: {
                             done: number;
                             failed: number;
@@ -15247,6 +15309,8 @@ export interface operations {
                                 /** Format: date-time */
                                 expiresAt: string | null;
                             }[];
+                            /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                            webhookEndpoints?: number;
                         }[];
                     };
                 };
@@ -15345,6 +15409,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                         /** @description The API key: `Authorization: Bearer <key>`. Shown this once. */
                         key: string;
                     };
@@ -15431,6 +15497,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                     };
                 };
             };
@@ -15562,6 +15630,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                     };
                 };
             };
@@ -15654,6 +15724,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                         /** @description The API key: `Authorization: Bearer <key>`. Shown this once. */
                         key: string;
                     };

@@ -239,6 +239,13 @@
       "when": 1792432134820,
       "tag": "0033_previous_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792437077138,
+      "tag": "0034_yummy_hawkeye",
+      "breakpoints": true
     }
   ]
 }

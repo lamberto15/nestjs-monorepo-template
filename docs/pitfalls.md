@@ -56,7 +56,8 @@
   `dateStyle`/`timeStyle`.
 - **Duplicate incoming webhooks** are answered 200 by the package, empty,
   before the handler runs.
-- **Webhook delivery to `http://127.0.0.1`** needs `WEBHOOKS_ALLOW_LOOPBACK=on`.
+- **Webhook delivery to `http://127.0.0.1`** (or `localhost`) needs `WEBHOOKS_ALLOW_LOOPBACK=on`
+  (development only; [webhooks-and-realtime.md](webhooks-and-realtime.md), "A receiver on your machine").
 - **The access cache** is per process; `access.invalidate()` publishes to
   every instance. Call it after any change to roles, grants or teams.
 - **Express 5 leaves `req.body` undefined** without a body: a schema whose
