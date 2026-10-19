@@ -38,6 +38,7 @@ import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppTransfersIndexRouteImport } from './routes/_app/transfers/index'
 import { Route as AppTransfersImportRouteImport } from './routes/_app/transfers/import'
+import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
 import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
 import { Route as AppAccessRolesRoleIdRouteImport } from './routes/_app/access/roles/$roleId'
 import { Route as AppAccessRolesNewRouteImport } from './routes/_app/access/roles/new'
@@ -45,6 +46,8 @@ import { Route as AppAccessTeamsIndexRouteImport } from './routes/_app/access/te
 import { Route as AppAccessTeamsTeamIdRouteImport } from './routes/_app/access/teams/$teamId'
 import { Route as AppNotesIdIndexRouteImport } from './routes/_app/notes/$id/index'
 import { Route as AppNotesIdEditRouteImport } from './routes/_app/notes/$id/edit'
+import { Route as AppWebhooksClientIdIndexRouteImport } from './routes/_app/webhooks/$clientId/index'
+import { Route as AppWebhooksClientIdIdRouteImport } from './routes/_app/webhooks/$clientId/$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -190,6 +193,11 @@ const AppTransfersImportRoute = AppTransfersImportRouteImport.update({
   path: '/transfers/import',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWebhooksIndexRoute = AppWebhooksIndexRouteImport.update({
+  id: '/webhooks/',
+  path: '/webhooks/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccessRolesIndexRoute = AppAccessRolesIndexRouteImport.update({
   id: '/access/roles/',
   path: '/access/roles/',
@@ -225,6 +233,17 @@ const AppNotesIdEditRoute = AppNotesIdEditRouteImport.update({
   path: '/notes/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWebhooksClientIdIndexRoute =
+  AppWebhooksClientIdIndexRouteImport.update({
+    id: '/webhooks/$clientId/',
+    path: '/webhooks/$clientId/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppWebhooksClientIdIdRoute = AppWebhooksClientIdIdRouteImport.update({
+  id: '/webhooks/$clientId/$id',
+  path: '/webhooks/$clientId/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -255,13 +274,16 @@ export interface FileRoutesByFullPath {
   '/notes/': typeof AppNotesIndexRoute
   '/reports/': typeof AppReportsIndexRoute
   '/transfers/': typeof AppTransfersIndexRoute
+  '/webhooks/': typeof AppWebhooksIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
   '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
   '/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/webhooks/$clientId/$id': typeof AppWebhooksClientIdIdRoute
   '/access/roles/': typeof AppAccessRolesIndexRoute
   '/access/teams/': typeof AppAccessTeamsIndexRoute
   '/notes/$id/': typeof AppNotesIdIndexRoute
+  '/webhooks/$clientId/': typeof AppWebhooksClientIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/accept-invitation': typeof AcceptInvitationRoute
@@ -292,13 +314,16 @@ export interface FileRoutesByTo {
   '/notes': typeof AppNotesIndexRoute
   '/reports': typeof AppReportsIndexRoute
   '/transfers': typeof AppTransfersIndexRoute
+  '/webhooks': typeof AppWebhooksIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
   '/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
   '/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/webhooks/$clientId/$id': typeof AppWebhooksClientIdIdRoute
   '/access/roles': typeof AppAccessRolesIndexRoute
   '/access/teams': typeof AppAccessTeamsIndexRoute
   '/notes/$id': typeof AppNotesIdIndexRoute
+  '/webhooks/$clientId': typeof AppWebhooksClientIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -331,13 +356,16 @@ export interface FileRoutesById {
   '/_app/notes/': typeof AppNotesIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/transfers/': typeof AppTransfersIndexRoute
+  '/_app/webhooks/': typeof AppWebhooksIndexRoute
   '/_app/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/_app/access/roles/new': typeof AppAccessRolesNewRoute
   '/_app/access/teams/$teamId': typeof AppAccessTeamsTeamIdRoute
   '/_app/notes/$id/edit': typeof AppNotesIdEditRoute
+  '/_app/webhooks/$clientId/$id': typeof AppWebhooksClientIdIdRoute
   '/_app/access/roles/': typeof AppAccessRolesIndexRoute
   '/_app/access/teams/': typeof AppAccessTeamsIndexRoute
   '/_app/notes/$id/': typeof AppNotesIdIndexRoute
+  '/_app/webhooks/$clientId/': typeof AppWebhooksClientIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -370,13 +398,16 @@ export interface FileRouteTypes {
     | '/notes/'
     | '/reports/'
     | '/transfers/'
+    | '/webhooks/'
     | '/access/roles/$roleId'
     | '/access/roles/new'
     | '/access/teams/$teamId'
     | '/notes/$id/edit'
+    | '/webhooks/$clientId/$id'
     | '/access/roles/'
     | '/access/teams/'
     | '/notes/$id/'
+    | '/webhooks/$clientId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/accept-invitation'
@@ -407,13 +438,16 @@ export interface FileRouteTypes {
     | '/notes'
     | '/reports'
     | '/transfers'
+    | '/webhooks'
     | '/access/roles/$roleId'
     | '/access/roles/new'
     | '/access/teams/$teamId'
     | '/notes/$id/edit'
+    | '/webhooks/$clientId/$id'
     | '/access/roles'
     | '/access/teams'
     | '/notes/$id'
+    | '/webhooks/$clientId'
   id:
     | '__root__'
     | '/_app'
@@ -445,13 +479,16 @@ export interface FileRouteTypes {
     | '/_app/notes/'
     | '/_app/reports/'
     | '/_app/transfers/'
+    | '/_app/webhooks/'
     | '/_app/access/roles/$roleId'
     | '/_app/access/roles/new'
     | '/_app/access/teams/$teamId'
     | '/_app/notes/$id/edit'
+    | '/_app/webhooks/$clientId/$id'
     | '/_app/access/roles/'
     | '/_app/access/teams/'
     | '/_app/notes/$id/'
+    | '/_app/webhooks/$clientId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -671,6 +708,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTransfersImportRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/webhooks/': {
+      id: '/_app/webhooks/'
+      path: '/webhooks'
+      fullPath: '/webhooks/'
+      preLoaderRoute: typeof AppWebhooksIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/access/roles/': {
       id: '/_app/access/roles/'
       path: '/access/roles'
@@ -720,6 +764,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/webhooks/$clientId/': {
+      id: '/_app/webhooks/$clientId/'
+      path: '/webhooks/$clientId'
+      fullPath: '/webhooks/$clientId/'
+      preLoaderRoute: typeof AppWebhooksClientIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/webhooks/$clientId/$id': {
+      id: '/_app/webhooks/$clientId/$id'
+      path: '/webhooks/$clientId/$id'
+      fullPath: '/webhooks/$clientId/$id'
+      preLoaderRoute: typeof AppWebhooksClientIdIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -744,13 +802,16 @@ interface AppRouteChildren {
   AppNotesIndexRoute: typeof AppNotesIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppTransfersIndexRoute: typeof AppTransfersIndexRoute
+  AppWebhooksIndexRoute: typeof AppWebhooksIndexRoute
   AppAccessRolesRoleIdRoute: typeof AppAccessRolesRoleIdRoute
   AppAccessRolesNewRoute: typeof AppAccessRolesNewRoute
   AppAccessTeamsTeamIdRoute: typeof AppAccessTeamsTeamIdRoute
   AppNotesIdEditRoute: typeof AppNotesIdEditRoute
+  AppWebhooksClientIdIdRoute: typeof AppWebhooksClientIdIdRoute
   AppAccessRolesIndexRoute: typeof AppAccessRolesIndexRoute
   AppAccessTeamsIndexRoute: typeof AppAccessTeamsIndexRoute
   AppNotesIdIndexRoute: typeof AppNotesIdIndexRoute
+  AppWebhooksClientIdIndexRoute: typeof AppWebhooksClientIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -774,13 +835,16 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotesIndexRoute: AppNotesIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
   AppTransfersIndexRoute: AppTransfersIndexRoute,
+  AppWebhooksIndexRoute: AppWebhooksIndexRoute,
   AppAccessRolesRoleIdRoute: AppAccessRolesRoleIdRoute,
   AppAccessRolesNewRoute: AppAccessRolesNewRoute,
   AppAccessTeamsTeamIdRoute: AppAccessTeamsTeamIdRoute,
   AppNotesIdEditRoute: AppNotesIdEditRoute,
+  AppWebhooksClientIdIdRoute: AppWebhooksClientIdIdRoute,
   AppAccessRolesIndexRoute: AppAccessRolesIndexRoute,
   AppAccessTeamsIndexRoute: AppAccessTeamsIndexRoute,
   AppNotesIdIndexRoute: AppNotesIdIndexRoute,
+  AppWebhooksClientIdIndexRoute: AppWebhooksClientIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -1,0 +1,148 @@
+{
+  "nav": { "title": "Webhook" },
+  "clients": {
+    "title": "Webhook",
+    "description": "Setiap klien API mempunyai titik akhirnya sendiri: pilih klien yang webhooknya anda urus.",
+    "name": "Klien API",
+    "status": "Status",
+    "active": "Aktif",
+    "revoked": "Dibatalkan",
+    "empty": "Belum ada klien API. Cipta satu dahulu: webhook milik sesuatu klien."
+  },
+  "endpoints": {
+    "back": "Semua klien",
+    "title": "Webhook {{client}}",
+    "description": "URL yang menerima peristiwa klien ini, ditandatangani dengan rahsia yang dipaparkan sekali sahaja.",
+    "notFound": "Tiada klien sedemikian.",
+    "create": "Titik akhir baharu",
+    "empty": "Belum ada titik akhir.",
+    "allEvents": "Semua peristiwa",
+    "eventCount_other": "{{count}} jenis peristiwa",
+    "columns": { "url": "URL", "status": "Status", "events": "Peristiwa" }
+  },
+  "endpoint": {
+    "enabled": "Aktif",
+    "disabled": {
+      "manual": "Dimatikan",
+      "failing": "Dimatikan selepas gagal",
+      "gone": "Dimatikan, URL sudah tiada"
+    }
+  },
+  "form": {
+    "createTitle": "Titik akhir baharu",
+    "createDescription": "Rahsia tandatangannya dipaparkan sekali selepas anda mencipta.",
+    "editTitle": "Sunting titik akhir",
+    "editDescription": "Ubah ke mana dan apa yang dihantar. Rahsia kekal seperti sedia ada.",
+    "url": "URL",
+    "urlHint": "Alamat https:// awam. Alamat peribadi dan alamat metadata awan ditolak.",
+    "urlRequired": "Masukkan URL.",
+    "urlInvalid": "Masukkan alamat web penuh, seperti https://example.com/hooks.",
+    "descriptionLabel": "Penerangan (pilihan)",
+    "descriptionPlaceholder": "Pesanan ke sistem gudang",
+    "events": "Peristiwa",
+    "allEvents": "Semua peristiwa",
+    "eventsHint": "Segala yang dihantar oleh API, atau hanya jenis yang anda tandakan.",
+    "eventsRequired": "Pilih sekurang-kurangnya satu peristiwa.",
+    "otherGroup": "Lain-lain",
+    "create": "Cipta titik akhir",
+    "save": "Simpan",
+    "saved": "Titik akhir disimpan.",
+    "cancel": "Batal"
+  },
+  "secret": {
+    "createdTitle": "Salin rahsia tandatangan",
+    "rotatedTitle": "Salin rahsia tandatangan baharu",
+    "warning": "Anda tidak akan melihat rahsia ini lagi. Salin sekarang dan simpan di tempat selamat.",
+    "usage": "Sahkan webhook-signature setiap penghantaran dengannya (Standard Webhooks). Selepas putaran, rahsia lama terus menandatangani bersama selama 24 jam.",
+    "copy": "Salin",
+    "copied": "Disalin ke papan keratan.",
+    "copyFailed": "Tidak dapat menyalin. Pilih rahsia itu dan salin secara manual.",
+    "done": "Saya sudah menyalinnya",
+    "label": "Rahsia tandatangan"
+  },
+  "detail": {
+    "back": "Semua titik akhir",
+    "notFound": "Tiada titik akhir sedemikian.",
+    "title": "Titik akhir",
+    "events": "Peristiwa",
+    "created": "Dicipta",
+    "failingSince": "Gagal sejak",
+    "active": "Menerima peristiwa",
+    "switchedOn": "Titik akhir dihidupkan.",
+    "switchedOff": "Titik akhir dimatikan.",
+    "edit": "Sunting",
+    "test": "Hantar peristiwa ujian",
+    "testSent": "Peristiwa ujian dihantar: lihat dalam penghantaran.",
+    "rotate": "Putar rahsia",
+    "rotateTitle": "Putar rahsia tandatangan?",
+    "rotateDescription": "Rahsia baharu dibuat dan dipaparkan sekali. Yang lama terus menandatangani bersama selama 24 jam supaya penerima anda sempat bertukar.",
+    "rotateConfirm": "Putar",
+    "delete": "Padam",
+    "deleteTitle": "Padam titik akhir ini?",
+    "deleteDescription": "Ia berhenti menerima peristiwa serta-merta dan penghantarannya tidak dipaparkan lagi. Ini tidak boleh dibuat asal.",
+    "deleteConfirm": "Padam",
+    "deleted": "Titik akhir dipadam."
+  },
+  "deliveries": {
+    "title": "Penghantaran",
+    "description": "Apa yang dihantar ke titik akhir ini, yang terbaharu dahulu. Buka satu untuk melihat permintaan dan respons.",
+    "filter": "Status",
+    "all": "Semua",
+    "empty": "Belum ada yang dihantar. Hantar peristiwa ujian untuk mencuba.",
+    "page": "Halaman {{page}} daripada {{count}}",
+    "previous": "Sebelumnya",
+    "next": "Seterusnya",
+    "columns": {
+      "type": "Peristiwa",
+      "status": "Status",
+      "attempts": "Percubaan",
+      "response": "Respons terakhir",
+      "created": "Dicipta"
+    }
+  },
+  "delivery": {
+    "status": {
+      "pending": "Menunggu",
+      "succeeded": "Berjaya",
+      "failed": "Gagal"
+    },
+    "reasons": {
+      "exhausted": "Semua percubaan gagal",
+      "rejected": "Penerima menolaknya",
+      "endpoint-disabled": "Titik akhir telah dimatikan",
+      "endpoint-deleted": "Titik akhir telah dipadam"
+    },
+    "title": "Penghantaran",
+    "loading": "Memuatkan…",
+    "state": "Status",
+    "messageId": "ID mesej",
+    "attempts": "Percubaan",
+    "duration": "Masa diambil",
+    "ms": "{{ms}} ms",
+    "created": "Dicipta",
+    "failure": "Sebab gagal",
+    "lastError": "Ralat terakhir",
+    "request": "Permintaan",
+    "headers": "Pengepala permintaan",
+    "payload": "Muatan",
+    "sentAt": "Percubaan {{attempt}}, dihantar {{date}}. Rahsia tidak pernah dipaparkan.",
+    "notSent": "Belum dihantar.",
+    "responses": "Respons",
+    "attemptLine": "Percubaan {{attempt}}, {{date}}: status {{status}}, {{ms}} ms",
+    "noStatus": "tiada",
+    "responseBody": "Respons percubaan {{attempt}}",
+    "noBody": "Tiada badan respons.",
+    "noAttempts": "Belum ada percubaan.",
+    "retry": "Cuba semula",
+    "retried": "Dihantar semula.",
+    "close": "Tutup"
+  },
+  "retryFailed": {
+    "button": "Cuba semula yang gagal",
+    "title": "Cuba semula penghantaran yang gagal?",
+    "description": "Setiap penghantaran yang gagal bagi titik akhir ini dihantar semula dengan ID mesej yang sama.",
+    "since": "Hanya yang dicipta sejak (pilihan)",
+    "confirm": "Cuba semula yang gagal",
+    "done_other": "{{count}} penghantaran dihantar semula."
+  }
+}
