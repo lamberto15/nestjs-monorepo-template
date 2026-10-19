@@ -279,9 +279,13 @@ repeating the declaration:
   (absent on any other field, the record's own `id` included), so a client
   shows a picker instead of a text box and sends the id as the filter value.
   `tag`: tag ids (`GET /v1/tags`; the `tag` filter, `tagFilter()`); `team`:
-  team ids (`GET /v1/access/teams`; `teamId`); `principal`: a user's or an
-  API client's key, `user:<id>` or `client:<id>` (`ownerId`, as the creator
-  is stored; not a bare user id); a record's subject (`Invoice`): the ids of
+  team ids (`teamId`; `GET /v1/teams`, which any member may read: `q`
+  searches, `id=` names); `principal`: a user's or an API client's key,
+  `user:<id>` or `client:<id>` (`ownerId`, as the creator is stored; not a
+  bare user id; `GET /v1/people`, which any member may read: `q` searches
+  users, `key=` names up to 20 keys, former members' too; see
+  [permissions.md](permissions.md), "The people directory" and "The teams
+  lookup"); a record's subject (`Invoice`): the ids of
   that record's list, for a `field.ref(() => invoices)` of a generated
   record. It is declared with the filter (`ref` of a `listQuery()` field),
   so a new reference field says it where it is declared:
