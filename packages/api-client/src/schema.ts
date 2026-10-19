@@ -1095,10 +1095,30 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Your tenant's people, by name: for @mentions
-         * @description The active members of your tenant whose name contains `q`, by name: each one's key (`user:<id>`, what `@user:<id>` mentions) and name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
+         * Your tenant's people, by name or by key: for @mentions and pickers
+         * @description With `q` (or nothing): the active members of your tenant whose name contains `q`, by name. With `key=user:<id>,client:<id>`: the names of these keys, in the order asked: a member, or a former member (they still own records), or an API client of your tenant; a key your tenant has no one for is left out (no error). Each item is a key (`user:<id>`, what `@user:<id>` mentions and `ownerId` holds) and a name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
          */
         get: operations["PeopleController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your tenant's teams: names and tree, for pickers
+         * @description Every team of your tenant, newest first in cursor pages: its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.
+         */
+        get: operations["TeamDirectoryController_list_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7433,7 +7453,7 @@ export interface operations {
                              */
                             operators: ("eq" | "ne" | "in" | "notIn" | "contains" | "notContains" | "startsWith" | "endsWith" | "gt" | "gte" | "lt" | "lte" | "between" | "isNull")[];
                             /**
-                             * @description What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `team` (GET /v1/access/teams), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`) or a record's subject (`Invoice`: GET its list). Absent for any other field.
+                             * @description What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `team` (GET /v1/teams: search with `q`, name ids with `id=`), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`: GET /v1/people searches users with `q`, names keys with `key=`) or a record's subject (`Invoice`: GET its list). Absent for any other field.
                              * @example tag
                              */
                             ref?: string;
@@ -7561,8 +7581,10 @@ export interface operations {
     PeopleController_list_v1: {
         parameters: {
             query?: {
-                /** @description Part of the name, any case (`%` and `_` are themselves). Absent: the first by name. */
+                /** @description Part of the name, any case (`%` and `_` are themselves). Absent: the first by name. Not with `key`. */
                 q?: string;
+                /** @description Principal keys to name instead of a search, comma-separated, 20 at most: `user:<id>` (a member, or a former member: they still own records) or `client:<id>` (an API client of your tenant). A key with no name in your tenant is left out of the answer. Not with `q`; `limit` doesn't apply. */
+                key?: string;
                 limit?: number;
                 lang?: string;
             };
@@ -7580,7 +7602,7 @@ export interface operations {
                     "application/json": {
                         items: {
                             /**
-                             * @description The principal key, `user:<id>`: mention them with `@user:<id>`; the key comments (`author`) and revisions (`changedBy`) hold.
+                             * @description The principal key, `user:<id>` (`client:<id>` only when asked for by `key`): mention a user with `@user:<id>`; the key comments (`author`), revisions (`changedBy`) and records (`ownerId`) hold.
                              * @example user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d
                              */
                             key: string;
@@ -7590,7 +7612,75 @@ export interface operations {
                     };
                 };
             };
-            /** @description `q` empty or longer than 100 characters, `limit` over 20. */
+            /** @description `q` empty or longer than 100 characters, `limit` over 20, a `key` that is not `user:<uuid>` or `client:<uuid>`, more than 20 keys, or `q` with `key` (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamDirectoryController_list_v1: {
+        parameters: {
+            query?: {
+                /** @description Part of the team name, any case (`%` and `_` are themselves). */
+                q?: string;
+                /** @description Team ids to name, comma-separated, 100 at most: an id your tenant has no team of is left out of the answer. */
+                id?: string;
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `q` and `id`). */
+                cursor?: string;
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * Format: uuid
+                             * @description What a record's `teamId` holds.
+                             */
+                            id: string;
+                            /** @example North */
+                            name: string;
+                            /**
+                             * Format: uuid
+                             * @description The team it is under; null for a top-level team.
+                             */
+                            parentId: string | null;
+                            /** @description 0 for a top-level team. */
+                            depth: number;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description `q` empty or longer than 100 characters, an `id` that is no UUID, more than 100 ids, `limit` over 100 (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
