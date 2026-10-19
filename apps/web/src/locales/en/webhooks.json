@@ -1,0 +1,156 @@
+{
+  "nav": {
+    "title": "Webhooks"
+  },
+  "clients": {
+    "title": "Webhooks",
+    "description": "Each API client has its own endpoints: pick the client whose webhooks you manage.",
+    "name": "API client",
+    "status": "Status",
+    "active": "Active",
+    "revoked": "Revoked",
+    "empty": "No API clients yet. Create one first: webhooks belong to a client."
+  },
+  "endpoints": {
+    "back": "All clients",
+    "title": "Webhooks of {{client}}",
+    "description": "The URLs that receive this client's events, signed with a secret shown once.",
+    "notFound": "No such client.",
+    "create": "New endpoint",
+    "empty": "No endpoints yet.",
+    "allEvents": "All events",
+    "eventCount_one": "{{count}} event type",
+    "eventCount_other": "{{count}} event types",
+    "columns": {
+      "url": "URL",
+      "status": "Status",
+      "events": "Events"
+    }
+  },
+  "endpoint": {
+    "enabled": "Active",
+    "disabled": {
+      "manual": "Switched off",
+      "failing": "Switched off after failing",
+      "gone": "Switched off, the URL is gone"
+    }
+  },
+  "form": {
+    "createTitle": "New endpoint",
+    "createDescription": "Its signing secret is shown once, after you create it.",
+    "editTitle": "Edit endpoint",
+    "editDescription": "Change where and what is sent. The secret stays as it is.",
+    "url": "URL",
+    "urlHint": "A public https:// address. Private and cloud-metadata addresses are refused.",
+    "urlRequired": "Enter the URL.",
+    "urlInvalid": "Enter a full web address, such as https://example.com/hooks.",
+    "descriptionLabel": "Description (optional)",
+    "descriptionPlaceholder": "Orders to the warehouse system",
+    "events": "Events",
+    "allEvents": "All events",
+    "eventsHint": "Everything the API sends, or only the types you tick.",
+    "eventsRequired": "Choose at least one event.",
+    "otherGroup": "Other",
+    "create": "Create endpoint",
+    "save": "Save",
+    "saved": "Endpoint saved.",
+    "cancel": "Cancel"
+  },
+  "secret": {
+    "createdTitle": "Copy the signing secret",
+    "rotatedTitle": "Copy the new signing secret",
+    "warning": "You won't see this secret again. Copy it now and keep it somewhere safe.",
+    "usage": "Verify each delivery's webhook-signature with it (Standard Webhooks). After a rotation, the old secret keeps signing next to it for 24 hours.",
+    "copy": "Copy",
+    "copied": "Copied to the clipboard.",
+    "copyFailed": "Could not copy. Select the secret and copy it by hand.",
+    "done": "I have copied it",
+    "label": "Signing secret"
+  },
+  "detail": {
+    "back": "All endpoints",
+    "notFound": "No such endpoint.",
+    "title": "Endpoint",
+    "events": "Events",
+    "created": "Created",
+    "failingSince": "Failing since",
+    "active": "Receives events",
+    "switchedOn": "Endpoint switched on.",
+    "switchedOff": "Endpoint switched off.",
+    "edit": "Edit",
+    "test": "Send test event",
+    "testSent": "Test event sent: see it in the deliveries.",
+    "rotate": "Rotate secret",
+    "rotateTitle": "Rotate the signing secret?",
+    "rotateDescription": "A new secret is made and shown once. The old one keeps signing next to it for 24 hours, so your receiver can switch over.",
+    "rotateConfirm": "Rotate",
+    "delete": "Delete",
+    "deleteTitle": "Delete this endpoint?",
+    "deleteDescription": "It stops receiving events at once, and its deliveries are no longer shown. This can't be undone.",
+    "deleteConfirm": "Delete",
+    "deleted": "Endpoint deleted."
+  },
+  "deliveries": {
+    "title": "Deliveries",
+    "description": "What was sent to this endpoint, newest first. Open one to see the request and the response.",
+    "filter": "Status",
+    "all": "All",
+    "empty": "Nothing sent yet. Send a test event to try it.",
+    "page": "Page {{page}} of {{count}}",
+    "previous": "Previous",
+    "next": "Next",
+    "columns": {
+      "type": "Event",
+      "status": "Status",
+      "attempts": "Attempts",
+      "response": "Last response",
+      "created": "Created"
+    }
+  },
+  "delivery": {
+    "status": {
+      "pending": "Pending",
+      "succeeded": "Succeeded",
+      "failed": "Failed"
+    },
+    "reasons": {
+      "exhausted": "Every attempt failed",
+      "rejected": "The receiver rejected it",
+      "endpoint-disabled": "The endpoint was switched off",
+      "endpoint-deleted": "The endpoint was deleted"
+    },
+    "title": "Delivery",
+    "loading": "Loading…",
+    "state": "Status",
+    "messageId": "Message id",
+    "attempts": "Attempts",
+    "duration": "Time spent",
+    "ms": "{{ms}} ms",
+    "created": "Created",
+    "failure": "Why it failed",
+    "lastError": "Last error",
+    "request": "Request",
+    "headers": "Request headers",
+    "payload": "Payload",
+    "sentAt": "Attempt {{attempt}}, sent {{date}}. The secret is never shown.",
+    "notSent": "Not sent yet.",
+    "responses": "Responses",
+    "attemptLine": "Attempt {{attempt}}, {{date}}: status {{status}}, {{ms}} ms",
+    "noStatus": "none",
+    "responseBody": "Response of attempt {{attempt}}",
+    "noBody": "No response body.",
+    "noAttempts": "No attempt yet.",
+    "retry": "Retry",
+    "retried": "Sent again.",
+    "close": "Close"
+  },
+  "retryFailed": {
+    "button": "Retry failed",
+    "title": "Retry the failed deliveries?",
+    "description": "Every failed delivery of this endpoint is sent again, with the same message id.",
+    "since": "Only those created since (optional)",
+    "confirm": "Retry failed",
+    "done_one": "{{count}} delivery sent again.",
+    "done_other": "{{count}} deliveries sent again."
+  }
+}

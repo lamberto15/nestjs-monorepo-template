@@ -8,9 +8,6 @@
   "searching": "Sedang mencari…",
   "error": "Carian gagal. Cuba lagi.",
   "empty": "Tiada hasil untuk “{{q}}”.",
-  "subjects": {
-    "Note": "Nota"
-  },
   "recent": "Carian terkini",
   "clearRecent": "Kosongkan carian terkini",
   "hint": "Taip untuk mencari; > menyenaraikan arahan."

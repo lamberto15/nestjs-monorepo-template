@@ -1,26 +1,20 @@
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
-import { Input } from '@nestjs-monorepo-template/ui/components/input';
-import { Label } from '@nestjs-monorepo-template/ui/components/label';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@nestjs-monorepo-template/ui/components/table';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
-import { Fragment, useState } from 'react';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@nestjs-monorepo-template/ui/components/dialog';
+import { DropdownMenuItem } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
+import type { HeaderContext } from '@tanstack/react-table';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  fetchAudit,
-  noFilters,
-  type AuditEntry,
-  type AuditFilters,
-} from './api';
-import { errorMessage } from '@/lib/errors';
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
+import { ListPage } from '@/components/list-page';
+import type { AuditEntry } from '@/features/audit/api';
+import type { DataTableFeatures } from '@/lib/data-table-features';
 import { useDateTimeFormat } from '@/lib/date-time';
+import type { ListColumn } from '@/lib/list-query';
 
 /** Details as text: a string as is, anything else as indented JSON. Never HTML. */
 export function detailsText(details: unknown): string {
@@ -32,243 +26,144 @@ export function detailsText(details: unknown): string {
     : (JSON.stringify(details, null, 2) ?? '');
 }
 
-/** The audit log (`GET /v1/access/audit`): filters, server paging, details. */
+/**
+ * The audit log (`GET /v1/access/audit`) on the generic list page: filters
+ * (the actor by name or address included), sorts and paging come from
+ * GET /v1/lists/Audit; the details of an entry open from its row's menu.
+ */
 export function AuditPage() {
   const { t } = useTranslation('audit');
-  const [draft, setDraft] = useState<AuditFilters>(noFilters);
-  const [applied, setApplied] = useState<AuditFilters>(noFilters);
-  const [page, setPage] = useState(1);
-  const [open, setOpen] = useState<string | null>(null);
   const format = useDateTimeFormat();
-  const log = useQuery({
-    queryKey: ['audit', applied, page] as const,
-    queryFn: () => fetchAudit(applied, page),
-    placeholderData: keepPreviousData,
-  });
-  const set = (key: keyof AuditFilters) => (value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }));
+  const [shown, setShown] = useState<AuditEntry>();
 
-  return (
-    <section className="flex flex-col gap-4">
-      <h1 className="text-xl font-medium">{t('title')}</h1>
-      <form
-        className="flex flex-wrap items-end gap-3"
-        role="search"
-        aria-label={t('filters.label')}
-        onSubmit={(event) => {
-          event.preventDefault();
-          setApplied(draft);
-          setPage(1);
-          setOpen(null);
-        }}
-      >
-        <FilterInput
-          id="audit-action"
-          label={t('filters.action')}
-          placeholder="note."
-          value={draft.action}
-          onChange={set('action')}
-        />
-        <FilterInput
-          id="audit-actor"
-          label={t('filters.actor')}
-          placeholder="user:…"
-          value={draft.actor}
-          onChange={set('actor')}
-        />
-        <FilterInput
-          id="audit-subject"
-          label={t('filters.subject')}
-          placeholder="note"
-          value={draft.targetType}
-          onChange={set('targetType')}
-        />
-        <FilterInput
-          id="audit-from"
-          type="date"
-          label={t('filters.from')}
-          value={draft.from}
-          onChange={set('from')}
-        />
-        <FilterInput
-          id="audit-to"
-          type="date"
-          label={t('filters.to')}
-          value={draft.to}
-          onChange={set('to')}
-        />
-        <Button type="submit">{t('filters.apply')}</Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setDraft(noFilters);
-            setApplied(noFilters);
-            setPage(1);
-            setOpen(null);
-          }}
-        >
-          {t('filters.reset')}
-        </Button>
-      </form>
+  // Cells and headers only: filters and sorts come from the list's metadata.
+  const columns = useMemo<ListColumn<AuditEntry>[]>(() => {
+    const header = (key: string) => {
+      const label = t(`columns.${key}`);
+      return {
+        meta: { label },
+        header: ({
+          column,
+        }: HeaderContext<DataTableFeatures, AuditEntry, unknown>) => (
+          <DataTableColumnHeader column={column} label={label} />
+        ),
+      };
+    };
+    const mono = (value: string | null) => (
+      <span className="font-mono text-xs">{value}</span>
+    );
+    return [
+      {
+        id: 'at',
+        accessorFn: (entry) => format(entry.at),
+        ...header('at'),
+      },
+      {
+        id: 'actorLabel',
+        accessorFn: (entry) => entry.actorLabel,
+        ...header('actor'),
+      },
+      {
+        id: 'action',
+        accessorKey: 'action',
+        ...header('action'),
+        cell: ({ row }) => mono(row.original.action),
+      },
+      {
+        id: 'targetType',
+        accessorKey: 'targetType',
+        ...header('targetType'),
+      },
+      {
+        id: 'targetId',
+        accessorKey: 'targetId',
+        ...header('targetId'),
+        cell: ({ row }) => mono(row.original.targetId),
+      },
+      {
+        id: 'ip',
+        accessorKey: 'ip',
+        ...header('ip'),
+        cell: ({ row }) => mono(row.original.ip),
+      },
+      {
+        // Asked for so the row's dialog has them; the cell is a glimpse.
+        id: 'details',
+        accessorFn: (entry) => detailsText(entry.details),
+        ...header('details'),
+        cell: ({ row }) => (
+          <span className="block max-w-64 truncate font-mono text-xs">
+            {row.original.details ? JSON.stringify(row.original.details) : ''}
+          </span>
+        ),
+      },
+    ];
+  }, [t, format]);
 
-      {log.isError ? (
-        <div
-          role="alert"
-          className="flex flex-col items-start gap-3 rounded-md border border-destructive/40 p-4 text-sm"
-        >
-          <p>{errorMessage(log.error)}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void log.refetch()}
-          >
-            {t('retry')}
-          </Button>
-        </div>
-      ) : log.isPending ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('loading')}
-        </p>
-      ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>{t('columns.at')}</TableHead>
-                <TableHead>{t('columns.actor')}</TableHead>
-                <TableHead>{t('columns.action')}</TableHead>
-                <TableHead>{t('columns.target')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {log.data.items.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center">
-                    {t('empty')}
-                  </TableCell>
-                </TableRow>
-              )}
-              {log.data.items.map((entry) => (
-                <EntryRows
-                  key={entry.id}
-                  entry={entry}
-                  open={open === entry.id}
-                  onToggle={() => setOpen(open === entry.id ? null : entry.id)}
-                  when={format(entry.at)}
-                />
-              ))}
-            </TableBody>
-          </Table>
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span aria-live="polite">
-              {t('page', {
-                page: log.data.page ?? page,
-                pages: log.data.pageCount ?? 1,
-              })}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-              >
-                {t('previous')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!log.data.nextPage}
-                onClick={() => setPage(page + 1)}
-              >
-                {t('next')}
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
-    </section>
+  const rowActions = useCallback(
+    (entry: AuditEntry) => (
+      <DropdownMenuItem onClick={() => setShown(entry)}>
+        {t('details.open')}
+      </DropdownMenuItem>
+    ),
+    [t],
   );
-}
 
-function FilterInput(props: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  placeholder?: string;
-}) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={props.id}>{props.label}</Label>
-      <Input
-        id={props.id}
-        type={props.type}
-        placeholder={props.placeholder}
-        className="w-44"
-        value={props.value}
-        onChange={(event) => props.onChange(event.target.value)}
+    <>
+      <ListPage
+        subject="Audit"
+        path="/v1/access/audit"
+        title={t('title')}
+        columns={columns}
+        rowActions={rowActions}
       />
-    </div>
+      <Dialog
+        open={!!shown}
+        onOpenChange={(open) => !open && setShown(undefined)}
+      >
+        <DialogContent className="sm:max-w-xl">
+          {shown && <EntryDetails entry={shown} />}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
-function EntryRows(props: {
-  entry: AuditEntry;
-  when: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
+function EntryDetails(props: { entry: AuditEntry }) {
   const { t } = useTranslation('audit');
+  const format = useDateTimeFormat();
   const { entry } = props;
   const text = detailsText(entry.details);
-  const Icon = props.open ? ChevronDownIcon : ChevronRightIcon;
   return (
-    <Fragment>
-      <TableRow>
-        <TableCell>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-expanded={props.open}
-            aria-label={t('details.toggle', { action: entry.action })}
-            onClick={props.onToggle}
-          >
-            <Icon />
-          </Button>
-        </TableCell>
-        <TableCell>{props.when}</TableCell>
-        <TableCell>{entry.actorLabel ?? entry.actor}</TableCell>
-        <TableCell className="font-mono text-xs">{entry.action}</TableCell>
-        <TableCell>
-          {entry.targetType
-            ? `${entry.targetType}${entry.targetId ? ` ${entry.targetId}` : ''}`
-            : ''}
-        </TableCell>
-      </TableRow>
-      {props.open && (
-        <TableRow>
-          <TableCell colSpan={5}>
-            <dl className="mb-2 grid grid-cols-[auto_1fr] gap-x-3 text-xs">
-              <dt className="text-muted-foreground">{t('details.actor')}</dt>
-              <dd className="font-mono">{entry.actor}</dd>
-              {entry.ip && (
-                <>
-                  <dt className="text-muted-foreground">{t('details.ip')}</dt>
-                  <dd className="font-mono">{entry.ip}</dd>
-                </>
-              )}
-            </dl>
-            {/* Text in a <pre>: React escapes it, nothing is parsed as HTML. */}
-            <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
-              {text || t('details.none')}
-            </pre>
-          </TableCell>
-        </TableRow>
-      )}
-    </Fragment>
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-mono text-base">
+          {entry.action}
+        </DialogTitle>
+        <DialogDescription>{format(entry.at)}</DialogDescription>
+      </DialogHeader>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-xs">
+        <dt className="text-muted-foreground">{t('details.actor')}</dt>
+        <dd>{entry.actorLabel}</dd>
+        {/* Only when the actor column is shown: the page asks for what it shows. */}
+        {entry.actor && (
+          <>
+            <dt className="text-muted-foreground">{t('details.actorId')}</dt>
+            <dd className="font-mono">{entry.actor}</dd>
+          </>
+        )}
+        {entry.ip && (
+          <>
+            <dt className="text-muted-foreground">{t('details.ip')}</dt>
+            <dd className="font-mono">{entry.ip}</dd>
+          </>
+        )}
+      </dl>
+      {/* Text in a <pre>: React escapes it, nothing is parsed as HTML. */}
+      <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
+        {text || t('details.none')}
+      </pre>
+    </>
   );
 }

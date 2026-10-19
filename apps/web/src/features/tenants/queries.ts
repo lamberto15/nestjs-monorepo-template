@@ -31,6 +31,9 @@ export const tenantsAdminQuery = queryOptions({
   queryKey: ['tenants', 'list'],
   queryFn: () => unwrap(api.GET('/v1/tenants')),
   retry: false,
+  // A 403 `operator_required` stays one: mounting the page or the menu must
+  // not ask again (the route guard has just asked).
+  retryOnMount: false,
   meta: { errorToast: false },
 });
 
