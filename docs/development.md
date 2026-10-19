@@ -199,6 +199,19 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
 - **`devcontainer up` asks for `--allow=fs.read=…`** with a recent Docker
   (buildx bake checks the CLI's generated Dockerfile in a temporary
   directory): `BUILDX_BAKE_ENTITLEMENTS_FS=0 devcontainer up …`.
+- **CI builds it** (`.github/workflows/devcontainer.yml`, when
+  `.devcontainer/**`, `compose.yaml`, `compose.dev.yaml`,
+  `apps/web/vite.config.ts`, `pnpm-lock.yaml` or the workflow change, and on
+  demand): the pinned `@devcontainers/cli` runs `devcontainer up` (with
+  `BUILDX_BAKE_ENTITLEMENTS_FS=0`; so `post-create.sh` and `pnpm install`),
+  then `.devcontainer/smoke-test.sh` starts `pnpm dev` and fetches
+  `127.0.0.1:5173/`, `[::1]:5173/` and `127.0.0.1:5173/health` (the API
+  through Vite's proxy), failing on any answer outside 2xx and printing the
+  dev server's log. Not a required check (a pull request that touches none
+  of those files has no run). The same two steps run locally from the main
+  checkout: `devcontainer up --workspace-folder .`, then
+  `devcontainer exec --workspace-folder . sh .devcontainer/smoke-test.sh`.
+  The CLI's version is raised by hand in the workflow.
 - Dependabot raises the base image; pnpm's version is raised with
   `devEngines` by hand (`PNPM_VERSION`).
 

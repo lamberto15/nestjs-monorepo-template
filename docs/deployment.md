@@ -1006,6 +1006,15 @@ merged migration fails it already):
   runner, failing only on a 2× regression against the previous run or the
   anchor. A schedule comes back with one line under `on:`, e.g.
   `schedule: [{ cron: '37 2 * * 1' }]` (development.md, "Load tests").
+- **Devcontainer:** `.github/workflows/devcontainer.yml` builds
+  `.devcontainer/` with the pinned `@devcontainers/cli` (`devcontainer up`,
+  so `post-create.sh` and `pnpm install`) and smoke-tests it: `pnpm dev`,
+  then `127.0.0.1:5173/`, `[::1]:5173/` and `/health` through Vite's proxy
+  must answer 2xx (`.devcontainer/smoke-test.sh`). Runs on pull requests
+  and `main` that change `.devcontainer/**`, `compose.yaml`,
+  `compose.dev.yaml`, `apps/web/vite.config.ts`, `pnpm-lock.yaml` or the
+  workflow, and on demand. Not a required check (development.md,
+  "Devcontainer").
 - **Commit messages:** `.github/workflows/commit-messages.yml` fails a pull
   request whose title, or whose only commit's subject, isn't a Conventional
   Commit (development.md, "Git hooks").
