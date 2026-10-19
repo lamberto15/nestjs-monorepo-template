@@ -14,10 +14,12 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
 import { PrincipalPicker } from '@/components/principal-picker';
-import { teamsQuery } from '@/features/access/api';
+import { PersonPicker } from '@/components/person-picker';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
+import { holds, useMe, type Permission } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { teamRefsQuery } from '@/lib/list-refs';
 import { usePeopleNames, useTeamNames } from '@/lib/people';
 import {
   fromDraft,
@@ -40,6 +42,21 @@ import {
 type Mode = 'value' | 'rollout';
 
 /**
+ * Who may search the tenant's principals (`GET /v1/access/principals`, the
+ * API's `AccessPolicy.open`): the access administrators. Whoever manages
+ * settings alone searches the members (`GET /v1/people`) instead, so no
+ * request is made just to be refused.
+ */
+const principalReaders: Permission[] = [
+  'Access.manageRoles',
+  'Access.manageUsers',
+  'Access.manageClients',
+  'Access.manageTeams',
+  'Access.impersonate',
+  'Access.readAudit',
+];
+
+/**
  * Sets a setting at a scope (`PUT /v1/settings/{key}`), or, for a flag at the
  * tenant scope, a rollout: a percentage of the tenant's principals. Lists the
  * stored overrides, each of which can be edited or cleared. A user scope's
@@ -53,11 +70,9 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
   const [error, setError] = useState<string>();
   const overrides = useQuery(overridesQuery(setting.key));
   const hasTeam = setting.scopes.includes('team');
-  const teams = useQuery({
-    ...teamsQuery,
-    enabled: hasTeam,
-    meta: { errorToast: false },
-  });
+  // The teams, from the route every member may read.
+  const teams = useQuery({ ...teamRefsQuery, enabled: hasTeam });
+  const mayReadPrincipals = holds(useMe()?.can, principalReaders);
   // Names for the stored values, by key and id (every member may read them).
   const people = usePeopleNames(
     (overrides.data ?? [])
@@ -278,17 +293,31 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
                       <FieldLabel htmlFor="field-scopeId">
                         {t('scopeId.user')}
                       </FieldLabel>
-                      <PrincipalPicker
-                        id="field-scopeId"
-                        label={t('scopeId.user')}
-                        value={field.state.value}
-                        initialLabel={
-                          field.state.value
-                            ? nameOf('user', field.state.value)
-                            : undefined
-                        }
-                        onChange={(value) => field.handleChange(value)}
-                      />
+                      {mayReadPrincipals ? (
+                        <PrincipalPicker
+                          id="field-scopeId"
+                          label={t('scopeId.user')}
+                          value={field.state.value}
+                          initialLabel={
+                            field.state.value
+                              ? nameOf('user', field.state.value)
+                              : undefined
+                          }
+                          onChange={(value) => field.handleChange(value)}
+                        />
+                      ) : (
+                        <PersonPicker
+                          id="field-scopeId"
+                          label={t('scopeId.user')}
+                          value={field.state.value}
+                          initialLabel={
+                            field.state.value
+                              ? nameOf('user', field.state.value)
+                              : undefined
+                          }
+                          onChange={(value) => field.handleChange(value)}
+                        />
+                      )}
                       <FieldDescription>{t('scopeIdHint')}</FieldDescription>
                     </Field>
                   )}
