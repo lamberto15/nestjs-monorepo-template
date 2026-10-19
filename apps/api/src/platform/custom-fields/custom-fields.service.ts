@@ -446,6 +446,42 @@ export class CustomFieldsService {
     return extended;
   }
 
+  /**
+   * How many records of the current tenant hold a value, by field key: one
+   * grouped query over the subject's table (`jsonb_object_keys` of the
+   * values column, behind row-level security), whatever the number of
+   * fields, never one per field. Records in the recycle bin (a table with
+   * `deletedAt`) are counted apart, as `deleted`: they block a type change
+   * or a removed choice like any other (`holdsValues`). A key no record
+   * holds is absent. It reads the whole table: asked for (`?include=counts`),
+   * not on every list.
+   */
+  async valueCounts(subject: string) {
+    const { table, column } = this.declaration(subject);
+    const deletedAt = (
+      getTableColumns(table) as Record<string, AnyPgColumn | undefined>
+    ).deletedAt;
+    // `Database` is typed over any driver's result; node-postgres' is `{ rows }`.
+    const { rows } = (await this.db.execute(sql`
+      select k.key as key,
+        (count(*) ${
+          deletedAt ? sql`filter (where ${deletedAt} is null)` : sql``
+        })::int as records,
+        ${
+          deletedAt
+            ? sql`(count(*) filter (where ${deletedAt} is not null))::int`
+            : sql`0`
+        } as deleted
+      from ${table}, jsonb_object_keys(${column}) as k(key)
+      group by k.key
+    `)) as unknown as {
+      rows: { key: string; records: number; deleted: number }[];
+    };
+    return new Map(
+      rows.map(({ key, records, deleted }) => [key, { records, deleted }]),
+    );
+  }
+
   // Definitions: managed by Access.manageCustomFields.
 
   async create(actor: Principal, input: CreateCustomField, ip?: string) {

@@ -1,5 +1,5 @@
 {
-  "id": "af8ba37b-4bf6-4019-8ae3-a937b522348c",
+  "id": "5fbdb104-fb00-4093-8947-966e1c55152a",
   "prevId": "954107b6-8e8c-4b2e-b6b4-f1ba5dcf8ef2",
   "version": "7",
   "dialect": "postgresql",
@@ -3790,11 +3790,23 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "withdrawn_at": {
+          "name": "withdrawn_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawal_ip": {
+          "name": "withdrawal_ip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "consents_user_kind_version_idx": {
-          "name": "consents_user_kind_version_idx",
+        "consents_user_kind_accepted_at_idx": {
+          "name": "consents_user_kind_accepted_at_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -3809,13 +3821,13 @@
               "nulls": "last"
             },
             {
-              "expression": "version",
+              "expression": "accepted_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7206,12 +7218,6 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
-        },
-        "signed_with": {
-          "name": "signed_with",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "sent_at": {
           "name": "sent_at",

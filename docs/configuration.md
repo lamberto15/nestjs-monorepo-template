@@ -50,6 +50,7 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Mail | `MAIL_TRANSPORT`, `MAIL_FROM`, `SMTP_URL`, `MAIL_API_KEY`, `MAIL_DIRECTORY` (`.data/mail`), `SES_ENDPOINT` (Floci) |
 | Deliverability | `SES_SNS_TOPIC_ARNS` (the SNS topics SES publishes bounces and complaints to; empty: `POST /v1/webhooks/mail/ses` refuses everything), `MAIL_SOFT_BOUNCE_THRESHOLD` (3: transient bounces before an address is suppressed), `MAIL_SOFT_BOUNCE_WINDOW_HOURS` (24: they count when the last is at most this old), `MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS` (72: how long a soft-bounce suppression lasts), `SES_SNS_REQUIRE_SIGNATURE_V2` (`off`: refuse SignatureVersion 1), `MAIL_EVENTS_RETENTION_DAYS` (90: the bounce, complaint and delivery events); [deliverability.md](deliverability.md) |
 | Deployment switches | `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (all `on`; [below](#deployment-switches)) |
+| Webhooks | `WEBHOOKS_DELIVERY_RETENTION_DAYS` (30: finished outgoing deliveries, with their attempt log and recorded request; [webhooks](webhooks-and-realtime.md#retention)) |
 | Background | `SCHEDULER`, `OUTBOX_RELAY`, `WEBHOOKS_WORKER`, `BULK_SYNC_LIMIT` (100: bulk runs of up to this many ids answer in the request, larger ones are queued) |
 | Notifications | `NOTIFICATIONS_DIGEST_HOUR` (8: daily digests, in each user's time zone), `NOTIFICATIONS_RETENTION_DAYS` (90: read ones), `NOTIFICATIONS_MAX_AGE_DAYS` (365: any) |
 | Attachments | `ATTACHMENT_MAX_MB` (25), `ATTACHMENT_ALLOWED_TYPES` (comma-separated MIME types, detected from the bytes; default: JPEG, PNG, GIF, WebP, PDF, docx, xlsx, pptx, plain text, CSV, zip) |
@@ -132,7 +133,7 @@ route answers the app's ordinary 404 problem.
 
 | Switch | Off means |
 | --- | --- |
-| `WEBHOOKS` | No `/v1/webhook-endpoints` or delivery API and no delivery worker. The webhooks package stays registered (notifications, approvals and incoming receivers use it), so incoming webhooks work as before, and the outbox relay keeps running: notification delivery goes through it. Deliveries already queued for existing endpoints wait until it is turned on again. |
+| `WEBHOOKS` | No `/v1/webhook-endpoints` or delivery API, no delivery worker and no delivery retention job. The webhooks package stays registered (notifications, approvals and incoming receivers use it), so incoming webhooks work as before, and the outbox relay keeps running: notification delivery goes through it. Deliveries already queued for existing endpoints wait until it is turned on again. |
 | `REPORTS` | No `/v1/reports` and no hourly runner; exports and imports are untouched. The `reports` table stays (migrations are not switched); existing reports stop running and are left out of an account's personal-data export. |
 | `USAGE` | No metering and no quota enforcement: `UsageInterceptor` is not registered, so nothing is counted on the hot path, the nightly roll-up and `GET /v1/access/clients/{id}/usage` are gone, and a client's `dailyQuota` can still be set but **does not apply** (no `429 quota_exceeded`, no `X-Quota-*` headers). |
 | `REALTIME` | No `/realtime` gateway and no socket.io Redis adapter. Everything that pushes (notifications, bulk and export progress, documents, approvals) keeps working: notifications are still stored and mailed, only the live event is dropped. |

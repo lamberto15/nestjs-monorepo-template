@@ -302,7 +302,7 @@ gave. Audited; refused while impersonating.
 | Channel | What |
 | --- | --- |
 | Notifications | `approval.requested` (to a stage's approvers and their delegates), `approval.reminder`, `approval.escalated`, `approval.approved` / `.rejected` / `.changesRequested` / `.expired` / `.failed` (to the requester), `approval.cancelled` (to the approvers still waiting). Texts in every catalog, under `approval` |
-| Realtime | `approval.assigned { id, subject, recordId, action, stage }`, `approval.decided { id, status, round, stage, decision }` (one per change: a decision, or the request's end) |
+| Realtime | `approval.assigned { id, subject, recordId, action, stage }`, `approval.decided { id, status, round, stage, decision }` (one per change: a decision, or the request's end), `approval.applied { id, subject, recordId, outcomeAppliedAt }` (the approved outcome was applied; to the requester and the round's approvers, once) |
 | Webhooks | `approval.requested`, `.approved`, `.rejected`, `.changes-requested`, `.cancelled`, `.expired`, `.failed`, to the requesting API client (the tenant), `data: { requestId, subject, recordId, action, status }`, through the outbox |
 | Audit | `approval.requested`, `.decided`, `.approved`, `.rejected`, `.changes_requested`, `.resubmitted`, `.cancelled`, `.expired`, `.escalated`, `.failed`; the workflow's own as the system principal `system:approvals` ([permissions](permissions.md#the-system-principal)), and so are what the outcome handlers record (`outcome.actor`); what a request causes (an administrator deactivating an approver, abandoning a stuck request) as the request's principal, never the system |
 | Timeline | `GET /v1/approvals/{id}`: `requested`, `stage_started`, `decided`, `stage_approved`, `reminded`, `escalated`, `approver_removed`, `resubmitted`, and the ending |
@@ -362,6 +362,16 @@ is there). `outcomeAppliedAt` marks a final outcome of the round it
 concludes (a request sent back for changes isn't applied; a
 resubmission clears it), so a request approved in a later round is
 applied too.
+
+Every approval view (`GET /v1/approvals`, `GET /v1/approvals/{id}`, the
+decision routes) carries it as `outcomeAppliedAt` (ISO datetime, or
+null): an approved request with it null is "approved, applying", and the
+page clears the banner on `approval.applied` (realtime) instead of
+polling. `conclude` sends the event right after its update commits, and
+only the attempt whose update matched the row (set it from null) sends:
+a retry finds the outcome applied and stays silent. An attempt dying
+between the commit and the push loses the event, never the field, so a
+page also reads the field on load and after a reconnect.
 
 ## Extending
 

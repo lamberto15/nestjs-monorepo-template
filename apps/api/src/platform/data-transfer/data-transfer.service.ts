@@ -113,6 +113,15 @@ export const DATA_TRANSFERS = 'data-transfers';
 const transferList = (kind?: TransferJob['kind']) =>
   kind ? `${DATA_TRANSFERS}:${kind}` : DATA_TRANSFERS;
 
+/** The JobIndex list of a user's account exports (account-level: in no tenant). */
+const ACCOUNT_EXPORTS = `${DATA_TRANSFERS}:account`;
+
+/**
+ * How long a finished transfer is kept (BullMQ's `removeOnComplete`, and
+ * the queues' default `removeOnFail`): listed, found, its link given.
+ */
+export const TRANSFER_KEPT_MS = 7 * 24 * 3600 * 1000;
+
 /** A transfer as GET /data/transfers/{id} (and each item of the list) tells it. */
 export interface TransferStatus {
   id: string;
@@ -121,6 +130,10 @@ export interface TransferStatus {
   format: TransferFormat;
   status: 'queued' | 'running' | 'completed' | 'failed';
   progress: Record<string, number>;
+  createdAt: string;
+  finishedAt: string | null;
+  /** When BullMQ no longer keeps it: finished plus TRANSFER_KEPT_MS. */
+  expiresAt: string | null;
   result?: {
     rows: number;
     url?: string;
@@ -426,7 +439,8 @@ export class DataTransferService {
    * The transfers this principal started in this tenant (exports, imports,
    * or one `kind`), newest first, by cursor (the last id of the previous
    * page), each as `status()` tells it. Those BullMQ still keeps (7 days
-   * after they end); an account export (no tenant) is not among them.
+   * after they end); an account export (no tenant) is not among them
+   * (`listAccountExports()`, GET /v1/account/exports).
    */
   async list(
     principal: RequestPrincipal,
@@ -440,6 +454,32 @@ export class DataTransferService {
       async (id) => {
         const job = await this.queue.getJob(id);
         return job && job.data.tenantId !== null && this.isOwn(principal, job)
+          ? this.view(job)
+          : null;
+      },
+    );
+  }
+
+  /**
+   * The account exports this user asked for (`POST /v1/account/export`),
+   * newest first, by cursor, each as `status()` tells it: the person's own,
+   * in any tenant or none, kept as long as BullMQ keeps them (7 days after
+   * they end). Never an administrator's while acting as them (`isOwn()`),
+   * nor anybody else's: the list is the user's (`account:jobs:…`), and
+   * each job's principal is checked again.
+   */
+  async listAccountExports(
+    principal: RequestPrincipal,
+    query: { limit: number; cursor?: string },
+  ): Promise<JobPage<TransferStatus>> {
+    return this.jobs.page(
+      ACCOUNT_EXPORTS,
+      null,
+      principal,
+      query,
+      async (id) => {
+        const job = await this.queue.getJob(id);
+        return job && job.data.tenantId === null && this.isOwn(principal, job)
           ? this.view(job)
           : null;
       },
@@ -481,11 +521,22 @@ export class DataTransferService {
       // or its reason (else a refused file read as an internal failure).
       job = (await this.queue.getJob(id)) ?? job;
     }
+    const finishedAt =
+      (state === 'completed' || state === 'failed') && job.finishedOn
+        ? job.finishedOn
+        : null;
     const base = {
       id,
       kind: job.data.kind,
       name: job.data.name,
       format: job.data.format,
+      createdAt: new Date(job.timestamp).toISOString(),
+      finishedAt:
+        finishedAt === null ? null : new Date(finishedAt).toISOString(),
+      expiresAt:
+        finishedAt === null
+          ? null
+          : new Date(finishedAt + TRANSFER_KEPT_MS).toISOString(),
       status:
         state === 'completed'
           ? ('completed' as const)
@@ -544,20 +595,22 @@ export class DataTransferService {
       throw new Error("A transfer is queued in its principal's tenant only.");
     }
     const jobId = id ?? randomUUID();
-    if (job.tenantId !== null) {
-      // Listed for its principal (GET /data/transfers) before it is queued.
-      await this.jobs.add(
-        [transferList(), transferList(job.kind)],
-        job.tenantId,
-        job.principal,
-        jobId,
-      );
-    }
+    // Listed for its principal before it is queued: in its tenant (GET
+    // /data/transfers), or an account export under the account (GET
+    // /account/exports).
+    await (job.tenantId === null
+      ? this.jobs.add([ACCOUNT_EXPORTS], null, job.principal, jobId)
+      : this.jobs.add(
+          [transferList(), transferList(job.kind)],
+          job.tenantId,
+          job.principal,
+          jobId,
+        ));
     const added = await this.queue.add(job.kind, job, {
       jobId,
       // A transfer is not retried blindly: an import could write a batch twice.
       attempts: 1,
-      removeOnComplete: { age: 7 * 24 * 3600 },
+      removeOnComplete: { age: TRANSFER_KEPT_MS / 1000 },
     });
     const started = () =>
       this.audit.record(principal, {

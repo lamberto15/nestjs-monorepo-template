@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -31,6 +32,7 @@ import {
 } from '@nestjs/swagger';
 import type { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
+import { PermissionCatalog } from '../../iam/access/permission-catalog.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { CustomFieldPolicy } from './custom-field.policy.js';
@@ -39,6 +41,8 @@ import {
   createCustomFieldSchema,
   customFieldListQuerySchema,
   customFieldSchema,
+  customFieldSubjectSchema,
+  customFieldSubjectsQuerySchema,
   reorderCustomFieldsSchema,
   type UpdateCustomFieldDto,
   updateCustomFieldSchema,
@@ -67,14 +71,46 @@ export class CustomFieldsController {
   constructor(
     private readonly fields: CustomFieldsService,
     private readonly authorization: AuthorizationService,
+    private readonly catalog: PermissionCatalog,
   ) {}
+
+  @Get('subjects')
+  @Can.Anyone() // Filtered below, by the same check as the list.
+  @ApiOperation({
+    summary: 'The subjects that take custom fields',
+    description:
+      "Each with its name in the response's language (`lang`). Only the subjects whose fields you may read (GET /custom-fields?subject=…: whoever may read the subject, or manages custom fields); a 403 when there are none.",
+  })
+  @ApiOkResponse({ standardSchema: listSchema(customFieldSubjectSchema) })
+  async subjects(
+    @CurrentUser() user: Principal,
+    @Query({ schema: customFieldSubjectsQuerySchema })
+    _query: z.infer<typeof customFieldSubjectsQuerySchema>,
+  ) {
+    const subjects = this.fields.subjects();
+    const allowed = await Promise.all(
+      subjects.map((subject) =>
+        this.authorization.can(CustomFieldPolicy, 'read', user, subject),
+      ),
+    );
+    const readable = subjects.filter((_, index) => allowed[index]);
+    if (readable.length === 0) {
+      throw new ForbiddenException();
+    }
+    return {
+      items: readable.map((subject) => ({
+        subject,
+        label: this.catalog.subjectNames(subject),
+      })),
+    };
+  }
 
   @Get()
   @Can.Anyone() // Checked below, on the subject.
   @ApiOperation({
     summary: "A subject's custom fields, in their order",
     description:
-      'For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true.',
+      "For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true. ?include=counts adds how many records hold a value of each field (valueCount, and deletedValueCount for those in the recycle bin): one query over the subject's table, for those who manage custom fields only (403 otherwise).",
   })
   @ApiOkResponse({ standardSchema: listSchema(customFieldSchema) })
   @ApiNotFoundResponse({ description: 'The subject takes no custom fields.' })
@@ -90,10 +126,31 @@ export class CustomFieldsController {
       user,
       query.subject,
     );
-    const items = await this.fields.definitions(query.subject, {
-      includeInactive: query.includeInactive,
-    });
-    return { items: items.map(view) };
+    // Counting reads the whole table: for those who change the fields, who need it.
+    if (query.include === 'counts') {
+      await this.authorization.authorize(
+        AccessPolicy,
+        'manageCustomFields',
+        user,
+      );
+    }
+    const [items, counts] = await Promise.all([
+      this.fields.definitions(query.subject, {
+        includeInactive: query.includeInactive,
+      }),
+      query.include === 'counts'
+        ? this.fields.valueCounts(query.subject)
+        : undefined,
+    ]);
+    return {
+      items: items.map((field) => ({
+        ...view(field),
+        ...(counts && {
+          valueCount: counts.get(field.key)?.records ?? 0,
+          deletedValueCount: counts.get(field.key)?.deleted ?? 0,
+        }),
+      })),
+    };
   }
 
   @Post()

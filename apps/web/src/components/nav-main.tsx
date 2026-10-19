@@ -8,13 +8,14 @@ import {
   SidebarMenuItem,
 } from '@nestjs-monorepo-template/ui/components/sidebar';
 import { useTranslation } from 'react-i18next';
+import { useOperator } from '@/features/tenants/queries';
 import { useFeatures, useMe } from '@/lib/features';
 import { nav, visibleGroups, type NavItem } from '@/nav';
 
 export function NavMain() {
   const { t } = useTranslation();
   // The one place the menu is filtered (UX only: the API enforces both).
-  const groups = visibleGroups(nav, useFeatures(), useMe()?.can);
+  const groups = visibleGroups(nav, useFeatures(), useMe()?.can, useOperator());
   return groups.map((group) => (
     <SidebarGroup key={group.id}>
       <SidebarGroupLabel>{t(group.label)}</SidebarGroupLabel>

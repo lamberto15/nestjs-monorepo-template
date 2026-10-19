@@ -114,6 +114,11 @@ const meSchema = z.object({
     .nullable()
     .describe('The tenant this session or token acts in; null: none.'),
   mfaEnabled: z.boolean(),
+  hasPassword: z
+    .boolean()
+    .describe(
+      'Your account has a password: changing it wants the current one, and so does asking for its deletion (POST /v1/account/deletion { password }). false: an invited account not yet set up, or one that signs in with a passkey, a provider or an email link only.',
+    ),
   mfaEnrollmentRequired: z
     .boolean()
     .describe(
@@ -357,6 +362,9 @@ export class AuthController {
         ? { id: tenant.id, slug: tenant.slug, name: tenant.name }
         : null,
       mfaEnabled: await this.mfa.isEnrolled(user.id),
+      // What the deletion route checks (AccountLifecycleService.requestDeletion).
+      hasPassword:
+        (await this.accounts.findView(user.id))?.hasPassword ?? false,
       mfaEnrollmentRequired: await this.authPolicy.mfaEnrollmentRequired(user),
       authentication: authentication && {
         ...authentication,

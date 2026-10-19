@@ -60,7 +60,7 @@ export const includeQuery = (): ApiQueryOptions => ({
   required: false,
   type: String,
   description:
-    '`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`.',
+    '`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`.',
   example: 'can',
 });
 
@@ -70,8 +70,15 @@ export const recordCanActions = (softDelete: boolean) =>
     ? (['update', 'delete', 'restore'] as const)
     : (['update', 'delete'] as const);
 
-/** A record's `can` in its response schema: optional, there only with `?include=can`. */
-export const recordCanSchema = (softDelete: boolean) =>
+/**
+ * A record's `can` in its response schema: optional, there only with
+ * `?include=can`. `issue` for a subject that takes PDFs (the `pdf`
+ * capability).
+ */
+export const recordCanSchema = (
+  softDelete: boolean,
+  { issue = false }: { issue?: boolean } = {},
+) =>
   z
     .object({
       update: z.boolean().describe('PATCH would be allowed.'),
@@ -83,6 +90,13 @@ export const recordCanSchema = (softDelete: boolean) =>
             'It is in the recycle bin and POST …/{id}/restore would be allowed.',
           ),
       }),
+      ...(issue && {
+        issue: z
+          .boolean()
+          .describe(
+            'POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503).',
+          ),
+      }),
     })
     .optional()
     .describe(
@@ -90,12 +104,25 @@ export const recordCanSchema = (softDelete: boolean) =>
     );
 
 /** The fields a record's `can` is checked against: the row as stored. */
-type CanRow = { id: string; deletedAt?: unknown } & Record<string, unknown>;
+export type CanRow = { id: string; deletedAt?: unknown } & Record<
+  string,
+  unknown
+>;
+
+/**
+ * A `can` flag that is not one policy action (`issue`): `check` is the
+ * policy's check of an action on the row, as the other flags use it.
+ */
+export type CanFlag = (
+  row: CanRow,
+  check: (action: string) => Promise<boolean>,
+) => Promise<boolean>;
 
 /**
  * `can` for each row, by id: each action is the policy's check of the route
  * that does it. `restore` only for a row in the recycle bin (the route
  * finds no other); a deleted row allows nothing else (AccessService.can).
+ * `flags` add those that are not one action (`issue`: issueFlag()).
  */
 export async function recordCan(
   authorization: AuthorizationService,
@@ -103,6 +130,7 @@ export async function recordCan(
   user: Principal,
   rows: readonly CanRow[],
   actions: readonly string[],
+  flags: Record<string, CanFlag> = {},
 ): Promise<Map<string, Record<string, boolean>>> {
   // The action is a string here, not one of a known policy's literals.
   const can = authorization.can.bind(authorization) as (
@@ -118,14 +146,18 @@ export async function recordCan(
           [
             row.id,
             Object.fromEntries(
-              await Promise.all(
-                actions.map(async (action) => [
+              await Promise.all([
+                ...actions.map(async (action) => [
                   action,
                   action === 'restore' && row.deletedAt == null
                     ? false
                     : await can(policy, action, user, row),
                 ]),
-              ),
+                ...Object.entries(flags).map(async ([name, flag]) => [
+                  name,
+                  await flag(row, (action) => can(policy, action, user, row)),
+                ]),
+              ]),
             ),
           ] as const,
       ),

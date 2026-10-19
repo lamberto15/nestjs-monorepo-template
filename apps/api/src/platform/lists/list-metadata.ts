@@ -59,7 +59,10 @@ export function listMetadata(
     /** Whether the caller may list the recycle bin (with `softDelete`). */
     recycleBin?: boolean;
   } = {},
-): Omit<ListMetadata, 'capabilities' | 'attachmentLimits'> {
+): Omit<
+  ListMetadata,
+  'capabilities' | 'attachmentLimits' | 'documentTemplates'
+> {
   // `q` reads the search document's fields: off with any of them hidden, or
   // shown on some records only.
   const searchable = 'q' in list.fields;

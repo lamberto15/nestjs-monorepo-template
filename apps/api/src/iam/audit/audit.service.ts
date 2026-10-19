@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
   database,
@@ -17,6 +17,7 @@ import { actorOf, type Principal } from '../auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { auditLog } from '../iam.tables.js';
 import { PermissionCatalog } from '../access/permission-catalog.js';
+import { ACTOR_NAMES, type ActorNames } from './actor-names.js';
 import type {
   RecordChange,
   ResourceDefinition,
@@ -44,6 +45,9 @@ export class AuditService {
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly catalog: PermissionCatalog,
+    @Optional()
+    @Inject(ACTOR_NAMES)
+    private readonly actorNames?: ActorNames,
   ) {}
 
   async record(
@@ -148,6 +152,26 @@ export class AuditService {
       countPage(this.db, auditLog, where, query),
     ]);
     return toPage(rows, query, total);
+  }
+
+  /**
+   * Entries with their actor's name now (`actorName`): a member or former
+   * member, an API client of the tenant, named in one round for the page
+   * (ACTOR_NAMES, the platform's PeopleService.names()); null for the
+   * others (`anonymous`, `system:<key>`, a deleted account). `actorLabel`
+   * stays what the entry stored when it was written.
+   */
+  async withActorNames<T extends { actor: string }>(
+    entries: readonly T[],
+  ): Promise<(T & { actorName: string | null })[]> {
+    const names =
+      this.actorNames && entries.length
+        ? await this.actorNames.names(entries.map((entry) => entry.actor))
+        : new Map<string, string | null>();
+    return entries.map((entry) => ({
+      ...entry,
+      actorName: names.get(entry.actor) ?? null,
+    }));
   }
 }
 

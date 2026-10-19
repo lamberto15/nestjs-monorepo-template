@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pageSchema } from '../../core/http/pagination.js';
 
 /** What the access API answers with (its routes' OpenAPI responses, the typed client's types). */
 
@@ -132,19 +133,37 @@ export const catalogSchema = z.object({
 });
 
 /** An entry of the audit log. */
-export const auditEntrySchema = z.object({
-  id: z.uuid(),
-  tenantId: z.uuid().nullable(),
-  at: z.iso.datetime(),
-  actor: z
-    .string()
-    .describe('`user:<id>`, `client:<id>`, `system:<key>` or `anonymous`.'),
-  actorLabel: z.string(),
-  action: z.string().meta({ example: 'note.created' }),
-  targetType: z.string().nullable(),
-  targetId: z.string().nullable(),
-  details: z.record(z.string(), z.unknown()).nullable(),
-  ip: z.string().nullable(),
+export const auditEntrySchema = z
+  .object({
+    id: z.uuid(),
+    tenantId: z.uuid().nullable(),
+    at: z.iso.datetime(),
+    actor: z
+      .string()
+      .describe('`user:<id>`, `client:<id>`, `system:<key>` or `anonymous`.'),
+    actorLabel: z
+      .string()
+      .describe(
+        "What the entry stored of its actor when it was written: a user's address (`admin@… as ada@…` while impersonating), an API client's name, the system job's, or `anonymous`.",
+      ),
+    actorName: z
+      .string()
+      .nullable()
+      .describe(
+        "The actor's name now: a member or former member of the tenant, or an API client of it (one lookup for the page). Null for `system:<key>`, `anonymous`, a deleted account or a removed client: show `actorLabel` then.",
+      )
+      .meta({ example: 'Ada Lovelace' }),
+    action: z.string().meta({ example: 'note.created' }),
+    targetType: z.string().nullable(),
+    targetId: z.string().nullable(),
+    details: z.record(z.string(), z.unknown()).nullable(),
+    ip: z.string().nullable(),
+  })
+  .meta({ id: 'AuditEntry' });
+
+/** A page of the audit log (GET /v1/access/audit). */
+export const auditPageSchema = pageSchema(auditEntrySchema).meta({
+  id: 'AuditPage',
 });
 
 /** A user or an API client of the tenant, as a picker shows it (GET /access/principals). */

@@ -29,9 +29,11 @@ import { OpsMetrics } from './ops/ops-metrics.js';
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
+import { ACTOR_NAMES } from '../iam/audit/actor-names.js';
 import { AUTH_POLICY } from '../iam/auth/auth-policy.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
+import { WebhookDeliveryRetentionJob } from './webhooks/webhook-delivery-retention.job.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
 import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
@@ -114,7 +116,9 @@ import { SettingsService } from './settings/settings.service.js';
 import {
   AccountController,
   AccountDeletionLinkController,
+  ConsentKindsController,
 } from './account/account.controller.js';
+import { ConsentKinds } from './account/consent-kinds.js';
 import { AccountDeletionJob } from './account/account-deletion.job.js';
 import { AccountDeletionMail } from './account/account.mails.js';
 import { AccountLifecycleService } from './account/account.service.js';
@@ -347,6 +351,7 @@ export class PlatformModule {
         SettingsController,
         AccountController,
         AccountDeletionLinkController,
+        ConsentKindsController,
         SubscriptionsController,
         SearchController,
         ListsController,
@@ -456,6 +461,8 @@ export class PlatformModule {
         NotificationsService,
         // IAM's security notifications go through it (iam can't import the platform).
         { provide: IAM_NOTIFIER, useExisting: NotificationsService },
+        // The audit log's actor names (iam/audit, `actorName`): the people directory's.
+        { provide: ACTOR_NAMES, useExisting: PeopleService },
         NotificationMail,
         NotificationDigestMail,
         NotificationDeliveryHandler,
@@ -474,6 +481,7 @@ export class PlatformModule {
         // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
         PersonalDataRegistry,
         AccountLifecycleService,
+        ConsentKinds,
         deletionCancelLinksProvider,
         AccountTransfer,
         AccountDeletionJob,
@@ -524,6 +532,8 @@ export class PlatformModule {
           provide: APP_INTERCEPTOR,
           useClass: UsageInterceptor,
         }),
+        // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
+        ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
         // Record revisions: features register a RevisionTarget and call RevisionsService.record().
         RevisionsRegistry,
         RevisionsService,
@@ -565,6 +575,7 @@ export class PlatformModule {
         CustomFieldsService,
         NotificationsService,
         IAM_NOTIFIER,
+        ACTOR_NAMES,
         AUTH_POLICY,
         NotificationChannelRegistry,
         SettingsService,

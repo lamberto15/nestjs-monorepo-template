@@ -1875,6 +1875,110 @@ describe('approvals (e2e)', () => {
     });
   });
   describe('applying the outcome', () => {
+    it('outcomeAppliedAt is null until the handler has run, then set, on every view; approval.applied tells the requester and the approver, nobody else', async () => {
+      const owner = await node.user(['editor']);
+      const editor = await node.user(['editor']);
+      const bystander = await node.user(['editor']);
+      // Sockets of users sign in with their access token.
+      const tokenOf = async (who: { email: string; password: string }) =>
+        (
+          await node
+            .http()
+            .post('/v1/auth/token')
+            .send({ email: who.email, password: who.password })
+            .expect(200)
+        ).body.accessToken as string;
+      const sockets = await Promise.all(
+        [owner, editor, bystander].map(async (who) =>
+          connect(node, await tokenOf(who as never)),
+        ),
+      );
+      const heard: Record<string, unknown>[][] = [[], [], []];
+      sockets.forEach((socket, index) =>
+        socket.on('approval.applied', (data: Record<string, unknown>) =>
+          heard[index]!.push(data),
+        ),
+      );
+      try {
+        const { testItem, approval } = await publication(owner, editor);
+        const listed = async (agent: request.Agent) =>
+          (
+            (
+              await agent
+                .get(`/v1/approvals?recordId=${testItem}&requestedByMe=true`)
+                .expect(200)
+            ).body.items as { outcomeAppliedAt: string | null }[]
+          )[0]!.outcomeAppliedAt;
+        expect(
+          (await detail(owner.agent, approval)).outcomeAppliedAt,
+        ).toBeNull();
+        const decision = await approve(editor, approval).expect(200);
+        // Approved, the handler not run yet.
+        expect(decision.body).toMatchObject({
+          status: 'approved',
+          outcomeAppliedAt: null,
+        });
+        expect(
+          (await detail(owner.agent, approval)).outcomeAppliedAt,
+        ).toBeNull();
+        expect(await listed(owner.agent)).toBeNull();
+        expect(heard.flat()).toEqual([]);
+
+        await node.worker.drain(); // the outcome's handler publishes
+        const done = await detail(owner.agent, approval);
+        expect(done.status).toBe('approved');
+        expect(done.outcomeAppliedAt).toEqual(expect.any(String));
+        expect(await listed(owner.agent)).toBe(done.outcomeAppliedAt);
+        // The event carries the same instant, to the requester and the approver.
+        const event = {
+          id: approval,
+          subject: 'TestItem',
+          recordId: testItem,
+          outcomeAppliedAt: done.outcomeAppliedAt,
+        };
+        await vi.waitFor(() => expect(heard[0]).toHaveLength(1), {
+          timeout: 5000,
+        });
+        await vi.waitFor(() => expect(heard[1]).toHaveLength(1), {
+          timeout: 5000,
+        });
+        expect(heard[0]).toEqual([event]);
+        expect(heard[1]).toEqual([event]);
+        // A user who isn't part of the request hears nothing.
+        expect(heard[2]).toEqual([]);
+      } finally {
+        sockets.forEach((socket) => socket.disconnect());
+      }
+    });
+
+    it('outcomeAppliedAt stays null through changes requested and a resubmission, until the new round is applied', async () => {
+      const owner = await node.user(['editor']);
+      const editor = await node.user(['editor']);
+      const { testItem, approval } = await publication(owner, editor);
+      await editor.agent
+        .post(`/v1/approvals/${approval}/request-changes`)
+        .send({ comment: 'A better title.' })
+        .expect(200);
+      await node.worker.drain(); // round 0 concludes as changes_requested: nothing applied
+      expect((await detail(owner.agent, approval)).outcomeAppliedAt).toBeNull();
+      await owner.agent
+        .patch(`/v1/test-items/${testItem}`)
+        .send({ title: 'A better title' })
+        .expect(200);
+      const resubmitted = await owner.agent
+        .post(`/v1/approvals/${approval}/resubmit`)
+        .send({})
+        .expect(200);
+      expect(resubmitted.body.outcomeAppliedAt).toBeNull();
+      await node.worker.drain(); // round 1's first stage
+      await approve(editor, approval).expect(200);
+      expect((await detail(owner.agent, approval)).outcomeAppliedAt).toBeNull();
+      await node.worker.drain();
+      expect((await detail(owner.agent, approval)).outcomeAppliedAt).toEqual(
+        expect.any(String),
+      );
+    });
+
     it('N1: a request approved after a resubmission is applied, and locks the record until it is', async () => {
       const owner = await node.user(['editor']);
       const editor = await node.user(['editor']);

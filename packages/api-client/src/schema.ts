@@ -543,7 +543,7 @@ export interface paths {
         };
         /**
          * The exports and imports you started in this tenant
-         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account export (POST /v1/account/export) is followed by its id only.
+         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account exports (POST /v1/account/export) are listed at GET /v1/account/exports.
          */
         get: operations["DataTransferController_list_v1"];
         put?: never;
@@ -611,6 +611,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/custom-fields/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The subjects that take custom fields
+         * @description Each with its name in the response's language (`lang`). Only the subjects whose fields you may read (GET /custom-fields?subject=…: whoever may read the subject, or manages custom fields); a 403 when there are none.
+         */
+        get: operations["CustomFieldsController_subjects_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/custom-fields": {
         parameters: {
             query?: never;
@@ -620,7 +640,7 @@ export interface paths {
         };
         /**
          * A subject's custom fields, in their order
-         * @description For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true.
+         * @description For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true. ?include=counts adds how many records hold a value of each field (valueCount, and deletedValueCount for those in the recycle bin): one query over the subject's table, for those who manage custom fields only (403 otherwise).
          */
         get: operations["CustomFieldsController_list_v1"];
         put?: never;
@@ -939,9 +959,29 @@ export interface paths {
         put?: never;
         /**
          * A copy of everything held about you
-         * @description Starts an export (one record per row: kind, id, data) and answers 202 with its id: follow it at GET /v1/data/transfers/{id}, which gives the download link when done.
+         * @description Starts an export (one record per row: kind, id, data) and answers 202 with its id: follow it at GET /v1/data/transfers/{id}, which gives the download link when done; GET /v1/account/exports lists them.
          */
         post: operations["AccountController_export_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The copies of your data you asked for
+         * @description Your account exports (POST /v1/account/export), newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`), each as GET /v1/data/transfers/{id} tells it: a completed one with its download link (valid 30 minutes from this answer; ask again for a new one). Kept 7 days after they end (`expiresAt`), then gone: ask for a new export. Yours alone, in any tenant or none; never while acting as another user.
+         */
+        get: operations["AccountController_exports_v1"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -959,7 +999,7 @@ export interface paths {
         put?: never;
         /**
          * Ask for your account to be deleted
-         * @description Carried out after the grace period (ACCOUNT_DELETION_GRACE_DAYS), unless cancelled before; you get an email saying when. Wants a recent sign-in (`reauthentication_required`: POST /auth/reauthenticate) and, when the account has one, your password again. Records you created stay, without your name.
+         * @description Carried out after the grace period (ACCOUNT_DELETION_GRACE_DAYS), unless cancelled before; you get an email saying when, with a link that cancels without signing in. Wants a recent sign-in (`reauthentication_required`: POST /auth/reauthenticate) and, when the account has one (`hasPassword` of GET /v1/auth/me), your password again. Every other session and every token client is signed out; this one stays, to cancel (signing in again works too, until the deletion is carried out). Asked again while one is pending: that one, unchanged, no new mail. Records you created stay, without your name.
          */
         post: operations["AccountController_requestDeletion_v1"];
         /** Keep your account: cancel the pending deletion */
@@ -976,15 +1016,38 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** What you agreed to: the latest version of each kind */
+        /**
+         * What you agreed to: the latest version of each kind
+         * @description Each kind you accepted, with its latest version and `withdrawnAt` (null: in force). A version other than the kind's current one (GET /v1/account/consent-kinds) is to be asked for again.
+         */
         get: operations["AccountController_consents_v1"];
         put?: never;
         /**
          * Record that you accept a version of the terms, a policy…
-         * @description The app names the kinds (`terms`, `privacy`, `marketing`) and versions. Accepting the same version again moves the time. Audited.
+         * @description A kind GET /v1/account/consent-kinds lists, at its current `version`. Every acceptance is kept (accepting again adds one; after a withdrawal it gives the consent again). Audited (`account.consented`).
          */
         post: operations["AccountController_accept_v1"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/consents/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a consent (marketing…)
+         * @description As easy as giving it: no password, no recent sign-in. The acceptances stay, as proof, stamped with the withdrawal (`withdrawnAt`); POST /v1/account/consents gives it again. Audited (`account.consent-withdrawn`). A required kind (the terms, the privacy policy) cannot be withdrawn: deleting the account ends it.
+         */
+        delete: operations["AccountController_withdraw_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1004,6 +1067,26 @@ export interface paths {
          * @description No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).
          */
         post: operations["AccountDeletionLinkController_cancel_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/consent-kinds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The kinds of consent asked for here, and their current version
+         * @description Declared by the app (`CONSENT_KINDS`, platform/account/consent-kinds.ts). `required`: needed to use the service (accept it, it cannot be withdrawn); otherwise optional. Labels and descriptions in the request's language. No sign-in needed.
+         */
+        get: operations["ConsentKindsController_list_v1"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1116,7 +1199,7 @@ export interface paths {
         };
         /**
          * Your tenant's teams: names and tree, for pickers
-         * @description Every team of your tenant, newest first in cursor pages: its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.
+         * @description Every team of your tenant, newest first in cursor pages (`limit`: 50 a page by default, 100 at most; follow `nextCursor` to read them all): its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (100 ids at most; an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.
          */
         get: operations["TeamDirectoryController_list_v1"];
         put?: never;
@@ -1136,7 +1219,7 @@ export interface paths {
         };
         /**
          * Download an attachment
-         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image).
+         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.
          */
         get: operations["AttachmentsController_download_v1"];
         put?: never;
@@ -2662,7 +2745,7 @@ export interface paths {
         };
         /**
          * The audit log, newest first
-         * @description Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). GET /v1/lists/Audit describes it.
+         * @description Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). Each entry names its actor as they are called now (`actorName`: a member or former member, an API client of the tenant; null for `system:<key>`, `anonymous` and deleted accounts) besides the label it stored (`actorLabel`). GET /v1/lists/Audit describes it.
          */
         get: operations["AccessController_auditLog_v1"];
         put?: never;
@@ -3073,6 +3156,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/{id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A note's documents, newest first
+         * @description Whoever may read the note: the documents asked for (POST …/{id}/pdf, by anyone), queued and rendering ones too, with their template, language and who asked. A completed one's `attachmentId` is its PDF (GET /v1/attachments/{id}/download; `?inline=true` shows it in the browser); downloading it takes the right to read every field it shows. Realtime: `document.ready` and `document.failed` reach the requester; `record.attachments.changed` the note's watchers once one is issued.
+         */
+        get: operations["NoteDocumentsController_documentList_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notes/bulk": {
         parameters: {
             query?: never;
@@ -3160,6 +3263,46 @@ export interface components {
             amount: string;
             /** @description ISO 4217. */
             currency: string;
+        };
+        AuditPage: {
+            items: components["schemas"]["AuditEntry"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        AuditEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string | null;
+            /** Format: date-time */
+            at: string;
+            /** @description `user:<id>`, `client:<id>`, `system:<key>` or `anonymous`. */
+            actor: string;
+            /** @description What the entry stored of its actor when it was written: a user's address (`admin@… as ada@…` while impersonating), an API client's name, the system job's, or `anonymous`. */
+            actorLabel: string;
+            /**
+             * @description The actor's name now: a member or former member of the tenant, or an API client of it (one lookup for the page). Null for `system:<key>`, `anonymous`, a deleted account or a removed client: show `actorLabel` then.
+             * @example Ada Lovelace
+             */
+            actorName: string | null;
+            /** @example note.created */
+            action: string;
+            targetType: string | null;
+            targetId: string | null;
+            details: {
+                [key: string]: unknown;
+            } | null;
+            ip: string | null;
         };
         TagRef: {
             id: string;
@@ -3335,6 +3478,64 @@ export interface components {
                     to: unknown;
                 };
             };
+        };
+        RecordDocumentPage: {
+            items: components["schemas"]["RecordDocument"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        RecordDocument: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description queued → rendering → completed, or failed (then `error`).
+             * @enum {string}
+             */
+            status: "queued" | "rendering" | "completed" | "failed";
+            /**
+             * @description The template it was issued from: an `id` of `documentTemplates` in GET /v1/lists/{subject}.
+             * @example note
+             */
+            template: string;
+            /**
+             * @description The language it is written in (`?lang=` of the request).
+             * @example en
+             */
+            language: string;
+            /** @description Who asked for it. */
+            issuedBy: {
+                /**
+                 * @description Who asked for it: `user:<id>`, `client:<id>`, or `anonymized`.
+                 * @example user:0199a3f2-…
+                 */
+                key: string;
+                /** @description Their name (a member or former member, an API client of the tenant); null when there is none (`anonymized`, a removed client). */
+                name: string | null;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When it was issued (`completed`) or failed; null while queued or rendering.
+             */
+            finishedAt: string | null;
+            /**
+             * Format: uuid
+             * @description Once completed: the PDF, an attachment of the record (GET /v1/attachments/{id}/download, `?inline=true` to show it).
+             */
+            attachmentId: string | null;
+            /** @description Why it failed, written for people. */
+            error: string | null;
         };
     };
     responses: never;
@@ -5181,6 +5382,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Follow it at GET /v1/data/transfers/{id}. */
                         id: string;
                         /** @enum {string} */
                         status: "queued";
@@ -5229,6 +5431,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Follow it at GET /v1/data/transfers/{id}. */
                         id: string;
                         /** @enum {string} */
                         status: "queued";
@@ -5300,6 +5503,21 @@ export interface operations {
                             progress: {
                                 [key: string]: number;
                             };
+                            /**
+                             * Format: date-time
+                             * @description When it was started.
+                             */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it completed or failed; null while it waits or runs.
+                             */
+                            finishedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it is no longer kept (7 days after it ended): from then on it is neither listed nor found, nor its link given. null while it waits or runs.
+                             */
+                            expiresAt: string | null;
                             result?: {
                                 rows: number;
                                 /**
@@ -5363,6 +5581,21 @@ export interface operations {
                         progress: {
                             [key: string]: number;
                         };
+                        /**
+                         * Format: date-time
+                         * @description When it was started.
+                         */
+                        createdAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When it completed or failed; null while it waits or runs.
+                         */
+                        finishedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it is no longer kept (7 days after it ended): from then on it is neither listed nor found, nor its link given. null while it waits or runs.
+                         */
+                        expiresAt: string | null;
                         result?: {
                             rows: number;
                             /**
@@ -5509,11 +5742,60 @@ export interface operations {
             };
         };
     };
+    CustomFieldsController_subjects_v1: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @example Note */
+                            subject: string;
+                            /** @description How the subject is named, in the response's language: one record and several. */
+                            label: {
+                                /** @example Note */
+                                singular: string;
+                                /** @example Notes */
+                                plural: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CustomFieldsController_list_v1: {
         parameters: {
             query: {
                 subject: string;
                 includeInactive?: "true" | "false";
+                /** @description counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields). */
+                include?: "counts";
                 lang?: string;
             };
             header?: never;
@@ -5557,6 +5839,10 @@ export interface operations {
                             filterable: boolean;
                             sortable: boolean;
                             active: boolean;
+                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                            valueCount?: number;
+                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                            deletedValueCount?: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -5685,6 +5971,10 @@ export interface operations {
                         filterable: boolean;
                         sortable: boolean;
                         active: boolean;
+                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                        valueCount?: number;
+                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                        deletedValueCount?: number;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -5774,6 +6064,10 @@ export interface operations {
                             filterable: boolean;
                             sortable: boolean;
                             active: boolean;
+                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                            valueCount?: number;
+                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                            deletedValueCount?: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -5916,6 +6210,10 @@ export interface operations {
                         filterable: boolean;
                         sortable: boolean;
                         active: boolean;
+                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                        valueCount?: number;
+                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                        deletedValueCount?: number;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -7000,14 +7298,25 @@ export interface operations {
                              */
                             scheduledFor: string;
                         } | null;
-                        /** @description The latest version accepted of each kind. */
+                        /** @description Each kind you accepted: the latest version, and whether it was withdrawn. */
                         consents: {
                             /** @example terms */
                             kind: string;
-                            /** @example 2026-01 */
+                            /**
+                             * @description The version accepted last.
+                             * @example 2026-01
+                             */
                             version: string;
-                            /** Format: date-time */
+                            /**
+                             * Format: date-time
+                             * @description When it was accepted last.
+                             */
                             acceptedAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                             */
+                            withdrawnAt: string | null;
                         }[];
                     };
                 };
@@ -7040,15 +7349,116 @@ export interface operations {
             };
         };
         responses: {
-            /** @description { id, status } */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Follow it at GET /v1/data/transfers/{id}. */
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description Not signed in as a user. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+        };
+    };
+    AccountController_exports_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @enum {string} */
+                            kind: "export" | "import";
+                            name: string;
+                            /** @enum {string} */
+                            format: "csv" | "json" | "xlsx";
+                            /** @enum {string} */
+                            status: "queued" | "running" | "completed" | "failed";
+                            progress: {
+                                [key: string]: number;
+                            };
+                            /**
+                             * Format: date-time
+                             * @description When it was started.
+                             */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it completed or failed; null while it waits or runs.
+                             */
+                            finishedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it is no longer kept (7 days after it ended): from then on it is neither listed nor found, nor its link given. null while it waits or runs.
+                             */
+                            expiresAt: string | null;
+                            result?: {
+                                rows: number;
+                                /**
+                                 * Format: uri
+                                 * @description The file, for 30m.
+                                 */
+                                url?: string;
+                                imported?: number;
+                                failed?: number;
+                                dryRun?: boolean;
+                                /**
+                                 * Format: uri
+                                 * @description A CSV of the refused rows: row, field, message.
+                                 */
+                                errorsUrl?: string;
+                            };
+                            error?: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
             /** @description Not signed in as a user. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7171,10 +7581,21 @@ export interface operations {
                         items: {
                             /** @example terms */
                             kind: string;
-                            /** @example 2026-01 */
+                            /**
+                             * @description The version accepted last.
+                             * @example 2026-01
+                             */
                             version: string;
-                            /** Format: date-time */
+                            /**
+                             * Format: date-time
+                             * @description When it was accepted last.
+                             */
                             acceptedAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                             */
+                            withdrawnAt: string | null;
                         }[];
                     };
                 };
@@ -7198,9 +7619,15 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example terms */
+                    /**
+                     * @description A kind GET /v1/account/consent-kinds lists.
+                     * @example terms
+                     */
                     kind: string;
-                    /** @example 2026-01 */
+                    /**
+                     * @description That kind's current `version`.
+                     * @example 2026-01
+                     */
                     version: string;
                 };
             };
@@ -7214,15 +7641,93 @@ export interface operations {
                     "application/json": {
                         /** @example terms */
                         kind: string;
-                        /** @example 2026-01 */
+                        /**
+                         * @description The version accepted last.
+                         * @example 2026-01
+                         */
                         version: string;
-                        /** Format: date-time */
+                        /**
+                         * Format: date-time
+                         * @description When it was accepted last.
+                         */
                         acceptedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                         */
+                        withdrawnAt: string | null;
+                    };
+                };
+            };
+            /** @description An unknown kind, or a version other than the current one (validation_failed, naming `kind` or `version`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountController_withdraw_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example terms */
+                        kind: string;
+                        /**
+                         * @description The version accepted last.
+                         * @example 2026-01
+                         */
+                        version: string;
+                        /**
+                         * Format: date-time
+                         * @description When it was accepted last.
+                         */
+                        acceptedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                         */
+                        withdrawnAt: string | null;
                     };
                 };
             };
             /** @description Not signed in as a user. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not given, or withdrawn already. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `consent_required`: a required kind; delete the account instead (POST /v1/account/deletion). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7265,6 +7770,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ConsentKindsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @example marketing */
+                            kind: string;
+                            /**
+                             * @description The version in force: the only one POST /v1/account/consents accepts. A consent of an older version is to be asked for again.
+                             * @example 2026-01
+                             */
+                            version: string;
+                            /** @description Needed to use the service (the terms, the privacy policy): it cannot be withdrawn, only the account deleted. false: optional, withdrawn at will. */
+                            required: boolean;
+                            /**
+                             * @description In the request's language.
+                             * @example Marketing emails
+                             */
+                            label: string;
+                            /** @description In the request's language. */
+                            description: string;
+                        }[];
+                    };
+                };
             };
         };
     };
@@ -7578,6 +8121,19 @@ export interface operations {
                              */
                             types: string[];
                         } | null;
+                        /** @description The templates its records' PDFs are issued from, one item per template and language (POST …/{id}/pdf `?lang=`): what a picker offers. Null when `capabilities.pdf` is false (no PDF capability, or documents off: GOTENBERG_URL unset). */
+                        documentTemplates: {
+                            /**
+                             * @description The template: a record's documents name it as `template`; POST …/{id}/pdf issues it.
+                             * @example note
+                             */
+                            id: string;
+                            /**
+                             * @description A language it is written in: `?lang=` of POST …/{id}/pdf.
+                             * @example ar
+                             */
+                            language: string;
+                        }[] | null;
                     };
                 };
             };
@@ -7668,6 +8224,7 @@ export interface operations {
                 q?: string;
                 /** @description Team ids to name, comma-separated, 100 at most: an id your tenant has no team of is left out of the answer. */
                 id?: string;
+                /** @description Teams a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids. */
                 limit?: number;
                 /** @description `nextCursor` of the previous page (the same `q` and `id`). */
                 cursor?: string;
@@ -7731,7 +8288,10 @@ export interface operations {
     };
     AttachmentsController_download_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
+                inline?: "true" | "false";
+            };
             header?: never;
             path: {
                 id: string;
@@ -10418,7 +10978,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, outcomeAppliedAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -10474,6 +11034,11 @@ export interface operations {
                             outcomeReason: string | null;
                             /** Format: date-time */
                             endedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                             */
+                            outcomeAppliedAt: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -10574,6 +11139,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -10718,6 +11288,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -10884,6 +11459,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -11057,6 +11637,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -11230,6 +11815,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -11395,6 +11985,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -11564,6 +12159,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -12083,6 +12683,8 @@ export interface operations {
                             name: string;
                         } | null;
                         mfaEnabled: boolean;
+                        /** @description Your account has a password: changing it wants the current one, and so does asking for its deletion (POST /v1/account/deletion { password }). false: an invited account not yet set up, or one that signs in with a passkey, a provider or an email link only. */
+                        hasPassword: boolean;
                         /** @description true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`. */
                         mfaEnrollmentRequired: boolean;
                         authentication: {
@@ -15182,7 +15784,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, action, targetType, targetId, details, ip. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
                 fields?: string;
             };
             header?: never;
@@ -15196,39 +15798,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            tenantId: string | null;
-                            /** Format: date-time */
-                            at: string;
-                            /** @description `user:<id>`, `client:<id>`, `system:<key>` or `anonymous`. */
-                            actor: string;
-                            actorLabel: string;
-                            /** @example note.created */
-                            action: string;
-                            targetType: string | null;
-                            targetId: string | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            ip: string | null;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
+                    "application/json": components["schemas"]["AuditPage"];
                 };
             };
             /** @description No session. */
@@ -15601,7 +16171,7 @@ export interface operations {
     NotesController_list_v1: {
         parameters: {
             query?: {
-                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`. */
                 include?: string;
                 limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
@@ -15744,6 +16314,8 @@ export interface operations {
                                 delete: boolean;
                                 /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                                 restore: boolean;
+                                /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                                issue: boolean;
                             };
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
@@ -15859,6 +16431,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -15903,7 +16477,7 @@ export interface operations {
     NotesController_get_v1: {
         parameters: {
             query?: {
-                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`. */
                 include?: string;
             };
             header?: {
@@ -15965,6 +16539,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16120,6 +16696,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16212,6 +16790,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16929,6 +17509,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16965,7 +17547,10 @@ export interface operations {
     };
     NoteDocumentsController_pdf_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The document's language (else `X-Lang`, your saved language, `Accept-Language`, the server's first). A language the server doesn't answer in (LOCALES: `documentTemplates` in GET /v1/lists/{subject} lists them) falls back to the next of those. */
+                lang?: "en" | "de" | "ar" | "zh" | "ms" | "ar-AE" | "en-SG" | "zh-SG" | "ms-SG";
+            };
             header?: {
                 /**
                  * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
@@ -17044,6 +17629,71 @@ export interface operations {
             };
             /** @description PDF documents are not set up on this server (documents_unavailable: GOTENBERG_URL is unset). */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteDocumentsController_documentList_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: status = */
+                status?: "queued" | "rendering" | "completed" | "failed";
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: template = */
+                template?: string;
+                /** @description Filter: language = */
+                language?: string;
+                /** @description Filter: language in */
+                "language.in"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"status","op":"eq","value":…},{…}]}. Fields and operators: status (eq, in); template (eq); language (eq, in); createdAt (gte, lt, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: status,template. Fields: id, status, template, language, issuedBy, createdAt, finishedAt, attachmentId, error. */
+                fields?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordDocumentPage"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -42,6 +42,7 @@ describe('notes in the OpenAPI document (e2e)', () => {
       '/v1/notes/{id}/attachments',
       '/v1/notes/{id}/comments',
       '/v1/notes/{id}/comments/{commentId}',
+      '/v1/notes/{id}/documents',
       '/v1/notes/{id}/pdf',
       '/v1/notes/{id}/restore',
       '/v1/notes/{id}/revisions',

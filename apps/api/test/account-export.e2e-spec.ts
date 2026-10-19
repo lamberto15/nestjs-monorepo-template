@@ -153,10 +153,85 @@ describe('the account export (e2e)', () => {
       .post('/v1/data/exports')
       .send({ name: 'account' });
     expect(generic.status).toBe(403);
-    // …nor read the person's own export, or its link.
+    // …nor read the person's own export, or its link, or their list.
     await admin.get(`/v1/data/transfers/${id}`).expect(404);
+    await admin.get('/v1/account/exports').expect(403);
     // The person still can.
     await person.agent.get(`/v1/data/transfers/${id}`).expect(200);
+  });
+
+  it("lists the person's own account exports, newest first, in any tenant or none, and nobody else's", async () => {
+    const person = await signUp('Lister');
+    const other = await signUp('Other');
+    // The 202 says what it started (a typed body).
+    const first = await person.agent
+      .post('/v1/account/export')
+      .send({ format: 'csv' })
+      .expect(202);
+    expect(first.body).toEqual({ id: expect.any(String), status: 'queued' });
+    const { id: second } = await exportOf(person.agent);
+    const theirs = await exportOf(other.agent);
+
+    // No tenant yet: listed all the same.
+    const listed = await person.agent.get('/v1/account/exports').expect(200);
+    expect(listed.body.items.map((item: { id: string }) => item.id)).toEqual([
+      second,
+      first.body.id,
+    ]);
+    expect(listed.body.nextCursor).toBeNull();
+    const [done] = listed.body.items;
+    expect(done).toMatchObject({
+      id: second,
+      kind: 'export',
+      name: 'account',
+      format: 'json',
+      status: 'completed',
+      createdAt: expect.any(String),
+      finishedAt: expect.any(String),
+      result: { url: expect.any(String) },
+    });
+    expect(
+      new Date(done.expiresAt).getTime() - new Date(done.finishedAt).getTime(),
+    ).toBe(7 * 24 * 3600 * 1000);
+    await node.http().get(local(done.result.url)).expect(200);
+
+    // Paged by cursor.
+    const page = await person.agent
+      .get('/v1/account/exports?limit=1')
+      .expect(200);
+    expect(page.body.items.map((item: { id: string }) => item.id)).toEqual([
+      second,
+    ]);
+    const next = await person.agent
+      .get(`/v1/account/exports?limit=1&cursor=${page.body.nextCursor}`)
+      .expect(200);
+    expect(next.body.items.map((item: { id: string }) => item.id)).toEqual([
+      first.body.id,
+    ]);
+
+    // Another person's list holds theirs alone.
+    const others = await other.agent.get('/v1/account/exports').expect(200);
+    expect(others.body.items.map((item: { id: string }) => item.id)).toEqual([
+      theirs.id,
+    ]);
+
+    // In a tenant, the same list; the tenant's transfers still leave them out.
+    await join(person, node.admin());
+    await switchTo(person.agent, node.tenantId);
+    const inTenant = await person.agent.get('/v1/account/exports').expect(200);
+    expect(inTenant.body.items.map((item: { id: string }) => item.id)).toEqual([
+      second,
+      first.body.id,
+    ]);
+    const transfers = await person.agent.get('/v1/data/transfers').expect(200);
+    expect(transfers.body.items).toEqual([]);
+    // API clients have no account.
+    const client = await node.client();
+    await node
+      .http()
+      .get('/v1/account/exports')
+      .set('Authorization', client.auth)
+      .expect(401);
   });
 
   it('exports only what is personal from a tenant the person left', async () => {

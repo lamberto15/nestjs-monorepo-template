@@ -1,4 +1,5 @@
 import type { ResiliencePreset } from '@nestjs/resilience';
+import type { ConsentKindDeclaration } from './account/consent-kinds.js';
 import type { ApprovalDeclaration } from './approvals/approval.types.js';
 import type { CustomFieldsDeclaration } from './custom-fields/custom-field.types.js';
 import type { NotificationTypeDeclaration } from './notifications/notification.types.js';
@@ -74,4 +75,12 @@ export interface PlatformOptions {
    * registers its handler (ApprovalsRegistry.handle): docs/approvals.md.
    */
   approvals?: readonly ApprovalDeclaration<any>[];
+  /**
+   * The kinds of consent the app asks its users for (`defineConsentKinds()`,
+   * the template's `CONSENT_KINDS`): their current version and whether
+   * they are required. `POST /v1/account/consents` accepts these alone, at
+   * that version; `GET /v1/account/consent-kinds` lists them. None: no
+   * consent can be recorded.
+   */
+  consents?: readonly ConsentKindDeclaration[];
 }

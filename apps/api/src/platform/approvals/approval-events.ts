@@ -59,6 +59,12 @@ export const APPROVAL_REALTIME = {
   assigned: 'approval.assigned',
   /** To the requester and the stage's approvers: a decision, or the request ended or moved on. */
   decided: 'approval.decided',
+  /**
+   * To the requester and the approvers who took part in the round: an approved
+   * request's outcome was applied (`outcomeAppliedAt` is set). Sent once, by
+   * the attempt that set it.
+   */
+  applied: 'approval.applied',
 } as const;
 
 const requestData = z.object({

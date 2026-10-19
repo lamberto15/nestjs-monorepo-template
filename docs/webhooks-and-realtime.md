@@ -117,12 +117,42 @@ change succeeded, not in one transaction with it.
   request.
 - **`description`:** `null` clears it on PATCH; an empty string is a 400.
 
+### Retention
+
+Deliveries, their messages and attempt logs live in the package's
+`nest_webhooks` schema, and one `webhook_delivery_requests` row per delivery
+keeps its latest request's headers. `WebhookDeliveryRetentionJob`
+(`platform/webhooks/webhook-delivery-retention.job.ts`, 03:35 in
+`APP_TIMEZONE`, one instance, `system:webhook-delivery-retention`) keeps
+both from growing for ever:
+
+1. It calls the package's `WebhookDeliveries.prune()` with
+   `WEBHOOKS_DELIVERY_RETENTION_DAYS` (30, at least 1). That deletes the
+   deliveries that **succeeded or failed for good** and finished
+   (`completedAt`) before the cutoff, their attempt logs, and the messages
+   left without a delivery. A delivery still `pending` (waiting for a retry
+   or being sent) is never deleted, however old; the retry schedule above
+   ends within two days anyway. A failed delivery retried by hand is pending
+   again and so kept.
+2. It then deletes the `webhook_delivery_requests` rows whose delivery no
+   longer exists.
+
+Both tables are global, so one rule covers every tenant (no tenant context,
+no row-level security bypass). It returns `{ deliveries, requests }`, what it
+deleted, and logs it. With `WEBHOOKS=off` the job is left out, like the
+delivery worker ([configuration](configuration.md#deployment-switches)).
+
 - **Signatures:** Standard Webhooks (`webhook-id`, `webhook-timestamp`,
   `webhook-signature`), with the endpoint's `whsec_…` secret, shown once at
   creation and at rotation.
-- **Retries:** 10 attempts with backoff, from 5 s growing to a 1 hour cap;
-  an endpoint that fails every attempt for 5 days is switched off
-  (`platform/webhooks/webhooks.config.ts`).
+- **Retries:** up to 50 attempts, waiting 5 s, 20 s, 80 s, 5 min 20 s and
+  21 min 20 s (each four times the last), then 1 hour (the cap) for the
+  remaining 44 waits. Each wait is jittered to between half and all of that,
+  so a delivery that never succeeds is given up on after at most about 44.5
+  hours (160,105 s of waiting, plus up to a 15 s timeout per attempt) and 33
+  hours on average. An endpoint that fails every attempt for 5 days is
+  switched off (`platform/webhooks/webhooks.config.ts`, `retry` and
+  `disableEndpointAfter`).
 - **Secrets at rest** are encrypted with `WEBHOOKS_ENCRYPTION_KEYS`; unset,
   they are stored unencrypted.
 - **Event types** are declared by features (`PlatformModule.forRoot({ eventTypes })`);

@@ -11,14 +11,7 @@ import {
 } from '@nestjs/i18n';
 import type { Config, CoreEnv } from '../config/core.env.js';
 import '../../i18n/translations.js';
-
-/** Regional locales and the language whose catalogs they read. */
-const REGIONS: Record<string, string> = {
-  'ar-AE': 'ar',
-  'en-SG': 'en',
-  'zh-SG': 'zh',
-  'ms-SG': 'ms',
-};
+import { REGIONS } from './locales.js';
 
 /**
  * The language a signed-in user saved (`locale` on their principal): it beats
