@@ -15,8 +15,15 @@ import { parseSnippet, Snippet } from '@/features/search/snippet';
 import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
 
-const hit = (id: string, extra: object = {}) => ({
+/** How the API names a subject in the request's language (`subjectLabel`). */
+const labels: Record<string, { singular: string; plural: string }> = {
+  TestItem: { singular: 'Test item', plural: 'Test items' },
+  Task: { singular: 'Aufgabe', plural: 'Aufgaben' },
+};
+
+const hit = (id: string, extra: { subject?: string; link?: string } = {}) => ({
   subject: 'TestItem',
+  subjectLabel: labels[extra.subject ?? 'TestItem']!,
   id,
   title: `Title ${id}`,
   snippet: `about <b>note</b> ${id}`,
@@ -81,9 +88,11 @@ describe('grouping', () => {
       hit('2', { subject: 'Task' }),
       hit('3', { subject: 'TestItem' }),
     ]);
-    expect(groups.map((g) => [g.subject, g.items.map((i) => i.id)])).toEqual([
-      ['TestItem', ['1', '3']],
-      ['Task', ['2']],
+    expect(
+      groups.map((g) => [g.subject, g.label, g.items.map((i) => i.id)]),
+    ).toEqual([
+      ['TestItem', 'Test items', ['1', '3']],
+      ['Task', 'Aufgaben', ['2']],
     ]);
   });
 });
@@ -144,9 +153,11 @@ describe('the palette', () => {
     await user.type(await screen.findByRole('combobox'), 'note');
 
     expect(await screen.findByText('Title 1')).toBeInTheDocument();
-    // A subject with no name in search:subjects shows as itself.
-    expect(screen.getByText('TestItem')).toBeInTheDocument();
-    expect(screen.getByText('Task')).toBeInTheDocument();
+    // Each group is named as the API names its subject (`subjectLabel`), not
+    // by a local translation: the subject's key never shows.
+    expect(screen.getByText('Test items')).toBeInTheDocument();
+    expect(screen.getByText('Aufgaben')).toBeInTheDocument();
+    expect(screen.queryByText('TestItem')).toBeNull();
     expect(
       within(screen.getByRole('dialog')).getAllByText('note')[0]!.tagName,
     ).toBe('MARK');

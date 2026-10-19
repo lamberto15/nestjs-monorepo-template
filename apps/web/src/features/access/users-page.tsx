@@ -1,12 +1,6 @@
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
-import { Input } from '@nestjs-monorepo-template/ui/components/input';
+import { DropdownMenuItem } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
   Table,
@@ -16,81 +10,57 @@ import {
   TableHeader,
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@nestjs-monorepo-template/ui/components/select';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@nestjs-monorepo-template/ui/components/tabs';
-import { SearchIcon } from 'lucide-react';
-import { useDeferredValue, useState } from 'react';
+import type { HeaderContext } from '@tanstack/react-table';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
+import { ListPage } from '@/components/list-page';
 import {
   invalidateAccess,
   invitationsQuery,
-  membersQuery,
   resendInvitation,
   revokeInvitation,
   rolesQuery,
-  teamsQuery,
   type Invitation,
+  type Member,
   type Role,
 } from '@/features/access/api';
 import { isEnded } from '@/features/access/grants';
 import { InviteDialog } from '@/features/access/invite-dialog';
 import { MemberSheet } from '@/features/access/member-sheet';
-import { orderedTree } from '@/features/access/pickers';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { useCan } from '@/lib/features';
+import type { DataTableFeatures } from '@/lib/data-table-features';
 import { FormAlert } from '@/lib/form';
+import type { ListColumn } from '@/lib/list-query';
 
 /**
- * The tenant's members and, for whoever manages users, its pending
- * invitations. Whoever only manages teams or impersonates reads the members
- * (AccessPolicy.open): the invitations and every change want manageUsers.
+ * The tenant's members (the generic list page, on GET /v1/lists/User) and,
+ * for whoever manages users, its pending invitations. Whoever only manages
+ * teams or impersonates reads the members (AccessPolicy.open): the
+ * invitations and every change want manageUsers.
  */
 export function UsersPage() {
   const { t } = useTranslation('access');
   const mayManage = useCan('Access.manageUsers');
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-medium">{t('users.title')}</h1>
-        {mayManage && (
-          <div className="ms-auto">
-            <InviteDialog />
-          </div>
-        )}
-      </div>
-      {mayManage ? (
-        <Tabs defaultValue="members">
-          <TabsList>
-            <TabsTrigger value="members">{t('users.tabs.members')}</TabsTrigger>
-            <TabsTrigger value="invitations">
-              {t('users.tabs.invitations')}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="members">
-            <Members />
-          </TabsContent>
-          <TabsContent value="invitations">
-            <Invitations />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <Members />
+    <div className="flex flex-col gap-8">
+      <Members />
+      {mayManage && (
+        <section
+          className="flex flex-col gap-2"
+          aria-labelledby="invitations-title"
+        >
+          <h2 id="invitations-title" className="text-lg font-medium">
+            {t('users.tabs.invitations')}
+          </h2>
+          <Invitations />
+        </section>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -100,165 +70,107 @@ function roleNames(roles: Map<string, Role>, ids: readonly string[]) {
 
 function Members() {
   const { t } = useTranslation('access');
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [teamId, setTeamId] = useState<string | null>(null);
-  const q = useDeferredValue(search.trim());
-  const members = useQuery({
-    ...membersQuery(page, q, teamId ?? ''),
-    placeholderData: keepPreviousData,
-  });
+  const mayManage = useCan('Access.manageUsers');
   const roles = useQuery(rolesQuery);
-  const teams = useQuery(teamsQuery);
-  const roleById = new Map((roles.data ?? []).map((role) => [role.id, role]));
+  const roleById = useMemo(
+    () => new Map((roles.data ?? []).map((role) => [role.id, role])),
+    [roles.data],
+  );
   const [selected, setSelected] = useState<string>();
-  // The row, shown while the sheet reads the member itself.
-  const row = members.data?.items.find((m) => m.id === selected);
-  const teamOptions = [
-    { value: null, label: t('users.allTeams') },
-    ...orderedTree(teams.data ?? []).map((team) => ({
-      value: team.id as string | null,
-      label: `${'\u2003'.repeat(team.depth)}${team.name}`,
-    })),
-  ];
+
+  // Cells and headers only: which columns filter and sort, and how (the
+  // team filter included), comes from GET /v1/lists/User (withListMeta).
+  const columns = useMemo<ListColumn<Member>[]>(() => {
+    const header = (key: string) => {
+      const label = t(`users.columns.${key}`);
+      return {
+        meta: { label },
+        header: ({
+          column,
+        }: HeaderContext<DataTableFeatures, Member, unknown>) => (
+          <DataTableColumnHeader column={column} label={label} />
+        ),
+      };
+    };
+    return [
+      {
+        id: 'name',
+        accessorFn: (m) => m.name || m.email,
+        ...header('name'),
+        // The keyboard's way into the member sheet.
+        cell: ({ row }) => (
+          <button
+            type="button"
+            className="font-medium underline-offset-4 hover:underline"
+            onClick={() => setSelected(row.original.id)}
+          >
+            {row.original.name || row.original.email}
+          </button>
+        ),
+      },
+      { id: 'email', accessorKey: 'email', ...header('email') },
+      {
+        id: 'roles',
+        accessorFn: (m) =>
+          m.roles
+            .filter((grant) => !isEnded(grant))
+            .map((grant) => roleById.get(grant.roleId)?.name ?? grant.roleId)
+            .join(', '),
+        ...header('roles'),
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            {row.original.roles
+              .filter((grant) => !isEnded(grant))
+              .map((grant) => (
+                <Badge key={grant.roleId} variant="outline">
+                  {roleNames(roleById, [grant.roleId])[0]}
+                  {grant.expiresAt &&
+                    ` · ${t('grants.untilShort', { date: formatDateTime(grant.expiresAt) })}`}
+                </Badge>
+              ))}
+          </div>
+        ),
+      },
+      {
+        id: 'active',
+        accessorFn: (m) => m.active,
+        ...header('status'),
+        cell: ({ row }) => (
+          <Badge variant={row.original.active ? 'secondary' : 'destructive'}>
+            {t(
+              row.original.active
+                ? 'users.status.active'
+                : 'users.status.inactive',
+            )}
+          </Badge>
+        ),
+      },
+    ];
+  }, [t, roleById]);
+
+  // The sheet holds what one does to a member: roles, teams, remove or
+  // restore access, impersonate (each by its own permission).
+  const rowActions = useCallback(
+    (member: Member) => (
+      <DropdownMenuItem onClick={() => setSelected(member.id)}>
+        {t('users.open')}
+      </DropdownMenuItem>
+    ),
+    [t],
+  );
 
   return (
-    <div className="flex flex-col gap-3 pt-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-full max-w-xs">
-          <SearchIcon
-            aria-hidden
-            className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            className="ps-8"
-            aria-label={t('users.search')}
-            placeholder={t('users.search')}
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-        {/* A team's direct members (`?teamId=`). */}
-        <Select
-          items={teamOptions}
-          value={teamId}
-          onValueChange={(value) => {
-            setTeamId(value as string | null);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger aria-label={t('users.team')} className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {teamOptions.map((option) => (
-              <SelectItem key={option.value ?? ''} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {members.isPending ? (
-        <Spinner />
-      ) : members.isError ? (
-        <FormAlert message={errorMessage(members.error)} />
-      ) : (
-        <>
-          <Table aria-busy={members.isPlaceholderData}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('users.columns.member')}</TableHead>
-                <TableHead>{t('users.columns.roles')}</TableHead>
-                <TableHead>{t('users.columns.status')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.data.items.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-muted-foreground">
-                    {t('users.empty')}
-                  </TableCell>
-                </TableRow>
-              )}
-              {members.data.items.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell>
-                    <button
-                      type="button"
-                      className="flex flex-col items-start text-start hover:underline"
-                      onClick={() => setSelected(m.id)}
-                    >
-                      <span className="font-medium">{m.name || m.email}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {m.email}
-                      </span>
-                    </button>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {m.roles
-                        .filter((grant) => !isEnded(grant))
-                        .map((grant) => (
-                          <Badge key={grant.roleId} variant="outline">
-                            {roleNames(roleById, [grant.roleId])[0]}
-                            {grant.expiresAt &&
-                              ` · ${t('grants.untilShort', { date: formatDateTime(grant.expiresAt) })}`}
-                          </Badge>
-                        ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={m.active ? 'secondary' : 'destructive'}>
-                      {t(
-                        m.active
-                          ? 'users.status.active'
-                          : 'users.status.inactive',
-                      )}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">
-              {t('users.pageOf', {
-                page,
-                pages: members.data.pageCount ?? 1,
-                total: members.data.total ?? members.data.items.length,
-              })}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="ms-auto"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              {t('previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!members.data.nextPage}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              {t('next')}
-            </Button>
-          </div>
-        </>
-      )}
-      <MemberSheet
-        memberId={selected}
-        row={row}
-        onClose={() => setSelected(undefined)}
+    <>
+      <ListPage
+        subject="User"
+        path="/v1/access/users"
+        title={t('users.title')}
+        columns={columns}
+        rowActions={rowActions}
+        toolbarActions={mayManage ? <InviteDialog /> : undefined}
       />
-    </div>
+      <MemberSheet memberId={selected} onClose={() => setSelected(undefined)} />
+    </>
   );
 }
 

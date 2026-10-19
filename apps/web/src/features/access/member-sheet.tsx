@@ -46,19 +46,17 @@ import { FormAlert } from '@/lib/form';
  * A member of the tenant: their roles (with ends), teams and status, and
  * what an administrator may do about them (`PATCH /v1/access/users/{id}`,
  * docs/tenancy.md "Accounts and sessions"): never their name or password.
- * The member is read on their own (`GET /v1/access/users/{id}`); the list's
- * row stands in until then.
+ * The member is read on their own (`GET /v1/access/users/{id}`): a list row
+ * may hold only the columns shown.
  */
 export function MemberSheet(props: {
   memberId: string | undefined;
-  row?: Member;
   onClose: () => void;
 }) {
   const { t } = useTranslation('access');
   const read = useQuery({
     ...memberQuery(props.memberId ?? ''),
     enabled: props.memberId !== undefined,
-    placeholderData: props.row,
   });
   const member = props.memberId === undefined ? undefined : read.data;
   return (
