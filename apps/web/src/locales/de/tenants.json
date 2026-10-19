@@ -1,0 +1,39 @@
+{
+  "nav": "Mandanten",
+  "list": {
+    "title": "Mandanten",
+    "description": "Die Kunden dieser Installation. Jeder Mandant ist eine feste Wand um seine Daten; beim Anlegen wird sein erster Administrator eingeladen.",
+    "empty": "Keine Mandanten.",
+    "create": "Neuer Mandant",
+    "columns": {
+      "name": "Name",
+      "slug": "Kürzel",
+      "status": "Status",
+      "created": "Erstellt",
+      "actions": "Aktionen"
+    },
+    "operator": "Betreiber",
+    "current": "Aktuell",
+    "switch": "Dorthin wechseln"
+  },
+  "status": {
+    "active": "Aktiv",
+    "inactive": "Inaktiv"
+  },
+  "create": {
+    "title": "Neuer Mandant",
+    "description": "Legt den Mandanten mit seinen Rollen an. Der erste Administrator erhält eine Einladung, falls die Adresse noch kein Konto hat.",
+    "name": "Name",
+    "namePlaceholder": "Acme GmbH",
+    "nameRequired": "Bitte einen Namen eingeben.",
+    "slug": "Kürzel",
+    "slugHint": "Ein kurzer Name: Kleinbuchstaben, Ziffern und einzelne Bindestriche.",
+    "slugInvalid": "Nur Kleinbuchstaben und Ziffern, mit einzelnen Bindestrichen dazwischen (höchstens 48 Zeichen).",
+    "email": "E-Mail des ersten Administrators",
+    "emailHint": "Unter dieser Adresse wird ein Konto angelegt und eingeladen, falls es keines gibt.",
+    "emailInvalid": "Bitte eine gültige E-Mail-Adresse eingeben.",
+    "cancel": "Abbrechen",
+    "submit": "Mandant anlegen",
+    "done": "Mandant {{name}} angelegt. {{email}} ist sein erster Administrator."
+  }
+}

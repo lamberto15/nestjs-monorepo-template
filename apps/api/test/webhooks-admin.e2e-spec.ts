@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { eq, inArray } from 'drizzle-orm';
+import { WebhookDeliveryRetentionJob } from '../src/platform/webhooks/webhook-delivery-retention.job.js';
+import { storeDeliveries } from '../src/platform/webhooks/webhook-store.view.js';
+import { webhookDeliveryRequests } from '../src/platform/webhooks/webhooks.tables.js';
 import { bootApp, webhookReceiver, type TestApp } from './support.js';
 
 /**
@@ -268,6 +272,136 @@ describe('Webhooks managed by administrators (e2e)', () => {
       } finally {
         await receiver.close();
       }
+    });
+  });
+
+  describe('retention', () => {
+    const DAY = 86_400_000;
+
+    it('prunes finished deliveries past WEBHOOKS_DELIVERY_RETENTION_DAYS with their recorded requests, and keeps recent and pending ones', async () => {
+      const receiver = await webhookReceiver();
+      try {
+        const client = await node.client();
+        const endpoint = await node
+          .admin()
+          .post(`${base(client.id)}/webhook-endpoints`)
+          .send({ url: receiver.url, eventTypes: ['approval.requested'] })
+          .expect(201);
+        const send = async () =>
+          (
+            await node
+              .admin()
+              .post(
+                `${base(client.id)}/webhook-endpoints/${endpoint.body.id}/test`,
+              )
+              .expect(202)
+          ).body.id as string;
+
+        // Two sent (their request headers recorded), then three left waiting.
+        const old = await send();
+        const recent = await send();
+        await node.deliverWebhooks();
+        expect(receiver.received).toHaveLength(2);
+        const [oldFailed, retrying, oldRetrying] = [
+          await send(),
+          await send(),
+          await send(),
+        ];
+
+        const now = Date.now();
+        const finish = (id: string, status: string, completedAt: number) =>
+          node.db
+            .update(storeDeliveries)
+            .set({ status, completedAt })
+            .where(eq(storeDeliveries.id, id));
+        await finish(old, 'succeeded', now - 31 * DAY);
+        await finish(recent, 'succeeded', now - 29 * DAY);
+        await finish(oldFailed, 'failed', now - 40 * DAY);
+        // Still being retried, however long ago it was created.
+        await node.db
+          .update(storeDeliveries)
+          .set({ createdAt: now - 60 * DAY })
+          .where(inArray(storeDeliveries.id, [retrying, oldRetrying]));
+        // A failed delivery has been sent; so has a retrying one (and one whose delivery is gone).
+        const orphan = `dlv_${randomUUID().replaceAll('-', '')}`;
+        await node.db.insert(webhookDeliveryRequests).values(
+          [oldFailed, retrying, orphan].map((deliveryId) => ({
+            deliveryId,
+            attempt: 1,
+            headers: { 'webhook-id': 'msg_1' },
+          })),
+        );
+        const requests = async () =>
+          (
+            await node.db
+              .select({ id: webhookDeliveryRequests.deliveryId })
+              .from(webhookDeliveryRequests)
+              .where(
+                inArray(webhookDeliveryRequests.deliveryId, [
+                  old,
+                  recent,
+                  oldFailed,
+                  retrying,
+                  oldRetrying,
+                  orphan,
+                ]),
+              )
+          )
+            .map((row) => row.id)
+            .sort();
+        expect(await requests()).toEqual(
+          [old, recent, oldFailed, retrying, orphan].sort(),
+        );
+
+        // Older than 30 days and finished: the succeeded and the failed one.
+        const result = await node.app.get(WebhookDeliveryRetentionJob).run();
+        expect(result.deliveries).toBe(2);
+        expect(result.requests).toBeGreaterThanOrEqual(3);
+        const kept = await node.db
+          .select({ id: storeDeliveries.id })
+          .from(storeDeliveries)
+          .where(
+            inArray(storeDeliveries.id, [
+              old,
+              recent,
+              oldFailed,
+              retrying,
+              oldRetrying,
+            ]),
+          );
+        expect(kept.map((row) => row.id).sort()).toEqual(
+          [recent, retrying, oldRetrying].sort(),
+        );
+        // Their recorded requests went with them (and the orphan's); the others stay.
+        expect(await requests()).toEqual([recent, retrying].sort());
+        await node
+          .admin()
+          .get(`${base(client.id)}/webhook-deliveries/${old}`)
+          .expect(404);
+        await node
+          .admin()
+          .get(`${base(client.id)}/webhook-deliveries/${recent}`)
+          .expect(200);
+
+        // Nothing more is old enough: a second run deletes nothing.
+        expect(await node.app.get(WebhookDeliveryRetentionJob).run()).toEqual({
+          deliveries: 0,
+          requests: 0,
+        });
+      } finally {
+        await receiver.close();
+      }
+    });
+
+    it('is declared in the catalog, with no permissions', async () => {
+      const catalog = await node.admin().get('/v1/access/catalog').expect(200);
+      const jobs = catalog.body.systemJobs as {
+        key: string;
+        permissions: unknown[];
+      }[];
+      expect(
+        jobs.find((job) => job.key === 'webhook-delivery-retention'),
+      ).toMatchObject({ permissions: [] });
     });
   });
 });

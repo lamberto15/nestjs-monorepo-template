@@ -8,7 +8,6 @@ import {
   ApiOkResponse,
   ApiOperation,
 } from '@nestjs/swagger';
-import { listSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   aNounOf,
@@ -16,7 +15,11 @@ import {
   RecordController,
   type RecordRouteSpec,
 } from '../records/record-routes.js';
-import { type SetTagsDto, setTagsSchema, tagRefSchema } from './tag.schemas.js';
+import {
+  type SetTagsDto,
+  setTagsSchema,
+  tagRefListSchema,
+} from './tag.schemas.js';
 import { TagsService } from './tags.service.js';
 
 /**
@@ -37,7 +40,7 @@ export function tagRoutes(spec: RecordRouteSpec): Type {
       summary: `Set ${aNounOf(spec)}'s tags`,
       description: `Replaces the whole set (\`[]\` removes every tag); the tags must be \`${subject}\` tags (GET /v1/tags?subject=${subject}). Answers the ${noun}'s tags, by name. Audited (\`tags.changed\`, from → to).`,
     })
-    @ApiOkResponse({ standardSchema: listSchema(tagRefSchema) })
+    @ApiOkResponse({ standardSchema: tagRefListSchema })
     @ApiBadRequestResponse({
       description: `An id that is not a ${subject} tag, named by its path (validation_failed).`,
     })

@@ -8,6 +8,7 @@ import {
   swaggerRequestInterceptor,
 } from './platform/idempotency/idempotency.openapi.js';
 import type { PlatformEnv } from './platform/platform.env.js';
+import { addPanelComponents } from './platform/records/panel-components.js';
 
 /** Your API's name, in the document and Swagger UI's title. */
 const API_TITLE = 'My API';
@@ -107,6 +108,8 @@ export function buildOpenApiDocument(
     )
     .build();
   const document = SwaggerModule.createDocument(app, config);
+  // The record panels' shared components, even with no panel route.
+  addPanelComponents(document);
   applyIdempotencyMode(document, idempotency);
   return document;
 }
