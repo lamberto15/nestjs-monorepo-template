@@ -155,12 +155,7 @@ function PaletteDialog(props: { onClose: () => void; debounceMs: number }) {
                 </div>
               )}
               {groups.map((group) => (
-                <CommandGroup
-                  key={group.subject}
-                  heading={t(`subjects.${group.subject}`, {
-                    defaultValue: group.subject,
-                  })}
-                >
+                <CommandGroup key={group.subject} heading={group.label}>
                   {group.items.map((hit) => (
                     <CommandItem
                       key={`${hit.subject}:${hit.id}`}

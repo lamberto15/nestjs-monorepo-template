@@ -8,9 +8,6 @@
   "searching": "正在搜索…",
   "error": "搜索失败，请重试。",
   "empty": "未找到“{{q}}”的结果。",
-  "subjects": {
-    "Note": "笔记"
-  },
   "recent": "最近的搜索",
   "clearRecent": "清除最近的搜索",
   "hint": "输入以搜索；> 列出命令。"
