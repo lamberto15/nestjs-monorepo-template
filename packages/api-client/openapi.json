@@ -4076,6 +4076,22 @@
             }
           },
           {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+            "schema": {
+              "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          },
+          {
             "name": "limit",
             "required": false,
             "in": "query",
@@ -4430,9 +4446,40 @@
     },
     "/v1/bulk": {
       "get": {
-        "description": "Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.",
+        "description": "Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?status=` and `?kind=` keep some (a filtered page may hold fewer than `limit` items, or none, while `nextCursor` is set: follow it until it is null). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.",
         "operationId": "BulkController_list_v1",
         "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+            "schema": {
+              "description": "Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all.",
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "description": "Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches.",
+            "schema": {
+              "description": "Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches.",
+              "type": "string",
+              "enum": [
+                "delete",
+                "restore",
+                "update"
+              ]
+            }
+          },
           {
             "name": "limit",
             "required": false,
@@ -4495,6 +4542,26 @@
                             },
                             "description": "processed, done, failed: every 100 items."
                           },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When it was handed to the workers."
+                          },
+                          "startedAt": {
+                            "nullable": true,
+                            "description": "When a worker took it up; null while it is queued.",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "finishedAt": {
+                            "nullable": true,
+                            "description": "When it completed or failed; null while it waits or runs.",
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
                           "result": {
                             "description": "The counts; GET /v1/bulk/{id} has the result per item.",
                             "type": "object",
@@ -4530,7 +4597,10 @@
                           "name",
                           "action",
                           "status",
-                          "progress"
+                          "progress",
+                          "createdAt",
+                          "startedAt",
+                          "finishedAt"
                         ],
                         "additionalProperties": false
                       }
@@ -4644,6 +4714,26 @@
                       },
                       "description": "processed, done, failed: every 100 items."
                     },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When it was handed to the workers."
+                    },
+                    "startedAt": {
+                      "nullable": true,
+                      "description": "When a worker took it up; null while it is queued.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "finishedAt": {
+                      "nullable": true,
+                      "description": "When it completed or failed; null while it waits or runs.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
                     "result": {
                       "type": "object",
                       "properties": {
@@ -4740,7 +4830,10 @@
                     "name",
                     "action",
                     "status",
-                    "progress"
+                    "progress",
+                    "createdAt",
+                    "startedAt",
+                    "finishedAt"
                   ],
                   "additionalProperties": false
                 }
@@ -32237,7 +32330,7 @@
               "nullable": true,
               "type": "string"
             },
-            "description": "The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ \"user:<id>\": \"Maya Patel\" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.",
+            "description": "The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ \"user:<id>\": \"Maya Patel\" }`. A mention written as an address (`@maya@example.com`) is named under that address too (lower-cased), so a client can show the name where the body has the address; an address that mentioned nobody has no entry. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.",
             "example": {
               "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
             }

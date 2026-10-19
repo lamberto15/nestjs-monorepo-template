@@ -44,6 +44,7 @@ import {
   principalTenant,
   transferKey,
 } from './data-transfer.service.js';
+import { jobStatusFilter } from '../queues/job-status.js';
 import { startedSchema, statusSchema } from './data-transfer.schemas.js';
 import { TRANSFER_FORMATS } from './data-transfer.types.js';
 import { CONTENT_TYPES, detectTextFormat, formatOf } from './formats.js';
@@ -156,6 +157,7 @@ const transfersQuerySchema = z.object({
     .enum(['export', 'import'])
     .optional()
     .describe('Only exports, or only imports. Default: both.'),
+  status: jobStatusFilter,
   limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
   cursor: z
     .uuid()

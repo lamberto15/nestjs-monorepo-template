@@ -444,7 +444,12 @@ export class DataTransferService {
    */
   async list(
     principal: RequestPrincipal,
-    query: { kind?: TransferJob['kind']; limit: number; cursor?: string },
+    query: {
+      kind?: TransferJob['kind'];
+      status?: TransferStatus['status'];
+      limit: number;
+      cursor?: string;
+    },
   ): Promise<JobPage<TransferStatus>> {
     return this.jobs.page(
       transferList(query.kind),
@@ -457,6 +462,9 @@ export class DataTransferService {
           ? this.view(job)
           : null;
       },
+      // Only those in this state: skipped, not forgotten.
+      (transfer) =>
+        query.status === undefined || transfer.status === query.status,
     );
   }
 

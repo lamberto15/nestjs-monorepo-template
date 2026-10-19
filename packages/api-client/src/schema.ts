@@ -580,7 +580,7 @@ export interface paths {
         };
         /**
          * The bulk runs you handed to the workers in this tenant
-         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.
+         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?status=` and `?kind=` keep some (a filtered page may hold fewer than `limit` items, or none, while `nextCursor` is set: follow it until it is null). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.
          */
         get: operations["BulkController_list_v1"];
         put?: never;
@@ -3364,7 +3364,7 @@ export interface components {
             /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
             mentions: string[];
             /**
-             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A mention written as an address (`@maya@example.com`) is named under that address too (lower-cased), so a client can show the name where the body has the address; an address that mentioned nobody has no entry. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
              * @example {
              *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
              *     }
@@ -5499,6 +5499,8 @@ export interface operations {
             query?: {
                 /** @description Only exports, or only imports. Default: both. */
                 kind?: "export" | "import";
+                /** @description Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all. */
+                status?: "queued" | "running" | "completed" | "failed";
                 limit?: number;
                 /** @description `nextCursor` of the previous page (the same `kind`). */
                 cursor?: string;
@@ -5651,6 +5653,10 @@ export interface operations {
     BulkController_list_v1: {
         parameters: {
             query?: {
+                /** @description Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all. */
+                status?: "queued" | "running" | "completed" | "failed";
+                /** @description Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches. */
+                kind?: "delete" | "restore" | "update";
                 limit?: number;
                 /** @description `nextCursor` of the previous page. */
                 cursor?: string;
@@ -5677,6 +5683,21 @@ export interface operations {
                             progress: {
                                 [key: string]: number;
                             };
+                            /**
+                             * Format: date-time
+                             * @description When it was handed to the workers.
+                             */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When a worker took it up; null while it is queued.
+                             */
+                            startedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it completed or failed; null while it waits or runs.
+                             */
+                            finishedAt: string | null;
                             /** @description The counts; GET /v1/bulk/{id} has the result per item. */
                             result?: {
                                 done: number;
@@ -5731,6 +5752,21 @@ export interface operations {
                         progress: {
                             [key: string]: number;
                         };
+                        /**
+                         * Format: date-time
+                         * @description When it was handed to the workers.
+                         */
+                        createdAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When a worker took it up; null while it is queued.
+                         */
+                        startedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it completed or failed; null while it waits or runs.
+                         */
+                        finishedAt: string | null;
                         result?: {
                             done: number;
                             failed: number;

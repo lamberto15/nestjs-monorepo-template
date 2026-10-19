@@ -28,6 +28,7 @@ import {
   type BulkOperation,
   type BulkResult,
   type BulkSelection,
+  type BulkKind,
   MAX_BULK_IDS,
 } from './bulk.types.js';
 
@@ -311,14 +312,20 @@ export class BulkService {
 
   /**
    * The runs this principal handed to the workers in this tenant, newest
-   * first, by cursor (the last id of the previous page), each as
+   * first, by cursor (the last id of the previous page), optionally only
+   * those in a `status` or of an action (`kind`), each as
    * `status()` tells it without the result per item (its counts stay):
    * GET /v1/bulk/{id} has them. Those BullMQ still keeps (7 days after
    * they end); runs answered in the request were never jobs.
    */
   async list(
     principal: RequestPrincipal,
-    query: { limit: number; cursor?: string },
+    query: {
+      status?: BulkRunView['status'];
+      kind?: BulkKind;
+      limit: number;
+      cursor?: string;
+    },
   ): Promise<JobPage<BulkRunView>> {
     return this.jobs.page(
       BULK,
@@ -337,6 +344,10 @@ export class BulkService {
         const { results: _results, ...counts } = run.result;
         return { ...run, result: counts };
       },
+      // Only the runs in this state, or of this action: skipped, not forgotten.
+      (run) =>
+        (query.status === undefined || run.status === query.status) &&
+        (query.kind === undefined || run.action === query.kind),
     );
   }
 
@@ -372,6 +383,14 @@ export class BulkService {
         typeof job.progress === 'object'
           ? (job.progress as Record<string, number>)
           : { processed: 0 },
+      // BullMQ's `timestamp` (queued), `processedOn` (a worker took it up)
+      // and `finishedOn` (completed or failed), in milliseconds.
+      createdAt: new Date(job.timestamp).toISOString(),
+      startedAt: iso(job.processedOn),
+      finishedAt:
+        state === 'completed' || state === 'failed'
+          ? iso(job.finishedOn)
+          : null,
     };
     if (state === 'failed') {
       // Only a message written for people; never internal error text.
@@ -447,9 +466,16 @@ export interface BulkRunView {
   action: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
   progress: Record<string, number>;
+  /** When it was queued, a worker took it up, it ended (ISO 8601); null until then. */
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
   result?: Omit<BulkResult, 'results'>;
   error?: string;
 }
+
+const iso = (millis: number | undefined) =>
+  millis === undefined ? null : new Date(millis).toISOString();
 
 /** The one reason a person can act on; anything else (a database error) stays in the logs. */
 export const PRINCIPAL_GONE =

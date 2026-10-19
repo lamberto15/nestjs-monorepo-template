@@ -28,7 +28,7 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
 | `POST /v1/data/exports { name, format, filters, timezone? }` | 202; the file lands in private storage |
 | `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`) | 202; every row is validated, valid rows written |
 | `GET /v1/data/transfers/{id}` | progress, then the result: a signed link (30 min), counts, the error report; `createdAt`, `finishedAt`, `expiresAt` |
-| `GET /v1/data/transfers?kind=&limit=&cursor=` | the caller's transfers in this tenant, newest first, each as the route above tells it |
+| `GET /v1/data/transfers?kind=&status=&limit=&cursor=` | the caller's transfers in this tenant, newest first, each as the route above tells it |
 
 - **Per tenant** ([tenancy](tenancy.md)): a transfer job names the tenant
   it was started in (`tenantId`, required by its type); the worker runs it
@@ -40,7 +40,13 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   in the current tenant (its scheduled reports' included, they run as their
   owner), exports and imports or one `kind`, newest first, by cursor
   (`limit` up to 100, `cursor` = the previous `nextCursor`, the last id;
-  an unknown or expired one is a 400): `{ items, nextCursor }`. Only the
+  an unknown or expired one is a 400): `{ items, nextCursor }`. `?status=`
+  keeps those `queued`, `running`, `completed` or `failed` (the `status`
+  each item carries; any other word is a 400), with `kind` or alone. The
+  filter skips jobs without dropping them from the index, so a filtered
+  page may hold fewer than `limit` items, even none, while `nextCursor` is
+  set (a page reads a bounded number of entries): follow it until it is
+  null. Only the
   caller's own, whatever their permissions: the docs' model is that a
   transfer is its principal's alone (an administrator sees theirs only).
   Listed while BullMQ keeps the job (7 days after it ends). The index is a
