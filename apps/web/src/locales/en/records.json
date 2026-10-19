@@ -71,5 +71,21 @@
     "conflictTitle": "The record changed meanwhile",
     "conflictDescription": "Someone else changed it since you opened it. Reload it, then restore again.",
     "reload": "Reload"
+  },
+  "customFields": {
+    "required": "This field is required.",
+    "maxLength": "At most {{limit}} characters.",
+    "minLength": "At least {{limit}} characters.",
+    "email": "Enter a valid email address.",
+    "url": "Enter a valid web address (http or https).",
+    "pattern": "This value does not match the expected format.",
+    "number": "Enter a number.",
+    "min": "At least {{limit}}.",
+    "max": "At most {{limit}}.",
+    "minChoices": "Choose at least {{limit}}.",
+    "maxChoices": "Choose at most {{limit}}.",
+    "option": "Choose one of the listed options.",
+    "none": "None",
+    "choose": "Choose…"
   }
 }
