@@ -9,6 +9,7 @@ whose tasks [Turborepo](https://turborepo.dev) runs. The layout is in
 | `@nestjs-monorepo-template/api`        | `apps/api`            | the NestJS app (API, workers, migrations)                         |
 | `@nestjs-monorepo-template/api-client` | `packages/api-client` | the typed client, for frontends and scripts                       |
 | `@nestjs-monorepo-template/web`        | `apps/web`            | the web app: React, Vite, TanStack Router and Query               |
+| `@nestjs-monorepo-template/web-e2e`    | `apps/web-e2e`        | the web app's Playwright tests (browser end-to-end, axe)          |
 | `@nestjs-monorepo-template/ui`         | `packages/ui`         | shared components: shadcn/ui (Base UI) and Dice UI, as source     |
 | the root (`nestjs-monorepo-template`)  | `.`                   | the scripts, tooling (Turborepo, oxlint, Prettier), Compose, docs |
 
@@ -88,8 +89,8 @@ web app needs the API, so `dev:web` alone suits an API already running.
 
 - **Open http://localhost:5173**, not the API's port: Vite's `server.proxy`
   (`vite.config.ts`) sends `/v1`, `/health` and `/socket.io` (`ws: true`) to
-  `http://localhost:3000`, so the `__Host-sid` cookie is the app's own. The
-  target is fixed there: an API on another `PORT` needs that line changed.
+  `http://localhost:3000` (`API_URL` in the environment points it at another
+  port: the browser tests do), so the `__Host-sid` cookie is the app's own.
   Swagger UI stays at http://localhost:3000/api.
 - **Signing in:** the administrator the API's first start creates
   (`ADMIN_EMAIL`, `admin@example.com` unless set; the password is
@@ -118,9 +119,6 @@ web app needs the API, so `dev:web` alone suits an API already running.
 | Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                                                                                                                                    | `features/*`                                                                                                              |
 | Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/webhooks` (per API client: endpoints, deliveries), `/audit`, `/settings` (values, overrides, feature flags), `/tenants` (operators only, multi-tenant deployments: list, create), `/custom-fields` (define, order, deactivate) | `features/access`, `features/api-clients`, `features/webhooks`, `features/audit`, `features/settings`, `features/tenants`, `features/custom-fields` |
 | Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                                                                                                                                  | `features/search`, `components/`                                                                                          |
-
-Not in the web app yet (open issue): browser
-end-to-end tests (#97). The API has all of them.
 
 ### How it's built
 

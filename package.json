@@ -11,6 +11,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e --",
+    "test:e2e:web": "turbo run test:browser --env-mode=loose --",
     "dev": "turbo run dev --env-mode=loose",
     "dev:api": "turbo run dev --env-mode=loose --filter=@nestjs-monorepo-template/api",
     "dev:web": "turbo run dev --env-mode=loose --filter=@nestjs-monorepo-template/web",

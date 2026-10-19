@@ -1,0 +1,19 @@
+{
+  "name": "@nestjs-monorepo-template/web-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint --type-aware test/ scripts/ playwright.config.ts && tsc -p .",
+    "test:browser": "playwright test",
+    "axe:summary": "node scripts/axe-summary.mjs"
+  },
+  "description": "Playwright end-to-end tests of the web app, against the built SPA and the real API.",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "typescript": "6.0.3"
+  }
+}

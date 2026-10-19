@@ -428,7 +428,7 @@ pages and panels (#100, #112, #137); settings (#105, #135); access administratio
 (#125); exports, imports, reports and bulk work (#131); the web app in the devcontainer
 (#147); removing the web's notes with the feature (#149). Open: webhooks (#89), PDF
 documents (#93), custom fields (#94), tenants for operators (#95), privacy (#96),
-Playwright with accessibility checks (#97), the panels on the API's capabilities
+the panels on the API's capabilities
 (#141).
 
 - Decision 2 above sets the framework (Vite SPA recommended).
@@ -436,7 +436,7 @@ Playwright with accessibility checks (#97), the panels on the API's capabilities
   same-origin behind Caddy.
 - i18n keys are shared through a `packages/i18n` package (the five catalogs live in the
   API today).
-- `apps/web` stays out of the API image build context. Playwright gets its own CI shard.
+- `apps/web` stays out of the API image build context. Playwright has its own CI job (`e2e-web`, #97).
 - **Kept from v1:**
   - sign-in with all methods;
   - profile, language and time zone (RTL);
