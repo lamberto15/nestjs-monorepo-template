@@ -1,90 +1,90 @@
 {
-  "nav": "Settings",
-  "title": "Settings and flags",
-  "search": "Search settings",
-  "none": "No setting matches.",
-  "on": "On",
-  "off": "Off",
-  "default": "Default",
-  "save": "Save",
-  "saved": "Saved.",
-  "edit": "Edit",
-  "editNamed": "Edit {{label}}",
-  "clear": "Clear",
-  "clearTitle": "Clear this override?",
-  "clearDescription": "The value set for {{label}} is removed; the setting falls back to the next level.",
-  "overrides": "Stored values",
-  "noOverrides": "Nothing is set: the default applies.",
-  "flag": "Flag",
-  "managersOnly": "Managers only",
-  "rolloutOf": "{{percent}}% of principals",
-  "scopeLabel": "Scope",
-  "valueLabel": "Value",
+  "nav": "الإعدادات",
+  "title": "الإعدادات والمفاتيح",
+  "search": "بحث في الإعدادات",
+  "none": "لا يوجد إعداد مطابق.",
+  "on": "مفعّل",
+  "off": "معطّل",
+  "default": "افتراضي",
+  "save": "حفظ",
+  "saved": "تم الحفظ.",
+  "edit": "تعديل",
+  "editNamed": "تعديل {{label}}",
+  "clear": "مسح",
+  "clearTitle": "مسح هذا التجاوز؟",
+  "clearDescription": "تتم إزالة القيمة المعيّنة لـ {{label}}، ويعود الإعداد إلى المستوى التالي.",
+  "overrides": "القيم المخزّنة",
+  "noOverrides": "لا شيء معيّن: تُطبَّق القيمة الافتراضية.",
+  "flag": "مفتاح ميزة",
+  "managersOnly": "للمديرين فقط",
+  "rolloutOf": "{{percent}}% من الكيانات",
+  "scopeLabel": "النطاق",
+  "valueLabel": "القيمة",
   "scope": {
-    "tenant": "Whole tenant",
-    "team": "Team",
-    "user": "User"
+    "tenant": "المؤسسة كاملة",
+    "team": "الفريق",
+    "user": "المستخدم"
   },
   "scopeId": {
-    "team": "Team",
-    "user": "User"
+    "team": "الفريق",
+    "user": "المستخدم"
   },
   "mode": {
-    "label": "Applies as",
-    "value": "A fixed value",
-    "rollout": "A gradual rollout"
+    "label": "يُطبَّق على شكل",
+    "value": "قيمة ثابتة",
+    "rollout": "طرح تدريجي"
   },
   "rollout": {
-    "label": "Share of principals",
-    "description": "The flag is on for this percentage of the tenant's principals; the same ones every time, and raising it never switches anyone off."
+    "label": "نسبة الكيانات",
+    "description": "المفتاح مفعّل لهذه النسبة من كيانات المؤسسة، وهي نفسها في كل مرة، ورفع النسبة لا يعطّله عن أحد أبدًا."
   },
   "invalid": {
-    "boolean": "Choose on or off.",
-    "number": "Enter a number.",
-    "string": "Enter a value.",
-    "json": "Enter valid JSON.",
-    "rollout": "Enter a percentage from 0 to 100.",
-    "integer": "Enter a whole number.",
-    "min": "Enter {{limit}} or more.",
-    "max": "Enter {{limit}} or less.",
-    "maxLength": "Enter at most {{limit}} characters.",
-    "enum": "Choose one of the values.",
+    "boolean": "اختر التفعيل أو التعطيل.",
+    "number": "أدخل رقمًا.",
+    "string": "أدخل قيمة.",
+    "json": "أدخل JSON صالحًا.",
+    "rollout": "أدخل نسبة مئوية من 0 إلى 100.",
+    "integer": "أدخل عددًا صحيحًا.",
+    "min": "أدخل {{limit}} أو أكثر.",
+    "max": "أدخل {{limit}} أو أقل.",
+    "maxLength": "أدخل {{limit}} حرفًا على الأكثر.",
+    "enum": "اختر إحدى القيم.",
     "scopeId": {
-      "team": "Choose a team.",
-      "user": "Choose a user or an API client."
+      "team": "اختر فريقًا.",
+      "user": "اختر مستخدمًا أو عميل API."
     }
   },
   "source": {
-    "tenant": "Tenant",
-    "team": "Team",
-    "user": "You",
-    "rollout": "Rollout",
-    "default": "Default"
+    "tenant": "المؤسسة",
+    "team": "الفريق",
+    "user": "أنت",
+    "rollout": "الطرح",
+    "default": "افتراضي"
   },
   "columns": {
-    "setting": "Setting",
-    "value": "Your value",
-    "source": "Source",
-    "default": "Default"
+    "setting": "الإعداد",
+    "value": "قيمتك",
+    "source": "المصدر",
+    "default": "الافتراضي"
   },
   "groups": {
-    "auth": "Sign-in policy",
-    "notes": "Notes"
+    "auth": "سياسة تسجيل الدخول",
+    "notes": "الملاحظات"
   },
   "preferences": {
-    "title": "Preferences",
-    "empty": "There is nothing to set for yourself.",
-    "saved": "Preference saved.",
-    "reset": "Reset to default",
-    "resetDone": "Preference reset."
+    "title": "التفضيلات",
+    "empty": "لا شيء لتعيينه لنفسك.",
+    "saved": "تم حفظ التفضيل.",
+    "reset": "إعادة التعيين إلى الافتراضي",
+    "resetDone": "تمت إعادة تعيين التفضيل."
   },
-  "readOnly": "Read-only",
-  "hiddenNote": "Only people who manage settings see this setting.",
-  "scopeIdHint": "A user or an API client: type a part of a name or an address.",
+  "readOnly": "للقراءة فقط",
+  "hiddenNote": "لا يرى هذا الإعداد إلا من يديرون الإعدادات.",
+  "scopeIdHint": "مستخدم أو عميل API: اكتب جزءًا من اسم أو عنوان.",
   "bounds": {
-    "between": "From {{min}} to {{max}}.",
-    "min": "{{min}} or more.",
-    "max": "{{max}} or less.",
-    "maxLength": "At most {{maxLength}} characters."
+    "between": "من {{min}} إلى {{max}}.",
+    "min": "{{min}} أو أكثر.",
+    "max": "{{max}} أو أقل.",
+    "maxLength": "{{maxLength}} حرفًا على الأكثر."
   }
 }
