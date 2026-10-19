@@ -1,0 +1,39 @@
+{
+  "nav": "Tenants",
+  "list": {
+    "title": "Tenants",
+    "description": "The customers of this deployment. Each tenant is a hard wall around its data; making one invites its first administrator.",
+    "empty": "No tenants.",
+    "create": "New tenant",
+    "columns": {
+      "name": "Name",
+      "slug": "Slug",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "operator": "Operators",
+    "current": "Current",
+    "switch": "Switch to it"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "create": {
+    "title": "New tenant",
+    "description": "Makes the tenant with its roles. The first administrator gets an invitation if the address has no account yet.",
+    "name": "Name",
+    "namePlaceholder": "Acme Ltd",
+    "nameRequired": "Enter a name.",
+    "slug": "Slug",
+    "slugHint": "A short handle: lowercase letters, digits and single dashes.",
+    "slugInvalid": "Use lowercase letters and digits, with single dashes between (at most 48 characters).",
+    "email": "First administrator's email",
+    "emailHint": "An account at this address is made and invited when there is none.",
+    "emailInvalid": "Enter a valid email address.",
+    "cancel": "Cancel",
+    "submit": "Create tenant",
+    "done": "Tenant {{name}} created. {{email}} is its first administrator."
+  }
+}

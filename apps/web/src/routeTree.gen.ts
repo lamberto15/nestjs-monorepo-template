@@ -37,6 +37,7 @@ import { Route as AppApprovalsIdRouteImport } from './routes/_app/approvals/$id'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
+import { Route as AppTenantsIndexRouteImport } from './routes/_app/tenants/index'
 import { Route as AppTransfersIndexRouteImport } from './routes/_app/transfers/index'
 import { Route as AppTransfersImportRouteImport } from './routes/_app/transfers/import'
 import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
@@ -186,6 +187,11 @@ const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
   path: '/reports/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTenantsIndexRoute = AppTenantsIndexRouteImport.update({
+  id: '/tenants/',
+  path: '/tenants/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTransfersIndexRoute = AppTransfersIndexRouteImport.update({
   id: '/transfers/',
   path: '/transfers/',
@@ -261,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/approvals/': typeof AppApprovalsIndexRoute
   '/notes/': typeof AppNotesIndexRoute
   '/reports/': typeof AppReportsIndexRoute
+  '/tenants/': typeof AppTenantsIndexRoute
   '/transfers/': typeof AppTransfersIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/approvals': typeof AppApprovalsIndexRoute
   '/notes': typeof AppNotesIndexRoute
   '/reports': typeof AppReportsIndexRoute
+  '/tenants': typeof AppTenantsIndexRoute
   '/transfers': typeof AppTransfersIndexRoute
   '/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/access/roles/new': typeof AppAccessRolesNewRoute
@@ -339,6 +347,7 @@ export interface FileRoutesById {
   '/_app/approvals/': typeof AppApprovalsIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
+  '/_app/tenants/': typeof AppTenantsIndexRoute
   '/_app/transfers/': typeof AppTransfersIndexRoute
   '/_app/access/roles/$roleId': typeof AppAccessRolesRoleIdRoute
   '/_app/access/roles/new': typeof AppAccessRolesNewRoute
@@ -379,6 +388,7 @@ export interface FileRouteTypes {
     | '/approvals/'
     | '/notes/'
     | '/reports/'
+    | '/tenants/'
     | '/transfers/'
     | '/access/roles/$roleId'
     | '/access/roles/new'
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/notes'
     | '/reports'
+    | '/tenants'
     | '/transfers'
     | '/access/roles/$roleId'
     | '/access/roles/new'
@@ -456,6 +467,7 @@ export interface FileRouteTypes {
     | '/_app/approvals/'
     | '/_app/notes/'
     | '/_app/reports/'
+    | '/_app/tenants/'
     | '/_app/transfers/'
     | '/_app/access/roles/$roleId'
     | '/_app/access/roles/new'
@@ -676,6 +688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tenants/': {
+      id: '/_app/tenants/'
+      path: '/tenants'
+      fullPath: '/tenants/'
+      preLoaderRoute: typeof AppTenantsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/transfers/': {
       id: '/_app/transfers/'
       path: '/transfers'
@@ -763,6 +782,7 @@ interface AppRouteChildren {
   AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
+  AppTenantsIndexRoute: typeof AppTenantsIndexRoute
   AppTransfersIndexRoute: typeof AppTransfersIndexRoute
   AppAccessRolesRoleIdRoute: typeof AppAccessRolesRoleIdRoute
   AppAccessRolesNewRoute: typeof AppAccessRolesNewRoute
@@ -794,6 +814,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApprovalsIndexRoute: AppApprovalsIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
+  AppTenantsIndexRoute: AppTenantsIndexRoute,
   AppTransfersIndexRoute: AppTransfersIndexRoute,
   AppAccessRolesRoleIdRoute: AppAccessRolesRoleIdRoute,
   AppAccessRolesNewRoute: AppAccessRolesNewRoute,
