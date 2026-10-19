@@ -237,7 +237,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
   `pnpm --filter @nestjs-monorepo-template/web test src/features/notes/notes.test.tsx`.
   The helpers (`renderApp()`, `findToast()`, the msw handlers) and the
   timing settings: [monorepo](monorepo.md), "Tests". Browser end-to-end
-  tests don't exist yet (#97).
+  tests are their own suite (below, "Browser tests").
 - **End to end** (`apps/api/test/*.e2e-spec.ts`): the whole app on real PostgreSQL 18
   and Redis, mail in memory (`node.waitForMail()`), storage in memory, a
   manual workflow clock. `apps/api/test/setup-env.ts` sets the environment before
@@ -284,9 +284,72 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
   `openapi.e2e-spec.ts` boots `AppModule` alone. A feature's own tests live
   in `test/<name>.e2e-spec.ts` or `test/features/<name>/`, which
   `pnpm feature:remove` takes with it.
+- **Browser tests** (`apps/web-e2e`): see "Browser tests" below.
 - **Store contracts** (`apps/api/test/stores.e2e-spec.ts`): the lock and
   authentication stores against the suites their packages ship.
 - `TEST_LOGS=1 pnpm test:e2e` shows the app's errors and warnings.
+
+## Browser tests
+
+`apps/web-e2e` is [Playwright](https://playwright.dev) driving Chromium
+through the web app, as a user does: sign-in (password, the guard on a deep
+link, sign-out), the notes list (server paging, a filter in the URL), creating,
+viewing, editing, deleting and restoring a note, the notification bell, the
+settings page (an administrator sees it, a viewer is sent away) and an
+[axe](https://github.com/dequelabs/axe-core-npm/tree/develop/packages/playwright)
+accessibility scan of the sign-in, dashboard, notes list, note detail and
+settings pages. It is not part of `pnpm test:e2e` (the API's).
+
+- **What it runs against:** the *built* API (`node dist/main`) and the *built*
+  web app, served by `vite preview`, which proxies `/v1` to the API as Caddy
+  does in production (`preview.proxy` in `apps/web/vite.config.ts`). One
+  origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server. The
+  Caddy image would add a build of Caddy with its plugin for nothing the tests
+  check (it serves the same `dist`); its own image is built and scanned in CI
+  (`caddy-image`).
+- **Ports:** the API on **3300** and the web app on **4173**, never 3000 and
+  5173, so the suite runs beside `pnpm dev`. Nothing it uses is the default
+  stack's but PostgreSQL and Redis (see below).
+- **Run it locally:**
+
+  ```bash
+  pnpm services:up                                   # PostgreSQL and Redis (the development services)
+  pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install chromium   # once
+  pnpm test:e2e:web                                  # builds the API and the web app, seeds, tests
+  ```
+
+  `playwright test` starts both servers itself (`webServer` in
+  `playwright.config.ts`; one already on those ports is reused outside CI).
+  Its report is `apps/web-e2e/playwright-report/` (`pnpm exec playwright
+  show-report` there). One file: `pnpm test:e2e:web test/notes.spec.ts`; the
+  UI mode: `pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright
+  test --ui`.
+- **Another database:** the environment is the development services' (the
+  defaults of `apps/web-e2e/scripts/api.mjs`, from `env.development.example`);
+  set `DATABASE_URL`, `DATABASE_OWNER_URL`, `DATABASE_MAINTENANCE_URL` and
+  `REDIS_URL` for others, e.g. a throwaway PostgreSQL and Redis on other host
+  ports (the database marked as a development one, "Demo data"). The suite
+  writes to the database it runs on (notes), and seeds the demo data once.
+- **Accounts:** `scripts/api.mjs` runs the demo seed, then the API.
+  The seed's generated passwords are kept in `apps/web-e2e/playwright/.auth/`
+  (ignored by git); `test/auth.setup.ts` signs in once per role (administrator,
+  editor, viewer) and saves each browser state, which the tests reuse
+  (`storageState`), since the API allows 5 sign-ins per email per 15 minutes
+  (the script multiplies the limits by 20 for a database that is reused).
+  A database seeded earlier prints nothing: the file from that run stays, or
+  `E2E_CREDENTIALS` names another. Lost it: drop the database's volume.
+- **Accessibility:** serious and critical axe violations (WCAG 2.0/2.1 A and
+  AA) fail the test; every finding is attached to it and listed in the job
+  summary (`node apps/web-e2e/scripts/axe-summary.mjs` prints the same after a
+  run). A real finding is fixed in the web app; one that can't be yet gets
+  an issue, and only then a `disableRules()` in `test/fixtures.ts` naming it.
+- **In CI:** the `e2e-web` job of `.github/workflows/ci.yml`, on every pull
+  request, beside the API's e2e shards: its own PostgreSQL and Redis service
+  containers, the database marked as a development one, Turborepo's cache for
+  the builds, Chromium cached by Playwright's version
+  (`~/.cache/ms-playwright`; the system libraries installed with
+  `--with-deps`), one retry. On a failure the HTML report and the traces
+  (`playwright-report` artifact, 14 days) are uploaded.
 
 ## Load tests
 

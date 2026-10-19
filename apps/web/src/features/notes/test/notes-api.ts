@@ -107,6 +107,8 @@ export function useNotesApi(options: {
     // The detail page mounts the record panels: empty ones unless a test sets them.
     ...panelHandlers({ record: NOTE_RECORD }).handlers,
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
+    // The note form and page read the custom fields; none unless a test sets them.
+    http.get('/v1/custom-fields', () => HttpResponse.json({ items: [] })),
     http.get('/v1/notes', ({ request }) => {
       const url = new URL(request.url);
       calls.listQueries.push(url.search);

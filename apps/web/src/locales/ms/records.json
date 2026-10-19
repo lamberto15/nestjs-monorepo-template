@@ -71,5 +71,21 @@
     "conflictTitle": "Rekod telah berubah sementara itu",
     "conflictDescription": "Orang lain mengubahnya sejak anda membukanya. Muat semula, kemudian pulihkan sekali lagi.",
     "reload": "Muat semula"
+  },
+  "customFields": {
+    "required": "Medan ini wajib diisi.",
+    "maxLength": "Maksimum {{limit}} aksara.",
+    "minLength": "Sekurang-kurangnya {{limit}} aksara.",
+    "email": "Masukkan alamat e-mel yang sah.",
+    "url": "Masukkan alamat web yang sah (http atau https).",
+    "pattern": "Nilai ini tidak sepadan dengan format yang dijangka.",
+    "number": "Masukkan nombor.",
+    "min": "Sekurang-kurangnya {{limit}}.",
+    "max": "Maksimum {{limit}}.",
+    "minChoices": "Pilih sekurang-kurangnya {{limit}}.",
+    "maxChoices": "Pilih paling banyak {{limit}}.",
+    "option": "Pilih salah satu pilihan yang disenaraikan.",
+    "none": "Tiada",
+    "choose": "Pilih…"
   }
 }

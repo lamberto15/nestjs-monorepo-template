@@ -71,5 +71,21 @@
     "conflictTitle": "Der Datensatz wurde inzwischen geändert",
     "conflictDescription": "Jemand anderes hat ihn geändert, seit Sie ihn geöffnet haben. Laden Sie ihn neu und stellen Sie dann erneut wieder her.",
     "reload": "Neu laden"
+  },
+  "customFields": {
+    "required": "Dieses Feld ist erforderlich.",
+    "maxLength": "Höchstens {{limit}} Zeichen.",
+    "minLength": "Mindestens {{limit}} Zeichen.",
+    "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
+    "url": "Geben Sie eine gültige Webadresse ein (http oder https).",
+    "pattern": "Dieser Wert entspricht nicht dem erwarteten Format.",
+    "number": "Geben Sie eine Zahl ein.",
+    "min": "Mindestens {{limit}}.",
+    "max": "Höchstens {{limit}}.",
+    "minChoices": "Wählen Sie mindestens {{limit}}.",
+    "maxChoices": "Wählen Sie höchstens {{limit}}.",
+    "option": "Wählen Sie eine der angebotenen Möglichkeiten.",
+    "none": "Keine",
+    "choose": "Auswählen…"
   }
 }

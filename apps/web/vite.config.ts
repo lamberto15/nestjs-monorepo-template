@@ -6,7 +6,13 @@ import { defineConfig } from 'vite';
 
 // The API is same-origin in development too (a proxy), as behind Caddy in
 // production: the __Host-sid session cookie needs it.
-const api = 'http://localhost:3000';
+// API_URL: the browser tests' API runs elsewhere (apps/web-e2e), beside a dev stack.
+const api = process.env.API_URL ?? 'http://localhost:3000';
+const proxy = {
+  '/v1': api,
+  '/health': api,
+  '/socket.io': { target: api, ws: true },
+};
 
 export default defineConfig({
   plugins: [
@@ -25,10 +31,9 @@ export default defineConfig({
     // (.devcontainer/compose.yaml), where nothing is published on the host;
     // elsewhere it is unset and Vite's default stays.
     host: process.env.WEB_DEV_HOST,
-    proxy: {
-      '/v1': api,
-      '/health': api,
-      '/socket.io': { target: api, ws: true },
-    },
+    proxy,
   },
+  // `vite preview` (the built app, what the browser tests open) proxies the
+  // same way: one origin, as behind Caddy (docs/development.md, "Browser tests").
+  preview: { proxy },
 });

@@ -4,7 +4,7 @@ set -eu
 
 # The dependency volumes (compose.yaml) are made by root: the node user installs into them.
 sudo chown node:node node_modules apps/api/node_modules packages/api-client/node_modules \
-  apps/web/node_modules packages/ui/node_modules
+  apps/web/node_modules apps/web-e2e/node_modules packages/ui/node_modules
 pnpm install
 
 # The app's development settings, from their template, unless you have them

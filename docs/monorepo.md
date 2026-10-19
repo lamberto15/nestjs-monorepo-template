@@ -9,6 +9,7 @@ whose tasks [Turborepo](https://turborepo.dev) runs. The layout is in
 | `@nestjs-monorepo-template/api`        | `apps/api`            | the NestJS app (API, workers, migrations)                         |
 | `@nestjs-monorepo-template/api-client` | `packages/api-client` | the typed client, for frontends and scripts                       |
 | `@nestjs-monorepo-template/web`        | `apps/web`            | the web app: React, Vite, TanStack Router and Query               |
+| `@nestjs-monorepo-template/web-e2e`    | `apps/web-e2e`        | the web app's Playwright tests (browser end-to-end, axe)          |
 | `@nestjs-monorepo-template/ui`         | `packages/ui`         | shared components: shadcn/ui (Base UI) and Dice UI, as source     |
 | the root (`nestjs-monorepo-template`)  | `.`                   | the scripts, tooling (Turborepo, oxlint, Prettier), Compose, docs |
 
@@ -88,8 +89,8 @@ web app needs the API, so `dev:web` alone suits an API already running.
 
 - **Open http://localhost:5173**, not the API's port: Vite's `server.proxy`
   (`vite.config.ts`) sends `/v1`, `/health` and `/socket.io` (`ws: true`) to
-  `http://localhost:3000`, so the `__Host-sid` cookie is the app's own. The
-  target is fixed there: an API on another `PORT` needs that line changed.
+  `http://localhost:3000` (`API_URL` in the environment points it at another
+  port: the browser tests do), so the `__Host-sid` cookie is the app's own.
   Swagger UI stays at http://localhost:3000/api.
 - **Signing in:** the administrator the API's first start creates
   (`ADMIN_EMAIL`, `admin@example.com` unless set; the password is
@@ -116,12 +117,8 @@ web app needs the API, so `dev:web` alone suits an API already running.
 | Signed out     | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`                                                                                                                                 | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                                                    |
 | Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion)                                                     | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings`                                |
 | Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                                                                                                                                    | `features/*`                                                                                                              |
-| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/webhooks` (per API client: endpoints, deliveries), `/audit`, `/settings` (values, overrides, feature flags), `/tenants` (operators only, multi-tenant deployments: list, create) | `features/access`, `features/api-clients`, `features/webhooks`, `features/audit`, `features/settings`, `features/tenants` |
+| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/webhooks` (per API client: endpoints, deliveries), `/audit`, `/settings` (values, overrides, feature flags), `/tenants` (operators only, multi-tenant deployments: list, create), `/custom-fields` (define, order, deactivate) | `features/access`, `features/api-clients`, `features/webhooks`, `features/audit`, `features/settings`, `features/tenants`, `features/custom-fields` |
 | Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                                                                                                                                  | `features/search`, `components/`                                                                                          |
-
-Not in the web app yet (open issues): PDF documents (#93),
-custom fields administration (#94), browser
-end-to-end tests (#97). The API has all of them.
 
 ### How it's built
 
@@ -226,6 +223,18 @@ What a feature's record pages share; `features/notes` and
   (`NOTE_LIMITS`) mirror the schema's `maxLength`; a test compares them with
   `packages/api-client/openapi.json` (importing that 1 MB file would bloat the
   bundle).
+- **Custom fields in a record form and view** (`components/records/custom-field-inputs.tsx`,
+  `custom-field-values.tsx`, `lib/custom-values.ts`): `GET /v1/custom-fields?subject=`
+  (any reader of the subject) gives the active definitions. `<CustomFieldInputs
+fields value onChange errors />` is a typed input per field (the drafts and
+  their checks, `draftErrors`, `customBody`, are in `lib/custom-values.ts`: a
+  create sends the values that differ from the defaults, an edit only the keys
+  that changed, `null` for one emptied; the API's `custom.<key>` errors map back
+  with `serverErrors`), and `<CustomFieldValues subject values />` the values as
+  detail items. The notes form and page are the example. The admin page is
+  `features/custom-fields`: a feature that takes custom fields registers its
+  subject in `features/<feature>/custom-fields.ts` (default export), as the API has
+  no list of them yet.
 - **Record panels** (`components/records/panels/`): comments with
   @mentions, attachments, tags and revisions on a record's detail page. A
   feature mounts them with one element, each panel shown only when the
