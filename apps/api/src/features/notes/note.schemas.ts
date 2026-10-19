@@ -71,7 +71,7 @@ export const noteSchema = z.object({
   tags: z
     .array(tagRefSchema)
     .describe('Its tags, by name (PUT /v1/notes/{id}/tags sets them).'),
-  can: recordCanSchema(true),
+  can: recordCanSchema(true, { issue: true }),
 });
 
 /** A note as stored (dates as Date); the API sends them as ISO strings (noteSchema). */

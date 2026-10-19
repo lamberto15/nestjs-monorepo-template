@@ -38,7 +38,7 @@ import type { ListQuery } from '../../core/http/list-query.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import { AUDIT_LIST, PRINCIPAL_LIST, USER_LIST } from './access.lists.js';
 import {
-  auditEntrySchema,
+  auditPageSchema,
   catalogSchema,
   createdRoleSchema,
   principalSchema,
@@ -631,12 +631,13 @@ export class AccessController {
   @ApiOperation({
     summary: 'The audit log, newest first',
     description:
-      "Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). GET /v1/lists/Audit describes it.",
+      "Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). Each entry names its actor as they are called now (`actorName`: a member or former member, an API client of the tenant; null for `system:<key>`, `anonymous` and deleted accounts) besides the label it stored (`actorLabel`). GET /v1/lists/Audit describes it.",
   })
-  @ApiOkResponse({ standardSchema: pageSchema(auditEntrySchema) })
+  @ApiOkResponse({ standardSchema: auditPageSchema })
   async auditLog(@Query({ schema: AUDIT_LIST.schema }) query: ListQuery) {
+    const page = await this.audit.page(query, AUDIT_LIST.where(query));
     return AUDIT_LIST.pick(
-      await this.audit.page(query, AUDIT_LIST.where(query)),
+      { ...page, items: await this.audit.withActorNames(page.items) },
       query,
     );
   }
