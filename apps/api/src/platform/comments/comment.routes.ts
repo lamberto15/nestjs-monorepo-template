@@ -24,7 +24,6 @@ import {
   ApiOperation,
 } from '@nestjs/swagger';
 import { ApiListQuery } from '../../core/http/list-docs.js';
-import { pageSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   aNounOf,
@@ -36,6 +35,7 @@ import { COMMENT_LIST } from './comment.list.js';
 import {
   commentBodySchema,
   type CommentBodyDto,
+  commentPageSchema,
   commentSchema,
 } from './comment.schemas.js';
 import { CommentsService } from './comments.service.js';
@@ -62,7 +62,7 @@ export function commentRoutes(spec: RecordRouteSpec): Type {
       description:
         'Cursor pages; `?sort=-createdAt` for newest first, `?author=user:<id>`, `?createdAt.gte=`.',
     })
-    @ApiOkResponse({ standardSchema: pageSchema(commentSchema) })
+    @ApiOkResponse({ standardSchema: commentPageSchema })
     @ApiListQuery(COMMENT_LIST)
     async list(
       @CurrentUser() user: Principal,
