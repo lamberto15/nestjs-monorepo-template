@@ -250,11 +250,57 @@ GET /v1/people?q=may&limit=10
   client. `q` is a part of the name, whatever the case (1 to 100
   characters; `%` and `_` are the characters), `limit` 1 to 20 (default
   10). Users only: an API key is no credential here (401).
+- **By key:** `GET /v1/people?key=user:<id>,client:<id>` names the keys a
+  page already holds (a list's `ownerId` cells, a `?ownerId=eq.user:<id>`
+  filter in the URL: the list metadata's `ref: principal`), in the order
+  asked, each once:
+
+  ```
+  GET /v1/people?key=user:0198…,client:0199…
+  { "items": [{ "key": "user:0198…", "name": "Maya Patel" }, { "key": "client:0199…", "name": "Billing sync" }] }
+  ```
+
+  Whom `names()` names (below): a user who is or was a member of the
+  tenant (a deactivated one keeps their name: they still own records), an
+  API client of the tenant (its name is already on what it wrote, a
+  comment's `authorName`). Never an address, never another tenant's: a key
+  the tenant has no one for (another tenant's user or client, a removed
+  client, an unknown id) is left out of the answer, with no error, so it
+  never tells such a key from one that doesn't exist. 1 to 20 keys, each
+  `user:<uuid>` or `client:<uuid>` (else 400, `validation_failed`); `q`
+  and `key` together are a 400 (one searches, the other names); `limit`
+  doesn't apply.
 - **Names on records:** comments carry `authorName` and `mentionNames`,
   revisions `changedByName` (`PeopleService.names()`, one query a page): the name of
   a user who is or was a member of the tenant, or of the tenant's API
   client; null for `anonymous`, `anonymized`, `unknown`, or anyone the
   tenant never had.
+
+## The teams lookup
+
+`GET /v1/teams` is the teams' counterpart (`platform/people`): **any
+member** may read the tenant's teams, for the pickers and names of a list's
+`ref: team` fields (`teamId`), where `GET /v1/access/teams` takes
+`AccessPolicy.open`:
+
+```
+GET /v1/teams?q=north&limit=50
+{ "items": [{ "id": "…", "name": "North", "parentId": "…", "depth": 1 }], "nextCursor": null }
+```
+
+- **What:** a team's id, name, parent and depth (0 at the top), nothing
+  else: no members, no counts, no dates. Managing teams stays on
+  `/v1/access/teams` (`Access.manageTeams`).
+- **Whose:** the current tenant's teams alone (row-level security, and the
+  query names the tenant too); never another tenant's.
+- **Query:** `q`, a part of the name, whatever the case (1 to 100
+  characters; `%` and `_` are the characters); `id=<id>,<id>` (1 to 100)
+  the teams to name, an id the tenant has no team of left out; cursor
+  pages, newest first (`limit` 1 to 100, default 50; `cursor` the previous
+  page's `nextCursor`): read every page to build the tree from `parentId`.
+  Anything else is a 400. Users only, as `GET /v1/people` (an API key:
+  401).
+- Rate-limited as every route.
 
 ## Organization hierarchy
 

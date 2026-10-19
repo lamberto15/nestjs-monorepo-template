@@ -64,7 +64,10 @@ import { SuppressionsService } from './deliverability/suppressions.service.js';
 import { NoRealtime } from './realtime/no-realtime.js';
 import { Realtime } from './realtime/realtime.service.js';
 import { RecordActivity } from './realtime/record-activity.js';
-import { PeopleController } from './people/people.controller.js';
+import {
+  PeopleController,
+  TeamDirectoryController,
+} from './people/people.controller.js';
 import { PeopleService } from './people/people.service.js';
 import { switchedOn, whenOn } from './switches.js';
 import { FilesController } from './storage/files.controller.js';
@@ -347,8 +350,9 @@ export class PlatformModule {
         SubscriptionsController,
         SearchController,
         ListsController,
-        // The tenant's people, for @mentions (GET /v1/people).
+        // The tenant's people and teams, for @mentions and pickers (GET /v1/people, GET /v1/teams).
         PeopleController,
+        TeamDirectoryController,
         AttachmentsController,
         DocumentsController,
         TagsController,

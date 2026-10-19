@@ -1,0 +1,150 @@
+{
+  "nav": { "title": "Webhooks" },
+  "clients": {
+    "title": "Webhooks",
+    "description": "Jeder API-Client hat seine eigenen Endpunkte: Wählen Sie den Client, dessen Webhooks Sie verwalten.",
+    "name": "API-Client",
+    "status": "Status",
+    "active": "Aktiv",
+    "revoked": "Widerrufen",
+    "empty": "Noch keine API-Clients. Legen Sie zuerst einen an: Webhooks gehören zu einem Client."
+  },
+  "endpoints": {
+    "back": "Alle Clients",
+    "title": "Webhooks von {{client}}",
+    "description": "Die URLs, die die Ereignisse dieses Clients erhalten, signiert mit einem Geheimnis, das nur einmal angezeigt wird.",
+    "notFound": "Diesen Client gibt es nicht.",
+    "create": "Neuer Endpunkt",
+    "empty": "Noch keine Endpunkte.",
+    "allEvents": "Alle Ereignisse",
+    "eventCount_one": "{{count}} Ereignistyp",
+    "eventCount_other": "{{count}} Ereignistypen",
+    "columns": { "url": "URL", "status": "Status", "events": "Ereignisse" }
+  },
+  "endpoint": {
+    "enabled": "Aktiv",
+    "disabled": {
+      "manual": "Abgeschaltet",
+      "failing": "Nach Fehlern abgeschaltet",
+      "gone": "Abgeschaltet, die URL existiert nicht mehr"
+    }
+  },
+  "form": {
+    "createTitle": "Neuer Endpunkt",
+    "createDescription": "Das Signaturgeheimnis wird nach dem Anlegen einmal angezeigt.",
+    "editTitle": "Endpunkt bearbeiten",
+    "editDescription": "Ändern Sie, wohin und was gesendet wird. Das Geheimnis bleibt unverändert.",
+    "url": "URL",
+    "urlHint": "Eine öffentliche https://-Adresse. Private und Cloud-Metadaten-Adressen werden abgelehnt.",
+    "urlRequired": "Geben Sie die URL ein.",
+    "urlInvalid": "Geben Sie eine vollständige Webadresse ein, etwa https://example.com/hooks.",
+    "descriptionLabel": "Beschreibung (optional)",
+    "descriptionPlaceholder": "Bestellungen an das Lagersystem",
+    "events": "Ereignisse",
+    "allEvents": "Alle Ereignisse",
+    "eventsHint": "Alles, was die API sendet, oder nur die angekreuzten Typen.",
+    "eventsRequired": "Wählen Sie mindestens ein Ereignis.",
+    "otherGroup": "Sonstige",
+    "create": "Endpunkt anlegen",
+    "save": "Speichern",
+    "saved": "Endpunkt gespeichert.",
+    "cancel": "Abbrechen"
+  },
+  "secret": {
+    "createdTitle": "Signaturgeheimnis kopieren",
+    "rotatedTitle": "Neues Signaturgeheimnis kopieren",
+    "warning": "Sie sehen dieses Geheimnis nicht noch einmal. Kopieren Sie es jetzt und bewahren Sie es sicher auf.",
+    "usage": "Prüfen Sie damit die webhook-signature jeder Zustellung (Standard Webhooks). Nach einer Rotation signiert das alte Geheimnis 24 Stunden lang parallel weiter.",
+    "copy": "Kopieren",
+    "copied": "In die Zwischenablage kopiert.",
+    "copyFailed": "Kopieren fehlgeschlagen. Markieren Sie das Geheimnis und kopieren Sie es von Hand.",
+    "done": "Ich habe es kopiert",
+    "label": "Signaturgeheimnis"
+  },
+  "detail": {
+    "back": "Alle Endpunkte",
+    "notFound": "Diesen Endpunkt gibt es nicht.",
+    "title": "Endpunkt",
+    "events": "Ereignisse",
+    "created": "Angelegt",
+    "failingSince": "Fehlerhaft seit",
+    "active": "Empfängt Ereignisse",
+    "switchedOn": "Endpunkt eingeschaltet.",
+    "switchedOff": "Endpunkt abgeschaltet.",
+    "edit": "Bearbeiten",
+    "test": "Testereignis senden",
+    "testSent": "Testereignis gesendet: Sehen Sie es unter den Zustellungen.",
+    "rotate": "Geheimnis rotieren",
+    "rotateTitle": "Signaturgeheimnis rotieren?",
+    "rotateDescription": "Ein neues Geheimnis wird erzeugt und einmal angezeigt. Das alte signiert 24 Stunden lang parallel weiter, damit Ihr Empfänger umstellen kann.",
+    "rotateConfirm": "Rotieren",
+    "delete": "Löschen",
+    "deleteTitle": "Diesen Endpunkt löschen?",
+    "deleteDescription": "Er erhält sofort keine Ereignisse mehr, und seine Zustellungen werden nicht mehr angezeigt. Das lässt sich nicht rückgängig machen.",
+    "deleteConfirm": "Löschen",
+    "deleted": "Endpunkt gelöscht."
+  },
+  "deliveries": {
+    "title": "Zustellungen",
+    "description": "Was an diesen Endpunkt gesendet wurde, die neuesten zuerst. Öffnen Sie eine Zustellung, um Anfrage und Antwort zu sehen.",
+    "filter": "Status",
+    "all": "Alle",
+    "empty": "Noch nichts gesendet. Senden Sie ein Testereignis zum Ausprobieren.",
+    "page": "Seite {{page}} von {{count}}",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "columns": {
+      "type": "Ereignis",
+      "status": "Status",
+      "attempts": "Versuche",
+      "response": "Letzte Antwort",
+      "created": "Angelegt"
+    }
+  },
+  "delivery": {
+    "status": {
+      "pending": "Ausstehend",
+      "succeeded": "Erfolgreich",
+      "failed": "Fehlgeschlagen"
+    },
+    "reasons": {
+      "exhausted": "Alle Versuche sind fehlgeschlagen",
+      "rejected": "Der Empfänger hat sie abgelehnt",
+      "endpoint-disabled": "Der Endpunkt wurde abgeschaltet",
+      "endpoint-deleted": "Der Endpunkt wurde gelöscht"
+    },
+    "title": "Zustellung",
+    "loading": "Wird geladen…",
+    "state": "Status",
+    "messageId": "Nachrichten-ID",
+    "attempts": "Versuche",
+    "duration": "Benötigte Zeit",
+    "ms": "{{ms}} ms",
+    "created": "Angelegt",
+    "failure": "Grund des Fehlschlags",
+    "lastError": "Letzter Fehler",
+    "request": "Anfrage",
+    "headers": "Anfrage-Header",
+    "payload": "Nutzdaten",
+    "sentAt": "Versuch {{attempt}}, gesendet {{date}}. Das Geheimnis wird nie angezeigt.",
+    "notSent": "Noch nicht gesendet.",
+    "responses": "Antworten",
+    "attemptLine": "Versuch {{attempt}}, {{date}}: Status {{status}}, {{ms}} ms",
+    "noStatus": "keiner",
+    "responseBody": "Antwort von Versuch {{attempt}}",
+    "noBody": "Kein Antworttext.",
+    "noAttempts": "Noch kein Versuch.",
+    "retry": "Erneut versuchen",
+    "retried": "Erneut gesendet.",
+    "close": "Schließen"
+  },
+  "retryFailed": {
+    "button": "Fehlgeschlagene wiederholen",
+    "title": "Fehlgeschlagene Zustellungen wiederholen?",
+    "description": "Jede fehlgeschlagene Zustellung dieses Endpunkts wird mit derselben Nachrichten-ID erneut gesendet.",
+    "since": "Nur die seit (optional) angelegten",
+    "confirm": "Fehlgeschlagene wiederholen",
+    "done_one": "{{count}} Zustellung erneut gesendet.",
+    "done_other": "{{count}} Zustellungen erneut gesendet."
+  }
+}

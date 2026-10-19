@@ -111,15 +111,15 @@ web app needs the API, so `dev:web` alone suits an API already running.
 
 ### What's in it
 
-| Area           | Routes (`src/routes`)                                                                                                                                                                                                               | Code                                                                                       |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Signed out     | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`               | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                     |
-| Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion) | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings` |
-| Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                  | `features/*`                                                                               |
-| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/audit`, `/settings` (values, overrides, feature flags)         | `features/access`, `features/api-clients`, `features/audit`, `features/settings`           |
-| Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                | `features/search`, `components/`                                                           |
+| Area           | Routes (`src/routes`)                                                                                                                                                                                                                                                            | Code                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Signed out     | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`                                                            | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                                |
+| Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion)                                              | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings`            |
+| Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                                                               | `features/*`                                                                                          |
+| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/webhooks` (per API client: endpoints, deliveries), `/audit`, `/settings` (values, overrides, feature flags) | `features/access`, `features/api-clients`, `features/webhooks`, `features/audit`, `features/settings` |
+| Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                                                             | `features/search`, `components/`                                                                      |
 
-Not in the web app yet (open issues): webhooks (#89), PDF documents (#93),
+Not in the web app yet (open issues): PDF documents (#93),
 custom fields administration (#94), tenants for operators (#95), browser
 end-to-end tests (#97). The API has all of them.
 
@@ -171,6 +171,18 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
   showing names (`ownerId`, `teamId`; the value itself when its name is
   unknown). Labels: `list.fields.<name>` in `common`. Another `ref` (a
   record's subject) keeps the field's own filter.
+
+- **Webhooks** (`features/webhooks`): managed per API client, as the API's
+  `/v1/access/clients/{clientId}/webhook-endpoints` and `…/webhook-deliveries`
+  routes are (`Access.manageClients`, WEBHOOKS and API_CLIENTS on).
+  `/webhooks` picks the client, `/webhooks/{clientId}` lists its endpoints,
+  `/webhooks/{clientId}/{id}` is one endpoint with its paged deliveries. The
+  signing secret (create, rotate) is shown once in a dialog and kept in no
+  cache (`gcTime: 0`, reset on close). A delivery's payload, headers and the
+  receiver's response are remote text: rendered in `<pre>`, never as markup.
+  The deliveries are not a `ListPage` (their route takes a `clientId` and the
+  API has no `GET /v1/lists/WebhookDelivery`): a status filter and numbered
+  pages over `page` and `count`.
 
 ### Languages
 
