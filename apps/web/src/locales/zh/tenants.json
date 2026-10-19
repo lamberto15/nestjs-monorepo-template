@@ -1,0 +1,39 @@
+{
+  "nav": "租户",
+  "list": {
+    "title": "租户",
+    "description": "此部署的客户。每个租户都是其数据周围的一道硬隔离墙；创建租户会邀请其首位管理员。",
+    "empty": "暂无租户。",
+    "create": "新建租户",
+    "columns": {
+      "name": "名称",
+      "slug": "标识",
+      "status": "状态",
+      "created": "创建时间",
+      "actions": "操作"
+    },
+    "operator": "运营者",
+    "current": "当前",
+    "switch": "切换到该租户"
+  },
+  "status": {
+    "active": "启用",
+    "inactive": "停用"
+  },
+  "create": {
+    "title": "新建租户",
+    "description": "创建租户及其角色。如果该邮箱还没有账号，首位管理员会收到邀请。",
+    "name": "名称",
+    "namePlaceholder": "Acme 有限公司",
+    "nameRequired": "请输入名称。",
+    "slug": "标识",
+    "slugHint": "简短标识：小写字母、数字和单个连字符。",
+    "slugInvalid": "请使用小写字母和数字，中间可用单个连字符（最多 48 个字符）。",
+    "email": "首位管理员的邮箱",
+    "emailHint": "如果该地址没有账号，将创建账号并发送邀请。",
+    "emailInvalid": "请输入有效的邮箱地址。",
+    "cancel": "取消",
+    "submit": "创建租户",
+    "done": "已创建租户 {{name}}。{{email}} 是其首位管理员。"
+  }
+}

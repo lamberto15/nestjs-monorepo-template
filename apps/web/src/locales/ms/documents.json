@@ -1,0 +1,23 @@
+{
+  "title": "Dokumen",
+  "empty": "Belum ada dokumen yang dikeluarkan.",
+  "error": "Dokumen tidak dapat dimuatkan.",
+  "issue": "Keluarkan PDF",
+  "language": "Bahasa",
+  "issuedAt": "Dikeluarkan",
+  "byYou": "Oleh anda",
+  "byOther": "Oleh orang lain",
+  "byAnonymized": "Oleh akaun yang telah dipadam",
+  "download": "Muat turun {{name}}",
+  "downloadShort": "Muat turun",
+  "pending": "Dokumen ini sedang dibuat. Ia akan muncul di sini.",
+  "unavailable": "Dokumen PDF tidak tersedia buat masa ini: ia dimatikan atau perkhidmatan PDF terhenti. Sila cuba lagi kemudian.",
+  "status": {
+    "progressLabel": "Mengeluarkan dokumen",
+    "queued": "Menunggu untuk dibuat…",
+    "rendering": "Membuat PDF…",
+    "failed": "Dokumen tidak dapat dibuat.",
+    "error": "Status dokumen tidak dapat dimuatkan.",
+    "dismiss": "Tutup"
+  }
+}

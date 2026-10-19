@@ -36,6 +36,12 @@ export const approvalSchema = z.object({
       'Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`.',
     ),
   endedAt: z.iso.datetime().nullable(),
+  outcomeAppliedAt: z.iso
+    .datetime()
+    .nullable()
+    .describe(
+      'Null until the request\'s outcome has been applied (an approved request\'s handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.',
+    ),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

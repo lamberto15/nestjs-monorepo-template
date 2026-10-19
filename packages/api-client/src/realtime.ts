@@ -71,6 +71,17 @@ export interface RealtimeEvents {
     stage: number;
     decision: 'approved' | 'rejected' | 'changes_requested' | null;
   }) => void;
+  /**
+   * An approved request's outcome was applied (the note is published, say): `outcomeAppliedAt`
+   * is now set on `GET /v1/approvals/{id}`. To the requester and the approvers of the round,
+   * once; a banner showing "approved, applying" can clear without polling.
+   */
+  'approval.applied': (event: {
+    id: string;
+    subject: string;
+    recordId: string;
+    outcomeAppliedAt: string;
+  }) => void;
   /** A queued bulk operation ended; its item results: `GET /v1/bulk/{id}` (docs/bulk-operations.md). */
   'bulk.finished': (event: {
     id: string;

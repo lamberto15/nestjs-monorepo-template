@@ -25,22 +25,13 @@ import { useFeatures, useMe } from '@/lib/features';
 import { createSession, tenantsQuery } from '@/lib/session';
 
 /**
- * The tenant the session acts in, and the others to switch to: shadcn's
- * sidebar-07 team switcher. `POST /v1/auth/tenant` re-issues the session in
- * the other tenant (a new cookie): nothing cached belongs to it any more.
- * Without a choice (TENANCY=single, one membership, an impersonation) it is
- * a plain heading.
+ * `POST /v1/auth/tenant` re-issues the session in another of the user's
+ * tenants (a new cookie): nothing cached belongs to it any more.
  */
-export function TenantSwitcher() {
-  const { t, i18n } = useTranslation();
-  const { isMobile } = useSidebar();
+export function useSwitchTenant() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const me = useMe();
-  const features = useFeatures();
-  const choosing = features?.tenancy === 'multi' && !me?.user.impersonator;
-  const tenants = useQuery({ ...tenantsQuery, enabled: choosing });
-  const switchTenant = useMutation({
+  return useMutation({
     // 204: no body to unwrap (an error is thrown as ApiError either way).
     mutationFn: async (tenantId: string) => {
       await api.POST('/v1/auth/tenant', { body: { tenantId } });
@@ -51,6 +42,23 @@ export function TenantSwitcher() {
       await router.invalidate();
     },
   });
+}
+
+/**
+ * The tenant the session acts in, and the others to switch to: shadcn's
+ * sidebar-07 team switcher. `POST /v1/auth/tenant` re-issues the session in
+ * the other tenant (a new cookie): nothing cached belongs to it any more.
+ * Without a choice (TENANCY=single, one membership, an impersonation) it is
+ * a plain heading.
+ */
+export function TenantSwitcher() {
+  const { t, i18n } = useTranslation();
+  const { isMobile } = useSidebar();
+  const me = useMe();
+  const features = useFeatures();
+  const choosing = features?.tenancy === 'multi' && !me?.user.impersonator;
+  const tenants = useQuery({ ...tenantsQuery, enabled: choosing });
+  const switchTenant = useSwitchTenant();
 
   const current = me?.tenant;
   const items = tenants.data?.items ?? [];

@@ -125,6 +125,15 @@ export const MAIL_EVENTS_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** WebhookDeliveryRetentionJob: finished deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS. */
+export const WEBHOOK_DELIVERY_RETENTION_JOB = defineSystemJob({
+  key: 'webhook-delivery-retention',
+  label: 'Webhook delivery retention',
+  description:
+    'Deletes outgoing webhook deliveries that finished more than WEBHOOKS_DELIVERY_RETENTION_DAYS ago, with their attempt log and recorded requests (never one still being retried), every night.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
@@ -138,4 +147,5 @@ export const PLATFORM_SYSTEM_JOBS = [
   EXCHANGE_RATES_JOB,
   MAIL_INTAKE_JOB,
   MAIL_EVENTS_RETENTION_JOB,
+  WEBHOOK_DELIVERY_RETENTION_JOB,
 ];

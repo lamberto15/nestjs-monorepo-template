@@ -100,7 +100,7 @@ export function webhooksOptions(
   return {
     // The types API clients may subscribe to; dispatch() refuses any other.
     eventTypes: declaredEventTypes(options).map(({ type }) => type),
-    // About two days of retries: growing from 5s to a 1h cap, then hourly.
+    // Up to about 44 hours of retries (docs/webhooks-and-realtime.md): waits grow from 5s to a 1h cap, then hourly.
     retry: {
       attempts: 50,
       backoff: { delay: '5s', factor: 4, maxDelay: '1h' },
