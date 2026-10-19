@@ -3,235 +3,235 @@
     "name": "App"
   },
   "nav": {
-    "platform": "Platform",
-    "dashboard": "Dashboard"
+    "platform": "平台",
+    "dashboard": "仪表盘"
   },
   "dashboard": {
-    "title": "Dashboard",
-    "description": "Your overview will appear here."
+    "title": "仪表盘",
+    "description": "您的概览将显示在这里。"
   },
   "auth": {
     "signIn": {
-      "title": "Sign in",
-      "description": "Welcome back",
-      "submit": "Sign in",
-      "forgot": "Forgot your password?",
-      "noAccount": "Don't have an account?",
-      "signUp": "Sign up",
-      "orContinueWith": "Or continue with",
-      "withProvider": "Continue with {{provider}}",
-      "withPasskey": "Sign in with a passkey",
-      "withMagicLink": "Email me a sign-in link",
-      "withPassword": "Sign in with a password",
-      "terms": "By continuing, you agree to the terms of service and the privacy policy.",
+      "title": "登录",
+      "description": "欢迎回来",
+      "submit": "登录",
+      "forgot": "忘记密码？",
+      "noAccount": "还没有账户？",
+      "signUp": "注册",
+      "orContinueWith": "或使用以下方式继续",
+      "withProvider": "使用 {{provider}} 继续",
+      "withPasskey": "使用通行密钥登录",
+      "withMagicLink": "给我发送登录链接",
+      "withPassword": "使用密码登录",
+      "terms": "继续即表示您同意服务条款和隐私政策。",
       "errors": {
-        "generic": "That sign-in didn't work. Try again.",
-        "reauthentication_required": "For this, confirm it's you: sign in again.",
-        "reauthentication_failed": "That confirmation didn't work. Try again.",
-        "access_denied": "The sign-in was cancelled.",
-        "email_unverified": "Prove your address first: open the link we emailed you."
+        "generic": "登录未成功。请重试。",
+        "reauthentication_required": "为此请确认是您本人：请重新登录。",
+        "reauthentication_failed": "确认未成功。请重试。",
+        "access_denied": "登录已取消。",
+        "email_unverified": "请先验证您的地址：打开我们发给您的邮件中的链接。"
       }
     },
-    "signOut": "Sign out",
+    "signOut": "退出登录",
     "signUp": {
-      "title": "Create an account",
-      "description": "Enter your details to get started",
-      "submit": "Create account",
-      "haveAccount": "Already have an account?",
-      "done": "Check your mailbox: open the link we sent to verify your address, then sign in."
+      "title": "创建账户",
+      "description": "输入您的信息以开始使用",
+      "submit": "创建账户",
+      "haveAccount": "已有账户？",
+      "done": "请查看您的邮箱：打开我们发送的链接以验证您的地址，然后登录。"
     },
     "fields": {
-      "email": "Email",
-      "emailInvalid": "Enter a valid email address.",
-      "password": "Password",
-      "passwordRequired": "Enter your password.",
-      "passwordHint": "At least 12 characters. Passwords found in data breaches are refused.",
-      "passwordTooShort": "At least {{min}} characters.",
-      "passwordMismatch": "The passwords don't match.",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm the password",
-      "name": "Name",
-      "nameRequired": "Enter a name."
+      "email": "电子邮件",
+      "emailInvalid": "请输入有效的电子邮件地址。",
+      "password": "密码",
+      "passwordRequired": "请输入您的密码。",
+      "passwordHint": "至少 12 个字符。在数据泄露中出现过的密码会被拒绝。",
+      "passwordTooShort": "至少 {{min}} 个字符。",
+      "passwordMismatch": "两次输入的密码不一致。",
+      "newPassword": "新密码",
+      "confirmPassword": "确认密码",
+      "name": "姓名",
+      "nameRequired": "请输入姓名。"
     },
     "mfa": {
-      "hint": "Enter the 6-digit code from your authenticator app.",
-      "recoveryHint": "Enter one of your recovery codes. Each works once.",
-      "code": "Authentication code",
-      "codeInvalid": "Enter the 6 digits.",
-      "recoveryCode": "Recovery code",
-      "recoveryRequired": "Enter a recovery code.",
-      "verify": "Verify",
-      "useRecovery": "Use a recovery code",
-      "useCode": "Use an authentication code",
-      "restart": "Start over"
+      "hint": "请输入身份验证器应用中的 6 位验证码。",
+      "recoveryHint": "请输入一个恢复码。每个恢复码只能使用一次。",
+      "code": "验证码",
+      "codeInvalid": "请输入 6 位数字。",
+      "recoveryCode": "恢复码",
+      "recoveryRequired": "请输入恢复码。",
+      "verify": "验证",
+      "useRecovery": "使用恢复码",
+      "useCode": "使用验证码",
+      "restart": "重新开始"
     },
     "magicLink": {
-      "title": "Sign in by email link",
-      "hint": "We'll email you a link that signs you in.",
-      "send": "Send the link",
-      "sent": "If the address has an account, a sign-in link is on its way. It works once, for a short time.",
-      "landing": "Continue to sign in with this link.",
-      "continue": "Sign in"
+      "title": "通过邮件链接登录",
+      "hint": "我们会给您发送一个可以登录的链接。",
+      "send": "发送链接",
+      "sent": "如果该地址有账户，登录链接已在路上。链接只能使用一次，且有效期很短。",
+      "landing": "使用此链接继续登录。",
+      "continue": "登录"
     },
     "forgot": {
-      "title": "Forgot your password?",
-      "description": "We'll email you a link to choose a new one",
-      "submit": "Send the link",
-      "done": "If the address has an account, a reset link is on its way."
+      "title": "忘记密码？",
+      "description": "我们会给您发送一个用于设置新密码的链接",
+      "submit": "发送链接",
+      "done": "如果该地址有账户，重置链接已在路上。"
     },
     "reset": {
-      "title": "Choose a new password",
-      "description": "The link works once, for a short time",
-      "submit": "Change the password",
-      "done": "Your password was changed. Sign in with it."
+      "title": "设置新密码",
+      "description": "链接只能使用一次，且有效期很短",
+      "submit": "修改密码",
+      "done": "您的密码已修改。请使用新密码登录。"
     },
     "verify": {
-      "title": "Verify your address",
-      "description": "Enter the password you signed up with",
-      "submit": "Verify",
-      "done": "{{email}} is verified. You can sign in now."
+      "title": "验证您的地址",
+      "description": "请输入您注册时使用的密码",
+      "submit": "验证",
+      "done": "{{email}} 已验证。您现在可以登录了。"
     },
     "invitation": {
-      "title": "Accept the invitation",
-      "description": "You were invited to join",
-      "signedInAs": "Join as {{email}}.",
-      "accept": "Accept and join",
-      "notYou": "Not you? Sign out",
-      "create": "Create the account and join",
-      "haveAccount": "Already have an account?",
-      "created": "Your account is ready. Sign in to start.",
-      "signInFirst": "This address already has an account: sign in, then open the invitation again."
+      "title": "接受邀请",
+      "description": "您被邀请加入",
+      "signedInAs": "以 {{email}} 的身份加入。",
+      "accept": "接受并加入",
+      "notYou": "不是您？退出登录",
+      "create": "创建账户并加入",
+      "haveAccount": "已有账户？",
+      "created": "您的账户已就绪。请登录开始使用。",
+      "signInFirst": "此地址已有账户：请先登录，然后再次打开邀请。"
     },
     "cancelDeletion": {
-      "title": "Keep your account",
-      "description": "Cancel the deletion you asked for",
-      "submit": "Cancel the deletion",
-      "done": "The deletion is cancelled: your account stays."
+      "title": "保留您的账户",
+      "description": "取消您申请的删除",
+      "submit": "取消删除",
+      "done": "删除已取消：您的账户将保留。"
     },
     "links": {
-      "missingToken": "This link is incomplete. Open it again from the email.",
-      "backToSignIn": "Back to sign in"
+      "missingToken": "此链接不完整。请从邮件中重新打开。",
+      "backToSignIn": "返回登录"
     },
     "reauth": {
-      "title": "Confirm it's you",
-      "description": "This needs a recent sign-in.",
-      "confirm": "Confirm",
-      "code": "Authentication or recovery code",
-      "codeHint": "From your authenticator app, or one of your recovery codes.",
-      "codeRequired": "Enter a code.",
-      "or": "Or",
-      "withPasskey": "Use a passkey",
-      "withMagicLink": "Email me a sign-in link"
+      "title": "确认是您本人",
+      "description": "此操作需要最近登录过。",
+      "confirm": "确认",
+      "code": "验证码或恢复码",
+      "codeHint": "来自您的身份验证器应用，或您的某个恢复码。",
+      "codeRequired": "请输入验证码。",
+      "or": "或",
+      "withPasskey": "使用通行密钥",
+      "withMagicLink": "给我发送登录链接"
     },
     "tenants": {
-      "title": "Organizations",
-      "switch": "Switch organization"
+      "title": "组织",
+      "switch": "切换组织"
     },
     "impersonation": {
-      "banner": "You are acting as {{user}} (signed in as {{administrator}}).",
-      "stop": "Stop"
+      "banner": "您正在以 {{user}} 的身份操作（登录身份为 {{administrator}}）。",
+      "stop": "停止"
     },
     "errors": {
-      "network": "The server can't be reached. Check your connection and try again."
+      "network": "无法连接到服务器。请检查网络连接后重试。"
     }
   },
   "account": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "impersonating": "While acting as someone, their account settings stay theirs.",
+    "save": "保存",
+    "cancel": "取消",
+    "impersonating": "以他人身份操作时，对方的账户设置保持不变。",
     "profile": {
-      "title": "Profile",
-      "description": "Your name, language and time zone.",
-      "emailHint": "Your sign-in address.",
-      "timezone": "Time zone",
-      "saved": "Profile saved."
+      "title": "个人资料",
+      "description": "您的姓名、语言和时区。",
+      "emailHint": "您的登录地址。",
+      "timezone": "时区",
+      "saved": "个人资料已保存。"
     },
     "security": {
-      "title": "Security"
+      "title": "安全"
     },
     "password": {
-      "title": "Password",
-      "description": "Changing it signs out your other sessions.",
-      "current": "Current password",
-      "currentHint": "Leave empty if your account has no password yet.",
-      "submit": "Change the password",
-      "changed": "Password changed. Your other sessions were signed out."
+      "title": "密码",
+      "description": "修改密码会使您的其他会话退出登录。",
+      "current": "当前密码",
+      "currentHint": "如果您的账户还没有密码，请留空。",
+      "submit": "修改密码",
+      "changed": "密码已修改。您的其他会话已退出登录。"
     },
     "mfa": {
-      "title": "Two-factor authentication",
-      "description": "A code from an authenticator app at each sign-in.",
-      "on": "On",
-      "off": "Off",
-      "enable": "Set up two-factor",
-      "unavailable": "Two-factor can't be set up on this deployment.",
-      "scan": "Scan the code with your authenticator app, or enter the key by hand, then enter the 6-digit code it shows.",
-      "secret": "Key:",
-      "qr": "QR code for your authenticator app",
-      "confirm": "Turn on",
-      "remaining_one": "{{count}} recovery code left.",
-      "remaining_other": "{{count}} recovery codes left.",
-      "newCodes": "New recovery codes",
-      "disable": "Turn off",
-      "disableTitle": "Turn two-factor off?",
-      "disableDescription": "Signing in will take your password alone.",
-      "disabled": "Two-factor is off.",
-      "codesTitle": "Your recovery codes",
-      "codesHint": "Keep them somewhere safe: each signs you in once if you lose your authenticator. They are shown only now.",
-      "copy": "Copy",
-      "copied": "Copied.",
-      "saved": "I've saved them",
-      "requiredTitle": "Two-factor is required",
-      "required": "Your organization asks for two-factor authentication: set it up to continue."
+      "title": "双重验证",
+      "description": "每次登录时需要身份验证器应用中的验证码。",
+      "on": "已开启",
+      "off": "已关闭",
+      "enable": "设置双重验证",
+      "unavailable": "此部署无法设置双重验证。",
+      "scan": "用身份验证器应用扫描二维码，或手动输入密钥，然后输入其显示的 6 位验证码。",
+      "secret": "密钥：",
+      "qr": "身份验证器应用的二维码",
+      "confirm": "开启",
+      "remaining_other": "还剩 {{count}} 个恢复码。",
+      "newCodes": "新的恢复码",
+      "disable": "关闭",
+      "disableTitle": "关闭双重验证？",
+      "disableDescription": "登录时将只需密码。",
+      "disabled": "双重验证已关闭。",
+      "codesTitle": "您的恢复码",
+      "codesHint": "请妥善保管：如果丢失身份验证器，每个恢复码可让您登录一次。它们仅在此刻显示。",
+      "copy": "复制",
+      "copied": "已复制。",
+      "saved": "我已保存",
+      "requiredTitle": "必须启用双重验证",
+      "required": "您的组织要求使用双重验证：请先设置才能继续。",
+      "remaining_one": "还剩 {{count}} 个恢复码。"
     },
     "passkeys": {
-      "title": "Passkeys",
-      "description": "Sign in with your fingerprint, face or device PIN.",
-      "none": "No passkeys yet.",
-      "add": "Add a passkey",
-      "added": "Passkey added.",
-      "defaultName": "My passkey",
-      "name": "Name",
-      "rename": "Rename",
-      "remove": "Remove",
-      "removeTitle": "Remove this passkey?",
-      "removeDescription": "{{name}} will no longer sign you in.",
-      "synced": "Synced",
-      "lastUsed": "Last used {{date}}",
-      "neverUsed": "Never used",
-      "unsupported": "This browser doesn't support passkeys."
+      "title": "通行密钥",
+      "description": "使用指纹、面容或设备 PIN 登录。",
+      "none": "还没有通行密钥。",
+      "add": "添加通行密钥",
+      "added": "通行密钥已添加。",
+      "defaultName": "我的通行密钥",
+      "name": "名称",
+      "rename": "重命名",
+      "remove": "移除",
+      "removeTitle": "移除此通行密钥？",
+      "removeDescription": "{{name}} 将不再能让您登录。",
+      "synced": "已同步",
+      "lastUsed": "上次使用：{{date}}",
+      "neverUsed": "从未使用",
+      "unsupported": "此浏览器不支持通行密钥。"
     },
     "sessions": {
-      "title": "Sessions",
-      "description": "Where your account is signed in.",
-      "current": "This device",
-      "revoke": "Sign out",
-      "unknownDevice": "Unknown device",
-      "lastActive": "active {{date}}",
-      "everywhere": "Sign out everywhere",
-      "everywhereTitle": "Sign out everywhere?",
-      "everywhereDescription": "Every session ends, this one too.",
+      "title": "会话",
+      "description": "您的账户已登录的位置。",
+      "current": "此设备",
+      "revoke": "退出登录",
+      "unknownDevice": "未知设备",
+      "lastActive": "活跃于 {{date}}",
+      "everywhere": "在所有位置退出登录",
+      "everywhereTitle": "在所有位置退出登录？",
+      "everywhereDescription": "所有会话都将结束，包括当前会话。",
       "methods": {
-        "password": "Password",
-        "magic-link": "Email link",
+        "password": "密码",
+        "magic-link": "邮件链接",
         "oidc": "{{provider}}",
-        "sso": "Single sign-on",
-        "passkey": "Passkey",
-        "impersonation": "Support access"
+        "sso": "单点登录",
+        "passkey": "通行密钥",
+        "impersonation": "支持访问"
       }
     }
   },
   "notFound": {
-    "title": "Page not found",
-    "description": "The page you are looking for does not exist.",
-    "back": "Back to the dashboard"
+    "title": "找不到页面",
+    "description": "您要查找的页面不存在。",
+    "back": "返回仪表盘"
   },
   "preferences": {
-    "open": "Preferences",
-    "theme": "Theme",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "System",
-    "language": "Language"
+    "open": "偏好设置",
+    "theme": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统",
+    "language": "语言"
   },
   "languages": {
     "en": "English",
@@ -252,8 +252,15 @@
       "generic": "出了点问题，请重试。",
       "retry": "重试"
     },
-    "fields": { "tag": "标签", "ownerId": "所有者", "teamId": "团队" },
-    "refs": { "searching": "正在搜索…", "failed": "搜索失败。" },
+    "fields": {
+      "tag": "标签",
+      "ownerId": "所有者",
+      "teamId": "团队"
+    },
+    "refs": {
+      "searching": "正在搜索…",
+      "failed": "搜索失败。"
+    },
     "yes": "是",
     "no": "否",
     "table": {
@@ -361,12 +368,12 @@
     }
   },
   "principals": {
-    "placeholder": "Search by name or address",
-    "searching": "Searching…",
-    "none": "Nobody matches.",
-    "failed": "The search failed.",
-    "forbidden": "You may not search people and clients.",
-    "client": "(API client)"
+    "placeholder": "按名称或地址搜索",
+    "searching": "正在搜索…",
+    "none": "没有匹配的结果。",
+    "failed": "搜索失败。",
+    "forbidden": "您无权搜索人员和客户端。",
+    "client": "（API 客户端）"
   },
   "people": {
     "placeholder": "按姓名搜索",

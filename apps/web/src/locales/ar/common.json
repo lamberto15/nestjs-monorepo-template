@@ -3,235 +3,239 @@
     "name": "App"
   },
   "nav": {
-    "platform": "Platform",
-    "dashboard": "Dashboard"
+    "platform": "المنصة",
+    "dashboard": "لوحة التحكم"
   },
   "dashboard": {
-    "title": "Dashboard",
-    "description": "Your overview will appear here."
+    "title": "لوحة التحكم",
+    "description": "ستظهر نظرتك العامة هنا."
   },
   "auth": {
     "signIn": {
-      "title": "Sign in",
-      "description": "Welcome back",
-      "submit": "Sign in",
-      "forgot": "Forgot your password?",
-      "noAccount": "Don't have an account?",
-      "signUp": "Sign up",
-      "orContinueWith": "Or continue with",
-      "withProvider": "Continue with {{provider}}",
-      "withPasskey": "Sign in with a passkey",
-      "withMagicLink": "Email me a sign-in link",
-      "withPassword": "Sign in with a password",
-      "terms": "By continuing, you agree to the terms of service and the privacy policy.",
+      "title": "تسجيل الدخول",
+      "description": "مرحبًا بعودتك",
+      "submit": "تسجيل الدخول",
+      "forgot": "هل نسيت كلمة المرور؟",
+      "noAccount": "ليس لديك حساب؟",
+      "signUp": "إنشاء حساب",
+      "orContinueWith": "أو تابع باستخدام",
+      "withProvider": "المتابعة باستخدام {{provider}}",
+      "withPasskey": "تسجيل الدخول بمفتاح مرور",
+      "withMagicLink": "أرسل لي رابط تسجيل الدخول بالبريد",
+      "withPassword": "تسجيل الدخول بكلمة مرور",
+      "terms": "بالمتابعة، فإنك توافق على شروط الخدمة وسياسة الخصوصية.",
       "errors": {
-        "generic": "That sign-in didn't work. Try again.",
-        "reauthentication_required": "For this, confirm it's you: sign in again.",
-        "reauthentication_failed": "That confirmation didn't work. Try again.",
-        "access_denied": "The sign-in was cancelled.",
-        "email_unverified": "Prove your address first: open the link we emailed you."
+        "generic": "لم ينجح تسجيل الدخول. حاول مرة أخرى.",
+        "reauthentication_required": "لهذا الإجراء، أكّد هويتك: سجّل الدخول مرة أخرى.",
+        "reauthentication_failed": "لم ينجح التأكيد. حاول مرة أخرى.",
+        "access_denied": "تم إلغاء تسجيل الدخول.",
+        "email_unverified": "أثبت ملكية عنوانك أولًا: افتح الرابط الذي أرسلناه إليك بالبريد."
       }
     },
-    "signOut": "Sign out",
+    "signOut": "تسجيل الخروج",
     "signUp": {
-      "title": "Create an account",
-      "description": "Enter your details to get started",
-      "submit": "Create account",
-      "haveAccount": "Already have an account?",
-      "done": "Check your mailbox: open the link we sent to verify your address, then sign in."
+      "title": "إنشاء حساب",
+      "description": "أدخل بياناتك للبدء",
+      "submit": "إنشاء الحساب",
+      "haveAccount": "لديك حساب بالفعل؟",
+      "done": "تحقق من بريدك: افتح الرابط الذي أرسلناه لتوثيق عنوانك، ثم سجّل الدخول."
     },
     "fields": {
-      "email": "Email",
-      "emailInvalid": "Enter a valid email address.",
-      "password": "Password",
-      "passwordRequired": "Enter your password.",
-      "passwordHint": "At least 12 characters. Passwords found in data breaches are refused.",
-      "passwordTooShort": "At least {{min}} characters.",
-      "passwordMismatch": "The passwords don't match.",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm the password",
-      "name": "Name",
-      "nameRequired": "Enter a name."
+      "email": "البريد الإلكتروني",
+      "emailInvalid": "أدخل عنوان بريد إلكتروني صالحًا.",
+      "password": "كلمة المرور",
+      "passwordRequired": "أدخل كلمة المرور.",
+      "passwordHint": "12 حرفًا على الأقل. تُرفض كلمات المرور التي ظهرت في تسريبات البيانات.",
+      "passwordTooShort": "{{min}} أحرف على الأقل.",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "name": "الاسم",
+      "nameRequired": "أدخل اسمًا."
     },
     "mfa": {
-      "hint": "Enter the 6-digit code from your authenticator app.",
-      "recoveryHint": "Enter one of your recovery codes. Each works once.",
-      "code": "Authentication code",
-      "codeInvalid": "Enter the 6 digits.",
-      "recoveryCode": "Recovery code",
-      "recoveryRequired": "Enter a recovery code.",
-      "verify": "Verify",
-      "useRecovery": "Use a recovery code",
-      "useCode": "Use an authentication code",
-      "restart": "Start over"
+      "hint": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة.",
+      "recoveryHint": "أدخل أحد رموز الاسترداد. كل رمز يعمل مرة واحدة.",
+      "code": "رمز المصادقة",
+      "codeInvalid": "أدخل الأرقام الستة.",
+      "recoveryCode": "رمز الاسترداد",
+      "recoveryRequired": "أدخل رمز استرداد.",
+      "verify": "تحقق",
+      "useRecovery": "استخدام رمز استرداد",
+      "useCode": "استخدام رمز مصادقة",
+      "restart": "البدء من جديد"
     },
     "magicLink": {
-      "title": "Sign in by email link",
-      "hint": "We'll email you a link that signs you in.",
-      "send": "Send the link",
-      "sent": "If the address has an account, a sign-in link is on its way. It works once, for a short time.",
-      "landing": "Continue to sign in with this link.",
-      "continue": "Sign in"
+      "title": "تسجيل الدخول برابط بريدي",
+      "hint": "سنرسل إليك رابطًا يسجّل دخولك.",
+      "send": "إرسال الرابط",
+      "sent": "إذا كان للعنوان حساب، فرابط تسجيل الدخول في الطريق إليك. يعمل مرة واحدة ولوقت قصير.",
+      "landing": "تابع لتسجيل الدخول بهذا الرابط.",
+      "continue": "تسجيل الدخول"
     },
     "forgot": {
-      "title": "Forgot your password?",
-      "description": "We'll email you a link to choose a new one",
-      "submit": "Send the link",
-      "done": "If the address has an account, a reset link is on its way."
+      "title": "هل نسيت كلمة المرور؟",
+      "description": "سنرسل إليك رابطًا لاختيار كلمة مرور جديدة",
+      "submit": "إرسال الرابط",
+      "done": "إذا كان للعنوان حساب، فرابط إعادة التعيين في الطريق إليك."
     },
     "reset": {
-      "title": "Choose a new password",
-      "description": "The link works once, for a short time",
-      "submit": "Change the password",
-      "done": "Your password was changed. Sign in with it."
+      "title": "اختر كلمة مرور جديدة",
+      "description": "يعمل الرابط مرة واحدة ولوقت قصير",
+      "submit": "تغيير كلمة المرور",
+      "done": "تم تغيير كلمة المرور. سجّل الدخول بها."
     },
     "verify": {
-      "title": "Verify your address",
-      "description": "Enter the password you signed up with",
-      "submit": "Verify",
-      "done": "{{email}} is verified. You can sign in now."
+      "title": "وثّق عنوانك",
+      "description": "أدخل كلمة المرور التي سجّلت بها",
+      "submit": "توثيق",
+      "done": "تم توثيق {{email}}. يمكنك تسجيل الدخول الآن."
     },
     "invitation": {
-      "title": "Accept the invitation",
-      "description": "You were invited to join",
-      "signedInAs": "Join as {{email}}.",
-      "accept": "Accept and join",
-      "notYou": "Not you? Sign out",
-      "create": "Create the account and join",
-      "haveAccount": "Already have an account?",
-      "created": "Your account is ready. Sign in to start.",
-      "signInFirst": "This address already has an account: sign in, then open the invitation again."
+      "title": "قبول الدعوة",
+      "description": "تمت دعوتك للانضمام إلى",
+      "signedInAs": "الانضمام باسم {{email}}.",
+      "accept": "قبول والانضمام",
+      "notYou": "لست أنت؟ تسجيل الخروج",
+      "create": "إنشاء الحساب والانضمام",
+      "haveAccount": "لديك حساب بالفعل؟",
+      "created": "حسابك جاهز. سجّل الدخول للبدء.",
+      "signInFirst": "لهذا العنوان حساب بالفعل: سجّل الدخول، ثم افتح الدعوة مرة أخرى."
     },
     "cancelDeletion": {
-      "title": "Keep your account",
-      "description": "Cancel the deletion you asked for",
-      "submit": "Cancel the deletion",
-      "done": "The deletion is cancelled: your account stays."
+      "title": "احتفظ بحسابك",
+      "description": "إلغاء الحذف الذي طلبته",
+      "submit": "إلغاء الحذف",
+      "done": "تم إلغاء الحذف: يبقى حسابك."
     },
     "links": {
-      "missingToken": "This link is incomplete. Open it again from the email.",
-      "backToSignIn": "Back to sign in"
+      "missingToken": "هذا الرابط غير مكتمل. افتحه مرة أخرى من البريد الإلكتروني.",
+      "backToSignIn": "العودة إلى تسجيل الدخول"
     },
     "reauth": {
-      "title": "Confirm it's you",
-      "description": "This needs a recent sign-in.",
-      "confirm": "Confirm",
-      "code": "Authentication or recovery code",
-      "codeHint": "From your authenticator app, or one of your recovery codes.",
-      "codeRequired": "Enter a code.",
-      "or": "Or",
-      "withPasskey": "Use a passkey",
-      "withMagicLink": "Email me a sign-in link"
+      "title": "أكّد هويتك",
+      "description": "يتطلب هذا تسجيل دخول حديثًا.",
+      "confirm": "تأكيد",
+      "code": "رمز المصادقة أو الاسترداد",
+      "codeHint": "من تطبيق المصادقة، أو أحد رموز الاسترداد.",
+      "codeRequired": "أدخل رمزًا.",
+      "or": "أو",
+      "withPasskey": "استخدام مفتاح مرور",
+      "withMagicLink": "أرسل لي رابط تسجيل الدخول بالبريد"
     },
     "tenants": {
-      "title": "Organizations",
-      "switch": "Switch organization"
+      "title": "المؤسسات",
+      "switch": "تبديل المؤسسة"
     },
     "impersonation": {
-      "banner": "You are acting as {{user}} (signed in as {{administrator}}).",
-      "stop": "Stop"
+      "banner": "أنت تتصرف باسم {{user}} (مسجّل الدخول بصفتك {{administrator}}).",
+      "stop": "إيقاف"
     },
     "errors": {
-      "network": "The server can't be reached. Check your connection and try again."
+      "network": "تعذّر الوصول إلى الخادم. تحقق من اتصالك وحاول مرة أخرى."
     }
   },
   "account": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "impersonating": "While acting as someone, their account settings stay theirs.",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "impersonating": "أثناء التصرف باسم شخص آخر، تبقى إعدادات حسابه خاصة به.",
     "profile": {
-      "title": "Profile",
-      "description": "Your name, language and time zone.",
-      "emailHint": "Your sign-in address.",
-      "timezone": "Time zone",
-      "saved": "Profile saved."
+      "title": "الملف الشخصي",
+      "description": "اسمك ولغتك ومنطقتك الزمنية.",
+      "emailHint": "عنوان تسجيل دخولك.",
+      "timezone": "المنطقة الزمنية",
+      "saved": "تم حفظ الملف الشخصي."
     },
     "security": {
-      "title": "Security"
+      "title": "الأمان"
     },
     "password": {
-      "title": "Password",
-      "description": "Changing it signs out your other sessions.",
-      "current": "Current password",
-      "currentHint": "Leave empty if your account has no password yet.",
-      "submit": "Change the password",
-      "changed": "Password changed. Your other sessions were signed out."
+      "title": "كلمة المرور",
+      "description": "تغييرها يُنهي جلساتك الأخرى.",
+      "current": "كلمة المرور الحالية",
+      "currentHint": "اتركها فارغة إن لم يكن لحسابك كلمة مرور بعد.",
+      "submit": "تغيير كلمة المرور",
+      "changed": "تم تغيير كلمة المرور. أُنهيت جلساتك الأخرى."
     },
     "mfa": {
-      "title": "Two-factor authentication",
-      "description": "A code from an authenticator app at each sign-in.",
-      "on": "On",
-      "off": "Off",
-      "enable": "Set up two-factor",
-      "unavailable": "Two-factor can't be set up on this deployment.",
-      "scan": "Scan the code with your authenticator app, or enter the key by hand, then enter the 6-digit code it shows.",
-      "secret": "Key:",
-      "qr": "QR code for your authenticator app",
-      "confirm": "Turn on",
-      "remaining_one": "{{count}} recovery code left.",
-      "remaining_other": "{{count}} recovery codes left.",
-      "newCodes": "New recovery codes",
-      "disable": "Turn off",
-      "disableTitle": "Turn two-factor off?",
-      "disableDescription": "Signing in will take your password alone.",
-      "disabled": "Two-factor is off.",
-      "codesTitle": "Your recovery codes",
-      "codesHint": "Keep them somewhere safe: each signs you in once if you lose your authenticator. They are shown only now.",
-      "copy": "Copy",
-      "copied": "Copied.",
-      "saved": "I've saved them",
-      "requiredTitle": "Two-factor is required",
-      "required": "Your organization asks for two-factor authentication: set it up to continue."
+      "title": "المصادقة الثنائية",
+      "description": "رمز من تطبيق مصادقة عند كل تسجيل دخول.",
+      "on": "مفعّلة",
+      "off": "معطّلة",
+      "enable": "إعداد المصادقة الثنائية",
+      "unavailable": "لا يمكن إعداد المصادقة الثنائية في هذا النشر.",
+      "scan": "امسح الرمز بتطبيق المصادقة، أو أدخل المفتاح يدويًا، ثم أدخل الرمز المكوّن من 6 أرقام الذي يعرضه.",
+      "secret": "المفتاح:",
+      "qr": "رمز QR لتطبيق المصادقة",
+      "confirm": "تفعيل",
+      "remaining_one": "تبقّى رمز استرداد واحد.",
+      "remaining_other": "تبقّى {{count}} رمز استرداد.",
+      "newCodes": "رموز استرداد جديدة",
+      "disable": "تعطيل",
+      "disableTitle": "تعطيل المصادقة الثنائية؟",
+      "disableDescription": "سيكفي لتسجيل الدخول كلمة المرور وحدها.",
+      "disabled": "المصادقة الثنائية معطّلة.",
+      "codesTitle": "رموز الاسترداد الخاصة بك",
+      "codesHint": "احفظها في مكان آمن: يسجّل كل رمز دخولك مرة واحدة إن فقدت تطبيق المصادقة. تُعرض الآن فقط.",
+      "copy": "نسخ",
+      "copied": "تم النسخ.",
+      "saved": "لقد حفظتها",
+      "requiredTitle": "المصادقة الثنائية مطلوبة",
+      "required": "تطلب مؤسستك المصادقة الثنائية: أعدّها للمتابعة.",
+      "remaining_zero": "لم يتبقَّ أي رمز استرداد.",
+      "remaining_two": "تبقّى رمزا استرداد.",
+      "remaining_few": "تبقّت {{count}} رموز استرداد.",
+      "remaining_many": "تبقّى {{count}} رمز استرداد."
     },
     "passkeys": {
-      "title": "Passkeys",
-      "description": "Sign in with your fingerprint, face or device PIN.",
-      "none": "No passkeys yet.",
-      "add": "Add a passkey",
-      "added": "Passkey added.",
-      "defaultName": "My passkey",
-      "name": "Name",
-      "rename": "Rename",
-      "remove": "Remove",
-      "removeTitle": "Remove this passkey?",
-      "removeDescription": "{{name}} will no longer sign you in.",
-      "synced": "Synced",
-      "lastUsed": "Last used {{date}}",
-      "neverUsed": "Never used",
-      "unsupported": "This browser doesn't support passkeys."
+      "title": "مفاتيح المرور",
+      "description": "سجّل الدخول ببصمة إصبعك أو وجهك أو رمز PIN الخاص بجهازك.",
+      "none": "لا توجد مفاتيح مرور بعد.",
+      "add": "إضافة مفتاح مرور",
+      "added": "تمت إضافة مفتاح المرور.",
+      "defaultName": "مفتاح المرور الخاص بي",
+      "name": "الاسم",
+      "rename": "إعادة تسمية",
+      "remove": "إزالة",
+      "removeTitle": "إزالة مفتاح المرور هذا؟",
+      "removeDescription": "لن يسجّل {{name}} دخولك بعد الآن.",
+      "synced": "متزامن",
+      "lastUsed": "آخر استخدام {{date}}",
+      "neverUsed": "لم يُستخدم قط",
+      "unsupported": "هذا المتصفح لا يدعم مفاتيح المرور."
     },
     "sessions": {
-      "title": "Sessions",
-      "description": "Where your account is signed in.",
-      "current": "This device",
-      "revoke": "Sign out",
-      "unknownDevice": "Unknown device",
-      "lastActive": "active {{date}}",
-      "everywhere": "Sign out everywhere",
-      "everywhereTitle": "Sign out everywhere?",
-      "everywhereDescription": "Every session ends, this one too.",
+      "title": "الجلسات",
+      "description": "الأماكن التي سُجّل فيها دخول حسابك.",
+      "current": "هذا الجهاز",
+      "revoke": "تسجيل الخروج",
+      "unknownDevice": "جهاز غير معروف",
+      "lastActive": "نشط {{date}}",
+      "everywhere": "تسجيل الخروج من كل مكان",
+      "everywhereTitle": "تسجيل الخروج من كل مكان؟",
+      "everywhereDescription": "تنتهي كل الجلسات، بما فيها هذه.",
       "methods": {
-        "password": "Password",
-        "magic-link": "Email link",
+        "password": "كلمة المرور",
+        "magic-link": "رابط بريدي",
         "oidc": "{{provider}}",
-        "sso": "Single sign-on",
-        "passkey": "Passkey",
-        "impersonation": "Support access"
+        "sso": "تسجيل الدخول الموحّد",
+        "passkey": "مفتاح مرور",
+        "impersonation": "وصول الدعم"
       }
     }
   },
   "notFound": {
-    "title": "Page not found",
-    "description": "The page you are looking for does not exist.",
-    "back": "Back to the dashboard"
+    "title": "الصفحة غير موجودة",
+    "description": "الصفحة التي تبحث عنها غير موجودة.",
+    "back": "العودة إلى لوحة التحكم"
   },
   "preferences": {
-    "open": "Preferences",
-    "theme": "Theme",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "System",
-    "language": "Language"
+    "open": "التفضيلات",
+    "theme": "المظهر",
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "النظام",
+    "language": "اللغة"
   },
   "languages": {
     "en": "English",
@@ -252,8 +256,15 @@
       "generic": "حدث خطأ ما. حاول مرة أخرى.",
       "retry": "حاول مرة أخرى"
     },
-    "fields": { "tag": "وسم", "ownerId": "المالك", "teamId": "الفريق" },
-    "refs": { "searching": "جارٍ البحث…", "failed": "فشل البحث." },
+    "fields": {
+      "tag": "وسم",
+      "ownerId": "المالك",
+      "teamId": "الفريق"
+    },
+    "refs": {
+      "searching": "جارٍ البحث…",
+      "failed": "فشل البحث."
+    },
     "yes": "نعم",
     "no": "لا",
     "table": {
@@ -377,12 +388,12 @@
     }
   },
   "principals": {
-    "placeholder": "Search by name or address",
-    "searching": "Searching…",
-    "none": "Nobody matches.",
-    "failed": "The search failed.",
-    "forbidden": "You may not search people and clients.",
-    "client": "(API client)"
+    "placeholder": "ابحث بالاسم أو العنوان",
+    "searching": "جارٍ البحث…",
+    "none": "لا يوجد من يطابق.",
+    "failed": "فشل البحث.",
+    "forbidden": "لا يُسمح لك بالبحث عن الأشخاص والعملاء.",
+    "client": "(عميل API)"
   },
   "people": {
     "placeholder": "ابحث بالاسم",

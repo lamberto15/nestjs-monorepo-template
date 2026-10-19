@@ -1,90 +1,90 @@
 {
-  "nav": "Settings",
-  "title": "Settings and flags",
-  "search": "Search settings",
-  "none": "No setting matches.",
-  "on": "On",
-  "off": "Off",
-  "default": "Default",
-  "save": "Save",
-  "saved": "Saved.",
-  "edit": "Edit",
-  "editNamed": "Edit {{label}}",
-  "clear": "Clear",
-  "clearTitle": "Clear this override?",
-  "clearDescription": "The value set for {{label}} is removed; the setting falls back to the next level.",
-  "overrides": "Stored values",
-  "noOverrides": "Nothing is set: the default applies.",
-  "flag": "Flag",
-  "managersOnly": "Managers only",
-  "rolloutOf": "{{percent}}% of principals",
-  "scopeLabel": "Scope",
-  "valueLabel": "Value",
+  "nav": "设置",
+  "title": "设置和开关",
+  "search": "搜索设置",
+  "none": "没有匹配的设置。",
+  "on": "开",
+  "off": "关",
+  "default": "默认",
+  "save": "保存",
+  "saved": "已保存。",
+  "edit": "编辑",
+  "editNamed": "编辑{{label}}",
+  "clear": "清除",
+  "clearTitle": "清除此覆盖值？",
+  "clearDescription": "为{{label}}设置的值将被移除，该设置会回退到下一级。",
+  "overrides": "已存储的值",
+  "noOverrides": "没有设置任何值：使用默认值。",
+  "flag": "功能开关",
+  "managersOnly": "仅限管理者",
+  "rolloutOf": "{{percent}}% 的主体",
+  "scopeLabel": "范围",
+  "valueLabel": "值",
   "scope": {
-    "tenant": "Whole tenant",
-    "team": "Team",
-    "user": "User"
+    "tenant": "整个组织",
+    "team": "团队",
+    "user": "用户"
   },
   "scopeId": {
-    "team": "Team",
-    "user": "User"
+    "team": "团队",
+    "user": "用户"
   },
   "mode": {
-    "label": "Applies as",
-    "value": "A fixed value",
-    "rollout": "A gradual rollout"
+    "label": "生效方式",
+    "value": "固定值",
+    "rollout": "逐步发布"
   },
   "rollout": {
-    "label": "Share of principals",
-    "description": "The flag is on for this percentage of the tenant's principals; the same ones every time, and raising it never switches anyone off."
+    "label": "主体比例",
+    "description": "该开关对组织中此百分比的主体开启，每次都是同一批主体，提高比例绝不会让任何人被关闭。"
   },
   "invalid": {
-    "boolean": "Choose on or off.",
-    "number": "Enter a number.",
-    "string": "Enter a value.",
-    "json": "Enter valid JSON.",
-    "rollout": "Enter a percentage from 0 to 100.",
-    "integer": "Enter a whole number.",
-    "min": "Enter {{limit}} or more.",
-    "max": "Enter {{limit}} or less.",
-    "maxLength": "Enter at most {{limit}} characters.",
-    "enum": "Choose one of the values.",
+    "boolean": "请选择开或关。",
+    "number": "请输入数字。",
+    "string": "请输入值。",
+    "json": "请输入有效的 JSON。",
+    "rollout": "请输入 0 到 100 之间的百分比。",
+    "integer": "请输入整数。",
+    "min": "请输入不小于 {{limit}} 的值。",
+    "max": "请输入不大于 {{limit}} 的值。",
+    "maxLength": "最多输入 {{limit}} 个字符。",
+    "enum": "请选择其中一个值。",
     "scopeId": {
-      "team": "Choose a team.",
-      "user": "Choose a user or an API client."
+      "team": "请选择团队。",
+      "user": "请选择用户或 API 客户端。"
     }
   },
   "source": {
-    "tenant": "Tenant",
-    "team": "Team",
-    "user": "You",
-    "rollout": "Rollout",
-    "default": "Default"
+    "tenant": "组织",
+    "team": "团队",
+    "user": "您",
+    "rollout": "发布",
+    "default": "默认"
   },
   "columns": {
-    "setting": "Setting",
-    "value": "Your value",
-    "source": "Source",
-    "default": "Default"
+    "setting": "设置",
+    "value": "您的值",
+    "source": "来源",
+    "default": "默认值"
   },
   "groups": {
-    "auth": "Sign-in policy",
-    "notes": "Notes"
+    "auth": "登录策略",
+    "notes": "笔记"
   },
   "preferences": {
-    "title": "Preferences",
-    "empty": "There is nothing to set for yourself.",
-    "saved": "Preference saved.",
-    "reset": "Reset to default",
-    "resetDone": "Preference reset."
+    "title": "偏好设置",
+    "empty": "没有需要您自行设置的内容。",
+    "saved": "偏好设置已保存。",
+    "reset": "恢复默认",
+    "resetDone": "偏好设置已重置。"
   },
-  "readOnly": "Read-only",
-  "hiddenNote": "Only people who manage settings see this setting.",
-  "scopeIdHint": "A user or an API client: type a part of a name or an address.",
+  "readOnly": "只读",
+  "hiddenNote": "只有管理设置的人才能看到此设置。",
+  "scopeIdHint": "用户或 API 客户端：输入名称或地址的一部分。",
   "bounds": {
-    "between": "From {{min}} to {{max}}.",
-    "min": "{{min}} or more.",
-    "max": "{{max}} or less.",
-    "maxLength": "At most {{maxLength}} characters."
+    "between": "从 {{min}} 到 {{max}}。",
+    "min": "不小于 {{min}}。",
+    "max": "不大于 {{max}}。",
+    "maxLength": "最多 {{maxLength}} 个字符。"
   }
 }

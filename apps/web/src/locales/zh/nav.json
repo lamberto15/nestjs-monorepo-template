@@ -1,7 +1,7 @@
 {
   "groups": {
-    "workspace": "Workspace",
-    "administration": "Administration",
-    "operators": "Operators"
+    "workspace": "工作区",
+    "administration": "管理",
+    "operators": "运营人员"
   }
 }

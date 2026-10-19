@@ -3,235 +3,235 @@
     "name": "App"
   },
   "nav": {
-    "platform": "Platform",
+    "platform": "Plattform",
     "dashboard": "Dashboard"
   },
   "dashboard": {
     "title": "Dashboard",
-    "description": "Your overview will appear here."
+    "description": "Hier erscheint Ihre Übersicht."
   },
   "auth": {
     "signIn": {
-      "title": "Sign in",
-      "description": "Welcome back",
-      "submit": "Sign in",
-      "forgot": "Forgot your password?",
-      "noAccount": "Don't have an account?",
-      "signUp": "Sign up",
-      "orContinueWith": "Or continue with",
-      "withProvider": "Continue with {{provider}}",
-      "withPasskey": "Sign in with a passkey",
-      "withMagicLink": "Email me a sign-in link",
-      "withPassword": "Sign in with a password",
-      "terms": "By continuing, you agree to the terms of service and the privacy policy.",
+      "title": "Anmelden",
+      "description": "Willkommen zurück",
+      "submit": "Anmelden",
+      "forgot": "Passwort vergessen?",
+      "noAccount": "Noch kein Konto?",
+      "signUp": "Registrieren",
+      "orContinueWith": "Oder weiter mit",
+      "withProvider": "Weiter mit {{provider}}",
+      "withPasskey": "Mit einem Passkey anmelden",
+      "withMagicLink": "Anmelde-Link per E-Mail senden",
+      "withPassword": "Mit einem Passwort anmelden",
+      "terms": "Mit dem Fortfahren stimmen Sie den Nutzungsbedingungen und der Datenschutzerklärung zu.",
       "errors": {
-        "generic": "That sign-in didn't work. Try again.",
-        "reauthentication_required": "For this, confirm it's you: sign in again.",
-        "reauthentication_failed": "That confirmation didn't work. Try again.",
-        "access_denied": "The sign-in was cancelled.",
-        "email_unverified": "Prove your address first: open the link we emailed you."
+        "generic": "Die Anmeldung hat nicht funktioniert. Versuchen Sie es erneut.",
+        "reauthentication_required": "Bestätigen Sie dafür, dass Sie es sind: Melden Sie sich erneut an.",
+        "reauthentication_failed": "Die Bestätigung hat nicht funktioniert. Versuchen Sie es erneut.",
+        "access_denied": "Die Anmeldung wurde abgebrochen.",
+        "email_unverified": "Bestätigen Sie zuerst Ihre Adresse: Öffnen Sie den Link in der E-Mail, die wir Ihnen gesendet haben."
       }
     },
-    "signOut": "Sign out",
+    "signOut": "Abmelden",
     "signUp": {
-      "title": "Create an account",
-      "description": "Enter your details to get started",
-      "submit": "Create account",
-      "haveAccount": "Already have an account?",
-      "done": "Check your mailbox: open the link we sent to verify your address, then sign in."
+      "title": "Konto erstellen",
+      "description": "Geben Sie Ihre Daten ein, um loszulegen",
+      "submit": "Konto erstellen",
+      "haveAccount": "Sie haben bereits ein Konto?",
+      "done": "Prüfen Sie Ihr Postfach: Öffnen Sie den Link, den wir gesendet haben, um Ihre Adresse zu bestätigen, und melden Sie sich dann an."
     },
     "fields": {
-      "email": "Email",
-      "emailInvalid": "Enter a valid email address.",
-      "password": "Password",
-      "passwordRequired": "Enter your password.",
-      "passwordHint": "At least 12 characters. Passwords found in data breaches are refused.",
-      "passwordTooShort": "At least {{min}} characters.",
-      "passwordMismatch": "The passwords don't match.",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm the password",
+      "email": "E-Mail",
+      "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein.",
+      "password": "Passwort",
+      "passwordRequired": "Geben Sie Ihr Passwort ein.",
+      "passwordHint": "Mindestens 12 Zeichen. Passwörter aus Datenlecks werden abgelehnt.",
+      "passwordTooShort": "Mindestens {{min}} Zeichen.",
+      "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+      "newPassword": "Neues Passwort",
+      "confirmPassword": "Passwort bestätigen",
       "name": "Name",
-      "nameRequired": "Enter a name."
+      "nameRequired": "Geben Sie einen Namen ein."
     },
     "mfa": {
-      "hint": "Enter the 6-digit code from your authenticator app.",
-      "recoveryHint": "Enter one of your recovery codes. Each works once.",
-      "code": "Authentication code",
-      "codeInvalid": "Enter the 6 digits.",
-      "recoveryCode": "Recovery code",
-      "recoveryRequired": "Enter a recovery code.",
-      "verify": "Verify",
-      "useRecovery": "Use a recovery code",
-      "useCode": "Use an authentication code",
-      "restart": "Start over"
+      "hint": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
+      "recoveryHint": "Geben Sie einen Ihrer Wiederherstellungscodes ein. Jeder funktioniert nur einmal.",
+      "code": "Authentifizierungscode",
+      "codeInvalid": "Geben Sie die 6 Ziffern ein.",
+      "recoveryCode": "Wiederherstellungscode",
+      "recoveryRequired": "Geben Sie einen Wiederherstellungscode ein.",
+      "verify": "Bestätigen",
+      "useRecovery": "Wiederherstellungscode verwenden",
+      "useCode": "Authentifizierungscode verwenden",
+      "restart": "Neu beginnen"
     },
     "magicLink": {
-      "title": "Sign in by email link",
-      "hint": "We'll email you a link that signs you in.",
-      "send": "Send the link",
-      "sent": "If the address has an account, a sign-in link is on its way. It works once, for a short time.",
-      "landing": "Continue to sign in with this link.",
-      "continue": "Sign in"
+      "title": "Per E-Mail-Link anmelden",
+      "hint": "Wir senden Ihnen einen Link, mit dem Sie sich anmelden.",
+      "send": "Link senden",
+      "sent": "Wenn zur Adresse ein Konto gehört, ist ein Anmelde-Link unterwegs. Er funktioniert nur einmal und nur kurze Zeit.",
+      "landing": "Mit diesem Link zur Anmeldung fortfahren.",
+      "continue": "Anmelden"
     },
     "forgot": {
-      "title": "Forgot your password?",
-      "description": "We'll email you a link to choose a new one",
-      "submit": "Send the link",
-      "done": "If the address has an account, a reset link is on its way."
+      "title": "Passwort vergessen?",
+      "description": "Wir senden Ihnen einen Link, um ein neues zu wählen",
+      "submit": "Link senden",
+      "done": "Wenn zur Adresse ein Konto gehört, ist ein Link zum Zurücksetzen unterwegs."
     },
     "reset": {
-      "title": "Choose a new password",
-      "description": "The link works once, for a short time",
-      "submit": "Change the password",
-      "done": "Your password was changed. Sign in with it."
+      "title": "Neues Passwort wählen",
+      "description": "Der Link funktioniert nur einmal und nur kurze Zeit",
+      "submit": "Passwort ändern",
+      "done": "Ihr Passwort wurde geändert. Melden Sie sich damit an."
     },
     "verify": {
-      "title": "Verify your address",
-      "description": "Enter the password you signed up with",
-      "submit": "Verify",
-      "done": "{{email}} is verified. You can sign in now."
+      "title": "Adresse bestätigen",
+      "description": "Geben Sie das Passwort ein, mit dem Sie sich registriert haben",
+      "submit": "Bestätigen",
+      "done": "{{email}} ist bestätigt. Sie können sich jetzt anmelden."
     },
     "invitation": {
-      "title": "Accept the invitation",
-      "description": "You were invited to join",
-      "signedInAs": "Join as {{email}}.",
-      "accept": "Accept and join",
-      "notYou": "Not you? Sign out",
-      "create": "Create the account and join",
-      "haveAccount": "Already have an account?",
-      "created": "Your account is ready. Sign in to start.",
-      "signInFirst": "This address already has an account: sign in, then open the invitation again."
+      "title": "Einladung annehmen",
+      "description": "Sie wurden eingeladen, beizutreten",
+      "signedInAs": "Als {{email}} beitreten.",
+      "accept": "Annehmen und beitreten",
+      "notYou": "Nicht Sie? Abmelden",
+      "create": "Konto erstellen und beitreten",
+      "haveAccount": "Sie haben bereits ein Konto?",
+      "created": "Ihr Konto ist bereit. Melden Sie sich an, um zu beginnen.",
+      "signInFirst": "Zu dieser Adresse gibt es bereits ein Konto: Melden Sie sich an und öffnen Sie die Einladung dann erneut."
     },
     "cancelDeletion": {
-      "title": "Keep your account",
-      "description": "Cancel the deletion you asked for",
-      "submit": "Cancel the deletion",
-      "done": "The deletion is cancelled: your account stays."
+      "title": "Konto behalten",
+      "description": "Die beantragte Löschung abbrechen",
+      "submit": "Löschung abbrechen",
+      "done": "Die Löschung ist abgebrochen: Ihr Konto bleibt bestehen."
     },
     "links": {
-      "missingToken": "This link is incomplete. Open it again from the email.",
-      "backToSignIn": "Back to sign in"
+      "missingToken": "Dieser Link ist unvollständig. Öffnen Sie ihn erneut aus der E-Mail.",
+      "backToSignIn": "Zurück zur Anmeldung"
     },
     "reauth": {
-      "title": "Confirm it's you",
-      "description": "This needs a recent sign-in.",
-      "confirm": "Confirm",
-      "code": "Authentication or recovery code",
-      "codeHint": "From your authenticator app, or one of your recovery codes.",
-      "codeRequired": "Enter a code.",
-      "or": "Or",
-      "withPasskey": "Use a passkey",
-      "withMagicLink": "Email me a sign-in link"
+      "title": "Bestätigen Sie, dass Sie es sind",
+      "description": "Dafür ist eine aktuelle Anmeldung nötig.",
+      "confirm": "Bestätigen",
+      "code": "Authentifizierungs- oder Wiederherstellungscode",
+      "codeHint": "Aus Ihrer Authenticator-App oder einer Ihrer Wiederherstellungscodes.",
+      "codeRequired": "Geben Sie einen Code ein.",
+      "or": "Oder",
+      "withPasskey": "Passkey verwenden",
+      "withMagicLink": "Anmelde-Link per E-Mail senden"
     },
     "tenants": {
-      "title": "Organizations",
-      "switch": "Switch organization"
+      "title": "Organisationen",
+      "switch": "Organisation wechseln"
     },
     "impersonation": {
-      "banner": "You are acting as {{user}} (signed in as {{administrator}}).",
-      "stop": "Stop"
+      "banner": "Sie handeln als {{user}} (angemeldet als {{administrator}}).",
+      "stop": "Beenden"
     },
     "errors": {
-      "network": "The server can't be reached. Check your connection and try again."
+      "network": "Der Server ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
     }
   },
   "account": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "impersonating": "While acting as someone, their account settings stay theirs.",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "impersonating": "Solange Sie als jemand anderes handeln, bleiben dessen Kontoeinstellungen unberührt.",
     "profile": {
-      "title": "Profile",
-      "description": "Your name, language and time zone.",
-      "emailHint": "Your sign-in address.",
-      "timezone": "Time zone",
-      "saved": "Profile saved."
+      "title": "Profil",
+      "description": "Ihr Name, Ihre Sprache und Ihre Zeitzone.",
+      "emailHint": "Ihre Anmeldeadresse.",
+      "timezone": "Zeitzone",
+      "saved": "Profil gespeichert."
     },
     "security": {
-      "title": "Security"
+      "title": "Sicherheit"
     },
     "password": {
-      "title": "Password",
-      "description": "Changing it signs out your other sessions.",
-      "current": "Current password",
-      "currentHint": "Leave empty if your account has no password yet.",
-      "submit": "Change the password",
-      "changed": "Password changed. Your other sessions were signed out."
+      "title": "Passwort",
+      "description": "Beim Ändern werden Ihre anderen Sitzungen abgemeldet.",
+      "current": "Aktuelles Passwort",
+      "currentHint": "Lassen Sie das Feld leer, wenn Ihr Konto noch kein Passwort hat.",
+      "submit": "Passwort ändern",
+      "changed": "Passwort geändert. Ihre anderen Sitzungen wurden abgemeldet."
     },
     "mfa": {
-      "title": "Two-factor authentication",
-      "description": "A code from an authenticator app at each sign-in.",
-      "on": "On",
-      "off": "Off",
-      "enable": "Set up two-factor",
-      "unavailable": "Two-factor can't be set up on this deployment.",
-      "scan": "Scan the code with your authenticator app, or enter the key by hand, then enter the 6-digit code it shows.",
-      "secret": "Key:",
-      "qr": "QR code for your authenticator app",
-      "confirm": "Turn on",
-      "remaining_one": "{{count}} recovery code left.",
-      "remaining_other": "{{count}} recovery codes left.",
-      "newCodes": "New recovery codes",
-      "disable": "Turn off",
-      "disableTitle": "Turn two-factor off?",
-      "disableDescription": "Signing in will take your password alone.",
-      "disabled": "Two-factor is off.",
-      "codesTitle": "Your recovery codes",
-      "codesHint": "Keep them somewhere safe: each signs you in once if you lose your authenticator. They are shown only now.",
-      "copy": "Copy",
-      "copied": "Copied.",
-      "saved": "I've saved them",
-      "requiredTitle": "Two-factor is required",
-      "required": "Your organization asks for two-factor authentication: set it up to continue."
+      "title": "Zwei-Faktor-Authentifizierung",
+      "description": "Bei jeder Anmeldung ein Code aus einer Authenticator-App.",
+      "on": "Ein",
+      "off": "Aus",
+      "enable": "Zwei-Faktor einrichten",
+      "unavailable": "Zwei-Faktor kann in dieser Installation nicht eingerichtet werden.",
+      "scan": "Scannen Sie den Code mit Ihrer Authenticator-App oder geben Sie den Schlüssel von Hand ein und geben Sie dann den angezeigten 6-stelligen Code ein.",
+      "secret": "Schlüssel:",
+      "qr": "QR-Code für Ihre Authenticator-App",
+      "confirm": "Einschalten",
+      "remaining_one": "Noch {{count}} Wiederherstellungscode übrig.",
+      "remaining_other": "Noch {{count}} Wiederherstellungscodes übrig.",
+      "newCodes": "Neue Wiederherstellungscodes",
+      "disable": "Ausschalten",
+      "disableTitle": "Zwei-Faktor ausschalten?",
+      "disableDescription": "Für die Anmeldung genügt dann Ihr Passwort allein.",
+      "disabled": "Zwei-Faktor ist ausgeschaltet.",
+      "codesTitle": "Ihre Wiederherstellungscodes",
+      "codesHint": "Bewahren Sie sie sicher auf: Jeder meldet Sie einmal an, falls Sie Ihren Authenticator verlieren. Sie werden nur jetzt angezeigt.",
+      "copy": "Kopieren",
+      "copied": "Kopiert.",
+      "saved": "Ich habe sie gespeichert",
+      "requiredTitle": "Zwei-Faktor ist erforderlich",
+      "required": "Ihre Organisation verlangt die Zwei-Faktor-Authentifizierung: Richten Sie sie ein, um fortzufahren."
     },
     "passkeys": {
       "title": "Passkeys",
-      "description": "Sign in with your fingerprint, face or device PIN.",
-      "none": "No passkeys yet.",
-      "add": "Add a passkey",
-      "added": "Passkey added.",
-      "defaultName": "My passkey",
+      "description": "Melden Sie sich mit Fingerabdruck, Gesicht oder Geräte-PIN an.",
+      "none": "Noch keine Passkeys.",
+      "add": "Passkey hinzufügen",
+      "added": "Passkey hinzugefügt.",
+      "defaultName": "Mein Passkey",
       "name": "Name",
-      "rename": "Rename",
-      "remove": "Remove",
-      "removeTitle": "Remove this passkey?",
-      "removeDescription": "{{name}} will no longer sign you in.",
-      "synced": "Synced",
-      "lastUsed": "Last used {{date}}",
-      "neverUsed": "Never used",
-      "unsupported": "This browser doesn't support passkeys."
+      "rename": "Umbenennen",
+      "remove": "Entfernen",
+      "removeTitle": "Diesen Passkey entfernen?",
+      "removeDescription": "{{name}} meldet Sie nicht mehr an.",
+      "synced": "Synchronisiert",
+      "lastUsed": "Zuletzt verwendet {{date}}",
+      "neverUsed": "Nie verwendet",
+      "unsupported": "Dieser Browser unterstützt keine Passkeys."
     },
     "sessions": {
-      "title": "Sessions",
-      "description": "Where your account is signed in.",
-      "current": "This device",
-      "revoke": "Sign out",
-      "unknownDevice": "Unknown device",
-      "lastActive": "active {{date}}",
-      "everywhere": "Sign out everywhere",
-      "everywhereTitle": "Sign out everywhere?",
-      "everywhereDescription": "Every session ends, this one too.",
+      "title": "Sitzungen",
+      "description": "Wo Ihr Konto angemeldet ist.",
+      "current": "Dieses Gerät",
+      "revoke": "Abmelden",
+      "unknownDevice": "Unbekanntes Gerät",
+      "lastActive": "aktiv {{date}}",
+      "everywhere": "Überall abmelden",
+      "everywhereTitle": "Überall abmelden?",
+      "everywhereDescription": "Jede Sitzung endet, auch diese.",
       "methods": {
-        "password": "Password",
-        "magic-link": "Email link",
+        "password": "Passwort",
+        "magic-link": "E-Mail-Link",
         "oidc": "{{provider}}",
-        "sso": "Single sign-on",
+        "sso": "Single Sign-on",
         "passkey": "Passkey",
-        "impersonation": "Support access"
+        "impersonation": "Support-Zugriff"
       }
     }
   },
   "notFound": {
-    "title": "Page not found",
-    "description": "The page you are looking for does not exist.",
-    "back": "Back to the dashboard"
+    "title": "Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht.",
+    "back": "Zurück zum Dashboard"
   },
   "preferences": {
-    "open": "Preferences",
-    "theme": "Theme",
-    "light": "Light",
-    "dark": "Dark",
+    "open": "Präferenzen",
+    "theme": "Design",
+    "light": "Hell",
+    "dark": "Dunkel",
     "system": "System",
-    "language": "Language"
+    "language": "Sprache"
   },
   "languages": {
     "en": "English",
@@ -252,7 +252,11 @@
       "generic": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
       "retry": "Erneut versuchen"
     },
-    "fields": { "tag": "Tag", "ownerId": "Eigentümer", "teamId": "Team" },
+    "fields": {
+      "tag": "Tag",
+      "ownerId": "Eigentümer",
+      "teamId": "Team"
+    },
     "refs": {
       "searching": "Wird gesucht…",
       "failed": "Die Suche ist fehlgeschlagen."
@@ -364,12 +368,12 @@
     }
   },
   "principals": {
-    "placeholder": "Search by name or address",
-    "searching": "Searching…",
-    "none": "Nobody matches.",
-    "failed": "The search failed.",
-    "forbidden": "You may not search people and clients.",
-    "client": "(API client)"
+    "placeholder": "Nach Name oder Adresse suchen",
+    "searching": "Suche läuft…",
+    "none": "Niemand passt.",
+    "failed": "Die Suche ist fehlgeschlagen.",
+    "forbidden": "Sie dürfen nicht nach Personen und Clients suchen.",
+    "client": "(API-Client)"
   },
   "people": {
     "placeholder": "Nach Namen suchen",
