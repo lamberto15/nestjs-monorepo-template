@@ -111,16 +111,16 @@ web app needs the API, so `dev:web` alone suits an API already running.
 
 ### What's in it
 
-| Area           | Routes (`src/routes`)                                                                                                                                                                                                               | Code                                                                                       |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Signed out     | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`               | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                     |
-| Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion) | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings` |
-| Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                  | `features/*`                                                                               |
-| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/audit`, `/settings` (values, overrides, feature flags)         | `features/access`, `features/api-clients`, `features/audit`, `features/settings`           |
-| Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                | `features/search`, `components/`                                                           |
+| Area           | Routes (`src/routes`)                                                                                                                                                                                                                                                                             | Code                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Signed out     | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`                                                                             | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                                     |
+| Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion) | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings`                 |
+| Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                                                                                | `features/*`                                                                                               |
+| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/audit`, `/settings` (values, overrides, feature flags), `/custom-fields` (define, order, deactivate)                         | `features/access`, `features/api-clients`, `features/audit`, `features/settings`, `features/custom-fields` |
+| Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                                                                              | `features/search`, `components/`                                                                           |
 
 Not in the web app yet (open issues): webhooks (#89), PDF documents (#93),
-custom fields administration (#94), tenants for operators (#95), browser
+tenants for operators (#95), browser
 end-to-end tests (#97). The API has all of them.
 
 ### How it's built
@@ -214,6 +214,17 @@ What a feature's record pages share; `features/notes` and
   (`NOTE_LIMITS`) mirror the schema's `maxLength`; a test compares them with
   `packages/api-client/openapi.json` (importing that 1 MB file would bloat the
   bundle).
+- **Custom fields in a record form and view** (`components/records/custom-field-inputs.tsx`,
+  `custom-field-values.tsx`, `lib/custom-values.ts`): `GET /v1/custom-fields?subject=`
+  (any reader of the subject) gives the active definitions. `<CustomFieldInputs
+fields value onChange errors />` is a typed input per field (the drafts and
+  their checks, `draftErrors`, `customBody`, are in `lib/custom-values.ts`: a
+  create sends the values that differ from the defaults, an edit only the keys
+  that changed, `null` for one emptied; the API's `custom.<key>` errors map back
+  with `serverErrors`), and `<CustomFieldValues subject values />` the values as
+  detail items. The notes form and page are the example. The admin page is
+  `features/custom-fields`: a subject must be listed in its `api.ts`
+  (`CUSTOM_FIELD_SUBJECTS`), as the API has no list of them yet.
 - **Record panels** (`components/records/panels/`): comments with
   @mentions, attachments, tags and revisions on a record's detail page. A
   feature mounts them with one element, each panel shown only when the
