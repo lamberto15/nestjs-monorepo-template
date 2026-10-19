@@ -41,6 +41,8 @@ Every error, whatever produced it, is `application/problem+json`:
   `action`, a refusal its `reason`), `captcha_unavailable` (503, fail-closed
   only: the provider can't be asked; [auth.md](auth.md#bot-protection))…
   Branch on it, not on `detail`.
+- A conflict about one field names it too: 409 `tenant_slug_taken` carries
+  `errors: [{ "path": "slug", … }]`, so a form shows it under the field.
 - `detail` and `errors[].message` are in the request's language.
 - A 500 never shows internals; `requestId` finds it in the logs.
 - In code: throw Nest's exceptions (`new ConflictException('…')`, or an object

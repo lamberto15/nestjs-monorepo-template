@@ -44,7 +44,8 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
   the rule falls back to the default.
 - **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
   one account per address, in every tenant it belongs to; a session acts in
-  one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
+  one (`GET /v1/auth/me`'s `tenant`; its `operator` is true in the
+  operator tenant, where the operators' routes answer), the last chosen at sign-in. A
   tenant's administrators manage its memberships (`PATCH` deactivates the
   membership, never the account) and never set or change anyone's password
   or name.
