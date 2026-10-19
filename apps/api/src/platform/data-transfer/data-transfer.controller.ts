@@ -43,8 +43,8 @@ import {
   DataTransferService,
   principalTenant,
   transferKey,
-  TRANSFER_LINK_TTL,
 } from './data-transfer.service.js';
+import { startedSchema, statusSchema } from './data-transfer.schemas.js';
 import { TRANSFER_FORMATS } from './data-transfer.types.js';
 import { CONTENT_TYPES, detectTextFormat, formatOf } from './formats.js';
 
@@ -162,30 +162,6 @@ const transfersQuerySchema = z.object({
     .optional()
     .describe('`nextCursor` of the previous page (the same `kind`).'),
 });
-const startedSchema = z.object({ id: z.string(), status: z.literal('queued') });
-const statusSchema = z.object({
-  id: z.string(),
-  kind: z.enum(['export', 'import']),
-  name: z.string(),
-  format: z.enum(TRANSFER_FORMATS),
-  status: z.enum(['queued', 'running', 'completed', 'failed']),
-  progress: z.record(z.string(), z.number()),
-  result: z
-    .object({
-      rows: z.number(),
-      url: z.url().optional().describe(`The file, for ${TRANSFER_LINK_TTL}.`),
-      imported: z.number().optional(),
-      failed: z.number().optional(),
-      dryRun: z.boolean().optional(),
-      errorsUrl: z
-        .url()
-        .optional()
-        .describe('A CSV of the refused rows: row, field, message.'),
-    })
-    .optional(),
-  error: z.string().optional(),
-});
-
 /**
  * Exports and imports of any data a feature registered (DataExporter,
  * DataImporter), as CSV, JSON or Excel. The work runs on the workers: the
@@ -309,7 +285,7 @@ export class DataTransferController {
   @ApiOperation({
     summary: 'The exports and imports you started in this tenant',
     description:
-      'Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account export (POST /v1/account/export) is followed by its id only.',
+      'Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account exports (POST /v1/account/export) are listed at GET /v1/account/exports.',
   })
   @ApiOkResponse({ standardSchema: pageSchema(statusSchema) })
   list(
