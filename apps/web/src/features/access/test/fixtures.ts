@@ -297,6 +297,10 @@ export function signedInWith(
       return role ? HttpResponse.json(role) : problem(404, 'not_found');
     }),
     http.get('/v1/access/teams', () => HttpResponse.json({ items: teams })),
+    // The directory any member may read (what list filters and cells name teams by).
+    http.get('/v1/teams', () =>
+      HttpResponse.json({ items: teams, nextCursor: null }),
+    ),
     http.get('/v1/lists/User', () => HttpResponse.json(userListDescription)),
     // The members, as the API filters them: `?teamId=` (a team's direct
     // members) flat or as a condition of `filter`.

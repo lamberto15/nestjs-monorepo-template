@@ -2,20 +2,66 @@ import { http, HttpResponse } from 'msw/http';
 
 /**
  * `GET /v1/people` over these people, as the API answers it: the active
- * members whose name contains `q` (any case), each one's key and name.
- * `seen` gets the `q` of every call ('' without one).
+ * members whose name contains `q` (any case), or, with `key=`, the names of
+ * those keys (in the order asked; one nobody has is left out; 400 over 20
+ * keys, or with `q` too), each one's key and name. `seen` gets the `q` of
+ * every call ('' without one); `asked` gets every call's query string.
  */
 export function peopleHandler(
   people: readonly { id: string; name: string }[],
   seen?: string[],
+  asked?: URLSearchParams[],
 ) {
   return http.get('/v1/people', ({ request }) => {
-    const q = new URL(request.url).searchParams.get('q') ?? '';
+    const query = new URL(request.url).searchParams;
+    asked?.push(query);
+    const q = query.get('q') ?? '';
     seen?.push(q);
+    const key = query.get('key');
+    const all = people.map((p) => ({ key: `user:${p.id}`, name: p.name }));
+    if (key !== null) {
+      const keys = key.split(',');
+      if (keys.length > 20 || query.has('q')) {
+        return HttpResponse.json(
+          { status: 400, code: 'validation_failed', detail: 'Too many keys.' },
+          {
+            status: 400,
+            headers: { 'content-type': 'application/problem+json' },
+          },
+        );
+      }
+      return HttpResponse.json({
+        items: keys.flatMap((k) => all.filter((p) => p.key === k)),
+      });
+    }
     return HttpResponse.json({
-      items: people
-        .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
-        .map((p) => ({ key: `user:${p.id}`, name: p.name })),
+      items: all.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())),
+    });
+  });
+}
+
+/**
+ * `GET /v1/teams` over these teams, as the API answers it: `q` a part of the
+ * name, `id=` these teams (one nobody has is left out); one page. `asked`
+ * gets every call's query string.
+ */
+export function teamsHandler(
+  teams: readonly { id: string; name: string }[],
+  asked?: URLSearchParams[],
+) {
+  return http.get('/v1/teams', ({ request }) => {
+    const query = new URL(request.url).searchParams;
+    asked?.push(query);
+    const ids = query.get('id')?.split(',');
+    const q = (query.get('q') ?? '').toLowerCase();
+    return HttpResponse.json({
+      items: teams
+        .filter(
+          (t) =>
+            (!ids || ids.includes(t.id)) && t.name.toLowerCase().includes(q),
+        )
+        .map((t) => ({ ...t, parentId: null, depth: 0 })),
+      nextCursor: null,
     });
   });
 }

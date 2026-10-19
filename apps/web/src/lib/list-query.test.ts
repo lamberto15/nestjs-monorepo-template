@@ -282,7 +282,7 @@ describe('filterSpec', () => {
     ).toBe('text');
   });
 
-  it('offers a searched picker for users, and only emptiness without access', () => {
+  it('offers a searched picker for users, and a picker of teams', () => {
     const search = { key: ['people'], query: vi.fn() };
     expect(
       filterSpec(
@@ -296,18 +296,11 @@ describe('filterSpec', () => {
       operators: ['eq', 'in', 'isNull'],
       ref: 'team',
     });
-    expect(
-      filterSpec(team, { team: { options: [], unavailable: true } }),
-    ).toEqual({
+    expect(filterSpec(team, { team: { options: [] } })).toEqual({
       variant: 'multiSelect',
-      operators: ['isEmpty', 'isNotEmpty'],
+      operators: ['inArray', 'isEmpty', 'isNotEmpty'],
       options: [],
     });
-    expect(
-      filterSpec(field({ name: 'teamId', operators: ['eq'], ref: 'team' }), {
-        team: { options: [], unavailable: true },
-      }),
-    ).toBeUndefined();
   });
 
   it('offers dates the operators their conversion needs, never "relative"', () => {

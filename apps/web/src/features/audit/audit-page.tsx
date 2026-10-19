@@ -1,3 +1,4 @@
+import { PersonName } from '@/components/person-name';
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,14 @@ export function AuditPage() {
         id: 'actorLabel',
         accessorFn: (entry) => entry.actorLabel,
         ...header('actor'),
+        // No stored label: the person by key (one batched lookup for the
+        // page). `actor` comes only when its own column is shown, and
+        // `system:*` stays as it is.
+        cell: ({ row }) =>
+          row.original.actorLabel ??
+          (row.original.actor ? (
+            <PersonName value={row.original.actor} />
+          ) : null),
       },
       {
         id: 'action',
@@ -145,7 +154,10 @@ function EntryDetails(props: { entry: AuditEntry }) {
       </DialogHeader>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-xs">
         <dt className="text-muted-foreground">{t('details.actor')}</dt>
-        <dd>{entry.actorLabel}</dd>
+        <dd>
+          {entry.actorLabel ??
+            (entry.actor ? <PersonName value={entry.actor} /> : null)}
+        </dd>
         {/* Only when the actor column is shown: the page asks for what it shows. */}
         {entry.actor && (
           <>

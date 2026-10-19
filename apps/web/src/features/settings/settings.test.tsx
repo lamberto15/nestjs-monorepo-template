@@ -8,6 +8,7 @@ import {
   principalsHandler,
   userPrincipal,
 } from '@/test/principals';
+import { peopleHandler, teamsHandler } from '@/test/people';
 import { renderApp } from '@/test/render-app';
 import { server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
@@ -492,9 +493,12 @@ describe('admin settings', () => {
     );
   });
 
-  it("names a stored value's principal from the directory", async () => {
+  it("names a stored value's user and team from the lookups", async () => {
     api(admin);
+    const TEAM = '0199a3f2-0000-7000-8000-0000000000b1';
     server.use(
+      peopleHandler([{ id: GRACE.id, name: 'Grace Hopper' }]),
+      teamsHandler([{ id: TEAM, name: 'Night shift' }]),
       http.get('/v1/settings/:key/overrides', () =>
         HttpResponse.json({
           items: [
@@ -507,15 +511,21 @@ describe('admin settings', () => {
               updatedBy: 'x',
               updatedAt: '2026-10-17T00:00:00.000Z',
             },
+            {
+              key: 'notes.richText',
+              scope: 'team',
+              scopeId: TEAM,
+              value: false,
+              rollout: null,
+              updatedBy: 'x',
+              updatedAt: '2026-10-17T00:00:00.000Z',
+            },
           ],
         }),
       ),
     );
     const { dialog } = await open('Rich text editor');
-    expect(
-      await within(dialog).findByText(
-        /User: Grace Hopper \(grace@example.com\)/,
-      ),
-    ).toBeVisible();
+    expect(await within(dialog).findByText(/User: Grace Hopper/)).toBeVisible();
+    expect(await within(dialog).findByText(/Team: Night shift/)).toBeVisible();
   });
 });
