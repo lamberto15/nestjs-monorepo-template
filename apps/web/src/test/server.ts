@@ -22,6 +22,7 @@ export const signedInUser: Me = {
     name: 'Acme',
   },
   mfaEnabled: false,
+  hasPassword: true,
   mfaEnrollmentRequired: false,
   authentication: {
     via: 'session',

@@ -543,7 +543,7 @@ export interface paths {
         };
         /**
          * The exports and imports you started in this tenant
-         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account export (POST /v1/account/export) is followed by its id only.
+         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?kind=export|import`. Each item as GET /v1/data/transfers/{id} tells it, links included. Those started by you (or your scheduled reports) in the current tenant, kept 7 days after they end; the account exports (POST /v1/account/export) are listed at GET /v1/account/exports.
          */
         get: operations["DataTransferController_list_v1"];
         put?: never;
@@ -959,9 +959,29 @@ export interface paths {
         put?: never;
         /**
          * A copy of everything held about you
-         * @description Starts an export (one record per row: kind, id, data) and answers 202 with its id: follow it at GET /v1/data/transfers/{id}, which gives the download link when done.
+         * @description Starts an export (one record per row: kind, id, data) and answers 202 with its id: follow it at GET /v1/data/transfers/{id}, which gives the download link when done; GET /v1/account/exports lists them.
          */
         post: operations["AccountController_export_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The copies of your data you asked for
+         * @description Your account exports (POST /v1/account/export), newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`), each as GET /v1/data/transfers/{id} tells it: a completed one with its download link (valid 30 minutes from this answer; ask again for a new one). Kept 7 days after they end (`expiresAt`), then gone: ask for a new export. Yours alone, in any tenant or none; never while acting as another user.
+         */
+        get: operations["AccountController_exports_v1"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -979,7 +999,7 @@ export interface paths {
         put?: never;
         /**
          * Ask for your account to be deleted
-         * @description Carried out after the grace period (ACCOUNT_DELETION_GRACE_DAYS), unless cancelled before; you get an email saying when. Wants a recent sign-in (`reauthentication_required`: POST /auth/reauthenticate) and, when the account has one, your password again. Records you created stay, without your name.
+         * @description Carried out after the grace period (ACCOUNT_DELETION_GRACE_DAYS), unless cancelled before; you get an email saying when, with a link that cancels without signing in. Wants a recent sign-in (`reauthentication_required`: POST /auth/reauthenticate) and, when the account has one (`hasPassword` of GET /v1/auth/me), your password again. Every other session and every token client is signed out; this one stays, to cancel (signing in again works too, until the deletion is carried out). Asked again while one is pending: that one, unchanged, no new mail. Records you created stay, without your name.
          */
         post: operations["AccountController_requestDeletion_v1"];
         /** Keep your account: cancel the pending deletion */
@@ -996,15 +1016,38 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** What you agreed to: the latest version of each kind */
+        /**
+         * What you agreed to: the latest version of each kind
+         * @description Each kind you accepted, with its latest version and `withdrawnAt` (null: in force). A version other than the kind's current one (GET /v1/account/consent-kinds) is to be asked for again.
+         */
         get: operations["AccountController_consents_v1"];
         put?: never;
         /**
          * Record that you accept a version of the terms, a policy…
-         * @description The app names the kinds (`terms`, `privacy`, `marketing`) and versions. Accepting the same version again moves the time. Audited.
+         * @description A kind GET /v1/account/consent-kinds lists, at its current `version`. Every acceptance is kept (accepting again adds one; after a withdrawal it gives the consent again). Audited (`account.consented`).
          */
         post: operations["AccountController_accept_v1"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/consents/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a consent (marketing…)
+         * @description As easy as giving it: no password, no recent sign-in. The acceptances stay, as proof, stamped with the withdrawal (`withdrawnAt`); POST /v1/account/consents gives it again. Audited (`account.consent-withdrawn`). A required kind (the terms, the privacy policy) cannot be withdrawn: deleting the account ends it.
+         */
+        delete: operations["AccountController_withdraw_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1024,6 +1067,26 @@ export interface paths {
          * @description No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).
          */
         post: operations["AccountDeletionLinkController_cancel_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/consent-kinds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The kinds of consent asked for here, and their current version
+         * @description Declared by the app (`CONSENT_KINDS`, platform/account/consent-kinds.ts). `required`: needed to use the service (accept it, it cannot be withdrawn); otherwise optional. Labels and descriptions in the request's language. No sign-in needed.
+         */
+        get: operations["ConsentKindsController_list_v1"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5293,6 +5356,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Follow it at GET /v1/data/transfers/{id}. */
                         id: string;
                         /** @enum {string} */
                         status: "queued";
@@ -5341,6 +5405,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Follow it at GET /v1/data/transfers/{id}. */
                         id: string;
                         /** @enum {string} */
                         status: "queued";
@@ -5412,6 +5477,21 @@ export interface operations {
                             progress: {
                                 [key: string]: number;
                             };
+                            /**
+                             * Format: date-time
+                             * @description When it was started.
+                             */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it completed or failed; null while it waits or runs.
+                             */
+                            finishedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it is no longer kept (7 days after it ended): from then on it is neither listed nor found, nor its link given. null while it waits or runs.
+                             */
+                            expiresAt: string | null;
                             result?: {
                                 rows: number;
                                 /**
@@ -5475,6 +5555,21 @@ export interface operations {
                         progress: {
                             [key: string]: number;
                         };
+                        /**
+                         * Format: date-time
+                         * @description When it was started.
+                         */
+                        createdAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When it completed or failed; null while it waits or runs.
+                         */
+                        finishedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it is no longer kept (7 days after it ended): from then on it is neither listed nor found, nor its link given. null while it waits or runs.
+                         */
+                        expiresAt: string | null;
                         result?: {
                             rows: number;
                             /**
@@ -7177,14 +7272,25 @@ export interface operations {
                              */
                             scheduledFor: string;
                         } | null;
-                        /** @description The latest version accepted of each kind. */
+                        /** @description Each kind you accepted: the latest version, and whether it was withdrawn. */
                         consents: {
                             /** @example terms */
                             kind: string;
-                            /** @example 2026-01 */
+                            /**
+                             * @description The version accepted last.
+                             * @example 2026-01
+                             */
                             version: string;
-                            /** Format: date-time */
+                            /**
+                             * Format: date-time
+                             * @description When it was accepted last.
+                             */
                             acceptedAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                             */
+                            withdrawnAt: string | null;
                         }[];
                     };
                 };
@@ -7217,15 +7323,116 @@ export interface operations {
             };
         };
         responses: {
-            /** @description { id, status } */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Follow it at GET /v1/data/transfers/{id}. */
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description Not signed in as a user. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+        };
+    };
+    AccountController_exports_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @enum {string} */
+                            kind: "export" | "import";
+                            name: string;
+                            /** @enum {string} */
+                            format: "csv" | "json" | "xlsx";
+                            /** @enum {string} */
+                            status: "queued" | "running" | "completed" | "failed";
+                            progress: {
+                                [key: string]: number;
+                            };
+                            /**
+                             * Format: date-time
+                             * @description When it was started.
+                             */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it completed or failed; null while it waits or runs.
+                             */
+                            finishedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it is no longer kept (7 days after it ended): from then on it is neither listed nor found, nor its link given. null while it waits or runs.
+                             */
+                            expiresAt: string | null;
+                            result?: {
+                                rows: number;
+                                /**
+                                 * Format: uri
+                                 * @description The file, for 30m.
+                                 */
+                                url?: string;
+                                imported?: number;
+                                failed?: number;
+                                dryRun?: boolean;
+                                /**
+                                 * Format: uri
+                                 * @description A CSV of the refused rows: row, field, message.
+                                 */
+                                errorsUrl?: string;
+                            };
+                            error?: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
             /** @description Not signed in as a user. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Acting as another user. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7348,10 +7555,21 @@ export interface operations {
                         items: {
                             /** @example terms */
                             kind: string;
-                            /** @example 2026-01 */
+                            /**
+                             * @description The version accepted last.
+                             * @example 2026-01
+                             */
                             version: string;
-                            /** Format: date-time */
+                            /**
+                             * Format: date-time
+                             * @description When it was accepted last.
+                             */
                             acceptedAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                             */
+                            withdrawnAt: string | null;
                         }[];
                     };
                 };
@@ -7375,9 +7593,15 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example terms */
+                    /**
+                     * @description A kind GET /v1/account/consent-kinds lists.
+                     * @example terms
+                     */
                     kind: string;
-                    /** @example 2026-01 */
+                    /**
+                     * @description That kind's current `version`.
+                     * @example 2026-01
+                     */
                     version: string;
                 };
             };
@@ -7391,15 +7615,93 @@ export interface operations {
                     "application/json": {
                         /** @example terms */
                         kind: string;
-                        /** @example 2026-01 */
+                        /**
+                         * @description The version accepted last.
+                         * @example 2026-01
+                         */
                         version: string;
-                        /** Format: date-time */
+                        /**
+                         * Format: date-time
+                         * @description When it was accepted last.
+                         */
                         acceptedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                         */
+                        withdrawnAt: string | null;
+                    };
+                };
+            };
+            /** @description An unknown kind, or a version other than the current one (validation_failed, naming `kind` or `version`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in as a user. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountController_withdraw_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example terms */
+                        kind: string;
+                        /**
+                         * @description The version accepted last.
+                         * @example 2026-01
+                         */
+                        version: string;
+                        /**
+                         * Format: date-time
+                         * @description When it was accepted last.
+                         */
+                        acceptedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When it was withdrawn (DELETE /v1/account/consents/{kind}); null: in force.
+                         */
+                        withdrawnAt: string | null;
                     };
                 };
             };
             /** @description Not signed in as a user. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not given, or withdrawn already. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `consent_required`: a required kind; delete the account instead (POST /v1/account/deletion). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7442,6 +7744,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ConsentKindsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @example marketing */
+                            kind: string;
+                            /**
+                             * @description The version in force: the only one POST /v1/account/consents accepts. A consent of an older version is to be asked for again.
+                             * @example 2026-01
+                             */
+                            version: string;
+                            /** @description Needed to use the service (the terms, the privacy policy): it cannot be withdrawn, only the account deleted. false: optional, withdrawn at will. */
+                            required: boolean;
+                            /**
+                             * @description In the request's language.
+                             * @example Marketing emails
+                             */
+                            label: string;
+                            /** @description In the request's language. */
+                            description: string;
+                        }[];
+                    };
+                };
             };
         };
     };
@@ -12317,6 +12657,8 @@ export interface operations {
                             name: string;
                         } | null;
                         mfaEnabled: boolean;
+                        /** @description Your account has a password: changing it wants the current one, and so does asking for its deletion (POST /v1/account/deletion { password }). false: an invited account not yet set up, or one that signs in with a passkey, a provider or an email link only. */
+                        hasPassword: boolean;
                         /** @description true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`. */
                         mfaEnrollmentRequired: boolean;
                         authentication: {

@@ -115,7 +115,9 @@ import { SettingsService } from './settings/settings.service.js';
 import {
   AccountController,
   AccountDeletionLinkController,
+  ConsentKindsController,
 } from './account/account.controller.js';
+import { ConsentKinds } from './account/consent-kinds.js';
 import { AccountDeletionJob } from './account/account-deletion.job.js';
 import { AccountDeletionMail } from './account/account.mails.js';
 import { AccountLifecycleService } from './account/account.service.js';
@@ -348,6 +350,7 @@ export class PlatformModule {
         SettingsController,
         AccountController,
         AccountDeletionLinkController,
+        ConsentKindsController,
         SubscriptionsController,
         SearchController,
         ListsController,
@@ -477,6 +480,7 @@ export class PlatformModule {
         // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
         PersonalDataRegistry,
         AccountLifecycleService,
+        ConsentKinds,
         deletionCancelLinksProvider,
         AccountTransfer,
         AccountDeletionJob,
