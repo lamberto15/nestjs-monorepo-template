@@ -10157,7 +10157,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, outcomeAppliedAt, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -10213,6 +10213,11 @@ export interface operations {
                             outcomeReason: string | null;
                             /** Format: date-time */
                             endedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                             */
+                            outcomeAppliedAt: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -10313,6 +10318,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -10457,6 +10467,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -10623,6 +10638,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -10796,6 +10816,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -10969,6 +10994,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -11134,6 +11164,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -11303,6 +11338,11 @@ export interface operations {
                         outcomeReason: string | null;
                         /** Format: date-time */
                         endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
