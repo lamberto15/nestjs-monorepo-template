@@ -1,15 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, asc, eq, ilike, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { escapeLike } from '../../core/http/list-query.js';
+import { afterCursor, toPage } from '../../core/http/pagination.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
-import { apiClients, memberships, users } from '../../iam/iam.tables.js';
+import {
+  apiClients,
+  memberships,
+  teams,
+  teamTree,
+  users,
+} from '../../iam/iam.tables.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
+import type { TeamsQuery } from './people.schemas.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -20,13 +28,23 @@ export interface Person {
   name: string;
 }
 
+/** A team, as any member of the tenant may see it: its name and its place in the tree. */
+export interface TeamRef {
+  id: string;
+  name: string;
+  parentId: string | null;
+  /** 0 for a top-level team. */
+  depth: number;
+}
+
 /**
  * The people of the current tenant, as its members see each other: the
  * names behind the principal keys records store (a comment's `author`, a
- * revision's `changedBy`), and the directory @mention autocomplete
- * searches (GET /v1/people). Only a key and a name, never an address or
- * a role: the access API (`Access.manageUsers`) is where members are
- * managed. Users are global (docs/tenancy.md): every query is held to
+ * revision's `changedBy`; GET /v1/people?key=), the directory @mention
+ * autocomplete searches (GET /v1/people), and the teams' names and tree
+ * (GET /v1/teams). Only a key and a name, never an address or a role (a
+ * team: its id, name and place, never its members): the access API
+ * (`Access.manageUsers`, `manageTeams`) is where they are managed. Users are global (docs/tenancy.md): every query is held to
  * the tenant's memberships, so a key of someone outside it has no name
  * here. API clients are tenant rows behind row-level security.
  * Custom code: no @nestjs package resolves the app's own principals.
@@ -92,6 +110,72 @@ export class PeopleService {
       ...clients.map((row) => [`client:${row.id}`, row.name] as const),
     ]);
     return new Map(all.map((key) => [key, found.get(key) ?? null]));
+  }
+
+  /**
+   * The people behind these keys (`user:<id>`, `client:<id>`), in the order
+   * asked, each once: who `names()` names (a member or former member of the
+   * tenant, an API client of it). A key with no name here (another
+   * tenant's user, a removed client, an unknown id) is left out, so the
+   * answer never tells such a key from one that doesn't exist.
+   */
+  async named(keys: readonly string[]): Promise<Person[]> {
+    const names = await this.names(keys);
+    return [...names].flatMap(([key, name]) =>
+      name === null ? [] : [{ key, name }],
+    );
+  }
+
+  /**
+   * The tenant's teams as every member sees them (GET /v1/teams): id, name,
+   * parent and depth, nothing else (no members; the access API manages
+   * them). Newest first in cursor pages; `q` a part of the name (any case,
+   * `%` and `_` themselves), `id` the ones to name. Row-level security
+   * holds teams to the tenant; the explicit tenant condition keeps a
+   * scope that reads several tenants (an operator's) to the current one.
+   */
+  async teams(query: TeamsQuery) {
+    const tenantId = requireTenantId('The teams');
+    const rows = await this.db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        parentId: teams.parentId,
+      })
+      .from(teams)
+      .where(
+        and(
+          eq(teams.tenantId, tenantId),
+          query.q ? ilike(teams.name, `%${escapeLike(query.q)}%`) : undefined,
+          query.id ? inArray(teams.id, query.id) : undefined,
+          afterCursor(teams.id, query),
+        ),
+      )
+      .orderBy(desc(teams.id))
+      .limit(query.limit + 1);
+    const page = toPage(rows, query);
+    const ids = page.items.map((team) => team.id);
+    // A team is its own ancestor in the closure table: its depth is the count of its ancestors, minus one.
+    const depths = ids.length
+      ? await this.db
+          .select({ id: teamTree.descendantId, ancestors: count() })
+          .from(teamTree)
+          .where(
+            and(
+              eq(teamTree.tenantId, tenantId),
+              inArray(teamTree.descendantId, ids),
+            ),
+          )
+          .groupBy(teamTree.descendantId)
+      : [];
+    const depthOf = new Map(depths.map((row) => [row.id, row.ancestors - 1]));
+    return {
+      items: page.items.map((team): TeamRef => ({
+        ...team,
+        depth: depthOf.get(team.id) ?? 0,
+      })),
+      nextCursor: page.nextCursor,
+    };
   }
 
   /**
