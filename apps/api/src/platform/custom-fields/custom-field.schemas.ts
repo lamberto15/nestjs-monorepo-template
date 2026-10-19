@@ -52,8 +52,18 @@ export const customFieldListQuerySchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((value) => value === 'true'),
+    include: z
+      .enum(['counts'])
+      .optional()
+      .describe(
+        'counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields).',
+      ),
     lang: z.string().max(35).optional(),
   })
+  .strict();
+
+export const customFieldSubjectsQuerySchema = z
+  .object({ lang: z.string().max(35).optional() })
   .strict();
 
 export const createCustomFieldSchema = z
@@ -135,8 +145,32 @@ export const customFieldSchema = z.object({
   filterable: z.boolean(),
   sortable: z.boolean(),
   active: z.boolean(),
+  valueCount: z
+    .int()
+    .optional()
+    .describe(
+      'Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.',
+    ),
+  deletedValueCount: z
+    .int()
+    .optional()
+    .describe(
+      'Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.',
+    ),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+});
+
+export const customFieldSubjectSchema = z.object({
+  subject: z.string().meta({ example: 'Note' }),
+  label: z
+    .object({
+      singular: z.string().meta({ example: 'Note' }),
+      plural: z.string().meta({ example: 'Notes' }),
+    })
+    .describe(
+      "How the subject is named, in the response's language: one record and several.",
+    ),
 });
 
 /** `custom` on a feature's bodies: checked against the subject's fields by the service. */

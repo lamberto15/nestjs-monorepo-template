@@ -611,6 +611,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/custom-fields/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The subjects that take custom fields
+         * @description Each with its name in the response's language (`lang`). Only the subjects whose fields you may read (GET /custom-fields?subject=…: whoever may read the subject, or manages custom fields); a 403 when there are none.
+         */
+        get: operations["CustomFieldsController_subjects_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/custom-fields": {
         parameters: {
             query?: never;
@@ -620,7 +640,7 @@ export interface paths {
         };
         /**
          * A subject's custom fields, in their order
-         * @description For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true.
+         * @description For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true. ?include=counts adds how many records hold a value of each field (valueCount, and deletedValueCount for those in the recycle bin): one query over the subject's table, for those who manage custom fields only (403 otherwise).
          */
         get: operations["CustomFieldsController_list_v1"];
         put?: never;
@@ -5483,11 +5503,60 @@ export interface operations {
             };
         };
     };
+    CustomFieldsController_subjects_v1: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @example Note */
+                            subject: string;
+                            /** @description How the subject is named, in the response's language: one record and several. */
+                            label: {
+                                /** @example Note */
+                                singular: string;
+                                /** @example Notes */
+                                plural: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CustomFieldsController_list_v1: {
         parameters: {
             query: {
                 subject: string;
                 includeInactive?: "true" | "false";
+                /** @description counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields). */
+                include?: "counts";
                 lang?: string;
             };
             header?: never;
@@ -5531,6 +5600,10 @@ export interface operations {
                             filterable: boolean;
                             sortable: boolean;
                             active: boolean;
+                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                            valueCount?: number;
+                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                            deletedValueCount?: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -5659,6 +5732,10 @@ export interface operations {
                         filterable: boolean;
                         sortable: boolean;
                         active: boolean;
+                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                        valueCount?: number;
+                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                        deletedValueCount?: number;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -5748,6 +5825,10 @@ export interface operations {
                             filterable: boolean;
                             sortable: boolean;
                             active: boolean;
+                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                            valueCount?: number;
+                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                            deletedValueCount?: number;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -5890,6 +5971,10 @@ export interface operations {
                         filterable: boolean;
                         sortable: boolean;
                         active: boolean;
+                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                        valueCount?: number;
+                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                        deletedValueCount?: number;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */

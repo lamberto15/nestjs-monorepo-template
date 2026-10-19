@@ -166,6 +166,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/bulk/{id}',
         '/v1/custom-fields',
         '/v1/custom-fields/order',
+        '/v1/custom-fields/subjects',
         '/v1/custom-fields/{id}',
         '/v1/data',
         '/v1/data/exports',

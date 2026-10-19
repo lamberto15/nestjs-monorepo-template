@@ -35,13 +35,42 @@ POST   /v1/custom-fields          { subject, key, label, type, options?, require
 PATCH  /v1/custom-fields/{id}     label, description, type, options, required, default, validation, filterable, sortable, active
 PUT    /v1/custom-fields/order    { subject, ids }   these first, in this order; the others follow
 DELETE /v1/custom-fields/{id}     deactivates: no longer accepted or exported, values kept
-GET    /v1/custom-fields?subject=Note[&includeInactive=true]
+GET    /v1/custom-fields?subject=Note[&includeInactive=true][&include=counts]
+GET    /v1/custom-fields/subjects
 ```
 
 Reading the definitions needs only `read` on the subject (clients build
 forms and tables from them). Every change is audited
 (`customField.created`, `customField.updated` with from → to,
 `customField.reordered`).
+
+- **Which subjects take fields:** `GET /v1/custom-fields/subjects` answers
+  `{ items: [{ subject, label: { singular, plural } }] }`, the label in the
+  request's language (`lang`; the access catalog's subject names, as
+  `subjectLabel` in the search). Only the subjects whose fields the caller may
+  read, by the check of the list route (`CustomFieldPolicy.read`: `read` on
+  the subject, or `Access.manageCustomFields`); a caller who may read none
+  gets a 403. `GET /v1/lists/{subject}` says per subject whether it takes them
+  (`capabilities.custom`).
+- **How many records hold a value:** `?include=counts` on the list adds to
+  each field `valueCount` (records of the caller's tenant holding a value of
+  it) and `deletedValueCount` (those among the records in the recycle bin, 0
+  for a subject without one; they block a type change or a removed choice like
+  any other, so a confirmation to deactivate or change a field can say both).
+  A deactivated field's kept values are counted (`includeInactive=true`
+  lists them). Only for `Access.manageCustomFields` (403 otherwise), and
+  left out by default: it is one grouped query over the subject's whole table
+  (`jsonb_object_keys` of the values column, behind row-level security, so
+  one tenant never counts another's), not one per field, but a scan, not an
+  index lookup. A per-field `/usage` route would have scanned the table once
+  per field.
+- **Errors name their input:** an invalid definition is a 400
+  `validation_failed` whose `errors[].path` is dotted, as everywhere
+  (docs/api-conventions.md): `validation.pattern`, `validation.min`,
+  `options.2.value` (a repeated or comma-bearing option value is reported on
+  each offending option, not on `options`), `options.0.label`, `default`;
+  `options` alone when the whole list is wrong (a choice field without
+  options, options on a type that takes none).
 
 Rules that keep stored values meaningful:
 
