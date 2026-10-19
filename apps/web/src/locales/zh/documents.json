@@ -1,0 +1,23 @@
+{
+  "title": "文档",
+  "empty": "尚未生成任何文档。",
+  "error": "无法加载文档。",
+  "issue": "生成 PDF",
+  "language": "语言",
+  "issuedAt": "生成于",
+  "byYou": "由你生成",
+  "byOther": "由其他人生成",
+  "byAnonymized": "由已删除的账户生成",
+  "download": "下载 {{name}}",
+  "downloadShort": "下载",
+  "pending": "该文档正在生成中，完成后会显示在这里。",
+  "unavailable": "PDF 文档暂时不可用：功能已关闭，或 PDF 服务已停止。请稍后再试。",
+  "status": {
+    "progressLabel": "正在生成文档",
+    "queued": "等待生成…",
+    "rendering": "正在生成 PDF…",
+    "failed": "无法生成该文档。",
+    "error": "无法加载文档状态。",
+    "dismiss": "关闭"
+  }
+}
