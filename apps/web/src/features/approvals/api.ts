@@ -52,7 +52,7 @@ export const inboxQuery = (tab: Tab, poll: number | false) =>
         api.GET('/v1/approvals', {
           params: {
             query: {
-              limit: String(PAGE_SIZE),
+              limit: PAGE_SIZE,
               ...(pageParam && { cursor: pageParam }),
               ...tabFilter(tab),
             },
@@ -74,8 +74,8 @@ export const pendingCountQuery = (poll: number | false) =>
             params: {
               query: {
                 assignedToMe: 'true',
-                limit: '1',
-                page: '1',
+                limit: 1,
+                page: 1,
                 count: 'true',
               },
             },
@@ -114,7 +114,7 @@ export const recordApprovalQuery = (subject: string, recordId: string) =>
               subject,
               recordId,
               'status.in': 'pending,changes_requested',
-              limit: '1',
+              limit: 1,
             },
           },
         }),
