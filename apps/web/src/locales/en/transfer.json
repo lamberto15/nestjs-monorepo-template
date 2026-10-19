@@ -2,7 +2,8 @@
   "nav": "Exports and imports",
   "kind": {
     "export": "Export",
-    "import": "Import"
+    "import": "Import",
+    "bulk": "Bulk run"
   },
   "formats": {
     "csv": "CSV",
@@ -24,8 +25,18 @@
   "mine": {
     "title": "Exports and imports",
     "import": "Import a file",
-    "description": "The exports and imports started in this browser. A download link works for 30 minutes after the file is made; open the export again for a new one.",
-    "empty": "Nothing yet. Export from a list, or import a file."
+    "description": "Your exports, imports and bulk runs in this tenant, on any device. A download link works for 30 minutes after the file is made; open the export again for a new one.",
+    "empty": "Nothing yet. Export from a list, or import a file.",
+    "more": "Show more",
+    "error": "The list could not be loaded.",
+    "bulkTitle": "Bulk runs",
+    "filter": {
+      "label": "Show",
+      "all": "All",
+      "export": "Exports",
+      "import": "Imports",
+      "bulk": "Bulk runs"
+    }
   },
   "import": {
     "action": "Import",
@@ -72,5 +83,11 @@
     "failed": "It failed. Try again.",
     "notFound": "This transfer is no longer available.",
     "error": "Its status could not be loaded."
+  },
+  "bulk": {
+    "queued": "Waiting for a worker…",
+    "running": "Working… {{count}} processed so far.",
+    "result": "{{done}} done, {{failed}} failed, {{skipped}} skipped.",
+    "failed": "The run stopped."
   }
 }

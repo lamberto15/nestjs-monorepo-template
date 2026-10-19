@@ -1,47 +1,61 @@
-import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
-import { useQueries } from '@tanstack/react-query';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@nestjs-monorepo-template/ui/components/select';
+import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
+import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDateTimeFormat } from '@/lib/date-time';
-import { useMe } from '@/lib/features';
-import { forget, readHistory, transferQuery, type Started } from './api';
+import {
+  bulkListQuery,
+  transfersListQuery,
+  type BulkRun,
+  type TransferKind,
+} from './api';
 import { TransferStatus } from './transfer-status';
 
+type Show = 'all' | TransferKind | 'bulk';
+
 /**
- * Past exports and imports of this browser. The API has no list of
- * transfers (only one by id), so the ids come from what this browser
- * started (`readHistory`); one the API no longer knows (another tenant,
- * cleaned up) is dropped.
+ * The caller's exports, imports and bulk runs in this tenant, from the API
+ * (`GET /v1/data/transfers`, `GET /v1/bulk`): newest first, a page at a
+ * time, including those started on other devices or by scheduled reports.
  */
 export function TransfersPage() {
   const { t } = useTranslation('transfer');
-  const me = useMe();
-  const userId = me?.user.id ?? '';
-  const [items] = useState<Started[]>(() => readHistory(userId));
-  const date = useDateTimeFormat();
+  const [show, setShow] = useState<Show>('all');
+  const showTransfers = show !== 'bulk';
+  const showBulk = show === 'all' || show === 'bulk';
+  const kind = show === 'export' || show === 'import' ? show : undefined;
 
-  const results = useQueries({
-    queries: items.map((item) => ({
-      ...transferQuery(item.id),
-      meta: { errorToast: false },
-      retry: false,
-    })),
+  const transfers = useInfiniteQuery({
+    ...transfersListQuery(kind),
+    enabled: showTransfers,
   });
-  // One the API no longer knows (404) is hidden now and forgotten for next time.
-  const gone = items
-    .filter((_item, index) => {
-      const error = results[index]?.error;
-      return isApiError(error) && error.status === 404;
-    })
-    .map((item) => item.id);
-  const goneKey = gone.join(',');
-  useEffect(() => {
-    for (const id of goneKey ? goneKey.split(',') : []) forget(userId, id);
-  }, [goneKey, userId]);
-  const shown = items.filter((item) => !gone.includes(item.id));
+  const bulk = useInfiniteQuery({ ...bulkListQuery, enabled: showBulk });
+
+  const items = showTransfers
+    ? (transfers.data?.pages.flatMap((page) => page.items) ?? [])
+    : [];
+  const runs = showBulk ? (bulk.data?.pages.flatMap((p) => p.items) ?? []) : [];
+  const pending =
+    (showTransfers && transfers.isPending) || (showBulk && bulk.isPending);
+  const failed =
+    (showTransfers && transfers.isError) || (showBulk && bulk.isError);
+
+  const filters: { value: Show; label: string }[] = [
+    { value: 'all', label: t('mine.filter.all') },
+    { value: 'export', label: t('mine.filter.export') },
+    { value: 'import', label: t('mine.filter.import') },
+    { value: 'bulk', label: t('mine.filter.bulk') },
+  ];
 
   return (
     <section className="flex flex-col gap-4">
@@ -56,7 +70,29 @@ export function TransfersPage() {
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">{t('mine.description')}</p>
-      {shown.length === 0 ? (
+      <Select
+        items={filters}
+        value={show}
+        onValueChange={(value) => setShow((value as Show | null) ?? 'all')}
+      >
+        <SelectTrigger aria-label={t('mine.filter.label')} className="w-fit">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {filters.map((entry) => (
+            <SelectItem key={entry.value} value={entry.value}>
+              {entry.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {pending ? (
+        <Skeleton className="h-20 w-full" aria-busy />
+      ) : failed ? (
+        <p role="alert" className="text-sm text-destructive">
+          {t('mine.error')}
+        </p>
+      ) : items.length === 0 && runs.length === 0 ? (
         <p
           role="status"
           className="rounded-md border p-8 text-center text-sm text-muted-foreground"
@@ -64,19 +100,107 @@ export function TransfersPage() {
           {t('mine.empty')}
         </p>
       ) : (
-        <ul className="flex flex-col gap-3" aria-label={t('mine.title')}>
-          {shown.map((item) => (
-            <li key={item.id} className="rounded-lg border p-3">
-              <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="outline">{t(`kind.${item.kind}`)}</Badge>
-                <span className="font-medium">{item.name}</span>
-                <span className="text-muted-foreground">{date(item.at)}</span>
-              </div>
-              <TransferStatus id={item.id} />
-            </li>
-          ))}
-        </ul>
+        <>
+          {items.length > 0 && <TransferRows items={items} />}
+          {showTransfers && transfers.hasNextPage && (
+            <MoreButton
+              busy={transfers.isFetchingNextPage}
+              onClick={() => void transfers.fetchNextPage()}
+            />
+          )}
+          {runs.length > 0 && <BulkRows runs={runs} />}
+          {showBulk && bulk.hasNextPage && (
+            <MoreButton
+              busy={bulk.isFetchingNextPage}
+              onClick={() => void bulk.fetchNextPage()}
+            />
+          )}
+        </>
       )}
     </section>
+  );
+}
+
+function MoreButton(props: { busy: boolean; onClick: () => void }) {
+  const { t } = useTranslation('transfer');
+  return (
+    <Button
+      variant="outline"
+      className="self-start"
+      disabled={props.busy}
+      onClick={props.onClick}
+    >
+      {props.busy && <Spinner />}
+      {t('mine.more')}
+    </Button>
+  );
+}
+
+function TransferRows(props: {
+  items: { id: string; kind: TransferKind; name: string }[];
+}) {
+  const { t } = useTranslation('transfer');
+  return (
+    <ul className="flex flex-col gap-3" aria-label={t('mine.title')}>
+      {props.items.map((item) => (
+        <li key={item.id} className="rounded-lg border p-3">
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="outline">{t(`kind.${item.kind}`)}</Badge>
+            <span className="font-medium">{item.name}</span>
+          </div>
+          <TransferStatus id={item.id} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BulkRows(props: { runs: BulkRun[] }) {
+  const { t } = useTranslation('transfer');
+  return (
+    <ul className="flex flex-col gap-3" aria-label={t('mine.bulkTitle')}>
+      {props.runs.map((run) => (
+        <li key={run.id} className="rounded-lg border p-3" data-bulk={run.id}>
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="outline">{t('kind.bulk')}</Badge>
+            <span className="font-medium">
+              {run.name} · {run.action}
+            </span>
+          </div>
+          <BulkState run={run} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BulkState(props: { run: BulkRun }) {
+  const { t } = useTranslation('transfer');
+  const { run } = props;
+  if (run.status === 'failed') {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {run.error ?? t('bulk.failed')}
+      </p>
+    );
+  }
+  if (run.status === 'queued') {
+    return <p className="text-sm text-muted-foreground">{t('bulk.queued')}</p>;
+  }
+  if (run.status === 'running') {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t('bulk.running', { count: run.progress.processed ?? 0 })}
+      </p>
+    );
+  }
+  return (
+    <p className="text-sm">
+      {t('bulk.result', {
+        done: run.result?.done ?? 0,
+        failed: run.result?.failed ?? 0,
+        skipped: run.result?.skipped ?? 0,
+      })}
+    </p>
   );
 }
