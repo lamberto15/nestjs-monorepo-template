@@ -145,6 +145,10 @@
       "label": "Aufbewahrung der Mail-Ereignisse",
       "description": "Löscht jede Nacht Bounce-, Beschwerde- und Zustellereignisse, die älter als MAIL_EVENTS_RETENTION_DAYS sind."
     },
+    "webhook-delivery-retention": {
+      "label": "Aufbewahrung der Webhook-Zustellungen",
+      "description": "Löscht jede Nacht ausgehende Webhook-Zustellungen, die vor mehr als WEBHOOKS_DELIVERY_RETENTION_DAYS abgeschlossen wurden, samt Versuchsprotokoll und aufgezeichneten Anfragen (nie eine, die noch wiederholt wird)."
+    },
     "demo-seed": {
       "label": "Demodaten",
       "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Teams und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."
