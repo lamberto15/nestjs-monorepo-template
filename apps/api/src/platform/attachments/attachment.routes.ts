@@ -25,7 +25,6 @@ import {
   ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import type { ListQuery } from '../../core/http/list-query.js';
-import { pageSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   aNounOf,
@@ -35,6 +34,7 @@ import {
 } from '../records/record-routes.js';
 import { ATTACHMENT_LIST } from './attachment.list.js';
 import {
+  attachmentPageSchema,
   attachmentSchema,
   attachmentUploadSchema,
 } from './attachment.schemas.js';
@@ -89,7 +89,7 @@ export function attachmentRoutes(spec: RecordRouteSpec): Type {
       summary: `${aNounOf(spec).replace(/^a/, 'A')}'s attachments, newest first`,
       description: `Whoever may read the ${noun}.`,
     })
-    @ApiOkResponse({ standardSchema: pageSchema(attachmentSchema) })
+    @ApiOkResponse({ standardSchema: attachmentPageSchema })
     @ApiNotFoundResponse()
     async list(
       @CurrentUser() user: Principal,
