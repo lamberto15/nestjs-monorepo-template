@@ -318,6 +318,7 @@ describe('the example feature: notes (e2e)', () => {
         update: true,
         delete: true,
         restore: false,
+        issue: false,
       });
       // Not part of the tag: the If-Match of a page that asked for `can` works.
       await editor
@@ -335,6 +336,7 @@ describe('the example feature: notes (e2e)', () => {
         update: false,
         delete: false,
         restore: false,
+        issue: false,
       });
       // As the routes decide.
       await editor
@@ -353,6 +355,7 @@ describe('the example feature: notes (e2e)', () => {
         update: true,
         delete: true,
         restore: false,
+        issue: false,
       });
       await admin.delete(`/v1/notes/${note.id}`).expect(204);
       const bin = await admin
@@ -360,7 +363,12 @@ describe('the example feature: notes (e2e)', () => {
         .expect(200);
       expect(
         bin.body.items.find((item: { id: string }) => item.id === note.id).can,
-      ).toEqual({ update: false, delete: false, restore: true });
+      ).toEqual({
+        update: false,
+        delete: false,
+        restore: true,
+        issue: false,
+      });
     });
 
     it("evaluates an API client's own: its drafts, not another client's", async () => {
@@ -375,7 +383,7 @@ describe('the example feature: notes (e2e)', () => {
         {
           id: note.id,
           title: note.title,
-          can: { update: true, delete: true, restore: false },
+          can: { update: true, delete: true, restore: false, issue: false },
         },
       ]);
       expect(

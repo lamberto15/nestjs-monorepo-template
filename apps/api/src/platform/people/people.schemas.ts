@@ -90,7 +90,15 @@ export const teamsQuerySchema = z
       .describe(
         `Team ids to name, comma-separated, ${MAX_LIMIT} at most: an id your tenant has no team of is left out of the answer.`,
       ),
-    limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_LIMIT)
+      .default(DEFAULT_LIMIT)
+      .describe(
+        `Teams a page holds: ${DEFAULT_LIMIT} without it, ${MAX_LIMIT} at most (more is a 400). It applies with \`id\` too: send at least as many as the ids.`,
+      ),
     cursor: z
       .uuid()
       .optional()

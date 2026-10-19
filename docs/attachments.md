@@ -8,7 +8,7 @@ example (`features/notes/note-attachments.ts`, `attachmentRoutes()` in `notes.mo
 | --- | --- |
 | `POST /v1/notes/{id}/attachments` (multipart, field `file`) | 201, the attachment; who may change the note (`Note.update`) |
 | `GET /v1/notes/{id}/attachments` | a page of them, newest first (`?contentType=`, `?name.contains=`, `size`, `createdAt`); who may read the note |
-| `GET /v1/attachments/{id}/download` | 302 to a signed link to the file (5 minutes, no credentials needed: a link or an image works) |
+| `GET /v1/attachments/{id}/download` | 302 to a signed link to the file (5 minutes, no credentials needed: a link or an image works); `?inline=true` shows a PDF in the browser |
 | `DELETE /v1/attachments/{id}` | 204; the uploader, or who may change the record; the file goes too |
 
 A feature registers an `AttachmentTarget` and adds the two record routes:
@@ -54,6 +54,27 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
 - **Downloads** are the disk's signed links: served at `/files` on a local
   disk, by the bucket on S3, with `Content-Disposition: attachment` and
   the file's name, `nosniff`.
+- **Preview** (`?inline=true`): a PDF comes as `Content-Disposition:
+  inline`, so a browser shows it (a preview in a new tab). Only
+  `application/pdf` (`INLINE_TYPES`), the type read from its bytes at
+  upload: any other type stays `attachment` whatever is asked, HTML, SVG
+  and anything else that can script above all (and the storage package
+  forces those to `attachment` again when it serves them). The disposition
+  is part of what the link signs (the local disk's claims; S3's
+  `response-content-disposition`, inside the SigV4 signature): turning a
+  download link into a preview is a 403. Every file `/files` serves
+  carries `Content-Security-Policy: default-src 'none'; frame-ancestors
+  'none'; sandbox` (`FILE_CSP`, in place of the API's own policy) and
+  `X-Content-Type-Options: nosniff`: nothing loads, nothing runs, no page
+  frames it, and it is its own opaque origin. Chrome's PDF viewer renders
+  under it (checked with Chrome 155: the viewer loads the document and its
+  pages); `sandbox` is kept since nothing a PDF needs is lost. A web app
+  opens the preview in a new tab (`frame-ancestors 'none'` refuses an
+  `<iframe>`). **On S3** the bucket answers the link: S3 has no parameter
+  for a CSP or `nosniff`, so the inline PDF comes with the `Content-Type`
+  stored at upload (`application/pdf`) and the disposition only; add the
+  two headers at the CDN in front of the bucket (a CloudFront response
+  headers policy) if you serve previews from S3.
 - **Deleted records:** a record in the recycle bin keeps its files, hidden
   with it (404) until restored. Once it is gone for good (purged by
   SoftDeletePurgeJob, or deleted outright), the nightly sweep

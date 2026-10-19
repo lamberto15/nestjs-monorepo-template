@@ -66,7 +66,7 @@ before.
 | --- | --- |
 | The route | `@Can(NotePolicy, 'create')` |
 | One record | `authorization.authorize(NotePolicy, 'read', user, note)` |
-| What a reader may do with records (`?include=can`) | `recordCan(authorization, NotePolicy, user, rows, actions)` (`platform/records/record-can.ts`): the same policy check per record and action, `authorization.can()`, in memory |
+| What a reader may do with records (`?include=can`) | `recordCan(authorization, NotePolicy, user, rows, actions, flags)` (`platform/records/record-can.ts`): the same policy check per record and action, `authorization.can()`, in memory; `flags` for what is not one action (`issue`) |
 | A list | `access.sqlFilter(user, 'Note', 'read')`: a SQL condition, so lists never load what they'd hide |
 | Fields read | `access.redact(user, 'read', 'Note', note)` / `redactAll()` |
 | Fields written | `access.forbiddenFields(user, 'update', 'Note', changes, note)` → 403 `field_forbidden` |
@@ -83,6 +83,16 @@ route would answer. The ability is the request's, loaded once (cached per
 tenant and principal): no query per row. Generated features get it from
 `RecordPresenter` (`one(user, row, include)`, `page()`); a policy's own
 rule (an override in `<x>.policy.ts`) is in it with nothing to add.
+
+A subject with PDFs (the `pdf` capability, notes) adds `issue`: what
+`POST …/{id}/pdf` checks before it queues, in its order
+(`DocumentsService.issueFlag()`, a `CanFlag` of `recordCan()`): documents on
+(`GOTENBERG_URL` set; unset, `issue` is `false`, where the route answers
+503), the record readable (the policy's `read`; never one in the recycle
+bin, which the route can't find), and the source's `canIssue` (false: the
+route's 403). Generic sources and notes allow whoever may read; a feature
+whose `canIssue` queries per record pays that query per row of an
+`?include=can` page.
 
 ### Field-level permissions and lists
 
@@ -296,8 +306,10 @@ GET /v1/teams?q=north&limit=50
 - **Query:** `q`, a part of the name, whatever the case (1 to 100
   characters; `%` and `_` are the characters); `id=<id>,<id>` (1 to 100)
   the teams to name, an id the tenant has no team of left out; cursor
-  pages, newest first (`limit` 1 to 100, default 50; `cursor` the previous
-  page's `nextCursor`): read every page to build the tree from `parentId`.
+  pages, newest first (`limit` 1 to 100, default 50, the same with `id`:
+  send at least as many as the ids; over 100 is a 400; `cursor` the
+  previous page's `nextCursor`): read every page to build the tree from
+  `parentId`. The route's Swagger description and its `limit` say so too.
   Anything else is a 400. Users only, as `GET /v1/people` (an API key:
   401).
 - Rate-limited as every route.
@@ -351,7 +363,7 @@ template's: `seed`, `audit-retention`, `soft-delete-purge` (IAM,
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
 `attachment-sweep`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
-`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention` (platform,
+`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention` (platform,
 `platform/platform.jobs.ts`); `note-publication` (notes); `demo-seed` (the
 demo seed, `src/demo/demo.jobs.ts`, [development](development.md), "Demo data").
 
@@ -448,5 +460,13 @@ name or address of the member, or the name of the API client, the entry
 names. Only members (a membership in the entry's tenant) and clients of
 the entry's tenant are looked up, and only the caller's tenant's entries
 are read: another tenant's people never match, and nothing is matched that
-the access lists don't already show the caller (`readAudit` opens them). A nightly job
-deletes entries older than `AUDIT_RETENTION_DAYS`.
+the access lists don't already show the caller (`readAudit` opens them).
+Each entry also names its actor as they are called now (`actorName`): a
+member or former member of the tenant, an API client of it, looked up for
+the whole page at once (`AuditService.withActorNames()`, through the
+`ACTOR_NAMES` token the platform provides with `PeopleService.names()`,
+so IAM imports nothing of the platform); `null` for `system:<key>`,
+`anonymous`, a deleted account or a removed client, where `actorLabel` is
+what there is. `actorLabel` keeps what the entry stored when it was
+written. The response is typed in OpenAPI (`AuditPage` of `AuditEntry`).
+A nightly job deletes entries older than `AUDIT_RETENTION_DAYS`.

@@ -1,5 +1,5 @@
 import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
-import { queryOptions } from '@tanstack/react-query';
+import { queryOptions, useQueries } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 /**
@@ -34,4 +34,167 @@ export function peopleQuery(term: string) {
       ).items,
     staleTime: 60_000,
   });
+}
+
+// ------------------------------------------------------------------ names
+
+/**
+ * Names for the keys and ids a page shows (`ownerId`, `teamId`, an audit
+ * actor, a mention): `usePeopleNames(keys)` asks `GET /v1/people?key=`,
+ * `useTeamNames(ids)` asks `GET /v1/teams?id=`, both open to every member.
+ *
+ * Each key is a query of its own (TanStack Query's `useQueries`: the same key
+ * asked by many cells is one query, kept long), but the requests are not:
+ * every key asked within one tick of the clock goes in one request, the
+ * "batcher" (DataLoader's pattern) below, in chunks of what the route takes.
+ * Custom code, because Query has no batching of its own.
+ */
+type Waiter = {
+  resolve: (name: string | null) => void;
+  reject: (error: unknown) => void;
+};
+
+/** The wait for more keys before asking: one render's effects all land within it. */
+const BATCH_DELAY_MS = 5;
+
+function createBatcher(
+  size: number,
+  load: (keys: string[]) => Promise<Map<string, string>>,
+) {
+  let waiting = new Map<string, Waiter[]>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const flush = () => {
+    const batch = waiting;
+    waiting = new Map();
+    timer = undefined;
+    const keys = [...batch.keys()];
+    for (let at = 0; at < keys.length; at += size) {
+      const chunk = keys.slice(at, at + size);
+      load(chunk).then(
+        (found) => {
+          for (const key of chunk) {
+            for (const waiter of batch.get(key) ?? []) {
+              waiter.resolve(found.get(key) ?? null);
+            }
+          }
+        },
+        (error: unknown) => {
+          for (const key of chunk) {
+            for (const waiter of batch.get(key) ?? []) waiter.reject(error);
+          }
+        },
+      );
+    }
+  };
+
+  return (key: string) =>
+    new Promise<string | null>((resolve, reject) => {
+      const waiters = waiting.get(key) ?? [];
+      waiters.push({ resolve, reject });
+      waiting.set(key, waiters);
+      timer ??= setTimeout(flush, BATCH_DELAY_MS);
+    });
+}
+
+/** The most keys `GET /v1/people?key=` takes at once. */
+const PEOPLE_BATCH = 20;
+/** The most ids `GET /v1/teams?id=` takes at once. */
+const TEAM_BATCH = 100;
+
+const askPerson = createBatcher(PEOPLE_BATCH, async (keys) => {
+  const { items } = await unwrap(
+    api.GET('/v1/people', { params: { query: { key: keys.join(',') } } }),
+  );
+  return new Map(items.map((person) => [person.key, person.name]));
+});
+
+const askTeam = createBatcher(TEAM_BATCH, async (ids) => {
+  const found = new Map<string, string>();
+  for await (const team of api.items('/v1/teams', {
+    id: ids.join(','),
+    limit: 100,
+  })) {
+    found.set(team.id, team.name);
+  }
+  return found;
+});
+
+// What the routes accept: anything else is a 400, so it is never asked.
+const PERSON_KEY =
+  /^(?:user|client):[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+const TEAM_ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
+/** Names rarely change, and a new name is not worth a request per page. */
+const NAME_STALE_MS = 30 * 60_000;
+
+/** One person's name by key (null: nobody of this tenant has it). */
+export const personNameQuery = (key: string) =>
+  queryOptions({
+    queryKey: ['people', 'name', key],
+    queryFn: () => askPerson(key),
+    staleTime: NAME_STALE_MS,
+    gcTime: 2 * NAME_STALE_MS,
+    retry: false,
+    meta: { errorToast: false },
+  });
+
+/** One team's name by id (null: this tenant has no such team). */
+export const teamNameQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['teams', 'name', id],
+    queryFn: () => askTeam(id),
+    staleTime: NAME_STALE_MS,
+    gcTime: 2 * NAME_STALE_MS,
+    retry: false,
+    meta: { errorToast: false },
+  });
+
+/** The names of some keys: the key itself while loading and when unknown. */
+export interface Names {
+  /** The name, or the key itself (loading, unknown, or not a person's key). */
+  name: (key: string) => string;
+  /** The name; undefined while loading and when unknown. */
+  get: (key: string) => string | undefined;
+  /** Some name is still being asked for. */
+  pending: boolean;
+}
+
+function useNames(
+  keys: readonly (string | null | undefined)[],
+  valid: RegExp,
+  options: (key: string) => ReturnType<typeof personNameQuery>,
+): Names {
+  const wanted = [
+    ...new Set(keys.filter((k): k is string => !!k && valid.test(k))),
+  ];
+  const { found, pending } = useQueries({
+    queries: wanted.map(options),
+    combine: (results) => {
+      const found = new Map<string, string>();
+      results.forEach((result, index) => {
+        if (result.data) found.set(wanted[index]!, result.data);
+      });
+      return { found, pending: results.some((r) => r.isPending) };
+    },
+  });
+  return {
+    name: (key) => found.get(key) ?? key,
+    get: (key) => found.get(key),
+    pending,
+  };
+}
+
+/** The names of these principal keys (`user:<id>`, `client:<id>`), one request per 20. */
+export function usePeopleNames(
+  keys: readonly (string | null | undefined)[],
+): Names {
+  return useNames(keys, PERSON_KEY, personNameQuery);
+}
+
+/** The names of these team ids, one request per 100. */
+export function useTeamNames(
+  ids: readonly (string | null | undefined)[],
+): Names {
+  return useNames(ids, TEAM_ID, teamNameQuery);
 }

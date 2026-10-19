@@ -100,6 +100,25 @@ describe('comments', () => {
     expect(within(thread).getByText('You')).toBeVisible();
   });
 
+  it('names the mentions the API named', async () => {
+    const OTTO = '0199a3f2-0000-7000-8000-000000000004';
+    usePanelsApi({
+      comments: [
+        {
+          body: `cc @user:${OTTO}`,
+          mentions: [`user:${OTTO}`],
+          mentionNames: { [`user:${OTTO}`]: 'Otto Lang' },
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Comments');
+    const thread = await screen.findByRole('list', { name: 'Comments' });
+    expect(thread.querySelector('[data-mention]')).toHaveTextContent(
+      '@Otto Lang',
+    );
+  });
+
   it("names authors as the API does, and someone it doesn't", async () => {
     const stranger = '0199a3f2-0000-7000-8000-000000000003';
     usePanelsApi({

@@ -878,6 +878,18 @@ function SearchSelectFilterValue<TData extends RowData>({
   })) {
     for (const option of options ?? []) labels.set(option.value, option.label);
   }
+  // The values held that nothing above names: the lookup by key (batched).
+  const held = (
+    Array.isArray(filter.value)
+      ? filter.value
+      : filter.value
+        ? [filter.value]
+        : []
+  ).filter((value): value is string => typeof value === 'string');
+  const nameOf = search.useNames?.(held.filter((value) => !labels.has(value)));
+  for (const value of held) {
+    if (!labels.has(value) && nameOf) labels.set(value, nameOf(value));
+  }
   const items = [...labels].map(([value, label]) => ({ value, label }));
 
   return (

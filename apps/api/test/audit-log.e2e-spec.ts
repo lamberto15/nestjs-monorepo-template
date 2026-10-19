@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type request from 'supertest';
 import { pageSchema } from '../src/core/http/pagination.js';
 import { auditEntrySchema } from '../src/iam/access/access.schemas.js';
+import { auditLog } from '../src/iam/iam.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
 /**
@@ -152,6 +153,59 @@ describe('audit log and search labels (e2e)', () => {
     expect(await audit({ 'actorLabel.contains': `${tag}%` })).toEqual([]);
     expect(await audit({ 'actorLabel.contains': 'a_a-' })).toEqual([]);
     expect(await audit({ 'actorLabel.contains': `nobody-${tag}` })).toEqual([]);
+  });
+
+  it("names each entry's actor as they are called now (actorName), next to the label it stored", async () => {
+    const tag = randomUUID().slice(0, 8);
+    const ada = await editorNamed(`Ada ${tag}`, `ada-${tag}@example.com`);
+    await node.writeItem(ada.agent, { title: 'By Ada' }).expect(201);
+    const client = await node.client(`Billing ${tag}`);
+    await node.writeItem(client.auth, { title: 'By Billing' }).expect(201);
+    // Actors with no name in the tenant: a system job, someone unknown.
+    const ghost = `user:${randomUUID()}`;
+    await node.db.insert(auditLog).values(
+      ['system:nightly', ghost].map((actor) => ({
+        tenantId: node.tenantId,
+        actor,
+        actorLabel: `label of ${actor}`,
+        action: `test.${tag}`,
+      })),
+    );
+
+    const created = await audit({
+      action: 'testItem.created',
+      'actor.in': `user:${ada.id},client:${client.id}`,
+    });
+    const named = (actor: string) =>
+      created.find((entry) => entry.actor === actor);
+    // The member: the address the entry stored, the name they have now.
+    expect(named(`user:${ada.id}`)).toMatchObject({
+      actorLabel: `ada-${tag}@example.com`,
+      actorName: `Ada ${tag}`,
+    });
+    expect(named(`client:${client.id}`)).toMatchObject({
+      actorLabel: `Billing ${tag}`,
+      actorName: `Billing ${tag}`,
+    });
+    // Nobody named: null, the label is what there is.
+    expect(
+      Object.fromEntries(
+        (await audit({ action: `test.${tag}` })).map((entry) => [
+          entry.actor,
+          entry.actorName,
+        ]),
+      ),
+    ).toEqual({ 'system:nightly': null, [ghost]: null });
+    // `fields=` picks it like any other.
+    const picked = (
+      await node
+        .admin()
+        .get('/v1/access/audit')
+        .query({ actor: `user:${ada.id}`, fields: 'actorName' })
+        .expect(200)
+    ).body.items as Record<string, unknown>[];
+    expect(picked.length).toBeGreaterThan(0);
+    expect(Object.keys(picked[0]!).sort()).toEqual(['actorName', 'id']);
   });
 
   it('is refused to whoever may not read the audit log', async () => {

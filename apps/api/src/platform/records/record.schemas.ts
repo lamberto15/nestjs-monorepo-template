@@ -80,7 +80,9 @@ export function recordSchemas<const D extends RecordDeclaration>(
         .nullable()
         .describe('Who deleted it: `user:<id>` or `client:<id>`.'),
     }),
-    can: recordCanSchema(declaration.softDelete),
+    can: recordCanSchema(declaration.softDelete, {
+      issue: takes(declaration, 'pdf'),
+    }),
   });
   const actions = [
     'delete',

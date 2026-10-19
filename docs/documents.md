@@ -11,9 +11,11 @@ notes are the example (`features/notes/note-documents.ts`,
 
 | Route | Does |
 | --- | --- |
-| `POST /v1/notes/{id}/pdf` (`Idempotency-Key` required) | 202 `{ id, status: "queued" }`; whoever may read the note; 10 a minute per user |
+| `POST /v1/notes/{id}/pdf` (`Idempotency-Key` required; `?lang=`) | 202 `{ id, status: "queued" }`; whoever may read the note; 10 a minute per user |
+| `GET /v1/notes/{id}/documents` | a page of the note's documents, newest first, in progress ones too: `{ items: [{ id, status, template, language, issuedBy: { key, name }, createdAt, finishedAt, attachmentId, error }], nextCursor }` (`?status=`, `?template=`, `?language=`, `createdAt`); whoever may read the note |
 | `GET /v1/documents/{id}` | `{ id, source, subject, recordId, locale, status, attachmentId, error, issuedAt, … }`; whoever may read the record and every field the document shows |
-| `GET /v1/attachments/{attachmentId}/download` | 302 to a signed link to the PDF (5 minutes); whoever may read the record and every field the document shows |
+| `GET /v1/attachments/{attachmentId}/download` | 302 to a signed link to the PDF (5 minutes); `?inline=true` shows it in the browser; whoever may read the record and every field the document shows |
+| `GET /v1/lists/{subject}` | `documentTemplates: [{ id, language }]`: what `POST …/pdf` can issue |
 
 - **The answer is at once**, the PDF comes later: `status` goes `queued` →
   `rendering` → `completed` (then `attachmentId`) or `failed` (then
@@ -24,7 +26,38 @@ notes are the example (`features/notes/note-documents.ts`,
   realtime event.
 - **Language:** the request's (`?lang=`, `X-Lang`, the user's saved
   language, `Accept-Language`); Arabic is written right to left. Dates in
-  the user's time zone, else `APP_TIMEZONE`.
+  the user's time zone, else `APP_TIMEZONE`. `?lang=` is declared on every
+  `POST …/{id}/pdf` in OpenAPI, an enum of the shipped languages and their
+  regions (`DOCUMENT_LANGUAGES`: en, de, ar, zh, ms, ar-AE, en-SG…), so the
+  typed client sends it typed; one LOCALES doesn't enable falls back to
+  the next source of the language.
+- **A record's documents** (`GET /v1/<plural>/{id}/documents`, every
+  feature with `pdf` and notes, from `documentRoutes()`): queued, rendering,
+  completed and failed ones, whoever asked, newest first in cursor pages as
+  the attachments list; `template` is the DocumentSource's name, `language`
+  the request's, `issuedBy` the requester's key and their name now
+  (`PeopleService.names()`, one query for the page; null for `anonymized`
+  or a removed client); `finishedAt` when it was issued or failed. A 404
+  unless you may read the record (the attachments list's check), so never
+  another tenant's. Shown to anyone who may read the record, as the
+  attachments list shows the PDF; downloading it still takes every field
+  it shows.
+- **Templates** (`GET /v1/lists/{subject}`, `documentTemplates`): each
+  DocumentSource of the subject (its `name` is the template's `id`) in each
+  language of LOCALES; `null` when `capabilities.pdf` is false (no `pdf`
+  capability, or documents off). In the list's description, next to
+  `attachmentLimits`, rather than a route of its own: a client that shows a
+  record's panels reads that once per subject already, and it changes only
+  with the deployment (LOCALES, GOTENBERG_URL) and the code (the sources),
+  never per record. Not inside `capabilities`, whose values are all
+  booleans.
+- **Whether you may** (`?include=can` on the record): `can.issue` is what
+  `POST …/pdf` checks before it queues (documents on, the record readable,
+  the source's `canIssue`): false is its 403, or its 503 while
+  `GOTENBERG_URL` is unset ([permissions](permissions.md), "Checking").
+- **Preview:** `GET /v1/attachments/{attachmentId}/download?inline=true`
+  shows the PDF in the browser under a strict CSP
+  ([attachments](attachments.md), "Preview").
 - **Issued documents never change.** The PDF is an attachment of the record
   with `locked: true`: `DELETE /v1/attachments/{id}` answers 409
   `attachment_locked`, and it goes only with its record (deleted for good:

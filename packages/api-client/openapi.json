@@ -4632,9 +4632,98 @@
         ]
       }
     },
+    "/v1/custom-fields/subjects": {
+      "get": {
+        "description": "Each with its name in the response's language (`lang`). Only the subjects whose fields you may read (GET /custom-fields?subject=…: whoever may read the subject, or manages custom fields); a 403 when there are none.",
+        "operationId": "CustomFieldsController_subjects_v1",
+        "parameters": [
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subject": {
+                            "type": "string",
+                            "example": "Note"
+                          },
+                          "label": {
+                            "type": "object",
+                            "properties": {
+                              "singular": {
+                                "type": "string",
+                                "example": "Note"
+                              },
+                              "plural": {
+                                "type": "string",
+                                "example": "Notes"
+                              }
+                            },
+                            "required": [
+                              "singular",
+                              "plural"
+                            ],
+                            "additionalProperties": false,
+                            "description": "How the subject is named, in the response's language: one record and several."
+                          }
+                        },
+                        "required": [
+                          "subject",
+                          "label"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The subjects that take custom fields",
+        "tags": [
+          "custom fields"
+        ]
+      }
+    },
     "/v1/custom-fields": {
       "get": {
-        "description": "For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true.",
+        "description": "For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true. ?include=counts adds how many records hold a value of each field (valueCount, and deletedValueCount for those in the recycle bin): one query over the subject's table, for those who manage custom fields only (403 otherwise).",
         "operationId": "CustomFieldsController_list_v1",
         "parameters": [
           {
@@ -4658,6 +4747,19 @@
               "enum": [
                 "true",
                 "false"
+              ]
+            }
+          },
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields).",
+            "schema": {
+              "description": "counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields).",
+              "type": "string",
+              "enum": [
+                "counts"
               ]
             }
           },
@@ -4790,6 +4892,18 @@
                           },
                           "active": {
                             "type": "boolean"
+                          },
+                          "valueCount": {
+                            "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "deletedValueCount": {
+                            "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           },
                           "createdAt": {
                             "type": "string",
@@ -5113,6 +5227,18 @@
                     "active": {
                       "type": "boolean"
                     },
+                    "valueCount": {
+                      "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "deletedValueCount": {
+                      "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -5331,6 +5457,18 @@
                           },
                           "active": {
                             "type": "boolean"
+                          },
+                          "valueCount": {
+                            "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "deletedValueCount": {
+                            "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           },
                           "createdAt": {
                             "type": "string",
@@ -5632,6 +5770,18 @@
                     },
                     "active": {
                       "type": "boolean"
+                    },
+                    "valueCount": {
+                      "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "deletedValueCount": {
+                      "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     },
                     "createdAt": {
                       "type": "string",
@@ -9125,6 +9275,31 @@
                         "types"
                       ],
                       "additionalProperties": false
+                    },
+                    "documentTemplates": {
+                      "nullable": true,
+                      "description": "The templates its records' PDFs are issued from, one item per template and language (POST …/{id}/pdf `?lang=`): what a picker offers. Null when `capabilities.pdf` is false (no PDF capability, or documents off: GOTENBERG_URL unset).",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "note",
+                            "description": "The template: a record's documents name it as `template`; POST …/{id}/pdf issues it."
+                          },
+                          "language": {
+                            "type": "string",
+                            "example": "ar",
+                            "description": "A language it is written in: `?lang=` of POST …/{id}/pdf."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "language"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -9136,7 +9311,8 @@
                     "defaultSort",
                     "limits",
                     "capabilities",
-                    "attachmentLimits"
+                    "attachmentLimits",
+                    "documentTemplates"
                   ],
                   "additionalProperties": false
                 }
@@ -9285,7 +9461,7 @@
     },
     "/v1/teams": {
       "get": {
-        "description": "Every team of your tenant, newest first in cursor pages: its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.",
+        "description": "Every team of your tenant, newest first in cursor pages (`limit`: 50 a page by default, 100 at most; follow `nextCursor` to read them all): its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (100 ids at most; an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.",
         "operationId": "TeamDirectoryController_list_v1",
         "parameters": [
           {
@@ -9315,8 +9491,10 @@
             "name": "limit",
             "required": false,
             "in": "query",
+            "description": "Teams a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids.",
             "schema": {
               "default": 50,
+              "description": "Teams a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids.",
               "type": "integer",
               "minimum": 1,
               "maximum": 100
@@ -9431,7 +9609,7 @@
     },
     "/v1/attachments/{id}/download": {
       "get": {
-        "description": "Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image).",
+        "description": "Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.",
         "operationId": "AttachmentsController_download_v1",
         "parameters": [
           {
@@ -9440,6 +9618,21 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "inline",
+            "required": false,
+            "in": "query",
+            "description": "`true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download.",
+            "schema": {
+              "description": "`true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download.",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           }
         ],
@@ -25886,7 +26079,7 @@
     },
     "/v1/access/audit": {
       "get": {
-        "description": "Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). GET /v1/lists/Audit describes it.",
+        "description": "Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). Each entry names its actor as they are called now (`actorName`: a member or former member, an API client of the tenant; null for `system:<key>`, `anonymous` and deleted accounts) besides the label it stored (`actorLabel`). GET /v1/lists/Audit describes it.",
         "operationId": "AccessController_auditLog_v1",
         "parameters": [
           {
@@ -26182,9 +26375,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, action, targetType, targetId, details, ip.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, action, targetType, targetId, details, ip.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
               "type": "string"
             }
           }
@@ -26195,113 +26388,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                          },
-                          "tenantId": {
-                            "nullable": true,
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                          },
-                          "at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                          },
-                          "actor": {
-                            "type": "string",
-                            "description": "`user:<id>`, `client:<id>`, `system:<key>` or `anonymous`."
-                          },
-                          "actorLabel": {
-                            "type": "string"
-                          },
-                          "action": {
-                            "type": "string",
-                            "example": "note.created"
-                          },
-                          "targetType": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "targetId": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "details": {
-                            "nullable": true,
-                            "type": "object",
-                            "additionalProperties": {}
-                          },
-                          "ip": {
-                            "nullable": true,
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "tenantId",
-                          "at",
-                          "actor",
-                          "actorLabel",
-                          "action",
-                          "targetType",
-                          "targetId",
-                          "details",
-                          "ip"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "nextCursor": {
-                      "nullable": true,
-                      "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
-                      "type": "string"
-                    },
-                    "page": {
-                      "description": "With `page`: this page.",
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "nextPage": {
-                      "description": "With `page`: the next page; null: no more.",
-                      "nullable": true,
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "pageCount": {
-                      "description": "With `page` and `count=true`: ceil(total / limit).",
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "total": {
-                      "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "totalCapped": {
-                      "description": "true: there are more than `total` (show \"10,000+\").",
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "nextCursor"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/AuditPage"
                 }
               }
             }
@@ -27145,12 +27232,17 @@
                         "restore": {
                           "type": "boolean",
                           "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
                         }
                       },
                       "required": [
                         "update",
                         "delete",
-                        "restore"
+                        "restore",
+                        "issue"
                       ],
                       "additionalProperties": false
                     }
@@ -27211,7 +27303,7 @@
             "name": "include",
             "required": false,
             "in": "query",
-            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`.",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`.",
             "schema": {
               "example": "can",
               "type": "string"
@@ -27705,12 +27797,17 @@
                               "restore": {
                                 "type": "boolean",
                                 "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                              },
+                              "issue": {
+                                "type": "boolean",
+                                "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
                               }
                             },
                             "required": [
                               "update",
                               "delete",
-                              "restore"
+                              "restore",
+                              "issue"
                             ],
                             "additionalProperties": false
                           }
@@ -27814,7 +27911,7 @@
             "name": "include",
             "required": false,
             "in": "query",
-            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`.",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`.",
             "schema": {
               "example": "can",
               "type": "string"
@@ -27927,12 +28024,17 @@
                         "restore": {
                           "type": "boolean",
                           "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
                         }
                       },
                       "required": [
                         "update",
                         "delete",
-                        "restore"
+                        "restore",
+                        "issue"
                       ],
                       "additionalProperties": false
                     }
@@ -28129,12 +28231,17 @@
                         "restore": {
                           "type": "boolean",
                           "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
                         }
                       },
                       "required": [
                         "update",
                         "delete",
-                        "restore"
+                        "restore",
+                        "issue"
                       ],
                       "additionalProperties": false
                     }
@@ -28348,12 +28455,17 @@
                         "restore": {
                           "type": "boolean",
                           "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
                         }
                       },
                       "required": [
                         "update",
                         "delete",
-                        "restore"
+                        "restore",
+                        "issue"
                       ],
                       "additionalProperties": false
                     }
@@ -29804,12 +29916,17 @@
                         "restore": {
                           "type": "boolean",
                           "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
                         }
                       },
                       "required": [
                         "update",
                         "delete",
-                        "restore"
+                        "restore",
+                        "issue"
                       ],
                       "additionalProperties": false
                     }
@@ -29870,6 +29987,26 @@
             "required": true,
             "in": "path",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "description": "The document's language (else `X-Lang`, your saved language, `Accept-Language`, the server's first). A language the server doesn't answer in (LOCALES: `documentTemplates` in GET /v1/lists/{subject} lists them) falls back to the next of those.",
+            "schema": {
+              "enum": [
+                "en",
+                "de",
+                "ar",
+                "zh",
+                "ms",
+                "ar-AE",
+                "en-SG",
+                "zh-SG",
+                "ms-SG"
+              ],
               "type": "string"
             }
           },
@@ -29947,6 +30084,237 @@
           }
         ],
         "summary": "Issue a PDF of a note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/v1/notes/{id}/documents": {
+      "get": {
+        "description": "Whoever may read the note: the documents asked for (POST …/{id}/pdf, by anyone), queued and rendering ones too, with their template, language and who asked. A completed one's `attachmentId` is its PDF (GET /v1/attachments/{id}/download; `?inline=true` shows it in the browser); downloading it takes the right to read every field it shows. Realtime: `document.ready` and `document.failed` reach the requester; `record.attachments.changed` the note's watchers once one is issued.",
+        "operationId": "NoteDocumentsController_documentList_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter: status =",
+            "schema": {
+              "description": "Filter: status =",
+              "type": "string",
+              "enum": [
+                "queued",
+                "rendering",
+                "completed",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "status.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: status in",
+            "schema": {
+              "description": "Filter: status in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "template",
+            "required": false,
+            "in": "query",
+            "description": "Filter: template =",
+            "schema": {
+              "description": "Filter: template =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language",
+            "required": false,
+            "in": "query",
+            "description": "Filter: language =",
+            "schema": {
+              "description": "Filter: language =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: language in",
+            "schema": {
+              "description": "Filter: language in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "createdAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gte",
+            "schema": {
+              "description": "Filter: createdAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lt",
+            "schema": {
+              "description": "Filter: createdAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt between",
+            "schema": {
+              "description": "Filter: createdAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"status\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: status (eq, in); template (eq); language (eq, in); createdAt (gte, lt, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"status\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: status (eq, in); template (eq); language (eq, in); createdAt (gte, lt, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: status,template. Fields: id, status, template, language, issuedBy, createdAt, finishedAt, attachmentId, error.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: status,template. Fields: id, status, template, language, issuedBy, createdAt, finishedAt, attachmentId, error.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordDocumentPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A note's documents, newest first",
         "tags": [
           "notes"
         ]
@@ -30458,6 +30826,126 @@
         ],
         "additionalProperties": false
       },
+      "AuditPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+            "type": "string"
+          },
+          "page": {
+            "description": "With `page`: this page.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextPage": {
+            "description": "With `page`: the next page; null: no more.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pageCount": {
+            "description": "With `page` and `count=true`: ceil(total / limit).",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalCapped": {
+            "description": "true: there are more than `total` (show \"10,000+\").",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "AuditEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "tenantId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "actor": {
+            "type": "string",
+            "description": "`user:<id>`, `client:<id>`, `system:<key>` or `anonymous`."
+          },
+          "actorLabel": {
+            "type": "string",
+            "description": "What the entry stored of its actor when it was written: a user's address (`admin@… as ada@…` while impersonating), an API client's name, the system job's, or `anonymous`."
+          },
+          "actorName": {
+            "nullable": true,
+            "description": "The actor's name now: a member or former member of the tenant, or an API client of it (one lookup for the page). Null for `system:<key>`, `anonymous`, a deleted account or a removed client: show `actorLabel` then.",
+            "example": "Ada Lovelace",
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "example": "note.created"
+          },
+          "targetType": {
+            "nullable": true,
+            "type": "string"
+          },
+          "targetId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "details": {
+            "nullable": true,
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "ip": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "at",
+          "actor",
+          "actorLabel",
+          "actorName",
+          "action",
+          "targetType",
+          "targetId",
+          "details",
+          "ip"
+        ],
+        "additionalProperties": false
+      },
       "TagRef": {
         "type": "object",
         "properties": {
@@ -30924,6 +31412,143 @@
           "from",
           "to",
           "changes"
+        ],
+        "additionalProperties": false
+      },
+      "RecordDocumentPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordDocument"
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+            "type": "string"
+          },
+          "page": {
+            "description": "With `page`: this page.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextPage": {
+            "description": "With `page`: the next page; null: no more.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pageCount": {
+            "description": "With `page` and `count=true`: ceil(total / limit).",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalCapped": {
+            "description": "true: there are more than `total` (show \"10,000+\").",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "RecordDocument": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "rendering",
+              "completed",
+              "failed"
+            ],
+            "description": "queued → rendering → completed, or failed (then `error`)."
+          },
+          "template": {
+            "type": "string",
+            "example": "note",
+            "description": "The template it was issued from: an `id` of `documentTemplates` in GET /v1/lists/{subject}."
+          },
+          "language": {
+            "type": "string",
+            "example": "en",
+            "description": "The language it is written in (`?lang=` of the request)."
+          },
+          "issuedBy": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "example": "user:0199a3f2-…",
+                "description": "Who asked for it: `user:<id>`, `client:<id>`, or `anonymized`."
+              },
+              "name": {
+                "nullable": true,
+                "description": "Their name (a member or former member, an API client of the tenant); null when there is none (`anonymized`, a removed client).",
+                "type": "string"
+              }
+            },
+            "required": [
+              "key",
+              "name"
+            ],
+            "additionalProperties": false,
+            "description": "Who asked for it."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "finishedAt": {
+            "nullable": true,
+            "description": "When it was issued (`completed`) or failed; null while queued or rendering.",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "attachmentId": {
+            "nullable": true,
+            "description": "Once completed: the PDF, an attachment of the record (GET /v1/attachments/{id}/download, `?inline=true` to show it).",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "error": {
+            "nullable": true,
+            "description": "Why it failed, written for people.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "template",
+          "language",
+          "issuedBy",
+          "createdAt",
+          "finishedAt",
+          "attachmentId",
+          "error"
         ],
         "additionalProperties": false
       }
