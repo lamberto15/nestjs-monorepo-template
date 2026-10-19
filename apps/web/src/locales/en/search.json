@@ -8,9 +8,6 @@
   "searching": "Searching…",
   "error": "The search failed. Try again.",
   "empty": "Nothing found for “{{q}}”.",
-  "subjects": {
-    "Note": "Notes"
-  },
   "recent": "Recent searches",
   "clearRecent": "Clear recent searches",
   "hint": "Type to search; > lists commands."

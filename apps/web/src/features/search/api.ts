@@ -1,4 +1,4 @@
-import { unwrap } from '@nestjs-monorepo-template/api-client';
+import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
 import { queryOptions } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
@@ -21,25 +21,28 @@ export const searchQuery = (q: string, subject?: string) =>
     staleTime: 30_000,
   });
 
-export type SearchHit = {
-  subject: string;
-  id: string;
-  title: string;
-  snippet: string | null;
-  score: number;
-  link: string | null;
-};
+export type SearchHit = GetResponse<'/v1/search'>['items'][number];
 
-/** The hits grouped by subject, in the order of the best hit of each. */
+/**
+ * The hits grouped by subject, in the order of the best hit of each. A
+ * group is named as the API names its subject, in the request's language.
+ */
 export function groupBySubject(hits: readonly SearchHit[]) {
-  const groups = new Map<string, SearchHit[]>();
+  const groups = new Map<
+    string,
+    { subject: string; label: string; items: SearchHit[] }
+  >();
   for (const hit of hits) {
     const group = groups.get(hit.subject);
     if (group) {
-      group.push(hit);
+      group.items.push(hit);
     } else {
-      groups.set(hit.subject, [hit]);
+      groups.set(hit.subject, {
+        subject: hit.subject,
+        label: hit.subjectLabel.plural,
+        items: [hit],
+      });
     }
   }
-  return [...groups].map(([subject, items]) => ({ subject, items }));
+  return [...groups.values()];
 }

@@ -24,8 +24,8 @@ import {
   readHistory,
   remember,
   type Started,
-  type TransferFormat,
-} from '@/features/transfer/api';
+} from '@/components/account/export-history';
+import type { TransferFormat } from '@/features/transfer/api';
 import { TransferStatus } from '@/features/transfer/transfer-status';
 import { useDateTimeFormat } from '@/lib/date-time';
 
