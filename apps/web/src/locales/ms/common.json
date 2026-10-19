@@ -4,234 +4,234 @@
   },
   "nav": {
     "platform": "Platform",
-    "dashboard": "Dashboard"
+    "dashboard": "Papan pemuka"
   },
   "dashboard": {
-    "title": "Dashboard",
-    "description": "Your overview will appear here."
+    "title": "Papan pemuka",
+    "description": "Gambaran keseluruhan anda akan dipaparkan di sini."
   },
   "auth": {
     "signIn": {
-      "title": "Sign in",
-      "description": "Welcome back",
-      "submit": "Sign in",
-      "forgot": "Forgot your password?",
-      "noAccount": "Don't have an account?",
-      "signUp": "Sign up",
-      "orContinueWith": "Or continue with",
-      "withProvider": "Continue with {{provider}}",
-      "withPasskey": "Sign in with a passkey",
-      "withMagicLink": "Email me a sign-in link",
-      "withPassword": "Sign in with a password",
-      "terms": "By continuing, you agree to the terms of service and the privacy policy.",
+      "title": "Log masuk",
+      "description": "Selamat kembali",
+      "submit": "Log masuk",
+      "forgot": "Lupa kata laluan anda?",
+      "noAccount": "Belum mempunyai akaun?",
+      "signUp": "Daftar",
+      "orContinueWith": "Atau teruskan dengan",
+      "withProvider": "Teruskan dengan {{provider}}",
+      "withPasskey": "Log masuk dengan kunci laluan",
+      "withMagicLink": "E-melkan saya pautan log masuk",
+      "withPassword": "Log masuk dengan kata laluan",
+      "terms": "Dengan meneruskan, anda bersetuju dengan syarat perkhidmatan dan dasar privasi.",
       "errors": {
-        "generic": "That sign-in didn't work. Try again.",
-        "reauthentication_required": "For this, confirm it's you: sign in again.",
-        "reauthentication_failed": "That confirmation didn't work. Try again.",
-        "access_denied": "The sign-in was cancelled.",
-        "email_unverified": "Prove your address first: open the link we emailed you."
+        "generic": "Log masuk itu tidak berjaya. Cuba lagi.",
+        "reauthentication_required": "Untuk ini, sahkan bahawa ini anda: log masuk semula.",
+        "reauthentication_failed": "Pengesahan itu tidak berjaya. Cuba lagi.",
+        "access_denied": "Log masuk dibatalkan.",
+        "email_unverified": "Sahkan alamat anda dahulu: buka pautan yang kami e-melkan kepada anda."
       }
     },
-    "signOut": "Sign out",
+    "signOut": "Log keluar",
     "signUp": {
-      "title": "Create an account",
-      "description": "Enter your details to get started",
-      "submit": "Create account",
-      "haveAccount": "Already have an account?",
-      "done": "Check your mailbox: open the link we sent to verify your address, then sign in."
+      "title": "Cipta akaun",
+      "description": "Masukkan butiran anda untuk bermula",
+      "submit": "Cipta akaun",
+      "haveAccount": "Sudah mempunyai akaun?",
+      "done": "Semak peti mel anda: buka pautan yang kami hantar untuk mengesahkan alamat anda, kemudian log masuk."
     },
     "fields": {
-      "email": "Email",
-      "emailInvalid": "Enter a valid email address.",
-      "password": "Password",
-      "passwordRequired": "Enter your password.",
-      "passwordHint": "At least 12 characters. Passwords found in data breaches are refused.",
-      "passwordTooShort": "At least {{min}} characters.",
-      "passwordMismatch": "The passwords don't match.",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm the password",
-      "name": "Name",
-      "nameRequired": "Enter a name."
+      "email": "E-mel",
+      "emailInvalid": "Masukkan alamat e-mel yang sah.",
+      "password": "Kata laluan",
+      "passwordRequired": "Masukkan kata laluan anda.",
+      "passwordHint": "Sekurang-kurangnya 12 aksara. Kata laluan yang ditemui dalam kebocoran data ditolak.",
+      "passwordTooShort": "Sekurang-kurangnya {{min}} aksara.",
+      "passwordMismatch": "Kata laluan tidak sepadan.",
+      "newPassword": "Kata laluan baharu",
+      "confirmPassword": "Sahkan kata laluan",
+      "name": "Nama",
+      "nameRequired": "Masukkan nama."
     },
     "mfa": {
-      "hint": "Enter the 6-digit code from your authenticator app.",
-      "recoveryHint": "Enter one of your recovery codes. Each works once.",
-      "code": "Authentication code",
-      "codeInvalid": "Enter the 6 digits.",
-      "recoveryCode": "Recovery code",
-      "recoveryRequired": "Enter a recovery code.",
-      "verify": "Verify",
-      "useRecovery": "Use a recovery code",
-      "useCode": "Use an authentication code",
-      "restart": "Start over"
+      "hint": "Masukkan kod 6 digit daripada aplikasi pengesah anda.",
+      "recoveryHint": "Masukkan salah satu kod pemulihan anda. Setiap satu hanya berfungsi sekali.",
+      "code": "Kod pengesahan",
+      "codeInvalid": "Masukkan 6 digit.",
+      "recoveryCode": "Kod pemulihan",
+      "recoveryRequired": "Masukkan kod pemulihan.",
+      "verify": "Sahkan",
+      "useRecovery": "Guna kod pemulihan",
+      "useCode": "Guna kod pengesahan",
+      "restart": "Mulakan semula"
     },
     "magicLink": {
-      "title": "Sign in by email link",
-      "hint": "We'll email you a link that signs you in.",
-      "send": "Send the link",
-      "sent": "If the address has an account, a sign-in link is on its way. It works once, for a short time.",
-      "landing": "Continue to sign in with this link.",
-      "continue": "Sign in"
+      "title": "Log masuk melalui pautan e-mel",
+      "hint": "Kami akan e-melkan pautan yang melog masuk anda.",
+      "send": "Hantar pautan",
+      "sent": "Jika alamat itu mempunyai akaun, pautan log masuk sedang dalam perjalanan. Ia hanya berfungsi sekali, untuk tempoh yang singkat.",
+      "landing": "Teruskan log masuk dengan pautan ini.",
+      "continue": "Log masuk"
     },
     "forgot": {
-      "title": "Forgot your password?",
-      "description": "We'll email you a link to choose a new one",
-      "submit": "Send the link",
-      "done": "If the address has an account, a reset link is on its way."
+      "title": "Lupa kata laluan anda?",
+      "description": "Kami akan e-melkan pautan untuk memilih kata laluan baharu",
+      "submit": "Hantar pautan",
+      "done": "Jika alamat itu mempunyai akaun, pautan tetapan semula sedang dalam perjalanan."
     },
     "reset": {
-      "title": "Choose a new password",
-      "description": "The link works once, for a short time",
-      "submit": "Change the password",
-      "done": "Your password was changed. Sign in with it."
+      "title": "Pilih kata laluan baharu",
+      "description": "Pautan hanya berfungsi sekali, untuk tempoh yang singkat",
+      "submit": "Tukar kata laluan",
+      "done": "Kata laluan anda telah ditukar. Log masuk dengannya."
     },
     "verify": {
-      "title": "Verify your address",
-      "description": "Enter the password you signed up with",
-      "submit": "Verify",
-      "done": "{{email}} is verified. You can sign in now."
+      "title": "Sahkan alamat anda",
+      "description": "Masukkan kata laluan yang anda gunakan semasa mendaftar",
+      "submit": "Sahkan",
+      "done": "{{email}} telah disahkan. Anda boleh log masuk sekarang."
     },
     "invitation": {
-      "title": "Accept the invitation",
-      "description": "You were invited to join",
-      "signedInAs": "Join as {{email}}.",
-      "accept": "Accept and join",
-      "notYou": "Not you? Sign out",
-      "create": "Create the account and join",
-      "haveAccount": "Already have an account?",
-      "created": "Your account is ready. Sign in to start.",
-      "signInFirst": "This address already has an account: sign in, then open the invitation again."
+      "title": "Terima jemputan",
+      "description": "Anda dijemput untuk menyertai",
+      "signedInAs": "Sertai sebagai {{email}}.",
+      "accept": "Terima dan sertai",
+      "notYou": "Bukan anda? Log keluar",
+      "create": "Cipta akaun dan sertai",
+      "haveAccount": "Sudah mempunyai akaun?",
+      "created": "Akaun anda sudah sedia. Log masuk untuk bermula.",
+      "signInFirst": "Alamat ini sudah mempunyai akaun: log masuk, kemudian buka semula jemputan."
     },
     "cancelDeletion": {
-      "title": "Keep your account",
-      "description": "Cancel the deletion you asked for",
-      "submit": "Cancel the deletion",
-      "done": "The deletion is cancelled: your account stays."
+      "title": "Kekalkan akaun anda",
+      "description": "Batalkan pemadaman yang anda minta",
+      "submit": "Batalkan pemadaman",
+      "done": "Pemadaman dibatalkan: akaun anda kekal."
     },
     "links": {
-      "missingToken": "This link is incomplete. Open it again from the email.",
-      "backToSignIn": "Back to sign in"
+      "missingToken": "Pautan ini tidak lengkap. Buka semula daripada e-mel.",
+      "backToSignIn": "Kembali ke log masuk"
     },
     "reauth": {
-      "title": "Confirm it's you",
-      "description": "This needs a recent sign-in.",
-      "confirm": "Confirm",
-      "code": "Authentication or recovery code",
-      "codeHint": "From your authenticator app, or one of your recovery codes.",
-      "codeRequired": "Enter a code.",
-      "or": "Or",
-      "withPasskey": "Use a passkey",
-      "withMagicLink": "Email me a sign-in link"
+      "title": "Sahkan ini anda",
+      "description": "Ini memerlukan log masuk yang terkini.",
+      "confirm": "Sahkan",
+      "code": "Kod pengesahan atau pemulihan",
+      "codeHint": "Daripada aplikasi pengesah anda, atau salah satu kod pemulihan anda.",
+      "codeRequired": "Masukkan kod.",
+      "or": "Atau",
+      "withPasskey": "Guna kunci laluan",
+      "withMagicLink": "E-melkan saya pautan log masuk"
     },
     "tenants": {
-      "title": "Organizations",
-      "switch": "Switch organization"
+      "title": "Organisasi",
+      "switch": "Tukar organisasi"
     },
     "impersonation": {
-      "banner": "You are acting as {{user}} (signed in as {{administrator}}).",
-      "stop": "Stop"
+      "banner": "Anda bertindak sebagai {{user}} (log masuk sebagai {{administrator}}).",
+      "stop": "Henti"
     },
     "errors": {
-      "network": "The server can't be reached. Check your connection and try again."
+      "network": "Pelayan tidak dapat dihubungi. Semak sambungan anda dan cuba lagi."
     }
   },
   "account": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "impersonating": "While acting as someone, their account settings stay theirs.",
+    "save": "Simpan",
+    "cancel": "Batal",
+    "impersonating": "Semasa bertindak sebagai orang lain, tetapan akaun mereka kekal milik mereka.",
     "profile": {
-      "title": "Profile",
-      "description": "Your name, language and time zone.",
-      "emailHint": "Your sign-in address.",
-      "timezone": "Time zone",
-      "saved": "Profile saved."
+      "title": "Profil",
+      "description": "Nama, bahasa dan zon waktu anda.",
+      "emailHint": "Alamat log masuk anda.",
+      "timezone": "Zon waktu",
+      "saved": "Profil disimpan."
     },
     "security": {
-      "title": "Security"
+      "title": "Keselamatan"
     },
     "password": {
-      "title": "Password",
-      "description": "Changing it signs out your other sessions.",
-      "current": "Current password",
-      "currentHint": "Leave empty if your account has no password yet.",
-      "submit": "Change the password",
-      "changed": "Password changed. Your other sessions were signed out."
+      "title": "Kata laluan",
+      "description": "Menukarnya melog keluar sesi anda yang lain.",
+      "current": "Kata laluan semasa",
+      "currentHint": "Biarkan kosong jika akaun anda belum mempunyai kata laluan.",
+      "submit": "Tukar kata laluan",
+      "changed": "Kata laluan ditukar. Sesi anda yang lain telah dilog keluar."
     },
     "mfa": {
-      "title": "Two-factor authentication",
-      "description": "A code from an authenticator app at each sign-in.",
-      "on": "On",
-      "off": "Off",
-      "enable": "Set up two-factor",
-      "unavailable": "Two-factor can't be set up on this deployment.",
-      "scan": "Scan the code with your authenticator app, or enter the key by hand, then enter the 6-digit code it shows.",
-      "secret": "Key:",
-      "qr": "QR code for your authenticator app",
-      "confirm": "Turn on",
-      "remaining_one": "{{count}} recovery code left.",
-      "remaining_other": "{{count}} recovery codes left.",
-      "newCodes": "New recovery codes",
-      "disable": "Turn off",
-      "disableTitle": "Turn two-factor off?",
-      "disableDescription": "Signing in will take your password alone.",
-      "disabled": "Two-factor is off.",
-      "codesTitle": "Your recovery codes",
-      "codesHint": "Keep them somewhere safe: each signs you in once if you lose your authenticator. They are shown only now.",
-      "copy": "Copy",
-      "copied": "Copied.",
-      "saved": "I've saved them",
-      "requiredTitle": "Two-factor is required",
-      "required": "Your organization asks for two-factor authentication: set it up to continue."
+      "title": "Pengesahan dua faktor",
+      "description": "Kod daripada aplikasi pengesah pada setiap log masuk.",
+      "on": "Hidup",
+      "off": "Mati",
+      "enable": "Sediakan dua faktor",
+      "unavailable": "Dua faktor tidak boleh disediakan pada penempatan ini.",
+      "scan": "Imbas kod dengan aplikasi pengesah anda, atau masukkan kunci secara manual, kemudian masukkan kod 6 digit yang dipaparkannya.",
+      "secret": "Kunci:",
+      "qr": "Kod QR untuk aplikasi pengesah anda",
+      "confirm": "Hidupkan",
+      "remaining_one": "{{count}} kod pemulihan lagi.",
+      "remaining_other": "{{count}} kod pemulihan lagi.",
+      "newCodes": "Kod pemulihan baharu",
+      "disable": "Matikan",
+      "disableTitle": "Matikan dua faktor?",
+      "disableDescription": "Log masuk hanya memerlukan kata laluan anda.",
+      "disabled": "Dua faktor dimatikan.",
+      "codesTitle": "Kod pemulihan anda",
+      "codesHint": "Simpan di tempat yang selamat: setiap satu melog masuk anda sekali jika anda kehilangan pengesah anda. Ia dipaparkan sekarang sahaja.",
+      "copy": "Salin",
+      "copied": "Disalin.",
+      "saved": "Saya telah menyimpannya",
+      "requiredTitle": "Dua faktor diperlukan",
+      "required": "Organisasi anda meminta pengesahan dua faktor: sediakannya untuk meneruskan."
     },
     "passkeys": {
-      "title": "Passkeys",
-      "description": "Sign in with your fingerprint, face or device PIN.",
-      "none": "No passkeys yet.",
-      "add": "Add a passkey",
-      "added": "Passkey added.",
-      "defaultName": "My passkey",
-      "name": "Name",
-      "rename": "Rename",
-      "remove": "Remove",
-      "removeTitle": "Remove this passkey?",
-      "removeDescription": "{{name}} will no longer sign you in.",
-      "synced": "Synced",
-      "lastUsed": "Last used {{date}}",
-      "neverUsed": "Never used",
-      "unsupported": "This browser doesn't support passkeys."
+      "title": "Kunci laluan",
+      "description": "Log masuk dengan cap jari, wajah atau PIN peranti anda.",
+      "none": "Belum ada kunci laluan.",
+      "add": "Tambah kunci laluan",
+      "added": "Kunci laluan ditambah.",
+      "defaultName": "Kunci laluan saya",
+      "name": "Nama",
+      "rename": "Namakan semula",
+      "remove": "Buang",
+      "removeTitle": "Buang kunci laluan ini?",
+      "removeDescription": "{{name}} tidak lagi melog masuk anda.",
+      "synced": "Disegerakkan",
+      "lastUsed": "Terakhir digunakan {{date}}",
+      "neverUsed": "Tidak pernah digunakan",
+      "unsupported": "Pelayar ini tidak menyokong kunci laluan."
     },
     "sessions": {
-      "title": "Sessions",
-      "description": "Where your account is signed in.",
-      "current": "This device",
-      "revoke": "Sign out",
-      "unknownDevice": "Unknown device",
-      "lastActive": "active {{date}}",
-      "everywhere": "Sign out everywhere",
-      "everywhereTitle": "Sign out everywhere?",
-      "everywhereDescription": "Every session ends, this one too.",
+      "title": "Sesi",
+      "description": "Tempat akaun anda dilog masuk.",
+      "current": "Peranti ini",
+      "revoke": "Log keluar",
+      "unknownDevice": "Peranti tidak dikenali",
+      "lastActive": "aktif {{date}}",
+      "everywhere": "Log keluar di mana-mana",
+      "everywhereTitle": "Log keluar di mana-mana?",
+      "everywhereDescription": "Setiap sesi berakhir, termasuk yang ini.",
       "methods": {
-        "password": "Password",
-        "magic-link": "Email link",
+        "password": "Kata laluan",
+        "magic-link": "Pautan e-mel",
         "oidc": "{{provider}}",
-        "sso": "Single sign-on",
-        "passkey": "Passkey",
-        "impersonation": "Support access"
+        "sso": "Log masuk tunggal",
+        "passkey": "Kunci laluan",
+        "impersonation": "Akses sokongan"
       }
     }
   },
   "notFound": {
-    "title": "Page not found",
-    "description": "The page you are looking for does not exist.",
-    "back": "Back to the dashboard"
+    "title": "Halaman tidak ditemui",
+    "description": "Halaman yang anda cari tidak wujud.",
+    "back": "Kembali ke papan pemuka"
   },
   "preferences": {
-    "open": "Preferences",
-    "theme": "Theme",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "System",
-    "language": "Language"
+    "open": "Keutamaan",
+    "theme": "Tema",
+    "light": "Cerah",
+    "dark": "Gelap",
+    "system": "Sistem",
+    "language": "Bahasa"
   },
   "languages": {
     "en": "English",
@@ -252,8 +252,15 @@
       "generic": "Sesuatu telah berlaku. Cuba lagi.",
       "retry": "Cuba lagi"
     },
-    "fields": { "tag": "Tag", "ownerId": "Pemilik", "teamId": "Pasukan" },
-    "refs": { "searching": "Mencari…", "failed": "Carian gagal." },
+    "fields": {
+      "tag": "Tag",
+      "ownerId": "Pemilik",
+      "teamId": "Pasukan"
+    },
+    "refs": {
+      "searching": "Mencari…",
+      "failed": "Carian gagal."
+    },
     "yes": "Ya",
     "no": "Tidak",
     "table": {
@@ -361,12 +368,12 @@
     }
   },
   "principals": {
-    "placeholder": "Search by name or address",
-    "searching": "Searching…",
-    "none": "Nobody matches.",
-    "failed": "The search failed.",
-    "forbidden": "You may not search people and clients.",
-    "client": "(API client)"
+    "placeholder": "Cari mengikut nama atau alamat",
+    "searching": "Sedang mencari…",
+    "none": "Tiada yang sepadan.",
+    "failed": "Carian gagal.",
+    "forbidden": "Anda tidak dibenarkan mencari orang dan klien.",
+    "client": "(klien API)"
   },
   "people": {
     "placeholder": "Cari mengikut nama",

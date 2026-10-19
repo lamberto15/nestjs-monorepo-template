@@ -26,6 +26,7 @@ import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
 import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account/preferences'
+import { Route as AppAccountPrivacyRouteImport } from './routes/_app/account/privacy'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as AppApiClientsIndexRouteImport } from './routes/_app/api-clients/index'
@@ -128,6 +129,11 @@ const AppAccountNotificationsRoute = AppAccountNotificationsRouteImport.update({
 const AppAccountPreferencesRoute = AppAccountPreferencesRouteImport.update({
   id: '/account/preferences',
   path: '/account/preferences',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountPrivacyRoute = AppAccountPrivacyRouteImport.update({
+  id: '/account/privacy',
+  path: '/account/privacy',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
+  '/account/privacy': typeof AppAccountPrivacyRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
+  '/account/privacy': typeof AppAccountPrivacyRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
@@ -318,6 +326,7 @@ export interface FileRoutesById {
   '/_app/access/users': typeof AppAccessUsersRoute
   '/_app/account/notifications': typeof AppAccountNotificationsRoute
   '/_app/account/preferences': typeof AppAccountPreferencesRoute
+  '/_app/account/privacy': typeof AppAccountPrivacyRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/api-clients/$id': typeof AppApiClientsIdRoute
@@ -357,6 +366,7 @@ export interface FileRouteTypes {
     | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
+    | '/account/privacy'
     | '/account/profile'
     | '/account/security'
     | '/api-clients/$id'
@@ -394,6 +404,7 @@ export interface FileRouteTypes {
     | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
+    | '/account/privacy'
     | '/account/profile'
     | '/account/security'
     | '/api-clients/$id'
@@ -432,6 +443,7 @@ export interface FileRouteTypes {
     | '/_app/access/users'
     | '/_app/account/notifications'
     | '/_app/account/preferences'
+    | '/_app/account/privacy'
     | '/_app/account/profile'
     | '/_app/account/security'
     | '/_app/api-clients/$id'
@@ -587,6 +599,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountPreferencesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account/privacy': {
+      id: '/_app/account/privacy'
+      path: '/account/privacy'
+      fullPath: '/account/privacy'
+      preLoaderRoute: typeof AppAccountPrivacyRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/account/profile': {
       id: '/_app/account/profile'
       path: '/account/profile'
@@ -731,6 +750,7 @@ interface AppRouteChildren {
   AppAccessUsersRoute: typeof AppAccessUsersRoute
   AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
   AppAccountPreferencesRoute: typeof AppAccountPreferencesRoute
+  AppAccountPrivacyRoute: typeof AppAccountPrivacyRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
@@ -761,6 +781,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccessUsersRoute: AppAccessUsersRoute,
   AppAccountNotificationsRoute: AppAccountNotificationsRoute,
   AppAccountPreferencesRoute: AppAccountPreferencesRoute,
+  AppAccountPrivacyRoute: AppAccountPrivacyRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,

@@ -1,90 +1,90 @@
 {
-  "nav": "Settings",
-  "title": "Settings and flags",
-  "search": "Search settings",
-  "none": "No setting matches.",
-  "on": "On",
-  "off": "Off",
-  "default": "Default",
-  "save": "Save",
-  "saved": "Saved.",
+  "nav": "Tetapan",
+  "title": "Tetapan dan bendera",
+  "search": "Cari tetapan",
+  "none": "Tiada tetapan yang sepadan.",
+  "on": "Hidup",
+  "off": "Mati",
+  "default": "Lalai",
+  "save": "Simpan",
+  "saved": "Disimpan.",
   "edit": "Edit",
   "editNamed": "Edit {{label}}",
-  "clear": "Clear",
-  "clearTitle": "Clear this override?",
-  "clearDescription": "The value set for {{label}} is removed; the setting falls back to the next level.",
-  "overrides": "Stored values",
-  "noOverrides": "Nothing is set: the default applies.",
-  "flag": "Flag",
-  "managersOnly": "Managers only",
-  "rolloutOf": "{{percent}}% of principals",
-  "scopeLabel": "Scope",
-  "valueLabel": "Value",
+  "clear": "Kosongkan",
+  "clearTitle": "Kosongkan penggantian ini?",
+  "clearDescription": "Nilai yang ditetapkan untuk {{label}} dibuang; tetapan kembali kepada tahap seterusnya.",
+  "overrides": "Nilai tersimpan",
+  "noOverrides": "Tiada apa-apa ditetapkan: nilai lalai digunakan.",
+  "flag": "Bendera",
+  "managersOnly": "Pengurus sahaja",
+  "rolloutOf": "{{percent}}% prinsipal",
+  "scopeLabel": "Skop",
+  "valueLabel": "Nilai",
   "scope": {
-    "tenant": "Whole tenant",
-    "team": "Team",
-    "user": "User"
+    "tenant": "Seluruh organisasi",
+    "team": "Pasukan",
+    "user": "Pengguna"
   },
   "scopeId": {
-    "team": "Team",
-    "user": "User"
+    "team": "Pasukan",
+    "user": "Pengguna"
   },
   "mode": {
-    "label": "Applies as",
-    "value": "A fixed value",
-    "rollout": "A gradual rollout"
+    "label": "Digunakan sebagai",
+    "value": "Nilai tetap",
+    "rollout": "Pelancaran berperingkat"
   },
   "rollout": {
-    "label": "Share of principals",
-    "description": "The flag is on for this percentage of the tenant's principals; the same ones every time, and raising it never switches anyone off."
+    "label": "Bahagian prinsipal",
+    "description": "Bendera ini dihidupkan untuk peratusan prinsipal organisasi ini; golongan yang sama setiap kali, dan menaikkannya tidak pernah mematikan sesiapa."
   },
   "invalid": {
-    "boolean": "Choose on or off.",
-    "number": "Enter a number.",
-    "string": "Enter a value.",
-    "json": "Enter valid JSON.",
-    "rollout": "Enter a percentage from 0 to 100.",
-    "integer": "Enter a whole number.",
-    "min": "Enter {{limit}} or more.",
-    "max": "Enter {{limit}} or less.",
-    "maxLength": "Enter at most {{limit}} characters.",
-    "enum": "Choose one of the values.",
+    "boolean": "Pilih hidup atau mati.",
+    "number": "Masukkan nombor.",
+    "string": "Masukkan nilai.",
+    "json": "Masukkan JSON yang sah.",
+    "rollout": "Masukkan peratusan dari 0 hingga 100.",
+    "integer": "Masukkan nombor bulat.",
+    "min": "Masukkan {{limit}} atau lebih.",
+    "max": "Masukkan {{limit}} atau kurang.",
+    "maxLength": "Masukkan paling banyak {{limit}} aksara.",
+    "enum": "Pilih salah satu nilai.",
     "scopeId": {
-      "team": "Choose a team.",
-      "user": "Choose a user or an API client."
+      "team": "Pilih pasukan.",
+      "user": "Pilih pengguna atau klien API."
     }
   },
   "source": {
-    "tenant": "Tenant",
-    "team": "Team",
-    "user": "You",
-    "rollout": "Rollout",
-    "default": "Default"
+    "tenant": "Organisasi",
+    "team": "Pasukan",
+    "user": "Anda",
+    "rollout": "Pelancaran",
+    "default": "Lalai"
   },
   "columns": {
-    "setting": "Setting",
-    "value": "Your value",
-    "source": "Source",
-    "default": "Default"
+    "setting": "Tetapan",
+    "value": "Nilai anda",
+    "source": "Sumber",
+    "default": "Lalai"
   },
   "groups": {
-    "auth": "Sign-in policy",
-    "notes": "Notes"
+    "auth": "Dasar log masuk",
+    "notes": "Nota"
   },
   "preferences": {
-    "title": "Preferences",
-    "empty": "There is nothing to set for yourself.",
-    "saved": "Preference saved.",
-    "reset": "Reset to default",
-    "resetDone": "Preference reset."
+    "title": "Keutamaan",
+    "empty": "Tiada apa-apa untuk ditetapkan bagi diri anda.",
+    "saved": "Keutamaan disimpan.",
+    "reset": "Set semula kepada lalai",
+    "resetDone": "Keutamaan ditetapkan semula."
   },
-  "readOnly": "Read-only",
-  "hiddenNote": "Only people who manage settings see this setting.",
-  "scopeIdHint": "A user or an API client: type a part of a name or an address.",
+  "readOnly": "Baca sahaja",
+  "hiddenNote": "Hanya orang yang mengurus tetapan melihat tetapan ini.",
+  "scopeIdHint": "Pengguna atau klien API: taip sebahagian daripada nama atau alamat.",
   "bounds": {
-    "between": "From {{min}} to {{max}}.",
-    "min": "{{min}} or more.",
-    "max": "{{max}} or less.",
-    "maxLength": "At most {{maxLength}} characters."
+    "between": "Dari {{min}} hingga {{max}}.",
+    "min": "{{min}} atau lebih.",
+    "max": "{{max}} atau kurang.",
+    "maxLength": "Paling banyak {{maxLength}} aksara."
   }
 }
