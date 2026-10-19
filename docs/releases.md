@@ -40,7 +40,7 @@ git push origin v0.1.0
 ```
 
 - **CI on the tag** ([deployment](deployment.md), "CI") runs every check,
-  publishes the images (`publish`, `publish-gotenberg`: `0.1.0`, `0.1` and the
+  publishes the images (`publish`, `publish-gotenberg`, `publish-caddy`: `0.1.0`, `0.1` and the
   commit's SHA), then `release` creates the GitHub release with its notes.
   A failing check stops it before anything is published.
 - **The owner tags, by hand.** A tag pushed by a workflow (with
@@ -62,9 +62,9 @@ requests:
 | --- | --- |
 | Breaking changes | commits whose subject has `!` (`feat(iam)!: …`) or whose body has `BREAKING CHANGE:` |
 | Upgrading | the merge, and [upgrading](upgrading.md) |
-| Images | the app's and Gotenberg's tags and digests, as `publish` pushed them |
+| Images | the app's, Gotenberg's and Caddy's tags and digests, as the publish jobs pushed them |
 | Migrations | the files added under `apps/api/drizzle/` since the previous release, each linked; the expand/contract lint's findings (squawk, as CI's `migration-lint`); a merged migration edited or deleted, which drizzle never re-applies |
-| Rolling back | the previous release's `APP_IMAGE` and `GOTENBERG_IMAGE`; whether the previous release runs on this schema; the Compose files to check out with them |
+| Rolling back | the previous release's `APP_IMAGE`, `GOTENBERG_IMAGE` and `CADDY_IMAGE`; whether the previous release runs on this schema; the Compose files to check out with them |
 | Configuration | variables added to or removed from `env.example` |
 | Typed client | its version, when it changed, with a link to its changelog |
 

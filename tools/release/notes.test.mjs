@@ -224,7 +224,27 @@ describe('render', () => {
       notes,
       /`ghcr\.io\/owner\/repo\/gotenberg:0\.2\.0` \| see the package page \|/,
     );
+    assert.match(
+      notes,
+      /`ghcr\.io\/owner\/repo\/caddy:0\.2\.0` \| see the package page \|/,
+    );
     assert.match(notes, /tagged with the commit, `abc123`/);
+  });
+
+  it('gives the Caddy digest, and rolls CADDY_IMAGE back with the others', () => {
+    const notes = render({
+      ...base,
+      digests: { app: 'sha256:aaa', caddy: 'sha256:ccc' },
+    });
+    assert.match(
+      notes,
+      /`ghcr\.io\/owner\/repo\/caddy:0\.2\.0` \| `sha256:ccc` \|/,
+    );
+    assert.match(notes, /CADDY_IMAGE=ghcr\.io\/owner\/repo\/caddy:0\.1\.0/);
+    assert.match(
+      notes,
+      /docker compose pull migrate api worker gotenberg caddy/,
+    );
   });
 
   it('lists the new migrations, linked at the tag, and says the previous release runs on them', () => {
