@@ -204,6 +204,76 @@ export const carol: Member = {
   teamIds: [],
 };
 
+/** GET /v1/lists/User, as the API describes the members' list. */
+export const userListDescription = {
+  subject: 'User',
+  fields: [
+    {
+      name: 'email',
+      type: 'string',
+      operators: ['eq', 'contains', 'startsWith', 'endsWith'],
+      sortable: true,
+      custom: false,
+    },
+    {
+      name: 'name',
+      type: 'string',
+      operators: ['contains', 'startsWith'],
+      sortable: true,
+      custom: false,
+    },
+    {
+      name: 'active',
+      type: 'boolean',
+      operators: ['eq'],
+      sortable: false,
+      custom: false,
+    },
+    {
+      name: 'teamId',
+      type: 'uuid',
+      operators: ['eq', 'in'],
+      sortable: false,
+      custom: false,
+      ref: 'team',
+    },
+    {
+      name: 'createdAt',
+      type: 'datetime',
+      operators: ['gt', 'gte', 'lt', 'lte', 'between'],
+      sortable: true,
+      custom: false,
+    },
+  ],
+  select: ['id', 'email', 'name', 'active', 'roles', 'createdAt'],
+  search: false,
+  recycleBin: false,
+  defaultSort: '-createdAt',
+  limits: { defaultLimit: 50, maxLimit: 100 },
+};
+
+/** The teams a members query asks for (flat `teamId`, or in `filter`); none: all. */
+function teamIdsOf(query: URLSearchParams): string[] | undefined {
+  const flat = query.get('teamId');
+  if (flat) return [flat];
+  const filter = query.get('filter');
+  if (!filter) return undefined;
+  const found: string[] = [];
+  const visit = (node: Record<string, unknown>) => {
+    if (node.field === 'teamId') {
+      found.push(...([node.value].flat() as string[]));
+    }
+    for (const child of [
+      ...((node.and ?? []) as []),
+      ...((node.or ?? []) as []),
+    ]) {
+      visit(child);
+    }
+  };
+  visit(JSON.parse(filter) as Record<string, unknown>);
+  return found.length > 0 ? found : undefined;
+}
+
 /** Signed in, with these permissions and the impersonation switch. */
 export function signedInWith(
   can: Record<string, boolean>,
@@ -227,11 +297,15 @@ export function signedInWith(
       return role ? HttpResponse.json(role) : problem(404, 'not_found');
     }),
     http.get('/v1/access/teams', () => HttpResponse.json({ items: teams })),
-    // `?teamId=`: a team's direct members, as the API filters them.
+    http.get('/v1/lists/User', () => HttpResponse.json(userListDescription)),
+    // The members, as the API filters them: `?teamId=` (a team's direct
+    // members) flat or as a condition of `filter`.
     http.get('/v1/access/users', ({ request }) => {
-      const teamId = new URL(request.url).searchParams.get('teamId');
+      const query = new URL(request.url).searchParams;
+      const teamIds = teamIdsOf(query);
       const items = [bob, carol].filter(
-        (member) => !teamId || member.teamIds.includes(teamId),
+        (member) =>
+          !teamIds || teamIds.some((id) => member.teamIds.includes(id)),
       );
       return HttpResponse.json({
         items,

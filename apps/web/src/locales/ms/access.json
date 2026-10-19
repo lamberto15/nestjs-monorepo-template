@@ -6,18 +6,15 @@
   },
   "actions": "Actions",
   "cancel": "Cancel",
-  "previous": "Previous",
-  "next": "Next",
   "users": {
     "title": "Users",
     "tabs": {
       "members": "Members",
       "invitations": "Invitations"
     },
-    "search": "Search by email",
-    "empty": "No members found.",
     "columns": {
-      "member": "Member",
+      "name": "Nama",
+      "email": "E-mel",
       "roles": "Roles",
       "status": "Status"
     },
@@ -26,7 +23,6 @@
       "inactive": "Removed",
       "unverified": "Email not verified"
     },
-    "pageOf": "Page {{page}} of {{pages}} · {{total}} members",
     "you": "You",
     "since": "Member since {{date}}",
     "roles": "Roles",
@@ -51,9 +47,8 @@
       "description": "Your session becomes theirs for a limited time, and everything you do is recorded as you acting as them. Stop from the banner to get your own session back.",
       "confirm": "Impersonate"
     },
-    "allTeams": "Semua pasukan",
-    "team": "Pasukan",
-    "readOnly": "Anda boleh melihat ahli ini. Menukar peranan, pasukan atau akses mereka memerlukan kebenaran untuk mengurus pengguna."
+    "readOnly": "Anda boleh melihat ahli ini. Menukar peranan, pasukan atau akses mereka memerlukan kebenaran untuk mengurus pengguna.",
+    "open": "Buka"
   },
   "grants": {
     "roles": "Roles",

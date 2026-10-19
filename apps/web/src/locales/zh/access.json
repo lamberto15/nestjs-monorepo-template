@@ -6,18 +6,15 @@
   },
   "actions": "Actions",
   "cancel": "Cancel",
-  "previous": "Previous",
-  "next": "Next",
   "users": {
     "title": "Users",
     "tabs": {
       "members": "Members",
       "invitations": "Invitations"
     },
-    "search": "Search by email",
-    "empty": "No members found.",
     "columns": {
-      "member": "Member",
+      "name": "姓名",
+      "email": "邮箱",
       "roles": "Roles",
       "status": "Status"
     },
@@ -26,7 +23,6 @@
       "inactive": "Removed",
       "unverified": "Email not verified"
     },
-    "pageOf": "Page {{page}} of {{pages}} · {{total}} members",
     "you": "You",
     "since": "Member since {{date}}",
     "roles": "Roles",
@@ -51,9 +47,8 @@
       "description": "Your session becomes theirs for a limited time, and everything you do is recorded as you acting as them. Stop from the banner to get your own session back.",
       "confirm": "Impersonate"
     },
-    "allTeams": "所有团队",
-    "team": "团队",
-    "readOnly": "你可以查看此成员。更改其角色、团队或访问权限需要管理用户的权限。"
+    "readOnly": "你可以查看此成员。更改其角色、团队或访问权限需要管理用户的权限。",
+    "open": "打开"
   },
   "grants": {
     "roles": "Roles",
