@@ -110,10 +110,24 @@ const profileSchema = z.object({
 const meSchema = z.object({
   user: userSchema,
   tenant: z
-    .object({ id: z.string(), slug: z.string(), name: z.string() })
+    .object({
+      id: z.string(),
+      slug: z.string(),
+      name: z.string(),
+      operator: z
+        .boolean()
+        .describe(
+          "true: the deployment's operator tenant. The operators' routes (/v1/tenants, /v1/ops, the suppression list) answer in it, given their permission (`can`), and nowhere else (403 `operator_required`).",
+        ),
+    })
     .nullable()
     .describe('The tenant this session or token acts in; null: none.'),
   mfaEnabled: z.boolean(),
+  hasPassword: z
+    .boolean()
+    .describe(
+      'Your account has a password: changing it wants the current one, and so does asking for its deletion (POST /v1/account/deletion { password }). false: an invited account not yet set up, or one that signs in with a passkey, a provider or an email link only.',
+    ),
   mfaEnrollmentRequired: z
     .boolean()
     .describe(
@@ -354,9 +368,17 @@ export class AuthController {
     return {
       user,
       tenant: tenant
-        ? { id: tenant.id, slug: tenant.slug, name: tenant.name }
+        ? {
+            id: tenant.id,
+            slug: tenant.slug,
+            name: tenant.name,
+            operator: tenant.operator,
+          }
         : null,
       mfaEnabled: await this.mfa.isEnrolled(user.id),
+      // What the deletion route checks (AccountLifecycleService.requestDeletion).
+      hasPassword:
+        (await this.accounts.findView(user.id))?.hasPassword ?? false,
       mfaEnrollmentRequired: await this.authPolicy.mfaEnrollmentRequired(user),
       authentication: authentication && {
         ...authentication,

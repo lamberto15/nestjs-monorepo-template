@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { SessionService, TokenService } from '@nestjs/authentication';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { ConfigService } from '@nestjs/config';
 import { t } from '@nestjs/i18n';
@@ -25,6 +27,7 @@ import type { PlatformEnv } from '../platform.env.js';
 import { AccountDeletionMail } from './account.mails.js';
 import { DeletionCancelLinks } from './deletion-cancel-links.js';
 import { accountDeletions, consents } from './account.tables.js';
+import { CONSENT_KIND_PATTERN, ConsentKinds } from './consent-kinds.js';
 
 /**
  * What a person may do with their own account beyond signing in: ask for
@@ -49,6 +52,9 @@ export class AccountLifecycleService {
     private readonly config: ConfigService<CoreEnv & PlatformEnv, true>,
     private readonly tenancy: Tenancy,
     private readonly cancelLinks: DeletionCancelLinks,
+    private readonly consentKinds: ConsentKinds,
+    private readonly sessions: SessionService,
+    private readonly tokens: TokenService,
   ) {}
 
   /** The pending deletion of an account, or undefined. */
@@ -66,22 +72,22 @@ export class AccountLifecycleService {
     return row;
   }
 
-  /** The latest version accepted of each kind of consent. */
+  /**
+   * Each kind the user accepted, as its latest acceptance tells it: the
+   * version, when, and whether it was withdrawn since. The rows before it
+   * stay, as proof (the account export holds them all).
+   */
   async consents(userId: string) {
     const rows = await this.db
       .select()
       .from(consents)
       .where(eq(consents.userId, userId))
-      .orderBy(desc(consents.acceptedAt));
+      .orderBy(desc(consents.acceptedAt), desc(consents.id));
     const latest = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
       if (!latest.has(row.kind)) latest.set(row.kind, row);
     }
-    return [...latest.values()].map(({ kind, version, acceptedAt }) => ({
-      kind,
-      version,
-      acceptedAt: acceptedAt.toISOString(),
-    }));
+    return [...latest.values()].map((row) => this.consentView(row));
   }
 
   async state(user: UserPrincipal) {
@@ -106,6 +112,8 @@ export class AccountLifecycleService {
     user: UserPrincipal,
     password: string | undefined,
     ip?: string,
+    /** The session the request came with: kept, so it can cancel. */
+    sessionId?: string,
   ) {
     const pending = await this.pendingDeletion(user.id);
     if (pending) {
@@ -139,6 +147,11 @@ export class AccountLifecycleService {
       infer: true,
     });
     const scheduledFor = new Date(Date.now() + days * 86_400_000);
+    // Only this device needs to stay signed in, to cancel (as do signing in
+    // again and the mail's link): the others are signed out below.
+    const others = (await this.sessions.list(user.id)).filter(
+      (session) => session.id !== sessionId,
+    ).length;
     const row = await this.accountLevel(async (tx) => {
       const [created] = await tx
         .insert(accountDeletions)
@@ -150,13 +163,21 @@ export class AccountLifecycleService {
           action: 'account.deletion-requested',
           targetType: 'user',
           targetId: user.id,
-          details: { scheduledFor: scheduledFor.toISOString() },
+          details: {
+            scheduledFor: scheduledFor.toISOString(),
+            signedOut: { sessions: others, tokens: true },
+          },
           ip,
         },
         tx,
       );
       return created!;
     });
+    // After the commit (the package's stores, outside transactions), as a
+    // password change does: every other session, and every token client
+    // (their refresh tokens; an access token lives until it expires).
+    await this.sessions.revokeAll(user.id, { except: sessionId });
+    await this.tokens.revokeAll(user.id);
     await this.mailQueue.send(AccountDeletionMail, {
       to: { name: user.name, address: user.email },
       data: {
@@ -260,21 +281,22 @@ export class AccountLifecycleService {
       .returning({ id: accountDeletions.id });
   }
 
-  /** Records that the user accepted a version of something (again: the time moves). */
+  /**
+   * Records that the user accepted the current version of a declared kind
+   * (`ConsentKinds`; anything else is a 400): a new row each time, so the
+   * history is kept, and accepting after a withdrawal gives it again.
+   */
   async accept(
     user: UserPrincipal,
     kind: string,
     version: string,
     ip?: string,
   ) {
+    this.consentKinds.assertAcceptable(kind, version);
     const row = await this.accountLevel(async (tx) => {
       const [saved] = await tx
         .insert(consents)
         .values({ userId: user.id, kind, version, acceptedAt: new Date(), ip })
-        .onConflictDoUpdate({
-          target: [consents.userId, consents.kind, consents.version],
-          set: { acceptedAt: new Date(), ip },
-        })
         .returning();
       await this.audit.record(
         user,
@@ -289,10 +311,71 @@ export class AccountLifecycleService {
       );
       return saved!;
     });
+    return this.consentView(row);
+  }
+
+  /**
+   * Withdraws a consent (GDPR Art. 7(3)), as easily as it was given: no
+   * password, no recent sign-in. Its acceptances still in force are
+   * stamped `withdrawnAt` (with the address), never deleted, in one
+   * transaction with the audit entry (`account.consent-withdrawn`). A
+   * required kind is refused (409 `consent_required`): the terms and the
+   * privacy policy are the contract the service runs on, not a consent one
+   * withdraws and stays; deleting the account ends them. A kind no longer
+   * declared can still be withdrawn. Nothing in force: a 404.
+   */
+  async withdraw(user: UserPrincipal, kind: string, ip?: string) {
+    const notGiven = () => new NotFoundException(t('auth.consentNotGiven'));
+    if (!CONSENT_KIND_PATTERN.test(kind)) {
+      throw notGiven();
+    }
+    if (this.consentKinds.get(kind)?.required) {
+      throw new ConflictException({
+        code: 'consent_required',
+        message: t('auth.consentRequired'),
+      });
+    }
+    const latest = await this.accountLevel(async (tx) => {
+      const now = new Date();
+      const withdrawn = await tx
+        .update(consents)
+        .set({ withdrawnAt: now, withdrawalIp: ip ?? null })
+        .where(
+          and(
+            eq(consents.userId, user.id),
+            eq(consents.kind, kind),
+            isNull(consents.withdrawnAt),
+          ),
+        )
+        .returning();
+      if (withdrawn.length === 0) {
+        throw notGiven();
+      }
+      const last = withdrawn.reduce((a, b) =>
+        b.acceptedAt > a.acceptedAt ? b : a,
+      );
+      await this.audit.record(
+        user,
+        {
+          action: 'account.consent-withdrawn',
+          targetType: 'user',
+          targetId: user.id,
+          details: { kind, version: last.version },
+          ip,
+        },
+        tx,
+      );
+      return last;
+    });
+    return this.consentView(latest);
+  }
+
+  private consentView(row: typeof consents.$inferSelect) {
     return {
       kind: row.kind,
       version: row.version,
       acceptedAt: row.acceptedAt.toISOString(),
+      withdrawnAt: row.withdrawnAt?.toISOString() ?? null,
     };
   }
 

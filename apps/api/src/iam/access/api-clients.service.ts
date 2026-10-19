@@ -16,6 +16,7 @@ import { apiKeyId, generateApiKey, hashApiKey } from '../auth/api-keys.js';
 import { principalKey, type UserPrincipal } from '../auth/principal.js';
 import { SecurityAlertsService } from '../account/security-alerts.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { ApiClientCountsRegistry } from './api-client-counts.registry.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { apiClientRoles, apiClients, apiKeys } from '../iam.tables.js';
 
@@ -40,6 +41,11 @@ export interface ApiClientView {
   updatedAt: Date;
   keys: ApiKeyView[];
   roles: { roleId: string; expiresAt: Date | null }[];
+  /**
+   * How many webhook endpoints the client has (one grouped query for the
+   * list). Absent with WEBHOOKS=off: not 0, as its endpoints may exist.
+   */
+  webhookEndpoints?: number;
 }
 
 /** The role grants of a change: ids, and when each one ends (none: never). */
@@ -62,6 +68,7 @@ export class ApiClientsService {
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly audit: AuditService,
     private readonly securityAlerts: SecurityAlertsService,
+    private readonly counts: ApiClientCountsRegistry,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -340,7 +347,7 @@ export class ApiClientsService {
     if (ids.length === 0) {
       return [];
     }
-    const [keys, roles] = await Promise.all([
+    const [keys, roles, counts] = await Promise.all([
       db
         .select()
         .from(apiKeys)
@@ -365,6 +372,7 @@ export class ApiClientsService {
             ),
           ),
         ),
+      this.counts.counts(ids, db),
     ]);
     return clients.map((client) => ({
       id: client.id,
@@ -386,6 +394,9 @@ export class ApiClientsService {
       roles: roles
         .filter((role) => role.clientId === client.id)
         .map(({ roleId, expiresAt }) => ({ roleId, expiresAt })),
+      ...(counts.has('webhookEndpoints') && {
+        webhookEndpoints: counts.get('webhookEndpoints')!.get(client.id) ?? 0,
+      }),
     }));
   }
 }

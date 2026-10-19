@@ -137,13 +137,11 @@ export class CommentsService implements PersonalDataSource {
     ]);
     const page = toPage(rows, query, total);
     // The authors' and the mentioned people's names in one query, whatever the page's size.
-    const names = await this.people.names(
-      page.items.flatMap((row) => [row.author, ...row.mentions]),
-    );
+    const known = await this.nameMap(page.items, true);
     return {
       ...page,
       items: page.items.map((row) =>
-        view(row, names.get(row.author) ?? null, names),
+        view(row, known.names.get(row.author) ?? null, known),
       ),
     };
   }
@@ -188,7 +186,7 @@ export class CommentsService implements PersonalDataSource {
     });
     this.notifications.deliverNow();
     this.pushed(target, principal, row, 'added');
-    return view(row, principal.name, await this.people.names(row.mentions));
+    return view(row, principal.name, await this.nameMap([row]));
   }
 
   /** Changes the text of the principal's own comment; the people newly mentioned are told. */
@@ -205,11 +203,7 @@ export class CommentsService implements PersonalDataSource {
       throw new ForbiddenException('Only its author may change a comment.');
     }
     if (comment.body === body) {
-      return view(
-        comment,
-        principal.name,
-        await this.people.names(comment.mentions),
-      );
+      return view(comment, principal.name, await this.nameMap([comment]));
     }
     const mentions = await this.mentions(target, record, body, principal);
     const row = await inTransaction(this.txHost, async (tx) => {
@@ -236,7 +230,7 @@ export class CommentsService implements PersonalDataSource {
     });
     this.notifications.deliverNow();
     this.pushed(target, principal, row, 'edited');
-    return view(row, principal.name, await this.people.names(row.mentions));
+    return view(row, principal.name, await this.nameMap([row]));
   }
 
   /** Removes a comment for good: its author, or a moderator of the record. */
@@ -292,7 +286,7 @@ export class CommentsService implements PersonalDataSource {
       if (rows.length === 0) return;
       // Not the names of those they mentioned: other people's data (their keys stay).
       yield rows.map((row) => {
-        const { mentionNames: _, ...own } = view(row, user.name, new Map());
+        const { mentionNames: _, ...own } = view(row, user.name, NO_NAMES);
         return own;
       });
       cursor = rows[rows.length - 1]!.id;
@@ -378,9 +372,7 @@ export class CommentsService implements PersonalDataSource {
     body: string,
     author: Principal,
   ) {
-    const handles = [
-      ...new Set([...body.matchAll(MENTION)].map((m) => m[1]!.toLowerCase())),
-    ].slice(0, MAX_MENTIONS);
+    const handles = handlesOf(body);
     const keys = new Set<string>();
     const tenantId = requireTenantId('A mention');
     for (const handle of handles) {
@@ -402,6 +394,32 @@ export class CommentsService implements PersonalDataSource {
       }
     }
     return [...keys];
+  }
+
+  /**
+   * The names `view()` needs for these comments: of their mentions (and
+   * their authors', for a page), and of the addresses written in their
+   * bodies that name one of those mentions (`@ada@example.com`): one
+   * query for each, whatever the number of comments.
+   */
+  private async nameMap(rows: Comment[], authors = false): Promise<Names> {
+    const addresses = new Set(rows.flatMap((row) => emailHandlesOf(row.body)));
+    const [names, emails] = await Promise.all([
+      this.people.names(
+        rows.flatMap((row) =>
+          authors ? [row.author, ...row.mentions] : row.mentions,
+        ),
+      ),
+      // Only among the keys already mentioned: an address nobody resolved
+      // stays without a name (a mention never tells who exists).
+      addresses.size
+        ? this.people.keysOfEmails(
+            addresses,
+            rows.flatMap((row) => row.mentions),
+          )
+        : new Map<string, string>(),
+    ]);
+    return { names, emails };
   }
 
   /** In the write's transaction: `comment.mentioned` to `mentioned`; on a new comment, the watchers too. */
@@ -490,11 +508,37 @@ export class CommentsService implements PersonalDataSource {
   }
 }
 
-/** A comment as the API shows it; `names` holds at least its mentions' (PeopleService.names). */
+/** What `view()` names: people by key, and the addresses (lower-cased) that resolve to one. */
+interface Names {
+  /** Principal key to name; holds at least the mentions' (PeopleService.names). */
+  names: ReadonlyMap<string, string | null>;
+  /** Address to the `user:<id>` it names (PeopleService.keysOfEmails). */
+  emails: ReadonlyMap<string, string>;
+}
+const NO_NAMES: Names = { names: new Map(), emails: new Map() };
+
+/**
+ * The distinct handles a body mentions (`ada@example.com`, `user:<uuid>`),
+ * lower-cased, the first MAX_MENTIONS: those the mention resolution looks at.
+ */
+const handlesOf = (body: string) =>
+  [
+    ...new Set([...body.matchAll(MENTION)].map((m) => m[1]!.toLowerCase())),
+  ].slice(0, MAX_MENTIONS);
+
+/** The addresses among a body's handles. */
+const emailHandlesOf = (body: string) =>
+  handlesOf(body).filter((handle) => !handle.startsWith('user:'));
+
+/**
+ * A comment as the API shows it. `mentionNames` names each mention by its
+ * key and, for a mention written as an address, by that address too (as
+ * the body has it, lower-cased); an address nobody resolved gets none.
+ */
 const view = (
   row: Comment,
   authorName: string | null,
-  names: ReadonlyMap<string, string | null>,
+  { names, emails }: Names,
 ): CommentView => ({
   id: row.id,
   subject: row.subject,
@@ -503,9 +547,15 @@ const view = (
   authorName,
   body: row.body,
   mentions: row.mentions,
-  mentionNames: Object.fromEntries(
-    row.mentions.map((key) => [key, names.get(key) ?? null]),
-  ),
+  mentionNames: Object.fromEntries([
+    ...row.mentions.map((key) => [key, names.get(key) ?? null] as const),
+    ...emailHandlesOf(row.body).flatMap((address) => {
+      const key = emails.get(address);
+      return key !== undefined && row.mentions.includes(key)
+        ? [[address, names.get(key) ?? null] as const]
+        : [];
+    }),
+  ]),
   editedAt: row.editedAt?.toISOString() ?? null,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),

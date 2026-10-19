@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
+import { getQueueToken } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { io, type Socket } from 'socket.io-client';
 import type request from 'supertest';
+import { DATA_TRANSFERS } from '../src/platform/data-transfer/data-transfer.service.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
 /** The path and query of a signed URL: the tests reach the app on its own port. */
@@ -262,6 +265,83 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     const other = await node.client();
     expect(
       (await get('/v1/data/transfers', other.auth).expect(200)).body,
+    ).toEqual({ items: [], nextCursor: null });
+  });
+
+  it('lists the caller’s transfers by status, alone or with the kind', async () => {
+    const owner = await node.client();
+    await node.writeItem(owner.auth, { title: 'One', body: 'b' }).expect(201);
+    const get = (path: string) =>
+      node.http().get(path).set('Authorization', owner.auth);
+    const ids = async (query: string) =>
+      (
+        (await get(`/v1/data/transfers${query}`).expect(200)).body.items as {
+          id: string;
+        }[]
+      ).map((item) => item.id);
+    const exportAs = (format: string) =>
+      node
+        .http()
+        .post('/v1/data/exports')
+        .set('Authorization', owner.auth)
+        .send({ name: 'test-items', format })
+        .expect(202);
+
+    // Held in the queue: queued until a worker takes it up.
+    const queue = node.app.get<Queue>(getQueueToken(DATA_TRANSFERS));
+    await queue.pause();
+    let waiting: string;
+    try {
+      waiting = (await exportAs('csv')).body.id;
+      expect(await ids('?status=queued')).toEqual([waiting]);
+      expect(await ids('?status=completed')).toEqual([]);
+    } finally {
+      await queue.resume();
+    }
+    await finished(owner.auth, waiting);
+    const imported = await node
+      .http()
+      .post('/v1/data/imports')
+      .set('Authorization', owner.auth)
+      .field('name', 'test-items')
+      .field('dryRun', 'true')
+      .attach('file', Buffer.from('title,body\nA,b\n'), 'items.csv')
+      .expect(202);
+    await finished(owner.auth, imported.body.id);
+    const later = (await exportAs('json')).body.id;
+    await finished(owner.auth, later);
+
+    expect(await ids('?status=completed')).toEqual([
+      later,
+      imported.body.id,
+      waiting,
+    ]);
+    expect(await ids('?status=completed&kind=import')).toEqual([
+      imported.body.id,
+    ]);
+    expect(await ids('?status=queued')).toEqual([]);
+    expect(await ids('?status=running')).toEqual([]);
+    expect(await ids('?status=failed')).toEqual([]);
+    // Pages step over what the filter skips.
+    const page1 = await get('/v1/data/transfers?status=completed&limit=2');
+    expect(page1.body.items).toHaveLength(2);
+    expect(page1.body.nextCursor).toBe(imported.body.id);
+    expect(
+      await ids(`?status=completed&limit=2&cursor=${imported.body.id}`),
+    ).toEqual([waiting]);
+    for (const query of ['?status=done', '?status=', '?status=Queued']) {
+      await get(`/v1/data/transfers${query}`).expect(400);
+    }
+    // Someone else's list holds none of them.
+    const other = await node.client();
+    expect(
+      (
+        await node
+          .http()
+          .get('/v1/data/transfers?status=completed')
+          .set('Authorization', other.auth)
+          .expect(200)
+      ).body,
     ).toEqual({ items: [], nextCursor: null });
   });
 

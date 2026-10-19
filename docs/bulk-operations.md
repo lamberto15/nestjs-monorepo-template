@@ -41,14 +41,22 @@ Send `ids` or `filter`, one of them.
   `{ id, name, action, status: queued|running|completed|failed, progress: { processed, done, failed }, result? }`
   (progress every 100 items; the result keeps 10 000 item results, its
   counts are exact, `truncated: true` when there were more). Only the
-  principal who started it sees it (404 for anyone else). `GET /v1/bulk`
+  principal who started it sees it (404 for anyone else). Each run says
+  when: `createdAt` (handed to the workers), `startedAt` (a worker took it
+  up; null while it is queued) and `finishedAt` (completed or failed; null
+  until then), ISO 8601, read from the BullMQ job (`timestamp`,
+  `processedOn`, `finishedOn`). `GET /v1/bulk`
   lists the caller's queued runs in this tenant, newest first, by cursor
   (`limit`, `cursor` = the previous `nextCursor`): each as `GET /v1/bulk/{id}`
   tells it, its `result` holding the counts only (`done`, `failed`,
   `skipped`, `truncated`; the result per item is on the single route); runs
   answered in the request were never jobs and aren't listed; kept 7 days
   after they end (the same index as transfers: docs/data-transfer.md,
-  "The list"). The realtime
+  "The list"). `GET /v1/bulk?status=&kind=` keeps the runs `queued`,
+  `running`, `completed` or `failed` and/or of one action (`kind`:
+  `delete`, `restore` or `update`, the one a client calls "change"; any
+  other word is a 400); a filtered page may hold fewer than `limit` items,
+  even none, while `nextCursor` is set: follow it until it is null. The realtime
   connection hears `bulk.finished { id, name, action, done, failed }`.
 - **Idempotency-Key is required**: a retry with the same key gets the first
   answer back (`Idempotent-Replayed: true`) instead of acting twice.

@@ -226,6 +226,13 @@ const clientViewSchema = z.object({
   roles: z.array(
     z.object({ roleId: z.uuid(), expiresAt: z.iso.datetime().nullable() }),
   ),
+  webhookEndpoints: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      'How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0.',
+    ),
 });
 const clientWithKeySchema = clientViewSchema.extend({
   key: z

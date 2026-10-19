@@ -21,6 +21,8 @@ const job = (failedReason?: string, tenantId = tenant) => ({
     tenantId,
   },
   progress: { processed: 1 },
+  timestamp: Date.parse('2026-10-20T10:00:00Z'),
+  finishedOn: Date.parse('2026-10-20T10:01:00Z'),
   failedReason,
   returnvalue: undefined,
   getState: async () => 'failed',
@@ -42,7 +44,13 @@ describe('DataTransferService.status', () => {
     // state read it had failed: the answer must carry the reason.
     const { transfers, getJob } = service(job(), job(reason));
     const status = await inTenant(tenant, () => transfers.status(owner, 't1'));
-    expect(status).toMatchObject({ status: 'failed', error: reason });
+    expect(status).toMatchObject({
+      status: 'failed',
+      error: reason,
+      createdAt: '2026-10-20T10:00:00.000Z',
+      finishedAt: '2026-10-20T10:01:00.000Z',
+      expiresAt: '2026-10-27T10:01:00.000Z',
+    });
     expect(getJob).toHaveBeenCalledTimes(2);
   });
 

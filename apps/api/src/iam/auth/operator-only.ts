@@ -27,10 +27,7 @@ export class OperatorGuard implements CanActivate {
     const principal = context
       .switchToHttp()
       .getRequest<{ user?: Principal }>().user;
-    const tenantId =
-      principal && principal.kind !== 'system' ? principal.tenantId : null;
-    const tenant = tenantId ? await this.tenancy.find(tenantId) : undefined;
-    if (!tenant?.operator || !tenant.active) {
+    if (!(await actsAsOperator(this.tenancy, principal ?? null))) {
       throw new ForbiddenException({
         code: 'operator_required',
         message:
@@ -39,6 +36,20 @@ export class OperatorGuard implements CanActivate {
     }
     return true;
   }
+}
+
+/**
+ * Whether the principal acts in the operator tenant (an active one): what
+ * OperatorGuard asks, for a check outside a route (a list description).
+ */
+export async function actsAsOperator(
+  tenancy: Tenancy,
+  principal: Principal | null,
+): Promise<boolean> {
+  const tenantId =
+    principal && principal.kind !== 'system' ? principal.tenantId : null;
+  const tenant = tenantId ? await tenancy.find(tenantId) : undefined;
+  return !!tenant?.operator && tenant.active;
 }
 
 /** Marks a controller or route as the operators' (OperatorGuard). */

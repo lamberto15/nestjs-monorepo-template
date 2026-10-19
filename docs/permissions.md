@@ -182,8 +182,9 @@ deleted rows the principal may restore, under that action's conditions
 Roles, grants, teams and the audit log are per tenant ([tenancy](tenancy.md)):
 every tenant gets the built-in Administrator and the declared `seedRoles`
 when it is made; a user's roles are their membership's in the tenant the
-session acts in. `Access.manageTenants` (creating tenants) answers only in
-the operator tenant.
+session acts in. `Access.manageTenants` (the tenants: list, create, read,
+rename, deactivate) answers only in the operator tenant (`GET /v1/auth/me`'s
+`tenant.operator`).
 
 - **Reading** the access API (`GET` of the catalog, roles, users, teams,
   API clients, principals; one role, user or client by id) takes any

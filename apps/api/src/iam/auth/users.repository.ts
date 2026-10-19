@@ -279,6 +279,21 @@ export class UsersRepository {
       );
   }
 
+  /**
+   * Ends everything that acts in a tenant (the tenant deactivated): every
+   * user's sessions in it and token families issued for it. Their other
+   * tenants' go on: a new sign-in starts in one of those.
+   */
+  async endAllTenantSessions(tenantId: string, db: Db = this.db) {
+    await db
+      .delete(sessions)
+      .where(sql`${sessions.metadata}->>'tenantId' = ${tenantId}`);
+    await db
+      .update(refreshTokens)
+      .set({ revoked: true })
+      .where(sql`${refreshTokens.claims}->>'tid' = ${tenantId}`);
+  }
+
   async findView(id: string, db: Db = this.db) {
     const [row] = await db.select().from(users).where(eq(users.id, id));
     return row ? toView(row) : null;

@@ -259,11 +259,13 @@ describe('custom fields (e2e)', () => {
   });
 
   it('lists the subjects that take custom fields, to whoever may read their fields', async () => {
+    // TestItem is the fixture every build has; Note may be removed
+    // (pnpm feature:remove notes, CI's template-without-notes).
     const manager = await node.user([
       await role(['Access', 'manageCustomFields']),
     ]);
     const editor = await node.user(['editor']);
-    const noteReader = await node.user([await role(['Note', 'read'])]);
+    const itemReader = await node.user([await role(['TestItem', 'read'])]);
     const outsider = await node.user([await role(['Ops', 'view'])]);
     const client = await node.client();
     type Entry = {
@@ -276,13 +278,12 @@ describe('custom fields (e2e)', () => {
     const all = await manager.agent
       .get('/v1/custom-fields/subjects')
       .expect(200);
-    expect(subjects(all.body)).toEqual(
-      expect.arrayContaining(['Note', 'TestItem']),
-    );
-    expect(all.body.items).toContainEqual({
-      subject: 'Note',
-      label: { singular: 'Note', plural: 'Notes' },
-    });
+    expect(subjects(all.body)).toContain('TestItem');
+    for (const entry of all.body.items as Entry[]) {
+      expect(entry.label.singular).toEqual(expect.any(String));
+      expect(entry.label.singular).not.toBe('');
+      expect(entry.label.plural).not.toBe('');
+    }
     expect(subjects(all.body).sort()).toEqual(
       subjects(
         (await editor.agent.get('/v1/custom-fields/subjects').expect(200)).body,
@@ -290,14 +291,18 @@ describe('custom fields (e2e)', () => {
     );
 
     // Only the subjects whose fields the caller may read (as GET /custom-fields).
-    const notes = await noteReader.agent
+    const items = await itemReader.agent
       .get('/v1/custom-fields/subjects')
       .expect(200);
-    expect(subjects(notes.body)).toEqual(['Note']);
-    await noteReader.agent.get('/v1/custom-fields?subject=Note').expect(200);
-    await noteReader.agent
+    expect(subjects(items.body)).toEqual(['TestItem']);
+    await itemReader.agent
       .get('/v1/custom-fields?subject=TestItem')
-      .expect(403);
+      .expect(200);
+    for (const other of subjects(all.body).filter((s) => s !== 'TestItem')) {
+      await itemReader.agent
+        .get(`/v1/custom-fields?subject=${other}`)
+        .expect(403);
+    }
 
     await node
       .http()
