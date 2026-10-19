@@ -2859,18 +2859,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every tenant (operators) */
+        /**
+         * The tenants, newest first (operators)
+         * @description Filter flat (`?active=false&name.contains=acme`) or with `filter`, sort with `sort=name`, page with `cursor` (`nextCursor`) or `page`, pick fields with `fields=slug,name`; each parameter lists what it takes. GET /v1/lists/Tenant describes it.
+         */
         get: operations["TenantsController_list_v1"];
         put?: never;
         /**
          * Create a tenant and its first administrator (operators)
-         * @description The tenant gets the built-in and declared roles; the administrator is the account at `administratorEmail` (made and invited when there is none).
+         * @description The tenant gets the built-in and declared roles; its first administrator is invited at `administratorEmail` (`administrator.status: invited`): the link makes the account when there is none, or adds the existing one once its owner accepts signed in. Whether the address has an account is never told (invite-only, docs/tenancy.md).
          */
         post: operations["TenantsController_create_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/tenants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One tenant (operators) */
+        get: operations["TenantsController_get_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename a tenant, change its slug, (de)activate it (operators)
+         * @description Audited (`tenant.updated`) in your tenant and in that one. Deactivated (`active: false`): its sessions and token families end (its members sign in again, into another of their tenants), its API keys and invitations stop, a sign-in never starts in it, its realtime connections end, its jobs are skipped. Nothing else is deleted: `active: true` gives back its data, memberships and API keys. docs/tenancy.md, "Operators".
+         */
+        patch: operations["TenantsController_update_v1"];
         trace?: never;
     };
     "/v1/notes": {
@@ -12655,6 +12679,8 @@ export interface operations {
                             id: string;
                             slug: string;
                             name: string;
+                            /** @description true: the deployment's operator tenant. The operators' routes (/v1/tenants, /v1/ops, the suppression list) answer in it, given their permission (`can`), and nowhere else (403 `operator_required`). */
+                            operator: boolean;
                         } | null;
                         mfaEnabled: boolean;
                         /** @description Your account has a password: changing it wants the current one, and so does asking for its deletion (POST /v1/account/deletion { password }). false: an invited account not yet set up, or one that signs in with a passkey, a provider or an email link only. */
@@ -16038,7 +16064,60 @@ export interface operations {
     };
     TenantsController_list_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: name = */
+                name?: string;
+                /** @description Filter: name contains */
+                "name.contains"?: string;
+                /** @description Filter: name startsWith */
+                "name.startsWith"?: string;
+                /** @description Filter: slug = */
+                slug?: string;
+                /** @description Filter: slug in */
+                "slug.in"?: string;
+                /** @description Filter: slug contains */
+                "slug.contains"?: string;
+                /** @description Filter: slug startsWith */
+                "slug.startsWith"?: string;
+                /** @description Filter: active = */
+                active?: "true" | "false";
+                /** @description Filter: operator = */
+                operator?: "true" | "false";
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Filter: updatedAt gt */
+                "updatedAt.gt"?: string;
+                /** @description Filter: updatedAt gte */
+                "updatedAt.gte"?: string;
+                /** @description Filter: updatedAt lt */
+                "updatedAt.lt"?: string;
+                /** @description Filter: updatedAt lte */
+                "updatedAt.lte"?: string;
+                /** @description Filter: updatedAt between */
+                "updatedAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, slug, createdAt, updatedAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, createdAt, updatedAt. */
+                fields?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -16063,6 +16142,18 @@ export interface operations {
                             /** Format: date-time */
                             updatedAt: string;
                         }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
                     };
                 };
             };
@@ -16113,6 +16204,20 @@ export interface operations {
                         createdAt: string;
                         /** Format: date-time */
                         updatedAt: string;
+                        /** @description The first administrator: invited at `administratorEmail`. */
+                        administrator: {
+                            email: string;
+                            /**
+                             * @description Always `invited`: the address got a link to accept (a new address chooses its password, an existing account accepts signed in). Whether it has an account is never read here, so never told.
+                             * @enum {string}
+                             */
+                            status: "invited";
+                            /**
+                             * Format: date-time
+                             * @description When the link stops working.
+                             */
+                            expiresAt: string;
+                        };
                     };
                 };
             };
@@ -16123,8 +16228,128 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `tenant_slug_taken`; `single_tenant`: the deployment has its one tenant (TENANCY=single). */
+            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag you have: 304 and no body when it is still current. */
+                "If-None-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        active: boolean;
+                        operator: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** @description A short handle: lowercase letters, digits and dashes (`acme`). */
+                    slug?: string;
+                    /** @description false: nobody acts in it (its sessions end, API keys stop, connections end, jobs are skipped); true: its data, members and API keys are back. Never for the operator tenant. */
+                    active?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        active: boolean;
+                        operator: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It changed since you read it (precondition_failed). */
+            412: {
                 headers: {
                     [name: string]: unknown;
                 };

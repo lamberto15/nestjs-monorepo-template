@@ -43,6 +43,8 @@ Every error, whatever produced it, is `application/problem+json`:
   `consent_required` (409: a required consent can't be withdrawn; delete
   the account instead: [auth.md](auth.md))…
   Branch on it, not on `detail`.
+- A conflict about one field names it too: 409 `tenant_slug_taken` carries
+  `errors: [{ "path": "slug", … }]`, so a form shows it under the field.
 - `detail` and `errors[].message` are in the request's language.
 - A 500 never shows internals; `requestId` finds it in the logs.
 - In code: throw Nest's exceptions (`new ConflictException('…')`, or an object

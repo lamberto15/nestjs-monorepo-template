@@ -1,22 +1,42 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, eq, type SQL, sql } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
+import { pgErrorCode, UNIQUE_VIOLATION } from '../../core/database/errors.js';
 import {
   database,
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
+import {
+  afterCursor,
+  countPage,
+  type PageQuery,
+  pageOffset,
+  pageOrder,
+  toPage,
+} from '../../core/http/pagination.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { type Tenant, tenants } from '../../core/tenancy/tenancy.tables.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
-import { rolePermissions, roles, userRoles } from '../iam.tables.js';
+import {
+  apiClients,
+  memberships,
+  rolePermissions,
+  roles,
+  userRoles,
+} from '../iam.tables.js';
 import { InvitationsService } from './invitations.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import { SingleTenant } from './single-tenant.js';
 import { ALL, type SeedRole } from './permissions.js';
+import { TenantLifecycleRegistry } from './tenant-lifecycle.registry.js';
 
 /** The built-in role's key (`roles.key`). */
 export const ADMINISTRATOR_ROLE = 'administrator';
@@ -39,6 +59,24 @@ export interface NewTenant {
   operator?: boolean;
 }
 
+/** What an operator may change of a tenant (`PATCH /v1/tenants/{id}`). */
+export interface TenantChanges {
+  name?: string;
+  slug?: string;
+  active?: boolean;
+}
+
+/**
+ * 409 `tenant_slug_taken`, on the field (`errors[].path`), so a form shows
+ * it under the slug.
+ */
+export const slugTaken = (slug: string) =>
+  new ConflictException({
+    code: 'tenant_slug_taken',
+    message: `A tenant named "${slug}" exists.`,
+    errors: [{ path: 'slug', message: `"${slug}" is taken.` }],
+  });
+
 /**
  * Makes tenants (docs/tenancy.md): the row, then, in the new tenant's own
  * scope and in one transaction with it, its roles (Administrator and every
@@ -57,14 +95,134 @@ export class TenantsService {
     private readonly accounts: UsersRepository,
     private readonly invitations: InvitationsService,
     private readonly singleTenant: SingleTenant,
+    private readonly lifecycle: TenantLifecycleRegistry,
   ) {}
 
-  /** Every tenant, oldest first (the operators' list). */
-  list(): Promise<Tenant[]> {
-    return database(this.txHost)
-      .select()
-      .from(tenants)
-      .orderBy(asc(tenants.createdAt), asc(tenants.id));
+  /**
+   * A page of the tenants (the operators' list, `GET /v1/tenants`): newest
+   * first unless sorted, filtered by `where` (TENANT_LIST). Global: no
+   * tenant's rows, so nothing for row-level security to narrow.
+   */
+  async page(query: PageQuery, where?: SQL) {
+    const db = database(this.txHost);
+    const [rows, total] = await Promise.all([
+      db
+        .select()
+        .from(tenants)
+        .where(and(where, afterCursor(tenants.id, query)))
+        .orderBy(...pageOrder(tenants.id, query))
+        .limit(query.limit + 1)
+        .offset(pageOffset(query)),
+      countPage(db, tenants, where, query),
+    ]);
+    return toPage(rows, query, total);
+  }
+
+  /** One tenant, active or not; a 404 when there is none. */
+  async get(id: string): Promise<Tenant> {
+    const tenant = await this.tenancy.find(id);
+    if (!tenant) {
+      throw new NotFoundException(`Tenant ${id} not found.`);
+    }
+    return tenant;
+  }
+
+  /**
+   * Renames a tenant, changes its slug, or (de)activates it, under the
+   * row's lock with the operator's audit entry; then the entry in the
+   * tenant itself (its administrators read what the operators did to it),
+   * as `createWithAdministrator()` does. The operator tenant is never
+   * deactivated (409 `operator_tenant`): the operators would lock
+   * themselves out of every operator route, this one included.
+   *
+   * A deactivated tenant (what `tenants.active` already means: Tenancy,
+   * UsersRepository.inTenant, ApiKeyAuthProvider): a session or token
+   * acting in it stops (401), its API keys stop, its invitations can't be
+   * accepted, a sign-in never starts in it, its jobs and cron runs are
+   * skipped. Here, after the commit, as a membership's deactivation does
+   * for one member: its sessions and token families end (so reactivating
+   * never revives them: its members sign in again) and its realtime
+   * connections end (TenantLifecycleRegistry). Nothing else is deleted:
+   * reactivating gives back its data, memberships and API keys.
+   *
+   * `check` (the caller's If-Match) runs under the lock against the tenant
+   * as GET /v1/tenants/{id} shows it.
+   */
+  async update(
+    operator: Principal,
+    id: string,
+    changes: TenantChanges,
+    ip?: string,
+    check?: (current: Tenant) => void,
+  ): Promise<Tenant> {
+    const { before, after } = await inTransaction(this.txHost, async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(tenants)
+        .where(eq(tenants.id, id))
+        .for('update');
+      if (!current) {
+        throw new NotFoundException(`Tenant ${id} not found.`);
+      }
+      check?.(current);
+      if (current.operator && changes.active === false) {
+        throw new ConflictException({
+          code: 'operator_tenant',
+          message:
+            'The operator tenant can’t be deactivated: its members run the deployment.',
+        });
+      }
+      const [updated] = await tx
+        .update(tenants)
+        .set({
+          ...(changes.name !== undefined && { name: changes.name }),
+          ...(changes.slug !== undefined && { slug: changes.slug }),
+          ...(changes.active !== undefined && { active: changes.active }),
+        })
+        .where(eq(tenants.id, id))
+        .returning()
+        .catch((error: unknown) => {
+          if (pgErrorCode(error) === UNIQUE_VIOLATION) {
+            throw slugTaken(changes.slug ?? current.slug);
+          }
+          throw error;
+        });
+      await this.audit.record(
+        operator,
+        tenantUpdated(current, updated!, ip),
+        tx,
+      );
+      return { before: current, after: updated! };
+    });
+    // The tenant's own log too (the operator's tenant has its entry already).
+    if (id !== this.tenancy.current()?.tenantId) {
+      await this.tenancy.run(id, () =>
+        this.audit.record(operator, tenantUpdated(before, after, ip)),
+      );
+    }
+    if (before.active && !after.active) {
+      await this.accounts.endAllTenantSessions(id);
+      await this.afterDeactivation(id);
+    }
+    return after;
+  }
+
+  /** Ends what lives outside the database (realtime connections): every member's and API client's in the tenant. */
+  private async afterDeactivation(tenantId: string) {
+    const members = await database(this.txHost)
+      .select({ id: memberships.userId })
+      .from(memberships)
+      .where(eq(memberships.tenantId, tenantId));
+    const clients = await this.tenancy.run(tenantId, async () =>
+      database(this.txHost).select({ id: apiClients.id }).from(apiClients),
+    );
+    const principals = [
+      ...members.map(({ id }) => ({ kind: 'user' as const, id })),
+      ...clients.map(({ id }) => ({ kind: 'client' as const, id })),
+    ];
+    for (const listener of this.lifecycle.all()) {
+      await listener.afterDeactivation(tenantId, principals);
+    }
   }
 
   /**
@@ -97,11 +255,8 @@ export class TenantsService {
           })
           .returning()
           .catch((error: unknown) => {
-            if (codeOf(error) === '23505') {
-              throw new ConflictException({
-                code: 'tenant_slug_taken',
-                message: `A tenant named "${input.slug}" exists.`,
-              });
+            if (pgErrorCode(error) === UNIQUE_VIOLATION) {
+              throw slugTaken(input.slug);
             }
             throw error;
           });
@@ -139,7 +294,8 @@ export class TenantsService {
    * transaction, so a refused slug leaves nothing behind; the mail after
    * the commit. Nothing about an account at that address is read or
    * changed: its owner accepts (or, new, chooses a password) with the link.
-   * Audited in the new tenant and in the operator's own.
+   * Audited in the new tenant and in the operator's own. The answer is
+   * the tenant and its administrator's invitation (`status: 'invited'`).
    */
   async createWithAdministrator(
     operator: Principal,
@@ -186,7 +342,18 @@ export class TenantsService {
     await this.tenancy.run(tenant.id, () =>
       this.invitations.send(result!.invitation, result!.token, operator),
     );
-    return tenant;
+    // Always invited: whether the address has an account is never read
+    // here (the invite-only rule), so the answer can't tell an operator
+    // which addresses have one. Its owner's acceptance decides (a new
+    // account chooses its password, an existing one accepts signed in).
+    return {
+      ...tenant,
+      administrator: {
+        email: result!.invitation.email,
+        status: 'invited' as const,
+        expiresAt: result!.invitation.expiresAt,
+      },
+    };
   }
 
   /** The tenant's roles: the built-in Administrator and the declarations' `seedRoles`. */
@@ -221,6 +388,24 @@ export class TenantsService {
   }
 }
 
-const codeOf = (error: unknown) =>
-  (error as { code?: string })?.code ??
-  (error as { cause?: { code?: string } })?.cause?.code;
+/** The audit entry of a tenant's change: what changed, from → to. */
+function tenantUpdated(before: Tenant, after: Tenant, ip?: string) {
+  const changed = (['name', 'slug', 'active'] as const).filter(
+    (field) => before[field] !== after[field],
+  );
+  return {
+    action: 'tenant.updated',
+    targetType: 'tenant',
+    targetId: after.id,
+    details: {
+      slug: after.slug,
+      ...Object.fromEntries(
+        changed.map((field) => [
+          field,
+          { from: before[field], to: after[field] },
+        ]),
+      ),
+    },
+    ip,
+  };
+}

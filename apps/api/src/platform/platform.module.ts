@@ -132,6 +132,7 @@ import { SearchRegistry } from './search/search.registry.js';
 import { SearchService } from './search/search.service.js';
 import { ListsController } from './lists/lists.controller.js';
 import { AccessListSources } from './lists/access-lists.js';
+import { TenantListSource } from './lists/tenant-lists.js';
 import { ListPolicy } from './lists/list.policy.js';
 import { ListsRegistry } from './lists/lists.registry.js';
 import { ListsService } from './lists/lists.service.js';
@@ -497,6 +498,8 @@ export class PlatformModule {
         ListPolicy,
         // The access API's users and audit lists (GET /v1/lists/User, /Audit).
         AccessListSources,
+        // The operators' tenants list (GET /v1/lists/Tenant).
+        TenantListSource,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,
         // Files attached to records: features register an AttachmentTarget.
