@@ -1,4 +1,5 @@
 import { OutboxRelay } from '@nestjs/outbox';
+import { WebhookDeliveryRetentionJob } from '../src/platform/webhooks/webhook-delivery-retention.job.js';
 import { webhooksOptions } from '../src/platform/webhooks/webhooks.config.js';
 import { bootApp, type TestApp } from './support.js';
 
@@ -36,5 +37,9 @@ describe('WEBHOOKS=off (e2e)', () => {
 
   it('does not run the delivery worker, whatever WEBHOOKS_WORKER says', () => {
     expect(webhooksOptions({ eventTypes: [] }, {}).worker?.enabled).toBe(false);
+  });
+
+  it('leaves the delivery retention job out', () => {
+    expect(() => node.app.get(WebhookDeliveryRetentionJob)).toThrow();
   });
 });

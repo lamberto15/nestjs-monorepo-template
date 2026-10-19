@@ -66,6 +66,12 @@ export const platformEnv = z.object({
   ACCOUNT_DELETION_GRACE_DAYS: z.coerce.number().int().min(0).default(14),
   /** API clients' daily usage (platform/usage) older than this many days is deleted every night. */
   USAGE_RETENTION_DAYS: z.coerce.number().int().min(1).default(400),
+  /**
+   * Outgoing webhook deliveries (platform/webhooks) that finished (succeeded, or failed
+   * for good) more than this many days ago are deleted every night, with their attempt log
+   * and recorded requests; one still being retried stays.
+   */
+  WEBHOOKS_DELIVERY_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
   /** Record revisions (platform/revisions) older than this many days are deleted every night; each record's latest stays. */
   REVISIONS_RETENTION_DAYS: z.coerce.number().int().min(1).default(365),
   /** How long a scheduled report's mailed download link works: `30m`, `24h`, `3d` (at most 7 days). In milliseconds once read. */

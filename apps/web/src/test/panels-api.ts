@@ -26,6 +26,8 @@ export type PanelCapabilities = {
   attachments: boolean;
   tags: boolean;
   revisions: boolean;
+  /** PDF documents of the record; off unless a test asks. */
+  pdf?: boolean;
 };
 
 export const EVERY_PANEL: PanelCapabilities = {
@@ -53,7 +55,7 @@ export function panelsDescription(
   return {
     capabilities: {
       ...all,
-      pdf: false,
+      pdf: all.pdf ?? false,
       bulk: false,
       watch: false,
       search: false,
