@@ -37,18 +37,19 @@ What Swarm lacks, and what replaces it:
 
 ## Images
 
-CI publishes the app and Gotenberg images to GHCR
-([deployment.md](deployment.md), "CI"). Caddy (the Cloudflare DNS module) and
-the backup service are built from `caddy/` (with the web app, from the repository root) and `backup/` by you, once per
-change of those directories, and pushed:
+CI publishes the app, Gotenberg and Caddy images to GHCR
+([deployment.md](deployment.md), "CI"); `CADDY_IMAGE` is the published
+`ghcr.io/<owner>/<repo>/caddy:<full commit SHA>` (Caddy with the Cloudflare DNS
+module and the web app; nothing in it is one deployment's). The backup service
+is built from `backup/` by you, once per change of that directory, and pushed:
 
 ```bash
-docker build -f caddy/Dockerfile -t ghcr.io/<owner>/<repo>/caddy:1 . && docker push ghcr.io/<owner>/<repo>/caddy:1
 docker build -t ghcr.io/<owner>/<repo>/backup:1 backup && docker push ghcr.io/<owner>/<repo>/backup:1
 ```
 
 `.env` (or the shell): `APP_IMAGE=ghcr.io/<owner>/<repo>:<full commit SHA>`,
-`GOTENBERG_IMAGE`, `CADDY_IMAGE`, `BACKUP_IMAGE`. Never `latest`: a deploy
+`GOTENBERG_IMAGE`, `CADDY_IMAGE` (the same commit as `APP_IMAGE`: it holds the web
+build that fits that API), `BACKUP_IMAGE`. Never `latest`: a deploy
 names the version it runs, and a rollback goes back to the one before it.
 
 ## One node

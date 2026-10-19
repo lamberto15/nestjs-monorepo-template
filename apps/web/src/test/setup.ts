@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll } from 'vitest';
+import { teardownApps } from '@/test/app-clients';
 import { server } from '@/test/server';
 
 // findBy*/waitFor wait 1 s by default (Testing Library's asyncUtilTimeout).
@@ -14,8 +15,10 @@ configure({ asyncUtilTimeout: 3000 });
 // msw (its Vitest quick start): every request of a test is answered by a
 // handler, and one nobody expected fails the test.
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  // A rendered app's queries still in flight must not outlive the test (app-clients.ts).
+  await teardownApps();
   // Sonner's toasts live in a module-level store: one test's must not show in the next.
   toast.dismiss();
   server.resetHandlers();
