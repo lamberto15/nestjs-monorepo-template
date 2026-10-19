@@ -46,6 +46,13 @@ A signed-in user manages a chosen client's webhooks on its behalf, under
 - a recent sign-in to create an endpoint or rotate its secret: both return a
   secret (403 `reauthentication_required`, [auth](auth.md)).
 
+A chooser of clients needs no request per client: `GET /v1/access/clients` (and
+`GET /v1/access/clients/{id}`) carry `webhookEndpoints`, how many endpoints the
+client has, from one grouped query on the package's table
+(`ApiClientCountsRegistry`: IAM can't import the platform, so the webhooks
+register the count). With `WEBHOOKS=off` it is absent, not 0: the client's
+endpoints may exist, they only receive nothing.
+
 Changes (create, update, delete, rotate, test, retry) are audited as the
 user's, with the client as the target (`webhook-endpoint.created`, …); a
 client's own changes through its key are not. The package keeps endpoints in
@@ -58,20 +65,56 @@ change succeeded, not in one transaction with it.
   types by feature (`group`: the first segment unless declared). A feature
   declares a description with `{ type, description, group? }` in
   `PlatformModule.forRoot({ eventTypes })` (a plain string still works);
-  records' `events` declare theirs.
+  records' `events` declare theirs. It is the same list for every caller
+  and every client: there is no `?clientId=`. Nothing narrows what a client
+  receives by its roles. An endpoint gets every message of its client that
+  it subscribed to (`dispatch()` picks endpoints by tenant and type only),
+  and the roles act on the content: a record's `data` is redacted by what the
+  client may read (its hidden fields are left out), and only the client that
+  owns the record (and the one an approval or a notification is for) is
+  sent anything.
 - **Test event:** the reserved `webhook.test` (`data`: `{ endpointId, test: true }`)
   goes to that endpoint alone, whatever it subscribed to, signed and retried
   as any delivery. Subscribing to it is a 400, as any unknown type.
 - **The delivery log** pages by cursor with the list query of every list
   ([api-conventions](api-conventions.md)): `limit`, `cursor`, `count=true`,
   flat filters (`status`, `endpointId`, `type`, `attempts`, `createdAt` in
-  ISO 8601), `filter`, `sort`, `fields`. Items show times in epoch
-  milliseconds, as the package does. One delivery adds `durationMs` (every
+  ISO 8601), `filter`, `sort`, `fields`. Every time is an ISO 8601 string
+  (`createdAt`, `nextAttemptAt`, `lastAttemptAt`, `completedAt`; in one
+  delivery also the message's `createdAt`, each attempt's `at` and
+  `lastRequest.sentAt`), like the rest of the API; the package keeps epoch
+  milliseconds, converted on the way out
+  (`webhook-management.service.ts`). One delivery adds `durationMs` (every
   attempt together) and `lastRequest`: the headers of the latest attempt as
   sent (`webhook-id`, `webhook-timestamp`, `webhook-signature`, content type,
-  user agent; never a secret). The recording transport
+  user agent; never a secret) and `signedWith` (below). The recording transport
   (`recording.transport.ts`) writes them to `webhook_delivery_requests`
   before each attempt, around the package's own HTTP transport.
+- **The list, described:** `GET /v1/lists/WebhookDelivery` describes the
+  delivery log as every list is ([api-conventions](api-conventions.md),
+  "List metadata"): the filters and their operators, the sorts, `select`, the
+  limits, from `DELIVERY_LIST`, the declaration both delivery routes validate
+  with. It describes the list, not one client's: the client stays in the path
+  (`/v1/access/clients/{clientId}/webhook-deliveries`) or is the caller (an
+  API key), and is no filter. It is for whoever may call a delivery route: an
+  API client, or a user with `Access.manageClients` (a delivery has no CASL
+  subject to `read`, so the registration carries its own check,
+  `platform/webhooks/webhook-lists.ts`); 403 to others, 404 with
+  `WEBHOOKS=off`. `defaultSort` is null: without `sort` it is newest first
+  (by id), which `sort` cannot ask for by `createdAt`.
+- **Which secret signed it:** `lastRequest.signedWith` lists the secrets that
+  signed the latest attempt, newest first, in the order of the `v1,…`
+  signatures in `webhook-signature`: `{ createdAt, expiresAt }` for each, ISO
+  8601. A secret has no id of its own: when it was made (the endpoint's
+  creation, or the rotation that issued it) identifies it, and `expiresAt` is
+  null for the current one and 24 hours after the rotation for the old one,
+  so right after a rotation there are two. Never the secret. The package
+  signs with every live secret and does not tell the transport which, so the
+  recording transport reads the endpoint's live secrets as it records (the
+  same, unless one expired or was rotated in between) and matches them to the
+  signatures by count; a count that differs records null, as does a delivery
+  from before this was kept. Only the latest attempt is kept, like the
+  request.
 - **`description`:** `null` clears it on PATCH; an empty string is a 400.
 
 - **Signatures:** Standard Webhooks (`webhook-id`, `webhook-timestamp`,
@@ -99,6 +142,37 @@ if and only if the change commits (`features/notes/note-publisher.service.ts`):
 ```ts
 await this.webhooks.dispatch(tx, { type: 'note.published', tenant: clientId, data });
 ```
+
+### A receiver on your machine (development)
+
+By default an endpoint is a public `https://` URL, and private, loopback and
+cloud-metadata addresses are refused, when it is created and again when a
+delivery is sent (a name that resolves to one is refused too). To try a
+receiver running locally, set `WEBHOOKS_ALLOW_LOOPBACK=on` in the API's
+environment (`apps/api/.env.development`; off by default, **never in
+production**, where it would also accept plain `http://`):
+
+- `http://127.0.0.1:<port>/…` and `http://localhost:<port>/…` (`localhost`
+  and `*.localhost` always mean 127.0.0.1) are accepted. Only that address:
+  `http://192.168.x.x`, `http://[::1]` and other private ranges stay refused,
+  and so does `host.docker.internal`.
+- From a container, `localhost` is the container itself: run the API on the
+  host (`pnpm dev`) to reach a receiver there.
+- The e2e tests set it, and `webhookReceiver()` (`apps/api/test/support.ts`)
+  is a receiver on loopback.
+
+```bash
+# .env.development: WEBHOOKS_ALLOW_LOOPBACK=on, then restart the API
+curl -s -X POST http://localhost:3000/v1/webhook-endpoints \
+  -H "Authorization: Bearer $API_KEY" -H 'Content-Type: application/json' \
+  -d '{ "url": "http://127.0.0.1:4000/hooks", "eventTypes": ["*"] }'
+curl -s -X POST http://localhost:3000/v1/webhook-endpoints/$ID/test \
+  -H "Authorization: Bearer $API_KEY"   # 202; the receiver gets webhook.test
+```
+
+Without it, creating `http://127.0.0.1:4000/hooks` is a 400 (only https:
+URLs are accepted). A tunnel (an `https://` address that forwards to your
+machine) works without the flag.
 
 ## Incoming webhooks
 
