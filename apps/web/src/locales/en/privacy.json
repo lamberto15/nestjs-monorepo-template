@@ -1,0 +1,51 @@
+{
+  "title": "Privacy",
+  "description": "Your data, what you agreed to, and deleting your account.",
+  "impersonating": "While acting as someone, their data, consents and account deletion stay theirs.",
+  "export": {
+    "title": "Export your data",
+    "description": "A copy of everything held about you: your account, then what each organization you belong to holds about you. The file is made in the background.",
+    "start": "Export my data",
+    "startedAt": "Started {{date}}",
+    "kept": "The exports started in this browser. A finished export is kept 7 days; its download link works 30 minutes, open this page again for a new one."
+  },
+  "consents": {
+    "title": "Consents",
+    "description": "What you agreed to, and when. Each is kept as proof.",
+    "kinds": {
+      "terms": "Terms of service",
+      "privacy": "Privacy policy",
+      "marketing": "News and offers by email"
+    },
+    "required": "Required",
+    "acceptedAt": "Version {{version}}, accepted {{date}}",
+    "outdated": "You accepted version {{version}} on {{date}}; version {{current}} is current.",
+    "notGiven": "Not given (version {{version}}).",
+    "locked": "Required to use the app: it can't be withdrawn here.",
+    "noWithdraw": "Withdrawing isn't available here yet.",
+    "given": "{{kind}}: accepted."
+  },
+  "deletion": {
+    "title": "Delete your account",
+    "description": "This can't be undone once it is carried out.",
+    "grace": "Your account is deleted after a grace period; the email we send says the date. Until then you stay signed in and can cancel, here or with the email's link, even without signing in.",
+    "erased": "Then your name and email address are replaced, and your password, sign-in methods, sessions, memberships, notifications and settings are removed, in every organization you belong to.",
+    "keptRecords": "Records you created stay with their organization, no longer linked to you.",
+    "audit": "The audit log keeps its entries, labelled \"Deleted user\".",
+    "exportFirst": "Export your data first if you want a copy.",
+    "action": "Delete my account…",
+    "confirmTitle": "Delete your account?",
+    "confirmDescription": "To confirm, type your email address and your password.",
+    "confirmEmail": "Type {{email}}",
+    "confirmMismatch": "This is not your account's address.",
+    "password": "Password",
+    "passwordHint": "Leave empty if your account has no password.",
+    "mailHint": "We'll email you the date and a link to cancel.",
+    "submit": "Delete my account",
+    "requested": "Your account will be deleted on {{date}}. We emailed {{email}} a link to cancel.",
+    "scheduled": "Your account will be deleted on {{date}}.",
+    "scheduledHint": "We emailed {{email}} a link to cancel it, which works without signing in. Or keep your account here.",
+    "keep": "Keep my account",
+    "kept": "The deletion is cancelled: your account stays."
+  }
+}
