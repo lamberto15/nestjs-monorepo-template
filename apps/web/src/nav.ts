@@ -18,6 +18,11 @@ export type NavItem = {
    */
   permission?: Permission | readonly Permission[];
   /**
+   * Shown only to the deployment's operators, and with `TENANCY=multi`
+   * (`useOperator()`: the API says who is one by answering their routes).
+   */
+  operator?: true;
+  /**
    * A hook returning a count shown next to the label (undefined or 0: none).
    * A hook, so the entry's feature owns its query; the menu calls it in a
    * component of its own per entry, so the hook's identity must be stable.
@@ -61,9 +66,15 @@ export function visibleGroups(
   groups: readonly NavGroup[],
   features: Features | undefined,
   can: Record<string, boolean> | undefined,
+  operator = false,
 ): NavGroup[] {
   return groups
-    .map((group) => ({ ...group, items: visible(group.items, features, can) }))
+    .map((group) => ({
+      ...group,
+      items: visible(group.items, features, can).filter(
+        (item) => !item.operator || operator,
+      ),
+    }))
     .filter((group) => group.items.length > 0);
 }
 

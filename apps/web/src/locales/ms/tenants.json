@@ -1,0 +1,39 @@
+{
+  "nav": "Penyewa",
+  "list": {
+    "title": "Penyewa",
+    "description": "Pelanggan penggunaan ini. Setiap penyewa ialah dinding tegar di sekeliling datanya; mencipta satu akan menjemput pentadbir pertamanya.",
+    "empty": "Tiada penyewa.",
+    "create": "Penyewa baharu",
+    "columns": {
+      "name": "Nama",
+      "slug": "Slug",
+      "status": "Status",
+      "created": "Dicipta",
+      "actions": "Tindakan"
+    },
+    "operator": "Pengendali",
+    "current": "Semasa",
+    "switch": "Tukar ke penyewa ini"
+  },
+  "status": {
+    "active": "Aktif",
+    "inactive": "Tidak aktif"
+  },
+  "create": {
+    "title": "Penyewa baharu",
+    "description": "Mencipta penyewa beserta peranannya. Pentadbir pertama menerima jemputan jika alamat itu belum mempunyai akaun.",
+    "name": "Nama",
+    "namePlaceholder": "Acme Sdn Bhd",
+    "nameRequired": "Masukkan nama.",
+    "slug": "Slug",
+    "slugHint": "Pengecam pendek: huruf kecil, digit dan sempang tunggal.",
+    "slugInvalid": "Gunakan huruf kecil dan digit, dengan sempang tunggal di antaranya (paling banyak 48 aksara).",
+    "email": "E-mel pentadbir pertama",
+    "emailHint": "Akaun dicipta dan dijemput pada alamat ini jika belum ada.",
+    "emailInvalid": "Masukkan alamat e-mel yang sah.",
+    "cancel": "Batal",
+    "submit": "Cipta penyewa",
+    "done": "Penyewa {{name}} dicipta. {{email}} ialah pentadbir pertamanya."
+  }
+}
