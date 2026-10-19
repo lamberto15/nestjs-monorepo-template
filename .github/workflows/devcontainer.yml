@@ -1,0 +1,80 @@
+# The devcontainer builds and works (docs/development.md, "Devcontainer"):
+# `devcontainer up` builds .devcontainer/ (the workspace image, PostgreSQL,
+# Redis, Mailpit, Gotenberg) and runs post-create.sh, so `pnpm install`;
+# then .devcontainer/smoke-test.sh starts `pnpm dev` inside it and fetches
+# the web app on 127.0.0.1 and ::1 and the API's /health through Vite's
+# proxy, each of which must answer 2xx. A broken compose.yaml, Dockerfile,
+# post-create.sh, a workspace package without its node_modules volume, or
+# Vite listening on one loopback address only fails here, not in someone's
+# editor.
+#
+# Its own workflow (ci.yml has no devcontainer job), path-filtered to what
+# the container is made of. Not a required check: a pull request that
+# doesn't touch these files has no such run, which a required check would
+# leave pending.
+name: Devcontainer
+
+on:
+  pull_request:
+    paths:
+      - .devcontainer/**
+      - compose.yaml
+      - compose.dev.yaml
+      - apps/web/vite.config.ts
+      - pnpm-lock.yaml
+      - .github/workflows/devcontainer.yml
+  push:
+    branches: [main]
+    paths:
+      - .devcontainer/**
+      - compose.yaml
+      - compose.dev.yaml
+      - apps/web/vite.config.ts
+      - pnpm-lock.yaml
+      - .github/workflows/devcontainer.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devcontainer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  devcontainer:
+    # amd64: the runner's architecture, as the production image's.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # buildx bake checks the CLI's generated Dockerfile in a temporary
+      # directory and asks for --allow=fs.read=… otherwise (docs/development.md).
+      BUILDX_BAKE_ENTITLEMENTS_FS: '0'
+    steps:
+      - uses: actions/checkout@v7
+
+      # The CLI of the Dev Containers specification (the library under the
+      # devcontainers/ci action, which adds image caching and pushing this
+      # job has no use for), pinned: raise it by hand, against
+      # https://github.com/devcontainers/cli/releases. Installed from the
+      # runner's temp directory: package.json's devEngines asks for pnpm,
+      # which npm refuses in the repository.
+      - name: Install the Dev Containers CLI
+        working-directory: ${{ runner.temp }}
+        run: npm install --global @devcontainers/cli@0.89.0
+
+      # Builds the images, starts the Compose project (nestjs-monorepo-template-devcontainer)
+      # and runs postCreateCommand: pnpm install into the node_modules
+      # volumes, and apps/api/.env.development from its committed template
+      # (no secrets: the development values).
+      - name: devcontainer up
+        run: devcontainer up --workspace-folder . --log-level debug
+
+      - name: Smoke test (pnpm dev, the web app on both loopbacks, /health through the proxy)
+        run: devcontainer exec --workspace-folder . sh .devcontainer/smoke-test.sh
+
+      # The services' logs, for a failure that isn't the dev server's (that
+      # one is printed by the smoke test).
+      - name: Services' logs
+        if: failure()
+        run: docker compose --project-name nestjs-monorepo-template-devcontainer logs --no-color --tail 200
