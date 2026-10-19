@@ -1,29 +1,37 @@
+import { pageSchema } from '../../core/http/pagination.js';
 import { z } from 'zod';
 
 /** A file attached to a record. */
-export const attachmentSchema = z.object({
-  id: z.uuid(),
-  subject: z.string().meta({ example: 'Note' }),
-  recordId: z.uuid(),
-  name: z.string().meta({ example: 'invoice.pdf' }),
-  size: z.number().int().describe('Bytes.'),
-  contentType: z
-    .string()
-    .meta({ example: 'application/pdf' })
-    .describe("Detected from the file's bytes."),
-  uploadedBy: z
-    .string()
-    .meta({ example: 'user:0199a3f2-…' })
-    .describe('`user:<id>`, `client:<id>`, or `anonymized`.'),
-  locked: z
-    .boolean()
-    .describe(
-      'An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record.',
-    ),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-});
+export const attachmentSchema = z
+  .object({
+    id: z.uuid(),
+    subject: z.string().meta({ example: 'Note' }),
+    recordId: z.uuid(),
+    name: z.string().meta({ example: 'invoice.pdf' }),
+    size: z.number().int().describe('Bytes.'),
+    contentType: z
+      .string()
+      .meta({ example: 'application/pdf' })
+      .describe("Detected from the file's bytes."),
+    uploadedBy: z
+      .string()
+      .meta({ example: 'user:0199a3f2-…' })
+      .describe('`user:<id>`, `client:<id>`, or `anonymized`.'),
+    locked: z
+      .boolean()
+      .describe(
+        'An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record.',
+      ),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .meta({ id: 'Attachment' });
 export type AttachmentView = z.infer<typeof attachmentSchema>;
+
+/** A page of attachments (`GET …/attachments`). */
+export const attachmentPageSchema = pageSchema(attachmentSchema).meta({
+  id: 'AttachmentPage',
+});
 
 /** The multipart body of an upload. */
 export const attachmentUploadSchema = z.object({

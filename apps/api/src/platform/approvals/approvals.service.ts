@@ -1221,6 +1221,7 @@ export function view(row: ApprovalRequestRow): ApprovalView {
     comment: row.comment,
     outcomeReason: row.outcomeReason,
     endedAt: row.endedAt?.toISOString() ?? null,
+    outcomeAppliedAt: row.outcomeAppliedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

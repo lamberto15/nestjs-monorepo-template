@@ -1,3 +1,4 @@
+import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import { z } from 'zod';
 
 /** `#rrggbb`, stored in lower case. */
@@ -8,26 +9,38 @@ const color = z
   .meta({ example: '#3b82f6' });
 
 /** A tag. */
-export const tagSchema = z.object({
-  id: z.string(),
-  subject: z
-    .string()
-    .describe('What it tags: a permission subject, `Note`.')
-    .meta({ example: 'Note' }),
-  name: z.string().meta({ example: 'Urgent' }),
-  color: z.string().nullable().describe('`#rrggbb`.'),
-  description: z.string().nullable(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-});
+export const tagSchema = z
+  .object({
+    id: z.string(),
+    subject: z
+      .string()
+      .describe('What it tags: a permission subject, `Note`.')
+      .meta({ example: 'Note' }),
+    name: z.string().meta({ example: 'Urgent' }),
+    color: z.string().nullable().describe('`#rrggbb`.'),
+    description: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .meta({ id: 'Tag' });
 
 /** A tag as a record shows it. */
-export const tagRefSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  color: z.string().nullable(),
-});
+export const tagRefSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    color: z.string().nullable(),
+  })
+  .meta({ id: 'TagRef' });
 export type TagRef = z.infer<typeof tagRefSchema>;
+
+/** A page of tags (`GET /v1/tags`). */
+export const tagPageSchema = pageSchema(tagSchema).meta({ id: 'TagPage' });
+
+/** A record's tags (`PUT …/tags`). */
+export const tagRefListSchema = listSchema(tagRefSchema).meta({
+  id: 'TagRefList',
+});
 
 /** Body of `POST /tags`. */
 export const createTagSchema = z.object({

@@ -1,0 +1,23 @@
+{
+  "title": "Documents",
+  "empty": "No documents issued yet.",
+  "error": "The documents could not be loaded.",
+  "issue": "Issue PDF",
+  "language": "Language",
+  "issuedAt": "Issued",
+  "byYou": "By you",
+  "byOther": "By someone else",
+  "byAnonymized": "By a deleted account",
+  "download": "Download {{name}}",
+  "downloadShort": "Download",
+  "pending": "This document is already being made. It will appear here.",
+  "unavailable": "PDF documents are not available right now: they are switched off or the PDF service is down. Try again later.",
+  "status": {
+    "progressLabel": "Issuing the document",
+    "queued": "Waiting to be made…",
+    "rendering": "Making the PDF…",
+    "failed": "The document could not be made.",
+    "error": "The state of the document could not be loaded.",
+    "dismiss": "Dismiss"
+  }
+}

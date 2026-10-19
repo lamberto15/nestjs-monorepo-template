@@ -82,6 +82,7 @@ describe('comments', () => {
         {
           author: `user:${MAYA.id}`,
           body: 'Hi @maya@example.com <b>bold</b> and @user:' + MAYA.id,
+          mentionNames: { [`user:${MAYA.id}`]: MAYA.name },
         },
         { author: ME, body: 'Mine' },
       ],
@@ -99,50 +100,9 @@ describe('comments', () => {
     expect(within(thread).getByText('You')).toBeVisible();
   });
 
-  it('names a mention nobody offered through the people lookup, in one request', async () => {
-    const OTTO = {
-      id: '0199a3f2-0000-7000-8000-000000000004',
-      email: 'otto@example.com',
-      name: 'Otto Lang',
-    };
-    const IDA = {
-      ...OTTO,
-      id: '0199a3f2-0000-7000-8000-000000000005',
-      name: 'Ida Roe',
-    };
-    const calls = usePanelsApi({
-      people: [OTTO, IDA],
-      comments: [
-        {
-          body: `cc @user:${OTTO.id}`,
-          mentions: [`user:${OTTO.id}`],
-        },
-        {
-          body: `and @user:${IDA.id} @user:${OTTO.id}`,
-          mentions: [`user:${IDA.id}`, `user:${OTTO.id}`],
-          mentionNames: { [`user:${IDA.id}`]: null },
-        },
-      ],
-    });
-    await mountPanels(ALL);
-    await open('Comments');
-    const thread = await screen.findByRole('list', { name: 'Comments' });
-    await waitFor(() =>
-      expect(
-        [...thread.querySelectorAll('[data-mention]')].map(
-          (m) => m.textContent,
-        ),
-      ).toEqual(['@Otto Lang', '@Ida Roe', '@Otto Lang']),
-    );
-    expect(calls.peopleLookups).toHaveLength(1);
-    expect([...calls.peopleLookups[0]!].sort()).toEqual(
-      [`user:${IDA.id}`, `user:${OTTO.id}`].sort(),
-    );
-  });
-
-  it('names the mentions the API named without asking', async () => {
+  it('names the mentions the API named', async () => {
     const OTTO = '0199a3f2-0000-7000-8000-000000000004';
-    const calls = usePanelsApi({
+    usePanelsApi({
       comments: [
         {
           body: `cc @user:${OTTO}`,
@@ -157,7 +117,6 @@ describe('comments', () => {
     expect(thread.querySelector('[data-mention]')).toHaveTextContent(
       '@Otto Lang',
     );
-    expect(calls.peopleLookups).toEqual([]);
   });
 
   it("names authors as the API does, and someone it doesn't", async () => {
@@ -169,6 +128,7 @@ describe('comments', () => {
           author: `user:${stranger}`,
           authorName: null,
           body: `cc @user:${stranger}`,
+          mentionNames: { [`user:${stranger}`]: null },
         },
         { author: 'client:1', authorName: null, body: 'Imported' },
       ],
@@ -179,9 +139,9 @@ describe('comments', () => {
     expect(within(thread).getByText('Maya P.')).toBeVisible();
     expect(within(thread).getByText('System')).toBeVisible();
     expect(within(thread).getByText('Someone')).toBeVisible();
-    // A mention of someone unknown shows no id.
+    // A mention the API cannot name (null) stays as written.
     expect(thread.querySelector('[data-mention]')).toHaveTextContent(
-      '@Someone',
+      `@user:${stranger}`,
     );
   });
 
@@ -259,6 +219,22 @@ describe('comments', () => {
     const user = await open('Comments');
     await user.type(await screen.findByLabelText('Write a comment'), '@x');
     expect(screen.queryByRole('option')).toBeNull();
+  });
+
+  it('names mentions from mentionNames, case-insensitively, else keeps the raw text', () => {
+    const id = MAYA.id.toUpperCase();
+    expect(
+      splitMentions(`hi @user:${id} and @user:${ID} @a@b.co`, {
+        [`user:${MAYA.id}`]: MAYA.name,
+      }),
+    ).toEqual([
+      { text: 'hi ' },
+      { text: '@Maya Patel', mention: `@user:${id}` },
+      { text: ' and ' },
+      { text: `@user:${ID}`, mention: `@user:${ID}` },
+      { text: ' ' },
+      { text: '@a@b.co', mention: '@a@b.co' },
+    ]);
   });
 
   it('splits mentions without touching the rest', () => {
