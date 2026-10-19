@@ -10973,23 +10973,23 @@ export interface operations {
     ApprovalsController_list_v1: {
         parameters: {
             query?: {
-                limit?: string;
+                limit?: number;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: string;
+                page?: number;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: string;
+                count?: "true" | "false";
                 /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: assignedToMe = */
-                assignedToMe?: string;
+                assignedToMe?: "true" | "false";
                 /** @description Filter: requestedByMe = */
-                requestedByMe?: string;
+                requestedByMe?: "true" | "false";
                 /** @description Filter: decidedByMe = */
-                decidedByMe?: string;
+                decidedByMe?: "true" | "false";
                 /** @description Filter: status = */
-                status?: string;
+                status?: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
                 /** @description Filter: status in */
                 "status.in"?: string;
                 /** @description Filter: status notIn */
@@ -11013,7 +11013,7 @@ export interface operations {
                 /** @description Filter: dueAt gte */
                 "dueAt.gte"?: string;
                 /** @description Filter: dueAt isNull */
-                "dueAt.isNull"?: string;
+                "dueAt.isNull"?: "true" | "false";
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -16434,13 +16434,13 @@ export interface operations {
             query?: {
                 /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`. */
                 include?: string;
-                limit?: string;
+                limit?: number;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: string;
+                page?: number;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: string;
+                count?: "true" | "false";
                 /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: q = */
@@ -16454,9 +16454,9 @@ export interface operations {
                 /** @description Filter: number startsWith */
                 "number.startsWith"?: string;
                 /** @description Filter: status = */
-                status?: string;
+                status?: "draft" | "published";
                 /** @description Filter: status ne */
-                "status.ne"?: string;
+                "status.ne"?: "draft" | "published";
                 /** @description Filter: status in */
                 "status.in"?: string;
                 /** @description Filter: status notIn */
@@ -16476,7 +16476,7 @@ export interface operations {
                 /** @description Filter: teamId in */
                 "teamId.in"?: string;
                 /** @description Filter: teamId isNull */
-                "teamId.isNull"?: string;
+                "teamId.isNull"?: "true" | "false";
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -16508,13 +16508,13 @@ export interface operations {
                 /** @description Filter: publishedAt between */
                 "publishedAt.between"?: string;
                 /** @description Filter: publishedAt isNull */
-                "publishedAt.isNull"?: string;
+                "publishedAt.isNull"?: "true" | "false";
                 /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"q","op":"eq","value":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt. */
                 sort?: string;
                 /** @description true: the recycle bin (deleted records), for those who may restore them. */
-                deleted?: string;
+                deleted?: "true" | "false";
                 /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
                 fields?: string;
                 /** @description Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`. */
@@ -17132,13 +17132,13 @@ export interface operations {
     NoteCommentsController_list_v1: {
         parameters: {
             query?: {
-                limit?: string;
+                limit?: number;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: string;
+                page?: number;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: string;
+                count?: "true" | "false";
                 /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: author = */
@@ -17564,19 +17564,19 @@ export interface operations {
     NoteRevisionsController_list_v1: {
         parameters: {
             query?: {
-                limit?: string;
+                limit?: number;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
                 cursor?: string;
                 /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: string;
+                page?: number;
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: string;
+                count?: "true" | "false";
                 /** @description The language of the answer. */
                 lang?: string;
                 /** @description Filter: number gte */
-                "number.gte"?: string;
+                "number.gte"?: number;
                 /** @description Filter: number lte */
-                "number.lte"?: string;
+                "number.lte"?: number;
                 /** @description Filter: number between */
                 "number.between"?: string;
                 /** @description Filter: changedBy = */

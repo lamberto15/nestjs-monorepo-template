@@ -728,4 +728,64 @@ describe('the advanced list query on GET /v1/test-items (e2e)', () => {
     expect(described('fields')).toContain('Example: ');
     expect(described('page')).toContain('Example:');
   });
+
+  it('types the query parameters from the list schema, on every ApiListQuery route', async () => {
+    const document = (await node.http().get('/api-json').expect(200)).body;
+    const query = (path: string, name: string) =>
+      (
+        document.paths[path].get.parameters as {
+          name: string;
+          required: boolean;
+          schema: unknown;
+        }[]
+      ).find((param) => param.name === name);
+    // The record panels' lists: the page is numbers, not strings.
+    for (const path of [
+      '/v1/test-items',
+      '/v1/test-items/{id}/comments',
+      '/v1/test-items/{id}/revisions',
+      '/v1/approvals',
+    ]) {
+      expect(query(path, 'limit'), path).toMatchObject({
+        required: false,
+        schema: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+      });
+      expect(query(path, 'page')?.schema, path).toEqual({
+        type: 'integer',
+        minimum: 1,
+      });
+      expect(query(path, 'cursor')?.schema, path).toMatchObject({
+        type: 'string',
+      });
+      expect(query(path, 'count')?.schema, path).toEqual({
+        type: 'string',
+        enum: ['true', 'false'],
+        default: 'false',
+      });
+    }
+    // Flat filters: their values, formats and types.
+    expect(query('/v1/approvals', 'status')?.schema).toEqual({
+      type: 'string',
+      enum: [
+        'pending',
+        'approved',
+        'rejected',
+        'changes_requested',
+        'cancelled',
+        'expired',
+        'failed',
+      ],
+    });
+    expect(query('/v1/test-items', 'createdAt.gte')?.schema).toEqual({
+      type: 'string',
+      format: 'date-time',
+    });
+    expect(query('/v1/test-items', 'teamId')?.schema).toEqual({
+      type: 'string',
+      format: 'uuid',
+    });
+    expect(query('/v1/test-items', 'sort')?.schema).toMatchObject({
+      type: 'string',
+    });
+  });
 });

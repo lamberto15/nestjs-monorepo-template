@@ -16134,7 +16134,10 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
             }
           },
           {
@@ -16143,7 +16146,9 @@
             "in": "query",
             "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
             }
           },
           {
@@ -16152,7 +16157,8 @@
             "in": "query",
             "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 1
             }
           },
           {
@@ -16161,7 +16167,12 @@
             "in": "query",
             "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "type": "string"
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -16170,7 +16181,8 @@
             "in": "query",
             "description": "The language of the answer.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 35
             }
           },
           {
@@ -16179,7 +16191,11 @@
             "in": "query",
             "description": "Filter: assignedToMe =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -16188,7 +16204,11 @@
             "in": "query",
             "description": "Filter: requestedByMe =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -16197,7 +16217,11 @@
             "in": "query",
             "description": "Filter: decidedByMe =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -16206,7 +16230,16 @@
             "in": "query",
             "description": "Filter: status =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "changes_requested",
+                "cancelled",
+                "expired",
+                "failed"
+              ]
             }
           },
           {
@@ -16233,7 +16266,9 @@
             "in": "query",
             "description": "Filter: subject =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -16251,7 +16286,9 @@
             "in": "query",
             "description": "Filter: action =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -16269,7 +16306,9 @@
             "in": "query",
             "description": "Filter: recordId =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -16278,7 +16317,9 @@
             "in": "query",
             "description": "Filter: requester =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -16287,7 +16328,8 @@
             "in": "query",
             "description": "Filter: dueAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16296,7 +16338,8 @@
             "in": "query",
             "description": "Filter: dueAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16305,7 +16348,8 @@
             "in": "query",
             "description": "Filter: dueAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16314,7 +16358,11 @@
             "in": "query",
             "description": "Filter: dueAt isNull",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -16323,7 +16371,8 @@
             "in": "query",
             "description": "Filter: createdAt gt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16332,7 +16381,8 @@
             "in": "query",
             "description": "Filter: createdAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16341,7 +16391,8 @@
             "in": "query",
             "description": "Filter: createdAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16350,7 +16401,8 @@
             "in": "query",
             "description": "Filter: createdAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16368,7 +16420,8 @@
             "in": "query",
             "description": "Filter: updatedAt gt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16377,7 +16430,8 @@
             "in": "query",
             "description": "Filter: updatedAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16386,7 +16440,8 @@
             "in": "query",
             "description": "Filter: updatedAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16395,7 +16450,8 @@
             "in": "query",
             "description": "Filter: updatedAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -16413,7 +16469,8 @@
             "in": "query",
             "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"assignedToMe\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); decidedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 20000
             }
           },
           {
@@ -16422,7 +16479,8 @@
             "in": "query",
             "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             }
           },
           {
@@ -28588,7 +28646,10 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
             }
           },
           {
@@ -28597,7 +28658,9 @@
             "in": "query",
             "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
             }
           },
           {
@@ -28606,7 +28669,8 @@
             "in": "query",
             "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 1
             }
           },
           {
@@ -28615,7 +28679,12 @@
             "in": "query",
             "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "type": "string"
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -28624,7 +28693,8 @@
             "in": "query",
             "description": "The language of the answer.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 35
             }
           },
           {
@@ -28633,7 +28703,9 @@
             "in": "query",
             "description": "Filter: q =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28642,7 +28714,8 @@
             "in": "query",
             "description": "Filter: tag =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -28660,7 +28733,9 @@
             "in": "query",
             "description": "Filter: number =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28669,7 +28744,9 @@
             "in": "query",
             "description": "Filter: number startsWith",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28678,7 +28755,11 @@
             "in": "query",
             "description": "Filter: status =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "draft",
+                "published"
+              ]
             }
           },
           {
@@ -28687,7 +28768,11 @@
             "in": "query",
             "description": "Filter: status ne",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "draft",
+                "published"
+              ]
             }
           },
           {
@@ -28714,7 +28799,9 @@
             "in": "query",
             "description": "Filter: title contains",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28723,7 +28810,9 @@
             "in": "query",
             "description": "Filter: title notContains",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28732,7 +28821,9 @@
             "in": "query",
             "description": "Filter: title startsWith",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28741,7 +28832,9 @@
             "in": "query",
             "description": "Filter: title endsWith",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28750,7 +28843,9 @@
             "in": "query",
             "description": "Filter: ownerId =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -28759,7 +28854,8 @@
             "in": "query",
             "description": "Filter: teamId =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -28777,7 +28873,11 @@
             "in": "query",
             "description": "Filter: teamId isNull",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -28786,7 +28886,8 @@
             "in": "query",
             "description": "Filter: createdAt gt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28795,7 +28896,8 @@
             "in": "query",
             "description": "Filter: createdAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28804,7 +28906,8 @@
             "in": "query",
             "description": "Filter: createdAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28813,7 +28916,8 @@
             "in": "query",
             "description": "Filter: createdAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28831,7 +28935,8 @@
             "in": "query",
             "description": "Filter: updatedAt gt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28840,7 +28945,8 @@
             "in": "query",
             "description": "Filter: updatedAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28849,7 +28955,8 @@
             "in": "query",
             "description": "Filter: updatedAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28858,7 +28965,8 @@
             "in": "query",
             "description": "Filter: updatedAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28876,7 +28984,8 @@
             "in": "query",
             "description": "Filter: publishedAt gt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28885,7 +28994,8 @@
             "in": "query",
             "description": "Filter: publishedAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28894,7 +29004,8 @@
             "in": "query",
             "description": "Filter: publishedAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28903,7 +29014,8 @@
             "in": "query",
             "description": "Filter: publishedAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -28921,7 +29033,11 @@
             "in": "query",
             "description": "Filter: publishedAt isNull",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -28930,7 +29046,8 @@
             "in": "query",
             "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"q\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: q (eq); tag (eq, in); number (eq, startsWith); status (eq, ne, in, notIn); title (contains, notContains, startsWith, endsWith); ownerId (eq); teamId (eq, in, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between); publishedAt (gt, gte, lt, lte, between, isNull).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 20000
             }
           },
           {
@@ -28939,7 +29056,8 @@
             "in": "query",
             "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -rank. Sortable: rank, number, status, title, createdAt, updatedAt, publishedAt.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             }
           },
           {
@@ -28948,7 +29066,12 @@
             "in": "query",
             "description": "true: the recycle bin (deleted records), for those who may restore them.",
             "schema": {
-              "type": "string"
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -29891,7 +30014,10 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
             }
           },
           {
@@ -29900,7 +30026,9 @@
             "in": "query",
             "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
             }
           },
           {
@@ -29909,7 +30037,8 @@
             "in": "query",
             "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 1
             }
           },
           {
@@ -29918,7 +30047,12 @@
             "in": "query",
             "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "type": "string"
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -29927,7 +30061,8 @@
             "in": "query",
             "description": "The language of the answer.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 35
             }
           },
           {
@@ -29936,7 +30071,9 @@
             "in": "query",
             "description": "Filter: author =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -29954,7 +30091,8 @@
             "in": "query",
             "description": "Filter: createdAt gt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -29963,7 +30101,8 @@
             "in": "query",
             "description": "Filter: createdAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -29972,7 +30111,8 @@
             "in": "query",
             "description": "Filter: createdAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -29981,7 +30121,8 @@
             "in": "query",
             "description": "Filter: createdAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -29999,7 +30140,8 @@
             "in": "query",
             "description": "Filter: updatedAt gt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30008,7 +30150,8 @@
             "in": "query",
             "description": "Filter: updatedAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30017,7 +30160,8 @@
             "in": "query",
             "description": "Filter: updatedAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30026,7 +30170,8 @@
             "in": "query",
             "description": "Filter: updatedAt lte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30044,7 +30189,8 @@
             "in": "query",
             "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"author\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: author (eq, in); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 20000
             }
           },
           {
@@ -30053,7 +30199,8 @@
             "in": "query",
             "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             }
           },
           {
@@ -30749,7 +30896,10 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
             }
           },
           {
@@ -30758,7 +30908,9 @@
             "in": "query",
             "description": "`nextCursor` of the previous page (the same `sort`).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
             }
           },
           {
@@ -30767,7 +30919,8 @@
             "in": "query",
             "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 1
             }
           },
           {
@@ -30776,7 +30929,12 @@
             "in": "query",
             "description": "true: add `total` (counted up to a cap; `totalCapped`).",
             "schema": {
-              "type": "string"
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {
@@ -30785,7 +30943,8 @@
             "in": "query",
             "description": "The language of the answer.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 35
             }
           },
           {
@@ -30794,7 +30953,7 @@
             "in": "query",
             "description": "Filter: number gte",
             "schema": {
-              "type": "string"
+              "type": "number"
             }
           },
           {
@@ -30803,7 +30962,7 @@
             "in": "query",
             "description": "Filter: number lte",
             "schema": {
-              "type": "string"
+              "type": "number"
             }
           },
           {
@@ -30821,7 +30980,9 @@
             "in": "query",
             "description": "Filter: changedBy =",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           {
@@ -30839,7 +31000,8 @@
             "in": "query",
             "description": "Filter: createdAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30848,7 +31010,8 @@
             "in": "query",
             "description": "Filter: createdAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30866,7 +31029,8 @@
             "in": "query",
             "description": "Filter: updatedAt gte",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30875,7 +31039,8 @@
             "in": "query",
             "description": "Filter: updatedAt lt",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -30893,7 +31058,8 @@
             "in": "query",
             "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"number\",\"op\":\"gte\",\"value\":…},{…}]}. Fields and operators: number (gte, lte, between); changedBy (eq, in); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 20000
             }
           },
           {
@@ -30902,7 +31068,8 @@
             "in": "query",
             "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt, updatedAt.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             }
           },
           {

@@ -131,7 +131,7 @@ export const listComments = (base: string, id: string) =>
       call<Page<Comment>>('GET', base, '/comments', {
         params: {
           path: { id },
-          query: { limit: String(PAGE_SIZE), sort: 'createdAt', cursor },
+          query: { limit: PAGE_SIZE, sort: 'createdAt', cursor },
         },
       }),
     ),
@@ -216,7 +216,7 @@ export const listRevisions = (base: string, id: string) =>
   allPages((cursor) =>
     unwrap(
       call<Page<Revision>>('GET', base, '/revisions', {
-        params: { path: { id }, query: { limit: String(PAGE_SIZE), cursor } },
+        params: { path: { id }, query: { limit: PAGE_SIZE, cursor } },
       }),
     ),
   );
