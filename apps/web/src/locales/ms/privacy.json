@@ -1,0 +1,51 @@
+{
+  "title": "Privasi",
+  "description": "Data anda, perkara yang anda setujui, dan pemadaman akaun anda.",
+  "impersonating": "Semasa bertindak sebagai orang lain, data, persetujuan dan pemadaman akaun mereka kekal milik mereka.",
+  "export": {
+    "title": "Eksport data anda",
+    "description": "Salinan semua yang disimpan tentang anda: akaun anda, kemudian apa yang disimpan oleh setiap organisasi yang anda sertai tentang anda. Fail dibuat di latar belakang.",
+    "start": "Eksport data saya",
+    "startedAt": "Dimulakan {{date}}",
+    "kept": "Eksport yang dimulakan dalam pelayar ini. Eksport yang selesai disimpan 7 hari; pautan muat turunnya sah 30 minit, buka halaman ini semula untuk pautan baharu."
+  },
+  "consents": {
+    "title": "Persetujuan",
+    "description": "Perkara yang anda setujui, dan bila. Setiap satu disimpan sebagai bukti.",
+    "kinds": {
+      "terms": "Terma perkhidmatan",
+      "privacy": "Dasar privasi",
+      "marketing": "Berita dan tawaran melalui e-mel"
+    },
+    "required": "Wajib",
+    "acceptedAt": "Versi {{version}}, diterima {{date}}",
+    "outdated": "Anda menerima versi {{version}} pada {{date}}; versi semasa ialah {{current}}.",
+    "notGiven": "Belum diberi (versi {{version}}).",
+    "locked": "Wajib untuk menggunakan aplikasi: tidak boleh ditarik balik di sini.",
+    "noWithdraw": "Penarikan balik belum tersedia di sini.",
+    "given": "{{kind}}: diterima."
+  },
+  "deletion": {
+    "title": "Padam akaun anda",
+    "description": "Ini tidak boleh dibatalkan selepas dilaksanakan.",
+    "grace": "Akaun anda dipadam selepas tempoh tangguh; e-mel yang kami hantar menyatakan tarikhnya. Sehingga itu anda kekal log masuk dan boleh membatalkannya, di sini atau dengan pautan dalam e-mel, walaupun tanpa log masuk.",
+    "erased": "Kemudian nama dan alamat e-mel anda diganti, dan kata laluan, kaedah log masuk, sesi, keahlian, pemberitahuan dan tetapan anda dibuang, dalam setiap organisasi yang anda sertai.",
+    "keptRecords": "Rekod yang anda cipta kekal dalam organisasinya, tidak lagi dikaitkan dengan anda.",
+    "audit": "Log audit menyimpan entrinya, dilabel \"Pengguna dipadam\".",
+    "exportFirst": "Eksport data anda dahulu jika anda mahukan salinan.",
+    "action": "Padam akaun saya…",
+    "confirmTitle": "Padam akaun anda?",
+    "confirmDescription": "Untuk mengesahkan, taip alamat e-mel dan kata laluan anda.",
+    "confirmEmail": "Taip {{email}}",
+    "confirmMismatch": "Ini bukan alamat akaun anda.",
+    "password": "Kata laluan",
+    "passwordHint": "Biarkan kosong jika akaun anda tiada kata laluan.",
+    "mailHint": "Kami akan menghantar tarikh dan pautan untuk membatalkan melalui e-mel.",
+    "submit": "Padam akaun saya",
+    "requested": "Akaun anda akan dipadam pada {{date}}. Kami telah menghantar pautan pembatalan ke {{email}}.",
+    "scheduled": "Akaun anda akan dipadam pada {{date}}.",
+    "scheduledHint": "Kami telah menghantar pautan pembatalan ke {{email}}, yang berfungsi tanpa log masuk. Atau kekalkan akaun anda di sini.",
+    "keep": "Kekalkan akaun saya",
+    "kept": "Pemadaman dibatalkan: akaun anda kekal."
+  }
+}

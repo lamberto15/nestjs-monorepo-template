@@ -1,0 +1,51 @@
+{
+  "title": "隐私",
+  "description": "你的数据、你同意的内容，以及删除你的账户。",
+  "impersonating": "以他人身份操作时，其数据、同意记录和账户删除仍归其本人。",
+  "export": {
+    "title": "导出你的数据",
+    "description": "关于你的所有数据的副本：你的账户，以及你所属的每个组织保存的关于你的数据。文件在后台生成。",
+    "start": "导出我的数据",
+    "startedAt": "开始于 {{date}}",
+    "kept": "在此浏览器中发起的导出。完成的导出保留 7 天；其下载链接 30 分钟内有效，重新打开此页面可获取新链接。"
+  },
+  "consents": {
+    "title": "同意",
+    "description": "你同意了什么，以及何时同意。每项都作为证明保存。",
+    "kinds": {
+      "terms": "服务条款",
+      "privacy": "隐私政策",
+      "marketing": "电子邮件资讯与优惠"
+    },
+    "required": "必需",
+    "acceptedAt": "版本 {{version}}，接受于 {{date}}",
+    "outdated": "你于 {{date}} 接受了版本 {{version}}；当前版本为 {{current}}。",
+    "notGiven": "未同意（版本 {{version}}）。",
+    "locked": "使用本应用所必需：无法在此撤回。",
+    "noWithdraw": "目前还不能在此撤回。",
+    "given": "{{kind}}：已接受。"
+  },
+  "deletion": {
+    "title": "删除你的账户",
+    "description": "一旦执行，便无法撤销。",
+    "grace": "你的账户将在宽限期后删除；我们发送的邮件会写明日期。在此之前你仍保持登录，并可以取消：在此处，或通过邮件中的链接，无需登录。",
+    "erased": "届时你的姓名和电子邮件地址将被替换，你的密码、登录方式、会话、成员身份、通知和设置将被移除，涉及你所属的每个组织。",
+    "keptRecords": "你创建的记录保留在其组织中，不再与你关联。",
+    "audit": "审计日志保留其条目，标记为“已删除的用户”。",
+    "exportFirst": "如需副本，请先导出你的数据。",
+    "action": "删除我的账户…",
+    "confirmTitle": "删除你的账户？",
+    "confirmDescription": "请输入你的电子邮件地址和密码以确认。",
+    "confirmEmail": "输入 {{email}}",
+    "confirmMismatch": "这不是你账户的地址。",
+    "password": "密码",
+    "passwordHint": "如果你的账户没有密码，请留空。",
+    "mailHint": "我们会通过电子邮件告诉你日期，并附上取消链接。",
+    "submit": "删除我的账户",
+    "requested": "你的账户将于 {{date}} 删除。我们已向 {{email}} 发送了取消链接。",
+    "scheduled": "你的账户将于 {{date}} 删除。",
+    "scheduledHint": "我们已向 {{email}} 发送了取消链接，无需登录即可使用。你也可以在此保留账户。",
+    "keep": "保留我的账户",
+    "kept": "删除已取消：你的账户将保留。"
+  }
+}
