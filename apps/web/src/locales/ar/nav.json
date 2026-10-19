@@ -1,7 +1,7 @@
 {
   "groups": {
-    "workspace": "Workspace",
-    "administration": "Administration",
-    "operators": "Operators"
+    "workspace": "مساحة العمل",
+    "administration": "الإدارة",
+    "operators": "المشغّلون"
   }
 }

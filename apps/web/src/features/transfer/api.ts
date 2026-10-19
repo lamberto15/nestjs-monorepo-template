@@ -105,10 +105,12 @@ const HISTORY_MAX = 30;
 /**
  * The API has no list of a user's transfers (only `GET /v1/data/transfers/{id}`;
  * #136), so the ids this browser started are remembered here, per user.
+ * `key` keeps another list apart (the account's own exports, which
+ * `GET /v1/data/transfers` never lists: the privacy page).
  */
-export function readHistory(userId: string): Started[] {
+export function readHistory(userId: string, key = HISTORY_KEY): Started[] {
   try {
-    const all = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '{}') as Record<
+    const all = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
       string,
       Started[]
     >;
@@ -118,29 +120,34 @@ export function readHistory(userId: string): Started[] {
   }
 }
 
-function writeHistory(userId: string, items: Started[]) {
+function writeHistory(userId: string, items: Started[], key: string) {
   try {
-    const all = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '{}') as Record<
+    const all = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
       string,
       Started[]
     >;
     all[userId] = items.slice(0, HISTORY_MAX);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+    localStorage.setItem(key, JSON.stringify(all));
   } catch {
     // storage blocked: the page lists nothing, the jobs still run
   }
 }
 
-export function remember(userId: string, started: Started) {
-  writeHistory(userId, [
-    started,
-    ...readHistory(userId).filter((item) => item.id !== started.id),
-  ]);
-}
-
-export function forget(userId: string, id: string) {
+export function remember(userId: string, started: Started, key = HISTORY_KEY) {
   writeHistory(
     userId,
-    readHistory(userId).filter((item) => item.id !== id),
+    [
+      started,
+      ...readHistory(userId, key).filter((item) => item.id !== started.id),
+    ],
+    key,
+  );
+}
+
+export function forget(userId: string, id: string, key = HISTORY_KEY) {
+  writeHistory(
+    userId,
+    readHistory(userId, key).filter((item) => item.id !== id),
+    key,
   );
 }

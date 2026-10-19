@@ -1,90 +1,90 @@
 {
-  "nav": "Settings",
-  "title": "Settings and flags",
-  "search": "Search settings",
-  "none": "No setting matches.",
-  "on": "On",
-  "off": "Off",
-  "default": "Default",
-  "save": "Save",
-  "saved": "Saved.",
-  "edit": "Edit",
-  "editNamed": "Edit {{label}}",
-  "clear": "Clear",
-  "clearTitle": "Clear this override?",
-  "clearDescription": "The value set for {{label}} is removed; the setting falls back to the next level.",
-  "overrides": "Stored values",
-  "noOverrides": "Nothing is set: the default applies.",
+  "nav": "Einstellungen",
+  "title": "Einstellungen und Flags",
+  "search": "Einstellungen durchsuchen",
+  "none": "Keine Einstellung passt.",
+  "on": "Ein",
+  "off": "Aus",
+  "default": "Standard",
+  "save": "Speichern",
+  "saved": "Gespeichert.",
+  "edit": "Bearbeiten",
+  "editNamed": "{{label}} bearbeiten",
+  "clear": "Zurücksetzen",
+  "clearTitle": "Diese Überschreibung entfernen?",
+  "clearDescription": "Der für {{label}} gesetzte Wert wird entfernt; die Einstellung fällt auf die nächste Ebene zurück.",
+  "overrides": "Gespeicherte Werte",
+  "noOverrides": "Nichts ist gesetzt: Es gilt der Standard.",
   "flag": "Flag",
-  "managersOnly": "Managers only",
-  "rolloutOf": "{{percent}}% of principals",
-  "scopeLabel": "Scope",
-  "valueLabel": "Value",
+  "managersOnly": "Nur für Verwalter",
+  "rolloutOf": "{{percent}} % der Principals",
+  "scopeLabel": "Geltungsbereich",
+  "valueLabel": "Wert",
   "scope": {
-    "tenant": "Whole tenant",
+    "tenant": "Gesamte Organisation",
     "team": "Team",
-    "user": "User"
+    "user": "Benutzer"
   },
   "scopeId": {
     "team": "Team",
-    "user": "User"
+    "user": "Benutzer"
   },
   "mode": {
-    "label": "Applies as",
-    "value": "A fixed value",
-    "rollout": "A gradual rollout"
+    "label": "Gilt als",
+    "value": "Ein fester Wert",
+    "rollout": "Eine schrittweise Einführung"
   },
   "rollout": {
-    "label": "Share of principals",
-    "description": "The flag is on for this percentage of the tenant's principals; the same ones every time, and raising it never switches anyone off."
+    "label": "Anteil der Principals",
+    "description": "Das Flag ist für diesen Prozentsatz der Principals der Organisation eingeschaltet, jedes Mal für dieselben; eine Erhöhung schaltet nie jemanden ab."
   },
   "invalid": {
-    "boolean": "Choose on or off.",
-    "number": "Enter a number.",
-    "string": "Enter a value.",
-    "json": "Enter valid JSON.",
-    "rollout": "Enter a percentage from 0 to 100.",
-    "integer": "Enter a whole number.",
-    "min": "Enter {{limit}} or more.",
-    "max": "Enter {{limit}} or less.",
-    "maxLength": "Enter at most {{limit}} characters.",
-    "enum": "Choose one of the values.",
+    "boolean": "Wählen Sie Ein oder Aus.",
+    "number": "Geben Sie eine Zahl ein.",
+    "string": "Geben Sie einen Wert ein.",
+    "json": "Geben Sie gültiges JSON ein.",
+    "rollout": "Geben Sie einen Prozentsatz von 0 bis 100 ein.",
+    "integer": "Geben Sie eine ganze Zahl ein.",
+    "min": "Geben Sie {{limit}} oder mehr ein.",
+    "max": "Geben Sie {{limit}} oder weniger ein.",
+    "maxLength": "Geben Sie höchstens {{limit}} Zeichen ein.",
+    "enum": "Wählen Sie einen der Werte.",
     "scopeId": {
-      "team": "Choose a team.",
-      "user": "Choose a user or an API client."
+      "team": "Wählen Sie ein Team.",
+      "user": "Wählen Sie einen Benutzer oder einen API-Client."
     }
   },
   "source": {
-    "tenant": "Tenant",
+    "tenant": "Organisation",
     "team": "Team",
-    "user": "You",
-    "rollout": "Rollout",
-    "default": "Default"
+    "user": "Sie",
+    "rollout": "Einführung",
+    "default": "Standard"
   },
   "columns": {
-    "setting": "Setting",
-    "value": "Your value",
-    "source": "Source",
-    "default": "Default"
+    "setting": "Einstellung",
+    "value": "Ihr Wert",
+    "source": "Quelle",
+    "default": "Standard"
   },
   "groups": {
-    "auth": "Sign-in policy",
-    "notes": "Notes"
+    "auth": "Anmelderichtlinie",
+    "notes": "Notizen"
   },
   "preferences": {
-    "title": "Preferences",
-    "empty": "There is nothing to set for yourself.",
-    "saved": "Preference saved.",
-    "reset": "Reset to default",
-    "resetDone": "Preference reset."
+    "title": "Präferenzen",
+    "empty": "Für Sie selbst gibt es nichts einzustellen.",
+    "saved": "Präferenz gespeichert.",
+    "reset": "Auf Standard zurücksetzen",
+    "resetDone": "Präferenz zurückgesetzt."
   },
-  "readOnly": "Read-only",
-  "hiddenNote": "Only people who manage settings see this setting.",
-  "scopeIdHint": "A user or an API client: type a part of a name or an address.",
+  "readOnly": "Schreibgeschützt",
+  "hiddenNote": "Nur Personen, die Einstellungen verwalten, sehen diese Einstellung.",
+  "scopeIdHint": "Ein Benutzer oder ein API-Client: Geben Sie einen Teil eines Namens oder einer Adresse ein.",
   "bounds": {
-    "between": "From {{min}} to {{max}}.",
-    "min": "{{min}} or more.",
-    "max": "{{max}} or less.",
-    "maxLength": "At most {{maxLength}} characters."
+    "between": "Von {{min}} bis {{max}}.",
+    "min": "{{min}} oder mehr.",
+    "max": "{{max}} oder weniger.",
+    "maxLength": "Höchstens {{maxLength}} Zeichen."
   }
 }
