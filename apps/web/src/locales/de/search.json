@@ -8,9 +8,6 @@
   "searching": "Suche läuft…",
   "error": "Die Suche ist fehlgeschlagen. Versuchen Sie es erneut.",
   "empty": "Nichts gefunden für „{{q}}“.",
-  "subjects": {
-    "Note": "Notizen"
-  },
   "recent": "Letzte Suchen",
   "clearRecent": "Letzte Suchen löschen",
   "hint": "Tippen zum Suchen; > zeigt Befehle."

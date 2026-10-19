@@ -4,9 +4,9 @@ import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
-import { problem, server, signedInUser } from '@/test/server';
+import { problem, server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
-import { catalogQuery, readHistory, remember } from './api';
+import { catalogQuery } from './api';
 import { parseCsv, parseRowErrors } from './csv';
 import { ExportButton } from './export-button';
 import { ImportButton } from './import-button';
@@ -48,11 +48,28 @@ function useTransferApi(
   options: {
     catalog?: typeof catalog;
     transfers?: Record<string, Transfer | (() => Transfer)>;
+    /** Every transfer of the caller, newest first (`GET /v1/data/transfers`). */
+    list?: Transfer[];
+    /** The caller's bulk runs, newest first (`GET /v1/bulk`). */
+    bulk?: Record<string, unknown>[];
+    pageSize?: number;
   } = {},
 ) {
   const calls = {
     exports: [] as unknown[],
     imports: [] as Record<string, string>[],
+    /** The query string of each list request. */
+    lists: [] as string[],
+  };
+  /** Cursor paging as the API does it: the cursor is the offset. */
+  const pageOf = (all: unknown[], url: URL) => {
+    const size = options.pageSize ?? 20;
+    const from = Number(url.searchParams.get('cursor') ?? 0);
+    const next = from + size;
+    return HttpResponse.json({
+      items: all.slice(from, next),
+      nextCursor: next < all.length ? String(next) : null,
+    });
   };
   server.use(
     http.get('/v1/data', () => HttpResponse.json(options.catalog ?? catalog)),
@@ -79,6 +96,18 @@ function useTransferApi(
         { status: 202 },
       );
     }),
+    http.get('/v1/data/transfers', ({ request }) => {
+      const url = new URL(request.url);
+      calls.lists.push(url.search);
+      const kind = url.searchParams.get('kind');
+      return pageOf(
+        (options.list ?? []).filter((item) => !kind || item.kind === kind),
+        url,
+      );
+    }),
+    http.get('/v1/bulk', ({ request }) =>
+      pageOf(options.bulk ?? [], new URL(request.url)),
+    ),
     http.get('/v1/data/transfers/:id', ({ params }) => {
       const found = options.transfers?.[params.id as string];
       if (!found) return problem(404, 'not_found');
@@ -136,14 +165,6 @@ describe('exporting from a list', () => {
     expect(within(dialog).getByText('3 rows exported.')).toBeVisible();
     expect(calls.exports).toEqual([
       { name: 'test-items', format: 'xlsx', filters: { q: 'Q3' } },
-    ]);
-    // Remembered for "Exports and imports" (the API lists none).
-    expect(readHistory(signedInUser.user.id)).toEqual([
-      expect.objectContaining({
-        id: 'export-1',
-        kind: 'export',
-        name: 'test-items',
-      }),
     ]);
   });
 
@@ -325,32 +346,40 @@ describe('importing a file', () => {
 });
 
 describe('your exports and imports', () => {
-  it("lists this browser's transfers and forgets those the API no longer has", async () => {
+  const exported = (id: string, name: string): Transfer => ({
+    id,
+    kind: 'export',
+    name,
+    format: 'csv',
+    status: 'completed',
+    progress: { processed: 3 },
+    result: { rows: 3, url: `https://files.test/${id}.csv` },
+  });
+
+  it("lists the API's transfers and bulk runs, not this browser's", async () => {
     useSignedIn(ALL);
-    useTransferApi({
-      transfers: {
-        running: {
-          id: 'running',
-          kind: 'export',
-          name: 'test-items',
-          format: 'csv',
-          status: 'running',
-          progress: { processed: 40 },
-        },
-      },
-    });
-    const userId = signedInUser.user.id;
-    remember(userId, {
-      id: 'gone',
+    // Nothing in localStorage: another device started these.
+    const running = {
+      id: 'running',
       kind: 'import',
       name: 'test-items',
-      at: '2026-10-17T08:00:00.000Z',
-    });
-    remember(userId, {
-      id: 'running',
-      kind: 'export',
-      name: 'test-items',
-      at: '2026-10-17T09:00:00.000Z',
+      format: 'csv',
+      status: 'running',
+      progress: { processed: 40 },
+    };
+    useTransferApi({
+      list: [running, exported('done', 'test-items')],
+      transfers: { running, done: exported('done', 'test-items') },
+      bulk: [
+        {
+          id: 'b1',
+          name: 'test-items',
+          action: 'delete',
+          status: 'completed',
+          progress: { processed: 5 },
+          result: { done: 3, failed: 1, skipped: 1 },
+        },
+      ],
     });
     await renderApp('/transfers');
     const list = await screen.findByRole('list', {
@@ -359,12 +388,52 @@ describe('your exports and imports', () => {
     expect(
       await within(list).findByText('Working… 40 rows so far.'),
     ).toBeVisible();
-    await waitFor(() =>
-      expect(within(list).getAllByRole('listitem')).toHaveLength(1),
+    expect(
+      await within(list).findByRole('link', { name: 'Download (csv)' }),
+    ).toHaveAttribute('href', 'https://files.test/done.csv');
+    const bulk = await screen.findByRole('list', { name: 'Bulk runs' });
+    expect(
+      within(bulk).getByText('3 done, 1 failed, 1 skipped.'),
+    ).toBeVisible();
+  });
+
+  it('pages by cursor and filters by kind on the server', async () => {
+    useSignedIn(ALL);
+    const list = [
+      exported('e1', 'first-export'),
+      { ...exported('i1', 'an-import'), kind: 'import' },
+      exported('e2', 'second-export'),
+    ];
+    const calls = useTransferApi({
+      list,
+      transfers: Object.fromEntries(list.map((item) => [item.id, item])),
+      pageSize: 2,
+    });
+    await renderApp('/transfers');
+    const user = userEvent.setup();
+    expect(await screen.findByText('first-export')).toBeVisible();
+    expect(screen.queryByText('second-export')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Show more' }));
+    expect(await screen.findByText('second-export')).toBeVisible();
+    expect(calls.lists.at(-1)).toContain('cursor=2');
+
+    await user.click(screen.getByRole('combobox', { name: 'Show' }));
+    await user.click(await screen.findByRole('option', { name: 'Imports' }));
+    await waitFor(() => expect(calls.lists.at(-1)).toContain('kind=import'));
+    await waitFor(() => expect(screen.queryByText('first-export')).toBeNull());
+    expect(await screen.findByText('an-import')).toBeVisible();
+  });
+
+  it('says when the list cannot be loaded', async () => {
+    useSignedIn(ALL);
+    useTransferApi();
+    server.use(
+      http.get('/v1/data/transfers', () => problem(500, 'internal_error')),
     );
-    await waitFor(() =>
-      expect(readHistory(userId).map((item) => item.id)).toEqual(['running']),
-    );
+    await renderApp('/transfers');
+    expect(
+      await screen.findByText('The list could not be loaded.'),
+    ).toBeVisible();
   });
 
   it('says when there is nothing yet', async () => {

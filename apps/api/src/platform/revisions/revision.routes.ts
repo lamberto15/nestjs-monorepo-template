@@ -24,7 +24,6 @@ import {
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { assertUnchanged, Etag, ifMatchHeader } from '../../core/http/etag.js';
 import { ApiListQuery } from '../../core/http/list-docs.js';
-import { pageSchema } from '../../core/http/pagination.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   aNounOf,
@@ -34,7 +33,11 @@ import {
   type RouteDocs,
 } from '../records/record-routes.js';
 import { REVISION_LIST } from './revision.list.js';
-import { revisionDiffSchema, revisionSchema } from './revision.schemas.js';
+import {
+  revisionDiffSchema,
+  revisionPageSchema,
+  revisionSchema,
+} from './revision.schemas.js';
 import { RevisionsService } from './revisions.service.js';
 
 export interface RevisionRouteOptions {
@@ -77,7 +80,7 @@ export function revisionRoutes(
         options.docs?.list?.description ??
         `Revision 1 is the ${noun} as written; each change adds one, with what changed (\`changes\`, from → to). Cursor pages; \`?changedBy=user:<id>\`, \`?number.gte=\`.`,
     })
-    @ApiOkResponse({ standardSchema: pageSchema(revisionSchema) })
+    @ApiOkResponse({ standardSchema: revisionPageSchema })
     @ApiListQuery(REVISION_LIST)
     async list(
       @CurrentUser() user: Principal,

@@ -2,7 +2,8 @@
   "nav": "Eksport dan import",
   "kind": {
     "export": "Eksport",
-    "import": "Import"
+    "import": "Import",
+    "bulk": "Larian pukal"
   },
   "formats": {
     "csv": "CSV",
@@ -24,8 +25,18 @@
   "mine": {
     "title": "Eksport dan import",
     "import": "Import fail",
-    "description": "Eksport dan import yang dimulakan dalam pelayar ini. Pautan muat turun berfungsi selama 30 minit selepas fail dibuat; buka eksport semula untuk pautan baharu.",
-    "empty": "Belum ada. Eksport daripada senarai, atau import fail."
+    "description": "Eksport, import dan larian pukal anda dalam penyewa ini, pada sebarang peranti. Pautan muat turun berfungsi selama 30 minit selepas fail dibuat; buka eksport semula untuk pautan baharu.",
+    "empty": "Belum ada. Eksport daripada senarai, atau import fail.",
+    "more": "Papar lagi",
+    "error": "Senarai tidak dapat dimuatkan.",
+    "bulkTitle": "Larian pukal",
+    "filter": {
+      "label": "Papar",
+      "all": "Semua",
+      "export": "Eksport",
+      "import": "Import",
+      "bulk": "Larian pukal"
+    }
   },
   "import": {
     "action": "Import",
@@ -72,5 +83,11 @@
     "failed": "Ia gagal. Cuba lagi.",
     "notFound": "Pemindahan ini tidak lagi tersedia.",
     "error": "Statusnya tidak dapat dimuatkan."
+  },
+  "bulk": {
+    "queued": "Menunggu pekerja…",
+    "running": "Sedang berjalan… {{count}} diproses setakat ini.",
+    "result": "{{done}} selesai, {{failed}} gagal, {{skipped}} dilangkau.",
+    "failed": "Larian dihentikan."
   }
 }

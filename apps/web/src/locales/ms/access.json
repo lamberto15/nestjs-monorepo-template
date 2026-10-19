@@ -6,27 +6,23 @@
   },
   "actions": "Tindakan",
   "cancel": "Batal",
-  "previous": "Sebelumnya",
-  "next": "Seterusnya",
   "users": {
     "title": "Pengguna",
     "tabs": {
       "members": "Ahli",
       "invitations": "Jemputan"
     },
-    "search": "Cari mengikut e-mel",
-    "empty": "Tiada ahli ditemui.",
     "columns": {
-      "member": "Ahli",
       "roles": "Peranan",
-      "status": "Status"
+      "status": "Status",
+      "name": "Nama",
+      "email": "E-mel"
     },
     "status": {
       "active": "Aktif",
       "inactive": "Dibuang",
       "unverified": "E-mel belum disahkan"
     },
-    "pageOf": "Halaman {{page}} daripada {{pages}} · {{total}} ahli",
     "you": "Anda",
     "since": "Ahli sejak {{date}}",
     "roles": "Peranan",
@@ -51,9 +47,8 @@
       "description": "Sesi anda menjadi sesi mereka untuk tempoh terhad, dan segala yang anda lakukan direkodkan sebagai anda bertindak sebagai mereka. Hentikan daripada sepanduk untuk mendapatkan semula sesi anda sendiri.",
       "confirm": "Bertindak sebagai mereka"
     },
-    "allTeams": "Semua pasukan",
-    "team": "Pasukan",
-    "readOnly": "Anda boleh melihat ahli ini. Mengubah peranan, pasukan atau akses mereka memerlukan kebenaran untuk mengurus pengguna."
+    "readOnly": "Anda boleh melihat ahli ini. Mengubah peranan, pasukan atau akses mereka memerlukan kebenaran untuk mengurus pengguna.",
+    "open": "Buka"
   },
   "grants": {
     "roles": "Peranan",
