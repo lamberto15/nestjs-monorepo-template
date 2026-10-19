@@ -145,6 +145,10 @@
       "label": "Penyimpanan peristiwa mel",
       "description": "Memadam peristiwa lantunan, aduan dan penghantaran yang lebih lama daripada MAIL_EVENTS_RETENTION_DAYS, setiap malam."
     },
+    "webhook-delivery-retention": {
+      "label": "Penyimpanan penghantaran webhook",
+      "description": "Memadam penghantaran webhook keluar yang selesai lebih lama daripada WEBHOOKS_DELIVERY_RETENTION_DAYS, bersama log percubaan dan permintaan yang direkodkan (tidak pernah yang masih dicuba semula), setiap malam."
+    },
     "demo-seed": {
       "label": "Data demo",
       "description": "Mencipta pengguna demo, pasukan dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."

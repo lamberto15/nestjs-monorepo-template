@@ -145,6 +145,10 @@
       "label": "邮件事件保留",
       "description": "每晚删除早于 MAIL_EVENTS_RETENTION_DAYS 的退信、投诉和投递事件。"
     },
+    "webhook-delivery-retention": {
+      "label": "Webhook 投递保留",
+      "description": "每晚删除完成时间早于 WEBHOOKS_DELIVERY_RETENTION_DAYS 的出站 webhook 投递，连同其尝试日志和已记录的请求（仍在重试的投递不会被删除）。"
+    },
     "demo-seed": {
       "label": "演示数据",
       "description": "在开发数据库上创建演示用户、团队和各功能的演示数据（pnpm db:seed:demo）；拒绝其他任何数据库。"
