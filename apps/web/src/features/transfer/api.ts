@@ -3,7 +3,7 @@ import {
   type GetResponse,
   type paths,
 } from '@nestjs-monorepo-template/api-client';
-import { queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { listFilters } from '@/lib/list-query';
 import { postMultipart } from '@/lib/upload';
@@ -16,32 +16,12 @@ export type TransferFormat = NonNullable<
   >['content']['application/json']['format']
 >;
 
-/**
- * `GET /v1/data`: what the caller may export and import. The OpenAPI
- * document does not describe its answer (docs/data-transfer.md does), so the
- * type is written here until it does (#136).
- */
-export interface DataCatalog {
-  exports: { name: string; columns: string[]; formats: TransferFormat[] }[];
-  imports: {
-    name: string;
-    formats: TransferFormat[];
-    columns: {
-      name: string;
-      type: string;
-      required: boolean;
-      min?: number;
-      max?: number;
-      example?: unknown;
-    }[];
-    template: string;
-  }[];
-}
+/** `GET /v1/data`: what the caller may export and import. */
+export type DataCatalog = GetResponse<'/v1/data'>;
 
 export const catalogQuery = queryOptions({
   queryKey: ['data', 'catalog'],
-  queryFn: async () =>
-    (await unwrap(api.GET('/v1/data'))) as unknown as DataCatalog,
+  queryFn: () => unwrap(api.GET('/v1/data')),
   staleTime: 5 * 60 * 1000,
 });
 
@@ -90,57 +70,61 @@ export function startImport(
   return postMultipart('/v1/data/imports', form, onProgress);
 }
 
-// ---------------------------------------------------------------- history
+// ------------------------------------------------------------------ lists
 
-export interface Started {
-  id: string;
-  kind: 'export' | 'import';
-  name: string;
-  at: string;
-}
+export type TransferKind = 'export' | 'import';
+export type TransferListItem =
+  GetResponse<'/v1/data/transfers'>['items'][number];
+export type BulkRun = GetResponse<'/v1/bulk'>['items'][number];
 
-const HISTORY_KEY = 'transfers';
-const HISTORY_MAX = 30;
+const PAGE = 20;
+
+const active = (items: { status: string }[]) =>
+  items.some((item) => item.status === 'queued' || item.status === 'running');
 
 /**
- * The API has no list of a user's transfers (only `GET /v1/data/transfers/{id}`;
- * #136), so the ids this browser started are remembered here, per user.
+ * The caller's exports and imports in this tenant, newest first, by cursor
+ * (`GET /v1/data/transfers`, docs/data-transfer.md "The list"). Polled while
+ * one of the shown is still with the worker.
  */
-export function readHistory(userId: string): Started[] {
-  try {
-    const all = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '{}') as Record<
-      string,
-      Started[]
-    >;
-    return Array.isArray(all[userId]) ? all[userId] : [];
-  } catch {
-    return [];
-  }
-}
+export const transfersListQuery = (kind?: TransferKind) =>
+  infiniteQueryOptions({
+    queryKey: ['data', 'transfers', kind ?? 'all'],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      unwrap(
+        api.GET('/v1/data/transfers', {
+          params: {
+            query: {
+              limit: PAGE,
+              ...(kind && { kind }),
+              ...(pageParam && { cursor: pageParam }),
+            },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    refetchInterval: (query) =>
+      active(query.state.data?.pages.flatMap((page) => page.items) ?? [])
+        ? 2000
+        : false,
+  });
 
-function writeHistory(userId: string, items: Started[]) {
-  try {
-    const all = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '{}') as Record<
-      string,
-      Started[]
-    >;
-    all[userId] = items.slice(0, HISTORY_MAX);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
-  } catch {
-    // storage blocked: the page lists nothing, the jobs still run
-  }
-}
-
-export function remember(userId: string, started: Started) {
-  writeHistory(userId, [
-    started,
-    ...readHistory(userId).filter((item) => item.id !== started.id),
-  ]);
-}
-
-export function forget(userId: string, id: string) {
-  writeHistory(
-    userId,
-    readHistory(userId).filter((item) => item.id !== id),
-  );
-}
+/** The caller's bulk runs handed to the workers (`GET /v1/bulk`), same paging. */
+export const bulkListQuery = infiniteQueryOptions({
+  queryKey: ['data', 'bulk-runs'],
+  initialPageParam: undefined as string | undefined,
+  queryFn: ({ pageParam }) =>
+    unwrap(
+      api.GET('/v1/bulk', {
+        params: {
+          query: { limit: PAGE, ...(pageParam && { cursor: pageParam }) },
+        },
+      }),
+    ),
+  getNextPageParam: (last) => last.nextCursor ?? undefined,
+  refetchInterval: (query) =>
+    active(query.state.data?.pages.flatMap((page) => page.items) ?? [])
+      ? 2000
+      : false,
+});

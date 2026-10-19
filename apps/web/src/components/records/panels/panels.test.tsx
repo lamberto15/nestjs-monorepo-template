@@ -82,6 +82,7 @@ describe('comments', () => {
         {
           author: `user:${MAYA.id}`,
           body: 'Hi @maya@example.com <b>bold</b> and @user:' + MAYA.id,
+          mentionNames: { [`user:${MAYA.id}`]: MAYA.name },
         },
         { author: ME, body: 'Mine' },
       ],
@@ -108,6 +109,7 @@ describe('comments', () => {
           author: `user:${stranger}`,
           authorName: null,
           body: `cc @user:${stranger}`,
+          mentionNames: { [`user:${stranger}`]: null },
         },
         { author: 'client:1', authorName: null, body: 'Imported' },
       ],
@@ -118,9 +120,9 @@ describe('comments', () => {
     expect(within(thread).getByText('Maya P.')).toBeVisible();
     expect(within(thread).getByText('System')).toBeVisible();
     expect(within(thread).getByText('Someone')).toBeVisible();
-    // A mention of someone unknown shows no id.
+    // A mention the API cannot name (null) stays as written.
     expect(thread.querySelector('[data-mention]')).toHaveTextContent(
-      '@Someone',
+      `@user:${stranger}`,
     );
   });
 
@@ -198,6 +200,22 @@ describe('comments', () => {
     const user = await open('Comments');
     await user.type(await screen.findByLabelText('Write a comment'), '@x');
     expect(screen.queryByRole('option')).toBeNull();
+  });
+
+  it('names mentions from mentionNames, case-insensitively, else keeps the raw text', () => {
+    const id = MAYA.id.toUpperCase();
+    expect(
+      splitMentions(`hi @user:${id} and @user:${ID} @a@b.co`, {
+        [`user:${MAYA.id}`]: MAYA.name,
+      }),
+    ).toEqual([
+      { text: 'hi ' },
+      { text: '@Maya Patel', mention: `@user:${id}` },
+      { text: ' and ' },
+      { text: `@user:${ID}`, mention: `@user:${ID}` },
+      { text: ' ' },
+      { text: '@a@b.co', mention: '@a@b.co' },
+    ]);
   });
 
   it('splits mentions without touching the rest', () => {
