@@ -219,16 +219,15 @@ describe('ListPage', () => {
         const people = extra.people as (url: URL) => unknown;
         return json(people(new URL(url)));
       }
-      if (url.includes('/v1/access/teams')) {
-        return extra.teams
-          ? json(extra.teams)
-          : json({ status: 403, code: 'forbidden', detail: 'No.' }, 403);
+      if (url.includes('/v1/teams')) {
+        return json(extra.teams ?? { items: [], nextCursor: null });
       }
-      if (url.includes('/v1/access/principals')) {
+      // A member's session: none of the administrators' routes.
+      if (url.includes('/v1/access/')) {
         return json({ status: 403, code: 'forbidden', detail: 'No.' }, 403);
       }
       return json({
-        items: [
+        items: (extra.rows as object[] | undefined) ?? [
           {
             id: '1',
             title: 'First',
@@ -408,20 +407,22 @@ describe('ListPage', () => {
     ).toHaveTextContent('Ada Lovelace');
   });
 
-  it('names the teams of the filter, and offers only emptiness without access', async () => {
+  const NORTH = '0199a3f2-0000-7000-8000-0000000000a1';
+  const ADA = '0199a3f2-0000-7000-8000-000000000001';
+
+  it('names the teams of the filter for any member, and takes "is empty"', async () => {
     stubLayout();
     respond(withRefs, {
       teams: {
-        items: [
-          { id: 'team-1', name: 'North', parentId: null, depth: 0, members: 2 },
-        ],
+        items: [{ id: NORTH, name: 'North', parentId: null, depth: 0 }],
+        nextCursor: null,
       },
     });
-    const first = await renderList('?teamId=in.team-1');
+    const first = await renderList(`?teamId=in.${NORTH}`);
     expect(await screen.findByText('First')).toBeInTheDocument();
     const list = urls().find((url) => url.pathname === PATH);
     expect(JSON.parse(list?.searchParams.get('filter') ?? 'null')).toEqual({
-      and: [{ field: 'teamId', op: 'in', value: ['team-1'] }],
+      and: [{ field: 'teamId', op: 'in', value: [NORTH] }],
     });
     // Ref columns the list may select start hidden: `fields=` is unchanged.
     expect(list?.searchParams.get('fields')).toBe('title,status');
@@ -429,9 +430,12 @@ describe('ListPage', () => {
     expect(
       await screen.findByRole('button', { name: /Team filter value/i }),
     ).toHaveTextContent('North');
+    // The teams come from the route any member may read.
+    expect(urls().some((url) => url.pathname === '/v1/access/teams')).toBe(
+      false,
+    );
     first.unmount();
 
-    // Teams are for access administrators: anyone else gets "is empty".
     mocks.fetch.mockReset();
     respond(withRefs);
     await renderList('?teamId=is.empty');
@@ -445,6 +449,74 @@ describe('ListPage', () => {
       });
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('names the owner in the filter for a member without manageUsers', async () => {
+    stubLayout();
+    // `/v1/access/*` answers 403 (respond): only the lookup names ADA.
+    respond(withRefs, {
+      people: (url: URL) => ({
+        items:
+          url.searchParams.get('key') === `user:${ADA}`
+            ? [{ key: `user:${ADA}`, name: 'Ada Lovelace' }]
+            : [],
+      }),
+    });
+    await renderList(`?ownerId=eq.user:${ADA}`);
+    expect(await screen.findByText('First')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Filter/ }));
+    expect(
+      await screen.findByRole('button', { name: /Owner filter value/i }),
+    ).toHaveTextContent('Ada Lovelace');
+    expect(urls().some((url) => url.pathname === '/v1/access/principals')).toBe(
+      false,
+    );
+  });
+
+  it('shows the owners and teams of a page by name, in one request each', async () => {
+    stubLayout();
+    const owners = Array.from(
+      { length: 6 },
+      (_, n) => `0199a3f2-0000-7000-8000-0000000001${n}0`,
+    );
+    respond(withRefs, {
+      rows: owners.map((owner, n) => ({
+        id: String(n),
+        title: `Row ${n}`,
+        status: 'draft',
+        ownerId: `user:${owner}`,
+        teamId: NORTH,
+      })),
+      people: (url: URL) => ({
+        items: (url.searchParams.get('key') ?? '')
+          .split(',')
+          .map((key, n) => ({ key, name: `Person ${n}` })),
+      }),
+      teams: {
+        items: [{ id: NORTH, name: 'North', parentId: null, depth: 0 }],
+        nextCursor: null,
+      },
+    });
+    await renderList();
+    expect(await screen.findByText('Row 0')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'View columns' }));
+    await userEvent.click(await screen.findByText('Owner'));
+    await userEvent.click(await screen.findByText('Team'));
+
+    expect(await screen.findByText('Person 5')).toBeInTheDocument();
+    expect(screen.getAllByText('North')).toHaveLength(6);
+    const lookups = urls().filter(
+      (url) => url.pathname === '/v1/people' && url.searchParams.has('key'),
+    );
+    expect(lookups).toHaveLength(1);
+    expect(lookups[0]?.searchParams.get('key')?.split(',')).toEqual(
+      owners.map((owner) => `user:${owner}`),
+    );
+    const teams = urls().filter(
+      (url) => url.pathname === '/v1/teams' && url.searchParams.has('id'),
+    );
+    // One team on six rows: asked once.
+    expect(teams).toHaveLength(1);
   });
 
   it("translates the table's texts", async () => {

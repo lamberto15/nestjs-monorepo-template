@@ -1,14 +1,10 @@
-import {
-  isApiError,
-  unwrap,
-  type GetResponse,
-} from '@nestjs-monorepo-template/api-client';
+import { unwrap, type ItemOf } from '@nestjs-monorepo-template/api-client';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { api } from '@/lib/api';
 import type { FilterOption, OptionSearch } from '@/lib/data-table-types';
 import type { ListField } from '@/lib/list-query';
-import { principalDirectoryQuery } from '@/lib/principals';
+import { usePeopleNames } from '@/lib/people';
 import { meQuery } from '@/lib/session';
 import { tagOptions, useTags } from '@/lib/tags';
 
@@ -18,13 +14,13 @@ import { tagOptions, useTags } from '@/lib/tags';
  * their cells show names, for any feature's list:
  *
  * - `tag`: the subject's tags (GET /v1/tags), all of them.
- * - `team`: the tenant's teams (GET /v1/access/teams), all of them. That
- *   route is for access administrators only: anyone else gets no picker
- *   (backend #168).
+ * - `team`: the tenant's teams (GET /v1/teams, open to every member), all
+ *   of them. Names of the teams a list shows come from the same route, by id
+ *   (lib/people.ts).
  * - `principal`: users, searched by name as one types (GET /v1/people, open
- *   to every member; values `user:<id>`). Names of values already held come
- *   from the signed-in user, earlier searches and, for administrators, the
- *   principal directory (backend #169: a lookup by key for everyone).
+ *   to every member; values `user:<id>`). Names of values already held (a
+ *   filter's chips, a column's cells) come from the lookup by key, batched
+ *   (lib/people.ts).
  *
  * Any other `ref` (a record's subject) has no source: its filter stays the
  * field's own (a text box taking the id).
@@ -34,8 +30,6 @@ export interface RefSource {
   options: FilterOption[];
   /** The values are too many to list: the API searches them. */
   search?: OptionSearch;
-  /** This caller may not read the values (403): no picker. */
-  unavailable?: boolean;
 }
 
 export type RefSources = Partial<Record<string, RefSource>>;
@@ -43,18 +37,21 @@ export type RefSources = Partial<Record<string, RefSource>>;
 /** The ref kinds this file has a source for. */
 export const REF_KINDS = ['tag', 'team', 'principal'] as const;
 
-type Team = GetResponse<'/v1/access/teams'>['items'][number];
+type Team = ItemOf<'/v1/teams'>;
 
-/** The tenant's teams, or null when this caller may not list them (403). */
+/** The most teams the picker reads: far past what a tenant has. */
+const TEAMS_MAX = 1000;
+
+/** The tenant's teams, for any member. */
 export const teamRefsQuery = queryOptions({
   queryKey: ['refs', 'teams'],
-  queryFn: async (): Promise<Team[] | null> => {
-    try {
-      return (await unwrap(api.GET('/v1/access/teams'))).items;
-    } catch (error) {
-      if (isApiError(error) && error.status === 403) return null;
-      throw error;
+  queryFn: async (): Promise<Team[]> => {
+    const found: Team[] = [];
+    for await (const team of api.items('/v1/teams', { limit: 100 })) {
+      found.push(team);
+      if (found.length >= TEAMS_MAX) break;
     }
+    return found;
   },
   staleTime: 10 * 60 * 1000,
   retry: false,
@@ -67,6 +64,8 @@ const MAX_TERM = 100;
 /** Users by name, as a picker's options: the key is the value. */
 export const peopleSearch: OptionSearch = {
   key: ['refs', 'people'],
+  // The held keys, named by the lookup (every member may read it).
+  useNames: (values) => usePeopleNames(values).name,
   query: (term) => {
     const q = term.trim().slice(0, MAX_TERM);
     return {
@@ -121,10 +120,6 @@ export function useListRefs(
   const kinds = useMemo(() => refKinds(fields), [fields]);
   const tags = useTags(subject, kinds.has('tag'));
   const teams = useQuery({ ...teamRefsQuery, enabled: kinds.has('team') });
-  const directory = useQuery({
-    ...principalDirectoryQuery(),
-    enabled: kinds.has('principal'),
-  });
   // Who is signed in, as the app already knows it: never fetched from here.
   const me = useQuery({ ...meQuery, enabled: false }).data;
 
@@ -134,24 +129,18 @@ export function useListRefs(
       sources.tag = { options: tagOptions(tags.data ?? []) };
     }
     if (kinds.has('team')) {
-      sources.team =
-        teams.data === null
-          ? { options: [], unavailable: true }
-          : { options: teamOptions(teams.data ?? []) };
+      sources.team = { options: teamOptions(teams.data ?? []) };
     }
     if (kinds.has('principal')) {
-      const known = new Map<string, string>();
-      for (const principal of directory.data ?? []) {
-        known.set(principal.key, principal.label);
-      }
-      if (me?.user) known.set(`user:${me.user.id}`, me.user.name);
       sources.principal = {
-        options: [...known].map(([value, label]) => ({ label, value })),
+        options: me?.user
+          ? [{ label: me.user.name, value: `user:${me.user.id}` }]
+          : [],
         search: peopleSearch,
       };
     }
     return sources;
-  }, [kinds, tags.data, teams.data, directory.data, me]);
+  }, [kinds, tags.data, teams.data, me]);
 }
 
 /** A ref value's name, when known; undefined otherwise. */
