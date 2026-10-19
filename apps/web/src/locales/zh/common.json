@@ -252,7 +252,8 @@
       "generic": "出了点问题，请重试。",
       "retry": "重试"
     },
-    "tag": "标签",
+    "fields": { "tag": "标签", "ownerId": "所有者", "teamId": "团队" },
+    "refs": { "searching": "正在搜索…", "failed": "搜索失败。" },
     "yes": "是",
     "no": "否",
     "table": {

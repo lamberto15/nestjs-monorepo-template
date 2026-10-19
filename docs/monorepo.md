@@ -4,33 +4,33 @@ One repository, one lockfile: a [pnpm workspace](https://pnpm.io/workspaces)
 whose tasks [Turborepo](https://turborepo.dev) runs. The layout is in
 [architecture](architecture.md), "The repository".
 
-| Package | Where | What |
-| --- | --- | --- |
-| `@nestjs-monorepo-template/api` | `apps/api` | the NestJS app (API, workers, migrations) |
-| `@nestjs-monorepo-template/api-client` | `packages/api-client` | the typed client, for frontends and scripts |
-| `@nestjs-monorepo-template/web` | `apps/web` | the web app: React, Vite, TanStack Router and Query |
-| `@nestjs-monorepo-template/ui` | `packages/ui` | shared components: shadcn/ui (Base UI) and Dice UI, as source |
-| the root (`nestjs-monorepo-template`) | `.` | the scripts, tooling (Turborepo, oxlint, Prettier), Compose, docs |
+| Package                                | Where                 | What                                                              |
+| -------------------------------------- | --------------------- | ----------------------------------------------------------------- |
+| `@nestjs-monorepo-template/api`        | `apps/api`            | the NestJS app (API, workers, migrations)                         |
+| `@nestjs-monorepo-template/api-client` | `packages/api-client` | the typed client, for frontends and scripts                       |
+| `@nestjs-monorepo-template/web`        | `apps/web`            | the web app: React, Vite, TanStack Router and Query               |
+| `@nestjs-monorepo-template/ui`         | `packages/ui`         | shared components: shadcn/ui (Base UI) and Dice UI, as source     |
+| the root (`nestjs-monorepo-template`)  | `.`                   | the scripts, tooling (Turborepo, oxlint, Prettier), Compose, docs |
 
 ## Commands
 
 Run everything from the root. The root's scripts keep their names; each hands
 its work to the packages:
 
-| Root script | Runs |
-| --- | --- |
-| `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e` | `turbo run <task>`: the task in every package that has it, dependencies first |
-| `pnpm dev`, `pnpm dev:api`, `pnpm dev:web` | `turbo run dev --env-mode=loose` in every app, or `--filter` one: the API's `nest start --watch` and the web's `vite` (the client builds first) |
-| `pnpm start:dev`, `pnpm start:debug`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump` | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api` |
-| `pnpm client:generate`, `pnpm client:check` | the API's dump, then the client's generator |
-| `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes` | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md)) |
-| `pnpm services:up` / `services:down`, `pnpm format` | at the root |
-| `pnpm setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys) |
+| Root script                                                                                                                        | Runs                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`                                                                            | `turbo run <task>`: the task in every package that has it, dependencies first                                                                   |
+| `pnpm dev`, `pnpm dev:api`, `pnpm dev:web`                                                                                         | `turbo run dev --env-mode=loose` in every app, or `--filter` one: the API's `nest start --watch` and the web's `vite` (the client builds first) |
+| `pnpm start:dev`, `pnpm start:debug`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump`                                             | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api`                                                                           |
+| `pnpm client:generate`, `pnpm client:check`                                                                                        | the API's dump, then the client's generator                                                                                                     |
+| `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes`                                                                      | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md))                                            |
+| `pnpm services:up` / `services:down`, `pnpm format`                                                                                | at the root                                                                                                                                     |
+| `pnpm setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys)                                               |
 
 - **One package:** `pnpm --filter <name> <script>`, e.g. `pnpm --filter
-  @nestjs-monorepo-template/api test src/core/http/route-key.spec.ts`.
+@nestjs-monorepo-template/api test src/core/http/route-key.spec.ts`.
 - **Nest CLI:** inside the app, `cd apps/api && pnpm exec nest g service
-  features/x`. `nest g library` writes `apps/api/libs/` and its alias into
+features/x`. `nest g library` writes `apps/api/libs/` and its alias into
   `apps/api/tsconfig.json`, which the build and Vitest both read.
 - **Dependencies:** `pnpm add <pkg> --filter @nestjs-monorepo-template/api`
   (or the package you're in). The root holds tooling only (`pnpm add -D -w`).
@@ -40,13 +40,13 @@ its work to the packages:
 
 `turbo.json` declares the tasks:
 
-| Task | Before it | Cached |
-| --- | --- | --- |
-| `build` | the dependencies' `build` (`^build`) | `dist/**`; tests and docs don't change its hash |
-| `lint` | `^build` (the API's tests read the client's types) | yes |
-| `test` | `^build` | yes |
-| `test:e2e` | `^build` (the API's e2e imports the built client) | no: it needs Docker or the services |
-| `dev` | `^build` (the apps run on the built client) | no: persistent, it runs until stopped |
+| Task       | Before it                                          | Cached                                          |
+| ---------- | -------------------------------------------------- | ----------------------------------------------- |
+| `build`    | the dependencies' `build` (`^build`)               | `dist/**`; tests and docs don't change its hash |
+| `lint`     | `^build` (the API's tests read the client's types) | yes                                             |
+| `test`     | `^build`                                           | yes                                             |
+| `test:e2e` | `^build` (the API's e2e imports the built client)  | no: it needs Docker or the services             |
+| `dev`      | `^build` (the apps run on the built client)        | no: persistent, it runs until stopped           |
 
 - A task whose inputs (its package's files, its dependencies' builds, the
   lockfile, `.oxlintrc.json`) didn't change is replayed from `.turbo/cache`:
@@ -64,7 +64,7 @@ its work to the packages:
   a hundred variables (each feature may add more) that a shell or the
   devcontainer sets over `apps/api/.env.development`: a `passThroughEnv`
   list would drift. In strict mode they'd vanish (`DATABASE_URL: expected
-  string`).
+string`).
 - CI keeps the cache between runs (`actions/cache`, `.github/workflows/ci.yml`).
 
 ## The web app
@@ -111,13 +111,13 @@ web app needs the API, so `dev:web` alone suits an API already running.
 
 ### What's in it
 
-| Area | Routes (`src/routes`) | Code |
-| --- | --- | --- |
-| Signed out | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion` | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts` |
-| Account | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself) | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings` |
-| Workspace | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports` | `features/*` |
-| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/audit`, `/settings` (values, overrides, feature flags) | `features/access`, `features/api-clients`, `features/audit`, `features/settings` |
-| Everywhere | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up) | `features/search`, `components/` |
+| Area           | Routes (`src/routes`)                                                                                                                                                                                                               | Code                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Signed out     | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`               | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                     |
+| Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself) | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings` |
+| Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                  | `features/*`                                                                               |
+| Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/audit`, `/settings` (values, overrides, feature flags)         | `features/access`, `features/api-clients`, `features/audit`, `features/settings`           |
+| Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                | `features/search`, `components/`                                                           |
 
 Not in the web app yet (open issues): webhooks (#89), PDF documents (#93),
 custom fields administration (#94), tenants for operators (#95), the privacy
@@ -133,7 +133,7 @@ tests (#97). The API has all of them.
   (toasts), zod (imported from `@/lib/zod`, see [deployment](deployment.md),
   "Caddy serves the web app too").
 - **Calls the API** through `src/lib/api.ts`: the typed client with `baseUrl:
-  ''` and `credentials: 'include'`, plus a middleware that answers 403
+''` and `credentials: 'include'`, plus a middleware that answers 403
   `reauthentication_required` with the re-authenticate dialog and retries.
   Errors go through `lib/errors.ts` (TanStack Query's cache `onError`): a 401
   while signed in ends the session (to sign-in, back to the page after),
@@ -160,10 +160,18 @@ tests (#97). The API has all of them.
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The
   notifications are refetched on every reconnect.
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
-  title …>` is a server-paginated, filterable, sortable list of any subject;
+title …>` is a server-paginated, filterable, sortable list of any subject;
   its filters, sorts, custom-field columns and tag filter come from
   `GET /v1/lists/{subject}`, its state is in the URL
   ([api-conventions](api-conventions.md), "Using it from a data table").
+  A field with a `ref` (`lib/list-refs.tsx`) gets a picker instead of a text
+  box, by its kind: `tag` (the subject's tags), `team` (`GET /v1/access/teams`;
+  without access to it, only "is empty"), `principal` (users searched by name,
+  `GET /v1/people`). One the caller declared no column for is added: filter
+  only when `fields=` can't pick it (`tag`), else a column hidden at first
+  showing names (`ownerId`, `teamId`; the value itself when its name is
+  unknown). Labels: `list.fields.<name>` in `common`. Another `ref` (a
+  record's subject) keeps the field's own filter.
 
 ### Languages
 
@@ -214,8 +222,13 @@ What a feature's record pages share; `features/notes` and
   `<Subject>.update`):
 
   ```tsx
-  <RecordPanels subject="Note" path="/v1/notes/{id}" id={note.id}
-    tags={note.tags} canUpdate={canUpdate} />
+  <RecordPanels
+    subject="Note"
+    path="/v1/notes/{id}"
+    id={note.id}
+    tags={note.tags}
+    canUpdate={canUpdate}
+  />
   ```
 
   Which panels a subject takes is the API's `capabilities` in
@@ -230,6 +243,7 @@ What a feature's record pages share; `features/notes` and
   `usePanelsApi()` (`test/panels-api.ts`) serves the panels' routes for a
   test-only subject; a feature's test description spreads
   `panelsDescription()`.
+
 - **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
   is the example): `ListPage`'s `listActions` gets the list's `params`, for
   `<ExportButton exporter="notes" filters={exportFilters(params)} />` and
@@ -364,6 +378,7 @@ Any framework fits the same way.
 
    `socket.io-client` only for realtime (`createRealtime()`). Nothing is
    published: pnpm links the package.
+
 3. **Scripts:** `build`, `lint`, `test` as the framework names them;
    Turborepo builds the client first (`^build`). Add the framework's output
    to `build.outputs` in `turbo.json` when it isn't `dist/` (Next.js:
@@ -376,27 +391,33 @@ Any framework fits the same way.
    ([its README](../packages/api-client/README.md)):
 
    ```ts
-   import { createApiClient, unwrap } from '@nestjs-monorepo-template/api-client';
+   import {
+     createApiClient,
+     unwrap,
+   } from '@nestjs-monorepo-template/api-client';
 
    const api = createApiClient({ baseUrl: '', credentials: 'include' });
-   const note = await unwrap(api.GET('/v1/notes/{id}', { params: { path: { id } } }));
+   const note = await unwrap(
+     api.GET('/v1/notes/{id}', { params: { path: { id } } }),
+   );
    ```
 
    Paths, parameters and answers are checked by TypeScript (`moduleResolution`
    `bundler` or `nodenext`).
+
 5. **Origins:** in development a dev-server proxy to `http://localhost:3000`
    (as `apps/web`), or call the API directly with the app's origin in
    `CORS_ORIGINS` and `WEB_URL` (`apps/api/.env.development`; the example has
    `http://localhost:5173`). In production, `CORS_ORIGINS` and `WEB_URL` in
    `.env`, or serve it from Caddy like `apps/web`.
 6. **Keep the client current:** after a route change, `pnpm
-   client:generate` (commit `packages/api-client/openapi.json` and
+client:generate` (commit `packages/api-client/openapi.json` and
    `src/schema.ts`), then `pnpm build`: the frontend's type check shows what
    the change broke. A running dev server sees the client's new `dist/`
    after `pnpm --filter @nestjs-monorepo-template/api-client build`.
 7. **Deploy it** on its own (its image, a static host, a platform), or into
    Caddy's image as `apps/web` is. The API's image is unaffected: `pnpm
-   deploy` takes only the API's dependencies.
+deploy` takes only the API's dependencies.
 
 ## A checkout from before the monorepo
 

@@ -20,13 +20,12 @@ import { DataTableSortMenu } from '@/components/data-table/data-table-sort-menu'
 import { ListBulkBar } from '@/components/list-bulk-bar';
 import type { BulkContext } from '@/features/bulk/types';
 import { useDataTable } from '@/hooks/use-data-table';
-import { customFieldColumns, tagFilterColumns } from '@/lib/list-columns';
-import { tagOptions, useTags } from '@/lib/tags';
+import { customFieldColumns, refColumns } from '@/lib/list-columns';
+import { useListRefs } from '@/lib/list-refs';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import {
   DEFAULT_PER_PAGE,
   defaultSorting,
-  isTagField,
   listFilters,
   useListDescription,
   useListQuery,
@@ -117,21 +116,18 @@ function ListTable<P extends ListPath>({
   const { t, i18n } = useTranslation();
   const router = useRouter({ warn: false });
   const checkable = selectable || bulkActions !== undefined;
-  const tags = useTags(subject, description.fields.some(isTagField));
-  const tagChoices = useMemo(() => tagOptions(tags.data ?? []), [tags.data]);
+  // What the reference fields point at: tags, teams, users (`ref`).
+  const refs = useListRefs(subject, description.fields);
   // The caller's columns, then what the list's metadata adds to them: the
-  // custom fields (hidden at first) and the tag filter (never shown).
+  // reference fields (by name; a filter-only one like `tag` never shown)
+  // and the custom fields, hidden at first.
   const { cols, hidden } = useMemo(() => {
     const declared = new Set(columns.map((c) => c.id));
     const extra = [
-      ...tagFilterColumns<ListRow<P>>(description, t('list.tag')),
+      ...refColumns<ListRow<P>>(description, refs, t),
       ...customFieldColumns<ListRow<P>>(description, i18n.language, t),
     ].filter((c) => !declared.has(c.id));
-    const withMeta = withListMeta(
-      [...columns, ...extra],
-      description,
-      tagChoices,
-    );
+    const withMeta = withListMeta([...columns, ...extra], description, refs);
     const withActions = rowActions
       ? [
           ...withMeta,
@@ -148,15 +144,7 @@ function ListTable<P extends ListPath>({
         extra.flatMap((c) => (c.id ? [[c.id, false]] : [])),
       ),
     };
-  }, [
-    columns,
-    description,
-    tagChoices,
-    t,
-    i18n.language,
-    rowActions,
-    checkable,
-  ]);
+  }, [columns, description, refs, t, i18n.language, rowActions, checkable]);
   const [fields, setFields] = useState(() =>
     cols.flatMap((c) => (c.id && !(c.id in hidden) ? [c.id] : [])),
   );

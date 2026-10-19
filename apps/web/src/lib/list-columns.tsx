@@ -2,17 +2,14 @@ import type { HeaderContext, RowData } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import type { DataTableFeatures } from '@/lib/data-table-features';
-import {
-  isTagField,
-  type ListColumn,
-  type ListDescription,
-  type ListField,
-} from '@/lib/list-query';
+import type { ListColumn, ListDescription, ListField } from '@/lib/list-query';
+import { refKinds, type RefSources } from '@/lib/list-refs';
 
 /**
  * Columns the list's own metadata asks for, so a page built on ListPage gets
  * them without declaring them: the active custom fields (`custom.<key>`,
- * docs/custom-fields.md) and the tag filter (`tag`, docs/tags.md).
+ * docs/custom-fields.md) and the reference fields (`ref`: tags, teams,
+ * users), shown by name.
  */
 
 const NONE = '';
@@ -83,22 +80,61 @@ export function customFieldColumns<TData extends RowData>(
     });
 }
 
+/** `ownerId` → "Owner": a field's label when none is translated. */
+export function fieldLabel(name: string): string {
+  const words = name
+    .replace(/Id$/, '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 /**
- * The `tag` filter's column when the list has one and the caller declared
- * none: filter only (never shown, `fields=` never names it), the picker's
- * options coming from GET /v1/tags (withListMeta).
+ * A column per reference field (`ref`) the caller declared none for, its
+ * values named from `refs` (the id or key itself when unknown):
+ * - a field `fields=` may pick (`ownerId`, `teamId`) is a column, hidden at
+ *   first (the view options turn it on);
+ * - one it may not (`tag`: a filter only) is never shown, never asked for.
+ * Only the kinds `refs` has a source for (tag, team, principal).
  */
-export function tagFilterColumns<TData extends RowData>(
+export function refColumns<TData extends RowData>(
   description: ListDescription,
-  label: string,
+  refs: RefSources,
+  t: TFunction,
 ): ListColumn<TData>[] {
-  return description.fields.filter(isTagField).map(
-    (field) =>
-      ({
+  const kinds = refKinds(description.fields);
+  const selectable = new Set(description.select);
+  return description.fields
+    .filter((field) => field.ref && kinds.has(field.ref) && !field.custom)
+    .map((field) => {
+      const label = t(`list.fields.${field.name}`, {
+        defaultValue: fieldLabel(field.name),
+      });
+      if (!selectable.has(field.name)) {
+        return {
+          id: field.name,
+          accessorFn: () => NONE,
+          enableHiding: false,
+          meta: { label },
+        } as ListColumn<TData>;
+      }
+      const names = new Map(
+        (refs[field.ref as string]?.options ?? []).map((o) => [
+          o.value,
+          o.label,
+        ]),
+      );
+      const name = (value: unknown) =>
+        typeof value === 'string' ? (names.get(value) ?? value) : NONE;
+      return {
         id: field.name,
-        accessorFn: () => NONE,
-        enableHiding: false,
-        meta: { label },
-      }) as ListColumn<TData>,
-  );
+        accessorFn: (row: TData) => {
+          const value = (row as Record<string, unknown>)[field.name];
+          return Array.isArray(value)
+            ? value.map(name).join(', ')
+            : name(value);
+        },
+        ...header<TData>(label),
+      } as ListColumn<TData>;
+    });
 }
