@@ -39,7 +39,9 @@ Every error, whatever produced it, is `application/problem+json`:
   magic-link request and forgot password: solve the challenge and send its
   token in `X-Captcha-Token`; the problem names `provider`, `siteKey` and
   `action`, a refusal its `reason`), `captcha_unavailable` (503, fail-closed
-  only: the provider can't be asked; [auth.md](auth.md#bot-protection))…
+  only: the provider can't be asked; [auth.md](auth.md#bot-protection)),
+  `consent_required` (409: a required consent can't be withdrawn; delete
+  the account instead: [auth.md](auth.md))…
   Branch on it, not on `detail`.
 - `detail` and `errors[].message` are in the request's language.
 - A 500 never shows internals; `requestId` finds it in the logs.

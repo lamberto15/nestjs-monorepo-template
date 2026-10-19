@@ -232,6 +232,13 @@
       "when": 1792296056676,
       "tag": "0032_unique_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792432134820,
+      "tag": "0033_previous_scarecrow",
+      "breakpoints": true
     }
   ]
 }
