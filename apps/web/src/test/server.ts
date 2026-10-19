@@ -20,6 +20,7 @@ export const signedInUser: Me = {
     id: '0199a3f2-0000-7000-8000-0000000000aa',
     slug: 'acme',
     name: 'Acme',
+    operator: true,
   },
   mfaEnabled: false,
   hasPassword: true,

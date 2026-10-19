@@ -18,7 +18,10 @@ export const tenants = pgTable('tenants', {
   /** A short handle in URLs and logs (`acme`), unique. */
   slug: text('slug').notNull().unique(),
   name: text('name').notNull(),
-  /** Off: nobody acts in it (its sessions have no tenant, its API keys stop), its jobs are skipped. */
+  /**
+   * Off: nobody acts in it (its sessions and tokens stop, ended by the
+   * deactivation; its API keys stop), its jobs are skipped.
+   */
   active: boolean('active').notNull().default(true),
   /**
    * The deployment's operators: the tenant the first start seeds. Routes

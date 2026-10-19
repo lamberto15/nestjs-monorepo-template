@@ -72,6 +72,7 @@ import { RecordPurgeRegistry } from './resources/record-purge.registry.js';
 import { UserLifecycleRegistry } from './auth/user-lifecycle.registry.js';
 import { ApiClientLifecycleRegistry } from './access/api-client-lifecycle.registry.js';
 import { ApiClientCountsRegistry } from './access/api-client-counts.registry.js';
+import { TenantLifecycleRegistry } from './access/tenant-lifecycle.registry.js';
 import { SignInContext, signInMetadata } from './auth/sign-in-context.js';
 import { ProviderReauthentications } from './account/oidc-reauthentication.js';
 import { AccountService } from './account/account.service.js';
@@ -154,6 +155,7 @@ export class IamModule {
       UserLifecycleRegistry,
       ApiClientLifecycleRegistry,
       ApiClientCountsRegistry,
+      TenantLifecycleRegistry,
       // Work without a user runs as the system principal (seeds, cron jobs, workflows).
       SystemContext,
       // Tenants (docs/tenancy.md): the operators' routes and the tests make them.
@@ -390,6 +392,7 @@ export class IamModule {
         UserLifecycleRegistry,
         ApiClientLifecycleRegistry,
         ApiClientCountsRegistry,
+        TenantLifecycleRegistry,
         AccessPolicy,
       ],
       exports: exported,

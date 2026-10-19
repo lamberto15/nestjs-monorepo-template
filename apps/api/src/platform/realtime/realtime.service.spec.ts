@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import type { WsAuthenticator } from '@nestjs/authentication';
 import type { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
+import type { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
 import type { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.registry.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { PeopleService } from '../people/people.service.js';
@@ -17,6 +18,7 @@ const serverless = () =>
     {} as WsAuthenticator,
     { register: vi.fn() } as unknown as UserLifecycleRegistry,
     { register: vi.fn() } as unknown as ApiClientLifecycleRegistry,
+    { register: vi.fn() } as unknown as TenantLifecycleRegistry,
   );
 
 const user: Principal = { kind: 'user', id: 'u1' } as Principal;
