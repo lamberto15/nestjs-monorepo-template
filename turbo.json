@@ -26,6 +26,13 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "test:browser": {
+      "dependsOn": [
+        "@nestjs-monorepo-template/api#build",
+        "@nestjs-monorepo-template/web#build"
+      ],
+      "cache": false
+    },
     "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false,

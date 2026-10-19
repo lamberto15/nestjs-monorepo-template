@@ -269,6 +269,89 @@ jobs:
           # The tests create their databases here (a template, then a copy per app).
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
 
+  # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
+  # Playwright drives the built web app on the built API with the demo data,
+  # on one origin (`vite preview` proxies /v1 as Caddy does), against this
+  # job's PostgreSQL and Redis. Apart from the API's e2e shards: a browser
+  # to install, and a different failure to read (the HTML report and traces
+  # are uploaded when it fails). Accessibility findings (axe) go to the job
+  # summary; serious and critical ones fail the tests.
+  e2e-web:
+    needs: compose-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      redis:
+        image: ${{ needs.compose-images.outputs.redis }}
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres:
+        image: ${{ needs.compose-images.outputs.postgres }}
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # The database and Redis above (apps/web-e2e/scripts/api.mjs reads them).
+      DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
+      DATABASE_OWNER_URL: postgres://app:app@localhost:5432/app
+      DATABASE_MAINTENANCE_URL: postgres://app_maintenance:app_maintenance@localhost:5432/app
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: node@24
+          cache: true
+      - name: Turborepo's cache (the API and the web app are built first)
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      # Playwright's browsers, kept between runs by its version; the system
+      # libraries are installed each time (`--with-deps`: apt, a few seconds).
+      - name: Playwright's version
+        id: playwright
+        run: echo "version=$(pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Playwright's browsers (cache)
+        id: browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium
+        run: |
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = true ]; then
+            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install-deps chromium
+          else
+            pnpm --filter @nestjs-monorepo-template/web-e2e exec playwright install --with-deps chromium
+          fi
+      # The seed runs only on a database marked as a development one
+      # (docs/development.md, "Demo data"): what the development services do
+      # when they create theirs (dev/postgres/10-dev-database.sql).
+      - name: Mark the database as a development one
+        run: PGPASSWORD=app psql -h localhost -U app -d app -c "alter database app set app.dev_database = 'on'"
+      - name: The browser tests
+        run: pnpm test:e2e:web
+        env:
+          CI: 'true'
+      - name: Accessibility findings in the job summary
+        if: ${{ !cancelled() }}
+        run: node apps/web-e2e/scripts/axe-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+      - name: The HTML report and traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            apps/web-e2e/playwright-report/
+            apps/web-e2e/test-results/
+          retention-days: 14
+
   # The feature generator (tools/feature, `pnpm feature:add`): its tests, then
   # two features generated with every field type and option, which must
   # build, lint, migrate and pass their own generated e2e tests on today's

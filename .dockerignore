@@ -22,4 +22,5 @@ tools
 apps/*/test
 # The frontend is built into the Caddy image (caddy/Dockerfile), not this one.
 apps/web
+apps/web-e2e
 packages/ui
