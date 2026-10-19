@@ -31,13 +31,9 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { allCustomFieldsQuery, type CustomField } from '@/lib/custom-fields';
 import { errorMessage } from '@/lib/errors';
-import {
-  CUSTOM_FIELD_SUBJECTS,
-  useDeactivateField,
-  useReorderFields,
-  useUpdateField,
-} from './api';
+import { useDeactivateField, useReorderFields, useUpdateField } from './api';
 import { FieldDialog } from './field-dialog';
+import { CUSTOM_FIELD_SUBJECTS } from './subjects';
 
 /**
  * The custom fields of one subject (docs/custom-fields.md): the active ones
@@ -48,7 +44,21 @@ import { FieldDialog } from './field-dialog';
  */
 export function CustomFieldsPage() {
   const { t } = useTranslation('custom-fields');
-  const [subject, setSubject] = useState<string>(CUSTOM_FIELD_SUBJECTS[0]);
+  const first = CUSTOM_FIELD_SUBJECTS[0];
+  // No feature takes custom fields (see ./subjects): nothing to administer.
+  if (!first) {
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t('noSubjects')}
+      </p>
+    );
+  }
+  return <SubjectFields first={first} />;
+}
+
+function SubjectFields(props: { first: string }) {
+  const { t } = useTranslation('custom-fields');
+  const [subject, setSubject] = useState(props.first);
   const fields = useQuery({
     ...allCustomFieldsQuery(subject),
     meta: { errorToast: false },
@@ -89,7 +99,7 @@ export function CustomFieldsPage() {
         <Select
           items={CUSTOM_FIELD_SUBJECTS.map((s) => ({
             value: s,
-            label: t(`subjects.${s}`, { defaultValue: s }),
+            label: s,
           }))}
           value={subject}
           onValueChange={(next) => next && setSubject(next)}
@@ -100,7 +110,7 @@ export function CustomFieldsPage() {
           <SelectContent>
             {CUSTOM_FIELD_SUBJECTS.map((s) => (
               <SelectItem key={s} value={s}>
-                {t(`subjects.${s}`, { defaultValue: s })}
+                {s}
               </SelectItem>
             ))}
           </SelectContent>

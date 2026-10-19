@@ -10,15 +10,6 @@ import {
 } from '@/lib/custom-fields';
 
 /**
- * The subjects whose records take custom fields. The API has no list of
- * them (an open backend issue); `GET /v1/lists/{subject}` says per subject
- * (`capabilities.custom`), and the fields route answers 404 for one that
- * takes none. Add a subject here when a feature opts in
- * (`--with custom`, docs/custom-fields.md).
- */
-export const CUSTOM_FIELD_SUBJECTS = ['Note'] as const;
-
-/**
  * A change of the definitions reaches the forms and views built from them
  * and the lists' columns (`GET /v1/lists/{subject}` carries the fields).
  */

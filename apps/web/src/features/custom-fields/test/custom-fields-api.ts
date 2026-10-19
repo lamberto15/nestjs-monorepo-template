@@ -8,7 +8,7 @@ import { useSignedIn } from '@/test/signed-in';
 
 export const field = (over: Partial<CustomField> = {}): CustomField => ({
   id: '0199a3f2-0000-7000-8000-000000000a01',
-  subject: 'Note',
+  subject: 'TestItem',
   key: 'region',
   label: 'Region',
   description: null,
@@ -40,14 +40,16 @@ export const AMOUNT = field({
 });
 
 /**
- * Signs the user in with these permissions and serves `fields` for Note.
+ * Signs the user in with these permissions and serves `fields` for a subject (TestItem unless given).
  * `calls` holds the bodies the page sent; `fail` makes the next write answer
  * a problem.
  */
 export function useCustomFieldsApi(options: {
   can: string[];
   fields: CustomField[];
+  subject?: string;
 }) {
+  const subject = options.subject ?? 'TestItem';
   let fields = [...options.fields];
   const calls = {
     created: [] as unknown[],
@@ -62,7 +64,7 @@ export function useCustomFieldsApi(options: {
     http.get('/v1/custom-fields', ({ request }) => {
       const url = new URL(request.url);
       calls.reads.push(url.search);
-      if (url.searchParams.get('subject') !== 'Note') {
+      if (url.searchParams.get('subject') !== subject) {
         return problem(404, 'not_found');
       }
       const all = url.searchParams.get('includeInactive') === 'true';

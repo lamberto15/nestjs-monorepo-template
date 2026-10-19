@@ -4,9 +4,6 @@
   "description": "Tambah medan pada rekod tanpa migrasi. Medan disahkan pada setiap penulisan, dipaparkan dalam senarai dan borang, dan dieksport.",
   "add": "Tambah medan",
   "subject": "Rekod",
-  "subjects": {
-    "Note": "Nota"
-  },
   "none": "Belum ada medan tersuai untuk rekod ini.",
   "active": "Medan aktif ({{n}})",
   "orderHint": "Seret pemegang untuk menyusun semula, atau fokus padanya dan tekan Space, kemudian kekunci anak panah. Butang alih berfungsi sama.",
@@ -91,5 +88,6 @@
     "cancel": "Batal",
     "create": "Tambah medan",
     "save": "Simpan"
-  }
+  },
+  "noSubjects": "Belum ada rekod yang menerima medan tersuai."
 }

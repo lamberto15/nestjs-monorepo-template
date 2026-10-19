@@ -4,9 +4,6 @@
   "description": "Fügen Sie Datensätzen Felder ohne Migration hinzu. Sie werden bei jedem Schreibvorgang geprüft, in Listen und Formularen angezeigt und exportiert.",
   "add": "Feld hinzufügen",
   "subject": "Datensätze",
-  "subjects": {
-    "Note": "Notizen"
-  },
   "none": "Für diese Datensätze gibt es noch keine benutzerdefinierten Felder.",
   "active": "Aktive Felder ({{n}})",
   "orderHint": "Ziehen Sie den Griff, um umzusortieren, oder fokussieren Sie ihn und drücken Sie die Leertaste und dann die Pfeiltasten. Die Verschieben-Schaltflächen tun dasselbe.",
@@ -91,5 +88,6 @@
     "cancel": "Abbrechen",
     "create": "Feld hinzufügen",
     "save": "Speichern"
-  }
+  },
+  "noSubjects": "Noch keine Datensätze nehmen benutzerdefinierte Felder auf."
 }

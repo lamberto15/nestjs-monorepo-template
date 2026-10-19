@@ -4,9 +4,6 @@
   "description": "Add fields to records without a migration. They are validated on every write, shown in lists and forms, and exported.",
   "add": "Add a field",
   "subject": "Records",
-  "subjects": {
-    "Note": "Notes"
-  },
   "none": "No custom fields yet for these records.",
   "active": "Active fields ({{n}})",
   "orderHint": "Drag the handle to reorder, or focus it and press Space, then the arrow keys. The move buttons do the same.",
@@ -91,5 +88,6 @@
     "cancel": "Cancel",
     "create": "Add field",
     "save": "Save"
-  }
+  },
+  "noSubjects": "No records take custom fields yet."
 }
