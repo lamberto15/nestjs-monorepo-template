@@ -27,7 +27,7 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
 | `GET /v1/data/imports/{name}/template?format=&timezone=` | a file to fill: the columns, an example row |
 | `POST /v1/data/exports { name, format, filters, timezone? }` | 202; the file lands in private storage |
 | `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`) | 202; every row is validated, valid rows written |
-| `GET /v1/data/transfers/{id}` | progress, then the result: a signed link (30 min), counts, the error report |
+| `GET /v1/data/transfers/{id}` | progress, then the result: a signed link (30 min), counts, the error report; `createdAt`, `finishedAt`, `expiresAt` |
 | `GET /v1/data/transfers?kind=&status=&limit=&cursor=` | the caller's transfers in this tenant, newest first, each as the route above tells it |
 
 - **Per tenant** ([tenancy](tenancy.md)): a transfer job names the tenant
@@ -55,7 +55,11 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   before the job is queued, expiring with it; each item is read from its
   job and checked again (tenant, principal), and an entry whose job is gone
   is dropped. The account export is not listed (it is in no tenant):
-  follow it by its id.
+  `GET /v1/account/exports` lists it ([auth.md](auth.md)), from an index
+  under the account (`account:jobs:data-transfers:account:<principal key>`).
+- **Each status** (the single route and the lists) says when it was
+  started (`createdAt`), ended (`finishedAt`, null until then) and stops
+  being kept (`expiresAt`: 7 days after it ended, `TRANSFER_KEPT_MS`).
 - `GET /v1/data` is described in the OpenAPI document (`catalogSchema`), so
   the typed client types it.
 - **The account export** (an exporter with `scope: 'account'`: `POST

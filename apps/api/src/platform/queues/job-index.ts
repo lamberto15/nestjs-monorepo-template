@@ -33,14 +33,18 @@ export interface JobPage<T> {
  *
  * The tenant and the principal are in the key (docs/tenancy.md,
  * "Per-principal keys carry the tenant"); a reader still checks each job's
- * own `tenantId` and principal, as the single routes do.
+ * own `tenantId` and principal, as the single routes do. A job queued in no
+ * tenant (a user's account export: the person's, across their tenants) is
+ * listed under the account instead, `account:jobs:<list>:<principal key>`
+ * (`tenantId` null).
  */
 @Injectable()
 export class JobIndex {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
-  private key(list: string, tenantId: string, principal: Principal) {
-    return tenantKey(`jobs:${list}:${principalKey(principal)}`, tenantId);
+  private key(list: string, tenantId: string | null, principal: Principal) {
+    const key = `jobs:${list}:${principalKey(principal)}`;
+    return tenantId === null ? `account:${key}` : tenantKey(key, tenantId);
   }
 
   /**
@@ -50,7 +54,7 @@ export class JobIndex {
    */
   async add(
     lists: readonly string[],
-    tenantId: string,
+    tenantId: string | null,
     principal: Principal,
     id: string,
     // Below the millisecond (a double holds it): two jobs queued in the same
@@ -100,7 +104,7 @@ export class JobIndex {
    */
   async page<T extends { id: string }>(
     list: string,
-    tenantId: string,
+    tenantId: string | null,
     principal: Principal,
     { limit, cursor }: { limit: number; cursor?: string },
     read: (id: string) => Promise<T | null>,

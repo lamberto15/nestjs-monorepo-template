@@ -44,7 +44,8 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
   the rule falls back to the default.
 - **Accounts are global, memberships per tenant** ([tenancy](tenancy.md)):
   one account per address, in every tenant it belongs to; a session acts in
-  one (`GET /v1/auth/me`'s `tenant`), the last chosen at sign-in. A
+  one (`GET /v1/auth/me`'s `tenant`; its `operator` is true in the
+  operator tenant, where the operators' routes answer), the last chosen at sign-in. A
   tenant's administrators manage its memberships (`PATCH` deactivates the
   membership, never the account) and never set or change anyone's password
   or name.
@@ -138,9 +139,64 @@ acceptance (`POST /v1/auth/invitations/accept`) and
 | Need | Route |
 | --- | --- |
 | A pending deletion, what you agreed to | `GET /v1/account` |
-| A copy of everything held about you | `POST /v1/account/export { format? }` → 202, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's) |
-| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one, and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below), until the job starts on it |
-| Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }`, `GET /v1/account/consents` (the latest of each kind; kept as proof) |
+| A copy of everything held about you | `POST /v1/account/export { format? }` → 202 `{ id, status }`, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's) |
+| The copies you asked for | `GET /v1/account/exports?limit=&cursor=` (below) |
+| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one: `hasPassword` of `GET /v1/auth/me`; and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; your other sessions are signed out (below); `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below), until the job starts on it |
+| The kinds of consent asked for | `GET /v1/account/consent-kinds` (public: `kind`, current `version`, `required`, `label`, `description`) |
+| Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }` (a declared kind, its current version), `DELETE /v1/account/consents/{kind}` (withdraw), `GET /v1/account/consents` (the latest of each kind, with `withdrawnAt`; every acceptance kept as proof) |
+
+**Consents** are declared, not free text: `CONSENT_KINDS`
+(`platform/account/consent-kinds.ts`, handed over in `app.module.ts` as
+`PlatformModule.forRoot({ consents })`) names each kind, its current
+`version` and whether it is `required`; the texts are the catalogs'
+`auth.consentKinds.<kind>.label` and `.description` (the start fails
+without the English ones). The template asks for `terms` and `privacy`
+(required) and `marketing` (optional), version `2026-01`. Publish a new
+text: bump the version; a user whose latest acceptance is of another
+version is asked again (the client compares it with `GET
+/v1/account/consent-kinds`, public so a sign-up page can show them too).
+Accepting anything else (an unknown kind, an older or newer version) is a
+400 `validation_failed` naming `kind` or `version`.
+
+- **Kept as proof:** every acceptance is a row (`consents`: kind, version,
+  time, address), never overwritten or deleted while the account lives;
+  accepting again adds one. `GET /v1/account/consents` shows the latest
+  per kind; the account export holds them all.
+- **Withdrawing** (GDPR Art. 7(3): as easy as giving it) is one request
+  with no password and no step-up, as accepting is: `DELETE
+  /v1/account/consents/{kind}` stamps the kind's acceptances still in force
+  with `withdrawn_at` and the address (`withdrawal_ip`), in one transaction
+  with its audit entry (`account.consent-withdrawn`, `details: { kind,
+  version }`), and answers the kind's state. Nothing in force: 404.
+  Accepting again gives it anew (a new row; the withdrawn one stays). A
+  kind no longer declared can still be withdrawn.
+- **A required kind can't be withdrawn** (409 `consent_required`): the terms
+  and the privacy policy are the contract the service runs on (GDPR Art.
+  6(1)(b)), not a consent one withdraws while keeping the account; the way
+  out is deleting the account. Process anything on consent (Art. 6(1)(a)),
+  such as marketing, under an optional kind, and check it is in force
+  (`withdrawnAt` null) before acting on it.
+
+**The account exports list** (`GET /v1/account/exports`): the caller's own
+account exports, newest first, by cursor (`limit`, `cursor` = the previous
+`nextCursor`), each as `GET /v1/data/transfers/{id}` tells it (`status`,
+`createdAt`, `finishedAt`, `expiresAt`, the result's link, valid 30 minutes
+from the answer). Kept as long as BullMQ keeps the job, 7 days after it ends
+(`expiresAt`), then gone: ask for a new one. Account-level, like the export:
+the same in any tenant or none, indexed under the account
+(`account:jobs:data-transfers:account:<principal key>`, `JobIndex`), each
+job's principal checked again; never while impersonating (403), never
+another user's. `GET /v1/data/transfers` stays the tenant's transfers.
+
+**Deletion and sessions.** A new request signs out every other session and
+every token client (their refresh tokens; an access token lives until it
+expires), as a password change does, after the request commits; the
+session that asked keeps going, to cancel. The audit entry
+(`account.deletion-requested`) counts them (`details.signedOut: {
+sessions, tokens }`). Cancelling needs no session anyway: the person can
+sign in again while the request is pending (the account stays active until
+the job runs), or use the mail's link. Asking again while one is pending
+returns that request as is: no new mail, nothing signed out.
 
 The nightly job anonymizes a due account (`UsersRepository.anonymize`):
 placeholder address and name, no password, sign-in methods, sessions,
@@ -177,7 +233,7 @@ field, which the log redaction masks. Proof:
 mail's cancel link"), `deletion-cancel-links.spec.ts`.
 
 All of it is audited (`account.deletion-requested`, `-cancelled`,
-`account.deleted`, `account.consented`); `account.deleted` is the job's,
+`account.deleted`, `account.consented`, `account.consent-withdrawn`); `account.deleted` is the job's,
 the system principal `system:account-deletion`. Never while impersonating.
 
 **Across tenants** ([tenancy](tenancy.md)): the account is the person's,

@@ -66,4 +66,25 @@ describe('single-tenant deployment (e2e)', () => {
     const list = await node.admin().get('/v1/tenants').expect(200);
     expect(list.body.items).toHaveLength(1);
   });
+
+  it('reads, renames and lists its one tenant, which is the operators’ and is never deactivated', async () => {
+    const me = await node.admin().get('/v1/auth/me').expect(200);
+    expect(me.body.tenant).toMatchObject({ id: node.tenantId, operator: true });
+    await node.admin().get(`/v1/tenants/${node.tenantId}`).expect(200);
+    const renamed = await node
+      .admin()
+      .patch(`/v1/tenants/${node.tenantId}`)
+      .send({ name: 'Acme' })
+      .expect(200);
+    expect(renamed.body).toMatchObject({ name: 'Acme', operator: true });
+    await node
+      .admin()
+      .patch(`/v1/tenants/${node.tenantId}`)
+      .send({ active: false })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('operator_tenant'));
+    const list = await node.admin().get('/v1/tenants?count=true').expect(200);
+    expect(list.body).toMatchObject({ nextCursor: null, total: 1 });
+    await node.admin().get('/v1/lists/Tenant').expect(200);
+  });
 });
