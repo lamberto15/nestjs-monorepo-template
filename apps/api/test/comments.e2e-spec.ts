@@ -220,7 +220,11 @@ describe('comments and mentions on test items (e2e)', () => {
       `@${colleague.email.toUpperCase()}, @${outsider.email} and @nobody@example.com: please check.`,
     );
     expect(mentioning.mentions).toEqual([colleague.key]);
-    expect(mentioning.mentionNames).toEqual({ [colleague.key]: 'Cleo' });
+    // Named by the address too (lower-cased); the outsider's and the unknown one's get none.
+    expect(mentioning.mentionNames).toEqual({
+      [colleague.key]: 'Cleo',
+      [colleague.email.toLowerCase()]: 'Cleo',
+    });
     await deliver();
 
     const mentioned = await inbox(colleague.agent, 'comment.mentioned');
@@ -373,6 +377,7 @@ describe('comments and mentions on test items (e2e)', () => {
     expect(both.mentionNames).toEqual({
       [viewer.key]: 'Vera',
       [colleague.key]: 'Cleo',
+      [colleague.email.toLowerCase()]: 'Cleo',
     });
     const one = await comment(viewer.agent, itemId, `@user:${colleague.id}`);
     expect(one.mentionNames).toEqual({ [colleague.key]: 'Cleo' });
@@ -427,6 +432,53 @@ describe('comments and mentions on test items (e2e)', () => {
       `@user:${theirs.id} and @user:${colleague.id}`,
     );
     expect(theirs1.mentionNames).toEqual({ [theirKey]: theirs.email });
+  });
+
+  it('names a mention written as an address under that address too (lower-cased), and an address that mentioned nobody not at all', async () => {
+    const owner = await person(['editor'], 'Owen');
+    const colleague = await person(['viewer'], 'Cleo');
+    // Cannot read the owner's note: the mention drops them, so their address gets no name.
+    const outsider = await person(['editor'], 'Otto');
+    const itemId = await writeItem(owner.agent);
+    const address = colleague.email.toLowerCase();
+
+    const mixed = await comment(
+      owner.agent,
+      itemId,
+      `Hi @${colleague.email.toUpperCase()}, not @${outsider.email} or @nobody@example.com; plain ${outsider.email} too.`,
+    );
+    expect(mixed.mentions).toEqual([colleague.key]);
+    expect(mixed.mentionNames).toEqual({
+      [colleague.key]: 'Cleo',
+      [address]: 'Cleo',
+    });
+    expect(mixed.mentionNames).not.toHaveProperty(outsider.email);
+    expect(mixed.mentionNames).not.toHaveProperty('nobody@example.com');
+
+    // Mentioned by key: no address entry, whatever the text says.
+    const byKey = await comment(
+      owner.agent,
+      itemId,
+      `@user:${colleague.id} and ${colleague.email}`,
+    );
+    expect(byKey.mentionNames).toEqual({ [colleague.key]: 'Cleo' });
+
+    // The list names it for every reader, and an edit answers with it.
+    const listed = (
+      await colleague.agent.get(`/v1/test-items/${itemId}/comments`).expect(200)
+    ).body.items as Comment[];
+    expect(listed.map((c) => c.mentionNames)).toEqual([
+      { [colleague.key]: 'Cleo', [address]: 'Cleo' },
+      { [colleague.key]: 'Cleo' },
+    ]);
+    const edited = await owner.agent
+      .patch(`/v1/test-items/${itemId}/comments/${byKey.id}`)
+      .send({ body: `Now @${colleague.email}` })
+      .expect(200);
+    expect(edited.body.mentionNames).toEqual({
+      [colleague.key]: 'Cleo',
+      [address]: 'Cleo',
+    });
   });
 
   it('mentions an address with dots in its local part (`@first.last@sub.example.com`)', async () => {

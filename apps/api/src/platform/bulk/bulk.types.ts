@@ -7,6 +7,13 @@ export const MAX_BULK_IDS = 500;
 /** Item results a queued job keeps (its counts are exact). */
 export const MAX_BULK_RESULTS = 10_000;
 
+/**
+ * The actions the records' bulk routes offer (`recordSchemas()`), what
+ * `GET /v1/bulk?kind=` filters by. `update` is the one clients call "change".
+ */
+export const BULK_KINDS = ['delete', 'restore', 'update'] as const;
+export type BulkKind = (typeof BULK_KINDS)[number];
+
 /** One action of a bulk operation: `delete`, `restore`, `update`… */
 export interface BulkAction {
   label: string;

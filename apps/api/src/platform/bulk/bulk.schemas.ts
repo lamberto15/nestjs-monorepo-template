@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JOB_STATUSES } from '../queues/job-status.js';
 import { MAX_BULK_IDS, MAX_BULK_RESULTS } from './bulk.types.js';
 
 /**
@@ -78,10 +79,19 @@ export const bulkStatusSchema = z.object({
   id: z.string(),
   name: z.string(),
   action: z.string(),
-  status: z.enum(['queued', 'running', 'completed', 'failed']),
+  status: z.enum(JOB_STATUSES),
   progress: z
     .record(z.string(), z.number())
     .describe('processed, done, failed: every 100 items.'),
+  createdAt: z.iso.datetime().describe('When it was handed to the workers.'),
+  startedAt: z.iso
+    .datetime()
+    .nullable()
+    .describe('When a worker took it up; null while it is queued.'),
+  finishedAt: z.iso
+    .datetime()
+    .nullable()
+    .describe('When it completed or failed; null while it waits or runs.'),
   result: bulkResultSchema.optional(),
   error: z.string().optional(),
 });

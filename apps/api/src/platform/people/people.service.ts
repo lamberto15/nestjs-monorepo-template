@@ -62,6 +62,31 @@ export class PeopleService {
   ) {}
 
   /**
+   * The `user:<id>` keys behind these addresses (lower-cased, as
+   * `users.email` is), among `among` only: a mention is told by an address
+   * only where it already resolved to one of the keys a comment holds, so
+   * this never says whether an address belongs to anyone else.
+   */
+  async keysOfEmails(
+    emails: Iterable<string>,
+    among: Iterable<string>,
+  ): Promise<Map<string, string>> {
+    const ids = [...new Set(among)]
+      .filter((key) => key.startsWith('user:'))
+      .map((key) => key.slice('user:'.length))
+      .filter((id) => UUID.test(id));
+    const addresses = [...new Set(emails)];
+    if (!ids.length || !addresses.length) {
+      return new Map();
+    }
+    const rows = await this.db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(and(inArray(users.id, ids), inArray(users.email, addresses)));
+    return new Map(rows.map((row) => [row.email, `user:${row.id}`]));
+  }
+
+  /**
    * The names of these principal keys, in two queries whatever their
    * number (a page's authors): a user who is or was a member of the
    * tenant (their membership may be inactive since: the name stays on

@@ -12,6 +12,9 @@ const job = (failedReason?: string, tenantId = tenant) => ({
   id: 'b1',
   data: { name: 'notes', action: 'delete', principal: owner, tenantId },
   progress: { processed: 1 },
+  timestamp: Date.parse('2026-10-20T10:00:00Z'),
+  processedOn: Date.parse('2026-10-20T10:00:05Z'),
+  finishedOn: Date.parse('2026-10-20T10:01:00Z'),
   failedReason,
   returnvalue: undefined,
   getState: async () => 'failed',
@@ -25,7 +28,13 @@ describe('BulkService.status', () => {
     const bulk = Reflect.construct(BulkService, [{ getJob }]) as BulkService;
     await expect(
       inTenantOf({ tenantId: tenant }, () => bulk.status(owner, 'b1')),
-    ).resolves.toMatchObject({ status: 'failed', error: PRINCIPAL_GONE });
+    ).resolves.toMatchObject({
+      status: 'failed',
+      error: PRINCIPAL_GONE,
+      createdAt: '2026-10-20T10:00:00.000Z',
+      startedAt: '2026-10-20T10:00:05.000Z',
+      finishedAt: '2026-10-20T10:01:00.000Z',
+    });
     expect(getJob).toHaveBeenCalledTimes(2);
   });
 
