@@ -1,0 +1,51 @@
+{
+  "title": "Datenschutz",
+  "description": "Ihre Daten, Ihre Einwilligungen und das Löschen Ihres Kontos.",
+  "impersonating": "Während Sie als jemand anderes handeln, bleiben dessen Daten, Einwilligungen und Kontolöschung seine Sache.",
+  "export": {
+    "title": "Ihre Daten exportieren",
+    "description": "Eine Kopie von allem, was über Sie gespeichert ist: Ihr Konto, dann was jede Organisation, der Sie angehören, über Sie speichert. Die Datei wird im Hintergrund erstellt.",
+    "start": "Meine Daten exportieren",
+    "startedAt": "Gestartet {{date}}",
+    "kept": "Die in diesem Browser gestarteten Exporte. Ein fertiger Export wird 7 Tage aufbewahrt; sein Download-Link gilt 30 Minuten, öffnen Sie diese Seite erneut für einen neuen."
+  },
+  "consents": {
+    "title": "Einwilligungen",
+    "description": "Wozu Sie eingewilligt haben, und wann. Jede wird als Nachweis aufbewahrt.",
+    "kinds": {
+      "terms": "Nutzungsbedingungen",
+      "privacy": "Datenschutzerklärung",
+      "marketing": "Neuigkeiten und Angebote per E-Mail"
+    },
+    "required": "Erforderlich",
+    "acceptedAt": "Version {{version}}, akzeptiert {{date}}",
+    "outdated": "Sie haben Version {{version}} am {{date}} akzeptiert; aktuell ist Version {{current}}.",
+    "notGiven": "Nicht erteilt (Version {{version}}).",
+    "locked": "Für die Nutzung der App erforderlich: Sie kann hier nicht widerrufen werden.",
+    "noWithdraw": "Ein Widerruf ist hier noch nicht möglich.",
+    "given": "{{kind}}: akzeptiert."
+  },
+  "deletion": {
+    "title": "Ihr Konto löschen",
+    "description": "Ist die Löschung erst ausgeführt, lässt sie sich nicht rückgängig machen.",
+    "grace": "Ihr Konto wird nach einer Karenzzeit gelöscht; die E-Mail, die wir senden, nennt das Datum. Bis dahin bleiben Sie angemeldet und können abbrechen, hier oder mit dem Link der E-Mail, auch ohne Anmeldung.",
+    "erased": "Dann werden Ihr Name und Ihre E-Mail-Adresse ersetzt, und Ihr Passwort, Ihre Anmeldemethoden, Sitzungen, Mitgliedschaften, Benachrichtigungen und Einstellungen entfernt, in jeder Organisation, der Sie angehören.",
+    "keptRecords": "Datensätze, die Sie erstellt haben, bleiben bei ihrer Organisation, nicht mehr mit Ihnen verknüpft.",
+    "audit": "Das Prüfprotokoll behält seine Einträge, gekennzeichnet als „Gelöschter Benutzer“.",
+    "exportFirst": "Exportieren Sie Ihre Daten zuerst, wenn Sie eine Kopie möchten.",
+    "action": "Mein Konto löschen…",
+    "confirmTitle": "Ihr Konto löschen?",
+    "confirmDescription": "Geben Sie zur Bestätigung Ihre E-Mail-Adresse und Ihr Passwort ein.",
+    "confirmEmail": "Geben Sie {{email}} ein",
+    "confirmMismatch": "Das ist nicht die Adresse Ihres Kontos.",
+    "password": "Passwort",
+    "passwordHint": "Leer lassen, wenn Ihr Konto kein Passwort hat.",
+    "mailHint": "Wir senden Ihnen das Datum und einen Link zum Abbrechen per E-Mail.",
+    "submit": "Mein Konto löschen",
+    "requested": "Ihr Konto wird am {{date}} gelöscht. Wir haben an {{email}} einen Link zum Abbrechen gesendet.",
+    "scheduled": "Ihr Konto wird am {{date}} gelöscht.",
+    "scheduledHint": "Wir haben an {{email}} einen Link zum Abbrechen gesendet, der ohne Anmeldung funktioniert. Oder behalten Sie Ihr Konto hier.",
+    "keep": "Mein Konto behalten",
+    "kept": "Die Löschung ist abgebrochen: Ihr Konto bleibt."
+  }
+}
