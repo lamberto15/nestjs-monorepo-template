@@ -4632,9 +4632,98 @@
         ]
       }
     },
+    "/v1/custom-fields/subjects": {
+      "get": {
+        "description": "Each with its name in the response's language (`lang`). Only the subjects whose fields you may read (GET /custom-fields?subject=…: whoever may read the subject, or manages custom fields); a 403 when there are none.",
+        "operationId": "CustomFieldsController_subjects_v1",
+        "parameters": [
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subject": {
+                            "type": "string",
+                            "example": "Note"
+                          },
+                          "label": {
+                            "type": "object",
+                            "properties": {
+                              "singular": {
+                                "type": "string",
+                                "example": "Note"
+                              },
+                              "plural": {
+                                "type": "string",
+                                "example": "Notes"
+                              }
+                            },
+                            "required": [
+                              "singular",
+                              "plural"
+                            ],
+                            "additionalProperties": false,
+                            "description": "How the subject is named, in the response's language: one record and several."
+                          }
+                        },
+                        "required": [
+                          "subject",
+                          "label"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The subjects that take custom fields",
+        "tags": [
+          "custom fields"
+        ]
+      }
+    },
     "/v1/custom-fields": {
       "get": {
-        "description": "For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true.",
+        "description": "For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true. ?include=counts adds how many records hold a value of each field (valueCount, and deletedValueCount for those in the recycle bin): one query over the subject's table, for those who manage custom fields only (403 otherwise).",
         "operationId": "CustomFieldsController_list_v1",
         "parameters": [
           {
@@ -4658,6 +4747,19 @@
               "enum": [
                 "true",
                 "false"
+              ]
+            }
+          },
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields).",
+            "schema": {
+              "description": "counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields).",
+              "type": "string",
+              "enum": [
+                "counts"
               ]
             }
           },
@@ -4790,6 +4892,18 @@
                           },
                           "active": {
                             "type": "boolean"
+                          },
+                          "valueCount": {
+                            "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "deletedValueCount": {
+                            "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           },
                           "createdAt": {
                             "type": "string",
@@ -5113,6 +5227,18 @@
                     "active": {
                       "type": "boolean"
                     },
+                    "valueCount": {
+                      "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "deletedValueCount": {
+                      "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -5331,6 +5457,18 @@
                           },
                           "active": {
                             "type": "boolean"
+                          },
+                          "valueCount": {
+                            "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "deletedValueCount": {
+                            "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           },
                           "createdAt": {
                             "type": "string",
@@ -5632,6 +5770,18 @@
                     },
                     "active": {
                       "type": "boolean"
+                    },
+                    "valueCount": {
+                      "description": "Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "deletedValueCount": {
+                      "description": "Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     },
                     "createdAt": {
                       "type": "string",
