@@ -2,9 +2,14 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Ip,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
+  Query,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -19,15 +24,24 @@ import {
   ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
+  ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPreconditionFailedResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { z } from 'zod';
-import { listSchema } from '../../core/http/pagination.js';
+import {
+  assertUnchanged,
+  Etag,
+  ifMatchHeader,
+  ifNoneMatchHeader,
+} from '../../core/http/etag.js';
+import type { ListQuery } from '../../core/http/list-query.js';
+import { listSchema, pageSchema } from '../../core/http/pagination.js';
 import { newPassword } from '../account/account.schemas.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
 import { OperatorOnly } from '../auth/operator-only.js';
@@ -36,6 +50,7 @@ import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
 import { InvitationsService } from './invitations.service.js';
 import { AccessPolicy } from './policies.js';
 import { TenantSwitchService } from './tenant-switch.service.js';
+import { TENANT_LIST } from './tenants.lists.js';
 import { TenantsService } from './tenants.service.js';
 
 const myTenantSchema = z.object({
@@ -72,13 +87,45 @@ const tenantSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
+const tenantName = z.string().trim().min(1).max(120);
+const tenantSlug = z
+  .string()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .max(48)
+  .describe('A short handle: lowercase letters, digits and dashes (`acme`).');
+
+const createdTenantSchema = tenantSchema.extend({
+  administrator: z
+    .object({
+      email: z.string(),
+      status: z
+        .enum(['invited'])
+        .describe(
+          'Always `invited`: the address got a link to accept (a new address chooses its password, an existing account accepts signed in). Whether it has an account is never read here, so never told.',
+        ),
+      expiresAt: z.iso.datetime().describe('When the link stops working.'),
+    })
+    .describe('The first administrator: invited at `administratorEmail`.'),
+});
+
+const updateTenantSchema = z
+  .object({
+    name: tenantName.optional(),
+    slug: tenantSlug.optional(),
+    active: z
+      .boolean()
+      .optional()
+      .describe(
+        'false: nobody acts in it (its sessions end, API keys stop, connections end, jobs are skipped); true: its data, members and API keys are back. Never for the operator tenant.',
+      ),
+  })
+  .refine((body) => Object.keys(body).length > 0, {
+    message: 'Send at least one of name, slug, active.',
+  });
+
 const createTenantSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  slug: z
-    .string()
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-    .max(48)
-    .describe('A short handle: lowercase letters, digits and dashes (`acme`).'),
+  name: tenantName,
+  slug: tenantSlug,
   administratorEmail: z
     .email()
     .describe(
@@ -183,8 +230,9 @@ export class TenantSwitchController {
 
 /**
  * The deployment's tenants, for its operators (`@OperatorOnly()`: the
- * operator tenant's members with `Access.manageTenants`). Roadmap 1b adds
- * the rest (deactivating, exporting and deleting a tenant).
+ * operator tenant's members with `Access.manageTenants`): list, make, read
+ * and change one (rename, its slug, deactivate). Roadmap 1b adds exporting
+ * and deleting a tenant.
  */
 @ApiTags('tenants')
 @Controller('tenants')
@@ -194,10 +242,64 @@ export class TenantsController {
 
   @Get()
   @Can(AccessPolicy, 'manageTenants')
-  @ApiOperation({ summary: 'Every tenant (operators)' })
-  @ApiOkResponse({ standardSchema: listSchema(tenantSchema) })
-  async list() {
-    return { items: await this.tenants.list() };
+  @ApiOperation({
+    summary: 'The tenants, newest first (operators)',
+    description:
+      'Filter flat (`?active=false&name.contains=acme`) or with `filter`, sort with `sort=name`, page with `cursor` (`nextCursor`) or `page`, pick fields with `fields=slug,name`; each parameter lists what it takes. GET /v1/lists/Tenant describes it.',
+  })
+  @ApiOkResponse({ standardSchema: pageSchema(tenantSchema) })
+  async list(@Query({ schema: TENANT_LIST.schema }) query: ListQuery) {
+    return TENANT_LIST.pick(
+      await this.tenants.page(query, TENANT_LIST.where(query)),
+      query,
+    );
+  }
+
+  @Get(':id')
+  @Etag()
+  @Can(AccessPolicy, 'manageTenants')
+  @ApiOperation({ summary: 'One tenant (operators)' })
+  @ApiHeader(ifNoneMatchHeader())
+  @ApiOkResponse({ standardSchema: tenantSchema })
+  @ApiNotFoundResponse()
+  get(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tenants.get(id);
+  }
+
+  @Patch(':id')
+  @Etag()
+  @Can(AccessPolicy, 'manageTenants')
+  @ApiOperation({
+    summary: 'Rename a tenant, change its slug, (de)activate it (operators)',
+    description:
+      'Audited (`tenant.updated`) in your tenant and in that one. Deactivated (`active: false`): its sessions and token families end (its members sign in again, into another of their tenants), its API keys and invitations stop, a sign-in never starts in it, its realtime connections end, its jobs are skipped. Nothing else is deleted: `active: true` gives back its data, memberships and API keys. docs/tenancy.md, "Operators".',
+  })
+  @ApiHeader(ifMatchHeader())
+  @ApiOkResponse({ standardSchema: tenantSchema })
+  @ApiNotFoundResponse()
+  @ApiConflictResponse({
+    description:
+      '`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated.',
+  })
+  @ApiPreconditionFailedResponse({
+    description: 'It changed since you read it (precondition_failed).',
+  })
+  update(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body({ schema: updateTenantSchema })
+    body: z.infer<typeof updateTenantSchema>,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Ip() ip: string,
+  ) {
+    // If-Match under the tenant's lock: two operators can't both win.
+    return this.tenants.update(
+      user,
+      id,
+      body,
+      ip,
+      ifMatch ? (shown: object) => assertUnchanged(ifMatch, shown) : undefined,
+    );
   }
 
   @Post()
@@ -205,12 +307,12 @@ export class TenantsController {
   @ApiOperation({
     summary: 'Create a tenant and its first administrator (operators)',
     description:
-      'The tenant gets the built-in and declared roles; the administrator is the account at `administratorEmail` (made and invited when there is none).',
+      'The tenant gets the built-in and declared roles; its first administrator is invited at `administratorEmail` (`administrator.status: invited`): the link makes the account when there is none, or adds the existing one once its owner accepts signed in. Whether the address has an account is never told (invite-only, docs/tenancy.md).',
   })
-  @ApiCreatedResponse({ standardSchema: tenantSchema })
+  @ApiCreatedResponse({ standardSchema: createdTenantSchema })
   @ApiConflictResponse({
     description:
-      '`tenant_slug_taken`; `single_tenant`: the deployment has its one tenant (TENANCY=single).',
+      '`tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single).',
   })
   create(
     @CurrentUser() user: UserPrincipal,

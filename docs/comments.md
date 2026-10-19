@@ -41,7 +41,13 @@ this.comments.add(user, { subject: 'Note', recordId: id }, dto.body, ip);
   every member, and inserts `@user:<id>`.
 - **Names**: each comment carries `authorName` beside `author`, and
   `mentionNames` beside `mentions` (`{ "user:<id>": "Maya Patel" }`, a
-  key for each mention), the names every member sees
+  key for each mention; a mention written as an address,
+  `@Maya@Example.com`, is named under that address too, lower-cased:
+  `"maya@example.com": "Maya Patel"`, so a client can show the name where
+  the body has the address; an address that mentioned nobody, say one of a
+  person who can't read the record, has no entry: the entry exists only
+  where the mention resolved, and is read from the user's current address),
+  the names every member sees
   (`PeopleService.names()`): a page's authors and mentioned people in
   one query, whatever its size. Only the tenant's people have a name
   here: one who left it (an inactive membership) keeps theirs on what

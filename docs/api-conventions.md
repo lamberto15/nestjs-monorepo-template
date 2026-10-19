@@ -39,8 +39,12 @@ Every error, whatever produced it, is `application/problem+json`:
   magic-link request and forgot password: solve the challenge and send its
   token in `X-Captcha-Token`; the problem names `provider`, `siteKey` and
   `action`, a refusal its `reason`), `captcha_unavailable` (503, fail-closed
-  only: the provider can't be asked; [auth.md](auth.md#bot-protection))…
+  only: the provider can't be asked; [auth.md](auth.md#bot-protection)),
+  `consent_required` (409: a required consent can't be withdrawn; delete
+  the account instead: [auth.md](auth.md))…
   Branch on it, not on `detail`.
+- A conflict about one field names it too: 409 `tenant_slug_taken` carries
+  `errors: [{ "path": "slug", … }]`, so a form shows it under the field.
 - `detail` and `errors[].message` are in the request's language.
 - A 500 never shows internals; `requestId` finds it in the logs.
 - In code: throw Nest's exceptions (`new ConflictException('…')`, or an object
@@ -310,6 +314,12 @@ repeating the declaration:
   `GET /v1/lists/Audit` the audit log (`GET /v1/access/audit`,
   `AUDIT_LIST`), to whoever has `Access.readAudit`; no
   capabilities, custom fields or recycle bin (`platform/lists/access-lists.ts`).
+  `GET /v1/lists/WebhookDelivery` describes the webhook delivery log
+  (`GET /v1/webhook-deliveries` and
+  `GET /v1/access/clients/{clientId}/webhook-deliveries`, `DELIVERY_LIST`),
+  to an API client or a user with `Access.manageClients`, with `WEBHOOKS` on;
+  it describes the list, and the client stays in the path
+  (`platform/webhooks/webhook-lists.ts`, [webhooks](webhooks-and-realtime.md)).
   Roles and teams have none: their routes answer every item at once,
   with nothing to filter, sort or page.
 - **Capabilities:** `capabilities` says which record panels and routes

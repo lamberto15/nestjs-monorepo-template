@@ -33,6 +33,16 @@ export const storeDeliveries = store.table('deliveries', {
   completedAt: bigint('completed_at', { mode: 'number' }),
 });
 
+/**
+ * The package's endpoints table (`nest_webhooks.endpoints`), read-only, for
+ * the count per API client (GET /v1/access/clients): `tenant` is the
+ * client's id (docs/webhooks-and-realtime.md).
+ */
+export const storeEndpoints = store.table('endpoints', {
+  id: text('id').primaryKey(),
+  tenant: text('tenant'),
+});
+
 /** The delivery columns as the package's `WebhookDelivery` names them (no lease). */
 export const deliveryColumns = {
   id: storeDeliveries.id,

@@ -14,6 +14,7 @@ import { CORE_SEED_ROLES } from './iam/access/seed-roles.js';
 import { IAM_NOTIFICATIONS } from './iam/iam-notifications.js';
 import { IamModule } from './iam/iam.module.js';
 import { PlatformModule } from './platform/platform.module.js';
+import { CONSENT_KINDS } from './platform/account/consent-kinds.js';
 import { PLATFORM_PERMISSIONS } from './platform/ops/ops.policy.js';
 
 // The environment, validated by every group's schema (env.ts), the
@@ -73,6 +74,8 @@ export function createAppModule(list: readonly FeatureDefinition[]): Type {
         settings: features.settings,
         // Actions that need approval: docs/approvals.md.
         approvals: features.approvals,
+        // What users are asked to agree to: platform/account/consent-kinds.ts (docs/auth.md).
+        consents: CONSENT_KINDS,
       }),
       // Before IamModule: the rate limit guards before authentication does.
       CoreModule,

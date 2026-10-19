@@ -164,7 +164,7 @@ Built in the platform code, never at call sites (`tenantKey()`):
 | Sequences | rows per tenant (`(tenant_id, name, scope)`) |
 | Settings | the `tenant` scope (was `global`); rollouts hashed with the tenant; caches per tenant |
 | Usage counters | `tenant:<tid>:usage:<client>:<day>` |
-| A principal's transfers and bulk runs (their lists) | `tenant:<tid>:jobs:<list>:<principal key>` (`JobIndex`; each job's own tenant checked again) |
+| A principal's transfers and bulk runs (their lists) | `tenant:<tid>:jobs:<list>:<principal key>` (`JobIndex`; each job's own tenant checked again); a user's account exports, in no tenant, `account:jobs:data-transfers:account:<principal key>` |
 | Stored files | `tenants/<tid>/…` (attachments, documents, transfers): a tenant's deletion and export are prefix operations |
 
 ## Accounts and sessions
@@ -233,10 +233,59 @@ the first administrator: the **operator tenant** (`tenants.operator`). Routes
 that reach past one tenant answer only principals acting in it
 (`@OperatorOnly()`, 403 `operator_required`), on top of their permission: the
 ops API (queues, outbox, workflow events: every tenant's jobs), the mail
-suppression list (every address), and `GET/POST /v1/tenants` (the operators make
-tenants, each with its first administrator: `Access.manageTenants`). Roadmap
-1b replaces this with the platform's super tenant, and adds tenant settings,
-deactivation, export and deletion.
+suppression list (every address), and `/v1/tenants` (below). `GET
+/v1/auth/me`'s `tenant.operator` says whether the session acts in it (true
+there, false elsewhere; `tenant` is null without one): the web shows the
+operators' screens when it is true and `can['Access.manageTenants']` too.
+Roadmap 1b replaces this with the platform's super tenant, and adds tenant
+settings, export and deletion.
+
+**The tenants** (all `Access.manageTenants`, in the operator tenant only;
+another tenant's administrator gets 403 `operator_required`, and nobody
+outside the operators ever sees another tenant):
+
+| Route | What |
+| --- | --- |
+| `GET /v1/tenants` | A page, newest first: `listQuery()` filters (`name`, `slug`: `eq`, `contains`, `startsWith`; `active`, `operator`; `createdAt`, `updatedAt` ranges), `sort` (`name`, `slug`, `createdAt`, `updatedAt`), `cursor`/`page`, `count`, `fields`. `GET /v1/lists/Tenant` describes it (to the same callers). |
+| `POST /v1/tenants { name, slug, administratorEmail }` | A tenant, its roles and its first administrator's invitation (`administrator: { email, status: 'invited', expiresAt }`), audited in both tenants. 409 `tenant_slug_taken` (with `errors: [{ path: 'slug' }]`), 409 `single_tenant`. |
+| `GET /v1/tenants/{id}` | One tenant, with an `ETag`. |
+| `PATCH /v1/tenants/{id} { name?, slug?, active? }` | Rename, a new slug (409 `tenant_slug_taken` on the field), (de)activate. `If-Match` optional (412 `precondition_failed`). Audited `tenant.updated` (each field from → to) in the operator's tenant and in that one. |
+
+**The first administrator is always invited.** The create's answer says
+`status: 'invited'` whether or not the address has an account: like every
+invitation ("Invitations" below), nothing about an account is read, so an
+operator can't learn which addresses have one (an operator is a member of
+the operator tenant, not of the others, and sees no more of them than
+their administrators do). The owner of the address decides by accepting:
+a new address chooses its password, an existing account accepts signed in
+(the acceptance's `accountCreated` tells the person, not the operator).
+
+**Deactivating a tenant** (`active: false`) is what `tenants.active` already
+meant everywhere, made a route: a session or token in it stops (the
+principal resolves to nobody: 401), its API keys stop, its invitations
+can't be accepted, a sign-in never starts in it (it isn't among the user's
+tenants), its jobs and cron runs are skipped (retention still sweeps it).
+The route also ends, after the commit, what would outlive the check: every
+session and token family in that tenant (so reactivating never revives an
+old session: its members sign in again, and meanwhile into their other
+tenants) and its realtime connections (`TenantLifecycleRegistry`, realtime
+disconnects its members' and clients' rooms of that tenant). Nothing else is
+deleted: `active: true` gives back its data, memberships, roles and API
+keys. The operator tenant is never deactivated (409 `operator_tenant`):
+the operators would lock themselves out of every operator route.
+
+**Acting in a tenant (support).** An operator switches only into tenants
+they are a member of (`POST /v1/auth/tenant`, 404 otherwise), and
+impersonation never crosses tenants ("Accounts and sessions"). So support
+access today is a membership: the tenant's administrator invites the
+operator's address (`POST /v1/access/users`, with the roles they choose,
+`roleExpiresAt` to make it temporary), the operator accepts and switches;
+everything is audited in that tenant, and its administrators see it and end
+it (`PATCH /v1/access/users/{id} { active: false }`). The operators
+themselves can't add themselves to a tenant: the tenant consents. A
+"break-glass" route for operators to act in any tenant without its consent
+is not built: it needs the owner's decision (who may, for how long, how the
+tenant is told), and belongs with the platform super tenant (roadmap 1b).
 
 ## Single-tenant deployments
 
@@ -247,7 +296,9 @@ can be made (`iam/access/single-tenant.ts`):
 
 - **One tenant.** The first start makes it (`ADMIN_TENANT_NAME`); making
   another is refused with 409 `single_tenant` in `TenantsService.create()`,
-  so `POST /v1/tenants` alike. The demo seed (`pnpm db:seed:demo`) fills the
+  so `POST /v1/tenants` alike (the other tenant routes work as in `multi`:
+  the list holds the one tenant, it can be renamed, and, being the
+  operators', never deactivated). The demo seed (`pnpm db:seed:demo`) fills the
   one tenant instead of making its own: that tenant is the operators', so
   the demo administrator acts as an operator (development databases only).
 - **Sign-ups join it.** With `AUTH_SIGN_UP=on`, an account made by
@@ -305,7 +356,10 @@ tenants under RLS. `tenant-pool.e2e-spec.ts`: the pool on one connection
 (the wrapper and the straight path, the refusal before a checkout, the
 settings forgotten at commit and rollback, the bypass as the maintenance
 role). `account-export.e2e-spec.ts`: a person's export with no tenant and
-across two.
+across two. `tenants.e2e-spec.ts`: the operators' tenant routes (the
+operator flag, the list and its description, reading and changing one,
+deactivation and what it ends, the slug conflict on its field, the first
+administrator's invitation).
 Test helpers: `node.otherTenant()` (a second tenant, its administrator signed
 in), `node.inTenant(work, tenantId?)` and `node.acrossTenants(work)` for a
 test's own queries (`database.db` is the app's pool: no tenant, no rows).

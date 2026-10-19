@@ -8,7 +8,8 @@ import {
   type WebhookDelivery,
   type WebhookMessage,
 } from '@nestjs/webhooks';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
+import type { Database, Transaction } from '../../core/database/drizzle.js';
 import {
   database,
   type DrizzleTransactions,
@@ -21,11 +22,13 @@ import {
   toPage,
 } from '../../core/http/pagination.js';
 import { AccessAdminService } from '../../iam/access/access-admin.service.js';
+import { ApiClientCountsRegistry } from '../../iam/access/api-client-counts.registry.js';
 import { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { apiClients } from '../../iam/iam.tables.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
+import { switchedOn } from '../switches.js';
 import type {
   CreateEndpointDto,
   RetryDeliveriesDto,
@@ -35,9 +38,36 @@ import {
   DELIVERY_LIST,
   deliveryColumns,
   storeDeliveries,
+  storeEndpoints,
 } from './webhook-store.view.js';
 import { eventTypeGroups, TEST_EVENT_TYPE } from './webhooks.config.js';
 import { webhookDeliveryRequests } from './webhooks.tables.js';
+
+/** The delivery's times, which the package keeps in epoch milliseconds. */
+const DELIVERY_TIMES = [
+  'createdAt',
+  'nextAttemptAt',
+  'lastAttemptAt',
+  'completedAt',
+] as const;
+
+const iso = (ms: number) => new Date(ms).toISOString();
+
+/**
+ * A delivery with its times as ISO 8601 strings, like the rest of the API
+ * (the package and its store keep epoch milliseconds). Only the keys the
+ * item has (`?fields=` may leave some out); null stays null.
+ */
+function deliveryView(delivery: object): Record<string, unknown> {
+  const view: Record<string, unknown> = { ...delivery };
+  for (const key of DELIVERY_TIMES) {
+    const value = view[key];
+    if (typeof value === 'number') {
+      view[key] = iso(value);
+    }
+  }
+  return view;
+}
 
 /**
  * Who manages a client's webhooks: the client itself (its API key), or a
@@ -75,6 +105,7 @@ export class WebhookManagementService {
     private readonly audit: AuditService,
     @Inject(PLATFORM_OPTIONS) private readonly options: PlatformOptions,
     clientLifecycle: ApiClientLifecycleRegistry,
+    clientCounts: ApiClientCountsRegistry,
   ) {
     // A deleted client's endpoints go with it: nothing is sent to a client
     // that no longer exists (its pending deliveries fail as
@@ -84,6 +115,30 @@ export class WebhookManagementService {
       name: 'webhooks',
       afterDeletion: (clientId) => this.deleteAllEndpoints(clientId),
     });
+    // GET /v1/access/clients shows how many endpoints each client has. With
+    // WEBHOOKS=off the count is not registered, so it is absent (not 0).
+    if (switchedOn('WEBHOOKS')) {
+      clientCounts.register('webhookEndpoints', (ids, db) =>
+        this.endpointCounts(ids, db),
+      );
+    }
+  }
+
+  /**
+   * Endpoints per client, in one grouped query on the package's table
+   * (`tenant` is the client's id). The package's tables have no row-level
+   * security: the ids come from the caller's tenant's clients.
+   */
+  private async endpointCounts(
+    clientIds: string[],
+    db: Database | Transaction,
+  ) {
+    const rows = await db
+      .select({ client: storeEndpoints.tenant, endpoints: count() })
+      .from(storeEndpoints)
+      .where(inArray(storeEndpoints.tenant, clientIds))
+      .groupBy(storeEndpoints.tenant);
+    return new Map(rows.map((row) => [row.client!, row.endpoints]));
   }
 
   /** Every endpoint of a client: listed a page at a time (the package's default is 50), then deleted. */
@@ -208,7 +263,7 @@ export class WebhookManagementService {
    * the delivery is created here, as the fan-out does (the store contract's
    * `createDeliveries()`). Returns the delivery, pending.
    */
-  async sendTest(owner: WebhookOwner, id: string): Promise<WebhookDelivery> {
+  async sendTest(owner: WebhookOwner, id: string) {
     const endpoint = await this.getEndpoint(owner, id);
     const now = Date.now();
     const [messageId, deliveryId] = await this.newIds();
@@ -245,7 +300,7 @@ export class WebhookManagementService {
       endpointId: endpoint.id,
       deliveryId: delivery.id,
     });
-    return delivery;
+    return deliveryView(delivery);
   }
 
   // Deliveries
@@ -268,7 +323,8 @@ export class WebhookManagementService {
         query,
       ),
     ]);
-    return DELIVERY_LIST.pick(toPage(rows, query, total), query);
+    const page = DELIVERY_LIST.pick(toPage(rows, query, total), query);
+    return { ...page, items: page.items.map(deliveryView) };
   }
 
   /**
@@ -286,7 +342,15 @@ export class WebhookManagementService {
       .from(webhookDeliveryRequests)
       .where(eq(webhookDeliveryRequests.deliveryId, delivery.id));
     return {
-      ...delivery,
+      ...deliveryView(delivery),
+      message: {
+        ...delivery.message,
+        createdAt: iso(delivery.message.createdAt),
+      },
+      history: delivery.history.map((attempt) => ({
+        ...attempt,
+        at: iso(attempt.at),
+      })),
       durationMs: delivery.history.reduce(
         (sum, attempt) => sum + attempt.durationMs,
         0,
@@ -294,8 +358,13 @@ export class WebhookManagementService {
       lastRequest: request
         ? {
             attempt: request.attempt,
-            sentAt: request.sentAt.getTime(),
+            sentAt: request.sentAt.toISOString(),
             headers: request.headers,
+            signedWith:
+              request.signedWith?.map(({ createdAt, expiresAt }) => ({
+                createdAt: iso(createdAt),
+                expiresAt: expiresAt === null ? null : iso(expiresAt),
+              })) ?? null,
           }
         : null,
     };

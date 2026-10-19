@@ -1,5 +1,6 @@
 import { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
 import { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.registry.js';
+import { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
 import { Logger, UseInterceptors } from '@nestjs/common';
 import { ClsInterceptor } from 'nestjs-cls';
 import { CurrentUser, WsAuthenticator } from '@nestjs/authentication';
@@ -78,6 +79,7 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     private readonly wsAuth: WsAuthenticator,
     lifecycle: UserLifecycleRegistry,
     clientLifecycle: ApiClientLifecycleRegistry,
+    tenantLifecycle: TenantLifecycleRegistry,
   ) {
     // A membership deactivated: that user's connections in that tenant end
     // (a socket is authenticated at its handshake; its tenant room would
@@ -90,6 +92,20 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
         if (this.server) {
           this.server
             .in(principalRoom({ kind: 'user', id: userId }, tenantId))
+            .disconnectSockets(true);
+        }
+      },
+    });
+    // A deactivated tenant: every connection in it ends (its members' and
+    // API clients' rooms of that tenant; their other tenants' stay).
+    tenantLifecycle.register({
+      name: 'realtime',
+      afterDeactivation: (tenantId, principals) => {
+        if (this.server && principals.length > 0) {
+          this.server
+            .in(
+              principals.map((principal) => principalRoom(principal, tenantId)),
+            )
             .disconnectSockets(true);
         }
       },

@@ -39,7 +39,7 @@ export const commentSchema = z
     mentionNames: z
       .record(z.string(), z.string().nullable())
       .describe(
-        'The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.',
+        'The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A mention written as an address (`@maya@example.com`) is named under that address too (lower-cased), so a client can show the name where the body has the address; an address that mentioned nobody has no entry. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.',
       )
       .meta({
         example: { 'user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00': 'Maya Patel' },

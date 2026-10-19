@@ -33,14 +33,18 @@ export interface JobPage<T> {
  *
  * The tenant and the principal are in the key (docs/tenancy.md,
  * "Per-principal keys carry the tenant"); a reader still checks each job's
- * own `tenantId` and principal, as the single routes do.
+ * own `tenantId` and principal, as the single routes do. A job queued in no
+ * tenant (a user's account export: the person's, across their tenants) is
+ * listed under the account instead, `account:jobs:<list>:<principal key>`
+ * (`tenantId` null).
  */
 @Injectable()
 export class JobIndex {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
-  private key(list: string, tenantId: string, principal: Principal) {
-    return tenantKey(`jobs:${list}:${principalKey(principal)}`, tenantId);
+  private key(list: string, tenantId: string | null, principal: Principal) {
+    const key = `jobs:${list}:${principalKey(principal)}`;
+    return tenantId === null ? `account:${key}` : tenantKey(key, tenantId);
   }
 
   /**
@@ -50,7 +54,7 @@ export class JobIndex {
    */
   async add(
     lists: readonly string[],
-    tenantId: string,
+    tenantId: string | null,
     principal: Principal,
     id: string,
     // Below the millisecond (a double holds it): two jobs queued in the same
@@ -91,41 +95,57 @@ export class JobIndex {
    * `read` turns an id into the item, or null when its job is gone (or is
    * not this principal's in this tenant): such an entry is removed and
    * skipped. An unknown cursor (its entry expired) is a 400.
+   *
+   * `accept` keeps only some of the jobs (a `?status=` filter): one it
+   * refuses is skipped but stays in the index and counts as read, so the
+   * cursor steps over it. A filtered page may then hold fewer than `limit`
+   * items, even none, while `nextCursor` says there is more to read (a
+   * page reads at most MAX_ROUNDS rounds of entries).
    */
   async page<T extends { id: string }>(
     list: string,
-    tenantId: string,
+    tenantId: string | null,
     principal: Principal,
     { limit, cursor }: { limit: number; cursor?: string },
     read: (id: string) => Promise<T | null>,
+    accept: (item: T) => boolean = () => true,
   ): Promise<JobPage<T>> {
     const key = this.key(list, tenantId, principal);
     const items: T[] = [];
     let after = cursor;
     let ended = false;
+    // The last entry read whose job still exists: where the next round (or page) starts.
+    let lastRead: string | undefined;
     // One more than the page: whether there is a next page.
     for (let round = 0; round < MAX_ROUNDS && items.length <= limit; round++) {
       const start = after === undefined ? 0 : await this.startAfter(key, after);
       const wanted = limit + 1 - items.length;
       const ids = await this.redis.zrevrange(key, start, start + wanted - 1);
-      const found = await Promise.all(ids.map((id) => read(id)));
+      const found: (T | null)[] = await Promise.all(ids.map((id) => read(id)));
       const gone = ids.filter((_, index) => found[index] === null);
       if (gone.length) {
         await this.redis.zrem(key, ...gone);
       }
-      items.push(...found.filter((item) => item !== null));
+      lastRead = ids.findLast((_, index) => found[index] !== null) ?? lastRead;
+      items.push(
+        ...found.filter((item): item is T => item !== null && accept(item)),
+      );
       if (ids.length < wanted) {
         ended = true;
         break;
       }
-      // The next round starts after the last one kept (the gone are removed).
-      after = items.at(-1)?.id ?? after;
+      // The next round starts after the last one read (the gone are removed).
+      after = lastRead ?? after;
     }
     const page = items.slice(0, limit);
-    const more = items.length > limit || !ended;
-    return {
-      items: page,
-      nextCursor: more && page.length > 0 ? page.at(-1)!.id : null,
-    };
+    // A full page continues after its last item (the next one is re-read);
+    // a short one, cut off by MAX_ROUNDS, after the last entry read.
+    const nextCursor =
+      items.length > limit
+        ? page.at(-1)!.id
+        : ended
+          ? null
+          : (lastRead ?? null);
+    return { items: page, nextCursor };
   }
 }

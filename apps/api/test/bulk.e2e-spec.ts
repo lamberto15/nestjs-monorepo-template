@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { getQueueToken } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import type { Socket } from 'socket.io-client';
 import type request from 'supertest';
+import { BULK } from '../src/platform/bulk/bulk.service.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
 describe('bulk operations (e2e)', () => {
@@ -228,6 +231,9 @@ describe('bulk operations (e2e)', () => {
           action: 'delete',
           status: 'completed',
           progress: status.progress,
+          createdAt: expect.any(String),
+          startedAt: expect.any(String),
+          finishedAt: expect.any(String),
           result: { done: 3, failed: 0, skipped: 0 },
         },
       ],
@@ -248,6 +254,118 @@ describe('bulk operations (e2e)', () => {
     }).expect(400);
     expect(typo.body.code).toBe('validation_failed');
     expect(typo.body.errors[0].path).toMatch(/^filter/);
+  });
+
+  it('dates a run (queued, started, finished) and lists runs by status and kind', async () => {
+    const owner = await node.client();
+    const stranger = await node.client();
+    await write(owner.auth, 'A one', 'A two', 'B one');
+    const queue = node.app.get<Queue>(getQueueToken(BULK));
+    const list = async (query: string, auth: Caller = owner.auth) =>
+      (
+        (await as(auth, 'get', `/v1/bulk${query}`).expect(200)).body.items as {
+          id: string;
+        }[]
+      ).map((run) => run.id);
+
+    // Held in the queue: queued, nobody has taken it up yet.
+    await queue.pause();
+    let deleting: string;
+    try {
+      deleting = (
+        await bulk(owner.auth, {
+          action: 'delete',
+          filter: { 'title.startsWith': 'A' },
+        }).expect(202)
+      ).body.id;
+      const waiting = (
+        await as(owner.auth, 'get', `/v1/bulk/${deleting}`).expect(200)
+      ).body;
+      expect(waiting).toMatchObject({
+        status: 'queued',
+        startedAt: null,
+        finishedAt: null,
+      });
+      expect(new Date(waiting.createdAt).toISOString()).toBe(waiting.createdAt);
+      expect(Math.abs(Date.now() - Date.parse(waiting.createdAt))).toBeLessThan(
+        60_000,
+      );
+      expect(await list('?status=queued')).toEqual([deleting]);
+      expect(await list('?status=completed')).toEqual([]);
+      expect(await list('?status=queued', stranger.auth)).toEqual([]);
+    } finally {
+      await queue.resume();
+    }
+    const first = await finished(owner.auth, deleting);
+    expect(first.status).toBe('completed');
+    const at = (iso: string) => Date.parse(iso);
+    expect(at(first.startedAt)).toBeGreaterThanOrEqual(at(first.createdAt));
+    expect(at(first.finishedAt)).toBeGreaterThanOrEqual(at(first.startedAt));
+
+    const restoring = (
+      await bulk(owner.auth, {
+        action: 'restore',
+        filter: { 'title.startsWith': 'A' },
+      }).expect(202)
+    ).body.id;
+    await finished(owner.auth, restoring);
+    const changing = (
+      await bulk(owner.auth, {
+        action: 'update',
+        filter: { 'title.startsWith': 'B' },
+        input: { title: 'C one' },
+      }).expect(202)
+    ).body.id;
+    await finished(owner.auth, changing);
+
+    // Newest first; the times are on every item of the list.
+    const all = await as(owner.auth, 'get', '/v1/bulk').expect(200);
+    expect(all.body.items.map((run: { id: string }) => run.id)).toEqual([
+      changing,
+      restoring,
+      deleting,
+    ]);
+    for (const run of all.body.items) {
+      expect(run).toMatchObject({
+        status: 'completed',
+        createdAt: expect.any(String),
+        startedAt: expect.any(String),
+        finishedAt: expect.any(String),
+      });
+    }
+    expect(await list('?status=completed')).toEqual([
+      changing,
+      restoring,
+      deleting,
+    ]);
+    expect(await list('?status=running')).toEqual([]);
+    expect(await list('?status=failed')).toEqual([]);
+    expect(await list('?kind=delete')).toEqual([deleting]);
+    expect(await list('?kind=restore')).toEqual([restoring]);
+    expect(await list('?kind=update')).toEqual([changing]);
+    expect(await list('?kind=restore&status=completed')).toEqual([restoring]);
+    expect(await list('?kind=restore&status=queued')).toEqual([]);
+    // Filtering pages like the unfiltered list: the cursor steps over what is skipped.
+    const page = await as(owner.auth, 'get', '/v1/bulk?kind=delete&limit=1')
+      .expect(200)
+      .then((res) => res.body);
+    expect(page).toEqual({
+      items: [expect.objectContaining({ id: deleting })],
+      nextCursor: null,
+    });
+    // Someone else's list holds none, whatever the filter.
+    expect(await list('?status=completed', stranger.auth)).toEqual([]);
+
+    // The words are the ones the runs carry: anything else is a 400.
+    for (const query of [
+      '?status=done',
+      '?kind=change',
+      '?kind=',
+      '?status=',
+    ]) {
+      const bad = await as(owner.auth, 'get', `/v1/bulk${query}`).expect(400);
+      expect(bad.body.code).toBe('validation_failed');
+    }
   });
 
   it('refuses invalid requests, and callers without the permission', async () => {
