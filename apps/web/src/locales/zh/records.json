@@ -71,5 +71,21 @@
     "conflictTitle": "记录在此期间已更改",
     "conflictDescription": "自你打开以来，其他人更改了它。请重新加载，然后再次还原。",
     "reload": "重新加载"
+  },
+  "customFields": {
+    "required": "此字段为必填项。",
+    "maxLength": "最多 {{limit}} 个字符。",
+    "minLength": "至少 {{limit}} 个字符。",
+    "email": "请输入有效的电子邮件地址。",
+    "url": "请输入有效的网址（http 或 https）。",
+    "pattern": "此值不符合要求的格式。",
+    "number": "请输入数字。",
+    "min": "不小于 {{limit}}。",
+    "max": "不大于 {{limit}}。",
+    "minChoices": "至少选择 {{limit}} 项。",
+    "maxChoices": "最多选择 {{limit}} 项。",
+    "option": "请选择列出的选项之一。",
+    "none": "无",
+    "choose": "请选择…"
   }
 }
