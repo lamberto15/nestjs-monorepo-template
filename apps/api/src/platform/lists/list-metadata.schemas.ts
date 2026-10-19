@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { documentTemplateSchema } from '../documents/document.schemas.js';
 import { FILTER_OPS } from '../../core/http/list-query.js';
 import type { Capability } from '../records/record.js';
 
@@ -155,6 +156,12 @@ export const listMetadataSchema = z.object({
     .describe("The list's limits, the same on every list."),
   capabilities: listCapabilitiesSchema,
   attachmentLimits: attachmentLimitsSchema,
+  documentTemplates: z
+    .array(documentTemplateSchema)
+    .nullable()
+    .describe(
+      "The templates its records' PDFs are issued from, one item per template and language (POST …/{id}/pdf `?lang=`): what a picker offers. Null when `capabilities.pdf` is false (no PDF capability, or documents off: GOTENBERG_URL unset).",
+    ),
 });
 
 export type ListField = z.infer<typeof listFieldSchema>;

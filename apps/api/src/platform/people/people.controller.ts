@@ -10,7 +10,12 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { listSchema, pageSchema } from '../../core/http/pagination.js';
+import {
+  DEFAULT_LIMIT,
+  listSchema,
+  MAX_LIMIT,
+  pageSchema,
+} from '../../core/http/pagination.js';
 import { UserOnly } from '../../iam/auth/user-only.decorator.js';
 import {
   type PeopleQuery,
@@ -83,8 +88,7 @@ export class TeamDirectoryController {
   @Can.Anyone() // Any member of the tenant: only the teams' ids, names and tree.
   @ApiOperation({
     summary: "Your tenant's teams: names and tree, for pickers",
-    description:
-      'Every team of your tenant, newest first in cursor pages: its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.',
+    description: `Every team of your tenant, newest first in cursor pages (\`limit\`: ${DEFAULT_LIMIT} a page by default, ${MAX_LIMIT} at most; follow \`nextCursor\` to read them all): its id (what \`teamId\` holds), name, parent and depth, nothing else. \`q\`: a part of the name; \`id=<id>,<id>\`: these teams (${MAX_LIMIT} ids at most; an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.`,
   })
   @ApiOkResponse({
     standardSchema: pageSchema(teamRefSchema).pick({

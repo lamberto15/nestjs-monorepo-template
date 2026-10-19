@@ -1116,7 +1116,7 @@ export interface paths {
         };
         /**
          * Your tenant's teams: names and tree, for pickers
-         * @description Every team of your tenant, newest first in cursor pages: its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.
+         * @description Every team of your tenant, newest first in cursor pages (`limit`: 50 a page by default, 100 at most; follow `nextCursor` to read them all): its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (100 ids at most; an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.
          */
         get: operations["TeamDirectoryController_list_v1"];
         put?: never;
@@ -1136,7 +1136,7 @@ export interface paths {
         };
         /**
          * Download an attachment
-         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image).
+         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.
          */
         get: operations["AttachmentsController_download_v1"];
         put?: never;
@@ -2662,7 +2662,7 @@ export interface paths {
         };
         /**
          * The audit log, newest first
-         * @description Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). GET /v1/lists/Audit describes it.
+         * @description Filter flat (`?action.startsWith=note.&at.gte=2026-01-01T00:00:00Z`) or with `filter` (and/or groups), sort with `sort=action,-at`, pick fields with `fields=at,action,actor`; each parameter lists what it takes. Who acted: by key (`actor=user:<id>`), or by name or address (`actorLabel.contains=ada`: the label the entry stored, a member's name or address, an API client's name; this tenant's only). Each entry names its actor as they are called now (`actorName`: a member or former member, an API client of the tenant; null for `system:<key>`, `anonymous` and deleted accounts) besides the label it stored (`actorLabel`). GET /v1/lists/Audit describes it.
          */
         get: operations["AccessController_auditLog_v1"];
         put?: never;
@@ -3073,6 +3073,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notes/{id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A note's documents, newest first
+         * @description Whoever may read the note: the documents asked for (POST …/{id}/pdf, by anyone), queued and rendering ones too, with their template, language and who asked. A completed one's `attachmentId` is its PDF (GET /v1/attachments/{id}/download; `?inline=true` shows it in the browser); downloading it takes the right to read every field it shows. Realtime: `document.ready` and `document.failed` reach the requester; `record.attachments.changed` the note's watchers once one is issued.
+         */
+        get: operations["NoteDocumentsController_documentList_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notes/bulk": {
         parameters: {
             query?: never;
@@ -3160,6 +3180,46 @@ export interface components {
             amount: string;
             /** @description ISO 4217. */
             currency: string;
+        };
+        AuditPage: {
+            items: components["schemas"]["AuditEntry"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        AuditEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string | null;
+            /** Format: date-time */
+            at: string;
+            /** @description `user:<id>`, `client:<id>`, `system:<key>` or `anonymous`. */
+            actor: string;
+            /** @description What the entry stored of its actor when it was written: a user's address (`admin@… as ada@…` while impersonating), an API client's name, the system job's, or `anonymous`. */
+            actorLabel: string;
+            /**
+             * @description The actor's name now: a member or former member of the tenant, or an API client of it (one lookup for the page). Null for `system:<key>`, `anonymous`, a deleted account or a removed client: show `actorLabel` then.
+             * @example Ada Lovelace
+             */
+            actorName: string | null;
+            /** @example note.created */
+            action: string;
+            targetType: string | null;
+            targetId: string | null;
+            details: {
+                [key: string]: unknown;
+            } | null;
+            ip: string | null;
         };
         TagRef: {
             id: string;
@@ -3335,6 +3395,64 @@ export interface components {
                     to: unknown;
                 };
             };
+        };
+        RecordDocumentPage: {
+            items: components["schemas"]["RecordDocument"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        RecordDocument: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description queued → rendering → completed, or failed (then `error`).
+             * @enum {string}
+             */
+            status: "queued" | "rendering" | "completed" | "failed";
+            /**
+             * @description The template it was issued from: an `id` of `documentTemplates` in GET /v1/lists/{subject}.
+             * @example note
+             */
+            template: string;
+            /**
+             * @description The language it is written in (`?lang=` of the request).
+             * @example en
+             */
+            language: string;
+            /** @description Who asked for it. */
+            issuedBy: {
+                /**
+                 * @description Who asked for it: `user:<id>`, `client:<id>`, or `anonymized`.
+                 * @example user:0199a3f2-…
+                 */
+                key: string;
+                /** @description Their name (a member or former member, an API client of the tenant); null when there is none (`anonymized`, a removed client). */
+                name: string | null;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When it was issued (`completed`) or failed; null while queued or rendering.
+             */
+            finishedAt: string | null;
+            /**
+             * Format: uuid
+             * @description Once completed: the PDF, an attachment of the record (GET /v1/attachments/{id}/download, `?inline=true` to show it).
+             */
+            attachmentId: string | null;
+            /** @description Why it failed, written for people. */
+            error: string | null;
         };
     };
     responses: never;
@@ -7552,6 +7670,19 @@ export interface operations {
                              */
                             types: string[];
                         } | null;
+                        /** @description The templates its records' PDFs are issued from, one item per template and language (POST …/{id}/pdf `?lang=`): what a picker offers. Null when `capabilities.pdf` is false (no PDF capability, or documents off: GOTENBERG_URL unset). */
+                        documentTemplates: {
+                            /**
+                             * @description The template: a record's documents name it as `template`; POST …/{id}/pdf issues it.
+                             * @example note
+                             */
+                            id: string;
+                            /**
+                             * @description A language it is written in: `?lang=` of POST …/{id}/pdf.
+                             * @example ar
+                             */
+                            language: string;
+                        }[] | null;
                     };
                 };
             };
@@ -7642,6 +7773,7 @@ export interface operations {
                 q?: string;
                 /** @description Team ids to name, comma-separated, 100 at most: an id your tenant has no team of is left out of the answer. */
                 id?: string;
+                /** @description Teams a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids. */
                 limit?: number;
                 /** @description `nextCursor` of the previous page (the same `q` and `id`). */
                 cursor?: string;
@@ -7705,7 +7837,10 @@ export interface operations {
     };
     AttachmentsController_download_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
+                inline?: "true" | "false";
+            };
             header?: never;
             path: {
                 id: string;
@@ -15146,7 +15281,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, action, targetType, targetId, details, ip. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
                 fields?: string;
             };
             header?: never;
@@ -15160,39 +15295,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            tenantId: string | null;
-                            /** Format: date-time */
-                            at: string;
-                            /** @description `user:<id>`, `client:<id>`, `system:<key>` or `anonymous`. */
-                            actor: string;
-                            actorLabel: string;
-                            /** @example note.created */
-                            action: string;
-                            targetType: string | null;
-                            targetId: string | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            ip: string | null;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
+                    "application/json": components["schemas"]["AuditPage"];
                 };
             };
             /** @description No session. */
@@ -15565,7 +15668,7 @@ export interface operations {
     NotesController_list_v1: {
         parameters: {
             query?: {
-                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`. */
                 include?: string;
                 limit?: string;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
@@ -15708,6 +15811,8 @@ export interface operations {
                                 delete: boolean;
                                 /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                                 restore: boolean;
+                                /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                                issue: boolean;
                             };
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
@@ -15823,6 +15928,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -15867,7 +15974,7 @@ export interface operations {
     NotesController_get_v1: {
         parameters: {
             query?: {
-                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`), as its routes would decide: a false is the 403 they would answer. Left out, the records carry no `can`. */
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`. */
                 include?: string;
             };
             header?: {
@@ -15929,6 +16036,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16084,6 +16193,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16176,6 +16287,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16893,6 +17006,8 @@ export interface operations {
                             delete: boolean;
                             /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
                             restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
                         };
                     };
                 };
@@ -16929,7 +17044,10 @@ export interface operations {
     };
     NoteDocumentsController_pdf_v1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The document's language (else `X-Lang`, your saved language, `Accept-Language`, the server's first). A language the server doesn't answer in (LOCALES: `documentTemplates` in GET /v1/lists/{subject} lists them) falls back to the next of those. */
+                lang?: "en" | "de" | "ar" | "zh" | "ms" | "ar-AE" | "en-SG" | "zh-SG" | "ms-SG";
+            };
             header?: {
                 /**
                  * @description A unique key per operation (a UUID), 1 to 255 printable ASCII characters. Send the same key on every retry of the same request: it runs once, and retries get its response (with Idempotent-Replayed: true). Kept for 24 hours.
@@ -17008,6 +17126,71 @@ export interface operations {
             };
             /** @description PDF documents are not set up on this server (documents_unavailable: GOTENBERG_URL is unset). */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NoteDocumentsController_documentList_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: status = */
+                status?: "queued" | "rendering" | "completed" | "failed";
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: template = */
+                template?: string;
+                /** @description Filter: language = */
+                language?: string;
+                /** @description Filter: language in */
+                "language.in"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"status","op":"eq","value":…},{…}]}. Fields and operators: status (eq, in); template (eq); language (eq, in); createdAt (gte, lt, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: status,template. Fields: id, status, template, language, issuedBy, createdAt, finishedAt, attachmentId, error. */
+                fields?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordDocumentPage"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

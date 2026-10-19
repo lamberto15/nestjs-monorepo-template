@@ -92,6 +92,8 @@ export function describeCapabilities(
         update: true,
         delete: true,
         ...(record.softDelete && { restore: false }),
+        // Documents are off here (no GOTENBERG_URL): POST …/pdf would be a 503.
+        ...(has('pdf') && { issue: false }),
       });
       // `can` is about the reader, not the record: the same ETag, good for If-Match.
       expect(withCan.headers.etag).toBe(plain.headers.etag);
@@ -143,7 +145,12 @@ export function describeCapabilities(
           .expect(200);
         expect(
           bin.body.items.find((item: { id: string }) => item.id === id).can,
-        ).toEqual({ update: false, delete: false, restore: true });
+        ).toEqual({
+          update: false,
+          delete: false,
+          restore: true,
+          ...(has('pdf') && { issue: false }),
+        });
       }
     });
   });
@@ -397,7 +404,7 @@ export function describeCapabilities(
   }
 
   if (has('pdf')) {
-    it('asks for a PDF (unavailable without Gotenberg: GOTENBERG_URL)', async () => {
+    it('asks for a PDF (unavailable without Gotenberg: GOTENBERG_URL), and lists its documents', async () => {
       const admin = node().admin();
       const id = await make();
       const res = await admin
@@ -405,6 +412,14 @@ export function describeCapabilities(
         .set('Idempotency-Key', randomUUID())
         .expect(503);
       expect(res.body.code).toBe('documents_unavailable');
+      expect(
+        (await admin.get(`${path}/${id}/documents`).expect(200)).body,
+      ).toEqual({ items: [], nextCursor: null });
+      // No templates to offer while documents are off.
+      expect(
+        (await admin.get(`/v1/lists/${record.subject}`).expect(200)).body
+          .documentTemplates,
+      ).toBeNull();
     });
   }
 

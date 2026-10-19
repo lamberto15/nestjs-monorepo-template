@@ -74,4 +74,11 @@ export class DocumentsRegistry {
   get(name: string) {
     return this.sources.get(name);
   }
+
+  /** The sources of a subject's documents (`Note`: `note`). */
+  forSubject(subject: string) {
+    return [...this.sources.values()].filter(
+      (source) => source.subject === subject,
+    );
+  }
 }

@@ -6,6 +6,7 @@ import type { Principal } from '../../iam/auth/principal.js';
 import { ApprovalsRegistry } from '../approvals/approvals.registry.js';
 import { attachmentLimits } from '../attachments/attachment-limits.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
+import { DocumentsService } from '../documents/documents.service.js';
 import { PdfRenderer } from '../documents/pdf-renderer.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { switchedOn } from '../switches.js';
@@ -26,6 +27,7 @@ export class ListsService {
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
     private readonly pdf: PdfRenderer,
+    private readonly documents: DocumentsService,
     private readonly approvals: ApprovalsRegistry,
     private readonly config: ConfigService<PlatformEnv, true>,
   ) {}
@@ -63,6 +65,7 @@ export class ListsService {
           : false,
       ],
     );
+    const capabilities = this.capabilities(source);
     const hiddenFields = new Set(denied);
     const conditionalFields = new Set(conditional);
     // The list routes refuse the same names (AccessService.assertQueryFields).
@@ -79,10 +82,14 @@ export class ListsService {
         labels: new Map(definitions.map((field) => [field.key, field.label])),
         recycleBin: restore,
       }),
-      capabilities: this.capabilities(source),
+      capabilities,
       // What the upload route enforces (AttachmentUpload reads the same).
       attachmentLimits: source.capabilities.includes('attachments')
         ? attachmentLimits(this.config)
+        : null,
+      // What POST …/{id}/pdf issues (DocumentsService reads the same registry).
+      documentTemplates: capabilities.pdf
+        ? this.documents.templatesOf(subject)
         : null,
     };
   }

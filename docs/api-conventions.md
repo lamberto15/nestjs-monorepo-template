@@ -72,8 +72,9 @@ Every resource has the same shape and the same routes:
   or the key's, `GET /v1/auth/me`'s `tenant`, [tenancy](tenancy.md)). The
   response is its schema, no more.
 - **What you may do with it:** `?include=can` on `GET /v1/<x>/{id}` and on
-  the list adds `can` to each record, `{ update, delete, restore }` (restore
-  with a recycle bin): what its routes would answer you now, by your
+  the list adds `can` to each record, `{ update, delete, restore, issue }`
+  (restore with a recycle bin, issue where it takes PDFs: `POST
+  …/{id}/pdf`, false while documents are off): what its routes would answer you now, by your
   permissions and their conditions (a published note is no longer an
   editor's to change: `update: false`, the PATCH a 403). `restore` is true
   only for a record in the bin you may restore. Left out by default, so lists

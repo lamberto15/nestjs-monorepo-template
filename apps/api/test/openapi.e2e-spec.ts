@@ -31,6 +31,8 @@ const PANEL_COMPONENTS = [
   'Revision',
   'RevisionPage',
   'RevisionDiff',
+  'RecordDocument',
+  'RecordDocumentPage',
 ];
 
 describe('OpenAPI document (e2e)', () => {
@@ -57,6 +59,29 @@ describe('OpenAPI document (e2e)', () => {
       ),
     );
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('types the audit log: a page of AuditEntry, each with actorName', () => {
+    const schemas = (
+      document.components as unknown as { schemas: Record<string, any> }
+    ).schemas;
+    expect(
+      document.paths['/v1/access/audit']!.get.responses['200'].content[
+        'application/json'
+      ].schema,
+    ).toEqual({ $ref: '#/components/schemas/AuditPage' });
+    expect(schemas.AuditPage).toMatchObject({
+      properties: {
+        items: { items: { $ref: '#/components/schemas/AuditEntry' } },
+      },
+    });
+    expect(schemas.AuditEntry.required).toEqual(
+      expect.arrayContaining(['actor', 'actorLabel', 'actorName']),
+    );
+    expect(schemas.AuditEntry.properties.actorName).toMatchObject({
+      type: 'string',
+      nullable: true,
+    });
   });
 
   it('serves Swagger UI', async () => {
@@ -319,6 +344,9 @@ describe("OpenAPI document: the record panels' components (e2e)", () => {
     expect(response(`${base}/revisions/{a}/diff/{b}`, 'get')).toEqual(
       ref('RevisionDiff'),
     );
+    expect(response(`${base}/documents`, 'get')).toEqual(
+      ref('RecordDocumentPage'),
+    );
     expect(response('/v1/tags', 'get')).toEqual(ref('TagPage'));
     // The pages hold the item components, not copies of them.
     expect(full.components.schemas.CommentPage).toMatchObject({
@@ -329,12 +357,28 @@ describe("OpenAPI document: the record panels' components (e2e)", () => {
   it('has them though no route uses them (no feature has a panel)', () => {
     expect(
       Object.keys(none.paths).filter((path) =>
-        /\/\{id\}\/(comments|attachments|revisions|tags)\b/.test(path),
+        /\/\{id\}\/(comments|attachments|revisions|tags|documents)\b/.test(
+          path,
+        ),
       ),
     ).toEqual([]);
     for (const name of PANEL_COMPONENTS) {
       expect(none.components.schemas[name]).toBeDefined();
     }
+  });
+
+  it("types a record's PDF route: `?lang=` one of the shipped languages", () => {
+    const lang = (
+      full.paths['/v1/test-items/{id}/pdf']!.post.parameters as {
+        name: string;
+        in: string;
+        schema: { enum?: string[] };
+      }[]
+    ).find((parameter) => parameter.name === 'lang');
+    expect(lang).toMatchObject({ in: 'query', required: false });
+    expect(lang!.schema.enum).toEqual(
+      expect.arrayContaining(['en', 'de', 'ar', 'zh', 'ms', 'ar-AE']),
+    );
   });
 
   it("has them exactly as a feature's routes emit them", () => {

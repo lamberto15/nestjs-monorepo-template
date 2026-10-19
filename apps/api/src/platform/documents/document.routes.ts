@@ -1,10 +1,12 @@
 import {
+  Get,
   HttpCode,
   HttpStatus,
   Ip,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   type Type,
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
@@ -17,12 +19,15 @@ import {
   ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiServiceUnavailableResponse,
   ApiTooManyRequestsResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import type { RequestPrincipal } from '../../iam/auth/principal.js';
+import type { ListQuery } from '../../core/http/list-query.js';
+import type { Principal, RequestPrincipal } from '../../iam/auth/principal.js';
 import { UserThrottle } from '../../iam/auth/user-throttle.guard.js';
 import { RecordIdempotent } from '../records/record-idempotency.js';
 import {
@@ -32,7 +37,12 @@ import {
   type RecordRouteSpec,
   type RouteDocs,
 } from '../records/record-routes.js';
-import { documentQueuedSchema } from './document.schemas.js';
+import { DOCUMENT_LIST } from './document.list.js';
+import {
+  DOCUMENT_LANGUAGES,
+  documentQueuedSchema,
+  recordDocumentPageSchema,
+} from './document.schemas.js';
 import { DocumentsService } from './documents.service.js';
 
 export interface DocumentRouteOptions {
@@ -44,13 +54,15 @@ export interface DocumentRouteOptions {
 
 /**
  * `POST /<path>/{id}/pdf`: a record as a PDF, asked for here, rendered by a
- * worker from the feature's DocumentSource, followed at /v1/documents/{id}.
+ * worker from the feature's DocumentSource, followed at /v1/documents/{id};
+ * `GET /<path>/{id}/documents`: the record's documents, in progress and
+ * issued.
  */
 export function documentRoutes(
   spec: RecordRouteSpec,
   options: DocumentRouteOptions,
 ): Type {
-  const { noun } = spec;
+  const { noun, subject } = spec;
   const a = aNounOf(spec);
 
   @Can.Anyone() // Checked by DocumentsService: whoever may read the record.
@@ -76,6 +88,13 @@ export function documentRoutes(
           '',
           'Follow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).',
         ].join('\n'),
+    })
+    @ApiQuery({
+      name: 'lang',
+      required: false,
+      enum: DOCUMENT_LANGUAGES,
+      description:
+        "The document's language (else `X-Lang`, your saved language, `Accept-Language`, the server's first). A language the server doesn't answer in (LOCALES: `documentTemplates` in GET /v1/lists/{subject} lists them) falls back to the next of those.",
     })
     @ApiAcceptedResponse({ standardSchema: documentQueuedSchema })
     @ApiBadRequestResponse({ description: 'The Idempotency-Key is missing.' })
@@ -105,6 +124,24 @@ export function documentRoutes(
         locale: this.i18n.locale,
         ip,
       });
+    }
+
+    @Get(':id/documents')
+    @ApiOperation({
+      summary: `${a.replace(/^a/, 'A')}'s documents, newest first`,
+      description: `Whoever may read the ${noun}: the documents asked for (POST …/{id}/pdf, by anyone), queued and rendering ones too, with their template, language and who asked. A completed one's \`attachmentId\` is its PDF (GET /v1/attachments/{id}/download; \`?inline=true\` shows it in the browser); downloading it takes the right to read every field it shows. Realtime: \`document.ready\` and \`document.failed\` reach the requester; \`record.attachments.changed\` the ${noun}'s watchers once one is issued.`,
+    })
+    @ApiOkResponse({ standardSchema: recordDocumentPageSchema })
+    @ApiNotFoundResponse()
+    async documentList(
+      @CurrentUser() user: Principal,
+      @Param('id', ParseUUIDPipe) id: string,
+      @Query({ schema: DOCUMENT_LIST.schema }) query: ListQuery,
+    ) {
+      return DOCUMENT_LIST.pick(
+        await this.documents.list(user, { subject, recordId: id }, query),
+        query,
+      );
     }
   }
   return namedController(
