@@ -33,6 +33,7 @@ import {
   LogOutIcon,
   PaletteIcon,
   ShieldCheckIcon,
+  ShieldUserIcon,
   SlidersHorizontalIcon,
   UserIcon,
 } from 'lucide-react';
@@ -128,6 +129,10 @@ export function NavUser() {
               <DropdownMenuItem render={<Link to="/account/notifications" />}>
                 <BellIcon />
                 {tn('preferences.title')}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link to="/account/privacy" />}>
+                <ShieldUserIcon />
+                {t('privacy:title')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
