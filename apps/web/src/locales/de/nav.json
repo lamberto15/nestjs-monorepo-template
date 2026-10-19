@@ -1,7 +1,7 @@
 {
   "groups": {
-    "workspace": "Workspace",
-    "administration": "Administration",
-    "operators": "Operators"
+    "workspace": "Arbeitsbereich",
+    "administration": "Verwaltung",
+    "operators": "Betreiber"
   }
 }
