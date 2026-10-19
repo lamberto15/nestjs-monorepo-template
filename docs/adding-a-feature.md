@@ -324,6 +324,8 @@ the controller (`notes.*`); singular for what describes one record
      `customFields.extendList(LIST, subject)`, `list.parse(raw)`, and
      `select({ ...getTableColumns(t), ...list.sortSelect(query) })`
      (`NotesController.list`). Without: `@Query({ schema: LIST.schema })`.
+     Either way each parameter is typed from the list's schema
+     (api-conventions.md, "Collections"): `ApiListQuery` adds nothing by hand.
    - With field-level permissions (declared `fields`), a hidden field
      can't be filtered, sorted, selected or searched, nor one shown on some
      records only be filtered, sorted or searched (docs/permissions.md).

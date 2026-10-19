@@ -144,6 +144,17 @@ In code: `countPage(db, table, where, query)` next to the page's query, and
 `toPage(rows, query, total)`; `where` is the filters and the read filter,
 without the cursor (`NotesService.findPage`). A list may pass its own cap.
 
+**Query parameters are typed from the list's schema**, in the OpenAPI document
+and so in the typed client: `limit` and `page` are integers (`limit` with its
+1-100 range and default), `cursor`, `sort`, `fields` and `filter` strings, a
+flat enum filter lists its values, a date filter is a `date-time` string, and
+`count`, `deleted` and the boolean flags take `"true"` or `"false"`. A client
+sends `limit: 20`, not `'20'` (query strings are strings on the wire, and
+openapi-fetch serializes the number). Both ways of documenting a list
+(`@Query({ schema: LIST.schema })` and `@ApiListQuery(LIST)`) read the same
+schema's input JSON Schema, so the document can't drift from what the list
+accepts.
+
 ## Filters
 
 Each list declares what it may be filtered by: fields, and per field the
