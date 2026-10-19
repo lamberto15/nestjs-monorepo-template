@@ -337,13 +337,14 @@ export function render({
       `${image}/gotenberg:${version}`,
       digests.gotenberg,
     ],
+    ['Caddy (HTTPS, the web app)', `${image}/caddy:${version}`, digests.caddy],
   ])
     out.push(
       `| ${name} | \`${ref}\` | ${digest ? `\`${digest}\`` : 'see the package page'} |`,
     );
   out.push(
     '',
-    `Both are also tagged with the commit, \`${commit}\`. Deploying them: \`APP_IMAGE\` and \`GOTENBERG_IMAGE\` in \`.env\` (${doc('docs/deployment.md', '#publishing-and-rolling-back-images')}).`,
+    `All three are also tagged with the commit, \`${commit}\`. Deploying them: \`APP_IMAGE\`, \`GOTENBERG_IMAGE\` and \`CADDY_IMAGE\` in \`.env\` (${doc('docs/deployment.md', '#publishing-and-rolling-back-images')}).`,
     '',
   );
 
@@ -405,7 +406,7 @@ export function render({
   } else {
     const prevVersion = previous.replace(/^v/, '');
     out.push(
-      `Rolling back is rolling the image back: set \`APP_IMAGE=${image}:${prevVersion}\` and \`GOTENBERG_IMAGE=${image}/gotenberg:${prevVersion}\` in \`.env\`, then \`docker compose pull migrate api worker gotenberg && docker compose up -d --remove-orphans\`.`,
+      `Rolling back is rolling the image back: set \`APP_IMAGE=${image}:${prevVersion}\`, \`GOTENBERG_IMAGE=${image}/gotenberg:${prevVersion}\` and \`CADDY_IMAGE=${image}/caddy:${prevVersion}\` in \`.env\`, then \`docker compose pull migrate api worker gotenberg caddy && docker compose up -d --remove-orphans\`.`,
       '',
       `Migrations don't roll back: ${previous} then runs on this release's schema. That works only under the expand/contract policy (${doc('docs/pitfalls.md', '#migrations-expandcontract')}): a release's migrations leave the release before it working.`,
       '',
@@ -469,6 +470,7 @@ async function main() {
       'image-version': { type: 'string' },
       'app-digest': { type: 'string' },
       'gotenberg-digest': { type: 'string' },
+      'caddy-digest': { type: 'string' },
       changes: { type: 'string' },
       'no-lint': { type: 'boolean', default: false },
       out: { type: 'string' },
@@ -485,7 +487,7 @@ async function main() {
   }
   if (!tagValid || !repository) {
     console.error(
-      'Usage: notes.mjs --tag vX.Y.Z [--print-previous] [--previous vX.Y.Z|none] [--repository owner/repo (default: GITHUB_REPOSITORY)] [--image-version X.Y.Z] [--app-digest sha256:…] [--gotenberg-digest sha256:…] [--changes <file>] [--no-lint] [--out <file>]',
+      'Usage: notes.mjs --tag vX.Y.Z [--print-previous] [--previous vX.Y.Z|none] [--repository owner/repo (default: GITHUB_REPOSITORY)] [--image-version X.Y.Z] [--app-digest sha256:…] [--gotenberg-digest sha256:…] [--caddy-digest sha256:…] [--changes <file>] [--no-lint] [--out <file>]',
     );
     return 2;
   }
@@ -508,6 +510,7 @@ async function main() {
     digests: {
       app: values['app-digest'],
       gotenberg: values['gotenberg-digest'],
+      caddy: values['caddy-digest'],
     },
     breaking: breakingChanges(previous, tag),
     migrations,

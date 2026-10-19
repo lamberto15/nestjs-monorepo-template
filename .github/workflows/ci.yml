@@ -698,8 +698,8 @@ jobs:
   # Caddy's image (caddy/Dockerfile, built from the repository root as
   # compose.prod.yaml does; caddy/Dockerfile.dockerignore picks what goes
   # in): the web app's production build (apps/web), the xcaddy build with
-  # the Cloudflare DNS plugin, then the same scan. Its own cache scope. Not
-  # published: compose.prod.yaml builds it on every deploy.
+  # the Cloudflare DNS plugin, then the same scan. Its own cache scope.
+  # Published by publish-caddy, as the app image is.
   caddy-image:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -792,8 +792,8 @@ jobs:
           cache-dir: ${{ runner.temp }}/trivy
 
   # main and v* tags, once check, security and image passed (backup-image
-  # and caddy-image gate pull requests; their images aren't published;
-  # Gotenberg's is, by publish-gotenberg):
+  # gates pull requests; its image isn't published; Gotenberg's and Caddy's
+  # are, by publish-gotenberg and publish-caddy):
   # the image is built again (from the cache the image job left), scanned,
   # then pushed to ghcr.io/<owner>/<repo> as the full commit SHA, `main` or
   # the version.
@@ -947,7 +947,87 @@ jobs:
           build-args: APT_REFRESH=${{ github.run_id }}
           cache-from: type=gha,scope=gotenberg
 
-  # v* tags, once both images are published: the tag's GitHub release
+  # Caddy's image (with the web app), as publish-gotenberg does Gotenberg's:
+  # on main and v* tags, once the checks and caddy-image passed, built again
+  # (from the scope=caddy cache caddy-image left in this run: the image it
+  # scanned), scanned, then pushed to ghcr.io/<owner>/<repo>/caddy as the
+  # full commit SHA, `main` or the version. The image holds no deployment's
+  # values (the domain, the ACME email and the Cloudflare token come from the
+  # environment at run time, the web app calls the API on its own origin), so
+  # one build serves every deployment. Production runs it (CADDY_IMAGE,
+  # docs/deployment.md), Swarm requires it.
+  publish-caddy:
+    if: github.event_name == 'push'
+    needs: [check, e2e, security, image, caddy-image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Tags and OCI labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}/caddy
+          flavor: latest=false
+          tags: |
+            type=sha,format=long,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Build the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: caddy/Dockerfile
+          load: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            caddy:publish
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=caddy
+      - name: The web app is in the image
+        run: docker run --rm --entrypoint test caddy:publish -f /srv/web/index.html
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+          cache: true
+      - name: No fixable high or critical vulnerabilities in the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          image-ref: caddy:publish
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore.yaml
+          cache-dir: ${{ runner.temp }}/trivy
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The same build: every step comes from the builder's cache.
+      - name: Push the image
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: caddy/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha,scope=caddy
+
+  # v* tags, once the images are published: the tag's GitHub release
   # (docs/releases.md). Its notes come from tools/release/notes.mjs: breaking
   # changes, the images by version and digest, the migrations since the
   # previous release with the expand/contract lint's findings (squawk, in
@@ -958,7 +1038,7 @@ jobs:
   # rewrites the notes of the existing release.
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [publish, publish-gotenberg]
+    needs: [publish, publish-gotenberg, publish-caddy]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -984,6 +1064,7 @@ jobs:
           IMAGE_VERSION: ${{ needs.publish.outputs.version }}
           APP_DIGEST: ${{ needs.publish.outputs.digest }}
           GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
+          CADDY_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
         run: |
           set -euo pipefail
           dir="$RUNNER_TEMP/release"
@@ -994,7 +1075,7 @@ jobs:
           if [ -n "$previous" ]; then fields+=(-f "previous_tag_name=$previous"); fi
           gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${fields[@]}" --jq .body > "$dir/changes.md"
           node tools/release/notes.mjs --tag "$TAG" --previous "${previous:-none}" \
-            --image-version "$IMAGE_VERSION" --app-digest "$APP_DIGEST" --gotenberg-digest "$GOTENBERG_DIGEST" \
+            --image-version "$IMAGE_VERSION" --app-digest "$APP_DIGEST" --gotenberg-digest "$GOTENBERG_DIGEST" --caddy-digest "$CADDY_DIGEST" \
             --changes "$dir/changes.md" --out "$dir/notes.md"
           if gh release view "$TAG" --json tagName --jq .tagName > "$dir/existing" 2>&1; then
             gh release edit "$TAG" --notes-file "$dir/notes.md"

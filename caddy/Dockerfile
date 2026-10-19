@@ -18,10 +18,14 @@ RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm \
 RUN pnpm --filter @nestjs-monorepo-template/web... build
 
 FROM caddy:2.11.7-builder AS builder
+# The Cloudflare DNS plugin is pinned (v0.2.4, its newest release), so two
+# builds of one commit are the same image; Dependabot doesn't see a version
+# inside this RUN line: raise it by hand, and with it the Caddy release the
+# builder and the final stage share (the FROM lines, which Dependabot raises).
 # golang.org/x/net raised past the release's (xcaddy's --replace: a replace
 # directive, no plugin import), so CI's scan (job caddy-image) finds nothing
 # fixable; drop it once a Caddy release ships this version or a newer one.
-RUN xcaddy build --with github.com/caddy-dns/cloudflare \
+RUN xcaddy build --with github.com/caddy-dns/cloudflare@v0.2.4 \
       --replace golang.org/x/net=golang.org/x/net@v0.61.0
 
 FROM caddy:2.11.7

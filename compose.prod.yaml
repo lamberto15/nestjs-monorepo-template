@@ -379,6 +379,9 @@ services:
     build:
       context: .
       dockerfile: caddy/Dockerfile
+    # Unset: the image `docker compose up -d --build` builds here. CI's:
+    # CADDY_IMAGE=ghcr.io/<owner>/<repo>/caddy:<commit SHA> (docs/deployment.md).
+    image: ${CADDY_IMAGE:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-caddy}
     restart: unless-stopped
     logging: *logging
     # Docker sees it healthy once it serves its admin API (localhost only, in

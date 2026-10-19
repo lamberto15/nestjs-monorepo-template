@@ -11,7 +11,8 @@
 #
 # What Swarm lacks, and what replaces it:
 # - build:       images are pulled: APP_IMAGE, GOTENBERG_IMAGE, BACKUP_IMAGE and
-#                CADDY_IMAGE are required (push them first, docs/deploy-swarm.md).
+#                CADDY_IMAGE are required (CI publishes all but the backup's,
+#                docs/deploy-swarm.md).
 # - depends_on:  ignored. Tasks that start before PostgreSQL or Redis fail
 #                their healthcheck or exit, and restart_policy retries them.
 # - one-shot:    `migrate` is a replicated job; the script deploys it first and
