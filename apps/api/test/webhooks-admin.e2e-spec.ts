@@ -275,6 +275,275 @@ describe('Webhooks managed by administrators (e2e)', () => {
     });
   });
 
+  describe('the delivery log as a list', () => {
+    it('is described at GET /v1/lists/WebhookDelivery, to an API client and to whoever manages clients', async () => {
+      const client = await node.client();
+      const asAdmin = await node
+        .admin()
+        .get('/v1/lists/WebhookDelivery')
+        .expect(200);
+      const asClient = await node
+        .http()
+        .get('/v1/lists/WebhookDelivery')
+        .set('Authorization', client.auth)
+        .expect(200);
+      expect(asClient.body).toEqual(asAdmin.body);
+      expect(asAdmin.body).toMatchObject({
+        subject: 'WebhookDelivery',
+        search: false,
+        recycleBin: false,
+        capabilities: expect.objectContaining({ events: false }),
+        attachmentLimits: null,
+      });
+      const fields = Object.fromEntries(
+        (
+          asAdmin.body.fields as {
+            name: string;
+            type: string;
+            operators: string[];
+            options?: string[];
+            sortable: boolean;
+          }[]
+        ).map((field) => [field.name, field]),
+      );
+      expect(fields.status).toMatchObject({
+        type: 'enum',
+        options: ['pending', 'succeeded', 'failed'],
+      });
+      expect(fields.type.operators).toEqual(['eq', 'in', 'startsWith']);
+      expect(fields.type.sortable).toBe(true);
+      expect(fields.attempts).toMatchObject({
+        operators: ['gte', 'lte'],
+        sortable: true,
+      });
+      expect(fields.createdAt).toMatchObject({ type: 'datetime' });
+      expect(fields.endpointId).toBeDefined();
+      // The client stays in the path: it is not a filter.
+      expect(fields.clientId).toBeUndefined();
+      expect(fields.tenant).toBeUndefined();
+      expect(asAdmin.body.select).toEqual(
+        expect.arrayContaining(['status', 'type', 'createdAt', 'completedAt']),
+      );
+      expect(asAdmin.body.limits.maxLimit).toBeGreaterThan(0);
+
+      // A filter the metadata names is one the route takes.
+      await node
+        .http()
+        .get(
+          '/v1/webhook-deliveries?status=failed&type.startsWith=note.&attempts.gte=1&createdAt.gte=2026-01-01T00:00:00Z',
+        )
+        .set('Authorization', client.auth)
+        .expect(200);
+    });
+
+    it('is refused to a user who may not manage clients (403) and to a guest (401)', async () => {
+      const viewer = await node.user(['viewer']);
+      await viewer.agent.get('/v1/lists/WebhookDelivery').expect(403);
+      await node.http().get('/v1/lists/WebhookDelivery').expect(401);
+    });
+  });
+
+  describe('deliveries, times and signing secrets', () => {
+    const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+    it('shows every time as an ISO 8601 string, in the list, the item and the test delivery', async () => {
+      const receiver = await webhookReceiver();
+      try {
+        const client = await node.client();
+        const endpoint = await node
+          .admin()
+          .post(`${base(client.id)}/webhook-endpoints`)
+          .send({ url: receiver.url, eventTypes: ['*'] })
+          .expect(201);
+        const tested = await node
+          .admin()
+          .post(`${base(client.id)}/webhook-endpoints/${endpoint.body.id}/test`)
+          .expect(202);
+        expect(tested.body.createdAt).toMatch(ISO);
+        expect(tested.body.nextAttemptAt).toMatch(ISO);
+        expect(tested.body.completedAt).toBeNull();
+
+        await node.deliverWebhooks();
+
+        const list = await node
+          .admin()
+          .get(`${base(client.id)}/webhook-deliveries`)
+          .expect(200);
+        const [item] = list.body.items;
+        expect(item).toMatchObject({
+          id: tested.body.id,
+          status: 'succeeded',
+          nextAttemptAt: null,
+        });
+        for (const key of ['createdAt', 'lastAttemptAt', 'completedAt']) {
+          expect(item[key]).toMatch(ISO);
+        }
+        // ?fields= still works, and the times it picks are ISO too.
+        const picked = await node
+          .admin()
+          .get(`${base(client.id)}/webhook-deliveries?fields=createdAt,status`)
+          .expect(200);
+        expect(Object.keys(picked.body.items[0]).sort()).toEqual([
+          'createdAt',
+          'id',
+          'status',
+        ]);
+        expect(picked.body.items[0].createdAt).toMatch(ISO);
+        // Filtering by an ISO time finds it, and a later one does not.
+        const since = await node
+          .admin()
+          .get(
+            `${base(client.id)}/webhook-deliveries?createdAt.gte=${item.createdAt}`,
+          )
+          .expect(200);
+        expect(since.body.items).toHaveLength(1);
+        const after = await node
+          .admin()
+          .get(
+            `${base(client.id)}/webhook-deliveries?createdAt.gt=${item.createdAt}`,
+          )
+          .expect(200);
+        expect(after.body.items).toEqual([]);
+
+        const one = await node
+          .http()
+          .get(`/v1/webhook-deliveries/${tested.body.id}`)
+          .set('Authorization', client.auth)
+          .expect(200);
+        expect(one.body.createdAt).toMatch(ISO);
+        expect(one.body.message.createdAt).toMatch(ISO);
+        expect(one.body.history).toHaveLength(1);
+        expect(one.body.history[0].at).toMatch(ISO);
+        expect(one.body.lastRequest.sentAt).toMatch(ISO);
+        expect(new Date(one.body.createdAt).getTime()).toBeLessThanOrEqual(
+          new Date(one.body.lastRequest.sentAt).getTime() + 1000,
+        );
+      } finally {
+        await receiver.close();
+      }
+    });
+
+    it('records which secrets signed each attempt, both during the overlap after a rotation, never the secrets', async () => {
+      const receiver = await webhookReceiver();
+      try {
+        const client = await node.client();
+        const created = await node
+          .admin()
+          .post(`${base(client.id)}/webhook-endpoints`)
+          .send({ url: receiver.url, eventTypes: ['*'] })
+          .expect(201);
+        const endpoint = `${base(client.id)}/webhook-endpoints/${created.body.id}`;
+        const secrets: string[] = [created.body.secret];
+
+        const before = await node.admin().post(`${endpoint}/test`).expect(202);
+        await node.deliverWebhooks();
+        const first = await node
+          .admin()
+          .get(`${base(client.id)}/webhook-deliveries/${before.body.id}`)
+          .expect(200);
+        expect(first.body.lastRequest.signedWith).toEqual([
+          { createdAt: expect.stringMatching(ISO), expiresAt: null },
+        ]);
+        const originalSecret = first.body.lastRequest.signedWith[0];
+        expect(
+          first.body.lastRequest.headers['webhook-signature'].split(' '),
+        ).toHaveLength(1);
+
+        const rotated = await node
+          .admin()
+          .post(`${endpoint}/rotate-secret`)
+          .expect(200);
+        secrets.push(rotated.body.secret);
+
+        const during = await node.admin().post(`${endpoint}/test`).expect(202);
+        await node.deliverWebhooks();
+        const second = await node
+          .admin()
+          .get(`${base(client.id)}/webhook-deliveries/${during.body.id}`)
+          .expect(200);
+        const { signedWith } = second.body.lastRequest;
+        // Newest first, as the v1,… signatures are; the old one ends in 24 hours.
+        expect(signedWith).toHaveLength(2);
+        expect(
+          second.body.lastRequest.headers['webhook-signature'].split(' '),
+        ).toHaveLength(2);
+        expect(signedWith[1]).toEqual({
+          createdAt: originalSecret.createdAt,
+          expiresAt: expect.stringMatching(ISO),
+        });
+        expect(signedWith[0].expiresAt).toBeNull();
+        expect(
+          new Date(signedWith[0].createdAt).getTime(),
+        ).toBeGreaterThanOrEqual(new Date(signedWith[1].createdAt).getTime());
+        const overlapEnd =
+          new Date(signedWith[1].expiresAt).getTime() - Date.now();
+        expect(overlapEnd).toBeGreaterThan(23 * 3600_000);
+        expect(overlapEnd).toBeLessThanOrEqual(24 * 3600_000);
+
+        // The same through the client's own door, and no secret material anywhere.
+        const own = await node
+          .http()
+          .get(`/v1/webhook-deliveries/${during.body.id}`)
+          .set('Authorization', client.auth)
+          .expect(200);
+        expect(own.body.lastRequest.signedWith).toEqual(signedWith);
+        const raw = JSON.stringify([first.body, second.body, own.body]);
+        expect(raw).not.toContain('whsec_');
+        for (const secret of secrets) {
+          expect(raw).not.toContain(secret);
+          expect(raw).not.toContain(secret.slice('whsec_'.length));
+        }
+        // The list items carry no signing detail.
+        const list = await node
+          .admin()
+          .get(`${base(client.id)}/webhook-deliveries`)
+          .expect(200);
+        expect(JSON.stringify(list.body)).not.toContain('signedWith');
+      } finally {
+        await receiver.close();
+      }
+    });
+  });
+
+  describe('endpoint counts on API clients', () => {
+    it("counts each client's endpoints, 0 and 2, in the list and on one client", async () => {
+      const [empty, busy] = [await node.client(), await node.client()];
+      for (const path of ['one', 'two']) {
+        await node
+          .admin()
+          .post(`${base(busy.id)}/webhook-endpoints`)
+          .send({
+            url: `https://hooks.example.com/${path}`,
+            eventTypes: ['*'],
+          })
+          .expect(201);
+      }
+      const list = await node.admin().get('/v1/access/clients').expect(200);
+      const count = (id: string) =>
+        list.body.items.find((c: { id: string }) => c.id === id)
+          .webhookEndpoints;
+      expect(count(empty.id)).toBe(0);
+      expect(count(busy.id)).toBe(2);
+
+      const one = await node.admin().get(`/v1/access/clients/${busy.id}`);
+      expect(one.body.webhookEndpoints).toBe(2);
+
+      // Deleting one lowers it.
+      const endpoints = await node
+        .admin()
+        .get(`${base(busy.id)}/webhook-endpoints`)
+        .expect(200);
+      await node
+        .admin()
+        .delete(
+          `${base(busy.id)}/webhook-endpoints/${endpoints.body.items[0].id}`,
+        )
+        .expect(204);
+      const again = await node.admin().get(`/v1/access/clients/${busy.id}`);
+      expect(again.body.webhookEndpoints).toBe(1);
+    });
+  });
+
   describe('retention', () => {
     const DAY = 86_400_000;
 

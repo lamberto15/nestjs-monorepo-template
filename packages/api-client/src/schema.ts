@@ -3884,18 +3884,18 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                     };
                 };
             };
@@ -3982,18 +3982,18 @@ export interface operations {
                             /** @enum {string} */
                             status: "pending" | "succeeded" | "failed";
                             attempts: number;
-                            /** @description Epoch milliseconds. */
-                            nextAttemptAt: number | null;
-                            /** @description Epoch milliseconds. */
-                            lastAttemptAt: number | null;
+                            /** Format: date-time */
+                            nextAttemptAt: string | null;
+                            /** Format: date-time */
+                            lastAttemptAt: string | null;
                             lastStatusCode: number | null;
                             lastError: string | null;
                             /** @enum {string|null} */
                             failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
-                            /** @description Epoch milliseconds. */
-                            completedAt: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            completedAt: string | null;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -4045,32 +4045,32 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                         message: {
                             id: string;
                             type: string;
                             tenant: string | null;
                             /** @description The exact JSON that was signed and sent. */
                             body: string;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
+                            /** Format: date-time */
+                            createdAt: string;
                         };
                         history: {
                             deliveryId: string;
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            at: number;
+                            /** Format: date-time */
+                            at: string;
                             durationMs: number;
                             statusCode: number | null;
                             /** @description The first 4 KB of the response body. */
@@ -4083,12 +4083,25 @@ export interface operations {
                         lastRequest: {
                             /** @description 1-based, within its round. */
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            sentAt: number;
+                            /** Format: date-time */
+                            sentAt: string;
                             /** @description As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret. */
                             headers: {
                                 [key: string]: string;
                             };
+                            /** @description The secrets that signed that attempt, newest first, in the order of the v1,… signatures: one normally, two during the overlap after a rotation. Identified by when each was made, never revealed. Null: not recorded (a delivery from before this was kept). */
+                            signedWith: {
+                                /**
+                                 * Format: date-time
+                                 * @description When the secret was made (the creation or the rotation that issued it): its identifier, to match with the rotations' times.
+                                 */
+                                createdAt: string;
+                                /**
+                                 * Format: date-time
+                                 * @description When it stops signing: a rotated-out secret, 24 hours after the rotation; null for the current one.
+                                 */
+                                expiresAt: string | null;
+                            }[] | null;
                         } | null;
                     };
                 };
@@ -4629,18 +4642,18 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                     };
                 };
             };
@@ -4741,18 +4754,18 @@ export interface operations {
                             /** @enum {string} */
                             status: "pending" | "succeeded" | "failed";
                             attempts: number;
-                            /** @description Epoch milliseconds. */
-                            nextAttemptAt: number | null;
-                            /** @description Epoch milliseconds. */
-                            lastAttemptAt: number | null;
+                            /** Format: date-time */
+                            nextAttemptAt: string | null;
+                            /** Format: date-time */
+                            lastAttemptAt: string | null;
                             lastStatusCode: number | null;
                             lastError: string | null;
                             /** @enum {string|null} */
                             failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
-                            /** @description Epoch milliseconds. */
-                            completedAt: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            completedAt: string | null;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -4823,32 +4836,32 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending" | "succeeded" | "failed";
                         attempts: number;
-                        /** @description Epoch milliseconds. */
-                        nextAttemptAt: number | null;
-                        /** @description Epoch milliseconds. */
-                        lastAttemptAt: number | null;
+                        /** Format: date-time */
+                        nextAttemptAt: string | null;
+                        /** Format: date-time */
+                        lastAttemptAt: string | null;
                         lastStatusCode: number | null;
                         lastError: string | null;
                         /** @enum {string|null} */
                         failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                        /** @description Epoch milliseconds. */
-                        createdAt: number;
-                        /** @description Epoch milliseconds. */
-                        completedAt: number | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        completedAt: string | null;
                         message: {
                             id: string;
                             type: string;
                             tenant: string | null;
                             /** @description The exact JSON that was signed and sent. */
                             body: string;
-                            /** @description Epoch milliseconds. */
-                            createdAt: number;
+                            /** Format: date-time */
+                            createdAt: string;
                         };
                         history: {
                             deliveryId: string;
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            at: number;
+                            /** Format: date-time */
+                            at: string;
                             durationMs: number;
                             statusCode: number | null;
                             /** @description The first 4 KB of the response body. */
@@ -4861,12 +4874,25 @@ export interface operations {
                         lastRequest: {
                             /** @description 1-based, within its round. */
                             attempt: number;
-                            /** @description Epoch milliseconds. */
-                            sentAt: number;
+                            /** Format: date-time */
+                            sentAt: string;
                             /** @description As sent: webhook-id, webhook-timestamp, webhook-signature (v1,… per live secret), content-type, user-agent. Never the secret. */
                             headers: {
                                 [key: string]: string;
                             };
+                            /** @description The secrets that signed that attempt, newest first, in the order of the v1,… signatures: one normally, two during the overlap after a rotation. Identified by when each was made, never revealed. Null: not recorded (a delivery from before this was kept). */
+                            signedWith: {
+                                /**
+                                 * Format: date-time
+                                 * @description When the secret was made (the creation or the rotation that issued it): its identifier, to match with the rotations' times.
+                                 */
+                                createdAt: string;
+                                /**
+                                 * Format: date-time
+                                 * @description When it stops signing: a rotated-out secret, 24 hours after the rotation; null for the current one.
+                                 */
+                                expiresAt: string | null;
+                            }[] | null;
                         } | null;
                     };
                 };
@@ -15247,6 +15273,8 @@ export interface operations {
                                 /** Format: date-time */
                                 expiresAt: string | null;
                             }[];
+                            /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                            webhookEndpoints?: number;
                         }[];
                     };
                 };
@@ -15345,6 +15373,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                         /** @description The API key: `Authorization: Bearer <key>`. Shown this once. */
                         key: string;
                     };
@@ -15431,6 +15461,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                     };
                 };
             };
@@ -15562,6 +15594,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                     };
                 };
             };
@@ -15654,6 +15688,8 @@ export interface operations {
                             /** Format: date-time */
                             expiresAt: string | null;
                         }[];
+                        /** @description How many webhook endpoints the client has (GET …/{id}/webhook-endpoints), so a client chooser needs no request per client. Absent with WEBHOOKS=off, not 0. */
+                        webhookEndpoints?: number;
                         /** @description The API key: `Authorization: Bearer <key>`. Shown this once. */
                         key: string;
                     };

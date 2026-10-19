@@ -39,6 +39,7 @@ import { WebhookEndpointsController } from './webhooks/webhook-endpoints.control
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
 import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { WebhookListSource } from './webhooks/webhook-lists.js';
 import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
 import './webhooks/webhooks-error.filter.js';
@@ -498,6 +499,8 @@ export class PlatformModule {
         ListPolicy,
         // The access API's users and audit lists (GET /v1/lists/User, /Audit).
         AccessListSources,
+        // The delivery log's list (GET /v1/lists/WebhookDelivery), while WEBHOOKS is on.
+        ...whenOn('WEBHOOKS', WebhookListSource),
         // The operators' tenants list (GET /v1/lists/Tenant).
         TenantListSource,
         // Gapless human-readable numbers, taken in a write's transaction.
