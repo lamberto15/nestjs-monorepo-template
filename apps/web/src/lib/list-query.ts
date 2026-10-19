@@ -118,16 +118,13 @@ export function filterSpec(
     // A picker of what the field points at (tags, teams, users): `in` takes
     // several, `eq` one; the id (or key) is the value.
     const multiple = has.has('in');
-    if (!source.unavailable) {
-      if (multiple) {
-        add(true, 'inArray');
-        add(has.has('notIn'), 'notInArray');
-      } else {
-        add(has.has('eq'), 'eq');
-        add(has.has('ne'), 'ne');
-      }
+    if (multiple) {
+      add(true, 'inArray');
+      add(has.has('notIn'), 'notInArray');
+    } else {
+      add(has.has('eq'), 'eq');
+      add(has.has('ne'), 'ne');
     }
-    // Values this caller can't read: "is empty" still needs none.
     empty();
     return operators.length > 0
       ? {

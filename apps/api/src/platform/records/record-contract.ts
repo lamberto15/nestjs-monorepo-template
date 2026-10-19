@@ -7,6 +7,7 @@ import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
+import { DocumentsService } from '../documents/documents.service.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
 import { SequencesService } from '../sequences/sequences.service.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
@@ -268,6 +269,7 @@ export class RecordPresenter {
     private readonly authorization: AuthorizationService,
     private readonly tags: TagsService,
     private readonly customFields: CustomFieldsService,
+    private readonly documents: DocumentsService,
   ) {}
 
   /**
@@ -339,7 +341,10 @@ export class RecordPresenter {
     };
   }
 
-  /** Each row's `can`, by id (record-can.ts): its policy's checks, in memory. */
+  /**
+   * Each row's `can`, by id (record-can.ts): its policy's checks, in
+   * memory; `issue` with the pdf capability (the checks of POST …/{id}/pdf).
+   */
   private can(user: Principal, rows: Record<string, unknown>[]) {
     return recordCan(
       this.authorization,
@@ -347,6 +352,11 @@ export class RecordPresenter {
       user,
       rows as { id: string }[],
       recordCanActions(this.declaration.softDelete),
+      takes(this.declaration, 'pdf')
+        ? {
+            issue: this.documents.issueFlag(user, recordKey(this.declaration)),
+          }
+        : {},
     );
   }
 

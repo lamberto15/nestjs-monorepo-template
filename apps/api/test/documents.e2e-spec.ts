@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import { StorageDisk } from '@nestjs/storage';
 import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
@@ -11,7 +12,9 @@ import {
   DOCUMENT_ERRORS,
   DocumentsService,
 } from '../src/platform/documents/documents.service.js';
+import { DocumentsRegistry } from '../src/platform/documents/documents.registry.js';
 import { documents } from '../src/platform/documents/documents.tables.js';
+import { FILE_CSP } from '../src/platform/storage/files.controller.js';
 import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
@@ -630,5 +633,244 @@ describe('documents (e2e)', () => {
       codes.slice(0, 10).every((code) => code === 202 || code === 409),
     ).toBe(true);
     expect(codes[10]).toBe(429);
+  });
+  describe("a record's documents, templates and preview", () => {
+    const list = (auth: string, itemId: string, query = '') =>
+      node
+        .http()
+        .get(`/v1/test-items/${itemId}/documents${query}`)
+        .set('Authorization', auth);
+
+    it('lists them newest first: in progress and issued, with template, language and who asked', async () => {
+      const name = `Billing ${randomUUID().slice(0, 6)}`;
+      const client = await node.client(name);
+      const item = (
+        await node.writeItem(client.auth, { title: 'Listed' }).expect(201)
+      ).body as { id: string };
+      const socket = await connect(node, client.key);
+      sockets.push(socket);
+      const ready = next(socket, 'document.ready');
+      const issued = await ask(client.auth, item.id).expect(202);
+      const { attachmentId } = (await ready) as { attachmentId: string };
+      // The next one never renders while the test looks (both tries hang).
+      gotenberg.state.answers.push('hang', 'hang');
+      const failed = next(socket, 'document.failed');
+      const pending = await ask(client.auth, item.id, '?lang=ar').expect(202);
+
+      const page = (await list(client.auth, item.id).expect(200)).body;
+      const issuedBy = { key: `client:${client.id}`, name };
+      expect(page).toEqual({
+        items: [
+          {
+            id: pending.body.id,
+            status: expect.stringMatching(/^(queued|rendering)$/),
+            template: 'testItem',
+            language: 'ar',
+            issuedBy,
+            createdAt: expect.any(String),
+            finishedAt: null,
+            attachmentId: null,
+            error: null,
+          },
+          {
+            id: issued.body.id,
+            status: 'completed',
+            template: 'testItem',
+            language: 'en',
+            issuedBy,
+            createdAt: expect.any(String),
+            finishedAt: expect.any(String),
+            attachmentId,
+            error: null,
+          },
+        ],
+        nextCursor: null,
+      });
+      // Filtered and paged as the other lists.
+      expect(
+        (
+          await list(client.auth, item.id, '?status=completed').expect(200)
+        ).body.items.map((doc: { id: string }) => doc.id),
+      ).toEqual([issued.body.id]);
+      const first = (await list(client.auth, item.id, '?limit=1').expect(200))
+        .body;
+      expect(first.items).toHaveLength(1);
+      expect(
+        (
+          await list(
+            client.auth,
+            item.id,
+            `?limit=1&cursor=${first.nextCursor}`,
+          ).expect(200)
+        ).body.items[0].id,
+      ).toBe(issued.body.id);
+      await list(client.auth, item.id, '?status=lost').expect(400);
+
+      // Whoever may read the record: not another client (its own only), not
+      // a record that isn't there, not another tenant.
+      const stranger = await node.client();
+      await list(stranger.auth, item.id).expect(404);
+      await list(client.auth, randomUUID()).expect(404);
+      const other = await node.otherTenant();
+      const theirs = await other.client();
+      await list(theirs.auth, item.id).expect(404);
+      await other.admin.get(`/v1/test-items/${item.id}/documents`).expect(404);
+
+      expect(await failed).toMatchObject({ id: pending.body.id });
+      const after = (
+        await list(client.auth, item.id, '?status=failed').expect(200)
+      ).body.items;
+      expect(after).toEqual([
+        expect.objectContaining({
+          id: pending.body.id,
+          finishedAt: expect.any(String),
+          error: DOCUMENT_ERRORS.unavailable,
+        }),
+      ]);
+    });
+
+    it('describes the templates per subject in GET /v1/lists/{subject}: each one in each language', async () => {
+      const { body } = await node.admin().get('/v1/lists/TestItem').expect(200);
+      expect(body.capabilities.pdf).toBe(true);
+      const locales = node.app
+        .get(ConfigService)
+        .get<string[]>('LOCALES') as string[];
+      expect(body.documentTemplates).toEqual(
+        locales.map((language) => ({ id: 'testItem', language })),
+      );
+      // A subject without the capability has none.
+      expect(
+        (await node.admin().get('/v1/lists/Audit').expect(200)).body
+          .documentTemplates,
+      ).toBeNull();
+    });
+
+    it('previews a PDF inline (?inline=true) under a strict CSP; any other type stays a download', async () => {
+      const { client, item, socket } = await owner();
+      const ready = next(socket, 'document.ready');
+      await ask(client.auth, item.id).expect(202);
+      const { attachmentId } = (await ready) as { attachmentId: string };
+      const link = async (id: string, query = '') =>
+        (
+          await node
+            .http()
+            .get(`/v1/attachments/${id}/download${query}`)
+            .set('Authorization', client.auth)
+            .expect(302)
+        ).headers.location!;
+      const fetch = (url: string) =>
+        node
+          .http()
+          .get(local(url))
+          .buffer(true)
+          .parse((res, done) => {
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk: Buffer) => chunks.push(chunk));
+            res.on('end', () => done(null, Buffer.concat(chunks)));
+          });
+
+      const inline = await fetch(
+        await link(attachmentId, '?inline=true'),
+      ).expect(200);
+      expect(inline.headers['content-type']).toBe('application/pdf');
+      expect(inline.headers['content-disposition']).toMatch(
+        new RegExp(`^inline; filename="test-items-${item.id}\\.pdf"`),
+      );
+      expect(inline.headers['x-content-type-options']).toBe('nosniff');
+      expect(inline.headers['content-security-policy']).toBe(FILE_CSP);
+      expect(FILE_CSP).toBe(
+        "default-src 'none'; frame-ancestors 'none'; sandbox",
+      );
+
+      // Without it (or false): a download, under the same policy.
+      for (const query of ['', '?inline=false']) {
+        const plain = await fetch(await link(attachmentId, query)).expect(200);
+        expect(plain.headers['content-disposition']).toMatch(/^attachment;/);
+        expect(plain.headers['content-security-policy']).toBe(FILE_CSP);
+      }
+      await node
+        .http()
+        .get(`/v1/attachments/${attachmentId}/download?inline=yes`)
+        .set('Authorization', client.auth)
+        .expect(400);
+
+      // The disposition is signed: a download link can't be turned into a preview.
+      const forged = new URL(await link(attachmentId));
+      forged.searchParams.set(
+        'disposition',
+        forged.searchParams.get('disposition')!.replace('attachment', 'inline'),
+      );
+      await node.http().get(local(forged.toString())).expect(403);
+
+      // Text (HTML included) is never shown inline, whatever is asked.
+      const text = await node
+        .http()
+        .post(`/v1/test-items/${item.id}/attachments`)
+        .set('Authorization', client.auth)
+        .attach('file', Buffer.from('<html><script>alert(1)</script></html>'), {
+          filename: 'page.html',
+          contentType: 'text/plain',
+        })
+        .expect(201);
+      const served = await fetch(
+        await link(text.body.id, '?inline=true'),
+      ).expect(200);
+      expect(served.headers['content-disposition']).toMatch(/^attachment;/);
+      expect(served.headers['x-content-type-options']).toBe('nosniff');
+      expect(served.headers['content-security-policy']).toBe(FILE_CSP);
+    });
+
+    it('says whether the reader may issue one (can.issue), as POST …/pdf decides', async () => {
+      const { client, item, socket } = await owner();
+      const can = async (auth: string, id = item.id) =>
+        (
+          await node
+            .http()
+            .get(`/v1/test-items/${id}?include=can`)
+            .set('Authorization', auth)
+            .expect(200)
+        ).body.can as Record<string, boolean>;
+      expect((await can(client.auth)).issue).toBe(true);
+      const listed = (
+        await node
+          .http()
+          .get('/v1/test-items?include=can')
+          .set('Authorization', client.auth)
+          .expect(200)
+      ).body.items.find((row: { id: string }) => row.id === item.id);
+      expect(listed.can.issue).toBe(true);
+      const ready = next(socket, 'document.ready');
+      await ask(client.auth, item.id).expect(202);
+      await ready;
+
+      // The source says no: false, and the route's 403.
+      const source = node.app.get(DocumentsRegistry).get('testItem')!;
+      const refuse = vi.spyOn(source, 'canIssue').mockResolvedValue(false);
+      try {
+        expect((await can(client.auth)).issue).toBe(false);
+        await ask(client.auth, item.id).expect(403);
+      } finally {
+        refuse.mockRestore();
+      }
+
+      // In the recycle bin: false, and the route can't find it (404).
+      await node
+        .http()
+        .delete(`/v1/test-items/${item.id}`)
+        .set('Authorization', client.auth)
+        .expect(204);
+      const bin = (
+        await node
+          .admin()
+          .get('/v1/test-items?deleted=true&include=can')
+          .expect(200)
+      ).body.items.find((row: { id: string }) => row.id === item.id);
+      expect(bin.can).toMatchObject({ restore: true, issue: false });
+      await node
+        .admin()
+        .post(`/v1/test-items/${item.id}/pdf`)
+        .set('Idempotency-Key', randomUUID())
+        .expect(404);
+    });
   });
 });

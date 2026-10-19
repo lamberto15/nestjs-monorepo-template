@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import type { HeaderContext, RowData } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
+import { PersonName, TeamName } from '@/components/person-name';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import type { DataTableFeatures } from '@/lib/data-table-features';
 import type { ListColumn, ListDescription, ListField } from '@/lib/list-query';
@@ -118,6 +120,10 @@ export function refColumns<TData extends RowData>(
           meta: { label },
         } as ListColumn<TData>;
       }
+      // People and teams are named by the lookups (batched for the whole
+      // page, lib/people.ts); tags by the list's own options.
+      const lookup = field.ref === 'principal' || field.ref === 'team';
+      const Name = field.ref === 'team' ? TeamName : PersonName;
       const names = new Map(
         (refs[field.ref as string]?.options ?? []).map((o) => [
           o.value,
@@ -126,6 +132,12 @@ export function refColumns<TData extends RowData>(
       );
       const name = (value: unknown) =>
         typeof value === 'string' ? (names.get(value) ?? value) : NONE;
+      const values = (row: TData): string[] => {
+        const value = (row as Record<string, unknown>)[field.name];
+        return (Array.isArray(value) ? value : [value]).filter(
+          (v): v is string => typeof v === 'string',
+        );
+      };
       return {
         id: field.name,
         accessorFn: (row: TData) => {
@@ -134,6 +146,15 @@ export function refColumns<TData extends RowData>(
             ? value.map(name).join(', ')
             : name(value);
         },
+        ...(lookup && {
+          cell: ({ row }: { row: { original: TData } }) =>
+            values(row.original).map((value, index) => (
+              <Fragment key={value}>
+                {index > 0 && ', '}
+                <Name value={value} />
+              </Fragment>
+            )),
+        }),
         ...header<TData>(label),
       } as ListColumn<TData>;
     });

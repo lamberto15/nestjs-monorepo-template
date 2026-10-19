@@ -20,6 +20,14 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
+import type { ListQuery } from '../../core/http/list-query.js';
+import {
+  afterCursor,
+  countPage,
+  pageOffset,
+  pageOrder,
+  toPage,
+} from '../../core/http/pagination.js';
 import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
@@ -38,11 +46,18 @@ import {
   ANONYMIZED_UPLOADER,
   AttachmentsService,
 } from '../attachments/attachments.service.js';
+import { PeopleService } from '../people/people.service.js';
+import type { CanFlag } from '../records/record-can.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { Realtime } from '../realtime/realtime.service.js';
 import { tenantFileKey } from '../storage/storage.config.js';
 import { DocumentTemplates } from './document-templates.js';
-import type { DocumentView } from './document.schemas.js';
+import { DOCUMENT_LIST } from './document.list.js';
+import type {
+  DocumentTemplate,
+  DocumentView,
+  RecordDocumentView,
+} from './document.schemas.js';
 import { DocumentsRegistry } from './documents.registry.js';
 import {
   type DocumentRow,
@@ -107,6 +122,7 @@ export class DocumentsService implements PersonalDataSource {
     private readonly audit: AuditService,
     private readonly realtime: Realtime,
     private readonly config: ConfigService<CoreEnv & PlatformEnv, true>,
+    private readonly people: PeopleService,
     personalData: PersonalDataRegistry,
   ) {
     personalData.register(this);
@@ -141,6 +157,7 @@ export class DocumentsService implements PersonalDataSource {
     }
     const record = { subject: source.subject, recordId: request.recordId };
     await this.attachments.assertCanRead(principal, record);
+    // The check a record's `can.issue` repeats (mayIssue()).
     if (!(await source.canIssue(principal, request.recordId))) {
       throw new ForbiddenException(
         `You may not issue this document for ${source.subject} ${request.recordId}.`,
@@ -229,6 +246,97 @@ export class DocumentsService implements PersonalDataSource {
       throw error;
     }
     return { id: row.id, status: 'queued' as const };
+  }
+
+  /**
+   * What a record's `can.issue` (`?include=can`) says, for a record the
+   * principal may read (the caller checked: the policy's `read`, as the
+   * route's assertCanRead does): the checks request() makes after that,
+   * without asking. False while documents are off (no GOTENBERG_URL: the
+   * route's 503), for the system principal, and where the source's
+   * `canIssue` says no (the route's 403).
+   */
+  async mayIssue(
+    principal: Principal,
+    sourceName: string,
+    recordId: string,
+  ): Promise<boolean> {
+    const source = this.registry.get(sourceName);
+    if (!this.renderer.enabled || !source || principal.kind === 'system') {
+      return false;
+    }
+    return source.canIssue(principal, recordId);
+  }
+
+  /**
+   * A record's `can.issue` (`?include=can`, record-can.ts): what POST
+   * …/{id}/pdf checks, in its order: the record readable (the policy's
+   * `read` on the row, as the route's assertCanRead asks it; never one in
+   * the recycle bin, which the route can't find), then mayIssue().
+   */
+  issueFlag(principal: Principal, sourceName: string): CanFlag {
+    return async (row, check) =>
+      row.deletedAt == null &&
+      this.renderer.enabled &&
+      (await check('read')) &&
+      (await this.mayIssue(principal, sourceName, row.id));
+  }
+
+  /**
+   * The templates a subject's documents are issued from (GET
+   * /v1/lists/{subject}, `documentTemplates`): each DocumentSource of the
+   * subject, in each language the server answers in (LOCALES; a
+   * `<template>.<locale>.html` is used where there is one, else the
+   * template with translated labels). Empty while documents are off.
+   */
+  templatesOf(subject: string): DocumentTemplate[] {
+    if (!this.renderer.enabled) {
+      return [];
+    }
+    const languages = this.config.get('LOCALES', { infer: true });
+    return this.registry
+      .forSubject(subject)
+      .flatMap((source) =>
+        languages.map((language) => ({ id: source.name, language })),
+      );
+  }
+
+  /**
+   * A page of a record's documents, newest first: in progress (queued,
+   * rendering), issued and failed, each with who asked for it (named in one
+   * query for the page, PeopleService.names()). A 404 unless the principal
+   * may read the record, as its attachments list (row-level security keeps
+   * it to the tenant).
+   */
+  async list(
+    principal: Principal,
+    record: { subject: string; recordId: string },
+    query: ListQuery,
+  ) {
+    await this.attachments.assertCanRead(principal, record);
+    const where = and(
+      eq(documents.subject, record.subject),
+      eq(documents.recordId, record.recordId),
+      DOCUMENT_LIST.where(query),
+    );
+    const [rows, total] = await Promise.all([
+      this.db
+        .select()
+        .from(documents)
+        .where(and(where, afterCursor(documents.id, query)))
+        .orderBy(...pageOrder(documents.id, query))
+        .limit(query.limit + 1)
+        .offset(pageOffset(query)),
+      countPage(this.db, documents, where, query),
+    ]);
+    const page = toPage(rows, query, total);
+    const names = await this.people.names(
+      page.items.map((row) => row.requestedBy),
+    );
+    return {
+      ...page,
+      items: page.items.map((row) => listed(row, names)),
+    };
   }
 
   /**
@@ -550,6 +658,27 @@ const publicReason = (error: unknown) =>
     : error instanceof PdfRejectedError
       ? DOCUMENT_ERRORS.rejected
       : DOCUMENT_ERRORS.unavailable;
+
+/** A document as a record's documents list shows it. */
+const listed = (
+  row: DocumentRow,
+  names: ReadonlyMap<string, string | null>,
+): RecordDocumentView => ({
+  id: row.id,
+  status: row.status,
+  template: row.source,
+  language: row.locale,
+  issuedBy: { key: row.requestedBy, name: names.get(row.requestedBy) ?? null },
+  createdAt: row.createdAt.toISOString(),
+  finishedAt:
+    row.status === 'completed'
+      ? (row.issuedAt ?? row.updatedAt).toISOString()
+      : row.status === 'failed'
+        ? row.updatedAt.toISOString()
+        : null,
+  attachmentId: row.attachmentId,
+  error: row.error,
+});
 
 const view = (row: DocumentRow): DocumentView => ({
   id: row.id,

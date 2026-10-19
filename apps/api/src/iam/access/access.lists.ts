@@ -174,6 +174,7 @@ export const AUDIT_LIST = listQuery(
       'at',
       'actor',
       'actorLabel',
+      'actorName',
       'action',
       'targetType',
       'targetId',

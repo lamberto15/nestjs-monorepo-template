@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it, vi } from 'vitest';
 import { signedInWith } from '@/features/access/test/fixtures';
 import { nav, visibleGroups } from '@/nav';
+import { peopleHandler } from '@/test/people';
 import { principalsHandler, userPrincipal } from '@/test/principals';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server } from '@/test/server';
@@ -123,6 +124,41 @@ describe('the audit log page', () => {
     // Only the columns shown are asked for; the details are among them.
     expect(last.searchParams.get('fields')).toBe(
       'at,actorLabel,action,targetType,targetId,ip,details',
+    );
+  });
+
+  it('names an actor the entry stored no label for, in one request', async () => {
+    signedInWith({ 'Access.readAudit': true });
+    const NOOR = '0199a3f2-0000-7000-8000-000000000011';
+    const GRACE = '0199a3f2-0000-7000-8000-000000000012';
+    const asked: URLSearchParams[] = [];
+    auditApi([
+      entry('1', { actor: `user:${NOOR}`, actorLabel: null }),
+      entry('2', { actor: `user:${GRACE}`, actorLabel: null }),
+      entry('3', { actor: `user:${NOOR}`, actorLabel: null }),
+      entry('4', { actor: 'system:cleanup', actorLabel: null }),
+      entry('5'),
+    ]);
+    server.use(
+      peopleHandler(
+        [
+          { id: NOOR, name: 'Noor Ahmed' },
+          { id: GRACE, name: 'Grace Hopper' },
+        ],
+        [],
+        asked,
+      ),
+    );
+    await renderApp('/audit');
+
+    expect(await screen.findByText('Grace Hopper')).toBeInTheDocument();
+    expect(screen.getAllByText('Noor Ahmed')).toHaveLength(2);
+    // The stored label, or no person: as it is, and never asked for.
+    expect(screen.getByText('system:cleanup')).toBeInTheDocument();
+    expect(screen.getByText('noah@example.com')).toBeInTheDocument();
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.get('key')?.split(',').sort()).toEqual(
+      [`user:${NOOR}`, `user:${GRACE}`].sort(),
     );
   });
 

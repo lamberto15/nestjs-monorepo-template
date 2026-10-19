@@ -227,18 +227,24 @@ export function definitionIssues(
         message: 'A choice field needs options.',
       });
     }
-    if (new Set(options.map((o) => o.value)).size !== options.length) {
-      issues.push({ path: 'options', message: 'Option values must differ.' });
-    }
-    // An import file lists a multiSelect's choices separated by commas.
-    if (
-      field.type === 'multiSelect' &&
-      options.some((o) => o.value.includes(','))
-    ) {
-      issues.push({
-        path: 'options',
-        message: 'A comma in an option value would split it in an import file.',
-      });
+    // Each repeat lands on its own input: `options.2.value`.
+    const seen = new Set<string>();
+    for (const [index, option] of options.entries()) {
+      if (seen.has(option.value)) {
+        issues.push({
+          path: `options.${index}.value`,
+          message: 'Option values must differ.',
+        });
+      }
+      seen.add(option.value);
+      // An import file lists a multiSelect's choices separated by commas.
+      if (field.type === 'multiSelect' && option.value.includes(',')) {
+        issues.push({
+          path: `options.${index}.value`,
+          message:
+            'A comma in an option value would split it in an import file.',
+        });
+      }
     }
   } else if (options.length > 0) {
     issues.push({

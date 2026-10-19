@@ -184,7 +184,7 @@ describe('custom fields (e2e)', () => {
     // An import file lists a multiSelect's choices separated by commas.
     await invalid(
       { type: 'multiSelect', options: [{ value: 'a,b', label: 'A or B' }] },
-      'options',
+      'options.0.value',
     );
     await invalid(
       { type: 'text', options: [{ value: 'a', label: 'A' }] },
@@ -256,6 +256,262 @@ describe('custom fields (e2e)', () => {
         'customField.reordered',
       ]),
     );
+  });
+
+  it('lists the subjects that take custom fields, to whoever may read their fields', async () => {
+    const manager = await node.user([
+      await role(['Access', 'manageCustomFields']),
+    ]);
+    const editor = await node.user(['editor']);
+    const noteReader = await node.user([await role(['Note', 'read'])]);
+    const outsider = await node.user([await role(['Ops', 'view'])]);
+    const client = await node.client();
+    type Entry = {
+      subject: string;
+      label: { singular: string; plural: string };
+    };
+    const subjects = (body: { items: Entry[] }) =>
+      body.items.map((entry) => entry.subject);
+
+    const all = await manager.agent
+      .get('/v1/custom-fields/subjects')
+      .expect(200);
+    expect(subjects(all.body)).toEqual(
+      expect.arrayContaining(['Note', 'TestItem']),
+    );
+    expect(all.body.items).toContainEqual({
+      subject: 'Note',
+      label: { singular: 'Note', plural: 'Notes' },
+    });
+    expect(subjects(all.body).sort()).toEqual(
+      subjects(
+        (await editor.agent.get('/v1/custom-fields/subjects').expect(200)).body,
+      ).sort(),
+    );
+
+    // Only the subjects whose fields the caller may read (as GET /custom-fields).
+    const notes = await noteReader.agent
+      .get('/v1/custom-fields/subjects')
+      .expect(200);
+    expect(subjects(notes.body)).toEqual(['Note']);
+    await noteReader.agent.get('/v1/custom-fields?subject=Note').expect(200);
+    await noteReader.agent
+      .get('/v1/custom-fields?subject=TestItem')
+      .expect(403);
+
+    await node
+      .http()
+      .get('/v1/custom-fields/subjects')
+      .set('Authorization', client.auth)
+      .expect(200);
+    await outsider.agent.get('/v1/custom-fields/subjects').expect(403);
+    await node.http().get('/v1/custom-fields/subjects').expect(401);
+  });
+
+  it('names the nested path of each error on a definition', async () => {
+    const create = (body: Record<string, unknown>) =>
+      node
+        .admin()
+        .post('/v1/custom-fields')
+        .send({
+          subject: 'TestItem',
+          label: 'X',
+          key: `k${randomUUID().slice(0, 6)}`,
+          ...body,
+        });
+    const choice = (value: string) => ({ value, label: 'Label' });
+
+    // Dotted, as everywhere (items.0.quantity): one error per input.
+    const pattern = await create({
+      type: 'text',
+      validation: { pattern: '(' },
+    }).expect(400);
+    expect(pattern.body.code).toBe('validation_failed');
+    expect(paths(pattern.body)).toEqual(['validation.pattern']);
+    const lookahead = await create({
+      type: 'text',
+      validation: { pattern: 'a(?=b)' },
+    }).expect(400);
+    expect(paths(lookahead.body)).toEqual(['validation.pattern']);
+    expect(lookahead.body.errors[0].message).toMatch(/lookahead|lookaround/i);
+
+    const duplicate = await create({
+      type: 'select',
+      options: [
+        choice('a'),
+        choice('b'),
+        choice('a'),
+        choice('c'),
+        choice('b'),
+      ],
+    }).expect(400);
+    expect(paths(duplicate.body)).toEqual([
+      'options.2.value',
+      'options.4.value',
+    ]);
+
+    const bad = await create({
+      type: 'select',
+      options: [choice('a'), choice('b'), choice(' ')],
+    }).expect(400);
+    expect(paths(bad.body)).toEqual(['options.2.value']);
+    const noLabel = await create({
+      type: 'select',
+      options: [{ value: 'a', label: '' }],
+    }).expect(400);
+    expect(paths(noLabel.body)).toEqual(['options.0.label']);
+    const comma = await create({
+      type: 'multiSelect',
+      options: [choice('a'), choice('b,c')],
+    }).expect(400);
+    expect(paths(comma.body)).toEqual(['options.1.value']);
+
+    // Several at once, each on its input.
+    const many = await create({
+      type: 'number',
+      validation: { min: 5, max: 1, pattern: 'x' },
+    }).expect(400);
+    expect(paths(many.body).sort()).toEqual([
+      'validation.min',
+      'validation.pattern',
+    ]);
+
+    // The same on a change, checked against the field as it would be saved.
+    const text = await create({ type: 'text' }).expect(201);
+    const select = await create({
+      type: 'select',
+      options: [choice('a'), choice('b')],
+    }).expect(201);
+    const patch = (id: string, body: Record<string, unknown>) =>
+      node.admin().patch(`/v1/custom-fields/${id}`).send(body);
+    expect(
+      paths(
+        (
+          await patch(text.body.id, { validation: { pattern: '(' } }).expect(
+            400,
+          )
+        ).body,
+      ),
+    ).toEqual(['validation.pattern']);
+    expect(
+      paths(
+        (
+          await patch(select.body.id, {
+            options: [choice('a'), choice('b'), choice('a')],
+          }).expect(400)
+        ).body,
+      ),
+    ).toEqual(['options.2.value']);
+    expect(
+      paths(
+        (
+          await patch(select.body.id, {
+            options: [choice('a'), choice('')],
+          }).expect(400)
+        ).body,
+      ),
+    ).toEqual(['options.1.value']);
+  });
+
+  it('counts the records that hold a value of each field, for those who manage them', async () => {
+    const manager = await node.user([
+      await role(['Access', 'manageCustomFields']),
+    ]);
+    const editor = await node.user(['editor']);
+    await field({
+      key: 'region',
+      type: 'select',
+      options: [
+        { value: 'eu', label: 'Europe' },
+        { value: 'us', label: 'Americas' },
+      ],
+    });
+    const note = await field({ key: 'note', type: 'text' });
+    const counts = async (agent: request.Agent = manager.agent, query = '') =>
+      Object.fromEntries(
+        (
+          (
+            await agent
+              .get(`/v1/custom-fields?subject=TestItem&include=counts${query}`)
+              .expect(200)
+          ).body.items as {
+            key: string;
+            valueCount: number;
+            deletedValueCount: number;
+          }[]
+        ).map((item) => [item.key, [item.valueCount, item.deletedValueCount]]),
+      );
+
+    // Nothing is counted unless asked for; asking takes managing the fields.
+    const plain = await manager.agent
+      .get('/v1/custom-fields?subject=TestItem')
+      .expect(200);
+    expect(plain.body.items[0]).not.toHaveProperty('valueCount');
+    expect(await counts()).toEqual({ region: [0, 0], note: [0, 0] });
+    await editor.agent
+      .get('/v1/custom-fields?subject=TestItem&include=counts')
+      .expect(403);
+    await manager.agent
+      .get('/v1/custom-fields?subject=TestItem&include=other')
+      .expect(400);
+
+    const client = await node.client();
+    const write = async (custom: Record<string, unknown>) =>
+      (
+        await node
+          .writeItem(client.auth, { title: 'T', body: '', custom })
+          .expect(201)
+      ).body.id as string;
+    await write({ region: 'eu', note: 'a' });
+    await write({ region: 'us' });
+    const trashed = await write({ region: 'eu' });
+    await write({});
+    expect(await counts()).toEqual({ region: [3, 0], note: [1, 0] });
+
+    // The recycle bin is counted apart; removing a value drops the count.
+    await node.admin().delete(`/v1/test-items/${trashed}`).expect(204);
+    expect(await counts()).toEqual({ region: [2, 1], note: [1, 0] });
+    const first = await write({ note: 'b' });
+    await node
+      .admin()
+      .patch(`/v1/test-items/${first}`)
+      .send({ custom: { note: null } })
+      .expect(200);
+    expect(await counts()).toEqual({ region: [2, 1], note: [1, 0] });
+
+    // A deactivated field's values are kept, and counted (inactive fields listed).
+    await node.admin().delete(`/v1/custom-fields/${note.id}`).expect(204);
+    expect(await counts(manager.agent, '&includeInactive=true')).toEqual({
+      region: [2, 1],
+      note: [1, 0],
+    });
+    expect(await counts()).toEqual({ region: [2, 1] });
+
+    // Another tenant's records are not seen, and it counts its own.
+    const other = await node.otherTenant();
+    const otherRegion = (
+      await other.admin
+        .post('/v1/custom-fields')
+        .send({ subject: 'TestItem', key: 'region', label: 'R', type: 'text' })
+        .expect(201)
+    ).body as { id: string };
+    const otherClient = await other.client();
+    await node
+      .writeItem(otherClient.auth, {
+        title: 'O',
+        body: '',
+        custom: { region: 'x' },
+      })
+      .expect(201);
+    const theirs = (
+      await other.admin
+        .get('/v1/custom-fields?subject=TestItem&include=counts')
+        .expect(200)
+    ).body.items as { id: string; valueCount: number }[];
+    expect(theirs.map((item) => [item.id, item.valueCount])).toEqual([
+      [otherRegion.id, 1],
+    ]);
+    expect((await counts()).region).toEqual([2, 1]);
   });
 
   it('checks every type of value, by field', async () => {

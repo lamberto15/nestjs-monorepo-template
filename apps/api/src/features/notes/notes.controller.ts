@@ -67,6 +67,7 @@ import { NotesService } from './notes.service.js';
 import { pageSchema } from '../../core/http/pagination.js';
 import { ApiListQuery } from '../../core/http/list-docs.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
+import { DocumentsService } from '../../platform/documents/documents.service.js';
 import { and } from 'drizzle-orm';
 import { NOTE_LIST } from './note.list.js';
 
@@ -87,6 +88,7 @@ export class NotesController {
     private readonly access: AccessService,
     private readonly authorization: AuthorizationService,
     private readonly customFields: CustomFieldsService,
+    private readonly documents: DocumentsService,
   ) {}
 
   @Post()
@@ -341,7 +343,10 @@ export class NotesController {
     return this.access.redact(user, 'read', 'Note', shown!);
   }
 
-  /** Each note's `can` (?include=can), by id: NotePolicy's checks, as the routes make them. */
+  /**
+   * Each note's `can` (?include=can), by id: NotePolicy's checks, as the
+   * routes make them; `issue`, the checks of POST /v1/notes/{id}/pdf.
+   */
   private can(user: RequestPrincipal, notes: Note[]) {
     return recordCan(
       this.authorization,
@@ -349,6 +354,7 @@ export class NotesController {
       user,
       notes,
       recordCanActions(true),
+      { issue: this.documents.issueFlag(user, 'note') },
     );
   }
 }

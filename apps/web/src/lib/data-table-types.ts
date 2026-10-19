@@ -38,6 +38,11 @@ export interface DataTableColumnMeta {
 export interface OptionSearch {
   /** The prefix of every search's query key: names found before stay known. */
   key: readonly unknown[];
+  /**
+   * A hook naming the values a filter holds (their keys, batched into one
+   * request): the chips of values never searched for in this session.
+   */
+  useNames?: (values: readonly string[]) => (value: string) => string;
   /** The query for a term ('' for the first ones). */
   query: (term: string) => {
     queryKey: readonly unknown[];

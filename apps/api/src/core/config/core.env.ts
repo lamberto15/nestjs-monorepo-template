@@ -10,6 +10,7 @@ import {
   secret,
   withDefault,
 } from './env.helpers.js';
+import { SHIPPED_LOCALES } from '../i18n/locales.js';
 
 /** The environment of the core group: the runtime, HTTP, database, Redis, logs. */
 export const coreEnv = z.object({
@@ -161,7 +162,7 @@ export const coreEnv = z.object({
    * is the default. Shipped: en, de, ar (right to left), zh (Simplified), ms.
    */
   LOCALES: list().transform((locales) =>
-    locales.length > 0 ? locales : ['en', 'de', 'ar', 'zh', 'ms'],
+    locales.length > 0 ? locales : [...SHIPPED_LOCALES],
   ),
 
   /**

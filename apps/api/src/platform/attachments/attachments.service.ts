@@ -49,6 +49,15 @@ import { type Attachment, attachments } from './attachments.tables.js';
 /** How long a download link works. */
 export const DOWNLOAD_LINK_TTL = '5m';
 
+/**
+ * The types `?inline=true` shows in the browser: PDF only, which the
+ * browser's viewer renders without running the file's scripts in this
+ * origin. Never HTML, SVG, XML or anything else that can script (the
+ * storage package would refuse those inline anyway); images and text stay
+ * downloads too, as there is no need to show them from here.
+ */
+export const INLINE_TYPES: ReadonlySet<string> = new Set(['application/pdf']);
+
 /** The uploader of an attachment whose account was deleted. */
 export const ANONYMIZED_UPLOADER = 'anonymized';
 
@@ -264,12 +273,25 @@ export class AttachmentsService implements PersonalDataSource {
     });
   }
 
-  /** A signed link to the file (DOWNLOAD_LINK_TTL), downloading under its name. */
-  async download(principal: Principal, id: string) {
+  /**
+   * A signed link to the file (DOWNLOAD_LINK_TTL), downloading under its
+   * name. `inline`: shown in the browser instead (`Content-Disposition:
+   * inline`), for a PDF only (INLINE_TYPES); any other type stays an
+   * attachment. The disposition is part of what the link signs (the local
+   * disk's claims, S3's `response-content-disposition`), so a client can't
+   * turn one link into the other.
+   */
+  async download(
+    principal: Principal,
+    id: string,
+    { inline = false }: { inline?: boolean } = {},
+  ) {
     const row = await this.findReadable(principal, id);
     const url = await this.disk.signedUrl(row.key, {
       expiresIn: DOWNLOAD_LINK_TTL,
       filename: row.name,
+      disposition:
+        inline && INLINE_TYPES.has(row.contentType) ? 'inline' : 'attachment',
     });
     return { url };
   }
