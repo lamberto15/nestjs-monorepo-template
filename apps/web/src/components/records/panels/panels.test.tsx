@@ -99,6 +99,67 @@ describe('comments', () => {
     expect(within(thread).getByText('You')).toBeVisible();
   });
 
+  it('names a mention nobody offered through the people lookup, in one request', async () => {
+    const OTTO = {
+      id: '0199a3f2-0000-7000-8000-000000000004',
+      email: 'otto@example.com',
+      name: 'Otto Lang',
+    };
+    const IDA = {
+      ...OTTO,
+      id: '0199a3f2-0000-7000-8000-000000000005',
+      name: 'Ida Roe',
+    };
+    const calls = usePanelsApi({
+      people: [OTTO, IDA],
+      comments: [
+        {
+          body: `cc @user:${OTTO.id}`,
+          mentions: [`user:${OTTO.id}`],
+        },
+        {
+          body: `and @user:${IDA.id} @user:${OTTO.id}`,
+          mentions: [`user:${IDA.id}`, `user:${OTTO.id}`],
+          mentionNames: { [`user:${IDA.id}`]: null },
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Comments');
+    const thread = await screen.findByRole('list', { name: 'Comments' });
+    await waitFor(() =>
+      expect(
+        [...thread.querySelectorAll('[data-mention]')].map(
+          (m) => m.textContent,
+        ),
+      ).toEqual(['@Otto Lang', '@Ida Roe', '@Otto Lang']),
+    );
+    expect(calls.peopleLookups).toHaveLength(1);
+    expect([...calls.peopleLookups[0]!].sort()).toEqual(
+      [`user:${IDA.id}`, `user:${OTTO.id}`].sort(),
+    );
+  });
+
+  it('names the mentions the API named without asking', async () => {
+    const OTTO = '0199a3f2-0000-7000-8000-000000000004';
+    const calls = usePanelsApi({
+      comments: [
+        {
+          body: `cc @user:${OTTO}`,
+          mentions: [`user:${OTTO}`],
+          mentionNames: { [`user:${OTTO}`]: 'Otto Lang' },
+        },
+      ],
+    });
+    await mountPanels(ALL);
+    await open('Comments');
+    const thread = await screen.findByRole('list', { name: 'Comments' });
+    expect(thread.querySelector('[data-mention]')).toHaveTextContent(
+      '@Otto Lang',
+    );
+    expect(calls.peopleLookups).toEqual([]);
+  });
+
   it("names authors as the API does, and someone it doesn't", async () => {
     const stranger = '0199a3f2-0000-7000-8000-000000000003';
     usePanelsApi({

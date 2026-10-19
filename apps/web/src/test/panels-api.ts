@@ -75,6 +75,7 @@ type Comment = {
   authorName: string | null;
   body: string;
   mentions: string[];
+  mentionNames?: Record<string, string | null>;
   editedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -150,6 +151,8 @@ export function panelHandlers(
     diffs: [] as string[],
     /** The `q` of each `GET /v1/people` ('' without one). */
     peopleQueries: [] as string[],
+    /** The keys of each `GET /v1/people?key=` (a lookup, not a search). */
+    peopleLookups: [] as string[][],
     /** How often the test-only subject's `GET /v1/lists/{subject}` was asked. */
     described: 0,
   };
@@ -183,8 +186,20 @@ export function panelHandlers(
           }),
         ]),
     http.get('/v1/people', ({ request }) => {
-      const q = new URL(request.url).searchParams.get('q') ?? '';
+      const query = new URL(request.url).searchParams;
+      const q = query.get('q') ?? '';
       calls.peopleQueries.push(q);
+      const keys = query.get('key')?.split(',');
+      if (keys) {
+        calls.peopleLookups.push(keys);
+        return HttpResponse.json({
+          items: keys.flatMap((key) =>
+            (options.people ?? [])
+              .filter((p) => `user:${p.id}` === key)
+              .map((p) => ({ key, name: p.name })),
+          ),
+        });
+      }
       return HttpResponse.json({
         items: (options.people ?? [])
           .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))

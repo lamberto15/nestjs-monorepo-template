@@ -19,6 +19,7 @@ import {
   type AuditEntry,
   type AuditFilters,
 } from './api';
+import { PersonName } from '@/components/person-name';
 import { errorMessage } from '@/lib/errors';
 import { useDateTimeFormat } from '@/lib/date-time';
 
@@ -241,7 +242,9 @@ function EntryRows(props: {
           </Button>
         </TableCell>
         <TableCell>{props.when}</TableCell>
-        <TableCell>{entry.actorLabel ?? entry.actor}</TableCell>
+        <TableCell>
+          {entry.actorLabel ?? <PersonName value={entry.actor} />}
+        </TableCell>
         <TableCell className="font-mono text-xs">{entry.action}</TableCell>
         <TableCell>
           {entry.targetType

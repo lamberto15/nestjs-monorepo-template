@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { signedInWith } from '@/features/access/test/fixtures';
 import { buildAuditQuery, noFilters } from '@/features/audit/api';
 import { nav, visibleGroups } from '@/nav';
+import { peopleHandler } from '@/test/people';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, server } from '@/test/server';
 
@@ -97,6 +98,41 @@ describe('the audit log page', () => {
       expect(urls.at(-1)!.searchParams.get('page')).toBe('2'),
     );
     expect(urls.at(-1)!.searchParams.get('action.startsWith')).toBe('client.');
+  });
+
+  it('names an actor the entry stored no label for, in one request', async () => {
+    signedInWith({ 'Access.readAudit': true });
+    const ADA = '0199a3f2-0000-7000-8000-000000000011';
+    const GRACE = '0199a3f2-0000-7000-8000-000000000012';
+    const asked: URLSearchParams[] = [];
+    server.use(
+      peopleHandler(
+        [
+          { id: ADA, name: 'Noor Ahmed' },
+          { id: GRACE, name: 'Grace Hopper' },
+        ],
+        [],
+        asked,
+      ),
+    );
+    auditApi([
+      entry('1', { actor: `user:${ADA}`, actorLabel: null }),
+      entry('2', { actor: `user:${GRACE}`, actorLabel: null }),
+      entry('3', { actor: `user:${ADA}`, actorLabel: null }),
+      entry('4', { actor: 'system:cleanup', actorLabel: null }),
+      entry('5', { actor: 'user:u1' }),
+    ]);
+    await renderApp('/audit');
+
+    expect(await screen.findByText('Grace Hopper')).toBeInTheDocument();
+    expect(screen.getAllByText('Noor Ahmed')).toHaveLength(2);
+    // What the entry stored, or no person: as it is, and never asked for.
+    expect(screen.getByText('system:cleanup')).toBeInTheDocument();
+    expect(screen.getByText('noah@example.com')).toBeInTheDocument();
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.get('key')?.split(',').sort()).toEqual(
+      [`user:${ADA}`, `user:${GRACE}`].sort(),
+    );
   });
 
   it('shows details as text, never as HTML', async () => {

@@ -24,6 +24,7 @@ import {
   type Comment,
 } from './api';
 import { CommentText } from './comment-text';
+import { usePeopleNames } from '@/lib/people';
 import { usePeople, type Person } from './users';
 
 /** The API's limit (docs/comments.md): 1 to 10 000 characters. */
@@ -152,6 +153,8 @@ function CommentItem(props: {
   base: string;
   recordId: string;
   names: ReadonlyMap<string, string>;
+  /** Names are still being looked up: an unnamed mention shows its key. */
+  namesPending: boolean;
   onPicked: (person: Person) => void;
   canModerate: boolean;
   refresh: () => Promise<unknown>;
@@ -203,7 +206,7 @@ function CommentItem(props: {
         <CommentText
           body={comment.body}
           names={props.names}
-          unknown={t('comments.someone')}
+          unknown={props.namesPending ? undefined : t('comments.someone')}
         />
       )}
       {!editing && (own || props.canModerate) && (
@@ -256,7 +259,6 @@ export function CommentsPanel(props: {
   const queryClient = useQueryClient();
   const live = useRealtime() !== undefined;
   const me = useMe()?.user;
-  const offered = usePeople('').data;
   const [picked, setPicked] = useState<ReadonlyMap<string, string>>(new Map());
   const key = panelKeys.comments(props.base, props.id);
   const query = useQuery({
@@ -277,12 +279,28 @@ export function CommentsPanel(props: {
     );
 
   const names = new Map<string, string>();
-  for (const person of offered ?? []) names.set(person.key, person.name);
-  for (const comment of query.data ?? []) {
+  const comments = query.data ?? [];
+  for (const comment of comments) {
     if (comment.authorName) names.set(comment.author, comment.authorName);
+    for (const [key, name] of Object.entries(comment.mentionNames ?? {})) {
+      if (name) names.set(key, name);
+    }
   }
   for (const [key, name] of picked) names.set(key, name);
   if (me?.name) names.set(`user:${me.id}`, me.name);
+  // Mentions nothing above named (an answer without `mentionNames`, or a
+  // null in it): the lookup by key, one request for the thread.
+  const looked = usePeopleNames(
+    comments
+      .flatMap((comment) => comment.mentions ?? [])
+      .filter((key) => !names.has(key)),
+  );
+  for (const comment of comments) {
+    for (const key of comment.mentions ?? []) {
+      const name = looked.get(key);
+      if (name && !names.has(key)) names.set(key, name);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -306,6 +324,7 @@ export function CommentsPanel(props: {
               base={props.base}
               recordId={props.id}
               names={names}
+              namesPending={looked.pending}
               onPicked={remember}
               canModerate={props.canModerate}
               refresh={refresh}

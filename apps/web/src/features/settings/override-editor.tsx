@@ -18,7 +18,7 @@ import { teamsQuery } from '@/features/access/api';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
-import { principalDirectoryQuery, principalLabel } from '@/lib/principals';
+import { usePeopleNames, useTeamNames } from '@/lib/people';
 import {
   fromDraft,
   overrideBody,
@@ -44,7 +44,8 @@ type Mode = 'value' | 'rollout';
  * tenant scope, a rollout: a percentage of the tenant's principals. Lists the
  * stored overrides, each of which can be edited or cleared. A user scope's
  * value is for a user or an API client, found by searching the principals
- * (`GET /v1/access/principals`): its `key` is the `scopeId`.
+ * (`GET /v1/access/principals`): its `key` is the `scopeId`; stored ones
+ * are named by the people and teams lookups.
  */
 export function OverrideEditor({ setting }: { setting: Setting }) {
   const { t } = useTranslation('settings');
@@ -57,11 +58,17 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
     enabled: hasTeam,
     meta: { errorToast: false },
   });
-  // Names for the stored values of principals; read only when there are some.
-  const principals = useQuery({
-    ...principalDirectoryQuery(),
-    enabled: !!overrides.data?.some((o) => o.scope === 'user'),
-  });
+  // Names for the stored values, by key and id (every member may read them).
+  const people = usePeopleNames(
+    (overrides.data ?? [])
+      .filter((o) => o.scope === 'user')
+      .map((o) => o.scopeId),
+  );
+  const teamNames = useTeamNames(
+    (overrides.data ?? [])
+      .filter((o) => o.scope === 'team')
+      .map((o) => o.scopeId),
+  );
   const scopeOptions = setting.scopes.map((scope) => ({
     value: scope,
     label: t(`scope.${scope}`),
@@ -72,10 +79,12 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
   }));
   const nameOf = (scope: Scope, scopeId: string) => {
     if (scope === 'team') {
-      return teamOptions.find((o) => o.value === scopeId)?.label;
+      return (
+        teamOptions.find((o) => o.value === scopeId)?.label ??
+        teamNames.get(scopeId)
+      );
     }
-    const principal = principals.data?.find((p) => p.key === scopeId);
-    return principal && principalLabel(principal);
+    return people.get(scopeId);
   };
   const hint = boundsHint(setting, t);
 
