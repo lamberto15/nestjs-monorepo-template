@@ -26,6 +26,8 @@ export type PanelCapabilities = {
   attachments: boolean;
   tags: boolean;
   revisions: boolean;
+  /** PDF documents of the record; off unless a test asks. */
+  pdf?: boolean;
 };
 
 export const EVERY_PANEL: PanelCapabilities = {
@@ -53,7 +55,7 @@ export function panelsDescription(
   return {
     capabilities: {
       ...all,
-      pdf: false,
+      pdf: all.pdf ?? false,
       bulk: false,
       watch: false,
       search: false,
@@ -75,6 +77,7 @@ type Comment = {
   authorName: string | null;
   body: string;
   mentions: string[];
+  mentionNames: Record<string, string | null>;
   editedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -161,6 +164,7 @@ export function panelHandlers(
     authorName: MAYA.name,
     body: '',
     mentions: [],
+    mentionNames: {},
     editedAt: null,
     createdAt: '2026-10-17T09:30:00.000Z',
     updatedAt: '2026-10-17T09:30:00.000Z',
@@ -204,6 +208,9 @@ export function panelHandlers(
     http.post(`${route}/comments`, async ({ params, request }) => {
       const body = (await request.json()) as { body: string };
       calls.commented.push({ id: params.id as string, body });
+      const ids = [...body.body.matchAll(/@user:([0-9a-f-]{36})/g)].map(
+        (m) => m[1]!,
+      );
       const comment: Comment = {
         id: `n${comments.length}`,
         subject,
@@ -211,7 +218,14 @@ export function panelHandlers(
         author: `user:${signedInUser.user.id}`,
         authorName: signedInUser.user.name,
         body: body.body,
-        mentions: [],
+        mentions: ids.map((id) => `user:${id}`),
+        // As the API answers: each mentioned person's name, null if unknown.
+        mentionNames: Object.fromEntries(
+          ids.map((id) => [
+            `user:${id}`,
+            (options.people ?? []).find((p) => p.id === id)?.name ?? null,
+          ]),
+        ),
         editedAt: null,
         createdAt: '2026-10-17T10:00:00.000Z',
         updatedAt: '2026-10-17T10:00:00.000Z',

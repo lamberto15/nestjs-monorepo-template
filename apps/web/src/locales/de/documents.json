@@ -1,0 +1,23 @@
+{
+  "title": "Dokumente",
+  "empty": "Noch keine Dokumente ausgestellt.",
+  "error": "Die Dokumente konnten nicht geladen werden.",
+  "issue": "PDF ausstellen",
+  "language": "Sprache",
+  "issuedAt": "Ausgestellt",
+  "byYou": "Von Ihnen",
+  "byOther": "Von jemand anderem",
+  "byAnonymized": "Von einem gelöschten Konto",
+  "download": "{{name}} herunterladen",
+  "downloadShort": "Herunterladen",
+  "pending": "Dieses Dokument wird bereits erstellt. Es erscheint hier.",
+  "unavailable": "PDF-Dokumente sind gerade nicht verfügbar: Sie sind abgeschaltet oder der PDF-Dienst ist nicht erreichbar. Bitte versuchen Sie es später erneut.",
+  "status": {
+    "progressLabel": "Dokument wird ausgestellt",
+    "queued": "Wartet auf die Erstellung …",
+    "rendering": "PDF wird erstellt …",
+    "failed": "Das Dokument konnte nicht erstellt werden.",
+    "error": "Der Status des Dokuments konnte nicht geladen werden.",
+    "dismiss": "Schließen"
+  }
+}

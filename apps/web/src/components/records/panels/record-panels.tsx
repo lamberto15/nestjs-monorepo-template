@@ -6,13 +6,14 @@ import {
 } from '@nestjs-monorepo-template/ui/components/tabs';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useCan, type Permission } from '@/lib/features';
+import { useCan, useFeature, type Permission } from '@/lib/features';
 import { useListDescription } from '@/lib/list-query';
 import { useRealtimeEvent } from '@/lib/realtime';
 import type { Tag } from '@/lib/tags';
 import { panelKeys } from './api';
 import { AttachmentsPanel } from './attachments-panel';
 import { CommentsPanel } from './comments-panel';
+import { DocumentsPanel } from './documents-panel';
 import { RevisionsPanel } from './revisions-panel';
 import { TagsPanel } from './tags-panel';
 
@@ -35,6 +36,9 @@ import { TagsPanel } from './tags-panel';
  * tag change or a restore. Uploads are held to the list's
  * `attachmentLimits`.
  *
+ * The documents tab (a PDF of the record: docs/documents.md) needs the
+ * subject's `pdf` capability and the `documents` feature.
+ *
  * The realtime events of the record (`record.commented`,
  * `record.attachments.changed`: docs/webhooks-and-realtime.md, "Record
  * events") reload its comments or attachments.
@@ -47,6 +51,8 @@ export function RecordPanels(props: {
   canUpdate?: boolean;
 }) {
   const { t } = useTranslation('records');
+  const { t: tDocuments } = useTranslation('documents');
+  const documentsOn = useFeature('documents');
   const queryClient = useQueryClient();
   const canRead = useCan(`${props.subject}.read` as Permission);
   const mayUpdate = useCan(`${props.subject}.update` as Permission);
@@ -80,7 +86,12 @@ export function RecordPanels(props: {
     capabilities.comments && 'comments',
     capabilities.attachments && attachmentLimits && 'attachments',
     capabilities.revisions && 'revisions',
-  ].filter((tab): tab is 'comments' | 'attachments' | 'revisions' => !!tab);
+    // PDFs: the subject has them and the deployment has Gotenberg.
+    capabilities.pdf && documentsOn && 'documents',
+  ].filter(
+    (tab): tab is 'comments' | 'attachments' | 'revisions' | 'documents' =>
+      !!tab,
+  );
 
   if (!capabilities.tags && tabs.length === 0) {
     return null;
@@ -108,7 +119,7 @@ export function RecordPanels(props: {
           <TabsList>
             {tabs.map((tab) => (
               <TabsTrigger key={tab} value={tab}>
-                {t(`${tab}.title`)}
+                {tab === 'documents' ? tDocuments('title') : t(`${tab}.title`)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -139,6 +150,11 @@ export function RecordPanels(props: {
                 id={props.id}
                 canRestore={canUpdate}
               />
+            </TabsContent>
+          )}
+          {capabilities.pdf && documentsOn && (
+            <TabsContent value="documents" className="pt-4">
+              <DocumentsPanel base={props.path} id={props.id} />
             </TabsContent>
           )}
         </Tabs>

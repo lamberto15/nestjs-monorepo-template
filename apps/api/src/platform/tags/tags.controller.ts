@@ -29,13 +29,13 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { ListQuery } from '../../core/http/list-query.js';
-import { pageSchema } from '../../core/http/pagination.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { TAG_LIST } from './tag.list.js';
 import {
   type CreateTagDto,
   createTagSchema,
+  tagPageSchema,
   tagSchema,
   type UpdateTagDto,
   updateTagSchema,
@@ -65,7 +65,7 @@ export class TagsController {
     description:
       'Every subject unless `?subject=Note` (or `subject.in=`); `?name.contains=urg`, `?name=Urgent` (whatever the case); `?sort=name`. Cursor pages.',
   })
-  @ApiOkResponse({ standardSchema: pageSchema(tagSchema) })
+  @ApiOkResponse({ standardSchema: tagPageSchema })
   async list(@Query({ schema: TAG_LIST.schema }) query: ListQuery) {
     return TAG_LIST.pick(await this.tags.list(query), query);
   }

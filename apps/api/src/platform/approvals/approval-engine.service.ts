@@ -9,6 +9,7 @@ import {
   eq,
   gt,
   inArray,
+  ne,
   isNull,
   lte,
   notInArray,
@@ -1193,6 +1194,49 @@ export class ApprovalEngine {
   }
 
   /**
+   * `approval.applied` to the requester and the approvers who took part in
+   * the round, the audience of `approval.decided` (nobody else, so it never
+   * reaches someone who can't read the request). Best effort: a failure is
+   * logged, the outcome is applied and the field says so.
+   */
+  private async pushApplied(row: ApprovalRequestRow) {
+    try {
+      const assignments = await this.db
+        .select({ approverId: approvalAssignments.approverId })
+        .from(approvalAssignments)
+        .where(
+          and(
+            eq(approvalAssignments.requestId, row.id),
+            eq(approvalAssignments.round, row.round),
+            ne(approvalAssignments.status, 'closed'),
+          ),
+        );
+      const event = {
+        id: row.id,
+        subject: row.subject,
+        recordId: row.recordId,
+        outcomeAppliedAt: row.outcomeAppliedAt!.toISOString(),
+      };
+      this.realtime.toPrincipal(
+        requesterOf(row.requester),
+        APPROVAL_REALTIME.applied,
+        event,
+      );
+      for (const approverId of new Set(assignments.map((a) => a.approverId))) {
+        this.realtime.toPrincipal(
+          { kind: 'user', id: approverId },
+          APPROVAL_REALTIME.applied,
+          event,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Telling that approval ${row.id} was applied failed: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  /**
    * Runs the feature's handler of round `round`'s outcome (a workflow
    * step: at least once, so handlers are idempotent), then notes when it
    * did. Approved, the record's fingerprint is compared first: a record
@@ -1279,7 +1323,7 @@ export class ApprovalEngine {
       }
     });
     if (sameRound && concluded !== 'changes_requested') {
-      await this.db
+      const [applied] = await this.db
         .update(approvalRequests)
         .set({ outcomeAppliedAt: new Date() })
         .where(
@@ -1291,7 +1335,14 @@ export class ApprovalEngine {
             // an approval abandoned meanwhile isn't marked applied.
             eq(approvalRequests.status, concluded),
           ),
-        );
+        )
+        .returning();
+      // Only the attempt that set it tells (a retry matches no row), after
+      // the update committed; an attempt dying in between loses the push,
+      // never the field, which the page reads.
+      if (applied && concluded === 'approved') {
+        await this.pushApplied(applied);
+      }
     }
     return concluded;
   }

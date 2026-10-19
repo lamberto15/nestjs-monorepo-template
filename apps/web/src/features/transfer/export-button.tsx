@@ -24,13 +24,7 @@ import { Link } from '@tanstack/react-router';
 import { DownloadIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useMe } from '@/lib/features';
-import {
-  catalogQuery,
-  remember,
-  startExport,
-  type TransferFormat,
-} from './api';
+import { catalogQuery, startExport, type TransferFormat } from './api';
 import { TransferStatus } from './transfer-status';
 
 /**
@@ -43,7 +37,6 @@ export function ExportButton(props: {
   filters: Record<string, string>;
 }) {
   const { t } = useTranslation('transfer');
-  const me = useMe();
   const catalog = useQuery({ ...catalogQuery, meta: { errorToast: false } });
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<TransferFormat>('csv');
@@ -57,14 +50,6 @@ export function ExportButton(props: {
       }),
     onSuccess: (started) => {
       setJobId(started.id);
-      if (me) {
-        remember(me.user.id, {
-          id: started.id,
-          kind: 'export',
-          name: props.exporter,
-          at: new Date().toISOString(),
-        });
-      }
     },
   });
 

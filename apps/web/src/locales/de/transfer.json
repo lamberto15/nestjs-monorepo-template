@@ -2,7 +2,8 @@
   "nav": "Exporte und Importe",
   "kind": {
     "export": "Export",
-    "import": "Import"
+    "import": "Import",
+    "bulk": "Massenlauf"
   },
   "formats": {
     "csv": "CSV",
@@ -24,8 +25,18 @@
   "mine": {
     "title": "Exporte und Importe",
     "import": "Datei importieren",
-    "description": "Die in diesem Browser gestarteten Exporte und Importe. Ein Download-Link gilt 30 Minuten nach Erstellung der Datei; öffnen Sie den Export erneut für einen neuen.",
-    "empty": "Noch nichts. Exportieren Sie aus einer Liste oder importieren Sie eine Datei."
+    "description": "Ihre Exporte, Importe und Massenläufe in diesem Mandanten, auf jedem Gerät. Ein Download-Link gilt 30 Minuten nach Erstellung der Datei; öffnen Sie den Export erneut für einen neuen.",
+    "empty": "Noch nichts. Exportieren Sie aus einer Liste oder importieren Sie eine Datei.",
+    "more": "Mehr anzeigen",
+    "error": "Die Liste konnte nicht geladen werden.",
+    "bulkTitle": "Massenläufe",
+    "filter": {
+      "label": "Anzeigen",
+      "all": "Alle",
+      "export": "Exporte",
+      "import": "Importe",
+      "bulk": "Massenläufe"
+    }
   },
   "import": {
     "action": "Importieren",
@@ -72,5 +83,11 @@
     "failed": "Fehlgeschlagen. Versuchen Sie es erneut.",
     "notFound": "Diese Übertragung ist nicht mehr verfügbar.",
     "error": "Ihr Status konnte nicht geladen werden."
+  },
+  "bulk": {
+    "queued": "Wartet auf einen Worker…",
+    "running": "Läuft… {{count}} bisher verarbeitet.",
+    "result": "{{done}} erledigt, {{failed}} fehlgeschlagen, {{skipped}} übersprungen.",
+    "failed": "Der Lauf wurde abgebrochen."
   }
 }

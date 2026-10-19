@@ -457,6 +457,31 @@ pages, ETags. Usage, the bell-icon recipe included:
   request on `main` turns them into its version and `CHANGELOG.md`. CI
   reports a client change without one ([releases](releases.md), "The typed
   client").
+- **The record panels' shared shapes are named components.** Every feature's
+  `…/{id}/comments`, `/attachments`, `/tags` and `/revisions` answer the same
+  shapes, so the document has them once, as `components.schemas`, and each
+  route `$ref`s them: `Comment`, `CommentPage`, `Attachment`, `AttachmentPage`,
+  `TagRef`, `TagRefList`, `Revision`, `RevisionPage`, `RevisionDiff` (and the
+  `/v1/tags` ones, `Tag` and `TagPage`). They are there in every project, even
+  when no feature has a panel (after `pnpm feature:remove` of the last one), so
+  a frontend types its panels from them, not from whichever feature's route
+  exists:
+
+  ```ts
+  import type { components } from '@nestjs-monorepo-template/api-client';
+
+  type Comment = components['schemas']['Comment'];
+  type CommentPage = components['schemas']['CommentPage']; // { items: Comment[]; nextCursor; … }
+  type Revision = components['schemas']['Revision'];
+  type RevisionDiff = components['schemas']['RevisionDiff'];
+  ```
+
+  To name another shape shared by several routes, give its Zod schema
+  `.meta({ id: 'Name' })` (as `commentSchema` does): `@nestjs/swagger` moves
+  the schema's definitions into `components.schemas` and the routes reference
+  them. A component no route uses is left out of the document: list it in
+  `PANEL_COMPONENT_SCHEMAS` (`platform/records/panel-components.ts`) to have it
+  always, and add it to `PANEL_COMPONENTS` in `test/openapi.e2e-spec.ts`.
 - A new realtime event (`Realtime.toPrincipal()`) goes into `RealtimeEvents`
   (`packages/api-client/src/realtime.ts`).
 - `pnpm --filter @nestjs-monorepo-template/api-client build` compiles it on

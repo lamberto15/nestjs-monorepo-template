@@ -1,6 +1,7 @@
 import {
   etagOf,
   unwrap,
+  type GetResponse,
   type paths,
 } from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
@@ -22,6 +23,7 @@ type Suffix =
   | '/comments/{commentId}'
   | '/attachments'
   | '/tags'
+  | '/pdf'
   | '/revisions'
   | '/revisions/{number}/restore'
   | '/revisions/{a}/diff/{b}';
@@ -89,6 +91,8 @@ const call = <T>(
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 
+export type IssuedDocument = GetResponse<'/v1/documents/{id}'>;
+
 export const panelKeys = {
   all: (base: string, id: string) => ['panels', base, id] as const,
   comments: (base: string, id: string) =>
@@ -97,6 +101,7 @@ export const panelKeys = {
     ['panels', base, id, 'attachments'] as const,
   revisions: (base: string, id: string) =>
     ['panels', base, id, 'revisions'] as const,
+  document: (id: string) => ['panels', 'document', id] as const,
   diff: (base: string, id: string, a: number, b: number) =>
     ['panels', base, id, 'revisions', 'diff', a, b] as const,
 };
@@ -246,3 +251,19 @@ export async function restoreRevision(
     etag: etagOf(result),
   };
 }
+
+/**
+ * Asks for the record's PDF in `lang` (`POST <base>/pdf?lang=`, docs/documents.md):
+ * 202 with the document's id, a worker renders it. A new `Idempotency-Key`
+ * goes with every POST (the client); asking again is a new document.
+ */
+export const issueDocument = (base: string, id: string, lang: string) =>
+  unwrap(
+    call<{ id: string; status: 'queued' }>('POST', base, '/pdf', {
+      params: { path: { id }, query: { lang } },
+    }),
+  );
+
+/** `GET /v1/documents/{id}`: the job's state, then the issued PDF. */
+export const documentStatus = (id: string) =>
+  unwrap(api.GET('/v1/documents/{id}', { params: { path: { id } } }));
