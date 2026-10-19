@@ -38,11 +38,11 @@ const delivery = (id: string, extra: object = {}) => ({
   status: 'failed',
   attempts: 3,
   nextAttemptAt: null,
-  lastAttemptAt: Date.parse('2026-10-11T08:00:00Z'),
+  lastAttemptAt: '2026-10-11T08:00:00.000Z',
   lastStatusCode: 500,
   lastError: null,
   failureReason: 'exhausted',
-  createdAt: Date.parse('2026-10-11T07:00:00Z'),
+  createdAt: '2026-10-11T07:00:00.000Z',
   completedAt: null,
   ...extra,
 });
