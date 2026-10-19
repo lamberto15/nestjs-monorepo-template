@@ -16,7 +16,7 @@ import { fromDraft, groupOf, overrideBody, toDraft } from './settings';
 
 const admin = {
   ...signedInUser,
-  can: { 'Access.manageSettings': true },
+  can: { 'Access.manageSettings': true, 'Access.manageUsers': true },
 };
 
 // A setting as GET /v1/settings describes it (docs/settings.md): its type,
@@ -111,11 +111,7 @@ function api(me: object, list: object[] = items) {
     http.get('/v1/settings/:key/overrides', () =>
       HttpResponse.json({ items: [] }),
     ),
-    http.get('/v1/access/teams', () =>
-      HttpResponse.json({
-        items: [{ id: 'team-1', name: 'Editors', parentId: null, depth: 0 }],
-      }),
-    ),
+    teamsHandler([{ id: 'team-1', name: 'Editors' }]),
     principalsHandler([GRACE, BILLING]),
   );
 }
@@ -363,6 +359,43 @@ describe('admin settings', () => {
     await user.type(input, '5m');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(body).toEqual({ scope: 'tenant', value: '5m' }));
+  });
+
+  it('searches members, never the principals, for whoever only manages settings', async () => {
+    const settingsOnly = {
+      ...signedInUser,
+      can: { 'Access.manageSettings': true },
+    };
+    api(settingsOnly);
+    const refused: string[] = [];
+    server.use(
+      http.get('/v1/access/principals', () => {
+        refused.push('/v1/access/principals');
+        return HttpResponse.json(
+          { status: 403, code: 'forbidden' },
+          { status: 403 },
+        );
+      }),
+      http.get('/v1/access/teams', () => {
+        refused.push('/v1/access/teams');
+        return HttpResponse.json(
+          { status: 403, code: 'forbidden' },
+          { status: 403 },
+        );
+      }),
+      peopleHandler([{ id: GRACE.id, name: 'Grace Hopper' }]),
+    );
+    const { user, dialog } = await open('Rich text editor');
+    await user.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
+    await user.click(await screen.findByRole('option', { name: 'User' }));
+    const picker = await within(dialog).findByRole('combobox', {
+      name: 'User',
+    });
+    await user.click(picker);
+    expect(
+      await screen.findByRole('option', { name: /Grace Hopper/ }),
+    ).toBeVisible();
+    expect(refused).toEqual([]);
   });
 
   it('saves a flag for a team', async () => {
