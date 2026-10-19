@@ -24,7 +24,7 @@ import {
   type Comment,
 } from './api';
 import { CommentText } from './comment-text';
-import { usePeople, type Person } from './users';
+import { usePeople } from './users';
 
 /** The API's limit (docs/comments.md): 1 to 10 000 characters. */
 const MAX_LENGTH = 10_000;
@@ -33,8 +33,7 @@ const MAX_LENGTH = 10_000;
  * The text box: typing `@` offers the tenant's people (`GET /v1/people?q=`,
  * searched by name as the user types); choosing one writes `@user:<id>` into
  * the text, which is what the API reads (docs/comments.md). The body sent is
- * exactly the text. `onPicked` hears of each person chosen, so the thread
- * can name them.
+ * exactly the text; the API names the people mentioned (`mentionNames`).
  */
 function CommentEditor(props: {
   initial?: string;
@@ -43,7 +42,6 @@ function CommentEditor(props: {
   placeholder: string;
   busy: boolean;
   onSubmit: (body: string) => Promise<unknown>;
-  onPicked: (person: Person) => void;
   onCancel?: () => void;
 }) {
   const { t } = useTranslation('records');
@@ -73,12 +71,7 @@ function CommentEditor(props: {
       <Mention
         trigger="@"
         value={mentions}
-        onValueChange={(keys) => {
-          setMentions(keys);
-          for (const person of people) {
-            if (keys.includes(person.key)) props.onPicked(person);
-          }
-        }}
+        onValueChange={setMentions}
         inputValue={text}
         onInputValueChange={setText}
         disabled={props.busy}
@@ -151,8 +144,6 @@ function CommentItem(props: {
   comment: Comment;
   base: string;
   recordId: string;
-  names: ReadonlyMap<string, string>;
-  onPicked: (person: Person) => void;
   canModerate: boolean;
   refresh: () => Promise<unknown>;
 }) {
@@ -191,7 +182,6 @@ function CommentItem(props: {
       {editing ? (
         <CommentEditor
           initial={comment.body}
-          onPicked={props.onPicked}
           label={t('comments.editLabel')}
           placeholder={t('comments.placeholder')}
           submit={t('save')}
@@ -200,11 +190,7 @@ function CommentItem(props: {
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <CommentText
-          body={comment.body}
-          names={props.names}
-          unknown={t('comments.someone')}
-        />
+        <CommentText body={comment.body} names={comment.mentionNames} />
       )}
       {!editing && (own || props.canModerate) && (
         <div className="flex gap-1">
@@ -244,8 +230,7 @@ function CommentItem(props: {
  *
  * It reloads when `record.commented` arrives for the record (RecordPanels
  * listens); without realtime (switched off, or not connected) it polls.
- * A mention `@user:<id>` shows the person's name when it is known: the
- * thread's authors, the people the autocomplete offered, the user.
+ * A mention `@user:<id>` shows the name the API gives (`mentionNames`).
  */
 export function CommentsPanel(props: {
   base: string;
@@ -255,9 +240,6 @@ export function CommentsPanel(props: {
   const { t } = useTranslation('records');
   const queryClient = useQueryClient();
   const live = useRealtime() !== undefined;
-  const me = useMe()?.user;
-  const offered = usePeople('').data;
-  const [picked, setPicked] = useState<ReadonlyMap<string, string>>(new Map());
   const key = panelKeys.comments(props.base, props.id);
   const query = useQuery({
     queryKey: key,
@@ -269,20 +251,6 @@ export function CommentsPanel(props: {
     mutationFn: (body: string) => addComment(props.base, props.id, body),
     onSuccess: refresh,
   });
-  const remember = (person: Person) =>
-    setPicked((current) =>
-      current.get(person.key) === person.name
-        ? current
-        : new Map(current).set(person.key, person.name),
-    );
-
-  const names = new Map<string, string>();
-  for (const person of offered ?? []) names.set(person.key, person.name);
-  for (const comment of query.data ?? []) {
-    if (comment.authorName) names.set(comment.author, comment.authorName);
-  }
-  for (const [key, name] of picked) names.set(key, name);
-  if (me?.name) names.set(`user:${me.id}`, me.name);
 
   return (
     <div className="flex flex-col gap-4">
@@ -305,8 +273,6 @@ export function CommentsPanel(props: {
               comment={comment}
               base={props.base}
               recordId={props.id}
-              names={names}
-              onPicked={remember}
               canModerate={props.canModerate}
               refresh={refresh}
             />
@@ -319,7 +285,6 @@ export function CommentsPanel(props: {
         submit={t('comments.add')}
         busy={add.isPending}
         onSubmit={(body) => add.mutateAsync(body)}
-        onPicked={remember}
       />
     </div>
   );

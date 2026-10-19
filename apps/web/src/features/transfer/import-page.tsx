@@ -41,11 +41,9 @@ import { DownloadIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useMe } from '@/lib/features';
 import { formatSize } from '@/components/records/panels/attachments-panel';
 import {
   catalogQuery,
-  remember,
   startImport,
   templateUrl,
   type TransferFormat,
@@ -63,7 +61,6 @@ export const IMPORT_MAX_BYTES = 50 * 1024 * 1024;
  */
 export function ImportPage(props: { name?: string }) {
   const { t, i18n } = useTranslation('transfer');
-  const me = useMe();
   const catalog = useQuery({ ...catalogQuery, meta: { errorToast: false } });
   const [chosen, setChosen] = useState(props.name);
   const [files, setFiles] = useState<File[]>([]);
@@ -76,15 +73,7 @@ export function ImportPage(props: { name?: string }) {
       startImport(input, setPercent),
     onMutate: () => setPercent(0),
     onSettled: () => setPercent(undefined),
-    onSuccess: (started, input) => {
-      if (me) {
-        remember(me.user.id, {
-          id: started.id,
-          kind: 'import',
-          name: input.name,
-          at: new Date().toISOString(),
-        });
-      }
+    onSuccess: (started) => {
       setJobId(started.id);
     },
   });

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { AppModule } from '../src/app.module.js';
+import { AppModule, createAppModule } from '../src/app.module.js';
 import { FEATURES } from '../src/features/index.js';
+import { TEST_ITEMS_FEATURE } from './fixtures/test-items/test-items.feature.js';
 import { bootApp, type TestApp } from './support.js';
 
 /** Whether a path belongs to a feature (features/index.ts): its tag's routes or its incoming webhooks. */
@@ -16,6 +17,21 @@ function isFeaturePath(path: string) {
     return bases.some((base) => path === base || path.startsWith(`${base}/`));
   });
 }
+
+/** The components the record panels share (src/platform/records/panel-components.ts). */
+const PANEL_COMPONENTS = [
+  'Comment',
+  'CommentPage',
+  'Attachment',
+  'AttachmentPage',
+  'Tag',
+  'TagPage',
+  'TagRef',
+  'TagRefList',
+  'Revision',
+  'RevisionPage',
+  'RevisionDiff',
+];
 
 describe('OpenAPI document (e2e)', () => {
   let node: TestApp;
@@ -191,6 +207,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/subscriptions/{subject}/{recordId}',
         '/v1/tags',
         '/v1/tags/{id}',
+        '/v1/teams',
         '/v1/tenants',
         '/v1/usage',
         '/v1/webhook-deliveries',
@@ -243,5 +260,90 @@ describe('OpenAPI document (e2e)', () => {
       'user-session',
       'user-token',
     ]);
+  });
+});
+
+describe("OpenAPI document: the record panels' components (e2e)", () => {
+  type Document = {
+    paths: Record<string, Record<string, any>>;
+    components: { schemas: Record<string, any> };
+  };
+  let withItems: TestApp;
+  let bare: TestApp;
+  let full: Document;
+  let none: Document;
+
+  beforeAll(async () => {
+    // The test-only record has every panel; the other app has no feature.
+    withItems = await bootApp(undefined, undefined, {
+      module: createAppModule([TEST_ITEMS_FEATURE]),
+    });
+    bare = await bootApp(undefined, undefined, {
+      module: createAppModule([]),
+    });
+    full = (await withItems.http().get('/api-json').expect(200)).body;
+    none = (await bare.http().get('/api-json').expect(200)).body;
+  });
+
+  afterAll(async () => {
+    await withItems.close();
+    await bare.close();
+  });
+
+  const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+  const response = (path: string, method: string, status = '200') =>
+    full.paths[path][method].responses[status].content['application/json']
+      .schema;
+
+  it("names the panels' shapes, which a feature's routes reference", () => {
+    for (const name of PANEL_COMPONENTS) {
+      expect(full.components.schemas[name]).toBeDefined();
+    }
+    const base = '/v1/test-items/{id}';
+    expect(response(`${base}/comments`, 'get')).toEqual(ref('CommentPage'));
+    expect(response(`${base}/comments`, 'post', '201')).toEqual(ref('Comment'));
+    expect(response(`${base}/comments/{commentId}`, 'patch')).toEqual(
+      ref('Comment'),
+    );
+    expect(response(`${base}/attachments`, 'get')).toEqual(
+      ref('AttachmentPage'),
+    );
+    expect(response(`${base}/attachments`, 'post', '201')).toEqual(
+      ref('Attachment'),
+    );
+    expect(response(`${base}/tags`, 'put')).toEqual(ref('TagRefList'));
+    expect(response(`${base}/revisions`, 'get')).toEqual(ref('RevisionPage'));
+    expect(response(`${base}/revisions/{number}`, 'get')).toEqual(
+      ref('Revision'),
+    );
+    expect(response(`${base}/revisions/{a}/diff/{b}`, 'get')).toEqual(
+      ref('RevisionDiff'),
+    );
+    expect(response('/v1/tags', 'get')).toEqual(ref('TagPage'));
+    // The pages hold the item components, not copies of them.
+    expect(full.components.schemas.CommentPage).toMatchObject({
+      properties: { items: { items: ref('Comment') } },
+    });
+  });
+
+  it('has them though no route uses them (no feature has a panel)', () => {
+    expect(
+      Object.keys(none.paths).filter((path) =>
+        /\/\{id\}\/(comments|attachments|revisions|tags)\b/.test(path),
+      ),
+    ).toEqual([]);
+    for (const name of PANEL_COMPONENTS) {
+      expect(none.components.schemas[name]).toBeDefined();
+    }
+  });
+
+  it("has them exactly as a feature's routes emit them", () => {
+    // addPanelComponents() converts them itself: it must not drift from
+    // what @nestjs/swagger makes of the routes' schemas.
+    for (const name of PANEL_COMPONENTS) {
+      expect(none.components.schemas[name]).toEqual(
+        full.components.schemas[name],
+      );
+    }
   });
 });

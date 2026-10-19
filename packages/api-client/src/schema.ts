@@ -1095,10 +1095,30 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Your tenant's people, by name: for @mentions
-         * @description The active members of your tenant whose name contains `q`, by name: each one's key (`user:<id>`, what `@user:<id>` mentions) and name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
+         * Your tenant's people, by name or by key: for @mentions and pickers
+         * @description With `q` (or nothing): the active members of your tenant whose name contains `q`, by name. With `key=user:<id>,client:<id>`: the names of these keys, in the order asked: a member, or a former member (they still own records), or an API client of your tenant; a key your tenant has no one for is left out (no error). Each item is a key (`user:<id>`, what `@user:<id>` mentions and `ownerId` holds) and a name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
          */
         get: operations["PeopleController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your tenant's teams: names and tree, for pickers
+         * @description Every team of your tenant, newest first in cursor pages: its id (what `teamId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these teams (an id your tenant has no team of is left out). For any member; managing teams is /v1/access/teams.
+         */
+        get: operations["TeamDirectoryController_list_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3103,11 +3123,218 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        TagPage: {
+            items: components["schemas"]["Tag"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        Tag: {
+            id: string;
+            /**
+             * @description What it tags: a permission subject, `Note`.
+             * @example Note
+             */
+            subject: string;
+            /** @example Urgent */
+            name: string;
+            /** @description `#rrggbb`. */
+            color: string | null;
+            description: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         Money: {
             /** @description The amount in major units, with exactly the currency’s decimals: "12.30", "1200" (JPY), "1.250" (KWD). */
             amount: string;
             /** @description ISO 4217. */
             currency: string;
+        };
+        TagRef: {
+            id: string;
+            name: string;
+            color: string | null;
+        };
+        CommentPage: {
+            items: components["schemas"]["Comment"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        Comment: {
+            id: string;
+            /** @example Note */
+            subject: string;
+            recordId: string;
+            /** @description Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted. */
+            author: string;
+            /**
+             * @description The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.
+             * @example Maya Patel
+             */
+            authorName: string | null;
+            body: string;
+            /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
+            mentions: string[];
+            /**
+             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
+             * @example {
+             *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
+             *     }
+             */
+            mentionNames: {
+                [key: string]: string | null;
+            };
+            /** Format: date-time */
+            editedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        Attachment: {
+            /** Format: uuid */
+            id: string;
+            /** @example Note */
+            subject: string;
+            /** Format: uuid */
+            recordId: string;
+            /** @example invoice.pdf */
+            name: string;
+            /** @description Bytes. */
+            size: number;
+            /**
+             * @description Detected from the file's bytes.
+             * @example application/pdf
+             */
+            contentType: string;
+            /**
+             * @description `user:<id>`, `client:<id>`, or `anonymized`.
+             * @example user:0199a3f2-…
+             */
+            uploadedBy: string;
+            /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
+            locked: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AttachmentPage: {
+            items: components["schemas"]["Attachment"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        TagRefList: {
+            items: components["schemas"]["TagRef"][];
+        };
+        RevisionPage: {
+            items: components["schemas"]["Revision"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        Revision: {
+            id: string;
+            /** @example Note */
+            subject: string;
+            recordId: string;
+            /** @description 1 for the record's first state, then one more per change. */
+            number: number;
+            /** @description The record's changeable fields after the change (custom values in `custom`); fields your permissions don't include are left out. */
+            snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description What changed, from → to (`custom.<key>` per custom value); null for the first revision.
+             * @example {
+             *       "title": {
+             *         "from": "Draft",
+             *         "to": "Plan"
+             *       }
+             *     }
+             */
+            changes: {
+                [key: string]: {
+                    from: unknown;
+                    to: unknown;
+                };
+            } | null;
+            /** @description The revision this change restored; null for an ordinary change. */
+            restoredFrom: number | null;
+            /** @description Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept. */
+            changedBy: string;
+            /**
+             * @description The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.
+             * @example Maya Patel
+             */
+            changedByName: string | null;
+            /** Format: date-time */
+            changedAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RevisionDiff: {
+            /** @description The older side (`a`). */
+            from: number;
+            /** @description The newer side (`b`). */
+            to: number;
+            /**
+             * @description The fields that differ, from `a`’s value to `b`’s (`custom.<key>` per custom value).
+             * @example {
+             *       "title": {
+             *         "from": "Draft",
+             *         "to": "Plan"
+             *       }
+             *     }
+             */
+            changes: {
+                [key: string]: {
+                    from: unknown;
+                    to: unknown;
+                };
+            };
         };
     };
     responses: never;
@@ -7226,7 +7453,7 @@ export interface operations {
                              */
                             operators: ("eq" | "ne" | "in" | "notIn" | "contains" | "notContains" | "startsWith" | "endsWith" | "gt" | "gte" | "lt" | "lte" | "between" | "isNull")[];
                             /**
-                             * @description What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `team` (GET /v1/access/teams), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`) or a record's subject (`Invoice`: GET its list). Absent for any other field.
+                             * @description What the field's values are ids of, for a picker instead of a text box: `tag` (GET /v1/tags), `team` (GET /v1/teams: search with `q`, name ids with `id=`), `principal` (a user's or an API client's key, `user:<id>` or `client:<id>`: GET /v1/people searches users with `q`, names keys with `key=`) or a record's subject (`Invoice`: GET its list). Absent for any other field.
                              * @example tag
                              */
                             ref?: string;
@@ -7354,8 +7581,10 @@ export interface operations {
     PeopleController_list_v1: {
         parameters: {
             query?: {
-                /** @description Part of the name, any case (`%` and `_` are themselves). Absent: the first by name. */
+                /** @description Part of the name, any case (`%` and `_` are themselves). Absent: the first by name. Not with `key`. */
                 q?: string;
+                /** @description Principal keys to name instead of a search, comma-separated, 20 at most: `user:<id>` (a member, or a former member: they still own records) or `client:<id>` (an API client of your tenant). A key with no name in your tenant is left out of the answer. Not with `q`; `limit` doesn't apply. */
+                key?: string;
                 limit?: number;
                 lang?: string;
             };
@@ -7373,7 +7602,7 @@ export interface operations {
                     "application/json": {
                         items: {
                             /**
-                             * @description The principal key, `user:<id>`: mention them with `@user:<id>`; the key comments (`author`) and revisions (`changedBy`) hold.
+                             * @description The principal key, `user:<id>` (`client:<id>` only when asked for by `key`): mention a user with `@user:<id>`; the key comments (`author`), revisions (`changedBy`) and records (`ownerId`) hold.
                              * @example user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d
                              */
                             key: string;
@@ -7383,7 +7612,75 @@ export interface operations {
                     };
                 };
             };
-            /** @description `q` empty or longer than 100 characters, `limit` over 20. */
+            /** @description `q` empty or longer than 100 characters, `limit` over 20, a `key` that is not `user:<uuid>` or `client:<uuid>`, more than 20 keys, or `q` with `key` (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamDirectoryController_list_v1: {
+        parameters: {
+            query?: {
+                /** @description Part of the team name, any case (`%` and `_` are themselves). */
+                q?: string;
+                /** @description Team ids to name, comma-separated, 100 at most: an id your tenant has no team of is left out of the answer. */
+                id?: string;
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `q` and `id`). */
+                cursor?: string;
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * Format: uuid
+                             * @description What a record's `teamId` holds.
+                             */
+                            id: string;
+                            /** @example North */
+                            name: string;
+                            /**
+                             * Format: uuid
+                             * @description The team it is under; null for a top-level team.
+                             */
+                            parentId: string | null;
+                            /** @description 0 for a top-level team. */
+                            depth: number;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description `q` empty or longer than 100 characters, an `id` that is no UUID, more than 100 ids, `limit` over 100 (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7613,37 +7910,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            /**
-                             * @description What it tags: a permission subject, `Note`.
-                             * @example Note
-                             */
-                            subject: string;
-                            /** @example Urgent */
-                            name: string;
-                            /** @description `#rrggbb`. */
-                            color: string | null;
-                            description: string | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
+                    "application/json": components["schemas"]["TagPage"];
                 };
             };
             /** @description No valid API key or session. */
@@ -7691,23 +7958,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        id: string;
-                        /**
-                         * @description What it tags: a permission subject, `Note`.
-                         * @example Note
-                         */
-                        subject: string;
-                        /** @example Urgent */
-                        name: string;
-                        /** @description `#rrggbb`. */
-                        color: string | null;
-                        description: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
+                    "application/json": components["schemas"]["Tag"];
                 };
             };
             /** @description A subject that takes no tags, a colour that is not #rrggbb, a name too long (validation_failed). */
@@ -7805,23 +8056,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        id: string;
-                        /**
-                         * @description What it tags: a permission subject, `Note`.
-                         * @example Note
-                         */
-                        subject: string;
-                        /** @example Urgent */
-                        name: string;
-                        /** @description `#rrggbb`. */
-                        color: string | null;
-                        description: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
+                    "application/json": components["schemas"]["Tag"];
                 };
             };
             /** @description An invalid body (validation_failed). */
@@ -15504,11 +15739,7 @@ export interface operations {
                             /** Format: date-time */
                             publishedAt: string | null;
                             /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                            tags: {
-                                id: string;
-                                name: string;
-                                color: string | null;
-                            }[];
+                            tags: components["schemas"]["TagRef"][];
                             /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                             can?: {
                                 /** @description PATCH would be allowed. */
@@ -15623,11 +15854,7 @@ export interface operations {
                         /** Format: date-time */
                         publishedAt: string | null;
                         /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: {
-                            id: string;
-                            name: string;
-                            color: string | null;
-                        }[];
+                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -15733,11 +15960,7 @@ export interface operations {
                         /** Format: date-time */
                         publishedAt: string | null;
                         /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: {
-                            id: string;
-                            name: string;
-                            color: string | null;
-                        }[];
+                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -15892,11 +16115,7 @@ export interface operations {
                         /** Format: date-time */
                         publishedAt: string | null;
                         /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: {
-                            id: string;
-                            name: string;
-                            color: string | null;
-                        }[];
+                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -15988,11 +16207,7 @@ export interface operations {
                         /** Format: date-time */
                         publishedAt: string | null;
                         /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: {
-                            id: string;
-                            name: string;
-                            color: string | null;
-                        }[];
+                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -16133,51 +16348,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            /** @example Note */
-                            subject: string;
-                            recordId: string;
-                            /** @description Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted. */
-                            author: string;
-                            /**
-                             * @description The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.
-                             * @example Maya Patel
-                             */
-                            authorName: string | null;
-                            body: string;
-                            /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
-                            mentions: string[];
-                            /**
-                             * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
-                             * @example {
-                             *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
-                             *     }
-                             */
-                            mentionNames: {
-                                [key: string]: string | null;
-                            };
-                            /** Format: date-time */
-                            editedAt: string | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
+                    "application/json": components["schemas"]["CommentPage"];
                 };
             };
             /** @description No valid API key or session. */
@@ -16226,37 +16397,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        id: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted. */
-                        author: string;
-                        /**
-                         * @description The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.
-                         * @example Maya Patel
-                         */
-                        authorName: string | null;
-                        body: string;
-                        /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
-                        mentions: string[];
-                        /**
-                         * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
-                         * @example {
-                         *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
-                         *     }
-                         */
-                        mentionNames: {
-                            [key: string]: string | null;
-                        };
-                        /** Format: date-time */
-                        editedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
+                    "application/json": components["schemas"]["Comment"];
                 };
             };
             /** @description An empty body, or longer than 10 000 characters. */
@@ -16354,37 +16495,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        id: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`; `anonymous` once their account was deleted. */
-                        author: string;
-                        /**
-                         * @description The author's name, as every member of the tenant sees it (GET /v1/people); null once their account was deleted (`anonymous`), or for anyone the tenant never had.
-                         * @example Maya Patel
-                         */
-                        authorName: string | null;
-                        body: string;
-                        /** @description The people mentioned (`@<email>` or `@user:<id>` in the body) who may read the record, as `user:<id>`. */
-                        mentions: string[];
-                        /**
-                         * @description The name of each key in `mentions`, as every member of the tenant sees it (GET /v1/people): `{ "user:<id>": "Maya Patel" }`. A person who left the tenant keeps their name, as `authorName` does; null for anyone the tenant never had.
-                         * @example {
-                         *       "user:0f8e3c52-6d1a-4b7e-9c2f-5a4b3d2e1f00": "Maya Patel"
-                         *     }
-                         */
-                        mentionNames: {
-                            [key: string]: string | null;
-                        };
-                        /** Format: date-time */
-                        editedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
+                    "application/json": components["schemas"]["Comment"];
                 };
             };
             /** @description An empty body, or longer than 10 000 characters. */
@@ -16474,48 +16585,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example Note */
-                            subject: string;
-                            /** Format: uuid */
-                            recordId: string;
-                            /** @example invoice.pdf */
-                            name: string;
-                            /** @description Bytes. */
-                            size: number;
-                            /**
-                             * @description Detected from the file's bytes.
-                             * @example application/pdf
-                             */
-                            contentType: string;
-                            /**
-                             * @description `user:<id>`, `client:<id>`, or `anonymized`.
-                             * @example user:0199a3f2-…
-                             */
-                            uploadedBy: string;
-                            /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
-                            locked: boolean;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
+                    "application/json": components["schemas"]["AttachmentPage"];
                 };
             };
             /** @description No valid API key or session. */
@@ -16559,34 +16629,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @example Note */
-                        subject: string;
-                        /** Format: uuid */
-                        recordId: string;
-                        /** @example invoice.pdf */
-                        name: string;
-                        /** @description Bytes. */
-                        size: number;
-                        /**
-                         * @description Detected from the file's bytes.
-                         * @example application/pdf
-                         */
-                        contentType: string;
-                        /**
-                         * @description `user:<id>`, `client:<id>`, or `anonymized`.
-                         * @example user:0199a3f2-…
-                         */
-                        uploadedBy: string;
-                        /** @description An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record. */
-                        locked: boolean;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
+                    "application/json": components["schemas"]["Attachment"];
                 };
             };
             /** @description No valid API key or session. */
@@ -16648,13 +16691,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            name: string;
-                            color: string | null;
-                        }[];
-                    };
+                    "application/json": components["schemas"]["TagRefList"];
                 };
             };
             /** @description An id that is not a Note tag, named by its path (validation_failed). */
@@ -16741,62 +16778,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            /** @example Note */
-                            subject: string;
-                            recordId: string;
-                            /** @description 1 for the record's first state, then one more per change. */
-                            number: number;
-                            /** @description The record's changeable fields after the change (custom values in `custom`); fields your permissions don't include are left out. */
-                            snapshot: {
-                                [key: string]: unknown;
-                            };
-                            /**
-                             * @description What changed, from → to (`custom.<key>` per custom value); null for the first revision.
-                             * @example {
-                             *       "title": {
-                             *         "from": "Draft",
-                             *         "to": "Plan"
-                             *       }
-                             *     }
-                             */
-                            changes: {
-                                [key: string]: {
-                                    from: unknown;
-                                    to: unknown;
-                                };
-                            } | null;
-                            /** @description The revision this change restored; null for an ordinary change. */
-                            restoredFrom: number | null;
-                            /** @description Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept. */
-                            changedBy: string;
-                            /**
-                             * @description The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.
-                             * @example Maya Patel
-                             */
-                            changedByName: string | null;
-                            /** Format: date-time */
-                            changedAt: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
+                    "application/json": components["schemas"]["RevisionPage"];
                 };
             };
             /** @description No valid API key or session. */
@@ -16832,48 +16814,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        id: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @description 1 for the record's first state, then one more per change. */
-                        number: number;
-                        /** @description The record's changeable fields after the change (custom values in `custom`); fields your permissions don't include are left out. */
-                        snapshot: {
-                            [key: string]: unknown;
-                        };
-                        /**
-                         * @description What changed, from → to (`custom.<key>` per custom value); null for the first revision.
-                         * @example {
-                         *       "title": {
-                         *         "from": "Draft",
-                         *         "to": "Plan"
-                         *       }
-                         *     }
-                         */
-                        changes: {
-                            [key: string]: {
-                                from: unknown;
-                                to: unknown;
-                            };
-                        } | null;
-                        /** @description The revision this change restored; null for an ordinary change. */
-                        restoredFrom: number | null;
-                        /** @description Who made the change: `user:<id>` or `client:<id>`; `anonymized` once their account was deleted; `unknown` for the state a record had before revisions were kept. */
-                        changedBy: string;
-                        /**
-                         * @description The name of who made the change, as every member of the tenant sees it (GET /v1/people); null for `anonymized`, `unknown`, or anyone the tenant never had.
-                         * @example Maya Patel
-                         */
-                        changedByName: string | null;
-                        /** Format: date-time */
-                        changedAt: string;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
+                    "application/json": components["schemas"]["Revision"];
                 };
             };
             /** @description No valid API key or session. */
@@ -16910,27 +16851,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** @description The older side (`a`). */
-                        from: number;
-                        /** @description The newer side (`b`). */
-                        to: number;
-                        /**
-                         * @description The fields that differ, from `a`’s value to `b`’s (`custom.<key>` per custom value).
-                         * @example {
-                         *       "title": {
-                         *         "from": "Draft",
-                         *         "to": "Plan"
-                         *       }
-                         *     }
-                         */
-                        changes: {
-                            [key: string]: {
-                                from: unknown;
-                                to: unknown;
-                            };
-                        };
-                    };
+                    "application/json": components["schemas"]["RevisionDiff"];
                 };
             };
             /** @description No valid API key or session. */
@@ -17003,11 +16924,7 @@ export interface operations {
                         /** Format: date-time */
                         publishedAt: string | null;
                         /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: {
-                            id: string;
-                            name: string;
-                            color: string | null;
-                        }[];
+                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */

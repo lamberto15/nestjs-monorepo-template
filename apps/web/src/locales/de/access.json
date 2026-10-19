@@ -6,27 +6,23 @@
   },
   "actions": "Aktionen",
   "cancel": "Abbrechen",
-  "previous": "Zurück",
-  "next": "Weiter",
   "users": {
     "title": "Benutzer",
     "tabs": {
       "members": "Mitglieder",
       "invitations": "Einladungen"
     },
-    "search": "Nach E-Mail suchen",
-    "empty": "Keine Mitglieder gefunden.",
     "columns": {
-      "member": "Mitglied",
       "roles": "Rollen",
-      "status": "Status"
+      "status": "Status",
+      "name": "Name",
+      "email": "E-Mail"
     },
     "status": {
       "active": "Aktiv",
       "inactive": "Entfernt",
       "unverified": "E-Mail nicht bestätigt"
     },
-    "pageOf": "Seite {{page}} von {{pages}} · {{total}} Mitglieder",
     "you": "Sie",
     "since": "Mitglied seit {{date}}",
     "roles": "Rollen",
@@ -51,9 +47,8 @@
       "description": "Ihre Sitzung wird für begrenzte Zeit zu deren Sitzung, und alles, was Sie tun, wird als Handlung von Ihnen in deren Namen aufgezeichnet. Beenden Sie dies über das Banner, um Ihre eigene Sitzung zurückzuerhalten.",
       "confirm": "Identität übernehmen"
     },
-    "allTeams": "Alle Teams",
-    "team": "Team",
-    "readOnly": "Sie können dieses Mitglied sehen. Um dessen Rollen, Teams oder Zugriff zu ändern, brauchen Sie die Berechtigung, Benutzer zu verwalten."
+    "readOnly": "Sie können dieses Mitglied sehen. Um dessen Rollen, Teams oder Zugriff zu ändern, brauchen Sie die Berechtigung, Benutzer zu verwalten.",
+    "open": "Öffnen"
   },
   "grants": {
     "roles": "Rollen",

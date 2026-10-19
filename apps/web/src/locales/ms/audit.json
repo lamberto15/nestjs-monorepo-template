@@ -3,32 +3,19 @@
     "title": "Log audit"
   },
   "title": "Log audit",
-  "filters": {
-    "label": "Penapis",
-    "action": "Tindakan bermula dengan",
-    "actor": "Pelaku",
-    "subject": "Jenis subjek",
-    "from": "Dari",
-    "to": "Hingga",
-    "apply": "Guna",
-    "reset": "Set semula"
-  },
-  "retry": "Cuba lagi",
-  "loading": "Memuatkan…",
   "columns": {
     "at": "Bila",
     "actor": "Pelaku",
     "action": "Tindakan",
-    "target": "Sasaran"
-  },
-  "empty": "Tiada entri.",
-  "page": "Halaman {{page}} daripada {{pages}}",
-  "previous": "Sebelumnya",
-  "next": "Seterusnya",
-  "details": {
-    "toggle": "Papar butiran {{action}}",
-    "actor": "ID pelaku",
+    "targetType": "Subjek",
+    "targetId": "Sasaran",
     "ip": "Alamat IP",
+    "details": "Butiran"
+  },
+  "details": {
+    "open": "Papar butiran",
+    "actor": "Pelaku",
+    "actorId": "ID pelaku",
     "none": "Tiada butiran."
   }
 }

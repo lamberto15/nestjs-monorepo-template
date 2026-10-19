@@ -82,32 +82,6 @@ export const invitationsQuery = queryOptions({
   queryFn: async () => (await unwrap(api.GET('/v1/access/invitations'))).items,
 });
 
-export const MEMBERS_PER_PAGE = 20;
-
-/**
- * One page of the members, newest first; `q` narrows by address, `teamId`
- * to a team's direct members (not those of the teams below it).
- */
-export function membersQuery(page: number, q: string, teamId = '') {
-  return queryOptions({
-    queryKey: [...accessKeys.members, 'page', { page, q, teamId }],
-    queryFn: () =>
-      unwrap(
-        api.GET('/v1/access/users', {
-          params: {
-            query: {
-              page,
-              limit: MEMBERS_PER_PAGE,
-              count: 'true',
-              ...(q && { 'email.contains': q }),
-              ...(teamId && { teamId }),
-            },
-          },
-        }),
-      ),
-  });
-}
-
 /** One member, with their role grants and teams (404: not in this tenant). */
 export function memberQuery(id: string) {
   return queryOptions({
