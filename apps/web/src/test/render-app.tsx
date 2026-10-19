@@ -5,6 +5,7 @@ import { initReactI18next } from 'react-i18next';
 import { resourcesFrom } from '@/i18n';
 import { App, createApp } from '@/app';
 import { featuresQuery, meQuery } from '@/lib/session';
+import { trackClient } from '@/test/app-clients';
 
 /** The whole app (every provider, the router, the error handler) at a path. */
 export async function renderApp(path: string) {
@@ -21,6 +22,7 @@ export async function renderApp(path: string) {
   });
   const history = createMemoryHistory({ initialEntries: [path] });
   const { queryClient, router } = createApp(history);
+  trackClient(queryClient);
   // A test's queries fail fast and visibly (TanStack Query's testing guide):
   // the app's retry of a 5xx would wait seconds before the page shows the error.
   queryClient.setDefaultOptions({
