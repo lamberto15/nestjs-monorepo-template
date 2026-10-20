@@ -85,6 +85,15 @@ Every resource has the same shape and the same routes:
   stay light; `fields=` never removes it; another `include` value is a 400.
   It is about you, not the record: the ETag leaves it out (below). See
   [permissions](permissions.md), "Checking".
+- **Whether you watch it:** `?include=watching` (beside `can`:
+  `?include=can,watching`) on the same two routes adds `watching: true|false`
+  to each record of a feature with the `watch` capability: whether you
+  follow it ([notifications](notifications.md), "Watching records"). A list
+  asks once for its whole page (one query on the page's ids, your own
+  subscriptions in your tenant), so a client needs no
+  `GET /v1/subscriptions` per record. Left out by default; `fields=` never
+  removes it; the ETag leaves it out; on a feature without `watch` it is a
+  400, like any other unknown `include` value.
 - **Routes:** `GET /v1/<x>` (a list), `GET /v1/<x>/{id}`, `POST /v1/<x>`
   (201, with `Idempotency-Key`), `PATCH /v1/<x>/{id}` (only what's sent
   changes; `null` clears), `DELETE /v1/<x>/{id}` (204); actions as

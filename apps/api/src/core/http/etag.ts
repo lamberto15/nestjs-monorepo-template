@@ -32,7 +32,8 @@ const UNTAGGED = Symbol('keys the ETag leaves out');
 /**
  * Marks keys of `value` its ETag leaves out, though the response carries
  * them: a record's `can` (`?include=can`) is about the reader's rights, not
- * the record, so the tag of `GET /{id}?include=can` stays the one a write's
+ * the record (a record's `watching`, `?include=watching`, is about the
+ * reader too), so the tag of `GET /{id}?include=can` stays the one a write's
  * `If-Match` compares (`assertUnchanged()` with the record as shown, no
  * `can`). At any depth: a list's items too.
  */

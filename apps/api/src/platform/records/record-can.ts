@@ -18,11 +18,13 @@ import type { Principal } from '../../iam/auth/principal.js';
  */
 
 /** What `?include=` may ask for. */
-const INCLUDES = ['can'] as const;
+const INCLUDES = ['can', 'watching'] as const;
 
 /** What a request asked to include. */
 export interface RecordInclude {
   can: boolean;
+  /** `watching` (the `watch` capability): whether the reader watches each record. */
+  watching: boolean;
 }
 
 const includeSchema = z
@@ -37,7 +39,7 @@ const includeSchema = z
   )
   .pipe(z.array(z.enum(INCLUDES)));
 
-/** `@Query('include', IncludePipe)`: `?include=can` as `{ can: true }`; another value is a 400. */
+/** `@Query('include', IncludePipe)`: `?include=can,watching` as `{ can: true, watching: true }`; another value is a 400. */
 @Injectable()
 export class IncludePipe implements PipeTransform<unknown, RecordInclude> {
   transform(value: unknown): RecordInclude {
@@ -50,7 +52,10 @@ export class IncludePipe implements PipeTransform<unknown, RecordInclude> {
         })),
       );
     }
-    return { can: parsed.data.includes('can') };
+    return {
+      can: parsed.data.includes('can'),
+      watching: parsed.data.includes('watching'),
+    };
   }
 }
 
@@ -60,8 +65,8 @@ export const includeQuery = (): ApiQueryOptions => ({
   required: false,
   type: String,
   description:
-    '`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`.',
-  example: 'can',
+    '`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. `watching`: each record says whether you watch it (`watching: true`), where records can be watched; any other record type answers 400. Left out, the records carry neither. Combine them with a comma: `can,watching`.',
+  example: 'can,watching',
 });
 
 /** The record actions `can` reports: update and delete, restore with a recycle bin. */
@@ -102,6 +107,17 @@ export const recordCanSchema = (
     .describe(
       'What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.',
     );
+
+/**
+ * A record's `watching` in its response schema (the `watch` capability):
+ * optional, there only with `?include=watching`.
+ */
+export const recordWatchingSchema = z
+  .boolean()
+  .optional()
+  .describe(
+    'Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.',
+  );
 
 /** The fields a record's `can` is checked against: the row as stored. */
 export type CanRow = { id: string; deletedAt?: unknown } & Record<
@@ -166,13 +182,32 @@ export async function recordCan(
 }
 
 /**
- * The shown records with their `can` (by id), left out of their ETag
+ * The shown record with what `?include=` asked for: its `can` (by id) and
+ * its `watching` (the ids the reader watches). Left out of its ETag
  * (`untagged()`): the tag stays the record's, the one `If-Match` compares.
  */
-export function withCan<T extends Record<string, unknown>>(
+export function withIncluded<T extends Record<string, unknown>>(
+  shown: T,
+  included: {
+    can?: Map<string, Record<string, boolean>>;
+    watching?: Set<string>;
+  },
+): T & { can?: Record<string, boolean>; watching?: boolean } {
+  const id = shown.id as string;
+  const extra: { can?: Record<string, boolean>; watching?: boolean } = {};
+  const can = included.can?.get(id);
+  if (can) {
+    extra.can = can;
+  }
+  if (included.watching) {
+    extra.watching = included.watching.has(id);
+  }
+  const keys = Object.keys(extra);
+  return keys.length ? untagged({ ...shown, ...extra }, keys) : shown;
+}
+
+/** `withIncluded()` with only a `can`. */
+export const withCan = <T extends Record<string, unknown>>(
   shown: T,
   can: Map<string, Record<string, boolean>>,
-): T & { can?: Record<string, boolean> } {
-  const flags = can.get(shown.id as string);
-  return flags ? untagged({ ...shown, can: flags }, ['can']) : shown;
-}
+) => withIncluded(shown, { can });

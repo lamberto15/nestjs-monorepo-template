@@ -1,3 +1,4 @@
+import { SubscriptionsService } from '../../../src/platform/subscriptions/subscriptions.service.js';
 import { OutboxRelay } from '@nestjs/outbox';
 import { bootApp, type TestApp } from '../../support.js';
 import { writeNote } from './notes-support.js';
@@ -105,5 +106,94 @@ describe('record subscriptions: watching notes (e2e)', () => {
     await deliver();
     expect((await changes(editor.agent))[0]!.count).toBe(2);
     expect(await changes(node.admin())).toHaveLength(1);
+  });
+
+  it('says whether the reader watches each note (?include=watching): one query for the page, theirs alone', async () => {
+    const editor = await node.user(['editor']);
+    const create = async (agent: ReturnType<TestApp['admin']>, title: string) =>
+      (await writeNote(node, agent, { title, body: '' }).expect(201)).body as {
+        id: string;
+      };
+    // Creators watch from the start: the editor's two are watched by the editor, not the administrator.
+    const first = await create(editor.agent, 'First');
+    const second = await create(editor.agent, 'Second');
+    const mine = await create(node.admin(), 'Mine');
+    const admin = node.admin();
+
+    // Left out, there is no `watching`; asked for, it is the reader's own.
+    const plain = await admin.get(`/v1/notes/${first.id}`).expect(200);
+    expect(plain.body).not.toHaveProperty('watching');
+    const detail = await admin
+      .get(`/v1/notes/${first.id}?include=watching`)
+      .expect(200);
+    expect(detail.body.watching).toBe(false);
+    // About the reader, not the record: the ETag stays the plain one.
+    expect(detail.headers.etag).toBe(plain.headers.etag);
+    expect(
+      (
+        await editor.agent
+          .get(`/v1/notes/${first.id}?include=watching`)
+          .expect(200)
+      ).body.watching,
+    ).toBe(true);
+    expect(
+      (await admin.get(`/v1/notes/${mine.id}?include=watching`).expect(200))
+        .body.watching,
+    ).toBe(true);
+
+    // A list: each item marked, whatever `fields` picks, from one query on the page's ids.
+    const watching = vi.spyOn(node.app.get(SubscriptionsService), 'watching');
+    const page = await admin
+      .get('/v1/notes?include=watching&fields=title&limit=10')
+      .expect(200);
+    const marks = Object.fromEntries(
+      page.body.items.map((item: { id: string; watching: boolean }) => [
+        item.id,
+        item.watching,
+      ]),
+    );
+    expect(marks).toEqual({
+      [first.id]: false,
+      [second.id]: false,
+      [mine.id]: true,
+    });
+    expect(watching).toHaveBeenCalledTimes(1);
+    expect(new Set(watching.mock.calls[0]![2])).toEqual(
+      new Set([first.id, second.id, mine.id]),
+    );
+    // The editor's own subscriptions, beside `can`.
+    const editorsPage = await editor.agent
+      .get('/v1/notes?include=can,watching')
+      .expect(200);
+    expect(
+      editorsPage.body.items.map(
+        (item: { id: string; watching: boolean; can: object }) => [
+          item.id,
+          item.watching,
+          typeof item.can,
+        ],
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        [first.id, true, 'object'],
+        [second.id, true, 'object'],
+      ]),
+    );
+    expect(
+      (await admin.get('/v1/notes').expect(200)).body.items[0],
+    ).not.toHaveProperty('watching');
+
+    // Watching and unwatching show at once.
+    await admin.post(`/v1/notes/${first.id}/watch`).expect(200);
+    expect(
+      (await admin.get(`/v1/notes/${first.id}?include=watching`).expect(200))
+        .body.watching,
+    ).toBe(true);
+    await admin.delete(`/v1/notes/${first.id}/watch`).expect(204);
+    expect(
+      (await admin.get(`/v1/notes/${first.id}?include=watching`).expect(200))
+        .body.watching,
+    ).toBe(false);
+    await admin.get('/v1/notes?include=watchers').expect(400);
   });
 });
