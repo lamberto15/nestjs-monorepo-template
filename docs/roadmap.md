@@ -412,9 +412,10 @@ Planned as:
   `template-without-notes` proves the core stands with the example removed.
 - **One event declaration.** Notifications, webhooks and realtime each declare event
   types today; they become one domain-event declaration with channels, and the
-  generator emits one.
-- **The realtime manifest** goes into the OpenAPI document as `x-realtime-events`, so
-  `client:check` already diffs it and oasdiff (21) catches breaking changes.
+  generator emits one. **Open (#229 follow-up):** only the realtime part is unified.
+- **The realtime manifest** (done, #229): `platform/realtime/realtime-events.ts` goes into
+  the OpenAPI document as `x-realtime-events`, so `client:check` diffs it and oasdiff
+  (21) catches breaking changes; the client's `src/realtime-events.ts` is generated.
 - Events are emitted only through the typed map. Payloads are validated at runtime in
   dev and test only.
 
