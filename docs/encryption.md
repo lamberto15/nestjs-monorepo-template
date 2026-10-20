@@ -130,4 +130,4 @@ The job changes no value anyone sees: no audit entry, no revision.
 - Revisions, audit `changes`, exports and custom fields' JSONB don't consult the
   registry yet; the template declares no encrypted column of its own (the tests'
   fixture `test_encrypted_records` does).
-- Retention rules and legal holds.
+- Retention rules and legal holds are done: [retention.md](retention.md). Retention does not reach revisions, audit `changes`, exports and report files already stored.

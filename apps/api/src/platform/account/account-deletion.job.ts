@@ -10,6 +10,7 @@ import {
 } from '../../core/database/transactions.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
+import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
 import {
   principalKey,
   type SystemPrincipal,
@@ -64,6 +65,7 @@ export class AccountDeletionJob {
     private readonly audit: AuditService,
     private readonly subscriptions: SubscriptionsService,
     private readonly system: SystemContext,
+    private readonly holds: LegalHoldsService,
   ) {}
 
   @Cron('50 3 * * *', {
@@ -79,6 +81,25 @@ export class AccountDeletionJob {
       // Transactions of its own, per tenant and per account; no tenant to start with.
       { transaction: false, tenantId: null },
     );
+  }
+
+  /** Whether a tenant the person belongs to holds their account. */
+  private async heldInAnyTenant(userId: string) {
+    const tenants = await this.db
+      .select({ tenantId: memberships.tenantId })
+      .from(memberships)
+      .where(eq(memberships.userId, userId));
+    for (const { tenantId } of tenants) {
+      const held = await this.system.run(
+        ACCOUNT_DELETION_JOB,
+        async () => (await this.holds.heldAmong('User', [userId])).size > 0,
+        { tenantId, transaction: false },
+      );
+      if (held) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private async deleteDue(system: SystemPrincipal, now: Date) {
@@ -107,6 +128,15 @@ export class AccountDeletionJob {
         continue; // gone already (cascade)
       }
       const key = principalKey(user);
+      // A legal hold on the person (subject `User`) in any of their tenants
+      // keeps the account whole: the request stays open, still cancellable,
+      // and the next night looks again (docs/retention.md).
+      if (await this.heldInAnyTenant(user.id)) {
+        this.logger.warn('Account deletion kept by a legal hold', {
+          userId: user.id,
+        });
+        continue;
+      }
       // Claimed first, under the account's lock: from here on no cancel
       // (signed in, or the mail's link) takes it back, so a cancel never
       // lands between one tenant's erasure and the next. A request cancelled

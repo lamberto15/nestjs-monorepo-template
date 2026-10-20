@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
-import { inArray, lt } from 'drizzle-orm';
+import { and, inArray, lt } from 'drizzle-orm';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../access/system-context.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -16,6 +16,7 @@ import type { IamEnv } from '../iam.env.js';
 import { SOFT_DELETE_PURGE_JOB } from '../iam.jobs.js';
 import { IAM_OPTIONS, type IamOptions } from '../iam.options.js';
 import type { SystemPrincipal } from '../auth/principal.js';
+import { notHeld } from '../holds/legal-holds.tables.js';
 import { RecordPurgeRegistry } from './record-purge.registry.js';
 
 /** Rows deleted per statement: short transactions, no long lock on a large table. */
@@ -30,7 +31,8 @@ const BATCH = 1000;
  * data about them (comments, tags, watchers, revisions: RecordPurgeRegistry)
  * goes in the same transaction, just before. It runs as the system
  * principal (`system:soft-delete-purge`), once per tenant in that tenant's
- * scope (`Tenancy.forEachTenant()`, docs/tenancy.md): each batch's audit
+ * scope (`Tenancy.forEachTenant()`, docs/tenancy.md); a record under a legal
+ * hold is skipped (`notHeld`): each batch's audit
  * entry (`records.purged`, the ids) commits with it, in that tenant's log.
  */
 @Injectable()
@@ -99,7 +101,13 @@ export class SoftDeletePurgeJob {
         const ids = await this.db
           .select({ id: table.id })
           .from(table)
-          .where(lt(table.deletedAt, before))
+          // A record under a legal hold stays in the bin (docs/retention.md).
+          .where(
+            and(
+              lt(table.deletedAt, before),
+              notHeld(resource.subject, table.id),
+            ),
+          )
           .limit(BATCH);
         if (!ids.length) {
           break;

@@ -57,6 +57,16 @@ export class AccessPolicy {
     return manager(user) && this.access.can(user, 'manageTags', 'Access');
   }
 
+  /** Legal holds (iam/holds): records kept whatever a delete, a purge or a retention rule would do. */
+  async manageLegalHolds(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageLegalHolds', 'Access');
+  }
+
+  /** Retention rules (platform/retention): how long a tenant keeps each kind of record. */
+  async manageRetention(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageRetention', 'Access');
+  }
+
   /** Naming series (platform/sequences): the number formats of numbered records, their counters. */
   async manageNamingSeries(user: Principal | null) {
     return (

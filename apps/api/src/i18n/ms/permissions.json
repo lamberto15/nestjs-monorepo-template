@@ -9,6 +9,8 @@
       "manageCustomFields": "Tambah, ubah, susun semula dan nyahaktifkan medan tersuai (medan yang ditambah oleh pentadbir pada nota dan rekod lain)",
       "manageSettings": "Tetapkan tetapan dan bendera ciri untuk semua orang, satu pasukan atau seorang pengguna (platform/settings)",
       "manageTags": "Cipta, namakan semula, warnakan semula dan padam tag yang dibawa oleh rekod (platform/tags)",
+      "manageLegalHolds": "Letakkan dan lepaskan penahanan undang-undang: rekod disimpan walau apa pun yang dilakukan oleh padam, pembersihan atau peraturan pengekalan (iam/holds)",
+      "manageRetention": "Tetapkan berapa lama penyewa menyimpan setiap jenis rekod sebelum ia dibersihkan atau dinyahkenalkan (platform/retention)",
       "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
       "readAudit": "Baca log audit",
@@ -173,6 +175,10 @@
     "reencryption": {
       "label": "Penyulitan semula",
       "description": "Menulis semula nilai tersulit dan indeks buta yang masih di bawah kunci lama dengan kunci semasa, secara berkelompok, setiap jam."
+    },
+    "retention": {
+      "label": "Pengekalan",
+      "description": "Membersihkan atau menyahkenalkan rekod yang melepasi peraturan pengekalan yang dihidupkan penyewa, secara kelompok, melangkau rekod di bawah penahanan undang-undang, setiap malam."
     },
     "messaging": {
       "label": "Penghantaran push dan SMS",

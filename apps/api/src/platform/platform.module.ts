@@ -211,6 +211,11 @@ import { MESSAGING_SETTINGS } from './messaging/messaging.settings.js';
 import { SmsChannel } from './messaging/channels/sms.channel.js';
 import { PushChannel } from './messaging/channels/push.channel.js';
 import { ReencryptionProcessor } from './encryption/reencryption.processor.js';
+import { RetentionController } from './retention/retention.controller.js';
+import { RetentionProcessor } from './retention/retention.processor.js';
+import { RetentionRegistry } from './retention/retention.registry.js';
+import { RetentionScheduler } from './retention/retention.scheduler.js';
+import { RetentionService } from './retention/retention.service.js';
 import { ReencryptionScheduler } from './encryption/reencryption.scheduler.js';
 import { ReencryptionService } from './encryption/reencryption.service.js';
 import { DocumentTemplates } from './documents/document-templates.js';
@@ -405,6 +410,7 @@ export class PlatformModule {
         TagsController,
         NamingSeriesController,
         ViewsController,
+        RetentionController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
         // Email deliverability: the providers' bounces and complaints, the suppression list.
@@ -665,6 +671,11 @@ export class PlatformModule {
         ReencryptionProcessor,
         ReencryptionScheduler,
         ReencryptionMetrics,
+        // Retention rules features declare, run nightly on a queue (docs/retention.md).
+        RetentionRegistry,
+        RetentionService,
+        RetentionProcessor,
+        RetentionScheduler,
       ],
       exports: [
         Realtime,
@@ -697,6 +708,7 @@ export class PlatformModule {
         CommentsService,
         TagsRegistry,
         TagsService,
+        RetentionRegistry,
         RevisionsRegistry,
         RevisionsService,
         ApprovalsRegistry,

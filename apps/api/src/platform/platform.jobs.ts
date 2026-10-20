@@ -152,6 +152,15 @@ export const REENCRYPTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** RetentionScheduler and RetentionProcessor: records past their tenant's retention rules. */
+export const RETENTION_JOB = defineSystemJob({
+  key: 'retention',
+  label: 'Retention',
+  description:
+    'Purges or anonymises the records past the retention rules a tenant turned on, in batches, skipping records under a legal hold, every night.',
+  permissions: [],
+});
+
 /** MessagingProcessor: the SMS and push the notification channels queued. */
 export const MESSAGING_JOB = defineSystemJob({
   key: 'messaging',
@@ -195,6 +204,7 @@ export const PLATFORM_SYSTEM_JOBS = [
   WEBHOOK_DELIVERY_RETENTION_JOB,
   PLATFORM_ANALYTICS_JOB,
   REENCRYPTION_JOB,
+  RETENTION_JOB,
   MESSAGING_JOB,
   MESSAGING_INBOUND_JOB,
   MESSAGING_RETENTION_JOB,
