@@ -59,6 +59,7 @@ import {
   SNS_HTTP,
   SnsGateway,
 } from './deliverability/sns/sns-gateway.js';
+import { MailSuppressionListSource } from './deliverability/suppression.list-source.js';
 import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
 import { SuppressionsController } from './deliverability/suppressions.controller.js';
 import { SuppressionsService } from './deliverability/suppressions.service.js';
@@ -503,6 +504,8 @@ export class PlatformModule {
         ...whenOn('WEBHOOKS', WebhookListSource),
         // The operators' tenants list (GET /v1/lists/Tenant).
         TenantListSource,
+        // The suppression list (GET /v1/lists/MailSuppression), for the operators.
+        MailSuppressionListSource,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,
         // Files attached to records: features register an AttachmentTarget.
