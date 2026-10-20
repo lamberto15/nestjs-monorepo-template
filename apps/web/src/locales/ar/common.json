@@ -216,6 +216,18 @@
       "neverUsed": "لم يُستخدم قط",
       "unsupported": "هذا المتصفح لا يدعم مفاتيح المرور."
     },
+    "identities": {
+      "title": "الحسابات المتصلة",
+      "description": "المزوّدون الذين يمكنك تسجيل الدخول بهم.",
+      "none": "لا توجد حسابات متصلة بعد.",
+      "connectedOn": "متصل في {{date}}",
+      "connect": "ربط {{provider}}",
+      "disconnect": "فصل",
+      "disconnectTitle": "فصل {{provider}}؟",
+      "disconnectDescription": "لن تتمكن بعد الآن من تسجيل الدخول باستخدام {{provider}}.",
+      "unverified": "أكّد عنوان بريدك الإلكتروني لربط حساب.",
+      "failed": "تعذّر ربط الحساب. حاول مرة أخرى."
+    },
     "sessions": {
       "title": "الجلسات",
       "description": "الأماكن التي سُجّل فيها دخول حسابك.",

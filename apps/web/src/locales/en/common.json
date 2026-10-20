@@ -212,6 +212,18 @@
       "neverUsed": "Never used",
       "unsupported": "This browser doesn't support passkeys."
     },
+    "identities": {
+      "title": "Connected accounts",
+      "description": "Providers you can sign in with.",
+      "none": "No accounts connected yet.",
+      "connectedOn": "connected {{date}}",
+      "connect": "Connect {{provider}}",
+      "disconnect": "Disconnect",
+      "disconnectTitle": "Disconnect {{provider}}?",
+      "disconnectDescription": "You will no longer be able to sign in with {{provider}}.",
+      "unverified": "Verify your email address to connect an account.",
+      "failed": "Connecting the account didn't work. Try again."
+    },
     "sessions": {
       "title": "Sessions",
       "description": "Where your account is signed in.",

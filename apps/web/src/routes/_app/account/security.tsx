@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { z } from '@/lib/zod';
+import { IdentitiesSection } from '@/components/account/identities-section';
 import { MfaSection } from '@/components/account/mfa-section';
 import { PasskeysSection } from '@/components/account/passkeys-section';
 import { PasswordSection } from '@/components/account/password-section';
@@ -7,12 +9,21 @@ import { SessionsSection } from '@/components/account/sessions-section';
 import { Feature, useMe } from '@/lib/features';
 
 export const Route = createFileRoute('/_app/account/security')({
+  validateSearch: z.object({
+    // Where connecting a provider sends a refusal back (`?error=…`).
+    error: z
+      .string()
+      .regex(/^[a-z_]{1,64}$/)
+      .optional()
+      .catch(undefined),
+  }),
   component: SecurityPage,
 });
 
 function SecurityPage() {
   const { t } = useTranslation();
   const me = useMe();
+  const search = Route.useSearch();
   // While impersonating, the account's credentials are the user's own:
   // the API refuses changes (and hides the lists), so none are offered.
   if (me?.user.impersonator) {
@@ -35,6 +46,7 @@ function SecurityPage() {
           <Feature name="passkeys">
             <PasskeysSection />
           </Feature>
+          <IdentitiesSection error={search.error} />
           <SessionsSection />
         </>
       )}

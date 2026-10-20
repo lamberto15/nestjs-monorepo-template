@@ -212,6 +212,18 @@
       "neverUsed": "Tidak pernah digunakan",
       "unsupported": "Pelayar ini tidak menyokong kunci laluan."
     },
+    "identities": {
+      "title": "Akaun yang dihubungkan",
+      "description": "Penyedia yang boleh anda gunakan untuk log masuk.",
+      "none": "Belum ada akaun dihubungkan.",
+      "connectedOn": "dihubungkan {{date}}",
+      "connect": "Hubungkan {{provider}}",
+      "disconnect": "Putuskan",
+      "disconnectTitle": "Putuskan {{provider}}?",
+      "disconnectDescription": "Anda tidak lagi boleh log masuk dengan {{provider}}.",
+      "unverified": "Sahkan alamat e-mel anda untuk menghubungkan akaun.",
+      "failed": "Menghubungkan akaun tidak berjaya. Cuba lagi."
+    },
     "sessions": {
       "title": "Sesi",
       "description": "Tempat akaun anda dilog masuk.",
