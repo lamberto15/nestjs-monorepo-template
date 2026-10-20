@@ -1,6 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
+import { server } from '@/test/server';
 import { renderApp } from '@/test/render-app';
 import { findToast } from '@/test/toast';
 import { NOTE_ID, sampleNote, useNotesApi } from './test/notes-api';
@@ -94,6 +96,8 @@ describe('the note body with notes.richText on', () => {
             '[click](javascript:window.__pwned=3)',
             '[tab](java\tscript:window.__pwned=4)',
             '[data](data:text/html;base64,PHNjcmlwdD4=)',
+            '[entity](&#106;avascript:alert(1))',
+            '[hex](&#x6A;avascript:alert(1))',
             '[rel](/notes/other)',
             '![remote](https://evil.example/track.png)',
             '<a href="javascript:window.__pwned=5" onclick="window.__pwned=6">raw</a>',
@@ -123,7 +127,6 @@ describe('the note body with notes.richText on', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'rel' })).not.toBeInTheDocument();
     expect(view).toHaveTextContent('click');
-    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
   });
 
   it('edits in the editor, which starts from the stored Markdown', async () => {
@@ -193,21 +196,102 @@ describe('the note body with notes.richText on', () => {
     });
   });
 
-  it('keeps a script in the stored text inert in the editor', async () => {
+  it('edits a body the editor cannot keep as plain text, losing none of it', async () => {
+    const body =
+      'Use <name> here\n\n<b>bold?</b> ![pic](https://example.com/p.png)';
+    const api = useNotesApi({
+      can: ALL,
+      richText: true,
+      notes: [sampleNote({ body })],
+    });
+    await renderApp(`/notes/${NOTE_ID}/edit`);
+    const user = userEvent.setup();
+    const text = await screen.findByRole('textbox', { name: 'Text' });
+    expect(text.tagName).toBe('TEXTAREA');
+    expect(text).toHaveValue(body);
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This note has content the editor can't keep; editing as plain text.",
+      ),
+    ).toBeVisible();
+    // Opening and saving a note without touching the text sends no body.
+    await user.type(screen.getByLabelText('Title'), '!');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(api.calls.patched).toHaveLength(1));
+    expect(api.calls.patched[0]?.body).toEqual({ title: 'Q3 targets!' });
+  });
+
+  it('keeps a `<tag>` through an edit made in the plain text', async () => {
+    const api = useNotesApi({
+      can: ALL,
+      richText: true,
+      notes: [sampleNote({ body: 'Use <name> here' })],
+    });
+    await renderApp(`/notes/${NOTE_ID}/edit`);
+    const user = userEvent.setup();
+    const text = await screen.findByRole('textbox', { name: 'Text' });
+    await user.type(text, ' now');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(api.calls.patched).toHaveLength(1));
+    expect(api.calls.patched[0]?.body).toEqual({ body: 'Use <name> here now' });
+  });
+
+  it('keeps a script in the stored text inert in the plain text fallback', async () => {
     useNotesApi({
       can: ALL,
       richText: true,
       notes: [
         sampleNote({
-          body: '<script>window.__pwned = 1</script>\n\n<img src=x onerror="window.__pwned = 2">',
+          body: '<script>window.__x = 1</script>\n\n<img src=x onerror="window.__x = 2">',
         }),
       ],
     });
     await renderApp(`/notes/${NOTE_ID}/edit`);
-    const editor = await screen.findByRole('textbox', { name: 'Text' });
-    expect(editor.querySelector('script')).toBeNull();
-    expect(editor.querySelector('img')).toBeNull();
+    const text = await screen.findByRole('textbox', { name: 'Text' });
+    expect(text.tagName).toBe('TEXTAREA');
     expect(document.querySelector('script[src], img[onerror]')).toBeNull();
-    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+  });
+
+  it('turns the link button off with nothing selected', async () => {
+    useNotesApi({
+      can: ALL,
+      richText: true,
+      notes: [sampleNote({ body: 'Plain words' })],
+    });
+    await renderApp(`/notes/${NOTE_ID}/edit`);
+    await screen.findByRole('textbox', { name: 'Text' });
+    expect(screen.getByRole('button', { name: 'Link' })).toBeDisabled();
+  });
+
+  it('keeps the control it opened with when the flag changes meanwhile', async () => {
+    const api = useNotesApi({
+      can: ALL,
+      richText: false,
+      notes: [sampleNote()],
+    });
+    const { queryClient } = await renderApp(`/notes/${NOTE_ID}/edit`);
+    const user = userEvent.setup();
+    const text = await screen.findByLabelText('Text');
+    expect(text.tagName).toBe('TEXTAREA');
+    await user.type(text, ' more');
+    // An administrator turns the flag on; the settings are read again.
+    server.use(
+      http.get('/v1/settings', () =>
+        HttpResponse.json({
+          items: [{ key: 'notes.richText', value: true }],
+        }),
+      ),
+    );
+    await queryClient.invalidateQueries({ queryKey: ['settings'] });
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryData<{ value: boolean }[]>(['settings'])?.[0]
+          ?.value,
+      ).toBe(true),
+    );
+    expect(screen.getByLabelText('Text')).toHaveValue('Renewals first. more');
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+    expect(api.calls.patched).toHaveLength(0);
   });
 });

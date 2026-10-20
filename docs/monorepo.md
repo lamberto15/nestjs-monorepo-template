@@ -279,7 +279,11 @@ and `mailto` links survive (`safe-url.ts`, shared with the editor's link
 button), each `rel="noopener noreferrer"`. Notes use it when the
 `notes.richText` flag ([settings](settings.md)) is on (`useRichText()` in
 `features/notes/use-rich-text.ts`); off, the body stays a plain textarea and
-plain text. In tests, `src/test/setup.ts` gives jsdom the range boxes
+plain text. A body the editor cannot keep whole (a `<name>` placeholder, an
+image, raw HTML: ProseMirror's schema has no place for them) is checked when the
+form opens, by parsing and writing it back, and edited in the plain textarea
+with a notice instead, so opening a note never loses text. The form keeps the
+control it opened with if the flag changes meanwhile. In tests, `src/test/setup.ts` gives jsdom the range boxes
 ProseMirror asks for.
 
 ### Record pages

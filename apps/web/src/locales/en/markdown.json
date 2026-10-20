@@ -12,5 +12,6 @@
   "linkUrl": "Link address",
   "linkInvalid": "Use a web address (https://) or an email address (mailto:).",
   "linkApply": "Apply",
-  "linkRemove": "Remove link"
+  "linkRemove": "Remove link",
+  "plainOnly": "This note has content the editor can't keep; editing as plain text."
 }

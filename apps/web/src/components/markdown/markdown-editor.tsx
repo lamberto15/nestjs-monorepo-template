@@ -1,5 +1,6 @@
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
+import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import {
   Popover,
   PopoverContent,
@@ -9,6 +10,7 @@ import { Toggle } from '@nestjs-monorepo-template/ui/components/toggle';
 import { cn } from '@nestjs-monorepo-template/ui/lib/utils';
 import { Markdown } from '@tiptap/markdown';
 import {
+  Editor as TiptapEditor,
   EditorContent,
   useEditor,
   useEditorState,
@@ -26,7 +28,7 @@ import {
   QuoteIcon,
   StrikethroughIcon,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { markdownStyles } from './markdown-styles';
 import { isSafeUrl } from './safe-url';
@@ -65,6 +67,8 @@ function useActive(editor: Editor) {
       orderedList: current.isActive('orderedList'),
       blockquote: current.isActive('blockquote'),
       link: current.isActive('link'),
+      // Nothing selected and not on a link: there is no text to link.
+      canLink: !current.state.selection.empty || current.isActive('link'),
     }),
   });
 }
@@ -90,7 +94,11 @@ function ToolbarToggle(props: {
   );
 }
 
-function LinkButton(props: { editor: Editor; active: boolean }) {
+function LinkButton(props: {
+  editor: Editor;
+  active: boolean;
+  canLink: boolean;
+}) {
   const { editor, active } = props;
   const { t } = useTranslation('markdown');
   const [open, setOpen] = useState(false);
@@ -119,6 +127,7 @@ function LinkButton(props: { editor: Editor; active: boolean }) {
       }}
     >
       <PopoverTrigger
+        disabled={!props.canLink}
         render={
           <Toggle
             size="sm"
@@ -249,18 +258,22 @@ function Toolbar({ editor }: { editor: Editor }) {
       >
         <QuoteIcon />
       </ToolbarToggle>
-      <LinkButton editor={editor} active={active.link} />
+      <LinkButton
+        editor={editor}
+        active={active.link}
+        canLink={active.canLink}
+      />
     </div>
   );
 }
 
 /**
- * A rich text editor whose value is Markdown. `value` is read once, when the
- * editor mounts (the form that holds it is remounted for a new version);
- * `onChange` gets the Markdown after every edit, and not before one, so a
- * body nobody touched is not rewritten into the editor's own spelling.
+ * The editor itself. `value` is read once, when it mounts (the form that
+ * holds it is remounted for a new version); `onChange` gets the Markdown
+ * after every edit, and not before one, so a body nobody touched is not
+ * rewritten into the editor's own spelling.
  */
-export function MarkdownEditor(props: {
+function RichEditor(props: {
   value: string;
   onChange: (markdown: string) => void;
   onBlur?: () => void;
@@ -308,5 +321,72 @@ export function MarkdownEditor(props: {
       <Toolbar editor={editor} />
       <EditorContent editor={editor} />
     </div>
+  );
+}
+
+/** Line ends, trailing spaces and trailing blank lines are spelling, not content. */
+function normalized(markdown: string) {
+  return markdown
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+$/gm, '')
+    .trimEnd();
+}
+
+/**
+ * Whether the editor keeps every character of this Markdown: the text is
+ * parsed and written back, and must come out as it went in. The schema has no
+ * place for some things (a `<name>` placeholder, an image, raw HTML, a table),
+ * and the first keystroke would write the document back without them.
+ */
+export function keepsMarkdown(markdown: string) {
+  const probe = new TiptapEditor({
+    extensions,
+    content: markdown,
+    contentType: 'markdown',
+  });
+  try {
+    return normalized(probe.getMarkdown()) === normalized(markdown);
+  } finally {
+    probe.destroy();
+  }
+}
+
+/**
+ * A rich text editor whose value is Markdown, or, for a text it can't keep
+ * whole (see `keepsMarkdown`), the plain textarea with a notice: nothing is
+ * lost by opening a note.
+ */
+export function MarkdownEditor(props: {
+  value: string;
+  onChange: (markdown: string) => void;
+  onBlur?: () => void;
+  id?: string;
+  labelledBy?: string;
+  describedBy?: string;
+  invalid?: boolean;
+}) {
+  const { t } = useTranslation('markdown');
+  // Decided once, with the text the form opened with.
+  const [keeps] = useState(() => keepsMarkdown(props.value));
+  const noticeId = useId();
+  if (keeps) return <RichEditor {...props} />;
+  return (
+    <>
+      <Textarea
+        id={props.id}
+        rows={8}
+        value={props.value}
+        onChange={(event) => props.onChange(event.target.value)}
+        onBlur={props.onBlur}
+        aria-labelledby={props.labelledBy}
+        aria-describedby={[noticeId, props.describedBy]
+          .filter(Boolean)
+          .join(' ')}
+        aria-invalid={props.invalid}
+      />
+      <p id={noticeId} role="status" className="text-xs text-muted-foreground">
+        {t('plainOnly')}
+      </p>
+    </>
   );
 }

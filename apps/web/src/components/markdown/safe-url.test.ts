@@ -19,6 +19,16 @@ describe('isSafeUrl', () => {
     '//evil.example/x',
     '/notes/other',
     'https://example.com/a b',
+    '&#106;avascript:alert(1)',
+    '&#x6A;avascript:alert(1)',
+    'jav&#x09;ascript:alert(1)',
+    'java&Tab;script:alert(1)',
+    'java\nscript:alert(1)',
+    'java\r\nscript:alert(1)',
+    '\tjavascript:alert(1)',
+    '\njavascript:alert(1)',
+    'https://example.com/a\nb',
+    'https://example.com/\u0000',
     '',
   ])('refuses %j', (url) => expect(isSafeUrl(url)).toBe(false));
 

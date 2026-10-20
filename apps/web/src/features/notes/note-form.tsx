@@ -34,7 +34,7 @@ import {
   type Note,
   type NoteChanges,
 } from './api';
-import { useRichText } from './use-rich-text';
+import { useRichTextOnOpen } from './use-rich-text';
 
 /**
  * Create (no `note`) or edit (`note` and the `etag` it was read with): one
@@ -57,7 +57,7 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const [reloading, setReloading] = useState(false);
   const showBody = !note || note.body !== undefined;
   // With `notes.richText` on, the body is Markdown, edited in an editor.
-  const { richText, pending: settingsPending } = useRichText();
+  const { richText, pending: settingsPending } = useRichTextOnOpen();
   // `custom` left out of a note (field-level permissions) is not edited.
   const showCustom = !note || note.custom !== undefined;
   const definitions = useQuery({
