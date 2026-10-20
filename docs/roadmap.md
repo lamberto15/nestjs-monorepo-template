@@ -65,8 +65,8 @@ first project is built on the template; until then they report only.
 ### Open follow-ups
 
 - **Tenancy (1b):** sign-ins visible to tenant administrators (**done** (#228): `GET /v1/access/sign-ins`, docs/auth.md, "Sign-in log"); the platform super
-  tenant; a membership still active in a deactivated tenant exports that tenant's
-  records; the migrate-time wall check compares policy names and commands, not their
+  tenant; a membership still active in a deactivated tenant exporting that tenant's
+  records (**done** (#220): docs/tenancy.md, "Operators"); the migrate-time wall check compares policy names and commands, not their
   expressions; whether operators may act in any tenant without its invitation (a
   break-glass support route: the owner's decision, docs/tenancy.md, "Operators").
   Tenant export and deletion are done (#226; get, rename and deactivation, #195);
