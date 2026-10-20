@@ -20,6 +20,11 @@ import {
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '@nestjs-monorepo-template/ui/components/tabs';
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,17 +41,23 @@ import { SourceBadge } from './source-badge';
 import { groupOf, matches, settingsQuery, type Setting } from './settings';
 import { formatValue } from './value-input';
 
-/** Every setting and flag, grouped by key prefix, searchable, editable. */
+/**
+ * Every setting and flag, grouped by key prefix, searchable, editable; the
+ * "Feature flags" tab shows the flags alone, where their rollouts are set.
+ */
 export function AdminSettings() {
   const { t } = useTranslation('settings');
   const { data, isPending } = useQuery(settingsQuery);
   const [search, setSearch] = useState('');
+  const [show, setShow] = useState<'all' | 'flags'>('all');
   const [editing, setEditing] = useState<string>();
   if (isPending) {
     return <Skeleton className="h-64 w-full" />;
   }
   const groups = new Map<string, Setting[]>();
-  for (const setting of (data ?? []).filter((s) => matches(s, search))) {
+  for (const setting of (data ?? []).filter(
+    (s) => matches(s, search) && (show === 'all' || s.flag),
+  )) {
     const group = groupOf(setting.key);
     groups.set(group, [...(groups.get(group) ?? []), setting]);
   }
@@ -55,6 +66,18 @@ export function AdminSettings() {
   );
   return (
     <div className="flex flex-col gap-6">
+      <Tabs
+        value={show}
+        onValueChange={(next) => setShow(next === 'flags' ? 'flags' : 'all')}
+      >
+        <TabsList aria-label={t('show.label')}>
+          <TabsTrigger value="all">{t('show.all')}</TabsTrigger>
+          <TabsTrigger value="flags">{t('show.flags')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {show === 'flags' && (
+        <p className="text-sm text-muted-foreground">{t('show.flagsHint')}</p>
+      )}
       <Input
         type="search"
         aria-label={t('search')}

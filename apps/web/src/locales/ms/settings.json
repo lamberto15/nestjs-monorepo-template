@@ -102,6 +102,13 @@
     "removeTitle": "Alih keluar nilai untuk semua organisasi?",
     "removeDescription": "Nilai sendiri setiap organisasi, atau nilai lalai, terpakai semula.",
     "removed": "Dialih keluar untuk semua organisasi.",
-    "rolloutOf": "Pelancaran {{percent}}%"
+    "rolloutOf": "Pelancaran {{percent}}%",
+    "operatorsOnly": "Hanya pengendali penempatan (log masuk ke penyewa pengendali) boleh menetapkan ini untuk semua penyewa."
+  },
+  "show": {
+    "label": "Tunjuk",
+    "all": "Semua tetapan",
+    "flags": "Bendera ciri",
+    "flagsHint": "Hidupkan bendera untuk seluruh penyewa, satu pasukan atau seorang, atau lancarkan secara beransur-ansur: Sunting, kemudian “Digunakan sebagai: pelancaran beransur-ansur”."
   }
 }
