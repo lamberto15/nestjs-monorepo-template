@@ -1,9 +1,11 @@
 import { useRouter } from '@tanstack/react-router';
 import type { NotificationItem } from '@nestjs-monorepo-template/api-client';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
-import { CheckIcon, Trash2Icon } from 'lucide-react';
+import { cn } from 'cn';
+import { CheckIcon, ShieldAlertIcon, Trash2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { normalizeRedirect } from '@/lib/safe-redirect';
+import { breachedType } from './queries';
 import { RelativeTime } from './relative-time';
 
 /**
@@ -21,7 +23,11 @@ export function NotificationRow(props: {
   const { t } = useTranslation('notifications');
   const router = useRouter();
   const { item, onRead, onRemove } = props;
-  const path = normalizeRedirect(item.link);
+  // The breached-password alert always leads to the password change, even
+  // when the API sent no link (the title and body are the API's, translated).
+  const breached = item.type === breachedType;
+  const path =
+    normalizeRedirect(item.link) ?? (breached ? '/account/security' : null);
 
   const open = () => {
     if (!item.read) {
@@ -43,6 +49,12 @@ export function NotificationRow(props: {
             className="size-2 shrink-0 rounded-full bg-primary"
           />
         )}
+        {breached && (
+          <ShieldAlertIcon
+            aria-hidden
+            className="size-4 shrink-0 text-destructive"
+          />
+        )}
         <span className="truncate text-sm font-medium">{item.title}</span>
       </span>
       {item.body && (
@@ -50,12 +62,22 @@ export function NotificationRow(props: {
           {item.body}
         </span>
       )}
+      {breached && (
+        <span className="text-sm font-medium text-destructive">
+          {t('breach.action')}
+        </span>
+      )}
       <RelativeTime value={item.updatedAt} />
     </>
   );
 
   return (
-    <li className="flex items-start gap-1 border-b p-2 last:border-b-0">
+    <li
+      className={cn(
+        'flex items-start gap-1 border-b p-2 last:border-b-0',
+        breached && !item.read && 'bg-destructive/10',
+      )}
+    >
       {path ? (
         <button
           type="button"

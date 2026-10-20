@@ -7,6 +7,7 @@ import { z } from '@/lib/zod';
 import { Section } from '@/components/account/section';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
+import { useSettleBreachAlerts } from '@/features/notifications/breach-alert';
 import { FormAlert, useAppForm } from '@/lib/form';
 
 /**
@@ -16,6 +17,7 @@ import { FormAlert, useAppForm } from '@/lib/form';
 export function PasswordSection() {
   const { t } = useTranslation();
   const [error, setError] = useState<string>();
+  const settleBreachAlerts = useSettleBreachAlerts();
   const change = useMutation({
     mutationFn: async (body: {
       currentPassword?: string;
@@ -54,6 +56,8 @@ export function PasswordSection() {
         });
         form.reset();
         toast.success(t('account.password.changed'));
+        // A new password answers the breached-password alert (and its banner).
+        void settleBreachAlerts();
       } catch (caught) {
         if (!applyFieldErrors(form, caught)) {
           setError(errorMessage(caught));

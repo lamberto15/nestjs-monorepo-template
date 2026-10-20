@@ -84,12 +84,30 @@ export function useNotesApi(options: {
     restore: !!note.deletedAt && held.has('Note.restore'),
     ...options.recordCan?.(note),
   });
-  const withCan = (note: TestNote, url: string) =>
-    new URL(url).searchParams.get('include') === 'can'
-      ? { ...note, can: canOf(note) }
-      : note;
+  // `?include=can,watching`: each part only when asked, as the API does.
+  const withIncluded = (note: TestNote, url: string) => {
+    const include = (new URL(url).searchParams.get('include') ?? '').split(',');
+    return {
+      ...note,
+      ...(include.includes('can') && { can: canOf(note) }),
+      ...(include.includes('watching') && {
+        watching: subscriptions.watched.some(
+          (s) => s.subject === 'Note' && s.recordId === note.id,
+        ),
+      }),
+    };
+  };
   let version = 1;
   const etagOf = (note: TestNote) => `"${note.id}-${version}-${note.title}"`;
+  // As the API does (etagOfResponse): a GET with `watching` adds a marker of
+  // the flag to the tag; a write's If-Match ignores it (assertUnchanged).
+  const markerOf = (note: TestNote, url: string) => {
+    const read = withIncluded(note, url);
+    return 'watching' in read ? `.w${read.watching ? 1 : 0}` : '';
+  };
+  const readEtag = (note: TestNote, url: string) =>
+    etagOf(note).slice(0, -1) + markerOf(note, url) + '"';
+  const withoutMarker = (tag: string) => tag.replace(/\.w[01]"$/, '"');
   const calls = {
     created: [] as { body: unknown; key: string | null }[],
     patched: [] as { id: string; body: unknown; ifMatch: string | null }[],
@@ -98,11 +116,17 @@ export function useNotesApi(options: {
     listQueries: [] as string[],
     /** The ids `GET /v1/notes/{id}` was asked for. */
     reads: [] as string[],
+    /** The query string of each `GET /v1/notes/{id}`. */
+    readQueries: [] as string[],
   };
-  /** Another user's write: the note changes, its ETag with it. */
+  /** Another user's write: the note changes, its ETag and `updatedAt` with it. */
   const changeElsewhere = (id: string, changes: Partial<TestNote>) => {
     version += 1;
-    notes.set(id, { ...notes.get(id)!, ...changes });
+    notes.set(id, {
+      ...notes.get(id)!,
+      updatedAt: `2026-10-17T10:00:0${version}.000Z`,
+      ...changes,
+    });
   };
 
   useSignedIn(options.can);
@@ -126,7 +150,7 @@ export function useNotesApi(options: {
       const bin = url.searchParams.get('deleted') === 'true';
       const items = [...notes.values()]
         .filter((n) => !!n.deletedAt === bin)
-        .map((n) => withCan(n, request.url));
+        .map((n) => withIncluded(n, request.url));
       return HttpResponse.json({ items, page: 1, pageCount: 1 });
     }),
     http.post('/v1/notes', async ({ request }) => {
@@ -147,11 +171,12 @@ export function useNotesApi(options: {
     }),
     http.get('/v1/notes/:id', ({ params, request }) => {
       calls.reads.push(params.id as string);
+      calls.readQueries.push(new URL(request.url).search);
       const note = notes.get(params.id as string);
       if (!note || note.deletedAt) return problem(404, 'not_found');
-      // `can` is not part of the ETag.
-      return HttpResponse.json(withCan(note, request.url), {
-        headers: { etag: etagOf(note) },
+      // `can` is not part of the ETag; `watching` only as a marker.
+      return HttpResponse.json(withIncluded(note, request.url), {
+        headers: { etag: readEtag(note, request.url) },
       });
     }),
     http.patch('/v1/notes/:id', async ({ params, request }) => {
@@ -161,7 +186,7 @@ export function useNotesApi(options: {
       const ifMatch = request.headers.get('if-match');
       const body = (await request.json()) as Partial<TestNote>;
       calls.patched.push({ id, body, ifMatch });
-      if (ifMatch && ifMatch !== etagOf(note)) {
+      if (ifMatch && withoutMarker(ifMatch) !== etagOf(note)) {
         return problem(412, 'precondition_failed', { etag: etagOf(note) });
       }
       version += 1;

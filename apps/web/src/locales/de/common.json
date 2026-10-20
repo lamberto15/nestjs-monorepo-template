@@ -212,6 +212,21 @@
       "neverUsed": "Nie verwendet",
       "unsupported": "Dieser Browser unterstützt keine Passkeys."
     },
+    "identities": {
+      "title": "Verbundene Konten",
+      "description": "Anbieter, mit denen du dich anmelden kannst.",
+      "none": "Noch keine Konten verbunden.",
+      "connectedOn": "verbunden {{date}}",
+      "connect": "{{provider}} verbinden",
+      "disconnect": "Trennen",
+      "disconnectTitle": "{{provider}} trennen?",
+      "disconnectDescription": "Du kannst dich nicht mehr mit {{provider}} anmelden.",
+      "unverified": "Bestätige deine E-Mail-Adresse, um ein Konto zu verbinden.",
+      "failed": "Das Konto konnte nicht verbunden werden. Versuche es erneut.",
+      "loadFailed": "Die verbundenen Konten konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "disconnectLabel": "{{provider}} trennen"
+    },
     "sessions": {
       "title": "Sitzungen",
       "description": "Wo Ihr Konto angemeldet ist.",

@@ -26,7 +26,7 @@ import {
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
 import { CircleAlertIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 
 // TanStack Form's form composition (its "Form Composition" guide): the
 // shadcn Field markup of its TanStack Form docs, bound once, so a form is
@@ -39,6 +39,27 @@ export const { fieldContext, useFieldContext, formContext, useFormContext } =
 function useInvalid() {
   const field = useFieldContext<unknown>();
   return field.state.meta.isTouched && !field.state.meta.isValid;
+}
+
+/**
+ * The ids that tie a control to its hint and its error message. shadcn's
+ * Field primitives only lay the markup out (the docs set `aria-invalid` on
+ * the control and leave the rest to the form), so without `aria-describedby`
+ * a screen reader announces neither. `useId` keeps the ids unique when the
+ * same field name is on the page twice (a dialog over a page).
+ */
+function useDescribedBy(hasDescription: boolean, invalid: boolean) {
+  const base = useId();
+  const descriptionId = `${base}-description`;
+  const errorId = `${base}-error`;
+  const ids = [hasDescription && descriptionId, invalid && errorId].filter(
+    Boolean,
+  );
+  return {
+    descriptionId,
+    errorId,
+    describedBy: ids.length > 0 ? ids.join(' ') : undefined,
+  };
 }
 
 function TextField(props: {
@@ -54,6 +75,10 @@ function TextField(props: {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
   const id = `field-${field.name}`;
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(props.description),
+    invalid,
+  );
   return (
     <Field data-invalid={invalid}>
       {props.aside ? (
@@ -75,11 +100,14 @@ function TextField(props: {
         onBlur={field.handleBlur}
         onChange={(event) => field.handleChange(event.target.value)}
         aria-invalid={invalid}
+        aria-describedby={describedBy}
       />
       {props.description && (
-        <FieldDescription>{props.description}</FieldDescription>
+        <FieldDescription id={descriptionId}>
+          {props.description}
+        </FieldDescription>
       )}
-      {invalid && <FieldError errors={field.state.meta.errors} />}
+      {invalid && <FieldError id={errorId} errors={field.state.meta.errors} />}
     </Field>
   );
 }
@@ -94,6 +122,10 @@ function TextAreaField(props: {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
   const id = `field-${field.name}`;
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(props.description),
+    invalid,
+  );
   return (
     <Field data-invalid={invalid}>
       <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
@@ -106,11 +138,14 @@ function TextAreaField(props: {
         onBlur={field.handleBlur}
         onChange={(event) => field.handleChange(event.target.value)}
         aria-invalid={invalid}
+        aria-describedby={describedBy}
       />
       {props.description && (
-        <FieldDescription>{props.description}</FieldDescription>
+        <FieldDescription id={descriptionId}>
+          {props.description}
+        </FieldDescription>
       )}
-      {invalid && <FieldError errors={field.state.meta.errors} />}
+      {invalid && <FieldError id={errorId} errors={field.state.meta.errors} />}
     </Field>
   );
 }
@@ -118,6 +153,7 @@ function TextAreaField(props: {
 /** A six-digit code (an authenticator's), shadcn's input-otp. */
 function CodeField(props: {
   label: ReactNode;
+  description?: ReactNode;
   autoFocus?: boolean;
   /** Called with the sixth digit (submits the form). */
   onComplete?: () => void;
@@ -125,6 +161,10 @@ function CodeField(props: {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
   const id = `field-${field.name}`;
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(props.description),
+    invalid,
+  );
   return (
     <Field data-invalid={invalid} className="items-center">
       <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
@@ -141,6 +181,7 @@ function CodeField(props: {
         onBlur={field.handleBlur}
         onComplete={props.onComplete}
         aria-invalid={invalid}
+        aria-describedby={describedBy}
         containerClassName="justify-center"
       >
         <InputOTPGroup>
@@ -149,7 +190,12 @@ function CodeField(props: {
           ))}
         </InputOTPGroup>
       </InputOTP>
-      {invalid && <FieldError errors={field.state.meta.errors} />}
+      {props.description && (
+        <FieldDescription id={descriptionId}>
+          {props.description}
+        </FieldDescription>
+      )}
+      {invalid && <FieldError id={errorId} errors={field.state.meta.errors} />}
     </Field>
   );
 }
@@ -157,12 +203,17 @@ function CodeField(props: {
 /** One of a list (a language, a time zone): shadcn's Select (Base UI). */
 function SelectField(props: {
   label: ReactNode;
+  description?: ReactNode;
   options: { value: string; label: string }[];
   placeholder?: string;
 }) {
   const field = useFieldContext<string>();
   const invalid = useInvalid();
   const id = `field-${field.name}`;
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(props.description),
+    invalid,
+  );
   return (
     <Field data-invalid={invalid}>
       <FieldLabel htmlFor={id}>{props.label}</FieldLabel>
@@ -172,7 +223,12 @@ function SelectField(props: {
         value={field.state.value || null}
         onValueChange={(value) => field.handleChange(value ?? '')}
       >
-        <SelectTrigger id={id} className="w-full" aria-invalid={invalid}>
+        <SelectTrigger
+          id={id}
+          className="w-full"
+          aria-invalid={invalid}
+          aria-describedby={describedBy}
+        >
           <SelectValue placeholder={props.placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -183,7 +239,12 @@ function SelectField(props: {
           ))}
         </SelectContent>
       </Select>
-      {invalid && <FieldError errors={field.state.meta.errors} />}
+      {props.description && (
+        <FieldDescription id={descriptionId}>
+          {props.description}
+        </FieldDescription>
+      )}
+      {invalid && <FieldError id={errorId} errors={field.state.meta.errors} />}
     </Field>
   );
 }
