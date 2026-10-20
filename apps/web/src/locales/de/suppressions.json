@@ -1,0 +1,83 @@
+{
+  "nav": "Mail suppressions",
+  "title": "Mail suppression list",
+  "description": "The addresses this deployment does not send mail to, and the ones watched for soft bounces. It holds every tenant's addresses, so it is for the operators.",
+  "empty": "No addresses are listed.",
+  "emptyFiltered": "No listed address matches.",
+  "page": "Page {{page}} of {{count}}",
+  "previous": "Previous",
+  "next": "Next",
+  "reason": {
+    "hard_bounce": "Hard bounce",
+    "soft_bounce": "Soft bounce",
+    "complaint": "Complaint",
+    "manual": "Manual"
+  },
+  "status": {
+    "suppressed": "Suppressed",
+    "watching": "Watching"
+  },
+  "sort": {
+    "newest": "Newest added",
+    "lastSeen": "Last seen",
+    "address": "Address"
+  },
+  "filters": {
+    "address": "Address contains",
+    "addressPlaceholder": "ada@example.com or @example.com",
+    "search": "Search",
+    "reason": "Reason",
+    "anyReason": "Any reason",
+    "status": "Status",
+    "anyStatus": "Suppressed or watching",
+    "sort": "Sort by"
+  },
+  "columns": {
+    "address": "Address",
+    "reason": "Reason",
+    "source": "Source",
+    "status": "Status",
+    "skipped": "Mails kept back",
+    "lastSeen": "Last seen",
+    "actions": "Actions"
+  },
+  "detail": {
+    "title": "Suppressed address",
+    "description": "What the provider reported for this address, and what was done about it.",
+    "reason": "Reason",
+    "source": "Source",
+    "note": "Note",
+    "lastDetail": "Provider's last word",
+    "events": "Bounces and complaints",
+    "softBounces": "Soft bounces in a row",
+    "firstSeen": "First seen",
+    "lastSeen": "Last seen",
+    "suppressedAt": "Suppressed since",
+    "skipped": "Mails kept back",
+    "lastSkipped": "Last mail kept back",
+    "createdBy": "Added by"
+  },
+  "add": {
+    "open": "Add an address",
+    "title": "Stop mail to an address",
+    "description": "Nothing is sent to it, essential mail (password resets, sign-in links) included, until you remove it.",
+    "address": "Email address",
+    "addressInvalid": "Enter a valid email address.",
+    "note": "Note",
+    "noteHint": "Why it is listed. Optional, 500 characters at most.",
+    "noteTooLong": "Use 500 characters at most.",
+    "listed": "That address is listed already.",
+    "cancel": "Cancel",
+    "submit": "Add to the list",
+    "done": "{{address}} is on the list."
+  },
+  "remove": {
+    "open": "Remove",
+    "action": "Remove {{address}}",
+    "title": "Send mail to {{address}} again?",
+    "description": "Check that the mailbox works first. A new bounce or complaint lists the address again.",
+    "complaint": "This person reported our mail as spam. Remove the address only if they asked for mail again. A new complaint lists it again.",
+    "confirm": "Remove from the list",
+    "done": "{{address}} is off the list."
+  }
+}
