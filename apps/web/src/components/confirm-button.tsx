@@ -23,6 +23,8 @@ export function ConfirmButton(props: {
   variant?: 'outline' | 'destructive' | 'ghost';
   size?: 'default' | 'sm';
   disabled?: boolean;
+  /** Called when the dialog opens: refresh what the question is about. */
+  onOpen?: () => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -34,7 +36,10 @@ export function ConfirmButton(props: {
         variant={props.variant ?? 'outline'}
         size={props.size}
         disabled={props.disabled}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          props.onOpen?.();
+        }}
       >
         {props.children}
       </Button>
