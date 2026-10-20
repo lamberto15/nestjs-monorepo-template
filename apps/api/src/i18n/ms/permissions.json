@@ -163,6 +163,10 @@
       "label": "Analitik platform",
       "description": "Mengira penyewa, pengguna, keahlian dan penggunaan API merentasi setiap penyewa, menahan kumpulan kecil, dan menyimpan hanya agregat yang dibaca oleh peranan pelaporan, setiap malam."
     },
+    "reencryption": {
+      "label": "Penyulitan semula",
+      "description": "Menulis semula nilai tersulit dan indeks buta yang masih di bawah kunci lama dengan kunci semasa, secara berkelompok, setiap jam."
+    },
     "demo-seed": {
       "label": "Data demo",
       "description": "Mencipta pengguna demo, pasukan dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."

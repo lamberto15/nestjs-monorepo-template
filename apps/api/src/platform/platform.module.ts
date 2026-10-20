@@ -187,6 +187,10 @@ import { ApprovalWorkflow } from './approvals/approval.workflow.js';
 import { ApprovalsRegistry } from './approvals/approvals.registry.js';
 import { ApprovalsService } from './approvals/approvals.service.js';
 import { ApprovalMetrics } from './approvals/approval-metrics.js';
+import { ReencryptionMetrics } from './encryption/reencryption.metrics.js';
+import { ReencryptionProcessor } from './encryption/reencryption.processor.js';
+import { ReencryptionScheduler } from './encryption/reencryption.scheduler.js';
+import { ReencryptionService } from './encryption/reencryption.service.js';
 import { DocumentTemplates } from './documents/document-templates.js';
 import { DocumentsController } from './documents/documents.controller.js';
 import { DocumentsProcessor } from './documents/documents.processor.js';
@@ -596,6 +600,12 @@ export class PlatformModule {
         SuppressionsService,
         { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
         MailSuppressionPolicy,
+        // Encrypted columns onto the current keys (docs/encryption.md):
+        // hourly scheduling, one batch per queue job, the stale rows on /metrics.
+        ReencryptionService,
+        ReencryptionProcessor,
+        ReencryptionScheduler,
+        ReencryptionMetrics,
       ],
       exports: [
         Realtime,

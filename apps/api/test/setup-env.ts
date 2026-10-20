@@ -22,6 +22,10 @@ Object.assign(process.env, {
   LOCALES: 'en,de,ar,zh,ms',
   ADMIN_EMAIL: 'admin@example.com',
   ADMIN_PASSWORD: randomBytes(18).toString('base64url'),
+  // The fixtures declare an encrypted column (test/fixtures/encrypted): its
+  // keys are required at boot (docs/encryption.md).
+  DATA_ENCRYPTION_KEYS: randomBytes(32).toString('base64'),
+  BLIND_INDEX_KEYS: randomBytes(32).toString('base64'),
   // feature:notes begin
   EXAMPLE_SENDER_WEBHOOK_SECRET: `whsec_${randomBytes(32).toString('base64')}`,
   NOTE_PUBLISH_DELAY: '10s',

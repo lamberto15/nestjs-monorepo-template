@@ -163,6 +163,10 @@
       "label": "Platform analytics",
       "description": "Counts tenants, users, memberships and API use across every tenant, withholds small groups, and stores only the aggregates the reporting role reads, every night."
     },
+    "reencryption": {
+      "label": "Re-encryption",
+      "description": "Rewrites encrypted values and blind indexes still under an older key with the current one, in batches, every hour."
+    },
     "demo-seed": {
       "label": "Demo seed",
       "description": "Creates demo users, teams and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."
