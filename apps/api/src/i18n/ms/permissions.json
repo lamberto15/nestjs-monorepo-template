@@ -13,7 +13,9 @@
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
       "readAudit": "Baca log audit",
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
-      "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir"
+      "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir",
+      "manageSso": "Sediakan log masuk tunggal penyewa: sambungan SAML dan OpenID Connect, domain e-mel yang disahkan",
+      "provisionScim": "Peruntukkan pengguna dan kumpulan melalui SCIM 2.0 (klien API: token SCIM pembekal identiti)"
     }
   },
   "approval": {
@@ -106,6 +108,10 @@
     "tenant-deletion": {
       "label": "Pemadaman penyewa",
       "description": "Memadam penyewa yang tempoh tangguh pemadamannya telah berlalu (rekod, fail, kerja dalam baris gilir dan aliran kerjanya), setiap malam."
+    },
+    "sso": {
+      "label": "Log masuk tunggal",
+      "description": "Mengambil dokumen penemuan OpenID Connect sambungan SSO dan menyemak rekod DNS domain yang disahkan oleh penyewa."
     },
     "account-deletion": {
       "label": "Pemadaman akaun",

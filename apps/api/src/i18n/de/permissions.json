@@ -13,7 +13,9 @@
       "manageViews": "Gespeicherte Ansichten von Listen mit dem ganzen Mandanten teilen sowie geteilte Ansichten ändern oder löschen (platform/views)",
       "readAudit": "Das Audit-Protokoll lesen",
       "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
-      "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator"
+      "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator",
+      "manageSso": "Single Sign-on des Mandanten einrichten: SAML- und OpenID-Connect-Verbindungen, verifizierte E-Mail-Domains",
+      "provisionScim": "Benutzer und Gruppen über SCIM 2.0 bereitstellen (API-Clients: das SCIM-Token des Identitätsanbieters)"
     }
   },
   "approval": {
@@ -106,6 +108,10 @@
     "tenant-deletion": {
       "label": "Mandantenlöschung",
       "description": "Löscht jede Nacht die Mandanten, deren Löschfrist abgelaufen ist (ihre Datensätze, Dateien, wartenden Aufträge und Workflows)."
+    },
+    "sso": {
+      "label": "Single Sign-on",
+      "description": "Ruft die OpenID-Connect-Discovery-Dokumente der SSO-Verbindungen ab und prüft die DNS-Einträge der Domains, die Mandanten verifizieren."
     },
     "account-deletion": {
       "label": "Kontolöschung",

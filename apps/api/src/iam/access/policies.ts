@@ -82,6 +82,22 @@ export class AccessPolicy {
     );
   }
 
+  /** The tenant's single sign-on: its connections and verified domains (iam/sso). */
+  async manageSso(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'manageSso', 'Access');
+  }
+
+  /**
+   * SCIM 2.0 provisioning (`/v1/scim/…`): an API client only, the identity
+   * provider's, whose key is its SCIM token.
+   */
+  async provisionScim(user: Principal | null) {
+    return (
+      user?.kind === 'client' &&
+      this.access.can(user, 'provisionScim', 'Access')
+    );
+  }
+
   /**
    * The access API's read routes (the catalog, roles, users, teams, API
    * clients, principals): any permission of access administration, so

@@ -53,10 +53,20 @@ export const TENANT_DELETION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** SsoProcessor: SSO connections' discovery documents and domains' DNS records (iam/sso). */
+export const SSO_JOB = defineSystemJob({
+  key: 'sso',
+  label: 'Single sign-on',
+  description:
+    "Fetches SSO connections' OpenID Connect discovery documents and checks the DNS records of the domains tenants verify.",
+  permissions: [],
+});
+
 export const IAM_SYSTEM_JOBS = [
   SEED_JOB,
   AUDIT_RETENTION_JOB,
   SOFT_DELETE_PURGE_JOB,
   SIGN_UP_TENANT_SWEEP_JOB,
   TENANT_DELETION_JOB,
+  SSO_JOB,
 ];

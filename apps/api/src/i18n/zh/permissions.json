@@ -13,7 +13,9 @@
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
       "readAudit": "查看审计日志",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
-      "impersonate": "以其他用户身份操作（支持），绝不以管理员身份"
+      "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
+      "manageSso": "设置租户的单点登录：SAML 和 OpenID Connect 连接、已验证的电子邮件域",
+      "provisionScim": "通过 SCIM 2.0 预配用户和组（API 客户端：身份提供方的 SCIM 令牌）"
     }
   },
   "approval": {
@@ -106,6 +108,10 @@
     "tenant-deletion": {
       "label": "租户删除",
       "description": "每晚清除删除宽限期已过的租户（其记录、文件、排队的任务和工作流）。"
+    },
+    "sso": {
+      "label": "单点登录",
+      "description": "获取 SSO 连接的 OpenID Connect 发现文档，并检查租户所验证域的 DNS 记录。"
     },
     "account-deletion": {
       "label": "账户删除",
