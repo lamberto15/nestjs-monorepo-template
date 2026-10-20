@@ -73,6 +73,17 @@ export const iamEnv = z.object({
   /** Refused when seen in at least this many breaches. */
   PASSWORD_BREACH_MIN_COUNT: z.coerce.number().int().min(1).default(1),
   /**
+   * A sign-in's password is checked too, after the sign-in and without
+   * delaying it (SignInPasswordCheck): once per password, then again after
+   * this many days (the corpus grows), until the password changes.
+   */
+  PASSWORD_BREACH_RECHECK_DAYS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(365)
+    .default(30),
+  /**
    * Password hashes (scrypt, 128 MiB each outside the heap) running at once
    * in this process; the container's memory limit must hold the heap plus
    * this many: docs/deployment.md, "Resource limits".

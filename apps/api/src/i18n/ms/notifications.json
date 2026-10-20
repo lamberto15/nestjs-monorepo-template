@@ -47,6 +47,11 @@
       "title": "Kata laluan anda telah ditukar",
       "body": "Kata laluan akaun anda telah ditukar (dari {ip}). Jika ini bukan anda, tetapkan semula dengan segera."
     },
+    "passwordBreached": {
+      "label": "Kata laluan ditemui dalam kebocoran data",
+      "title": "Kata laluan anda muncul dalam kebocoran data",
+      "body": "Kata laluan yang anda gunakan untuk log masuk (dari {ip}) muncul dalam kebocoran data yang diketahui, jadi orang lain mungkin mencubanya. Tukarkannya sekarang kepada kata laluan yang tidak anda gunakan di tempat lain."
+    },
     "mfaChanged": {
       "label": "Log masuk dua faktor diubah",
       "title": "Log masuk dua faktor diubah",

@@ -13,11 +13,17 @@ import type { IamEnv } from '../iam.env.js';
 /** The @nestjs/http-client client of the Pwned Passwords range API (IamModule registers it). */
 export const PWNED_PASSWORDS = 'pwned-passwords';
 
+/** A password's SHA-1, split for the range API: `prefix` is sent, `suffix` never leaves the process. */
+export interface HashRange {
+  prefix: string;
+  suffix: string;
+}
+
 /**
  * The k-anonymity split of a password: the upper-case hex SHA-1, its first
  * 5 characters (the only part sent) and the other 35 (compared here).
  */
-export function hashRange(password: string) {
+export function hashRange(password: string): HashRange {
   const hash = createHash('sha1')
     .update(password, 'utf8')
     .digest('hex')
@@ -74,10 +80,17 @@ export class BreachedPasswordsService {
    * (logged as a warning, without the password or its hash).
    */
   async timesSeen(password: string): Promise<number | undefined> {
+    return this.timesSeenIn(hashRange(password));
+  }
+
+  /**
+   * timesSeen() from the split hash: for a check that runs after the
+   * plaintext is gone (the sign-in check, sign-in-password-check.ts).
+   */
+  async timesSeenIn({ prefix, suffix }: HashRange) {
     if (!this.enabled) {
       return undefined;
     }
-    const { prefix, suffix } = hashRange(password);
     try {
       const response = await this.http.get('/range/:prefix', {
         params: { prefix },
@@ -100,7 +113,12 @@ export class BreachedPasswordsService {
    * API unreachable).
    */
   async isBreached(password: string): Promise<boolean | undefined> {
-    const seen = await this.timesSeen(password);
+    return this.isBreachedIn(hashRange(password));
+  }
+
+  /** isBreached() from the split hash. */
+  async isBreachedIn(range: HashRange): Promise<boolean | undefined> {
+    const seen = await this.timesSeenIn(range);
     return seen === undefined
       ? undefined
       : seen >= this.config.get('PASSWORD_BREACH_MIN_COUNT', { infer: true });

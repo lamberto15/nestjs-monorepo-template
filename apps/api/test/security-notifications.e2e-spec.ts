@@ -359,6 +359,12 @@ describe('security notifications (e2e)', () => {
         channels: { email: 'immediate' },
       },
       {
+        type: 'security.passwordBreached',
+        label: 'Password found in a data breach',
+        mandatory: true,
+        channels: { email: 'immediate' },
+      },
+      {
         type: 'security.mfaChanged',
         label: 'Two-factor sign-in changed',
         mandatory: true,

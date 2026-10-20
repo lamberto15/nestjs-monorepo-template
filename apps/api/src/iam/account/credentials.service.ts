@@ -7,6 +7,7 @@ import { PasswordHasher } from '@nestjs/authentication';
 import { t } from '@nestjs/i18n';
 import { AuditService } from '../audit/audit.service.js';
 import { UsersRepository } from '../auth/users.repository.js';
+import { SignInPasswordCheck } from './sign-in-password-check.js';
 
 /** Passwords: checked the same way for a session (sign-in) and for tokens (POST /auth/token). */
 @Injectable()
@@ -15,6 +16,7 @@ export class CredentialsService {
     private readonly accounts: UsersRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly audit: AuditService,
+    private readonly breachCheck: SignInPasswordCheck,
   ) {}
 
   /**
@@ -62,12 +64,14 @@ export class CredentialsService {
       });
     }
     // The cost settings changed since this hash was stored: upgrade it while we have the plaintext.
-    if (this.passwordHasher.needsRehash(found.passwordHash)) {
-      await this.accounts.updatePasswordHash(
-        found.user.id,
-        await this.passwordHasher.hash(password),
-      );
+    let passwordHash = found.passwordHash;
+    if (this.passwordHasher.needsRehash(passwordHash)) {
+      passwordHash = await this.passwordHasher.hash(password);
+      await this.accounts.updatePasswordHash(found.user.id, passwordHash);
     }
+    // The password is right: is it in a breach? Started, not awaited
+    // (docs/auth.md, "Passwords"): the sign-in never waits on it.
+    this.breachCheck.start(found.user, password, passwordHash, ip ?? '');
     return found.user;
   }
 }

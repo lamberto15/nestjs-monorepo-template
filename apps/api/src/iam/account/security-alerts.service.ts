@@ -32,13 +32,14 @@ const KNOWN_DEVICE_DAYS = 30;
 const signInsOf = (actor: string) =>
   and(eq(auditLog.actor, actor), eq(auditLog.action, 'auth.signed-in'));
 
-/** A change to an account's credentials, as audited and told to its owner. */
+/** A change to an account's credentials (or news about them: a breached password), as audited and told to its owner. */
 export interface CredentialChange {
   /** The audit action (`auth.password-changed`). */
   action: string;
   ip: string;
   type:
     | 'security.passwordChanged'
+    | 'security.passwordBreached'
     | 'security.mfaChanged'
     | 'security.passkeyAdded'
     | 'security.passkeyRemoved';

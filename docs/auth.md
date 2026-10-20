@@ -127,8 +127,9 @@ acceptance (`POST /v1/auth/invitations/accept`) and
   runs it against a stub on loopback), `PASSWORD_BREACH_MIN_COUNT` (1: a
   password seen fewer times passes), `PASSWORD_BREACH_API_URL` (a
   self-hosted mirror of the range API for air-gapped deployments, e.g. one
-  served from the downloadable corpus). `compose.prod.yaml` passes all
-  five to the containers: set them in `.env`.
+  served from the downloadable corpus), `PASSWORD_BREACH_RECHECK_DAYS` (30:
+  how long a sign-in's password counts as checked). `compose.prod.yaml`
+  passes all six to the containers: set them in `.env`.
 - **`ADMIN_PASSWORD`** is only warned about (an error in the log on the
   first start): refusing it would leave the deployment without an
   administrator. A generated one isn't checked.
@@ -144,9 +145,32 @@ acceptance (`POST /v1/auth/invitations/accept`) and
   package consumes the token (`limiter.run()` around `reset()`, re-entrant),
   so a busy answer leaves the link working; any new flow that spends
   something and then hashes must do the same. Sizing: [deployment.md](deployment.md#resource-limits).
-- **Not checked: sign-in** with an existing password. A possible follow-up:
-  check it at sign-in (the plaintext is there) and ask the user to change
-  it, or flag the account, without blocking the sign-in.
+- **At sign-in too, never in its way** (`SignInPasswordCheck`,
+  `iam/account/sign-in-password-check.ts`): a password set before it
+  appeared in a breach (or before the check existed) is caught at a later
+  sign-in, by password, in a browser or a token client
+  (`POST /v1/auth/token`). Once the password is verified, the check starts
+  and the sign-in answers without waiting for it: a slow or unreachable API
+  never delays or fails a sign-in, whatever `PASSWORD_BREACH_ON_ERROR` says,
+  and any failure (the API, Redis, the database) is logged by kind only. The
+  plaintext is split into its hash prefix and suffix at once and dropped;
+  the same k-anonymity range query runs. In-process, not a queue job, on
+  purpose: a job would store the password's unsalted SHA-1 in Redis until a
+  worker ran it. A breached password is audited (`auth.password-breached`,
+  the account as actor and target) and its owner told,
+  `security.passwordBreached` (mandatory: in-app at once, by mail
+  immediately; [Security notifications](#security-notifications)), asking
+  for a change. The sign-in still goes through: a deployment that wants a
+  forced change must add it (nothing in `GET /v1/auth/me` says so yet).
+- **Checked once per password, then every `PASSWORD_BREACH_RECHECK_DAYS`**
+  (30): a Redis key per account and stored hash
+  (`password-breach:<user id>:<16 characters of the SHA-256 of the scrypt
+  hash>`, `SET NX EX`, so concurrent sign-ins check once). The scrypt hash
+  is salted and changes with every new password (and every rehash), so a new
+  password is checked at its first sign-in without anything to clear, and a
+  breached one that isn't changed is told about again after the period (the
+  corpus grows). A check the API couldn't answer drops its key: the next
+  sign-in tries again.
 
 ### Your data, your account's deletion, consents (`/v1/account`)
 
@@ -512,6 +536,7 @@ daily, never off.
 | --- | --- | --- |
 | `security.newSignIn` | a sign-in from a new device, by any method: password (a browser or a token client), email link, passkey, Google / Microsoft / GitHub (even with two-factor still to do) | `device` ("Chrome on macOS"), `ip`, `at` |
 | `security.passwordChanged` | `POST /auth/password/change`, or a reset link when the account was used before (any audit entry as its actor: not an invitation's first password) | `via` (`change` \| `reset`), `ip` |
+| `security.passwordBreached` | a password sign-in (browser or token) whose password is in the breach corpus, once per password per `PASSWORD_BREACH_RECHECK_DAYS` ([Passwords](#passwords)) | `at`, `ip` (the sign-in's) |
 | `security.mfaChanged` | two-factor confirmed on, or turned off | `enabled`, `ip` |
 | `security.passkeyAdded`, `security.passkeyRemoved` | a passkey registered, or removed | `name`, `ip` |
 | `security.apiKeyRotated` | to the API client: `POST /access/clients/{id}/rotate` (webhook) | `clientId`, `keyId`, `previousKeysEnd` |
