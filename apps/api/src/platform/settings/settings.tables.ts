@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   jsonb,
   pgTable,
@@ -42,3 +43,24 @@ export const settingOverrides = pgTable(
     ...tenantTable('setting_overrides', table),
   ],
 ).enableRLS();
+
+/**
+ * What the deployment's operators set for every tenant
+ * (`PUT /settings/{key}/platform`): one row per setting, global (no
+ * tenant). Below each tenant's own values (the runtime default), or above
+ * them all when `enforced` (a kill switch).
+ */
+export const platformSettingValues = pgTable('platform_setting_values', {
+  id: uuidPk(),
+  /** A declared key: `notes.richText`. One row each. */
+  key: text('key').notNull().unique(),
+  /** The value (checked by the declaration's schema); null: only `rollout` applies (a flag). */
+  value: jsonb('value'),
+  /** Beats every tenant's, team's and principal's value (with a value only). */
+  enforced: boolean('enforced').notNull().default(false),
+  /** A flag's rollout percentage (0–100) in every tenant, when no value is set. */
+  rollout: integer('rollout'),
+  /** Who set it: an operator's principal key. */
+  updatedBy: text('updated_by').notNull(),
+  ...timestamps(),
+});

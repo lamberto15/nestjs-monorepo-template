@@ -28,7 +28,7 @@ export const settingViewSchema = z.object({
   public: z.boolean(),
   value: z.unknown(),
   source: z
-    .enum([...SETTING_SCOPES, 'rollout', 'default'])
+    .enum([...SETTING_SCOPES, 'rollout', 'platform', 'default'])
     .describe('Where your value comes from.'),
   default: z.unknown(),
   type: z
@@ -61,6 +61,32 @@ export const settingViewSchema = z.object({
     .boolean()
     .describe(
       'You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`.',
+    ),
+  platform: z
+    .object({
+      value: z.unknown().describe('Null: only `rollout` applies.'),
+      enforced: z
+        .boolean()
+        .describe(
+          "Beats every tenant's, team's and principal's value (a kill switch).",
+        ),
+      rollout: z
+        .int()
+        .min(0)
+        .max(100)
+        .nullable()
+        .describe(
+          "Flags: the percentage of each tenant's principals it is on for, when no value is set.",
+        ),
+    })
+    .nullable()
+    .describe(
+      "What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set.",
+    ),
+  canEditPlatform: z
+    .boolean()
+    .describe(
+      'You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant.',
     ),
 });
 
@@ -116,3 +142,40 @@ export const unsetSettingQuerySchema = z
   .strict();
 
 export const setMineSchema = z.object({ value: z.unknown() }).strict();
+
+/** What the operators set for every tenant (PUT /settings/{key}/platform). */
+export const setPlatformSettingSchema = z
+  .object({
+    value: z
+      .unknown()
+      .optional()
+      .describe(
+        "The value, checked by the setting's schema; left out with `rollout`: the flag's rollout alone applies.",
+      ),
+    enforced: z
+      .boolean()
+      .default(false)
+      .describe(
+        "true: beats every tenant's, team's and principal's value (a kill switch; needs a value); false: the default for every tenant that set nothing.",
+      ),
+    rollout: z
+      .int()
+      .min(0)
+      .max(100)
+      .nullable()
+      .optional()
+      .describe(
+        'Flags: the percentage of principals it is on for in every tenant that set nothing (each tenant drawn apart).',
+      ),
+  })
+  .strict();
+export type SetPlatformSettingDto = z.infer<typeof setPlatformSettingSchema>;
+
+export const platformSettingSchema = z.object({
+  key: settingKey,
+  value: z.unknown(),
+  enforced: z.boolean(),
+  rollout: z.int().min(0).max(100).nullable(),
+  updatedBy: z.string(),
+  updatedAt: z.iso.datetime(),
+});

@@ -14,8 +14,10 @@ import {
   inTransaction,
 } from '../../core/database/transactions.js';
 import { REDIS } from '../../core/redis/redis.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
+import { actsAsOperator } from '../../iam/auth/operator-only.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import {
   currentTenantId,
@@ -30,17 +32,21 @@ import {
 } from '../../iam/iam.tables.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { resolveSetting, type SettingSource } from './setting-resolution.js';
-import type { SetSettingDto } from './setting.schemas.js';
+import type {
+  SetPlatformSettingDto,
+  SetSettingDto,
+} from './setting.schemas.js';
 import {
   type SettingValueSchema,
   settingValueSchema,
 } from './setting-value-schema.js';
 import type {
+  PlatformSettingValue,
   SettingDeclaration,
   SettingOverride,
   SettingScope,
 } from './setting.types.js';
-import { settingOverrides } from './settings.tables.js';
+import { platformSettingValues, settingOverrides } from './settings.tables.js';
 
 /** A setting as a caller sees it: its value for them, what values it takes, and what they may change. */
 export interface SettingView extends SettingValueSchema {
@@ -57,9 +63,20 @@ export interface SettingView extends SettingValueSchema {
   canEdit: boolean;
   /** May set their own value (PUT/DELETE /settings/{key}/mine). */
   canSetMine: boolean;
+  /** What the operators set for every tenant, if anything. */
+  platform: PlatformSettingValue | null;
+  /** May set and remove the platform value (PUT/DELETE /settings/{key}/platform): an operator. */
+  canEditPlatform: boolean;
 }
 
 type Row = typeof settingOverrides.$inferSelect;
+type PlatformRow = typeof platformSettingValues.$inferSelect;
+
+interface CachedPlatform {
+  version: string | undefined;
+  loadedAt: number;
+  byKey: Map<string, PlatformRow>;
+}
 
 interface Cached {
   version: string | undefined;
@@ -82,7 +99,11 @@ const NOTHING: Cached = { version: undefined, loadedAt: 0, byKey: new Map() };
  * next request everywhere (as custom fields do), and only that tenant's
  * cache is reloaded. Without Redis the cache holds for FALLBACK_TTL_MS at
  * most. Outside any tenant (a user without one, a job of none) settings
- * are their defaults.
+ * are their defaults, or what the operators set for every tenant.
+ *
+ * Those platform values (`setPlatform()`) are rows of a global table, one
+ * cache per instance, refreshed through `settings:platform:version` the
+ * same way.
  */
 @Injectable()
 export class SettingsService {
@@ -99,6 +120,8 @@ export class SettingsService {
   private readonly caches = new Map<string, Cached>();
   private static readonly MAX_CACHED_TENANTS = 1_000;
   private static readonly VERSION_KEY = 'settings:version';
+  private static readonly PLATFORM_VERSION_KEY = 'settings:platform:version';
+  private platformCache: CachedPlatform | undefined;
   private static readonly FALLBACK_TTL_MS = 5_000;
   private static readonly MAX_AGE_MS = 5 * 60_000;
 
@@ -113,6 +136,7 @@ export class SettingsService {
     @Inject(PLATFORM_OPTIONS) options: PlatformOptions,
     private readonly audit: AuditService,
     private readonly accessPolicy: AccessPolicy,
+    private readonly tenancy: Tenancy,
   ) {
     for (const declaration of options.settings ?? []) {
       if (this.byKey.has(declaration.key)) {
@@ -181,12 +205,17 @@ export class SettingsService {
    * tenant's, one of their teams', their own (when the setting takes a
    * user scope). For policies whose `true` is the strict side: a narrower
    * scope's `false` doesn't exempt anyone from a wider scope's `true`, as
-   * the usual precedence (`resolve()`) would. No rollout counts.
+   * the usual precedence (`resolve()`) would. No rollout counts. The
+   * operators' platform `true` counts as the widest scope; their `false`,
+   * even enforced, exempts no one either.
    */
   async anyOn(
     declaration: SettingDeclaration<boolean>,
     principal: Principal,
   ): Promise<boolean> {
+    if ((await this.platformValue(declaration.key))?.value === true) {
+      return true;
+    }
     const on = ((await this.load()).byKey.get(declaration.key) ?? []).filter(
       (override) => override.value === true,
     );
@@ -250,16 +279,20 @@ export class SettingsService {
       principal,
       teams,
       currentTenantId(),
+      await this.platformValue(declaration.key),
     );
   }
 
   /** Every setting the caller may see, with their value for them. */
   async effective(principal: Principal, { all = false } = {}) {
     const canEdit = await this.canEdit(principal);
+    const canEditPlatform = await this.canEditPlatform(principal, canEdit);
     const views: SettingView[] = [];
     for (const declaration of this.byKey.values()) {
       if (declaration.public === false && !all) continue;
-      views.push(await this.view(declaration, principal, canEdit));
+      views.push(
+        await this.view(declaration, principal, canEdit, canEditPlatform),
+      );
     }
     return views;
   }
@@ -273,13 +306,27 @@ export class SettingsService {
     return this.accessPolicy.manageSettings(principal);
   }
 
+  /**
+   * Whether the principal may set and remove the platform values (PUT and
+   * DELETE /settings/{key}/platform): Access.manageSettings, acting in the
+   * operator tenant (the routes' own checks).
+   */
+  async canEditPlatform(principal: Principal, canEdit?: boolean) {
+    return (
+      (canEdit ?? (await this.canEdit(principal))) &&
+      actsAsOperator(this.tenancy, principal)
+    );
+  }
+
   async view(
     declaration: SettingDeclaration<any>,
     principal: Principal,
     canEdit?: boolean,
+    canEditPlatform?: boolean,
   ): Promise<SettingView> {
     const { value, source } = await this.resolve(declaration, principal);
     const scopes = declaration.scopes ?? ['tenant'];
+    canEdit ??= await this.canEdit(principal);
     return {
       ...this.valueSchemas.get(declaration.key)!,
       key: declaration.key,
@@ -291,9 +338,12 @@ export class SettingsService {
       value,
       source,
       default: declaration.default,
-      canEdit: canEdit ?? (await this.canEdit(principal)),
+      canEdit,
       // PUT /settings/{key}/mine takes anyone, for a setting set per user.
       canSetMine: scopes.includes('user'),
+      platform: (await this.platformValue(declaration.key)) ?? null,
+      canEditPlatform:
+        canEditPlatform ?? (await this.canEditPlatform(principal, canEdit)),
     };
   }
 
@@ -374,6 +424,140 @@ export class SettingsService {
       await this.scopeId(declaration, scope, scopeId),
       ip,
     );
+  }
+
+  /**
+   * Sets what holds for every tenant (an operator's, the route checks
+   * who): below each tenant's own values, or above them all when
+   * `enforced` (a kill switch). Checked against the declaration's schema
+   * and the deployment's restrictions. Audited in the operator's tenant;
+   * applies everywhere on the next request.
+   */
+  async setPlatform(
+    actor: Principal,
+    key: string,
+    dto: SetPlatformSettingDto,
+    ip?: string,
+  ): Promise<PlatformRow> {
+    const declaration = this.declaration(key);
+    const rollout = dto.rollout ?? null;
+    const enforced = dto.enforced ?? false;
+    const issues: { path: string; message: string }[] = [];
+    if (dto.value === undefined && rollout === null) {
+      issues.push({ path: 'value', message: 'A value is required.' });
+    }
+    if (rollout !== null && !declaration.flag) {
+      issues.push({ path: 'rollout', message: 'Only a flag rolls out.' });
+    }
+    if (enforced && dto.value === undefined) {
+      issues.push({
+        path: 'enforced',
+        message: 'Only a value is enforced, not a rollout.',
+      });
+    }
+    let value: unknown = null;
+    if (dto.value !== undefined) {
+      const parsed = declaration.schema.safeParse(dto.value);
+      if (parsed.success) {
+        value = parsed.data;
+      } else {
+        issues.push(
+          ...parsed.error.issues.map((issue) => ({
+            path: ['value', ...issue.path].join('.'),
+            message: issue.message,
+          })),
+        );
+      }
+    }
+    if (issues.length) {
+      throw new BadRequestException({
+        code: 'validation_failed',
+        message: 'The setting is invalid.',
+        errors: issues,
+      });
+    }
+    if (dto.value !== undefined) {
+      this.assertAllowed(key, value);
+    }
+    const row = await inTransaction(this.txHost, async (tx) => {
+      const [before] = await tx
+        .select()
+        .from(platformSettingValues)
+        .where(eq(platformSettingValues.key, key));
+      const [after] = await tx
+        .insert(platformSettingValues)
+        .values({
+          key,
+          value,
+          enforced,
+          rollout,
+          updatedBy: principalKey(actor),
+        })
+        .onConflictDoUpdate({
+          target: platformSettingValues.key,
+          set: { value, enforced, rollout, updatedBy: principalKey(actor) },
+        })
+        .returning();
+      await this.audit.record(
+        actor,
+        {
+          action: 'setting.updated',
+          targetType: 'setting',
+          targetId: key,
+          details: {
+            scope: 'platform',
+            scopeId: '',
+            from: before
+              ? {
+                  value: before.value,
+                  enforced: before.enforced,
+                  rollout: before.rollout,
+                }
+              : null,
+            to: { value, enforced, rollout },
+          },
+          ip,
+        },
+        tx,
+      );
+      return after!;
+    });
+    await this.bumpPlatform();
+    return row;
+  }
+
+  /** Removes the platform value: each tenant's own, or the default, holds again. */
+  async unsetPlatform(actor: Principal, key: string, ip?: string) {
+    this.declaration(key);
+    const removed = await inTransaction(this.txHost, async (tx) => {
+      const [before] = await tx
+        .delete(platformSettingValues)
+        .where(eq(platformSettingValues.key, key))
+        .returning();
+      if (before) {
+        await this.audit.record(
+          actor,
+          {
+            action: 'setting.reset',
+            targetType: 'setting',
+            targetId: key,
+            details: {
+              scope: 'platform',
+              scopeId: '',
+              from: {
+                value: before.value,
+                enforced: before.enforced,
+                rollout: before.rollout,
+              },
+            },
+            ip,
+          },
+          tx,
+        );
+      }
+      return before;
+    });
+    if (removed) await this.bumpPlatform();
   }
 
   /** A principal's own value of a setting that takes one (`user` among its scopes). */
@@ -606,16 +790,70 @@ export class SettingsService {
       );
   }
 
-  private async version(tenantId: string): Promise<string | undefined> {
-    try {
-      return (
-        (await this.redis.get(
-          tenantKey(SettingsService.VERSION_KEY, tenantId),
-        )) ?? '0'
+  /** After a commit: this instance forgets the platform values, the others see a new version. */
+  private async bumpPlatform() {
+    this.platformCache = undefined;
+    await this.redis
+      .incr(SettingsService.PLATFORM_VERSION_KEY)
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `Could not publish a platform settings change; other instances see it within ${SettingsService.FALLBACK_TTL_MS} ms.`,
+          { error: String(error) },
+        ),
       );
+  }
+
+  /** The operators' value of a setting for every tenant, if any. */
+  private async platformValue(
+    key: string,
+  ): Promise<PlatformSettingValue | undefined> {
+    const row = (await this.loadPlatform()).byKey.get(key);
+    return row
+      ? { value: row.value, enforced: row.enforced, rollout: row.rollout }
+      : undefined;
+  }
+
+  /** The platform values (a global table), cached like a tenant's. */
+  private async loadPlatform(): Promise<CachedPlatform> {
+    const version = await this.redisGet(SettingsService.PLATFORM_VERSION_KEY);
+    const cached = this.platformCache;
+    if (cached && this.fresh(cached, version)) {
+      return cached;
+    }
+    const rows = await this.db.select().from(platformSettingValues);
+    const entry: CachedPlatform = {
+      version,
+      loadedAt: Date.now(),
+      byKey: new Map(rows.map((row) => [row.key, row])),
+    };
+    this.platformCache = entry;
+    return entry;
+  }
+
+  /** Whether a cache entry still holds: its version is current, or, Redis away, it is young. */
+  private fresh(
+    cached: { version: string | undefined; loadedAt: number },
+    version: string | undefined,
+  ) {
+    const age = Date.now() - cached.loadedAt;
+    return (
+      age < SettingsService.MAX_AGE_MS &&
+      (version !== undefined && cached.version !== undefined
+        ? cached.version === version
+        : age < SettingsService.FALLBACK_TTL_MS)
+    );
+  }
+
+  private async redisGet(key: string): Promise<string | undefined> {
+    try {
+      return (await this.redis.get(key)) ?? '0';
     } catch {
       return undefined; // Redis away: fall back to a short TTL
     }
+  }
+
+  private version(tenantId: string): Promise<string | undefined> {
+    return this.redisGet(tenantKey(SettingsService.VERSION_KEY, tenantId));
   }
 
   /** The current tenant's overrides (none outside a tenant). */
@@ -626,14 +864,7 @@ export class SettingsService {
     }
     const version = await this.version(tenantId);
     const cached = this.caches.get(tenantId);
-    const age = cached ? Date.now() - cached.loadedAt : Infinity;
-    if (
-      cached &&
-      age < SettingsService.MAX_AGE_MS &&
-      (version !== undefined && cached.version !== undefined
-        ? cached.version === version
-        : age < SettingsService.FALLBACK_TTL_MS)
-    ) {
+    if (cached && this.fresh(cached, version)) {
       return cached;
     }
     const rows = await this.db.select().from(settingOverrides);
