@@ -7,7 +7,12 @@
     "description": "关于你的所有数据的副本：你的账户，以及你所属的每个组织保存的关于你的数据。文件在后台生成。",
     "start": "导出我的数据",
     "startedAt": "开始于 {{date}}",
-    "kept": "在此浏览器中发起的导出。完成的导出保留 7 天；其下载链接 30 分钟内有效，重新打开此页面可获取新链接。"
+    "kept": "Your account exports, from any device. A finished export is kept 7 days; its download link works 30 minutes, open this page again for a new one.",
+    "expiresAt": "Kept until {{date}}",
+    "expired": "Expired. Export again for a new file.",
+    "empty": "No exports yet.",
+    "error": "The exports could not be loaded.",
+    "listLabel": "Your exports"
   },
   "consents": {
     "title": "同意",

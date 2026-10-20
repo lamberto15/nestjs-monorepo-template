@@ -274,9 +274,12 @@ fields value onChange errors />` is a typed input per field (the drafts and
   that changed, `null` for one emptied; the API's `custom.<key>` errors map back
   with `serverErrors`), and `<CustomFieldValues subject values />` the values as
   detail items. The notes form and page are the example. The admin page is
-  `features/custom-fields`: a feature that takes custom fields registers its
-  subject in `features/<feature>/custom-fields.ts` (default export), as the API has
-  no list of them yet.
+  `features/custom-fields`: its subject picker is
+  `GET /v1/custom-fields/subjects` (each subject named by the API in the UI's
+  language), so a feature that takes custom fields registers nothing in the
+  web app. The account data export on `/account/privacy` lists
+  `GET /v1/account/exports` (polled while one runs, refreshed after a
+  request), not a list kept in the browser.
 - **Record panels** (`components/records/panels/`): comments with
   @mentions, attachments, tags and revisions on a record's detail page. A
   feature mounts them with one element, each panel shown only when the

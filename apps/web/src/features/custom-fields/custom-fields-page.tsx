@@ -31,9 +31,14 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { allCustomFieldsQuery, type CustomField } from '@/lib/custom-fields';
 import { errorMessage } from '@/lib/errors';
-import { useDeactivateField, useReorderFields, useUpdateField } from './api';
+import {
+  customFieldSubjectsQuery,
+  useDeactivateField,
+  useReorderFields,
+  useUpdateField,
+  type CustomFieldSubject,
+} from './api';
 import { FieldDialog } from './field-dialog';
-import { CUSTOM_FIELD_SUBJECTS } from './subjects';
 
 /**
  * The custom fields of one subject (docs/custom-fields.md): the active ones
@@ -44,21 +49,39 @@ import { CUSTOM_FIELD_SUBJECTS } from './subjects';
  */
 export function CustomFieldsPage() {
   const { t } = useTranslation('custom-fields');
-  const first = CUSTOM_FIELD_SUBJECTS[0];
-  // No feature takes custom fields (see ./subjects): nothing to administer.
-  if (!first) {
+  const { i18n } = useTranslation();
+  // The subjects that take fields, named in the UI's language, from the API.
+  const subjects = useQuery({
+    ...customFieldSubjectsQuery(i18n.language),
+    meta: { errorToast: false },
+  });
+  if (subjects.isPending) {
+    return <Skeleton className="h-40 w-full max-w-4xl" aria-busy />;
+  }
+  if (subjects.isError) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {errorMessage(subjects.error)}
+      </p>
+    );
+  }
+  // No feature takes custom fields: nothing to administer.
+  if (subjects.data.length === 0) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
         {t('noSubjects')}
       </p>
     );
   }
-  return <SubjectFields first={first} />;
+  return <SubjectFields subjects={subjects.data} />;
 }
 
-function SubjectFields(props: { first: string }) {
+function SubjectFields(props: { subjects: CustomFieldSubject[] }) {
   const { t } = useTranslation('custom-fields');
-  const [subject, setSubject] = useState(props.first);
+  const [chosen, setChosen] = useState<string>();
+  const subject = props.subjects.some((s) => s.subject === chosen)
+    ? chosen!
+    : props.subjects[0]!.subject;
   const fields = useQuery({
     ...allCustomFieldsQuery(subject),
     meta: { errorToast: false },
@@ -97,20 +120,20 @@ function SubjectFields(props: { first: string }) {
       <Field className="max-w-xs">
         <FieldLabel htmlFor="custom-fields-subject">{t('subject')}</FieldLabel>
         <Select
-          items={CUSTOM_FIELD_SUBJECTS.map((s) => ({
-            value: s,
-            label: s,
+          items={props.subjects.map((s) => ({
+            value: s.subject,
+            label: s.label.plural,
           }))}
           value={subject}
-          onValueChange={(next) => next && setSubject(next)}
+          onValueChange={(next) => next && setChosen(next)}
         >
           <SelectTrigger id="custom-fields-subject" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {CUSTOM_FIELD_SUBJECTS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
+            {props.subjects.map((s) => (
+              <SelectItem key={s.subject} value={s.subject}>
+                {s.label.plural}
               </SelectItem>
             ))}
           </SelectContent>

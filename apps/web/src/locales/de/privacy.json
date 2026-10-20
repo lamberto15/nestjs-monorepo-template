@@ -7,7 +7,12 @@
     "description": "Eine Kopie von allem, was über Sie gespeichert ist: Ihr Konto, dann was jede Organisation, der Sie angehören, über Sie speichert. Die Datei wird im Hintergrund erstellt.",
     "start": "Meine Daten exportieren",
     "startedAt": "Gestartet {{date}}",
-    "kept": "Die in diesem Browser gestarteten Exporte. Ein fertiger Export wird 7 Tage aufbewahrt; sein Download-Link gilt 30 Minuten, öffnen Sie diese Seite erneut für einen neuen."
+    "kept": "Ihre Konto-Exporte, von jedem Gerät. Ein fertiger Export wird 7 Tage aufbewahrt; sein Download-Link gilt 30 Minuten, öffnen Sie diese Seite erneut für einen neuen.",
+    "expiresAt": "Aufbewahrt bis {{date}}",
+    "expired": "Abgelaufen. Exportieren Sie erneut für eine neue Datei.",
+    "empty": "Noch keine Exporte.",
+    "error": "Die Exporte konnten nicht geladen werden.",
+    "listLabel": "Ihre Exporte"
   },
   "consents": {
     "title": "Einwilligungen",

@@ -26,7 +26,7 @@ function PrivacyPage() {
       ) : (
         me && (
           <>
-            <ExportSection userId={me.user.id} />
+            <ExportSection />
             <ConsentsSection />
             <DeletionSection email={me.user.email} />
           </>

@@ -7,7 +7,12 @@
     "description": "Salinan semua yang disimpan tentang anda: akaun anda, kemudian apa yang disimpan oleh setiap organisasi yang anda sertai tentang anda. Fail dibuat di latar belakang.",
     "start": "Eksport data saya",
     "startedAt": "Dimulakan {{date}}",
-    "kept": "Eksport yang dimulakan dalam pelayar ini. Eksport yang selesai disimpan 7 hari; pautan muat turunnya sah 30 minit, buka halaman ini semula untuk pautan baharu."
+    "kept": "Your account exports, from any device. A finished export is kept 7 days; its download link works 30 minutes, open this page again for a new one.",
+    "expiresAt": "Kept until {{date}}",
+    "expired": "Expired. Export again for a new file.",
+    "empty": "No exports yet.",
+    "error": "The exports could not be loaded.",
+    "listLabel": "Your exports"
   },
   "consents": {
     "title": "Persetujuan",
