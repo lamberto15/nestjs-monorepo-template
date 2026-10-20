@@ -102,6 +102,13 @@
     "removeTitle": "Wert für alle Organisationen entfernen?",
     "removeDescription": "Der eigene Wert jeder Organisation oder der Standard gilt wieder.",
     "removed": "Für alle Organisationen entfernt.",
-    "rolloutOf": "Einführung {{percent}} %"
+    "rolloutOf": "Einführung {{percent}} %",
+    "operatorsOnly": "Nur die Betreiber der Installation (im Betreiber-Mandanten angemeldet) können dies für alle Mandanten festlegen."
+  },
+  "show": {
+    "label": "Anzeigen",
+    "all": "Alle Einstellungen",
+    "flags": "Feature-Flags",
+    "flagsHint": "Schalten Sie ein Flag für den ganzen Mandanten, ein Team oder eine Person ein, oder rollen Sie es schrittweise aus: Bearbeiten, dann „Gilt als: schrittweiser Rollout“."
   }
 }

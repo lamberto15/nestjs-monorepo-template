@@ -102,6 +102,13 @@
     "removeTitle": "移除所有组织的值？",
     "removeDescription": "将重新使用各组织自己的值或默认值。",
     "removed": "已为所有组织移除。",
-    "rolloutOf": "发布 {{percent}}%"
+    "rolloutOf": "发布 {{percent}}%",
+    "operatorsOnly": "只有部署的运营者(登录运营租户)才能为所有租户设置此项。"
+  },
+  "show": {
+    "label": "显示",
+    "all": "全部设置",
+    "flags": "功能开关",
+    "flagsHint": "为整个租户、某个团队或某个人开启开关,或逐步发布:点击编辑,然后选择“应用方式:逐步发布”。"
   }
 }

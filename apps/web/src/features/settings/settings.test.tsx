@@ -437,7 +437,9 @@ describe('admin settings', () => {
       within(dialog).getByRole('combobox', { name: 'Applies as' }),
     );
     await user.click(
-      await screen.findByRole('option', { name: 'A gradual rollout' }),
+      await screen.findByRole('option', {
+        name: 'A gradual rollout (a share of users)',
+      }),
     );
     const percent = within(dialog).getByRole('spinbutton');
     await user.clear(percent);
@@ -666,7 +668,9 @@ describe('platform values', () => {
     );
     await user.click(section.getByRole('combobox', { name: 'Applies as' }));
     await user.click(
-      await screen.findByRole('option', { name: 'A gradual rollout' }),
+      await screen.findByRole('option', {
+        name: 'A gradual rollout (a share of users)',
+      }),
     );
     const input = section.getByLabelText('Share of principals', {
       selector: 'input',
@@ -737,11 +741,37 @@ describe('platform values', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows no platform section when none is set and none may be', async () => {
+  it("tells a non-operator who sets a flag for all tenants; a setting's section stays away", async () => {
     api(admin, [platformFlag({})]);
     const { dialog } = await open('Platform flag');
+    const section = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    expect(section.getByText(/Only the deployment's operators/)).toBeVisible();
+    expect(section.getByText('Nothing is set for all tenants.')).toBeVisible();
+    expect(
+      section.queryByRole('button', { name: 'Save for all tenants' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows no platform section on a setting when none is set and none may be', async () => {
+    api(admin);
+    const { dialog } = await open('Publication delay');
     expect(
       within(dialog).queryByRole('region', { name: 'All tenants' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('lists the feature flags alone in their tab', async () => {
+    api(admin);
+    const user = userEvent.setup();
+    await renderApp('/settings');
+    expect(await screen.findByText('Publication delay')).toBeVisible();
+    await user.click(screen.getByRole('tab', { name: 'Feature flags' }));
+    expect(screen.getByText('Rich text editor')).toBeVisible();
+    expect(screen.queryByText('Publication delay')).not.toBeInTheDocument();
+    expect(screen.getByText(/roll it out gradually/)).toBeVisible();
+    await user.click(screen.getByRole('tab', { name: 'All settings' }));
+    expect(screen.getByText('Publication delay')).toBeVisible();
   });
 });

@@ -95,7 +95,8 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
     },
   });
 
-  if (!stored && !setting.canEditPlatform) {
+  // A flag always shows the section, so whoever can't set it learns who can.
+  if (!stored && !setting.canEditPlatform && !setting.flag) {
     return null;
   }
   const submit = async () => {
@@ -128,6 +129,11 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
       {setting.canEditPlatform && (
         <p className="text-xs text-muted-foreground">
           {t('platform.description')}
+        </p>
+      )}
+      {!setting.canEditPlatform && (
+        <p className="text-xs text-muted-foreground">
+          {t('platform.operatorsOnly')}
         </p>
       )}
       {stored ? (
