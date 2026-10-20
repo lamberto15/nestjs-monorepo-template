@@ -84,6 +84,8 @@ export interface ListPageProps<P extends ListPath> {
    * The selection is cleared when the list's filter or search changes.
    */
   bulkActions?: (context: BulkContext) => ReactNode;
+  /** Ask for every field of the route, not only the visible columns. */
+  allFields?: boolean;
 }
 
 /**
@@ -133,6 +135,7 @@ function ListTable<P extends ListPath>({
   listActions,
   selectable,
   bulkActions,
+  allFields,
 }: ListPageProps<P> & { description: ListDescription }) {
   const { t, i18n } = useTranslation();
   const router = useRouter({ warn: false });
@@ -175,6 +178,7 @@ function ListTable<P extends ListPath>({
     extra: extraQuery,
     pathParams,
     refetchInterval,
+    allFields,
   });
 
   const { table } = useDataTable({
