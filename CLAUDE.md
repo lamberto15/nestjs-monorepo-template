@@ -87,7 +87,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
 | Notifications (in-app, realtime, mail, webhook; preferences, digests) | [docs/notifications.md](docs/notifications.md) |
 | Settings and feature flags (runtime values, scopes, rollouts) | [docs/settings.md](docs/settings.md) |
-| Human-readable numbers (gapless sequences) | [docs/sequences.md](docs/sequences.md) |
+| Human-readable numbers (gapless sequences); naming series: the number formats administrators define (`INV-.YYYY.-.MM.-.
 | Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |
 | Comments and @mentions on records | [docs/comments.md](docs/comments.md) |
 | Files attached to records (uploads, downloads, the orphan sweep) | [docs/attachments.md](docs/attachments.md) |
