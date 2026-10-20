@@ -8,7 +8,8 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
-import { tenants } from '../../core/tenancy/tenancy.tables.js';
+import { type Tenant, tenants } from '../../core/tenancy/tenancy.tables.js';
+import { TenantRunsFailed } from '../../core/tenancy/tenancy.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { SystemPrincipal } from '../auth/principal.js';
 import { SIGN_UP_TENANT_SWEEP_JOB } from '../iam.jobs.js';
@@ -34,7 +35,9 @@ const BATCH = 500;
  * sign-up"), so without this, sign-ups nobody finishes (bots past the rate
  * limit, typos) would pile tenants up. Every night at 04:15 in APP_TIMEZONE,
  * on one instance (@nestjs/locks), in a worker (cron jobs run only there),
- * as the system principal (`system:sign-up-tenant-sweep`).
+ * as the system principal (`system:sign-up-tenant-sweep`). A tenant that
+ * fails is logged and skipped; the others go on, and the failures are
+ * reported together at the end (`TenantRunsFailed`), as `forEachTenant()`.
  *
  * Global tables only (tenants, memberships, users, email tokens), outside
  * any tenant: each tenant is deleted in its own transaction under its
@@ -60,28 +63,51 @@ export class SignUpTenantSweepJob {
   })
   @OnOneInstance({ key: 'iam:sign-up-tenant-sweep' })
   @WithoutOverlapping()
-  async run(): Promise<number> {
+  run(): Promise<number> {
+    return this.sweepAll();
+  }
+
+  /** The run itself, past the locks' decorators (`run()`: on one instance, never overlapping). */
+  async sweepAll(): Promise<number> {
     const cutoff = new Date(
       Date.now() - UNVERIFIED_SIGN_UP_GRACE_DAYS * 86_400_000,
     );
-    const deleted = await this.system.run(
+    const { deleted, failures } = await this.system.run(
       SIGN_UP_TENANT_SWEEP_JOB,
       async (system) => {
         let count = 0;
-        for (const { id } of await this.candidates(cutoff)) {
-          if (await this.sweep(system, id, cutoff)) {
-            count++;
+        const failed: { tenant: Tenant; error: unknown }[] = [];
+        // One tenant's failure doesn't stop the others (as forEachTenant()):
+        // logged with the tenant, reported together at the end.
+        for (const tenant of await this.candidates(cutoff)) {
+          try {
+            if (await this.sweep(system, tenant.id, cutoff)) {
+              count++;
+            }
+          } catch (error) {
+            failed.push({ tenant, error });
+            this.logger.error(
+              `${SIGN_UP_TENANT_SWEEP_JOB.key}: failed for tenant ${tenant.slug}`,
+              {
+                tenant: tenant.id,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            );
           }
         }
-        return count;
+        return { deleted: count, failures: failed };
       },
       { transaction: false, tenantId: null },
     );
-    if (deleted > 0) {
+    if (deleted > 0 || failures.length > 0) {
       this.logger.log('Unverified sign-ups’ tenants deleted', {
         deleted,
+        failed: failures.length,
         days: UNVERIFIED_SIGN_UP_GRACE_DAYS,
       });
+    }
+    if (failures.length > 0) {
+      throw new TenantRunsFailed(SIGN_UP_TENANT_SWEEP_JOB.key, failures);
     }
     return deleted;
   }
@@ -90,7 +116,7 @@ export class SignUpTenantSweepJob {
   private candidates(cutoff: Date) {
     const db = database(this.txHost);
     return db
-      .select({ id: tenants.id })
+      .select()
       .from(tenants)
       .where(
         and(
