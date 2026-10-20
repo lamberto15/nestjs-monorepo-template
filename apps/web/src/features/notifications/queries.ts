@@ -39,6 +39,28 @@ export const latestQuery = queryOptions({
     unwrap(api.GET('/v1/notifications', { params: { query: { limit: 8 } } })),
 });
 
+/** The notification the API sends when a sign-in's password is in a known data breach. */
+export const breachedType = 'security.passwordBreached';
+
+/**
+ * The unread breached-password alerts (the API has no `/me` flag for them).
+ * Under the `list` key, so the live event and every mutation that refreshes
+ * the lists refreshes this one too; the cached items it holds are rewritten
+ * by `markCachedRead`, so read-ness is derived from the items, not the fetch.
+ */
+export const breachAlertQuery = queryOptions({
+  queryKey: [...root, 'list', 'breach-alert'],
+  staleTime: 60_000,
+  queryFn: () =>
+    unwrap(
+      api.GET('/v1/notifications', {
+        params: {
+          query: { limit: 20, read: 'false', type: breachedType },
+        },
+      }),
+    ),
+});
+
 export type InboxFilter = { read?: 'true' | 'false'; type?: string };
 
 /** The inbox: cursor pages, newest first (`nextCursor` null: the end). */
@@ -158,7 +180,7 @@ export function setUnread(queryClient: QueryClient, unread: number) {
 }
 
 /** Refetch what the cache can't know: the count, the filtered lists. */
-function refresh(queryClient: QueryClient) {
+export function refreshNotifications(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: unreadKey }),
     queryClient.invalidateQueries({ queryKey: [...root, 'list'] }),
@@ -175,7 +197,7 @@ export function useMarkRead() {
     },
     onSuccess: async (_data, id) => {
       markCachedRead(queryClient, (item) => item.id === id);
-      await refresh(queryClient);
+      await refreshNotifications(queryClient);
     },
   });
 }
@@ -192,7 +214,7 @@ export function useMarkAllRead() {
     },
     onSuccess: async (before) => {
       markCachedRead(queryClient, (item) => item.createdAt < before);
-      await refresh(queryClient);
+      await refreshNotifications(queryClient);
     },
   });
 }
@@ -205,7 +227,7 @@ export function useRemoveNotification() {
     },
     onSuccess: async (_data, id) => {
       removeCached(queryClient, id);
-      await refresh(queryClient);
+      await refreshNotifications(queryClient);
     },
   });
 }

@@ -54,5 +54,10 @@
         "true": "Hidup"
       }
     }
+  },
+  "breach": {
+    "banner": "The password you signed in with appears in a known data breach. Change it now, to one you use nowhere else.",
+    "action": "Change your password",
+    "settleFailed": "Your password was changed, but the breach alert could not be marked as read."
   }
 }

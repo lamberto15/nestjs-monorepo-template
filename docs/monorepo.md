@@ -155,6 +155,9 @@ web app needs the API, so `dev:web` alone suits an API already running.
   `POST /v1/auth/email/verification` needs a session, so the button is for
   a signed-in user whose `emailVerified` is false: a banner in the signed-in
   layout and the verify-email page. A toast on success; a 429 turns the
+  button off for the limit's 15 minutes. Nobody signed in has no session to
+  ask with (sign-in refuses an unproved password account), so the sign-up and
+  sign-in pages cannot offer it until the API has a public resend.
   button off for the limit's 15 minutes. Nobody signed in has no session, so
   the sign-up "check your mailbox" screen and the sign-in page (after a 403
   `email_unverified`) use `ResendVerificationByEmail` instead:
@@ -162,6 +165,17 @@ web app needs the API, so `dev:web` alone suits an API already running.
   neutral line ("If this address has an account waiting for confirmation, we
   sent a new link"); Turnstile action `resend-verification` through
   `useCaptcha`; a 429 locks the button for that address for 15 minutes.
+- **The breached-password alert** (`components/breached-password-banner.tsx`,
+  `features/notifications/breach-alert.ts`): while the user has an unread
+  `security.passwordBreached` notification (the API has no `/me` flag for
+  it), a red banner in the signed-in layout links to `/account/security`.
+  It reads `GET /v1/notifications?read=false&type=…` under the notifications
+  `list` key, so the realtime event and every mark-read refresh it (without
+  realtime it polls like the inbox). Reading the notification, or changing the password in
+  `PasswordSection` (which fetches and marks every unread alert read, with a
+  toast if that fails), hides it; none while impersonating.
+  In the list the row gets a shield icon, a tint and a "Change your password"
+  link to the same page (the API sends the notification without a link).
 - **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
   `realtime` is on, reopened when the session changes (tenant switch,
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The
