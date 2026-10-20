@@ -39,7 +39,8 @@
     "created": "{{name}} ditambah. Ia mati sehingga anda menghidupkannya.",
     "updated": "{{name}} disimpan.",
     "turnedOn": "{{name}} dihidupkan.",
-    "turnedOff": "{{name}} dimatikan."
+    "turnedOff": "{{name}} dimatikan.",
+    "mappings": "Peranan kumpulan"
   },
   "details": {
     "redirectUri": "URI ubah hala (daftarkan pada penyedia)",
@@ -132,6 +133,35 @@
     "endExemption": "Tamatkan pengecualian",
     "endExemptionLabel": "Tamatkan pengecualian {{name}}",
     "exemptionEnded": "Pengecualian {{name}} ditamatkan.",
-    "exemption": "{{email}} · {{reason}}"
+    "exemption": "{{email}} · {{reason}}",
+    "addExemption": "Kecualikan ahli"
+  },
+  "mappings": {
+    "title": "Peranan kumpulan {{name}}",
+    "description": "Beri peranan mengikut kumpulan yang disenaraikan oleh pembekal identiti. Pada setiap log masuk, seseorang mendapat peranan kumpulannya dan kehilangan peranan yang diberi oleh pemetaan bagi kumpulan yang telah ditinggalkan. Peranan yang anda beri sendiri kekal.",
+    "attribute": "Atribut atau tuntutan kumpulan",
+    "attributeHint": "Tempat pembekal menyenaraikan kumpulan. Kosong: groups.",
+    "none": "Belum ada pemetaan. Tanpa pemetaan, tiada peranan disegerakkan.",
+    "row": "{{group}} → {{role}}",
+    "removeLabel": "Buang {{group}} → {{role}}",
+    "group": "Kumpulan",
+    "groupHint": "Dipadankan tepat: nama atau ID kumpulan (Microsoft Entra ID menghantar ID).",
+    "role": "Peranan",
+    "rolePlaceholder": "Pilih peranan",
+    "add": "Tambah pemetaan",
+    "incomplete": "Masukkan kumpulan dan pilih peranan.",
+    "saved": "Peranan kumpulan {{name}} disimpan."
+  },
+  "exemption": {
+    "title": "Kecualikan ahli",
+    "description": "Ahli yang dikecualikan masih boleh log masuk dengan kata laluan atau passkey semasa SSO diwajibkan. Apabila pengesahan dua faktor aktif, hanya ahli yang telah mendaftarkannya boleh dikecualikan.",
+    "member": "Ahli",
+    "memberPlaceholder": "Pilih ahli",
+    "memberRequired": "Pilih seorang ahli.",
+    "reason": "Sebab",
+    "reasonHint": "Mengapa, contohnya pentadbir kecemasan.",
+    "reasonRequired": "Nyatakan sebab.",
+    "save": "Kecualikan",
+    "added": "{{name}} dikecualikan."
   }
 }

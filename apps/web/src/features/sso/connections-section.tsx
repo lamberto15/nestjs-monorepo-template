@@ -12,6 +12,7 @@ import { Switch } from '@nestjs-monorepo-template/ui/components/switch';
 import { useQuery } from '@tanstack/react-query';
 import {
   ExternalLinkIcon,
+  UsersIcon,
   PencilIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -25,6 +26,7 @@ import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { ConnectionDialog } from './connection-dialog';
 import { CopyValue } from './copy-value';
+import { RoleMappingsDialog } from './role-mappings-dialog';
 import {
   connectionsQuery,
   useRefreshConnection,
@@ -45,6 +47,7 @@ export function ConnectionsSection() {
     meta: { errorToast: false },
   });
   const [editing, setEditing] = useState<Connection | 'new'>();
+  const [mapping, setMapping] = useState<Connection>();
   const [removing, setRemoving] = useState<Connection>();
   const [confirming, setConfirming] = useState(false);
   const remove = useRemoveConnection();
@@ -82,6 +85,7 @@ export function ConnectionsSection() {
             key={connection.id}
             connection={connection}
             onEdit={() => setEditing(connection)}
+            onMappings={() => setMapping(connection)}
             onRemove={() => {
               setRemoving(connection);
               setConfirming(true);
@@ -94,6 +98,13 @@ export function ConnectionsSection() {
           key={editing === 'new' ? 'new' : editing.id}
           connection={editing === 'new' ? undefined : editing}
           onOpenChange={(open) => !open && setEditing(undefined)}
+        />
+      )}
+      {mapping && (
+        <RoleMappingsDialog
+          key={mapping.id}
+          connection={mapping}
+          onOpenChange={(open) => !open && setMapping(undefined)}
         />
       )}
       <ConfirmDialog
@@ -116,6 +127,7 @@ export function ConnectionsSection() {
 function ConnectionCard(props: {
   connection: Connection;
   onEdit: () => void;
+  onMappings: () => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation('sso');
@@ -251,6 +263,10 @@ function ConnectionCard(props: {
           <Button variant="outline" size="sm" onClick={props.onEdit}>
             <PencilIcon />
             {t('connections.edit')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={props.onMappings}>
+            <UsersIcon />
+            {t('connections.mappings')}
           </Button>
           {connection.enabled ? (
             <Button
