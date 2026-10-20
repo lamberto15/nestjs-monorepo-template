@@ -103,9 +103,24 @@ export const ACCESS_PERMISSIONS = definePermissions({
         },
       },
     },
+    // The deployment's operators acting past their tenant (docs/tenancy.md).
+    Platform: {
+      label: 'Platform',
+      conditions: {},
+      actions: {
+        breakGlass: {
+          label:
+            "Read any tenant without its invitation, for an hour at most, with a reason its administrators are told (break-glass; the deployment's operators: only in the operator tenant)",
+          conditions: [],
+        },
+      },
+    },
   },
   systemJobs: IAM_SYSTEM_JOBS,
 });
+
+/** Read actions that reach past the current tenant: never a break-glass grant's. */
+const BEYOND_ONE_TENANT = new Set(['Access.readConsolidated']);
 
 /** A system job's key: lowercase words joined by `-`, groups by `.`. */
 const JOB_KEY =
@@ -205,6 +220,26 @@ export class PermissionCatalog {
   /** A declared system job, or undefined. */
   systemJob(key: string): SystemJobDefinition | undefined {
     return this.systemJobs.get(key);
+  }
+
+  /**
+   * Every read action of every subject (`read`, `readAudit`: the actions
+   * whose name starts with `read`), without conditions or field limits:
+   * what a break-glass request may do in the tenant it opened
+   * (docs/tenancy.md, "Break-glass"). Nothing that changes anything,
+   * and nothing that reads past that one tenant (`Access.readConsolidated`:
+   * a grant opens one tenant, never its subtree).
+   */
+  readPermissions(): PermissionInput[] {
+    return Object.entries(this.subjects).flatMap(([subject, declared]) =>
+      Object.keys(declared.actions)
+        .filter(
+          (action) =>
+            /^read(?:[A-Z]|$)/.test(action) &&
+            !BEYOND_ONE_TENANT.has(`${subject}.${action}`),
+        )
+        .map((action) => ({ subject, action, conditions: [] })),
+    );
   }
 
   /** Checks a permission against the catalog, and normalizes its parameters. */

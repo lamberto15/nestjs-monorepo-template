@@ -21,6 +21,12 @@
       "provisionScim": "Benutzer und Gruppen über SCIM 2.0 bereitstellen (API-Clients: das SCIM-Token des Identitätsanbieters)"
     }
   },
+  "platform": {
+    "label": "Plattform",
+    "actions": {
+      "breakGlass": "Jeden Mandanten ohne dessen Einladung lesen, höchstens eine Stunde lang, mit einer Begründung, die seinen Administratoren mitgeteilt wird (Break-Glass; die Betreiber der Installation: nur im Betreiber-Mandanten)"
+    }
+  },
   "approval": {
     "label": "Genehmigungen",
     "actions": {

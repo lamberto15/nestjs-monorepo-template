@@ -18,6 +18,13 @@ export interface UserPrincipal {
   tenantId: string | null;
   /** Set while an administrator acts as this user (POST /access/users/{id}/impersonate). */
   impersonator?: { id: string; email: string };
+  /**
+   * Set while an operator reads a tenant through a break-glass grant
+   * (BreakGlassGuard, docs/tenancy.md "Break-glass"): `tenantId` is then
+   * that tenant, every transaction is read only, and the ability is the
+   * catalog's read actions; the operator's own tenant is `operatorTenantId`.
+   */
+  breakGlass?: { grantId: string; operatorTenantId: string; expiresAt: string };
 }
 
 /** A system calling the API with its key (an API client, POST /access/clients). */
@@ -98,7 +105,9 @@ export const actorOf = (principal: Principal | null) =>
           principal.kind === 'user'
             ? principal.impersonator
               ? `${principal.impersonator.email} as ${principal.email}`
-              : principal.email
+              : principal.breakGlass
+                ? `${principal.email} (break-glass)`
+                : principal.email
             : principal.name,
       }
     : { actor: 'anonymous', actorLabel: 'anonymous' };

@@ -72,6 +72,19 @@ export const IAM_NOTIFICATIONS = [
       previousKeysEnd: z.iso.datetime(),
     }),
   },
+  {
+    // To each administrator of a tenant an operator opened with a
+    // break-glass grant (BreakGlassService): who, why, until when.
+    type: 'security.breakGlassStarted',
+    channels: { email: 'immediate' },
+    mandatory: true,
+    data: z.object({
+      operator: z.string(),
+      reason: z.string(),
+      expiresAt: z.iso.datetime(),
+      ip: z.string(),
+    }),
+  },
 ] as const;
 
 export type IamNotificationType = (typeof IAM_NOTIFICATIONS)[number]['type'];

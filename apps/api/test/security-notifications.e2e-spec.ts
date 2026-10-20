@@ -388,6 +388,12 @@ describe('security notifications (e2e)', () => {
         mandatory: true,
         channels: { email: false },
       },
+      {
+        type: 'security.breakGlassStarted',
+        label: 'Break-glass access to your tenant',
+        mandatory: true,
+        channels: { email: 'immediate' },
+      },
     ]);
   });
 });

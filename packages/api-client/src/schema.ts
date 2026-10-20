@@ -3574,6 +3574,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenants/{id}/break-glass": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your break-glass grants to a tenant, newest first
+         * @description Yours only, the 50 latest.
+         */
+        get: operations["TenantsController_breakGlassGrants_v1"];
+        put?: never;
+        /**
+         * Open a tenant read only, without its invitation (break-glass)
+         * @description An emergency: read the tenant for at most an hour (`minutes`, default 60), never extended, with a `reason`. Send the grant’s `id` as the `Break-Glass` header of GET requests: they act in that tenant, read only (the database refuses any write; a request that isn’t a read answers 403 `break_glass_read_only`), with every read permission and nothing else. The tenant’s administrators are notified at once (`security.breakGlassStarted`) and see it in their sign-in log (`method: break-glass`); audited `tenant.break-glass-started` with the reason in your tenant and in that one. Needs `Platform.breakGlass` in the operator tenant and a recent sign-in. docs/tenancy.md, "Break-glass".
+         */
+        post: operations["TenantsController_startBreakGlass_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenants/{id}/break-glass/{grantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End a break-glass grant before its time
+         * @description Requests through it stop at once. Audited `tenant.break-glass-ended` in your tenant and in that one. An ended or expired grant: unchanged.
+         */
+        delete: operations["TenantsController_endBreakGlass_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sso/connections": {
         parameters: {
             query?: never;
@@ -21522,6 +21566,194 @@ export interface operations {
             };
             /** @description `tenant_deletion_started`: the erase is running. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_breakGlassGrants_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * Format: uuid
+                             * @description Send it as the `Break-Glass` header of a GET request to read the tenant.
+                             */
+                            id: string;
+                            /**
+                             * Format: uuid
+                             * @description The tenant it opens.
+                             */
+                            tenantId: string;
+                            reason: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description After this, requests through it answer 403 `break_glass_expired`.
+                             */
+                            expiresAt: string;
+                            /**
+                             * Format: date-time
+                             * @description Ended before its time (DELETE); null: not ended.
+                             */
+                            endedAt: string | null;
+                        }[];
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_startBreakGlass_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Why, in your words (an incident, a ticket): kept with the grant, in both tenants’ audit logs, and told to the tenant’s administrators. */
+                    reason: string;
+                    /** @description How long it lasts, at most 60 (the default). Never extended. */
+                    minutes?: number;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description Send it as the `Break-Glass` header of a GET request to read the tenant.
+                         */
+                        id: string;
+                        /**
+                         * Format: uuid
+                         * @description The tenant it opens.
+                         */
+                        tenantId: string;
+                        reason: string;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /**
+                         * Format: date-time
+                         * @description After this, requests through it answer 403 `break_glass_expired`.
+                         */
+                        expiresAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Ended before its time (DELETE); null: not ended.
+                         */
+                        endedAt: string | null;
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `break_glass_active`: you hold an open grant to it (end it first; a new one needs a new reason); `break_glass_own_tenant`: the operator tenant; `tenant_inactive`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_endBreakGlass_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                grantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description Send it as the `Break-Glass` header of a GET request to read the tenant.
+                         */
+                        id: string;
+                        /**
+                         * Format: uuid
+                         * @description The tenant it opens.
+                         */
+                        tenantId: string;
+                        reason: string;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /**
+                         * Format: date-time
+                         * @description After this, requests through it answer 403 `break_glass_expired`.
+                         */
+                        expiresAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Ended before its time (DELETE); null: not ended.
+                         */
+                        endedAt: string | null;
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a grant of yours to this tenant. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
