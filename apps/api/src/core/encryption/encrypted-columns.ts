@@ -160,3 +160,48 @@ export const isEncrypted = (column: PgColumn) => registry.has(column);
 export const encryptedColumns = (): readonly EncryptedColumn[] => [
   ...registry.values(),
 ];
+
+/**
+ * The row properties holding an encrypted value or a blind index, in any
+ * table: what must never reach a revision, an audit entry, an export cell or
+ * a webhook payload in the clear. By property name, as the log redaction
+ * does, so a view or snapshot built from a row (no table at hand) is covered.
+ */
+export const encryptedProperties = (): ReadonlySet<string> =>
+  new Set(
+    [...registry.values()].flatMap((entry) => [
+      entry.key,
+      ...(entry.blindIndex ? [entry.blindIndex.key] : []),
+    ]),
+  );
+
+/** What replaces an encrypted value where a reader may not (or need not) see it. */
+export const ENCRYPTED_PLACEHOLDER = '[encrypted]';
+
+/**
+ * `value` without the encrypted properties, at any depth (objects and
+ * arrays): for what is stored or sent on (revision snapshots, webhook
+ * payloads), where a placeholder would be restored or read as data.
+ */
+export function withoutEncrypted<T>(value: T): T {
+  const names = encryptedProperties();
+  return names.size === 0 ? value : strip(value, names);
+}
+
+function strip(value: unknown, names: ReadonlySet<string>): never {
+  if (Array.isArray(value)) {
+    return value.map((item) => strip(item, names)) as never;
+  }
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !names.has(key))
+        .map(([key, item]) => [key, strip(item, names)]),
+    ) as never;
+  }
+  return value as never;
+}

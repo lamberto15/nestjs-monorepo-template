@@ -12,7 +12,11 @@ import {
   HttpClientModule,
 } from '@nestjs/http-client';
 import { type CoreEnv, webUrl } from '../core/config/core.env.js';
-import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
+import {
+  loadMfaEncryptionKeys,
+  loadOrCreateSecret,
+  type Database,
+} from '../core/database/drizzle.js';
 import { AccessAdminService } from './access/access-admin.service.js';
 import { AccessController } from './access/access.controller.js';
 import { AccessSeeder } from './access/access.seeder.js';
@@ -234,13 +238,9 @@ export class IamModule {
                 // TOTP secrets encrypted at rest (AES-256-GCM), newest key first.
                 mfa: {
                   encryption: {
-                    keys: (
-                      await loadOrCreateSecret(
-                        db,
-                        'MFA_ENCRYPTION_KEYS',
-                        random256,
-                      )
-                    ).split(','),
+                    keys: (await loadMfaEncryptionKeys(db, random256)).split(
+                      ',',
+                    ),
                   },
                   issuer:
                     config.get('MFA_ISSUER', { infer: true }) ??

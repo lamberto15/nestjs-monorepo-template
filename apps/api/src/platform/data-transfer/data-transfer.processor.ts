@@ -18,7 +18,10 @@ import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { stillActive } from '../queues/still-active.js';
 import { isTenantFileKey } from '../storage/storage.config.js';
 import { Realtime } from '../realtime/realtime.service.js';
-import { DataTransferRegistry } from './data-transfer.registry.js';
+import {
+  assertNoEncryptedColumns,
+  DataTransferRegistry,
+} from './data-transfer.registry.js';
 import {
   DATA_TRANSFERS,
   readerZone,
@@ -273,6 +276,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
     const columns = exporter.columnsFor
       ? await exporter.columnsFor(principal)
       : exporter.columns;
+    assertNoEncryptedColumns(job.data.name, columns);
     // Dates as the reader's local time: the zone asked for, the user's own
     // (as saved now), else the server's.
     const timeZone = readerZone(
