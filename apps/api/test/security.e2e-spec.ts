@@ -7,7 +7,10 @@ import { AccountService } from '../src/iam/account/account.service.js';
 import { VerificationRequests } from '../src/iam/account/verification-requests.service.js';
 import { EmailVerificationService } from '@nestjs/authentication';
 import { PasskeysService } from '../src/iam/account/passkeys.service.js';
-import type { UserPrincipal } from '../src/iam/auth/principal.js';
+import type {
+  ClientPrincipal,
+  UserPrincipal,
+} from '../src/iam/auth/principal.js';
 import { AccessService } from '../src/iam/access/access.service.js';
 import {
   apiClientRoles,
@@ -20,6 +23,8 @@ import {
 } from '../src/iam/iam.tables.js';
 import { SoftwareAuthenticator } from './software-authenticator.js';
 import { accountDeletions } from '../src/platform/account/account.tables.js';
+import { UsersRepository } from '../src/iam/auth/users.repository.js';
+import { stillActive } from '../src/platform/queues/still-active.js';
 import { bootApp, type TestApp } from './support.js';
 
 /**
@@ -1525,6 +1530,111 @@ describe('security (e2e)', () => {
       expect(
         (catalog.body.exports as { name: string }[]).map((e) => e.name),
       ).not.toContain('tenant');
+    });
+  });
+
+  describe('a deactivated tenant exposes nothing, even to an active membership (#220)', () => {
+    it("leaves the tenant's records out of a member's account export", async () => {
+      const other = await node.otherTenant();
+      // A member of both tenants: a test item in each.
+      const person = await node.user(['editor']);
+      const editor = (
+        (await other.admin.get('/v1/access/roles').expect(200)).body.items as {
+          id: string;
+          key: string | null;
+        }[]
+      ).find((r) => r.key === 'editor')!;
+      const token = await node.invite(other.admin, {
+        email: person.email,
+        roleIds: [editor.id],
+      });
+      await person.agent
+        .post('/v1/auth/invitations/accept')
+        .send({ token })
+        .expect(200);
+      const here = await node
+        .writeItem(person.agent, { title: 'Here', body: '' })
+        .expect(201);
+      await person.agent
+        .post('/v1/auth/tenant')
+        .send({ tenantId: other.id })
+        .expect(204);
+      const there = await node
+        .writeItem(person.agent, { title: 'There', body: '' })
+        .expect(201);
+      await person.agent
+        .post('/v1/auth/tenant')
+        .send({ tenantId: node.tenantId })
+        .expect(204);
+
+      // The operators deactivate it; the membership stays active.
+      await node
+        .admin()
+        .patch(`/v1/tenants/${other.id}`)
+        .send({ active: false })
+        .expect(200);
+
+      const started = await person.agent
+        .post('/v1/account/export')
+        .send({})
+        .expect(202);
+      let status: Record<string, any> = {};
+      for (let tries = 0; tries < 100; tries++) {
+        status = (
+          await person.agent
+            .get(`/v1/data/transfers/${started.body.id}`)
+            .expect(200)
+        ).body;
+        if (['completed', 'failed'].includes(status.status)) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(status.status).toBe('completed');
+      const { pathname, search } = new URL(status.result.url);
+      const file = (
+        await node
+          .http()
+          .get(pathname + search)
+          .expect(200)
+      ).body as { kind: string; id: string | null; data: any }[];
+
+      const items = file
+        .filter((r) => r.kind === 'test-items')
+        .map((r) => r.data.id ?? r.id);
+      expect(items).toContain(here.body.id);
+      expect(items).not.toContain(there.body.id);
+      // Of the deactivated tenant, only the membership row: nothing read in it.
+      const membership = file.find(
+        (r) => r.kind === 'membership' && r.id === other.id,
+      );
+      expect(membership?.data).toMatchObject({
+        active: true,
+        tenantActive: false,
+      });
+      const after = file.slice(file.indexOf(membership!) + 1);
+      const next = after.findIndex((r) => r.kind === 'membership');
+      expect(next === -1 ? after : after.slice(0, next)).toEqual([]);
+    });
+
+    it("refuses a queued job of the tenant's API client once it is deactivated", async () => {
+      const other = await node.otherTenant();
+      const client = await other.client();
+      const users = node.app.get(UsersRepository);
+      const db = node.app.get<Database>(getDrizzleToken());
+      const queued: ClientPrincipal = {
+        kind: 'client',
+        id: client.id,
+        name: 'queued',
+        tenantId: other.id,
+      };
+      const check = () =>
+        node.inTenant(() => stillActive(queued, users, db), other.id);
+      expect(await check()).toMatchObject({ kind: 'client', id: client.id });
+      await node
+        .admin()
+        .patch(`/v1/tenants/${other.id}`)
+        .send({ active: false })
+        .expect(200);
+      expect(await check()).toBeNull();
     });
   });
 });
