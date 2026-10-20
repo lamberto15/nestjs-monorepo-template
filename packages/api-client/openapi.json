@@ -15267,6 +15267,254 @@
         ]
       }
     },
+    "/v1/ai/runs": {
+      "post": {
+        "description": "Whoever may use the helper on the record (its source decides). Answers at once with the run id; a worker sends the record's fields you may read to the provider and keeps a structured answer for an hour. Follow it at GET /v1/ai/runs/{id}; your realtime connection hears `ai.ready { id, subject, recordId, task }` or `ai.failed { id, subject, recordId, error }`. Off until the tenant sets `ai.enabled`. Audited (ai.requested, ai.completed).",
+        "operationId": "AiController_request_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "example": "note",
+                    "description": "The kind of record: a name the features register (`note`)."
+                  },
+                  "recordId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "task": {
+                    "type": "string",
+                    "enum": [
+                      "summarize",
+                      "classify"
+                    ],
+                    "description": "`summarize` or `classify`; each has its own answer shape."
+                  }
+                },
+                "required": [
+                  "source",
+                  "recordId",
+                  "task"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not use it on this record, or the tenant has not turned it on (ai_disabled)."
+          },
+          "404": {
+            "description": "No such kind of record."
+          },
+          "409": {
+            "description": "Yours is still running for this record and task (ai_pending)."
+          },
+          "429": {
+            "description": "More than 20 a minute from one user (rate_limited), or the tenant's daily token quota is used up (ai_quota_exceeded)."
+          },
+          "503": {
+            "description": "The helper is not set up on this server (ai_unavailable)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Ask the AI helper about a record",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/v1/ai/runs/{id}": {
+      "get": {
+        "description": "Only the principal who asked. `completed`: `output` is the answer in the task's shape (kept an hour, then null), with the model id and prompt version that produced it and the tokens used.",
+        "operationId": "AiController_status_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "recordId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "task": {
+                      "type": "string"
+                    },
+                    "promptVersion": {
+                      "type": "string",
+                      "example": "v1"
+                    },
+                    "model": {
+                      "nullable": true,
+                      "description": "The model id that answered (null until it did).",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "completed",
+                        "failed"
+                      ],
+                      "description": "queued → running → completed, or failed (then `error`)."
+                    },
+                    "output": {
+                      "nullable": true,
+                      "description": "Once completed: the task's answer, validated against its schema. Kept for an hour; null after that (ask again).",
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "inputTokens": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "outputTokens": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "cached": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "nullable": true,
+                      "description": "Why it failed, written for people.",
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "source",
+                    "subject",
+                    "recordId",
+                    "task",
+                    "promptVersion",
+                    "model",
+                    "status",
+                    "output",
+                    "inputTokens",
+                    "outputTokens",
+                    "cached",
+                    "error",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A run you asked for: its state, then the answer",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/v1/tags": {
       "get": {
         "description": "Every subject unless `?subject=Note` (or `subject.in=`); `?name.contains=urg`, `?name=Urgent` (whatever the case); `?sort=name`. Cursor pages.",
@@ -16005,9 +16253,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, dateField, conditions, priority, example, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, dateField, conditions, priority, example, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -16047,7 +16295,7 @@
         ]
       },
       "post": {
-        "description": "For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. Audited (`namingSeries.created`).",
+        "description": "For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. With `conditions`, it numbers the records they hold for (the first by `priority`). Audited (`namingSeries.created`).",
         "operationId": "NamingSeriesController_create_v1",
         "parameters": [],
         "requestBody": {
@@ -16068,7 +16316,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 60,
-                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.",
                     "example": "INV-.YYYY.-.MM.-.#####"
                   },
                   "label": {
@@ -16078,6 +16326,27 @@
                   "isDefault": {
                     "description": "The subject's default from now on; its first series is.",
                     "type": "boolean"
+                  },
+                  "dateField": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                    "description": "A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.",
+                    "example": "invoiceDate"
+                  },
+                  "conditions": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/NamingCondition"
+                    },
+                    "description": "All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series."
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000,
+                    "description": "Higher first, among the series whose conditions hold."
                   }
                 },
                 "required": [
@@ -16100,7 +16369,7 @@
             }
           },
           "400": {
-            "description": "A subject that takes no number, an invalid pattern (validation_failed)."
+            "description": "A subject that takes no number, an invalid pattern, date field or condition (validation_failed)."
           },
           "401": {
             "description": "No valid API key or session."
@@ -16131,7 +16400,7 @@
     },
     "/v1/naming-series/subjects": {
       "get": {
-        "description": "Each with the format it has in code (`declaredPattern`), which numbers it while it has no series.",
+        "description": "Each with the format it has in code (`declaredPattern`), which numbers it while it has no series, and the fields its series may print (`{title}`), take their date from or test in conditions.",
         "operationId": "NamingSeriesController_subjects_v1",
         "parameters": [],
         "responses": {
@@ -16169,38 +16438,106 @@
         ]
       }
     },
-    "/v1/naming-series/preview": {
+    "/v1/naming-series/variables": {
       "get": {
-        "description": "What the pattern would give now, before it is saved: its counter key, the last value taken under that key (shared with any series printing the same), the next number.",
-        "operationId": "NamingSeriesController_preview_v1",
-        "parameters": [
-          {
-            "name": "subject",
-            "required": true,
-            "in": "query",
-            "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
-              "example": "Note"
+        "description": "As Frappe's naming series variables: `FY` (the fiscal year), `ABBR` (the tenant's abbreviation), and any a feature declares. Written `.FY.` or `{FY}`.",
+        "operationId": "NamingSeriesController_variables_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingVariableList"
+                }
+              }
             }
           },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
           {
-            "name": "pattern",
-            "required": true,
-            "in": "query",
-            "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 60,
-              "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
-              "example": "INV-.YYYY.-.MM.-.#####"
-            }
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
           }
         ],
+        "summary": "The variables patterns may print",
+        "tags": [
+          "naming-series"
+        ]
+      }
+    },
+    "/v1/naming-series/preview": {
+      "post": {
+        "description": "What the pattern would give now, before it is saved, for a record with `values` (its fields left out print as `{field}`): its counter key, the last value taken under that key (shared with any series printing the same), the next number.",
+        "operationId": "NamingSeriesController_preview_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
+                    "example": "Note"
+                  },
+                  "pattern": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.",
+                    "example": "INV-.YYYY.-.MM.-.#####"
+                  },
+                  "dateField": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                    "description": "A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.",
+                    "example": "invoiceDate"
+                  },
+                  "values": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
+                    },
+                    "description": "A record's field values, as its create body takes them: the counter of the number such a record gets. Fields left out print as `{field}`."
+                  }
+                },
+                "required": [
+                  "subject",
+                  "pattern"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -16290,7 +16627,7 @@
         ]
       },
       "patch": {
-        "description": "Its pattern, its label, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).",
+        "description": "Its pattern, label, date field, conditions or priority, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).",
         "operationId": "NamingSeriesController_update_v1",
         "parameters": [
           {
@@ -16313,7 +16650,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 60,
-                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.",
                     "example": "INV-.YYYY.-.MM.-.#####"
                   },
                   "label": {
@@ -16327,6 +16664,28 @@
                     "enum": [
                       true
                     ]
+                  },
+                  "dateField": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                    "description": "A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.",
+                    "example": "invoiceDate"
+                  },
+                  "conditions": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/NamingCondition"
+                    },
+                    "description": "All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series."
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000,
+                    "description": "Higher first, among the series whose conditions hold."
                   }
                 }
               }
@@ -16422,7 +16781,7 @@
     },
     "/v1/naming-series/{id}/counter": {
       "get": {
-        "description": "This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number.",
+        "description": "This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number. A pattern printing fields counts per value: they show as `{field}` here; POST /v1/naming-series/preview with `values` gives one value's.",
         "operationId": "NamingSeriesController_counter_v1",
         "parameters": [
           {
@@ -16472,7 +16831,7 @@
         ]
       },
       "put": {
-        "description": "Starts this period's counter at `current`: the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).",
+        "description": "Starts this period's counter at `current` (with fields in the pattern, the counter of `values`): the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).",
         "operationId": "NamingSeriesController_setCounter_v1",
         "parameters": [
           {
@@ -16497,6 +16856,24 @@
                     "maximum": 9007199254740991,
                     "description": "The last value taken: the next record gets this + 1. Never below the value already taken.",
                     "example": 1000
+                  },
+                  "values": {
+                    "description": "For a pattern printing fields: the field values whose counter is set (`{ customer: 'ACME' }`); each value has its own.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
+                    }
                   }
                 },
                 "required": [
@@ -39933,11 +40310,27 @@
           },
           "isDefault": {
             "type": "boolean",
-            "description": "What a new record takes when its body names no series."
+            "description": "What a new record takes when its body names no series and no series' conditions hold for it."
+          },
+          "dateField": {
+            "nullable": true,
+            "example": "invoiceDate",
+            "type": "string"
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NamingCondition"
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           },
           "example": {
             "type": "string",
-            "description": "The number it gives next, if taken now.",
+            "description": "The number it gives next, if taken now; the fields it prints show as `{field}`.",
             "example": "INV-2026-10-00043"
           },
           "createdAt": {
@@ -39957,9 +40350,56 @@
           "pattern",
           "label",
           "isDefault",
+          "dateField",
+          "conditions",
+          "priority",
           "example",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "NamingCondition": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+            "example": "region"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "ne",
+              "gt",
+              "gte",
+              "lt",
+              "lte"
+            ],
+            "description": "Compared as numbers for number fields, as ISO dates for date fields, else as text."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ],
+            "example": "EU"
+          }
+        },
+        "required": [
+          "field",
+          "op",
+          "value"
         ],
         "additionalProperties": false
       },
@@ -39989,11 +40429,72 @@
             "type": "string",
             "description": "The format in code: used while the subject has no series.",
             "example": "NOTE-.YYYY.-.#####"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "title"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "number",
+                    "date",
+                    "datetime",
+                    "boolean"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The fields a pattern may print (`{title}`; not `boolean` ones), a series take its date from (`date`, `datetime`) or its conditions test."
           }
         },
         "required": [
           "subject",
-          "declaredPattern"
+          "declaredPattern",
+          "fields"
+        ],
+        "additionalProperties": false
+      },
+      "NamingVariableList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NamingVariable"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "NamingVariable": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "FY"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
         ],
         "additionalProperties": false
       },
@@ -41617,6 +42118,54 @@
         ],
         "additionalProperties": false
       },
+      "RealtimeAiReadyEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "recordId": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "RealtimeAiFailedEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "recordId": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "error"
+        ],
+        "additionalProperties": false
+      },
       "RealtimeRecordCommentedEvent": {
         "type": "object",
         "properties": {
@@ -41777,6 +42326,18 @@
       "description": "A document you asked for failed for good; `error` says why, for people.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeDocumentFailedEvent"
+      }
+    },
+    "ai.ready": {
+      "description": "An AI run you asked for (`POST /v1/ai/runs`) finished: read the answer at `GET /v1/ai/runs/{id}`.",
+      "payload": {
+        "$ref": "#/components/schemas/RealtimeAiReadyEvent"
+      }
+    },
+    "ai.failed": {
+      "description": "An AI run you asked for failed for good; `error` says why, for people.",
+      "payload": {
+        "$ref": "#/components/schemas/RealtimeAiFailedEvent"
       }
     },
     "record.commented": {

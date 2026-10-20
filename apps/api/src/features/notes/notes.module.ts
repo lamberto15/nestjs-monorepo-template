@@ -30,6 +30,7 @@ import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
 import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
 import { noteBulkSchema, noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
+import { NoteAi } from './note-ai.js';
 import { NoteDocuments } from './note-documents.js';
 import { documentRoutes } from '../../platform/documents/document.routes.js';
 import { listSource } from '../../platform/lists/lists.registry.js';
@@ -81,6 +82,7 @@ import { NOTE_LIST } from './note.list.js';
     NoteTags,
     NoteRevisions,
     NotePublishApproval,
+    NoteAi,
     NoteDocuments,
     // GET /v1/lists/Note: the list described, and what notes take (a generated record's comes from recordParts).
     listSource('Note', NOTE_LIST, NOTE_CAPABILITIES),

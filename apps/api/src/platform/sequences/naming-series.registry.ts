@@ -16,7 +16,17 @@ export interface NumberedSubject {
     NextNumberOptions,
     'prefix' | 'perYear' | 'width' | 'separator'
   >;
+  /**
+   * The create body's fields a series may print (`{customer}`), take its
+   * date from (`dateField`) or test (`conditions`), by kind; `boolean`
+   * ones only in conditions. None: a series uses dates and variables only.
+   */
+  readonly fields?: Readonly<Record<string, NumberingFieldKind>>;
 }
+
+/** A field as numbering reads it from a create body. */
+export type NumberingFieldKind =
+  'text' | 'number' | 'date' | 'datetime' | 'boolean';
 
 @Injectable()
 export class NamingSeriesRegistry {
