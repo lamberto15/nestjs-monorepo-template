@@ -22,6 +22,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
+import { Route as AppNamingSeriesRouteImport } from './routes/_app/naming-series'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
@@ -121,6 +122,11 @@ const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
 const AppMailSuppressionsRoute = AppMailSuppressionsRouteImport.update({
   id: '/mail-suppressions',
   path: '/mail-suppressions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNamingSeriesRoute = AppNamingSeriesRouteImport.update({
+  id: '/naming-series',
+  path: '/naming-series',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -319,6 +325,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
+  '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/tags': typeof AppTagsRoute
@@ -368,6 +375,7 @@ export interface FileRoutesByTo {
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
+  '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/tags': typeof AppTagsRoute
@@ -420,6 +428,7 @@ export interface FileRoutesById {
   '/_app/audit': typeof AppAuditRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
+  '/_app/naming-series': typeof AppNamingSeriesRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/tags': typeof AppTagsRoute
@@ -473,6 +482,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/custom-fields'
     | '/mail-suppressions'
+    | '/naming-series'
     | '/notifications'
     | '/settings'
     | '/tags'
@@ -522,6 +532,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/custom-fields'
     | '/mail-suppressions'
+    | '/naming-series'
     | '/notifications'
     | '/settings'
     | '/tags'
@@ -573,6 +584,7 @@ export interface FileRouteTypes {
     | '/_app/audit'
     | '/_app/custom-fields'
     | '/_app/mail-suppressions'
+    | '/_app/naming-series'
     | '/_app/notifications'
     | '/_app/settings'
     | '/_app/tags'
@@ -715,6 +727,13 @@ declare module '@tanstack/react-router' {
       path: '/mail-suppressions'
       fullPath: '/mail-suppressions'
       preLoaderRoute: typeof AppMailSuppressionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/naming-series': {
+      id: '/_app/naming-series'
+      path: '/naming-series'
+      fullPath: '/naming-series'
+      preLoaderRoute: typeof AppNamingSeriesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -976,6 +995,7 @@ interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
+  AppNamingSeriesRoute: typeof AppNamingSeriesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTagsRoute: typeof AppTagsRoute
@@ -1019,6 +1039,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
+  AppNamingSeriesRoute: AppNamingSeriesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTagsRoute: AppTagsRoute,

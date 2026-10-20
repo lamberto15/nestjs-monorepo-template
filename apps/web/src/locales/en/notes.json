@@ -43,7 +43,9 @@
     "save": "Save changes",
     "cancel": "Cancel",
     "created": "Note created",
-    "saved": "Note saved"
+    "saved": "Note saved",
+    "numbering": "Numbering",
+    "numberingHint": "Which series gives the note its number."
   },
   "detail": {
     "back": "Back to notes"

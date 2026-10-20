@@ -9,6 +9,7 @@
       "manageCustomFields": "添加、更改、重新排序和停用自定义字段（管理员为笔记和其他记录添加的字段）",
       "manageSettings": "为所有人、某个团队或某个用户设置设置项和功能开关（platform/settings）",
       "manageTags": "创建、重命名、更改颜色和删除记录所带的标签（platform/tags）",
+      "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
       "readAudit": "查看审计日志",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",

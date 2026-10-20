@@ -25,7 +25,7 @@ import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
 import { NotificationsService } from '../../platform/notifications/notifications.service.js';
-import { SequencesService } from '../../platform/sequences/sequences.service.js';
+import { NamingSeriesService } from '../../platform/sequences/naming-series.service.js';
 import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
 import { TagsService } from '../../platform/tags/tags.service.js';
 import { IncomingEventHandlers } from '../../platform/webhooks/incoming-event-handlers.js';
@@ -61,13 +61,19 @@ export class NotesService {
     private readonly teams: TeamsService,
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
-    private readonly sequences: SequencesService,
+    private readonly namingSeries: NamingSeriesService,
     private readonly tags: TagsService,
     private readonly revisions: RevisionsService,
     private readonly approvals: ApprovalsService,
     private readonly tenancy: Tenancy,
     incomingEvents: IncomingEventHandlers,
   ) {
+    // Numbered NOTE-2026-00042 until the tenant defines naming series of its own.
+    namingSeries.register({
+      subject: 'Note',
+      sequence: 'note',
+      declared: { prefix: 'NOTE', perYear: true, width: 5 },
+    });
     // A tenant's own sender (docs/webhooks-and-realtime.md): the tenant is the
     // sender's, so the event names only the note, and the request already runs in it.
     incomingEvents.register('note.publish-requested', ({ webhook }) => {
@@ -116,11 +122,10 @@ export class NotesService {
       'create',
     );
     const note = await inTransaction(this.txHost, async (tx) => {
-      // Its number: gapless, per year (NOTE-2026-00042), in this transaction.
-      const { formatted: number } = await this.sequences.next(tx, 'note', {
-        prefix: 'NOTE',
-        perYear: true,
-        width: 5,
+      // Its number: gapless, in this transaction, from the naming series the
+      // body names, else the default (NOTE-2026-00042 without any).
+      const { formatted: number } = await this.namingSeries.next(tx, 'Note', {
+        seriesId: dto.namingSeriesId,
       });
       const [row] = await tx
         .insert(notes)

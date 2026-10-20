@@ -69,8 +69,8 @@ export class TestItemsService {
         .values({
           // Its owner, and with teams the owner's team.
           ...(await this.records.owner(owner, tx)),
-          // Its number (numbered), when the record takes one.
-          ...(await this.lifecycle.creating(tx)),
+          // Its number (numbered), when the record takes one: in the body's naming series, else the default.
+          ...(await this.lifecycle.creating(tx, dto)),
           ...values,
         } as typeof testItems.$inferInsert)
         .returning()

@@ -43,7 +43,9 @@
     "save": "Simpan perubahan",
     "cancel": "Batal",
     "created": "Nota dicipta",
-    "saved": "Nota disimpan"
+    "saved": "Nota disimpan",
+    "numbering": "Penomboran",
+    "numberingHint": "Siri mana yang memberi nota ini nombornya."
   },
   "detail": {
     "back": "Kembali ke nota"

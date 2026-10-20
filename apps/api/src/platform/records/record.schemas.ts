@@ -5,6 +5,7 @@ import {
   customValuesSchema,
 } from '../custom-fields/custom-field.schemas.js';
 import { fieldSchemas } from '../fields/fields.js';
+import { namingSeriesIdSchema } from '../sequences/naming-series.schemas.js';
 import { tagRefSchema } from '../tags/tag.schemas.js';
 import { numberFormat, type RecordDeclaration, takes } from './record.js';
 import { recordCanSchema, recordWatchingSchema } from './record-can.js';
@@ -30,10 +31,16 @@ export function recordSchemas<const D extends RecordDeclaration>(
   const fields = fieldSchemas(declaration.fields);
   const custom = takes(declaration, 'custom');
   // Checked against the subject's active custom fields by the service (RecordLifecycle.values).
-  const create = fields.create.extend({
+  const editable = fields.create.extend({
     ...(custom && { custom: customValuesInputSchema.optional() }),
   });
-  const update = create.partial();
+  // Its naming series is chosen once, on create.
+  const create = editable.extend({
+    ...(takes(declaration, 'numbered') && {
+      namingSeriesId: namingSeriesIdSchema,
+    }),
+  });
+  const update = editable.partial();
   const noun = declaration.noun;
   const response = z.object({
     id: z.uuid(),

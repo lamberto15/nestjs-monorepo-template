@@ -1,5 +1,17 @@
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
-import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@nestjs-monorepo-template/ui/components/field';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@nestjs-monorepo-template/ui/components/select';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -19,6 +31,7 @@ import {
 } from '@/lib/custom-values';
 import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
+import { useSubjectNamingSeries } from '@/lib/naming-series';
 import { FormAlert, useAppForm } from '@/lib/form';
 import {
   isPreconditionFailed,
@@ -70,12 +83,20 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const [edits, setEdits] = useState<CustomDrafts>({});
   const [customErrors, setCustomErrors] = useState<Record<string, string>>({});
   const drafts = { ...baseline, ...edits };
+  // A new note takes the subject's default series unless another is picked
+  // (docs/sequences.md); the picker shows only when there is a choice.
+  const namingSeries = useSubjectNamingSeries('Note');
+  const series = note ? [] : (namingSeries.data ?? []);
+  const [pickedSeries, setPickedSeries] = useState<string>();
+  const seriesId =
+    pickedSeries ?? (series.find((s) => s.isDefault) ?? series[0])?.id;
 
   const save = useMutation({
     mutationFn: async (values: {
       title: string;
       body: string;
       custom: Record<string, unknown>;
+      namingSeriesId?: string;
     }) => {
       if (!note) {
         // The created note and its ETag go to the cache: the page it opens
@@ -127,6 +148,8 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
             stored: note?.custom,
             baseline,
           }),
+          // Only a new note, and only when the user had a choice.
+          ...(series.length > 1 && seriesId && { namingSeriesId: seriesId }),
         });
         // A new note is in no record query yet (it was just seeded).
         await (note ? invalidate() : invalidateLists());
@@ -198,6 +221,33 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
               }
             </form.AppField>
           ))}
+        {series.length > 1 && (
+          <Field>
+            <FieldLabel htmlFor="note-numbering">
+              {t('form.numbering')}
+            </FieldLabel>
+            <Select
+              items={series.map((s) => ({
+                value: s.id,
+                label: `${s.label ?? s.pattern} (${s.example})`,
+              }))}
+              value={seriesId}
+              onValueChange={(next) => next && setPickedSeries(next)}
+            >
+              <SelectTrigger id="note-numbering" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {series.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.label ?? s.pattern} ({s.example})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>{t('form.numberingHint')}</FieldDescription>
+          </Field>
+        )}
         {showCustom && (
           <CustomFieldInputs
             fields={fields}

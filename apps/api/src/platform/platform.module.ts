@@ -143,6 +143,9 @@ import { TenantListSource } from './lists/tenant-lists.js';
 import { ListPolicy } from './lists/list.policy.js';
 import { ListsRegistry } from './lists/lists.registry.js';
 import { ListsService } from './lists/lists.service.js';
+import { NamingSeriesController } from './sequences/naming-series.controller.js';
+import { NamingSeriesRegistry } from './sequences/naming-series.registry.js';
+import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { SequencesService } from './sequences/sequences.service.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
@@ -370,6 +373,7 @@ export class PlatformModule {
         AttachmentsController,
         DocumentsController,
         TagsController,
+        NamingSeriesController,
         ViewsController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
@@ -524,6 +528,9 @@ export class PlatformModule {
         MailSuppressionListSource,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,
+        // Naming series: numbered features register and take numbers through it.
+        NamingSeriesRegistry,
+        NamingSeriesService,
         // Files attached to records: features register an AttachmentTarget.
         AttachmentsRegistry,
         AttachmentsService,
@@ -611,6 +618,7 @@ export class PlatformModule {
         SearchRegistry,
         ListsRegistry,
         SequencesService,
+        NamingSeriesService,
         AttachmentsRegistry,
         AttachmentsService,
         DocumentsRegistry,

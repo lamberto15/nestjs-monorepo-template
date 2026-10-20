@@ -1448,6 +1448,119 @@ export interface paths {
         patch: operations["TagsController_update_v1"];
         trace?: never;
     };
+    "/v1/naming-series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The naming series, newest first
+         * @description Every subject unless `?subject=Note`; `?isDefault=true` for the defaults; `?sort=pattern`. Each with `example`, the number it gives next. Cursor pages.
+         */
+        get: operations["NamingSeriesController_list_v1"];
+        put?: never;
+        /**
+         * Create a naming series
+         * @description For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. Audited (`namingSeries.created`).
+         */
+        post: operations["NamingSeriesController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/naming-series/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The subjects whose records take a number
+         * @description Each with the format it has in code (`declaredPattern`), which numbers it while it has no series.
+         */
+        get: operations["NamingSeriesController_subjects_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/naming-series/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview a pattern
+         * @description What the pattern would give now, before it is saved: its counter key, the last value taken under that key (shared with any series printing the same), the next number.
+         */
+        get: operations["NamingSeriesController_preview_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/naming-series/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A naming series */
+        get: operations["NamingSeriesController_findOne_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a naming series
+         * @description Records keep their numbers, and the counter stays. Deleting the default makes the oldest series left the default (or the format in code, when none is left). Audited (`namingSeries.deleted`).
+         */
+        delete: operations["NamingSeriesController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a naming series
+         * @description Its pattern, its label, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).
+         */
+        patch: operations["NamingSeriesController_update_v1"];
+        trace?: never;
+    };
+    "/v1/naming-series/{id}/counter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A naming series' counter now
+         * @description This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number.
+         */
+        get: operations["NamingSeriesController_counter_v1"];
+        /**
+         * Set a naming series' counter
+         * @description Starts this period's counter at `current`: the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).
+         */
+        put: operations["NamingSeriesController_setCounter_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/views": {
         parameters: {
             query?: never;
@@ -3595,6 +3708,74 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        NamingSeriesPage: {
+            items: components["schemas"]["NamingSeries"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        NamingSeries: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description What it numbers: a permission subject, `Note`.
+             * @example Note
+             */
+            subject: string;
+            /** @example INV-.YYYY.-.MM.-.##### */
+            pattern: string;
+            /** @example Invoices */
+            label: string | null;
+            /** @description What a new record takes when its body names no series. */
+            isDefault: boolean;
+            /**
+             * @description The number it gives next, if taken now.
+             * @example INV-2026-10-00043
+             */
+            example: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        NumberedSubjectList: {
+            items: components["schemas"]["NumberedSubject"][];
+        };
+        NumberedSubject: {
+            /** @example Note */
+            subject: string;
+            /**
+             * @description The format in code: used while the subject has no series.
+             * @example NOTE-.YYYY.-.#####
+             */
+            declaredPattern: string;
+        };
+        NamingCounter: {
+            /**
+             * @description What the pattern prints around its counter now; patterns printing the same share the counter.
+             * @example INV-2026-10-{#}
+             */
+            key: string;
+            /**
+             * @description The last value taken (0 when none).
+             * @example 42
+             */
+            current: number;
+            /**
+             * @description The number the next record gets.
+             * @example INV-2026-10-00043
+             */
+            next: string;
         };
         SavedViewPage: {
             items: components["schemas"]["SavedView"][];
@@ -10504,6 +10685,476 @@ export interface operations {
                 content?: never;
             };
             /** @description The subject has a tag of this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: subject = */
+                subject?: string;
+                /** @description Filter: subject in */
+                "subject.in"?: string;
+                /** @description Filter: pattern = */
+                pattern?: string;
+                /** @description Filter: pattern contains */
+                "pattern.contains"?: string;
+                /** @description Filter: pattern startsWith */
+                "pattern.startsWith"?: string;
+                /** @description Filter: isDefault = */
+                isDefault?: "true" | "false";
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); pattern (eq, contains, startsWith); isDefault (eq); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -pattern. Sortable: pattern, createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingSeriesPage"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description A subject whose records take a number (GET /v1/naming-series/subjects).
+                     * @example Note
+                     */
+                    subject: string;
+                    /**
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.
+                     * @example INV-.YYYY.-.MM.-.#####
+                     */
+                    pattern: string;
+                    label?: string;
+                    /** @description The subject's default from now on; its first series is. */
+                    isDefault?: boolean;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingSeries"];
+                };
+            };
+            /** @description A subject that takes no number, an invalid pattern (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The subject has this pattern. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_subjects_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NumberedSubjectList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_preview_v1: {
+        parameters: {
+            query: {
+                /** @description A subject whose records take a number (GET /v1/naming-series/subjects). */
+                subject: string;
+                /** @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`. */
+                pattern: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingCounter"];
+                };
+            };
+            /** @description An invalid pattern, or a subject that takes no number (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_findOne_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingSeries"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.
+                     * @example INV-.YYYY.-.MM.-.#####
+                     */
+                    pattern?: string;
+                    label?: string | null;
+                    /**
+                     * @description Makes it the subject's default (another series becomes the default to stop being it).
+                     * @enum {boolean}
+                     */
+                    isDefault?: true;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingSeries"];
+                };
+            };
+            /** @description An invalid body (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The subject has this pattern. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_counter_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingCounter"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_setCounter_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The last value taken: the next record gets this + 1. Never below the value already taken.
+                     * @example 1000
+                     */
+                    current: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingCounter"];
+                };
+            };
+            /** @description An invalid body (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Below the last value taken: that number is given. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19119,6 +19770,11 @@ export interface operations {
                     custom?: {
                         [key: string]: unknown;
                     };
+                    /**
+                     * Format: uuid
+                     * @description The naming series that numbers it (GET /v1/naming-series?subject=…); the default series when left out.
+                     */
+                    namingSeriesId?: string;
                 };
             };
         };

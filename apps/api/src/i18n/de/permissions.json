@@ -9,6 +9,7 @@
       "manageCustomFields": "Benutzerdefinierte Felder hinzufügen, ändern, umsortieren und deaktivieren (die Felder, die Administratoren Notizen und anderen Datensätzen hinzufügen)",
       "manageSettings": "Einstellungen und Feature-Flags für alle, ein Team oder einen Benutzer festlegen (platform/settings)",
       "manageTags": "Die Tags der Datensätze anlegen, umbenennen, umfärben und löschen (platform/tags)",
+      "manageNamingSeries": "Die Nummernformate nummerierter Datensätze anlegen, ändern und löschen und ihre Zähler setzen (platform/sequences)",
       "manageViews": "Gespeicherte Ansichten von Listen mit dem ganzen Mandanten teilen sowie geteilte Ansichten ändern oder löschen (platform/views)",
       "readAudit": "Das Audit-Protokoll lesen",
       "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",

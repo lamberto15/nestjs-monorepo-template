@@ -43,7 +43,9 @@
     "save": "Änderungen speichern",
     "cancel": "Abbrechen",
     "created": "Notiz erstellt",
-    "saved": "Notiz gespeichert"
+    "saved": "Notiz gespeichert",
+    "numbering": "Nummerierung",
+    "numberingHint": "Welche Serie der Notiz ihre Nummer gibt."
   },
   "detail": {
     "back": "Zurück zu den Notizen"

@@ -1,5 +1,6 @@
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { inTransaction } from '../../../src/core/database/transactions.js';
+import { NamingSeriesService } from '../../../src/platform/sequences/naming-series.service.js';
 import { SequencesService } from '../../../src/platform/sequences/sequences.service.js';
 import { bootApp, type TestApp } from '../../support.js';
 import { writeNote } from './notes-support.js';
@@ -36,15 +37,12 @@ describe('sequences: gapless human-readable numbers (e2e)', () => {
 
     // A write that rolls back takes no number.
     const sequences = node.app.get(SequencesService);
+    const namingSeries = node.app.get(NamingSeriesService);
     const txHost = node.app.get(TransactionHost);
     await expect(
       node.inTenant(() =>
         inTransaction(txHost, async (tx) => {
-          await sequences.next(tx, 'note', {
-            prefix: 'NOTE',
-            perYear: true,
-            width: 5,
-          });
+          await namingSeries.next(tx, 'Note');
           throw new Error('changed my mind');
         }),
       ),
@@ -52,8 +50,9 @@ describe('sequences: gapless human-readable numbers (e2e)', () => {
     expect((await writeNote(node, client.auth).expect(201)).body.number).toBe(
       `NOTE-${year}-00022`,
     );
+    // Its counter: the declared format's (NOTE-.YYYY.-.#####, naming-series.service.ts).
     expect(
-      await node.inTenant(() => sequences.current('note', { perYear: true })),
+      await node.inTenant(() => sequences.peek('note', `NOTE-${year}-{#}`)),
     ).toBe(22);
 
     // Another year, another scope: their own series.
