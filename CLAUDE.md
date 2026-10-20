@@ -91,6 +91,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |
 | Comments and @mentions on records | [docs/comments.md](docs/comments.md) |
 | Files attached to records (uploads, downloads, the orphan sweep) | [docs/attachments.md](docs/attachments.md) |
+| AI helper: summarize or classify a record on a queue worker (`POST /v1/ai/runs`), sources, provider, quota, cache, prompt injection | [docs/ai.md](docs/ai.md) |
 | PDF documents of records (templates, RTL, Gotenberg, the queue job, issued attachments) | [docs/documents.md](docs/documents.md) |
 | Saved views of lists (a list's filters, sort and columns by name; private, team, tenant) | [docs/saved-views.md](docs/saved-views.md) |
 | Tags (labels) on records: managing them, filtering lists by them | [docs/tags.md](docs/tags.md) |

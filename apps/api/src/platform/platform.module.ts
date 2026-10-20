@@ -31,6 +31,13 @@ import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
 import { ACTOR_NAMES } from '../iam/audit/actor-names.js';
 import { AUTH_POLICY } from '../iam/auth/auth-policy.js';
+import { AiController } from './ai/ai.controller.js';
+import { AiProcessor } from './ai/ai.processor.js';
+import { AiProvider, DisabledAiProvider } from './ai/ai-provider.js';
+import { AiRegistry } from './ai/ai.registry.js';
+import { AiService } from './ai/ai.service.js';
+import { AI_SETTINGS } from './ai/ai-settings.js';
+import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
 import { WebhookDeliveryRetentionJob } from './webhooks/webhook-delivery-retention.job.js';
@@ -374,6 +381,7 @@ export class PlatformModule {
         TeamDirectoryController,
         AttachmentsController,
         DocumentsController,
+        AiController,
         TagsController,
         NamingSeriesController,
         ViewsController,
@@ -404,6 +412,7 @@ export class PlatformModule {
             settings: [
               ...AUTH_SETTINGS,
               ...APPROVAL_SETTINGS,
+              ...AI_SETTINGS,
               ...(options.settings ?? []),
             ],
           },
@@ -543,6 +552,23 @@ export class PlatformModule {
         PdfRenderer,
         DocumentsService,
         DocumentsProcessor,
+        // The AI helper: features register an AiSource; Anthropic unless another AiProvider is provided.
+        AiRegistry,
+        {
+          provide: AiProvider,
+          inject: [ConfigService],
+          useFactory: (config: ConfigService<PlatformEnv, true>) => {
+            const apiKey = config.get('ANTHROPIC_API_KEY', { infer: true });
+            return apiKey
+              ? new AnthropicProvider({
+                  apiKey,
+                  baseURL: config.get('AI_BASE_URL', { infer: true }),
+                })
+              : new DisabledAiProvider();
+          },
+        },
+        AiService,
+        AiProcessor,
         // Comments and mentions: features register a CommentTarget and call CommentsService.
         CommentsRegistry,
         CommentsService,
@@ -627,6 +653,7 @@ export class PlatformModule {
         AttachmentsService,
         DocumentsRegistry,
         DocumentsService,
+        AiRegistry,
         CommentsRegistry,
         CommentsService,
         TagsRegistry,

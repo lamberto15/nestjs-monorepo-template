@@ -302,6 +302,13 @@
       "when": 1792494922793,
       "tag": "0042_hard_forge",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792503994125,
+      "tag": "0043_slow_khan",
+      "breakpoints": true
     }
   ]
 }
