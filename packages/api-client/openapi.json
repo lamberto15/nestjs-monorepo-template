@@ -14137,9 +14137,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, usageCount, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, usageCount, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -36047,6 +36047,13 @@
             "nullable": true,
             "type": "string"
           },
+          "usageCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "How many records of the subject carry the tag.",
+            "example": 12
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -36064,6 +36071,7 @@
           "name",
           "color",
           "description",
+          "usageCount",
           "createdAt",
           "updatedAt"
         ],

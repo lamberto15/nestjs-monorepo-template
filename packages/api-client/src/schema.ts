@@ -3344,6 +3344,11 @@ export interface components {
             /** @description `#rrggbb`. */
             color: string | null;
             description: string | null;
+            /**
+             * @description How many records of the subject carry the tag.
+             * @example 12
+             */
+            usageCount: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -9369,7 +9374,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, usageCount, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;

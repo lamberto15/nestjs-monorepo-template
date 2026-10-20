@@ -21,7 +21,7 @@ const tags = await this.tags.tagsOf('Note', rows.map((row) => row.id)); // Map<i
 
 | Route | Does |
 | --- | --- |
-| `GET /v1/tags` | anyone signed in; cursor pages, newest first; `?subject=Note` (optional: a management screen lists every subject), `?name=` (whatever the case), `?name.contains=`, `?sort=name` (whatever the case) |
+| `GET /v1/tags` | anyone signed in; cursor pages, newest first; `?subject=Note` (optional: a management screen lists every subject), `?name=` (whatever the case), `?name.contains=`, `?sort=name` (whatever the case); every tag carries `usageCount`, the records carrying it (one grouped query on `record_tags` per page) |
 | `POST /v1/tags { subject, name, color?, description? }` | `Access.manageTags`; 201; the subject must be registered (400 otherwise); the name is unique per subject whatever its case (409 `conflict`); `color` is `#rrggbb` (stored in lower case) |
 | `PATCH /v1/tags/{id}` | `Access.manageTags`; only what is sent changes, `null` clears `color` or `description` |
 | `DELETE /v1/tags/{id}` | `Access.manageTags`; 204; every record loses the tag (the links cascade) |
