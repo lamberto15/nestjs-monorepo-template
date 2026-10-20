@@ -39,7 +39,8 @@
     "created": "{{name}} hinzugefügt. Sie ist aus, bis Sie sie einschalten.",
     "updated": "{{name}} gespeichert.",
     "turnedOn": "{{name}} ist an.",
-    "turnedOff": "{{name}} ist aus."
+    "turnedOff": "{{name}} ist aus.",
+    "mappings": "Gruppenrollen"
   },
   "details": {
     "redirectUri": "Redirect-URI (beim Anbieter eintragen)",
@@ -132,6 +133,35 @@
     "endExemption": "Ausnahme beenden",
     "endExemptionLabel": "Ausnahme von {{name}} beenden",
     "exemptionEnded": "Ausnahme von {{name}} beendet.",
-    "exemption": "{{email}} · {{reason}}"
+    "exemption": "{{email}} · {{reason}}",
+    "addExemption": "Mitglied ausnehmen"
+  },
+  "mappings": {
+    "title": "Gruppenrollen von {{name}}",
+    "description": "Vergib Rollen anhand der Gruppen, die der Identitätsanbieter meldet. Bei jeder Anmeldung erhält eine Person die Rollen ihrer Gruppen und verliert die, die ein Mapping vergeben hat und deren Gruppe sie verlassen hat. Selbst vergebene Rollen bleiben.",
+    "attribute": "Gruppen-Attribut oder -Claim",
+    "attributeHint": "Wo der Anbieter die Gruppen auflistet. Leer: groups.",
+    "none": "Noch keine Zuordnungen. Ohne Zuordnungen werden keine Rollen synchronisiert.",
+    "row": "{{group}} → {{role}}",
+    "removeLabel": "{{group}} → {{role}} entfernen",
+    "group": "Gruppe",
+    "groupHint": "Exakter Vergleich: ein Name oder die Gruppen-ID (Microsoft Entra ID sendet IDs).",
+    "role": "Rolle",
+    "rolePlaceholder": "Rolle wählen",
+    "add": "Zuordnung hinzufügen",
+    "incomplete": "Gib eine Gruppe ein und wähle eine Rolle.",
+    "saved": "Gruppenrollen von {{name}} gespeichert."
+  },
+  "exemption": {
+    "title": "Mitglied ausnehmen",
+    "description": "Ein ausgenommenes Mitglied kann sich bei erzwungenem SSO weiterhin mit Passwort oder Passkey anmelden. Bei aktiver Zwei-Faktor-Authentifizierung können nur Mitglieder ausgenommen werden, die sie eingerichtet haben.",
+    "member": "Mitglied",
+    "memberPlaceholder": "Mitglied wählen",
+    "memberRequired": "Wähle ein Mitglied.",
+    "reason": "Grund",
+    "reasonHint": "Warum, zum Beispiel Notfall-Administrator.",
+    "reasonRequired": "Gib einen Grund an.",
+    "save": "Ausnehmen",
+    "added": "{{name}} ausgenommen."
   }
 }

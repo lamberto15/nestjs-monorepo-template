@@ -1,0 +1,22 @@
+{
+  "nav": "Retention",
+  "title": "Retention",
+  "description": "How long each kind of record is kept. A rule does nothing until you turn it on; then a nightly job purges or anonymises the records older than the days set.",
+  "holds": "Records under a legal hold are never purged or anonymised, whatever the rules say. Place or release holds before turning a rule on.",
+  "none": "No retention rules are declared.",
+  "action": { "purge": "Purge", "anonymise": "Anonymise" },
+  "actionHelp": {
+    "purge": "Older {{subject}} records are deleted, with what refers to them.",
+    "anonymise": "Older {{subject}} records are kept, but what identifies a person is overwritten."
+  },
+  "enabled": "Turn {{name}} on",
+  "on": "On",
+  "off": "Off",
+  "days": "Days to keep {{name}}",
+  "daysHelp": "At least {{min}}; the default is {{def}}. Applied at the next nightly run.",
+  "minDays": "Keep records for at least {{n}} days.",
+  "lastRun": "Last run {{at}}: {{n}} handled.",
+  "neverRun": "Has not run yet.",
+  "save": "Save",
+  "saved": "Rule “{{name}}” saved."
+}

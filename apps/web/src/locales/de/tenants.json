@@ -79,6 +79,34 @@
       "description": "Every record of this tenant as one file, made in the background. The download link works for 30 minutes. Asks for a recent sign-in.",
       "start": "Export tenant data"
     },
+    "breakGlass": {
+      "title": "Break-Glass",
+      "description": "Diesen Mandanten im Notfall ohne Einladung lesen. Nur lesend, höchstens eine Stunde, nie verlängert. Die Administratoren des Mandanten werden sofort informiert. Erfordert eine aktuelle Anmeldung.",
+      "open": "Break-Glass-Zugriff öffnen",
+      "none": "Du hast diesen Mandanten noch nicht geöffnet.",
+      "activeTitle": "Lesezugriff ist bis {{date}} offen",
+      "activeHint": "Solange er gilt, lesen GET-Anfragen mit diesem Header den Mandanten, und nichts kann dort geschrieben werden:",
+      "status": {
+        "active": "Aktiv",
+        "ended": "Beendet",
+        "expired": "Abgelaufen"
+      },
+      "opened": "Geöffnet {{date}}, bis {{until}}",
+      "end": "Zugriff beenden",
+      "endTitle": "Break-Glass-Zugriff beenden?",
+      "endDescription": "Anfragen über diese Freigabe enden sofort.",
+      "endConfirm": "Zugriff beenden",
+      "ended": "Break-Glass-Zugriff beendet.",
+      "started": "Lesezugriff auf {{name}} ist offen.",
+      "dialogTitle": "Break-Glass für {{name}}",
+      "dialogDescription": "Du liest diesen Mandanten nur lesend. Dein Grund wird in den Audit-Logs beider Mandanten festgehalten und seinen Administratoren mitgeteilt.",
+      "reason": "Grund",
+      "reasonHint": "Ein Vorfall oder ein Ticket, 10 bis 1000 Zeichen.",
+      "reasonInvalid": "Gib einen Grund mit 10 bis 1000 Zeichen an.",
+      "minutes": "Minuten (1 bis {{max}})",
+      "minutesInvalid": "Gib eine ganze Zahl von Minuten ein, 1 bis 60.",
+      "submit": "Zugriff öffnen"
+    },
     "deletion": {
       "title": "Delete tenant",
       "description": "Deactivates the tenant now and erases all of its data after a grace period. Export it first if you need a copy.",

@@ -71,6 +71,9 @@ export const domain = (over: Partial<Domain> = {}): Domain => ({
   ...over,
 });
 
+export const ROLE_ID = '88888888-8888-4888-8888-888888888888';
+export const MEMBER_ID = '99999999-9999-4999-8999-999999999999';
+
 export function useSsoApi(options: {
   can: string[];
   connections?: Connection[];
@@ -87,6 +90,7 @@ export function useSsoApi(options: {
   const calls = {
     policySet: [] as boolean[],
     exemptionsEnded: [] as string[],
+    exemptionsAdded: [] as { userId: string; reason: string }[],
     created: [] as Record<string, unknown>[],
     patched: [] as { id: string; body: Record<string, unknown> }[],
     deleted: [] as string[],
@@ -135,6 +139,35 @@ export function useSsoApi(options: {
       const body = (await request.json()) as { requireSso: boolean };
       calls.policySet.push(body.requireSso);
       policy = { ...policy, requireSso: body.requireSso };
+      return HttpResponse.json(policy);
+    }),
+    // The roles and members the dialogs offer (the access API).
+    http.get('/v1/access/roles', () =>
+      HttpResponse.json({ items: [{ id: ROLE_ID, name: 'Editor' }] }),
+    ),
+    http.get('/v1/access/users', () =>
+      HttpResponse.json({
+        items: [
+          { id: MEMBER_ID, email: 'ann@acme.com', name: 'Ann', active: true },
+          {
+            id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            email: 'off@acme.com',
+            name: 'Off',
+            active: false,
+          },
+        ],
+        page: 1,
+        nextPage: null,
+        pageCount: 1,
+        total: 2,
+      }),
+    ),
+    http.put('/v1/sso/exemptions/:userId', async ({ params, request }) => {
+      const body = (await request.json()) as { reason: string };
+      calls.exemptionsAdded.push({
+        userId: params.userId as string,
+        reason: body.reason,
+      });
       return HttpResponse.json(policy);
     }),
     http.delete('/v1/sso/exemptions/:userId', ({ params }) => {

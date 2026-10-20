@@ -2,24 +2,26 @@ import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { Switch } from '@nestjs-monorepo-template/ui/components/switch';
 import { useQuery } from '@tanstack/react-query';
-import { Trash2Icon } from 'lucide-react';
+import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
+import { ExemptionDialog } from './exemption-dialog';
 import { policyQuery, useRemoveExemption, useSetPolicy } from './queries';
 
 /**
  * "SSO required" (docs/auth.md, "SSO required"): members act in the
  * workspace only through one of its connections, except the exempted
- * (break-glass) members, whom this page lists and can release. Granting an
- * exemption is not here yet.
+ * (break-glass) members, whom this page lists, releases and grants.
  */
 export function PolicySection() {
   const { t } = useTranslation('sso');
   const policy = useQuery({ ...policyQuery, meta: { errorToast: false } });
   const set = useSetPolicy();
   const release = useRemoveExemption();
+  const [granting, setGranting] = useState(false);
 
   return (
     <section className="flex flex-col gap-4" aria-labelledby="sso-policy">
@@ -59,7 +61,17 @@ export function PolicySection() {
             </label>
           </div>
           <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">{t('policy.exemptions')}</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium">{t('policy.exemptions')}</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGranting(true)}
+              >
+                <PlusIcon />
+                {t('policy.addExemption')}
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
               {t('policy.exemptionsHint')}
             </p>
@@ -111,6 +123,12 @@ export function PolicySection() {
               ))}
             </ul>
           </div>
+          {granting && (
+            <ExemptionDialog
+              exempted={policy.data.exemptions.map((e) => e.userId)}
+              onOpenChange={(open) => !open && setGranting(false)}
+            />
+          )}
         </>
       )}
     </section>

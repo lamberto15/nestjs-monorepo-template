@@ -1,0 +1,14 @@
+{
+  "nav": { "title": "Anmeldungen" },
+  "title": "Anmeldungen",
+  "columns": {
+    "at": "Zeitpunkt",
+    "user": "Benutzer",
+    "result": "Ergebnis",
+    "method": "Methode",
+    "via": "Über",
+    "userAgent": "Gerät",
+    "ip": "IP-Adresse"
+  },
+  "result": { "success": "Erfolgreich", "failure": "Fehlgeschlagen" }
+}

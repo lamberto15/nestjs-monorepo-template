@@ -10,12 +10,18 @@
     "targetType": "对象类型",
     "targetId": "目标",
     "ip": "IP 地址",
-    "details": "详情"
+    "details": "详情",
+    "tenant": "租户"
   },
   "details": {
     "open": "显示详情",
     "actor": "操作者",
     "actorId": "操作者 ID",
     "none": "无详情。"
+  },
+  "subtenants": {
+    "switch": "包含子租户",
+    "included": "包含:{{names}}",
+    "none": "此租户下没有子租户。"
   }
 }

@@ -39,7 +39,8 @@
     "created": "Added {{name}}. It is off until you turn it on.",
     "updated": "Saved {{name}}.",
     "turnedOn": "{{name}} is on.",
-    "turnedOff": "{{name}} is off."
+    "turnedOff": "{{name}} is off.",
+    "mappings": "Group roles"
   },
   "details": {
     "redirectUri": "Redirect URI (register at the provider)",
@@ -132,6 +133,35 @@
     "endExemption": "End exemption",
     "endExemptionLabel": "End the exemption of {{name}}",
     "exemptionEnded": "Ended the exemption of {{name}}.",
-    "exemption": "{{email}} · {{reason}}"
+    "exemption": "{{email}} · {{reason}}",
+    "addExemption": "Exempt a member"
+  },
+  "mappings": {
+    "title": "Group roles of {{name}}",
+    "description": "Give roles by the groups the identity provider lists. At every sign-in a person gets the roles of their groups and loses the ones a mapping gave whose group they left. Roles you give yourself stay.",
+    "attribute": "Groups attribute or claim",
+    "attributeHint": "Where the provider lists the groups. Empty: groups.",
+    "none": "No mappings yet. Without mappings no roles are synced.",
+    "row": "{{group}} → {{role}}",
+    "removeLabel": "Remove {{group}} → {{role}}",
+    "group": "Group",
+    "groupHint": "Compared exactly: a name, or the group ID (Microsoft Entra ID sends IDs).",
+    "role": "Role",
+    "rolePlaceholder": "Choose a role",
+    "add": "Add mapping",
+    "incomplete": "Enter a group and choose a role.",
+    "saved": "Saved the group roles of {{name}}."
+  },
+  "exemption": {
+    "title": "Exempt a member",
+    "description": "An exempted member can still sign in with a password or passkey while SSO is required. With two-factor on, only members who enrolled it can be exempted.",
+    "member": "Member",
+    "memberPlaceholder": "Choose a member",
+    "memberRequired": "Choose a member.",
+    "reason": "Reason",
+    "reasonHint": "Why, for example an emergency administrator.",
+    "reasonRequired": "Give a reason.",
+    "save": "Exempt",
+    "added": "Exempted {{name}}."
   }
 }

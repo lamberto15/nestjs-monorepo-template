@@ -79,6 +79,34 @@
       "description": "Every record of this tenant as one file, made in the background. The download link works for 30 minutes. Asks for a recent sign-in.",
       "start": "Export tenant data"
     },
+    "breakGlass": {
+      "title": "الوصول الطارئ",
+      "description": "اقرأ هذا المستأجر دون دعوة في حالة طارئة. للقراءة فقط، ساعة واحدة على الأكثر ولا يُمدَّد. يُبلَّغ مسؤولو المستأجر فورًا. يتطلب تسجيل دخول حديثًا.",
+      "open": "فتح الوصول الطارئ",
+      "none": "لم تفتح هذا المستأجر بعد.",
+      "activeTitle": "وصول القراءة فقط مفتوح حتى {{date}}",
+      "activeHint": "ما دام قائمًا، تقرأ طلبات GET المرسلة بهذا الترويسة المستأجر ولا يمكن الكتابة فيه:",
+      "status": {
+        "active": "نشط",
+        "ended": "منتهٍ",
+        "expired": "منتهي الصلاحية"
+      },
+      "opened": "فُتح في {{date}}، حتى {{until}}",
+      "end": "إنهاء الوصول",
+      "endTitle": "إنهاء الوصول الطارئ؟",
+      "endDescription": "تتوقف الطلبات عبر هذا التصريح فورًا.",
+      "endConfirm": "إنهاء الوصول",
+      "ended": "انتهى الوصول الطارئ.",
+      "started": "وصول القراءة فقط إلى {{name}} مفتوح.",
+      "dialogTitle": "الوصول الطارئ إلى {{name}}",
+      "dialogDescription": "ستقرأ هذا المستأجر للقراءة فقط. يُحفظ سببك في سجلات التدقيق للمستأجرين ويُبلَّغ به مسؤولوه.",
+      "reason": "السبب",
+      "reasonHint": "حادثة أو تذكرة، من 10 إلى 1000 حرف.",
+      "reasonInvalid": "اذكر سببًا من 10 إلى 1000 حرف.",
+      "minutes": "الدقائق (من 1 إلى {{max}})",
+      "minutesInvalid": "أدخل عددًا صحيحًا من الدقائق، من 1 إلى 60.",
+      "submit": "فتح الوصول"
+    },
     "deletion": {
       "title": "Delete tenant",
       "description": "Deactivates the tenant now and erases all of its data after a grace period. Export it first if you need a copy.",

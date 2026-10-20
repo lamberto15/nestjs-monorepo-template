@@ -1,5 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import {
+  DevicesSection,
+  PhoneSection,
+} from '@/features/notifications/phone-devices';
 import { PreferencesForm } from '@/features/notifications/preferences';
 import { useMe } from '@/lib/features';
 
@@ -24,7 +28,13 @@ function NotificationPreferencesPage() {
           {t('preferences.impersonating')}
         </p>
       ) : (
-        me && <PreferencesForm />
+        me && (
+          <>
+            <PreferencesForm />
+            <PhoneSection />
+            <DevicesSection />
+          </>
+        )
       )}
     </div>
   );

@@ -24,7 +24,9 @@ import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
 import { Route as AppNamingSeriesRouteImport } from './routes/_app/naming-series'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
+import { Route as AppRetentionRouteImport } from './routes/_app/retention'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppSignInsRouteImport } from './routes/_app/sign-ins'
 import { Route as AppSsoRouteImport } from './routes/_app/sso'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
@@ -51,6 +53,7 @@ import { Route as AppTenantsIdRouteImport } from './routes/_app/tenants/$id'
 import { Route as AppTransfersIndexRouteImport } from './routes/_app/transfers/index'
 import { Route as AppTransfersImportRouteImport } from './routes/_app/transfers/import'
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
+import { Route as AppWebhooksSendersRouteImport } from './routes/_app/webhooks/senders'
 import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
 import { Route as AppAccessRolesRoleIdRouteImport } from './routes/_app/access/roles/$roleId'
 import { Route as AppAccessRolesNewRouteImport } from './routes/_app/access/roles/new'
@@ -135,9 +138,19 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRetentionRoute = AppRetentionRouteImport.update({
+  id: '/retention',
+  path: '/retention',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSignInsRoute = AppSignInsRouteImport.update({
+  id: '/sign-ins',
+  path: '/sign-ins',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSsoRoute = AppSsoRouteImport.update({
@@ -271,6 +284,11 @@ const AppWebhooksIndexRoute = AppWebhooksIndexRouteImport.update({
   path: '/webhooks/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWebhooksSendersRoute = AppWebhooksSendersRouteImport.update({
+  id: '/webhooks/senders',
+  path: '/webhooks/senders',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccessRolesIndexRoute = AppAccessRolesIndexRouteImport.update({
   id: '/access/roles/',
   path: '/access/roles/',
@@ -333,7 +351,9 @@ export interface FileRoutesByFullPath {
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/retention': typeof AppRetentionRoute
   '/settings': typeof AppSettingsRoute
+  '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
   '/access/users': typeof AppAccessUsersRoute
@@ -350,6 +370,7 @@ export interface FileRoutesByFullPath {
   '/notes/new': typeof AppNotesNewRoute
   '/tenants/$id': typeof AppTenantsIdRoute
   '/transfers/import': typeof AppTransfersImportRoute
+  '/webhooks/senders': typeof AppWebhooksSendersRoute
   '/account/': typeof AppAccountIndexRoute
   '/api-clients/': typeof AppApiClientsIndexRoute
   '/approval-policies/': typeof AppApprovalPoliciesIndexRoute
@@ -384,7 +405,9 @@ export interface FileRoutesByTo {
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/retention': typeof AppRetentionRoute
   '/settings': typeof AppSettingsRoute
+  '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
   '/': typeof AppIndexRoute
@@ -402,6 +425,7 @@ export interface FileRoutesByTo {
   '/notes/new': typeof AppNotesNewRoute
   '/tenants/$id': typeof AppTenantsIdRoute
   '/transfers/import': typeof AppTransfersImportRoute
+  '/webhooks/senders': typeof AppWebhooksSendersRoute
   '/account': typeof AppAccountIndexRoute
   '/api-clients': typeof AppApiClientsIndexRoute
   '/approval-policies': typeof AppApprovalPoliciesIndexRoute
@@ -438,7 +462,9 @@ export interface FileRoutesById {
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
   '/_app/naming-series': typeof AppNamingSeriesRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/retention': typeof AppRetentionRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/sign-ins': typeof AppSignInsRoute
   '/_app/sso': typeof AppSsoRoute
   '/_app/tags': typeof AppTagsRoute
   '/_app/': typeof AppIndexRoute
@@ -456,6 +482,7 @@ export interface FileRoutesById {
   '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/tenants/$id': typeof AppTenantsIdRoute
   '/_app/transfers/import': typeof AppTransfersImportRoute
+  '/_app/webhooks/senders': typeof AppWebhooksSendersRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/api-clients/': typeof AppApiClientsIndexRoute
   '/_app/approval-policies/': typeof AppApprovalPoliciesIndexRoute
@@ -493,7 +520,9 @@ export interface FileRouteTypes {
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
+    | '/retention'
     | '/settings'
+    | '/sign-ins'
     | '/sso'
     | '/tags'
     | '/access/users'
@@ -510,6 +539,7 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/tenants/$id'
     | '/transfers/import'
+    | '/webhooks/senders'
     | '/account/'
     | '/api-clients/'
     | '/approval-policies/'
@@ -544,7 +574,9 @@ export interface FileRouteTypes {
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
+    | '/retention'
     | '/settings'
+    | '/sign-ins'
     | '/sso'
     | '/tags'
     | '/'
@@ -562,6 +594,7 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/tenants/$id'
     | '/transfers/import'
+    | '/webhooks/senders'
     | '/account'
     | '/api-clients'
     | '/approval-policies'
@@ -597,7 +630,9 @@ export interface FileRouteTypes {
     | '/_app/mail-suppressions'
     | '/_app/naming-series'
     | '/_app/notifications'
+    | '/_app/retention'
     | '/_app/settings'
+    | '/_app/sign-ins'
     | '/_app/sso'
     | '/_app/tags'
     | '/_app/'
@@ -615,6 +650,7 @@ export interface FileRouteTypes {
     | '/_app/notes/new'
     | '/_app/tenants/$id'
     | '/_app/transfers/import'
+    | '/_app/webhooks/senders'
     | '/_app/account/'
     | '/_app/api-clients/'
     | '/_app/approval-policies/'
@@ -755,11 +791,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/retention': {
+      id: '/_app/retention'
+      path: '/retention'
+      fullPath: '/retention'
+      preLoaderRoute: typeof AppRetentionRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sign-ins': {
+      id: '/_app/sign-ins'
+      path: '/sign-ins'
+      fullPath: '/sign-ins'
+      preLoaderRoute: typeof AppSignInsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/sso': {
@@ -944,6 +994,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWebhooksIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/webhooks/senders': {
+      id: '/_app/webhooks/senders'
+      path: '/webhooks/senders'
+      fullPath: '/webhooks/senders'
+      preLoaderRoute: typeof AppWebhooksSendersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/access/roles/': {
       id: '/_app/access/roles/'
       path: '/access/roles'
@@ -1016,7 +1073,9 @@ interface AppRouteChildren {
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
   AppNamingSeriesRoute: typeof AppNamingSeriesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppRetentionRoute: typeof AppRetentionRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppSignInsRoute: typeof AppSignInsRoute
   AppSsoRoute: typeof AppSsoRoute
   AppTagsRoute: typeof AppTagsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1034,6 +1093,7 @@ interface AppRouteChildren {
   AppNotesNewRoute: typeof AppNotesNewRoute
   AppTenantsIdRoute: typeof AppTenantsIdRoute
   AppTransfersImportRoute: typeof AppTransfersImportRoute
+  AppWebhooksSendersRoute: typeof AppWebhooksSendersRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
   AppApprovalPoliciesIndexRoute: typeof AppApprovalPoliciesIndexRoute
@@ -1061,7 +1121,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
   AppNamingSeriesRoute: AppNamingSeriesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppRetentionRoute: AppRetentionRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppSignInsRoute: AppSignInsRoute,
   AppSsoRoute: AppSsoRoute,
   AppTagsRoute: AppTagsRoute,
   AppIndexRoute: AppIndexRoute,
@@ -1079,6 +1141,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotesNewRoute: AppNotesNewRoute,
   AppTenantsIdRoute: AppTenantsIdRoute,
   AppTransfersImportRoute: AppTransfersImportRoute,
+  AppWebhooksSendersRoute: AppWebhooksSendersRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppApiClientsIndexRoute: AppApiClientsIndexRoute,
   AppApprovalPoliciesIndexRoute: AppApprovalPoliciesIndexRoute,
