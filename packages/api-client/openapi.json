@@ -3581,10 +3581,6 @@
                       "type": "boolean",
                       "description": "Self sign-up (`POST /v1/auth/sign-up`)."
                     },
-                    "tenantSignUp": {
-                      "type": "boolean",
-                      "description": "A self sign-up makes its own tenant, the new account its administrator (`TENANT_SIGN_UP`, with `AUTH_SIGN_UP` and `TENANCY=multi`)."
-                    },
                     "magicLink": {
                       "type": "boolean",
                       "description": "Sign-in by email link (`POST /v1/auth/magic-link`)."
@@ -3619,7 +3615,6 @@
                     "apiClients",
                     "passkeys",
                     "signUp",
-                    "tenantSignUp",
                     "magicLink",
                     "documents",
                     "tenancy",
@@ -20119,8 +20114,8 @@
                       "type": "boolean"
                     },
                     "tenantSignUp": {
-                      "type": "boolean",
-                      "description": "A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`)."
+                      "description": "A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`). Always sent; absent means false.",
+                      "type": "boolean"
                     },
                     "magicLink": {
                       "type": "boolean"
@@ -20169,7 +20164,6 @@
                   "required": [
                     "password",
                     "signUp",
-                    "tenantSignUp",
                     "magicLink",
                     "passkeys",
                     "providers",

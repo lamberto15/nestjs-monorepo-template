@@ -171,10 +171,13 @@ const meSchema = z.object({
 const methodsSchema = z.object({
   password: z.literal(true),
   signUp: z.boolean(),
+  // Optional in the document though always sent: a field the typed client
+  // requires would break every client's fixtures of this answer.
   tenantSignUp: z
     .boolean()
+    .optional()
     .describe(
-      'A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`).',
+      'A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`). Always sent; absent means false.',
     ),
   magicLink: z.boolean(),
   passkeys: z

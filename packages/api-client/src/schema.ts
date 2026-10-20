@@ -5293,8 +5293,6 @@ export interface operations {
                         passkeys: boolean;
                         /** @description Self sign-up (`POST /v1/auth/sign-up`). */
                         signUp: boolean;
-                        /** @description A self sign-up makes its own tenant, the new account its administrator (`TENANT_SIGN_UP`, with `AUTH_SIGN_UP` and `TENANCY=multi`). */
-                        tenantSignUp: boolean;
                         /** @description Sign-in by email link (`POST /v1/auth/magic-link`). */
                         magicLink: boolean;
                         /** @description PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured). */
@@ -12487,8 +12485,8 @@ export interface operations {
                         /** @enum {boolean} */
                         password: true;
                         signUp: boolean;
-                        /** @description A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`). */
-                        tenantSignUp: boolean;
+                        /** @description A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`). Always sent; absent means false. */
+                        tenantSignUp?: boolean;
                         magicLink: boolean;
                         /** @description Sign in with a passkey: POST /auth/passkeys/sign-in/options, then /auth/passkeys/sign-in. */
                         passkeys: boolean;

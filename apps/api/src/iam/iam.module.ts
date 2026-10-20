@@ -139,8 +139,6 @@ export class IamModule {
       AccessService,
       // The demo seed (src/demo) creates its users through it.
       AccessAdminService,
-      // GET /v1/features says whether a sign-up makes a tenant.
-      SignUpTenant,
       AuditService,
       PermissionCatalog,
       SessionAuth,

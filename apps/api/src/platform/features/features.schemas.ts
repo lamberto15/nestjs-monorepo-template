@@ -26,11 +26,6 @@ export const featuresSchema = z.object({
     .describe('API clients (`/v1/access/clients`) and their keys.'),
   passkeys: z.boolean().describe('Passkeys (`/v1/auth/passkeys`).'),
   signUp: z.boolean().describe('Self sign-up (`POST /v1/auth/sign-up`).'),
-  tenantSignUp: z
-    .boolean()
-    .describe(
-      'A self sign-up makes its own tenant, the new account its administrator (`TENANT_SIGN_UP`, with `AUTH_SIGN_UP` and `TENANCY=multi`).',
-    ),
   magicLink: z
     .boolean()
     .describe('Sign-in by email link (`POST /v1/auth/magic-link`).'),

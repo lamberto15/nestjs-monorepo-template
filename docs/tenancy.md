@@ -300,8 +300,8 @@ operators' route does). Off, only operators make tenants.
 
 - **The name** is the sign-up's `tenantName` (1 to 120 characters), the
   person's name without one (a provider sign-up: the provider's name, else
-  the address). `GET /v1/auth/methods` and `GET /v1/features` say
-  `tenantSignUp: true`, so the sign-up page asks for it.
+  the address). `GET /v1/auth/methods` says `tenantSignUp: true`, so the
+  sign-up page asks for it.
 - **The slug is drawn, never chosen:** the name's slug and six random
   characters (`acme-corp-k3x9q2`; drawn again on the rare collision). A
   sign-up gets no `tenant_slug_taken`, so it can't probe which handles

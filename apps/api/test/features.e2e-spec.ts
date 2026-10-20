@@ -31,7 +31,6 @@ describe('GET /v1/features (e2e)', () => {
       apiClients: true,
       passkeys: true,
       signUp: true,
-      tenantSignUp: false,
       magicLink: true,
       documents: false,
       tenancy: 'single',

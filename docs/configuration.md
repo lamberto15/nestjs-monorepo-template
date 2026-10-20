@@ -173,7 +173,6 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
   "apiClients": true,
   "passkeys": true,
   "signUp": false,
-  "tenantSignUp": false,
   "magicLink": true,
   "documents": false,
   "tenancy": "multi",
@@ -186,7 +185,6 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
 | `realtime`, `webhooks`, `reports`, `usage` | `REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE` ([above](#deployment-switches)) | the module's routes are absent (404)                                                                   |
 | `impersonation`, `mfa`, `apiClients`       | `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`                                 | their routes answer 404 `feature_off`                                                                  |
 | `passkeys`, `signUp`, `magicLink`          | `PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`                              | as in `GET /v1/auth/methods` (which also lists the providers and bot protection, and needs no sign-in) |
-| `tenantSignUp`                             | `TENANT_SIGN_UP` (with `AUTH_SIGN_UP` and `TENANCY=multi`)                 | a sign-up makes no tenant (as in `GET /v1/auth/methods`)                                               |
 | `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
 | `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
 | `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |

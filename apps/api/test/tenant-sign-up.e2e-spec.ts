@@ -39,11 +39,9 @@ describe('TENANT_SIGN_UP=on (e2e)', () => {
     return node.signIn(address, password);
   };
 
-  it('says so on the sign-in page and in the features', async () => {
+  it('says so on the sign-in page', async () => {
     const methods = await node.http().get('/v1/auth/methods').expect(200);
     expect(methods.body).toMatchObject({ signUp: true, tenantSignUp: true });
-    const features = await node.admin().get('/v1/features').expect(200);
-    expect(features.body).toMatchObject({ tenantSignUp: true });
   });
 
   it('makes a tenant whose first administrator is the new account, audited in it', async () => {
