@@ -16,6 +16,7 @@ import { CustomFieldValues } from '@/components/records/custom-field-values';
 import { DetailItem, DetailList } from '@/components/records/detail-list';
 import { RecordPanels } from '@/components/records/panels/record-panels';
 import { RecordState } from '@/components/records/record-state';
+import { WatchButton } from '@/components/records/watch-button';
 import { noteQuery, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useDateTimeFormat } from '@/lib/date-time';
@@ -77,41 +78,44 @@ function NoteView({ note }: { note: Note }) {
             <p className="text-sm text-muted-foreground">{note.number}</p>
           )}
         </div>
-        {(canUpdate || canDelete) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label={t('actions.open')}
-                />
-              }
-            >
-              <EllipsisIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canUpdate && (
-                <DropdownMenuItem
-                  render={
-                    <Link to="/notes/$id/edit" params={{ id: note.id }} />
-                  }
-                >
-                  {t('actions.edit')}
-                </DropdownMenuItem>
-              )}
-              {canUpdate && canDelete && <DropdownMenuSeparator />}
-              {canDelete && (
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => ask(note)}
-                >
-                  {t('actions.delete')}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <WatchButton subject="Note" path="/v1/notes/{id}" id={note.id} />
+          {(canUpdate || canDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label={t('actions.open')}
+                  />
+                }
+              >
+                <EllipsisIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canUpdate && (
+                  <DropdownMenuItem
+                    render={
+                      <Link to="/notes/$id/edit" params={{ id: note.id }} />
+                    }
+                  >
+                    {t('actions.edit')}
+                  </DropdownMenuItem>
+                )}
+                {canUpdate && canDelete && <DropdownMenuSeparator />}
+                {canDelete && (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => ask(note)}
+                  >
+                    {t('actions.delete')}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </header>
       <ApprovalBanner subject="Note" recordId={note.id} />
       <DetailList>

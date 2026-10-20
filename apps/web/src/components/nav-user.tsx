@@ -29,6 +29,7 @@ import { useTheme } from '@nestjs-monorepo-template/ui/components/theme-provider
 import {
   BellIcon,
   ChevronsUpDownIcon,
+  EyeIcon,
   LanguagesIcon,
   LogOutIcon,
   PaletteIcon,
@@ -61,6 +62,7 @@ export function NavUser() {
   const { isMobile } = useSidebar();
   const { t, i18n } = useTranslation();
   const { t: tn } = useTranslation('notifications');
+  const { t: tw } = useTranslation('watching');
   const { theme, setTheme } = useTheme();
   const me = useMe();
   const queryClient = useQueryClient();
@@ -129,6 +131,10 @@ export function NavUser() {
               <DropdownMenuItem render={<Link to="/account/notifications" />}>
                 <BellIcon />
                 {tn('preferences.title')}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link to="/account/watching" />}>
+                <EyeIcon />
+                {tw('title')}
               </DropdownMenuItem>
               <DropdownMenuItem render={<Link to="/account/privacy" />}>
                 <ShieldUserIcon />

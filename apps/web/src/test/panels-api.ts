@@ -28,6 +28,8 @@ export type PanelCapabilities = {
   revisions: boolean;
   /** PDF documents of the record; off unless a test asks. */
   pdf?: boolean;
+  /** Watching the record (`…/{id}/watch`); off unless a test asks. */
+  watch?: boolean;
 };
 
 export const EVERY_PANEL: PanelCapabilities = {
@@ -57,7 +59,7 @@ export function panelsDescription(
       ...all,
       pdf: all.pdf ?? false,
       bulk: false,
-      watch: false,
+      watch: all.watch ?? false,
       search: false,
       transfer: false,
       custom: false,

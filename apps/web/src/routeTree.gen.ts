@@ -30,6 +30,7 @@ import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account
 import { Route as AppAccountPrivacyRouteImport } from './routes/_app/account/privacy'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
+import { Route as AppAccountWatchingRouteImport } from './routes/_app/account/watching'
 import { Route as AppApiClientsIndexRouteImport } from './routes/_app/api-clients/index'
 import { Route as AppApiClientsIdRouteImport } from './routes/_app/api-clients/$id'
 import { Route as AppApiClientsUsageRouteImport } from './routes/_app/api-clients/usage'
@@ -157,6 +158,11 @@ const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
 const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
   id: '/account/security',
   path: '/account/security',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountWatchingRoute = AppAccountWatchingRouteImport.update({
+  id: '/account/watching',
+  path: '/account/watching',
   getParentRoute: () => AppRoute,
 } as any)
 const AppApiClientsIndexRoute = AppApiClientsIndexRouteImport.update({
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/account/privacy': typeof AppAccountPrivacyRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/account/watching': typeof AppAccountWatchingRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
   '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
@@ -348,6 +355,7 @@ export interface FileRoutesByTo {
   '/account/privacy': typeof AppAccountPrivacyRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/account/watching': typeof AppAccountWatchingRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
   '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
@@ -396,6 +404,7 @@ export interface FileRoutesById {
   '/_app/account/privacy': typeof AppAccountPrivacyRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
+  '/_app/account/watching': typeof AppAccountWatchingRoute
   '/_app/api-clients/$id': typeof AppApiClientsIdRoute
   '/_app/api-clients/usage': typeof AppApiClientsUsageRoute
   '/_app/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/account/privacy'
     | '/account/profile'
     | '/account/security'
+    | '/account/watching'
     | '/api-clients/$id'
     | '/api-clients/usage'
     | '/approval-policies/$key'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/account/privacy'
     | '/account/profile'
     | '/account/security'
+    | '/account/watching'
     | '/api-clients/$id'
     | '/api-clients/usage'
     | '/approval-policies/$key'
@@ -537,6 +548,7 @@ export interface FileRouteTypes {
     | '/_app/account/privacy'
     | '/_app/account/profile'
     | '/_app/account/security'
+    | '/_app/account/watching'
     | '/_app/api-clients/$id'
     | '/_app/api-clients/usage'
     | '/_app/approval-policies/$key'
@@ -725,6 +737,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountSecurityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account/watching': {
+      id: '/_app/account/watching'
+      path: '/account/watching'
+      fullPath: '/account/watching'
+      preLoaderRoute: typeof AppAccountWatchingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/api-clients/': {
       id: '/_app/api-clients/'
       path: '/api-clients'
@@ -908,6 +927,7 @@ interface AppRouteChildren {
   AppAccountPrivacyRoute: typeof AppAccountPrivacyRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
+  AppAccountWatchingRoute: typeof AppAccountWatchingRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
   AppApiClientsUsageRoute: typeof AppApiClientsUsageRoute
   AppApprovalPoliciesKeyRoute: typeof AppApprovalPoliciesKeyRoute
@@ -947,6 +967,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountPrivacyRoute: AppAccountPrivacyRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
+  AppAccountWatchingRoute: AppAccountWatchingRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,
   AppApiClientsUsageRoute: AppApiClientsUsageRoute,
   AppApprovalPoliciesKeyRoute: AppApprovalPoliciesKeyRoute,
