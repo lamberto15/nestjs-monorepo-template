@@ -9,8 +9,10 @@ import { EmailVerificationService } from '@nestjs/authentication';
 import { PasskeysService } from '../src/iam/account/passkeys.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import { AccessService } from '../src/iam/access/access.service.js';
+import { SignInLog } from '../src/iam/account/sign-in-log.service.js';
 import {
   apiClientRoles,
+  auditLog,
   magicLinks,
   passkeys,
   sessions,
@@ -1107,6 +1109,224 @@ describe('security (e2e)', () => {
       .post('/v1/auth/passkeys/sign-in')
       .send({ response: forged })
       .expect(401);
+  });
+
+  it('refuses a passkey ceremony run in a frame of another origin, registering or signing in', async () => {
+    // A cross-origin iframe of an attacker's page runs the ceremony with
+    // the RP's origin in clientDataJSON; only `crossOrigin` / `topOrigin`
+    // tell it apart from the RP's own page (issue #222).
+    const owner = await node.user([]);
+    const device = new SoftwareAuthenticator({
+      origin: process.env.WEB_URL!,
+    });
+    const registrationOptions = async () =>
+      (
+        await owner.agent
+          .post('/v1/auth/passkeys/registration/options')
+          .expect(200)
+      ).body;
+    for (const frame of [
+      { crossOrigin: true },
+      { crossOrigin: true, topOrigin: 'https://evil.example' },
+    ]) {
+      const refused = await owner.agent
+        .post('/v1/auth/passkeys')
+        .send({
+          name: 'Framed',
+          response: device.create(await registrationOptions(), frame).response,
+        })
+        .expect(400);
+      expect(refused.body).toMatchObject({
+        code: 'passkey_invalid',
+        reason: 'cross-origin',
+      });
+    }
+    device.credentials.length = 0; // the refused ones were never stored
+    await owner.agent
+      .post('/v1/auth/passkeys')
+      .send({
+        name: 'Key',
+        response: device.create(await registrationOptions()).response,
+      })
+      .expect(201);
+
+    const signInOptions = async () =>
+      (
+        await node
+          .http()
+          .post('/v1/auth/passkeys/sign-in/options')
+          .send({})
+          .expect(200)
+      ).body;
+    let address = 0;
+    for (const frame of [
+      { crossOrigin: true },
+      { crossOrigin: true, topOrigin: 'https://evil.example' },
+      // A top origin without crossOrigin is a browser bug: refused too.
+      { topOrigin: process.env.WEB_URL! },
+    ]) {
+      // An address each: the answers' per-address limit stays out of it.
+      await node
+        .http()
+        .post('/v1/auth/passkeys/sign-in')
+        .set('X-Forwarded-For', `10.222.${++address}.1`)
+        .send({ response: device.get(await signInOptions(), frame) })
+        .expect(401);
+      await node
+        .http()
+        .post('/v1/auth/passkeys/token')
+        .set('X-Forwarded-For', `10.222.${++address}.1`)
+        .send({ response: device.get(await signInOptions(), frame) })
+        .expect(401);
+    }
+    const reasons = (
+      await node.db
+        .select({ details: auditLog.details })
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.action, 'auth.sign-in-failed'),
+            sql`${auditLog.details}->>'method' = 'passkey'`,
+          ),
+        )
+    ).map((row) => (row.details as { reason: string }).reason);
+    expect(reasons).toEqual(Array(6).fill('cross-origin'));
+    // The page's own ceremony still signs in.
+    await node
+      .http()
+      .post('/v1/auth/passkeys/sign-in')
+      .send({ response: device.get(await signInOptions()) })
+      .expect(200);
+  });
+
+  it('renames a passkey only after a recent sign-in', async () => {
+    const owner = await node.user([]);
+    const device = new SoftwareAuthenticator({
+      origin: process.env.WEB_URL!,
+    });
+    const options = (
+      await owner.agent
+        .post('/v1/auth/passkeys/registration/options')
+        .expect(200)
+    ).body;
+    const passkey = (
+      await owner.agent
+        .post('/v1/auth/passkeys')
+        .send({ name: 'Key', response: device.create(options).response })
+        .expect(201)
+    ).body as { id: string };
+    const current = (
+      (await owner.agent.get('/v1/auth/sessions').expect(200)).body.items as {
+        id: string;
+        current: boolean;
+      }[]
+    ).find((item) => item.current)!;
+    await node.db
+      .update(sessions)
+      .set({
+        metadata: sql`${sessions.metadata} || ${JSON.stringify({
+          authenticatedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+        })}::jsonb`,
+      })
+      .where(eq(sessions.id, current.id));
+    const stale = await owner.agent
+      .patch(`/v1/auth/passkeys/${passkey.id}`)
+      .send({ name: 'Renamed by a thief' })
+      .expect(403);
+    expect(stale.body.code).toBe('reauthentication_required');
+    const [kept] = await node.db
+      .select({ name: passkeys.name })
+      .from(passkeys)
+      .where(eq(passkeys.id, passkey.id));
+    expect(kept.name).toBe('Key');
+  });
+
+  it('audits a token sign-in that names a tenant the user isn’t in, in the user’s own tenant only', async () => {
+    const owner = await node.user([]);
+    const device = new SoftwareAuthenticator({
+      origin: process.env.WEB_URL!,
+    });
+    const options = (
+      await owner.agent
+        .post('/v1/auth/passkeys/registration/options')
+        .expect(200)
+    ).body;
+    await owner.agent
+      .post('/v1/auth/passkeys')
+      .send({ name: 'Key', response: device.create(options).response })
+      .expect(201);
+    const foreign = await node.otherTenant();
+
+    await node
+      .http()
+      .post('/v1/auth/token')
+      .send({
+        email: owner.email,
+        password: owner.password,
+        tenantId: foreign.id,
+      })
+      .expect(401);
+    const signInOptions = (
+      await node
+        .http()
+        .post('/v1/auth/passkeys/sign-in/options')
+        .send({})
+        .expect(200)
+    ).body;
+    await node
+      .http()
+      .post('/v1/auth/passkeys/token')
+      .send({ response: device.get(signInOptions), tenantId: foreign.id })
+      .expect(401);
+    await node.app.get(SignInLog).settled();
+
+    const accountLevel = await node.db
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.action, 'auth.sign-in-failed'),
+          eq(auditLog.targetId, owner.id),
+        ),
+      )
+      .orderBy(auditLog.id);
+    expect(
+      accountLevel.map((row) => ({
+        label: row.actorLabel,
+        tenantId: row.tenantId,
+        details: row.details,
+      })),
+    ).toEqual([
+      {
+        label: owner.email,
+        tenantId: null,
+        details: { method: 'password', reason: 'tenant', tenantId: foreign.id },
+      },
+      {
+        label: owner.email,
+        tenantId: null,
+        details: expect.objectContaining({
+          method: 'passkey',
+          reason: 'tenant',
+          tenantId: foreign.id,
+        }),
+      },
+    ]);
+    // The member's own tenant reads both; the tenant named, nothing.
+    const memberLog = await node.db
+      .select({ tenantId: auditLog.tenantId, details: auditLog.details })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.action, 'member.sign-in-failed'),
+          eq(auditLog.targetId, owner.id),
+        ),
+      );
+    expect(memberLog).toHaveLength(2);
+    expect(memberLog.every((row) => row.tenantId === node.tenantId)).toBe(true);
+    expect(
+      memberLog.map((row) => (row.details as { method: string }).method).sort(),
+    ).toEqual(['passkey', 'password']);
   });
 
   it('answers a query parameter sent twice on the OIDC routes with a redirect or a 400, never a 500', async () => {
