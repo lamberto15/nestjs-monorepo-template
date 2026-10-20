@@ -591,6 +591,183 @@ describe('the approval page', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('asks for changes with the reason, with the ETag it read', async () => {
+    const api = useApprovalsApi();
+    const user = userEvent.setup();
+    await renderApp(`/approvals/${REQUEST_ID}`);
+    await user.click(
+      await screen.findByRole('button', { name: 'Request changes' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    // The requester needs to know what to change.
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Request changes' }),
+    );
+    expect(
+      await within(dialog).findByText('Say what should change.'),
+    ).toBeVisible();
+    expect(api.decisions).toHaveLength(0);
+
+    await user.type(within(dialog).getByRole('textbox'), 'Fix the title');
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Request changes' }),
+    );
+    await findToast('Changes requested.');
+    expect(api.decisions).toEqual([
+      {
+        path: 'request-changes',
+        body: { comment: 'Fix the title' },
+        ifMatch: '"v1"',
+      },
+    ]);
+  });
+
+  it('offers no request for changes to someone who may not decide', async () => {
+    useApprovalsApi({
+      request: detail({ can: noActions }),
+    });
+    await renderApp(`/approvals/${REQUEST_ID}`);
+    await screen.findByRole('heading', { name: 'Q3 targets' });
+    expect(
+      screen.queryByRole('button', { name: 'Request changes' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('lets the requester resubmit after changes were requested', async () => {
+    const api = useApprovalsApi({
+      request: detail({
+        status: 'changes_requested',
+        can: { decide: false, cancel: true, resubmit: true },
+      }),
+    });
+    const user = userEvent.setup();
+    await renderApp(`/approvals/${REQUEST_ID}`);
+    expect(
+      screen.queryByRole('button', { name: 'Approve' }),
+    ).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Resubmit' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox'), 'Fixed');
+    await user.click(within(dialog).getByRole('button', { name: 'Resubmit' }));
+    await findToast('Resubmitted.');
+    expect(api.decisions).toEqual([
+      { path: 'resubmit', body: { comment: 'Fixed' }, ifMatch: '"v1"' },
+    ]);
+  });
+
+  it('resubmits without a comment', async () => {
+    const api = useApprovalsApi({
+      request: detail({
+        status: 'changes_requested',
+        can: { decide: false, cancel: false, resubmit: true },
+      }),
+    });
+    const user = userEvent.setup();
+    await renderApp(`/approvals/${REQUEST_ID}`);
+    await user.click(await screen.findByRole('button', { name: 'Resubmit' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Resubmit' }));
+    await findToast('Resubmitted.');
+    expect(api.decisions[0]).toMatchObject({ path: 'resubmit', body: {} });
+  });
+
+  describe('abandoning an approved request that was never applied', () => {
+    const stuck = (over: Record<string, unknown> = {}) =>
+      detail({
+        status: 'approved',
+        outcomeAppliedAt: null,
+        can: noActions,
+        ...over,
+      });
+
+    it('is offered to an administrator who manages approvals', async () => {
+      const api = useApprovalsApi({
+        request: stuck(),
+        can: { 'Approval.manage': true },
+      });
+      const user = userEvent.setup();
+      await renderApp(`/approvals/${REQUEST_ID}`);
+      await user.click(await screen.findByRole('button', { name: 'Abandon' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.type(within(dialog).getByRole('textbox'), 'Workflow lost');
+      await user.click(within(dialog).getByRole('button', { name: 'Abandon' }));
+      await findToast('Request abandoned.');
+      expect(api.decisions).toEqual([
+        {
+          path: 'abandon',
+          body: { reason: 'Workflow lost' },
+          ifMatch: '"v1"',
+        },
+      ]);
+    });
+
+    it('tells the administrator when the outcome is still being applied (409)', async () => {
+      useApprovalsApi({
+        request: stuck(),
+        can: { 'Approval.manage': true },
+      });
+      server.use(
+        http.post('/v1/approvals/:id/abandon', () =>
+          problem(409, 'approval_not_stuck'),
+        ),
+      );
+      const user = userEvent.setup();
+      await renderApp(`/approvals/${REQUEST_ID}`);
+      await user.click(await screen.findByRole('button', { name: 'Abandon' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Abandon' }));
+      expect(
+        await within(dialog).findByText('approval_not_stuck (test)'),
+      ).toBeVisible();
+    });
+
+    it('is not offered without Approval.manage', async () => {
+      useApprovalsApi({ request: stuck() });
+      await renderApp(`/approvals/${REQUEST_ID}`);
+      await screen.findByRole('heading', { name: 'Q3 targets' });
+      expect(
+        screen.queryByRole('button', { name: 'Abandon' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is not offered once the outcome was applied, or while the request is open', async () => {
+      useApprovalsApi({
+        request: stuck({ outcomeAppliedAt: '2026-10-17T09:00:00.000Z' }),
+        can: { 'Approval.manage': true },
+      });
+      await renderApp(`/approvals/${REQUEST_ID}`);
+      await screen.findByRole('heading', { name: 'Q3 targets' });
+      expect(
+        screen.queryByRole('button', { name: 'Abandon' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('waits a while after the approval, while its outcome is being applied', async () => {
+      const now = new Date().toISOString();
+      useApprovalsApi({
+        request: stuck({ updatedAt: now, endedAt: now }),
+        can: { 'Approval.manage': true },
+      });
+      await renderApp(`/approvals/${REQUEST_ID}`);
+      await screen.findByRole('heading', { name: 'Q3 targets' });
+      expect(
+        screen.queryByRole('button', { name: 'Abandon' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is not offered for a pending request', async () => {
+      useApprovalsApi({
+        request: stuck({ status: 'pending' }),
+        can: { 'Approval.manage': true },
+      });
+      await renderApp(`/approvals/${REQUEST_ID}`);
+      await screen.findByRole('heading', { name: 'Q3 targets' });
+      expect(
+        screen.queryByRole('button', { name: 'Abandon' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it('shows a not-found state', async () => {
     useApprovalsApi();
     server.use(http.get('/v1/approvals/:id', () => problem(404, 'not_found')));

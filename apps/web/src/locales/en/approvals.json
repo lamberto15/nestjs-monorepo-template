@@ -1,6 +1,7 @@
 {
   "nav": {
-    "title": "Approvals"
+    "title": "Approvals",
+    "policies": "Approval policies"
   },
   "inbox": {
     "title": "Approvals",
@@ -57,7 +58,31 @@
     },
     "comment": "Comment (optional)",
     "commentRequiredLabel": "Reason for rejecting",
-    "commentRequired": "Say why you reject it."
+    "commentRequired": "Say why you reject it.",
+    "requestChanges": {
+      "title": "Request changes",
+      "button": "Request changes",
+      "submit": "Request changes",
+      "done": "Changes requested.",
+      "commentLabel": "What should change",
+      "commentRequired": "Say what should change.",
+      "hint": "The request goes back to the requester, who can change the record and resubmit it."
+    },
+    "resubmit": {
+      "title": "Resubmit for approval",
+      "button": "Resubmit",
+      "submit": "Resubmit",
+      "done": "Resubmitted.",
+      "hint": "A new round starts from the first stage, and the approvers are resolved again."
+    },
+    "abandon": {
+      "title": "Abandon the request",
+      "button": "Abandon",
+      "submit": "Abandon",
+      "done": "Request abandoned.",
+      "commentLabel": "Reason (optional)",
+      "hint": "The request was approved but its outcome was never applied. Abandoning ends it as failed and unlocks the record. It is refused while the outcome is still being applied or retried."
+    }
   },
   "conflict": {
     "title": "This request changed",
@@ -167,5 +192,137 @@
     "changesRequested": "Changes were requested: the requester must resubmit",
     "requestedBy": "Requested by {{name}}",
     "details": "Approval details"
+  },
+  "policies": {
+    "back": "Back to approval policies",
+    "title": "Approval policies",
+    "description": "The actions that can need approval, and who decides them. Changes apply to new requests; a running request keeps the policy it started with.",
+    "none": "No action needs approval.",
+    "source": {
+      "code": "Default",
+      "override": "Customized (version {{version}})"
+    },
+    "off": "Off",
+    "conditional": "Conditional",
+    "stagesSummary": "Stages: {{names}}",
+    "edit": "Edit",
+    "editLabel": "Edit {{label}}",
+    "setting": "Switched on per team by the setting",
+    "saved": "Policy saved.",
+    "notFound": {
+      "title": "Policy not found",
+      "description": "No action has this key."
+    },
+    "error": {
+      "title": "Could not load the policy",
+      "generic": "Something went wrong.",
+      "retry": "Try again"
+    },
+    "conflict": {
+      "title": "This policy changed",
+      "description": "Someone saved it since you opened it.",
+      "reload": "Reload"
+    },
+    "enabled": "Needs approval",
+    "enabledHint": "Off: the action needs no approval for anyone.",
+    "resubmitWithin": "Time to resubmit",
+    "resubmitWithinHint": "How long the requester has after changes were requested, before the request expires. 30m, 8h, 2d, 1w.",
+    "stages": "Stages",
+    "addStage": "Add a stage",
+    "save": "Save policy",
+    "remove": "Remove {{label}}",
+    "invalidJson": "Not valid JSON.",
+    "reset": {
+      "button": "Reset to default",
+      "title": "Reset {{label}} to the default?",
+      "description": "The policy goes back to the one declared in code, stored as a new version. Running requests keep their policy.",
+      "confirm": "Reset",
+      "done": "Policy reset."
+    },
+    "when": {
+      "title": "Condition",
+      "only": "Only when a condition holds",
+      "hint": "Otherwise every request needs approval.",
+      "fields": "Fields of the proposed change: {{fields}}.",
+      "condition": "Condition",
+      "inner": "Condition inside",
+      "item": "Condition {{n}}",
+      "add": "Add a condition"
+    },
+    "stage": {
+      "label": "Stage {{n}}",
+      "up": "Move stage {{n}} up",
+      "down": "Move stage {{n}} down",
+      "remove": "Remove stage {{n}}",
+      "name": "Name",
+      "approvers": "Approvers",
+      "approversHint": "Everyone any of these rules names decides the stage, except the requester.",
+      "approver": "Approver",
+      "addApprover": "Add an approver rule",
+      "mode": "How the stage completes",
+      "remindAfter": "Remind after",
+      "dueAfter": "Overdue after",
+      "onOverdue": "When overdue",
+      "overdue": {
+        "expire": "Expire the request",
+        "escalate": "Escalate"
+      },
+      "durationHint": "Durations: 30m, 8h, 2d, 1w. Leave empty for none.",
+      "escalateTo": "Escalate to",
+      "escalation": "Escalation approver",
+      "addEscalation": "Add an escalation rule",
+      "escalationDueAfter": "Expire after escalating, after"
+    },
+    "params": {
+      "path": "Path",
+      "op": "Comparison",
+      "value": "Value",
+      "role": "Role",
+      "levelsUp": "Levels up",
+      "nearest": "Nearest with someone",
+      "action": "Permission",
+      "subject": "Subject",
+      "userIds": "Users (ids)",
+      "n": "Approvals needed"
+    },
+    "paramHints": {
+      "path": "A dotted path into the proposed change: amount, lines.0.total.",
+      "value": "A number, text or true/false; a JSON list for in and notIn: [\"a\", \"b\"].",
+      "levelsUp": "0: the requester's own unit, 1: the unit above.",
+      "userIds": "Press Enter or comma after each id (GET /v1/people).",
+      "subject": "Optional: the record's own subject when empty."
+    },
+    "enums": {
+      "op": {
+        "eq": "equals",
+        "ne": "does not equal",
+        "gt": "is greater than",
+        "gte": "is at least",
+        "lt": "is less than",
+        "lte": "is at most",
+        "in": "is one of",
+        "notIn": "is none of",
+        "exists": "exists"
+      }
+    },
+    "types": {
+      "rule": {
+        "role": "Users holding a role",
+        "teamRole": "Users holding a role in the requester's team, or above",
+        "permission": "Users who may do an action on the record",
+        "users": "Named users"
+      },
+      "mode": {
+        "any": "Any approver: the first decision decides",
+        "all": "All approvers",
+        "quorum": "A quorum of approvers"
+      },
+      "condition": {
+        "all": "All of these conditions",
+        "any": "Any of these conditions",
+        "not": "Not this condition",
+        "payload": "A value of the proposed change"
+      }
+    }
   }
 }
