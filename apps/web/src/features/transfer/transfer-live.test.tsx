@@ -31,7 +31,7 @@ beforeEach(() => {
   connections.length = 0;
 });
 
-/** Longer than the 1 s fast poll, shorter than the 30 s safety net. */
+/** Longer than the 1 s fast poll, shorter than the 5 s poll of a running job. */
 const pollsWouldHaveRun = () => new Promise((r) => setTimeout(r, 1400));
 
 /** The socket of the mounted provider, once it made it. */
@@ -149,6 +149,44 @@ describe('an export or import on screen', () => {
     const before = calls.get;
     await pollsWouldHaveRun();
     expect(calls.get).toBe(before);
+  });
+
+  it('shows the progress while connected, polling a running job every 5 s', async () => {
+    const state: State = { a: running('a') };
+    useTransfers(state);
+    await mountStatus(['a']);
+    const fake = await socket();
+    connect(fake);
+    expect(await screen.findByText(/Working… 40 rows/)).toBeVisible();
+
+    // No progress event: the slow poll is what moves the counter.
+    state.a = { ...running('a'), progress: { processed: 80 } };
+    expect(
+      await screen.findByText(/Working… 80 rows/, {}, { timeout: 7000 }),
+    ).toBeVisible();
+  });
+
+  it('on a reconnect, refetches the jobs still running, not those that ended', async () => {
+    const state: State = { a: exported('a'), b: running('b') };
+    const counts = { a: 0, b: 0 };
+    server.use(
+      http.get('/v1/data/transfers/:id', ({ params }) => {
+        const id = params.id as 'a' | 'b';
+        counts[id]++;
+        return HttpResponse.json(state[id]);
+      }),
+    );
+    await mountStatus(['a', 'b']);
+    const fake = await socket();
+    connect(fake);
+    await screen.findByRole('link', download);
+    await screen.findByText(/Working… 40 rows/);
+    expect(counts).toEqual({ a: 1, b: 1 });
+
+    act(() => fake.emit('disconnect'));
+    connect(fake);
+    await waitFor(() => expect(counts.b).toBeGreaterThan(1));
+    expect(counts.a).toBe(1);
   });
 
   it('polls again once the socket drops, and stops at the end', async () => {
@@ -385,6 +423,22 @@ describe('a queued bulk run in its dialog', () => {
     act(() => fake.emit('bulk.finished', finished('job-1')));
     expect(
       await within(dialog).findByText('149 done, 1 failed, 0 skipped.'),
+    ).toBeVisible();
+  });
+
+  it('shows the progress while connected, polling a running run every 5 s', async () => {
+    const state = { job: job('running') };
+    const { dialog } = await start(state);
+    state.job = {
+      ...job('running'),
+      progress: { processed: 200, done: 198, failed: 2 },
+    };
+    expect(
+      await within(dialog).findByText(
+        '200 processed: 198 done, 2 failed.',
+        {},
+        { timeout: 7000 },
+      ),
     ).toBeVisible();
   });
 

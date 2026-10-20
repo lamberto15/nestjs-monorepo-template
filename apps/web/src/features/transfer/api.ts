@@ -28,17 +28,22 @@ export const catalogQuery = queryOptions({
 /** Without realtime a running job is asked for this often (ms). */
 export const POLL = 1000;
 
-export const transferQuery = (id: string, poll: number = POLL) =>
+/** A job's poll, given the status last read (useLivePoll's `interval`). */
+export type JobPoll = (status: string | undefined) => number;
+
+export const transferQuery = (id: string, poll: JobPoll = () => POLL) =>
   queryOptions({
     queryKey: ['data', 'transfer', id],
     queryFn: () =>
       unwrap(api.GET('/v1/data/transfers/{id}', { params: { path: { id } } })),
-    // Polled while the worker has it (`poll`: useLivePoll makes it a slow
-    // safety net while the socket is up, the events do the rest); a
-    // finished transfer stays as it is.
+    // Polled while the worker has it (`poll`: useLivePoll slows it down
+    // while the socket is up, the events do the rest); a finished
+    // transfer stays as it is.
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === 'completed' || status === 'failed' ? false : poll;
+      return status === 'completed' || status === 'failed'
+        ? false
+        : poll(status);
     },
   });
 
@@ -83,14 +88,12 @@ export type BulkRun = GetResponse<'/v1/bulk'>['items'][number];
 
 const PAGE = 20;
 
-/** The ids of the runs the worker still has. */
-const activeIds = (items: { id: string; status: string }[]) =>
-  items
-    .filter((item) => item.status === 'queued' || item.status === 'running')
-    .map((item) => item.id);
+/** The runs the worker still has. */
+const activeJobs = (items: { id: string; status: string }[]) =>
+  items.filter((item) => item.status === 'queued' || item.status === 'running');
 
-/** A list's poll: ms for the ids still with the worker (never, with none). */
-type ListPoll = (activeIds: string[]) => number;
+/** A list's poll: ms for the runs still with the worker (never, with none). */
+type ListPoll = (active: { id: string; status: string }[]) => number;
 const LIST_POLL: ListPoll = () => 2000;
 
 /**
@@ -119,10 +122,10 @@ export const transfersListQuery = (
       ),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     refetchInterval: (query) => {
-      const ids = activeIds(
+      const active = activeJobs(
         query.state.data?.pages.flatMap((page) => page.items) ?? [],
       );
-      return ids.length > 0 ? poll(ids) : false;
+      return active.length > 0 ? poll(active) : false;
     },
   });
 
@@ -141,9 +144,9 @@ export const bulkListQuery = (poll: ListPoll = LIST_POLL) =>
       ),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     refetchInterval: (query) => {
-      const ids = activeIds(
+      const active = activeJobs(
         query.state.data?.pages.flatMap((page) => page.items) ?? [],
       );
-      return ids.length > 0 ? poll(ids) : false;
+      return active.length > 0 ? poll(active) : false;
     },
   });

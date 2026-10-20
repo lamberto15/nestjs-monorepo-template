@@ -140,14 +140,17 @@ function BulkRunDialog(props: {
 
 /**
  * A queued run: its end comes as `bulk.finished` for this id (the query is
- * refetched); the progress is polled when there is no connected socket, and
- * slowly as a safety net when there is (useLivePoll).
+ * refetched); the progress is polled every second when there is no
+ * connected socket, and every 5 s (30 s while queued) when there is
+ * (useLivePoll).
  */
 function JobView(props: { id: string; onFinished: () => void }) {
   const queryClient = useQueryClient();
   const poll = useLivePoll(1000);
   const query = useQuery({
-    ...bulkJobQuery(props.id, poll.interval([props.id])),
+    ...bulkJobQuery(props.id, (status) =>
+      poll.interval([{ id: props.id, status }]),
+    ),
     meta: { errorToast: false },
   });
   useRealtimeEvent('bulk.finished', (event) => {

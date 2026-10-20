@@ -28,15 +28,17 @@ const SHOWN_ERRORS = 100;
  * One transfer on screen: the worker's progress, then the file to download
  * (an export) or the counts and the refused rows (an import). Its end comes
  * as a realtime event (`data.export-ready`, `data.import-finished`) for this
- * id; the progress is polled when there is no connected socket, and slowly
- * as a safety net when there is (useLivePoll).
+ * id; the progress is polled every second when there is no connected
+ * socket, and every 5 s (30 s while queued) when there is (useLivePoll).
  */
 export function TransferStatus(props: { id: string }) {
   const { t } = useTranslation('transfer');
   const queryClient = useQueryClient();
   const poll = useLivePoll(POLL);
   const query = useQuery({
-    ...transferQuery(props.id, poll.interval([props.id])),
+    ...transferQuery(props.id, (status) =>
+      poll.interval([{ id: props.id, status }]),
+    ),
     meta: { errorToast: false },
   });
   const ended = (event: { id: string }) => {
