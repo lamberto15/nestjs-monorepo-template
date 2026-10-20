@@ -690,6 +690,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     const queues = await node.admin().get('/v1/ops/queues').expect(200);
     expect(queues.body.items.map((q: { name: string }) => q.name)).toEqual([
       'mail',
+      'sso',
       'data-transfers',
       'bulk',
       'documents',
