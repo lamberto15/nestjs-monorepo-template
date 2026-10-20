@@ -183,6 +183,11 @@ describe('enterprise SSO (e2e)', () => {
       const me = await browser.get('/v1/auth/me').expect(200);
       expect(me.body.user.email).toBe(assertion.email);
       expect(me.body.user.tenantId).toBe(node.tenantId);
+      // The session says how it was signed in (docs/auth.md, step-up).
+      const sessions = await browser.get('/v1/auth/sessions').expect(200);
+      expect(sessions.body.items).toMatchObject([
+        { current: true, method: 'sso', provider: connection.id },
+      ]);
       // The same identity again: the same account, linked by its subject.
       const again = await start();
       await post(
@@ -232,13 +237,55 @@ describe('enterprise SSO (e2e)', () => {
       const response = samlResponse(idp, valid(requestId));
       await post(browser, response);
       await browser.get('/v1/auth/me').expect(200);
-      // The same response again: from the same browser, and from another.
+      // The same response again, from another browser and from the same:
+      // its request was answered (InResponseTo), and its assertion seen.
       const attacker = request.agent(node.app.getHttpServer());
       expectFailed(await post(attacker, response));
-      expect((await refusals())[0]).toBe('assertion_replayed');
       expectFailed(await post(browser, response));
-      expect((await refusals())[0]).toBe('assertion_replayed');
       await attacker.get('/v1/auth/me').expect(401);
+
+      // IdP-initiated (no request to tie it to): the assertion's ID alone
+      // stops a second use.
+      const unsolicited = await node
+        .admin()
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'saml',
+          name: `idp-initiated-${randomUUID().slice(0, 8)}`,
+          idpEntityId: idp.entityId,
+          idpSsoUrl: 'https://idp.acme.test/sso',
+          idpCertificates: [idp.cert],
+          allowIdpInitiated: true,
+          jitProvisioning: true,
+          enabled: true,
+        })
+        .expect(201);
+      const acs = unsolicited.body.saml.acsUrl as string;
+      const pushed = samlResponse(idp, {
+        audience: unsolicited.body.saml.spEntityId,
+        acs,
+        nameId: `employee-${randomUUID()}`,
+        email: `${randomUUID().slice(0, 8)}@${DOMAIN}`,
+      });
+      const send = async (agent: request.Agent) => {
+        const posted = await agent
+          .post(local(acs))
+          .type('form')
+          .send({ SAMLResponse: pushed })
+          .expect(303);
+        const location = posted.headers.location as string;
+        return location.includes('/saml/complete')
+          ? ((await agent.get(local(location)).expect(302)).headers
+              .location as string)
+          : location;
+      };
+      const first = request.agent(node.app.getHttpServer());
+      expect(new URL(await send(first)).searchParams.get('error')).toBeNull();
+      await first.get('/v1/auth/me').expect(200);
+      const replayer = request.agent(node.app.getHttpServer());
+      expectFailed(await send(replayer));
+      expect((await refusals())[0]).toBe('assertion_replayed');
+      await replayer.get('/v1/auth/me').expect(401);
     });
 
     it('refuses another audience, an expired assertion, another issuer', async () => {

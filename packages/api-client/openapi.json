@@ -35504,6 +35504,2576 @@
         ]
       }
     },
+    "/v1/sso/connections": {
+      "get": {
+        "operationId": "SsoController_listConnections_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "protocol": {
+                            "type": "string",
+                            "enum": [
+                              "oidc",
+                              "saml"
+                            ]
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "jitProvisioning": {
+                            "type": "boolean"
+                          },
+                          "loginUrl": {
+                            "type": "string",
+                            "description": "Where the browser starts a sign-in (`?redirectTo=` a path of the web app)."
+                          },
+                          "oidc": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "issuer": {
+                                "type": "string"
+                              },
+                              "clientId": {
+                                "type": "string"
+                              },
+                              "redirectUri": {
+                                "type": "string",
+                                "description": "The redirect URI to register at the IdP."
+                              },
+                              "metadataFetchedAt": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "metadataError": {
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "issuer",
+                              "clientId",
+                              "redirectUri",
+                              "metadataFetchedAt",
+                              "metadataError"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "saml": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "idpEntityId": {
+                                "type": "string"
+                              },
+                              "idpSsoUrl": {
+                                "type": "string"
+                              },
+                              "idpCertificates": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "subject": {
+                                      "type": "string"
+                                    },
+                                    "notAfter": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    },
+                                    "fingerprint256": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "subject",
+                                    "notAfter",
+                                    "fingerprint256"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "allowIdpInitiated": {
+                                "type": "boolean"
+                              },
+                              "spEntityId": {
+                                "type": "string",
+                                "description": "Our entity id (the metadata's URL): the assertions' audience."
+                              },
+                              "acsUrl": {
+                                "type": "string",
+                                "description": "The assertion consumer service URL to register at the IdP."
+                              },
+                              "metadataUrl": {
+                                "type": "string",
+                                "description": "Our SP metadata (XML) for the IdP."
+                              }
+                            },
+                            "required": [
+                              "idpEntityId",
+                              "idpSsoUrl",
+                              "idpCertificates",
+                              "allowIdpInitiated",
+                              "spEntityId",
+                              "acsUrl",
+                              "metadataUrl"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "protocol",
+                          "enabled",
+                          "jitProvisioning",
+                          "loginUrl",
+                          "oidc",
+                          "saml",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The tenant's SSO connections",
+        "tags": [
+          "sso"
+        ]
+      },
+      "post": {
+        "description": "An OpenID Connect connection's discovery document is fetched on the queue: `oidc.metadataFetchedAt` says when it arrived, `oidc.metadataError` why not. It signs nobody in before.",
+        "operationId": "SsoController_createConnection_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "protocol": {
+                        "type": "string",
+                        "enum": [
+                          "oidc"
+                        ]
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "enabled": {
+                        "description": "Off by default: the connection signs nobody in until on.",
+                        "type": "boolean"
+                      },
+                      "jitProvisioning": {
+                        "description": "A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default.",
+                        "type": "boolean"
+                      },
+                      "issuer": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri",
+                        "description": "The OpenID Connect issuer; its discovery document is fetched on the queue."
+                      },
+                      "clientId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "clientSecret": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096,
+                        "description": "Stored encrypted, never returned."
+                      }
+                    },
+                    "required": [
+                      "protocol",
+                      "name",
+                      "issuer",
+                      "clientId",
+                      "clientSecret"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "protocol": {
+                        "type": "string",
+                        "enum": [
+                          "saml"
+                        ]
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "enabled": {
+                        "description": "Off by default: the connection signs nobody in until on.",
+                        "type": "boolean"
+                      },
+                      "jitProvisioning": {
+                        "description": "A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default.",
+                        "type": "boolean"
+                      },
+                      "idpEntityId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048,
+                        "description": "The IdP's entity id: what its assertions name as `Issuer`."
+                      },
+                      "idpSsoUrl": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri",
+                        "description": "The IdP's single sign-on URL (HTTP-Redirect binding)."
+                      },
+                      "idpCertificates": {
+                        "minItems": 1,
+                        "maxItems": 2,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 16384
+                        },
+                        "description": "The IdP's signing certificates: one, or two while it rotates. Only signed assertions are accepted."
+                      },
+                      "allowIdpInitiated": {
+                        "description": "Accept sign-ins the IdP starts (no request of ours): a login-CSRF vector, off by default.",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "protocol",
+                      "name",
+                      "idpEntityId",
+                      "idpSsoUrl",
+                      "idpCertificates"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "protocol": {
+                      "type": "string",
+                      "enum": [
+                        "oidc",
+                        "saml"
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "jitProvisioning": {
+                      "type": "boolean"
+                    },
+                    "loginUrl": {
+                      "type": "string",
+                      "description": "Where the browser starts a sign-in (`?redirectTo=` a path of the web app)."
+                    },
+                    "oidc": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "clientId": {
+                          "type": "string"
+                        },
+                        "redirectUri": {
+                          "type": "string",
+                          "description": "The redirect URI to register at the IdP."
+                        },
+                        "metadataFetchedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "metadataError": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "issuer",
+                        "clientId",
+                        "redirectUri",
+                        "metadataFetchedAt",
+                        "metadataError"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "saml": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "idpEntityId": {
+                          "type": "string"
+                        },
+                        "idpSsoUrl": {
+                          "type": "string"
+                        },
+                        "idpCertificates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "subject": {
+                                "type": "string"
+                              },
+                              "notAfter": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "fingerprint256": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "subject",
+                              "notAfter",
+                              "fingerprint256"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "allowIdpInitiated": {
+                          "type": "boolean"
+                        },
+                        "spEntityId": {
+                          "type": "string",
+                          "description": "Our entity id (the metadata's URL): the assertions' audience."
+                        },
+                        "acsUrl": {
+                          "type": "string",
+                          "description": "The assertion consumer service URL to register at the IdP."
+                        },
+                        "metadataUrl": {
+                          "type": "string",
+                          "description": "Our SP metadata (XML) for the IdP."
+                        }
+                      },
+                      "required": [
+                        "idpEntityId",
+                        "idpSsoUrl",
+                        "idpCertificates",
+                        "allowIdpInitiated",
+                        "spEntityId",
+                        "acsUrl",
+                        "metadataUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "protocol",
+                    "enabled",
+                    "jitProvisioning",
+                    "loginUrl",
+                    "oidc",
+                    "saml",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "409": {
+            "description": "`sso_connection_name_taken`: on the `name` field."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Add a SAML or OpenID Connect connection (off by default)",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/sso/connections/{id}": {
+      "get": {
+        "operationId": "SsoController_getConnection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "protocol": {
+                      "type": "string",
+                      "enum": [
+                        "oidc",
+                        "saml"
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "jitProvisioning": {
+                      "type": "boolean"
+                    },
+                    "loginUrl": {
+                      "type": "string",
+                      "description": "Where the browser starts a sign-in (`?redirectTo=` a path of the web app)."
+                    },
+                    "oidc": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "clientId": {
+                          "type": "string"
+                        },
+                        "redirectUri": {
+                          "type": "string",
+                          "description": "The redirect URI to register at the IdP."
+                        },
+                        "metadataFetchedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "metadataError": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "issuer",
+                        "clientId",
+                        "redirectUri",
+                        "metadataFetchedAt",
+                        "metadataError"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "saml": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "idpEntityId": {
+                          "type": "string"
+                        },
+                        "idpSsoUrl": {
+                          "type": "string"
+                        },
+                        "idpCertificates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "subject": {
+                                "type": "string"
+                              },
+                              "notAfter": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "fingerprint256": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "subject",
+                              "notAfter",
+                              "fingerprint256"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "allowIdpInitiated": {
+                          "type": "boolean"
+                        },
+                        "spEntityId": {
+                          "type": "string",
+                          "description": "Our entity id (the metadata's URL): the assertions' audience."
+                        },
+                        "acsUrl": {
+                          "type": "string",
+                          "description": "The assertion consumer service URL to register at the IdP."
+                        },
+                        "metadataUrl": {
+                          "type": "string",
+                          "description": "Our SP metadata (XML) for the IdP."
+                        }
+                      },
+                      "required": [
+                        "idpEntityId",
+                        "idpSsoUrl",
+                        "idpCertificates",
+                        "allowIdpInitiated",
+                        "spEntityId",
+                        "acsUrl",
+                        "metadataUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "protocol",
+                    "enabled",
+                    "jitProvisioning",
+                    "loginUrl",
+                    "oidc",
+                    "saml",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "One SSO connection (never its client secret)",
+        "tags": [
+          "sso"
+        ]
+      },
+      "patch": {
+        "operationId": "SsoController_updateConnection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "jitProvisioning": {
+                    "type": "boolean"
+                  },
+                  "issuer": {
+                    "description": "A new issuer: its discovery document is fetched again.",
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "description": "Stored encrypted, never returned."
+                  },
+                  "idpEntityId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "description": "The IdP's entity id: what its assertions name as `Issuer`."
+                  },
+                  "idpSsoUrl": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri",
+                    "description": "The IdP's single sign-on URL (HTTP-Redirect binding)."
+                  },
+                  "idpCertificates": {
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 16384
+                    },
+                    "description": "The IdP's signing certificates: one, or two while it rotates. Only signed assertions are accepted."
+                  },
+                  "allowIdpInitiated": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "protocol": {
+                      "type": "string",
+                      "enum": [
+                        "oidc",
+                        "saml"
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "jitProvisioning": {
+                      "type": "boolean"
+                    },
+                    "loginUrl": {
+                      "type": "string",
+                      "description": "Where the browser starts a sign-in (`?redirectTo=` a path of the web app)."
+                    },
+                    "oidc": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "issuer": {
+                          "type": "string"
+                        },
+                        "clientId": {
+                          "type": "string"
+                        },
+                        "redirectUri": {
+                          "type": "string",
+                          "description": "The redirect URI to register at the IdP."
+                        },
+                        "metadataFetchedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "metadataError": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "issuer",
+                        "clientId",
+                        "redirectUri",
+                        "metadataFetchedAt",
+                        "metadataError"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "saml": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "idpEntityId": {
+                          "type": "string"
+                        },
+                        "idpSsoUrl": {
+                          "type": "string"
+                        },
+                        "idpCertificates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "subject": {
+                                "type": "string"
+                              },
+                              "notAfter": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "fingerprint256": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "subject",
+                              "notAfter",
+                              "fingerprint256"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "allowIdpInitiated": {
+                          "type": "boolean"
+                        },
+                        "spEntityId": {
+                          "type": "string",
+                          "description": "Our entity id (the metadata's URL): the assertions' audience."
+                        },
+                        "acsUrl": {
+                          "type": "string",
+                          "description": "The assertion consumer service URL to register at the IdP."
+                        },
+                        "metadataUrl": {
+                          "type": "string",
+                          "description": "Our SP metadata (XML) for the IdP."
+                        }
+                      },
+                      "required": [
+                        "idpEntityId",
+                        "idpSsoUrl",
+                        "idpCertificates",
+                        "allowIdpInitiated",
+                        "spEntityId",
+                        "acsUrl",
+                        "metadataUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "protocol",
+                    "enabled",
+                    "jitProvisioning",
+                    "loginUrl",
+                    "oidc",
+                    "saml",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Change a connection: turn it on or off, rotate its secret or certificates",
+        "tags": [
+          "sso"
+        ]
+      },
+      "delete": {
+        "operationId": "SsoController_removeConnection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Delete a connection (the identities it linked stay)",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/sso/connections/{id}/refresh": {
+      "post": {
+        "operationId": "SsoController_refreshConnection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Fetch an OpenID Connect connection's discovery document again",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/sso/domains": {
+      "get": {
+        "operationId": "SsoController_listDomains_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "domain": {
+                            "type": "string"
+                          },
+                          "verified": {
+                            "type": "boolean"
+                          },
+                          "verifiedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "lastCheckedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "lastError": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "record": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "TXT"
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "name",
+                              "value"
+                            ],
+                            "additionalProperties": false,
+                            "description": "The DNS record that proves the domain is the tenant’s."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "domain",
+                          "verified",
+                          "verifiedAt",
+                          "lastCheckedAt",
+                          "lastError",
+                          "record",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The tenant's email domains and their verification",
+        "tags": [
+          "sso"
+        ]
+      },
+      "post": {
+        "operationId": "SsoController_createDomain_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "domain": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$"
+                  }
+                },
+                "required": [
+                  "domain"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "domain": {
+                      "type": "string"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "verifiedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "lastCheckedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "lastError": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "record": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TXT"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "name",
+                        "value"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The DNS record that proves the domain is the tenant’s."
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "domain",
+                    "verified",
+                    "verifiedAt",
+                    "lastCheckedAt",
+                    "lastError",
+                    "record",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "409": {
+            "description": "`sso_domain_exists`."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Add a domain to verify: publish its `record`, then verify",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/sso/domains/{id}/verify": {
+      "post": {
+        "operationId": "SsoController_verifyDomain_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Look the TXT record up (on the queue): `verified` once found",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/sso/domains/{id}": {
+      "delete": {
+        "operationId": "SsoController_removeDomain_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Remove a domain: its addresses no longer sign in or provision",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/auth/sso/{tenantId}/{connectionId}/login": {
+      "get": {
+        "operationId": "SsoAuthController_login_v1",
+        "parameters": [
+          {
+            "name": "redirectTo",
+            "required": false,
+            "in": "query",
+            "description": "A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.",
+            "schema": {
+              "description": "A path of the web app to land on (one leading `/`, printable ASCII, no `\\`); anything else is ignored.",
+              "type": "string",
+              "maxLength": 2048,
+              "pattern": "^\\/(?![/\\\\])[\\x21-\\x5b\\x5d-\\x7e]*$",
+              "example": "/inbox"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To the IdP; an OpenID Connect connection whose discovery document has not arrived yet: to the web app with `?error=sso_unavailable`."
+          },
+          "404": {
+            "description": "No such tenant or connection, or it is off."
+          }
+        },
+        "summary": "Start signing in with the tenant's identity provider (navigate the browser here)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sso/{tenantId}/{connectionId}/oidc/callback": {
+      "get": {
+        "operationId": "SsoAuthController_oidcCallback_v1",
+        "parameters": [
+          {
+            "name": "code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "iss",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "session_state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To the web app: signed in, or `?error=sso_failed` (the reason is audited)."
+          }
+        },
+        "summary": "Where an OpenID Connect IdP sends the browser back",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sso/{tenantId}/{connectionId}/saml/acs": {
+      "post": {
+        "description": "A form post (`application/x-www-form-urlencoded`, `SAMLResponse`), cross-site by nature: exempt from the CSRF check, which the browser binding (its cookie) and `InResponseTo` replace.",
+        "operationId": "SsoAuthController_acs_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "SAMLResponse": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000000
+                  },
+                  "RelayState": {
+                    "type": "string",
+                    "maxLength": 2048
+                  }
+                },
+                "required": [
+                  "SAMLResponse"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "303": {
+            "description": "To `saml/complete`, which signs the browser in; or to the web app with `?error=sso_failed`."
+          }
+        },
+        "summary": "The assertion consumer service: where a SAML IdP POSTs its response",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sso/{tenantId}/{connectionId}/saml/complete": {
+      "get": {
+        "operationId": "SsoAuthController_samlComplete_v1",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "To the web app: signed in, or `?error=sso_failed`."
+          }
+        },
+        "summary": "Signs the browser in once the ACS checked the SAML response",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sso/{tenantId}/{connectionId}/saml/metadata": {
+      "get": {
+        "description": "The entity id (this URL), the assertion consumer service, and that assertions must be signed. A document for the IdP to import, not a page.",
+        "operationId": "SsoAuthController_samlMetadata_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "SAML 2.0 metadata (XML)."
+          },
+          "404": {
+            "description": "No such tenant or connection, it is off, or it is not a SAML connection."
+          }
+        },
+        "summary": "Our SAML service provider's metadata, for the IdP",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/scim/ServiceProviderConfig": {
+      "get": {
+        "operationId": "ScimController_serviceProviderConfig_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "What this SCIM service supports (RFC 7643 §5)",
+        "tags": [
+          "scim"
+        ]
+      }
+    },
+    "/v1/scim/ResourceTypes": {
+      "get": {
+        "operationId": "ScimController_resourceTypes_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The resource types: User and Group (RFC 7643 §6)",
+        "tags": [
+          "scim"
+        ]
+      }
+    },
+    "/v1/scim/Users": {
+      "get": {
+        "description": "Filter: `eq` on `userName`, `externalId`, `id`, `emails.value` or `active`, joined with `and`. `startIndex` (1-based), `count` (at most 200).",
+        "operationId": "ScimController_listUsers_v1",
+        "parameters": [
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startIndex",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "excludedAttributes",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The users provisioned over SCIM",
+        "tags": [
+          "scim"
+        ]
+      },
+      "post": {
+        "description": "Links the account with that address (when its address is proved) or makes one without a password, and makes it a member. 409 `uniqueness`: already provisioned, or the externalId is taken.",
+        "operationId": "ScimController_createUser_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "userName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 320
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "displayName": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "nullable": true,
+                    "type": "object",
+                    "properties": {
+                      "formatted": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "givenName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "familyName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "additionalProperties": {}
+                  },
+                  "emails": {
+                    "nullable": true,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 320
+                        },
+                        "primary": {
+                          "type": "boolean"
+                        },
+                        "type": {
+                          "nullable": true,
+                          "type": "string",
+                          "maxLength": 50
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "userName"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "userName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 320
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "displayName": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "nullable": true,
+                    "type": "object",
+                    "properties": {
+                      "formatted": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "givenName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "familyName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "additionalProperties": {}
+                  },
+                  "emails": {
+                    "nullable": true,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 320
+                        },
+                        "primary": {
+                          "type": "boolean"
+                        },
+                        "type": {
+                          "nullable": true,
+                          "type": "string",
+                          "maxLength": 50
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "userName"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Provision a user: an address of a verified domain",
+        "tags": [
+          "scim"
+        ]
+      }
+    },
+    "/v1/scim/Users/{id}": {
+      "get": {
+        "operationId": "ScimController_getUser_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "One provisioned user",
+        "tags": [
+          "scim"
+        ]
+      },
+      "put": {
+        "operationId": "ScimController_replaceUser_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "userName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 320
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "displayName": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "nullable": true,
+                    "type": "object",
+                    "properties": {
+                      "formatted": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "givenName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "familyName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "additionalProperties": {}
+                  },
+                  "emails": {
+                    "nullable": true,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 320
+                        },
+                        "primary": {
+                          "type": "boolean"
+                        },
+                        "type": {
+                          "nullable": true,
+                          "type": "string",
+                          "maxLength": 50
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "userName"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "userName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 320
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "displayName": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "name": {
+                    "nullable": true,
+                    "type": "object",
+                    "properties": {
+                      "formatted": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "givenName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "familyName": {
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "additionalProperties": {}
+                  },
+                  "emails": {
+                    "nullable": true,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 320
+                        },
+                        "primary": {
+                          "type": "boolean"
+                        },
+                        "type": {
+                          "nullable": true,
+                          "type": "string",
+                          "maxLength": 50
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "userName"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Replace a user: `active: false` deprovisions it",
+        "tags": [
+          "scim"
+        ]
+      },
+      "patch": {
+        "operationId": "ScimController_patchUser_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "A PatchOp (`urn:ietf:params:scim:api:messages:2.0:PatchOp`).",
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "type": "object"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change a user (PatchOp): `replace active false` deprovisions it",
+        "tags": [
+          "scim"
+        ]
+      },
+      "delete": {
+        "operationId": "ScimController_deleteUser_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Deprovision a user: the membership deactivated, its sessions in the tenant ended",
+        "tags": [
+          "scim"
+        ]
+      }
+    },
+    "/v1/scim/Groups": {
+      "get": {
+        "description": "Filter: `eq` on `displayName`, `externalId` or `id`, joined with `and`. `excludedAttributes=members` leaves the members out.",
+        "operationId": "ScimController_listGroups_v1",
+        "parameters": [
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startIndex",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "excludedAttributes",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The groups (teams) made over SCIM",
+        "tags": [
+          "scim"
+        ]
+      },
+      "post": {
+        "operationId": "ScimController_createGroup_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "members": {
+                    "nullable": true,
+                    "maxItems": 10000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "displayName"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "members": {
+                    "nullable": true,
+                    "maxItems": 10000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "displayName"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Make a group: a top-level team, its members provisioned users",
+        "tags": [
+          "scim"
+        ]
+      }
+    },
+    "/v1/scim/Groups/{id}": {
+      "get": {
+        "operationId": "ScimController_getGroup_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "One group, with its members",
+        "tags": [
+          "scim"
+        ]
+      },
+      "put": {
+        "operationId": "ScimController_replaceGroup_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "members": {
+                    "nullable": true,
+                    "maxItems": 10000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "displayName"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schemas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "externalId": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "members": {
+                    "nullable": true,
+                    "maxItems": 10000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "value"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "displayName"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Replace a group: its name and members",
+        "tags": [
+          "scim"
+        ]
+      },
+      "patch": {
+        "operationId": "ScimController_patchGroup_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "A PatchOp (`urn:ietf:params:scim:api:messages:2.0:PatchOp`).",
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "type": "object"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change a group (PatchOp): members added or removed",
+        "tags": [
+          "scim"
+        ]
+      },
+      "delete": {
+        "operationId": "ScimController_deleteGroup_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "Missing or unknown SCIM token."
+          },
+          "403": {
+            "description": "The key’s client lacks `Access.provisionScim`."
+          }
+        },
+        "security": [
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete a group: its team goes, not its members",
+        "tags": [
+          "scim"
+        ]
+      }
+    },
     "/v1/notes": {
       "post": {
         "description": "Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.",

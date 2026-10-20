@@ -91,6 +91,7 @@ export function setupHttp(app: NestExpressApplication) {
       {
         path: 'auth/sso/:tenantId/:connectionId/saml/acs',
         method: RequestMethod.POST,
+        version: '1',
       },
     ],
   });
