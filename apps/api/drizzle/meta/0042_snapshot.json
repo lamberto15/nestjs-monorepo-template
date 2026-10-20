@@ -1,5 +1,5 @@
 {
-  "id": "4061737f-df88-4680-8d5a-a684d195acf4",
+  "id": "a4b1b30a-be7b-420e-9650-dc7ca995df81",
   "prevId": "1e544fb8-5a39-4b54-a139-61af20b0afd5",
   "version": "7",
   "dialect": "postgresql",
@@ -66,97 +66,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.tenant_closure": {
-      "name": "tenant_closure",
-      "schema": "",
-      "columns": {
-        "ancestor_id": {
-          "name": "ancestor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "descendant_id": {
-          "name": "descendant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "depth": {
-          "name": "depth",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "tenant_closure_descendant_idx": {
-          "name": "tenant_closure_descendant_idx",
-          "columns": [
-            {
-              "expression": "descendant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "tenant_closure_ancestor_id_tenants_id_fk": {
-          "name": "tenant_closure_ancestor_id_tenants_id_fk",
-          "tableFrom": "tenant_closure",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "ancestor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "tenant_closure_descendant_id_tenants_id_fk": {
-          "name": "tenant_closure_descendant_id_tenants_id_fk",
-          "tableFrom": "tenant_closure",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "descendant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "tenant_closure_ancestor_id_descendant_id_pk": {
-          "name": "tenant_closure_ancestor_id_descendant_id_pk",
-          "columns": [
-            "ancestor_id",
-            "descendant_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "tenant_closure_depth": {
-          "name": "tenant_closure_depth",
-          "value": "\"tenant_closure\".\"depth\" >= 1"
-        },
-        "tenant_closure_not_self": {
-          "name": "tenant_closure_not_self",
-          "value": "\"tenant_closure\".\"ancestor_id\" <> \"tenant_closure\".\"descendant_id\""
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.tenants": {
       "name": "tenants",
       "schema": "",
@@ -219,12 +128,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -240,38 +143,8 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "tenants_parent_id_idx": {
-          "name": "tenants_parent_id_idx",
-          "columns": [
-            {
-              "expression": "parent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "tenants_parent_id_tenants_id_fk": {
-          "name": "tenants_parent_id_tenants_id_fk",
-          "tableFrom": "tenants",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "tenants_slug_unique": {
@@ -283,12 +156,7 @@
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "tenants_parent_not_self": {
-          "name": "tenants_parent_not_self",
-          "value": "\"tenants\".\"parent_id\" <> \"tenants\".\"id\""
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.api_client_roles": {
@@ -400,7 +268,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"api_client_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"api_client_roles\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"api_client_roles\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"api_client_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "api_client_roles_tenant_insert": {
           "name": "api_client_roles_tenant_insert",
@@ -542,7 +410,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"api_clients\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"api_clients\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"api_clients\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"api_clients\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "api_clients_tenant_insert": {
           "name": "api_clients_tenant_insert",
@@ -855,7 +723,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"audit_log\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"audit_log\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"audit_log\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))) or (\"audit_log\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
+          "using": "(\"audit_log\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) or (\"audit_log\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
         },
         "audit_log_tenant_insert": {
           "name": "audit_log_tenant_insert",
@@ -1145,7 +1013,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"invitations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"invitations\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"invitations\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"invitations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "invitations_tenant_insert": {
           "name": "invitations_tenant_insert",
@@ -1935,7 +1803,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"role_permissions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"role_permissions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"role_permissions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"role_permissions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "role_permissions_tenant_insert": {
           "name": "role_permissions_tenant_insert",
@@ -2105,7 +1973,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"roles\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"roles\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "roles_tenant_insert": {
           "name": "roles_tenant_insert",
@@ -2334,7 +2202,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"team_tree\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"team_tree\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"team_tree\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "team_tree_tenant_insert": {
           "name": "team_tree_tenant_insert",
@@ -2478,7 +2346,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"teams\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "teams_tenant_insert": {
           "name": "teams_tenant_insert",
@@ -2703,7 +2571,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"user_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"user_roles\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"user_roles\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"user_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "user_roles_tenant_insert": {
           "name": "user_roles_tenant_insert",
@@ -2840,7 +2708,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"user_teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"user_teams\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"user_teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "user_teams_tenant_insert": {
           "name": "user_teams_tenant_insert",
@@ -3215,7 +3083,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"custom_field_definitions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"custom_field_definitions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"custom_field_definitions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"custom_field_definitions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "custom_field_definitions_tenant_insert": {
           "name": "custom_field_definitions_tenant_insert",
@@ -3593,7 +3461,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"notifications\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notifications\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))) or \"notifications\".\"tenant_id\" is null)"
+          "using": "(\"notifications\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) or \"notifications\".\"tenant_id\" is null)"
         },
         "notifications_tenant_insert": {
           "name": "notifications_tenant_insert",
@@ -3662,6 +3530,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "rules": {
+          "name": "rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "updated_by": {
           "name": "updated_by",
@@ -3748,6 +3623,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rules": {
+          "name": "rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "updated_by": {
           "name": "updated_by",
           "type": "text",
@@ -3829,7 +3711,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"setting_overrides\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"setting_overrides\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"setting_overrides\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"setting_overrides\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "setting_overrides_tenant_insert": {
           "name": "setting_overrides_tenant_insert",
@@ -4208,7 +4090,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"record_subscriptions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"record_subscriptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"record_subscriptions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"record_subscriptions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "record_subscriptions_tenant_insert": {
           "name": "record_subscriptions_tenant_insert",
@@ -4375,7 +4257,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"naming_series\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"naming_series\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"naming_series\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"naming_series\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "naming_series_tenant_insert": {
           "name": "naming_series_tenant_insert",
@@ -4515,7 +4397,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"sequences\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sequences\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sequences\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"sequences\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "sequences_tenant_insert": {
           "name": "sequences_tenant_insert",
@@ -4708,7 +4590,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"attachments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"attachments\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"attachments\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"attachments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "attachments_tenant_insert": {
           "name": "attachments_tenant_insert",
@@ -4980,7 +4862,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"documents\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"documents\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"documents\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"documents\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "documents_tenant_insert": {
           "name": "documents_tenant_insert",
@@ -5167,7 +5049,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"comments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"comments\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"comments\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"comments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "comments_tenant_insert": {
           "name": "comments_tenant_insert",
@@ -5308,7 +5190,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"record_tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"record_tags\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"record_tags\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"record_tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "record_tags_tenant_insert": {
           "name": "record_tags_tenant_insert",
@@ -5461,7 +5343,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"tags\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"tags\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "tags_tenant_insert": {
           "name": "tags_tenant_insert",
@@ -5671,7 +5553,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"report_schedules\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"report_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"report_schedules\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"report_schedules\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "report_schedules_tenant_insert": {
           "name": "report_schedules_tenant_insert",
@@ -5897,7 +5779,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"saved_views\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"saved_views\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"saved_views\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"saved_views\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "saved_views_tenant_insert": {
           "name": "saved_views_tenant_insert",
@@ -6086,7 +5968,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"api_usage\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"api_usage\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"api_usage\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"api_usage\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "api_usage_tenant_insert": {
           "name": "api_usage_tenant_insert",
@@ -6318,7 +6200,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"revisions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"revisions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"revisions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"revisions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "revisions_tenant_insert": {
           "name": "revisions_tenant_insert",
@@ -6563,7 +6445,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"approval_assignments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_assignments\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_assignments\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"approval_assignments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_assignments_tenant_insert": {
           "name": "approval_assignments_tenant_insert",
@@ -6722,7 +6604,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"approval_delegations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_delegations\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_delegations\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"approval_delegations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_delegations_tenant_insert": {
           "name": "approval_delegations_tenant_insert",
@@ -6887,7 +6769,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"approval_events\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_events\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_events\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"approval_events\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_events_tenant_insert": {
           "name": "approval_events_tenant_insert",
@@ -7031,7 +6913,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"approval_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_policies\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"approval_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_policies_tenant_insert": {
           "name": "approval_policies_tenant_insert",
@@ -7404,7 +7286,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"approval_requests\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_requests\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_requests\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"approval_requests\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "approval_requests_tenant_insert": {
           "name": "approval_requests_tenant_insert",
@@ -7990,7 +7872,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"incoming_webhook_senders\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"incoming_webhook_senders\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"incoming_webhook_senders\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"incoming_webhook_senders\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "incoming_webhook_senders_tenant_insert": {
           "name": "incoming_webhook_senders_tenant_insert",
@@ -8337,7 +8219,7 @@
           "to": [
             "public"
           ],
-          "using": "((\"notes\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"notes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notes\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "(\"notes\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
         },
         "notes_tenant_insert": {
           "name": "notes_tenant_insert",

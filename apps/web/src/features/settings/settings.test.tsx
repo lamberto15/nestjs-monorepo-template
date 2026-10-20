@@ -13,7 +13,14 @@ import { renderComponent } from '@/test/render-component';
 import { renderApp } from '@/test/render-app';
 import { server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
-import { fromDraft, groupOf, overrideBody, toDraft } from './settings';
+import {
+  fromDraft,
+  fromRuleDrafts,
+  groupOf,
+  overrideBody,
+  toDraft,
+  toRuleDrafts,
+} from './settings';
 import { useFlag } from './use-flag';
 
 const admin = {
@@ -461,6 +468,7 @@ describe('admin settings', () => {
               scopeId: 'team-1',
               value: true,
               rollout: null,
+              rules: [],
               updatedBy: 'x',
               updatedAt: '2026-10-17T00:00:00.000Z',
             },
@@ -545,6 +553,7 @@ describe('admin settings', () => {
               scopeId: GRACE.key,
               value: true,
               rollout: null,
+              rules: [],
               updatedBy: 'x',
               updatedAt: '2026-10-17T00:00:00.000Z',
             },
@@ -554,6 +563,7 @@ describe('admin settings', () => {
               scopeId: TEAM,
               value: false,
               rollout: null,
+              rules: [],
               updatedBy: 'x',
               updatedAt: '2026-10-17T00:00:00.000Z',
             },
@@ -615,7 +625,7 @@ describe('platform values', () => {
       platformFlag({
         source: 'platform',
         value: true,
-        platform: { value: true, enforced: true, rollout: null },
+        platform: { value: true, enforced: true, rollout: null, rules: [] },
       }),
     ]);
     await renderApp('/settings');
@@ -686,7 +696,7 @@ describe('platform values', () => {
   it('shows a stored platform rollout', async () => {
     api(admin, [
       platformFlag({
-        platform: { value: null, enforced: false, rollout: 40 },
+        platform: { value: null, enforced: false, rollout: 40, rules: [] },
       }),
     ]);
     const { dialog } = await open('Platform flag');
@@ -697,7 +707,7 @@ describe('platform values', () => {
     api(admin, [
       platformFlag({
         canEditPlatform: true,
-        platform: { value: true, enforced: false, rollout: null },
+        platform: { value: true, enforced: false, rollout: null, rules: [] },
       }),
     ]);
     let removed = '';
@@ -725,7 +735,7 @@ describe('platform values', () => {
   it('shows a non-operator the value, without the controls', async () => {
     api(admin, [
       platformFlag({
-        platform: { value: true, enforced: false, rollout: null },
+        platform: { value: true, enforced: false, rollout: null, rules: [] },
       }),
     ]);
     const { dialog } = await open('Platform flag');
@@ -773,5 +783,201 @@ describe('platform values', () => {
     expect(screen.getByText(/roll it out gradually/)).toBeVisible();
     await user.click(screen.getByRole('tab', { name: 'All settings' }));
     expect(screen.getByText('Publication delay')).toBeVisible();
+  });
+});
+
+describe('targeting rules', () => {
+  const flag = setting({
+    key: 'ui.beta',
+    label: 'Beta flag',
+    flag: true,
+    type: 'boolean',
+    scopes: ['tenant', 'team', 'user'],
+    value: false,
+    default: false,
+    canEditPlatform: true,
+  });
+  const stored = (extra: object) => ({
+    key: 'ui.beta',
+    scope: 'tenant',
+    scopeId: '',
+    value: null,
+    rollout: null,
+    rules: [],
+    updatedBy: 'x',
+    updatedAt: '2026-10-17T00:00:00.000Z',
+    ...extra,
+  });
+  const domainRule = {
+    conditions: [{ key: 'emailDomain', params: { domains: ['acme.com'] } }],
+    outcome: { value: true },
+  };
+
+  it('turns rules into drafts and back', () => {
+    const rules = [
+      domainRule,
+      {
+        conditions: [
+          { key: 'principalKind', params: { kinds: ['client'] } },
+          { key: 'tenantOperator', params: { operator: false } },
+        ],
+        outcome: { rollout: 25 },
+      },
+    ];
+    const drafts = toRuleDrafts(rules as never);
+    expect(drafts[1]).toEqual({
+      conditions: [
+        { key: 'principalKind', values: ['client'] },
+        { key: 'tenantOperator', values: ['false'] },
+      ],
+      outcome: 'rollout',
+      percent: '25',
+    });
+    expect(fromRuleDrafts(drafts)).toEqual({ ok: true, rules });
+  });
+
+  it('refuses a condition without a value and a percentage out of range', () => {
+    const base = toRuleDrafts([domainRule] as never);
+    expect(
+      fromRuleDrafts([
+        { ...base[0]!, conditions: [{ key: 'locale', values: [] }] },
+      ]),
+    ).toEqual({ ok: false, reason: 'values' });
+    expect(
+      fromRuleDrafts([{ ...base[0]!, outcome: 'rollout', percent: '101' }]),
+    ).toEqual({ ok: false, reason: 'rollout' });
+  });
+
+  it('adds a rule for an email domain and saves it beside the stored value', async () => {
+    api(admin, [flag]);
+    let body: unknown;
+    server.use(
+      http.get('/v1/settings/:key/overrides', () =>
+        HttpResponse.json({ items: [stored({ value: true })] }),
+      ),
+      http.put('/v1/settings/:key', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
+    );
+    const { user, dialog } = await open('Beta flag');
+    const section = within(
+      await within(dialog).findByRole('region', { name: 'Targeting rules' }),
+    );
+    await user.click(section.getByRole('button', { name: 'Add a rule' }));
+    await user.click(
+      section.getByRole('combobox', { name: 'Condition (1.1)' }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'Email domain is' }),
+    );
+    await user.type(
+      section.getByRole('textbox', { name: 'Email domain is (1.1)' }),
+      'acme.com,',
+    );
+    await user.click(section.getByRole('button', { name: 'Save rules' }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        scope: 'tenant',
+        value: true,
+        rules: [domainRule],
+      }),
+    );
+  });
+
+  it('refuses a rule whose condition has no value, without a request', async () => {
+    api(admin, [flag]);
+    const { user, dialog } = await open('Beta flag');
+    const section = within(
+      await within(dialog).findByRole('region', { name: 'Targeting rules' }),
+    );
+    await user.click(section.getByRole('button', { name: 'Add a rule' }));
+    await user.click(
+      section.getByRole('combobox', { name: 'Condition (1.1)' }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'Language is' }),
+    );
+    await user.click(section.getByRole('button', { name: 'Save rules' }));
+    expect(
+      await within(dialog).findByText('Every condition needs a value.'),
+    ).toBeVisible();
+  });
+
+  it('shows stored rules, reorders and removes them, and clears a rules-only override', async () => {
+    api(admin, [flag]);
+    const calls: string[] = [];
+    server.use(
+      http.get('/v1/settings/:key/overrides', () =>
+        HttpResponse.json({
+          items: [
+            stored({
+              rules: [
+                domainRule,
+                {
+                  conditions: [
+                    { key: 'principalKind', params: { kinds: ['client'] } },
+                  ],
+                  outcome: { value: false },
+                },
+              ],
+            }),
+          ],
+        }),
+      ),
+      http.delete('/v1/settings/:key', ({ request }) => {
+        calls.push(`DELETE ${new URL(request.url).search}`);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { user, dialog } = await open('Beta flag');
+    const section = within(
+      await within(dialog).findByRole('region', { name: 'Targeting rules' }),
+    );
+    expect(section.getByRole('listitem', { name: 'Rule 2' })).toBeVisible();
+    await user.click(section.getByRole('button', { name: 'Move rule 2 up' }));
+    await user.click(section.getByRole('button', { name: 'Remove rule 1' }));
+    await user.click(section.getByRole('button', { name: 'Remove rule 1' }));
+    await user.click(section.getByRole('button', { name: 'Save rules' }));
+    // No rules left and no value of its own: the override goes.
+    await waitFor(() => expect(calls).toEqual(['DELETE ?scope=tenant']));
+  });
+
+  it('lets an operator edit rules for all tenants, without the role condition', async () => {
+    api(admin, [flag]);
+    let body: unknown;
+    server.use(
+      http.put('/v1/settings/:key/platform', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
+    );
+    const { user, dialog } = await open('Beta flag');
+    const section = within(
+      within(dialog).getByRole('region', {
+        name: 'Targeting rules for all tenants',
+      }),
+    );
+    await user.click(section.getByRole('button', { name: 'Add a rule' }));
+    await user.click(
+      section.getByRole('combobox', { name: 'Condition (1.1)' }),
+    );
+    expect(
+      screen.queryByRole('option', { name: 'Has the role' }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      await screen.findByRole('option', { name: 'Operator tenant' }),
+    );
+    await user.click(section.getByRole('button', { name: 'Save rules' }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        rules: [
+          {
+            conditions: [{ key: 'tenantOperator', params: { operator: true } }],
+            outcome: { value: true },
+          },
+        ],
+      }),
+    );
   });
 });

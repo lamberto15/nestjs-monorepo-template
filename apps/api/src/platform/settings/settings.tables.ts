@@ -8,6 +8,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { timestamps, uuidPk } from '../../core/database/columns.js';
 import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
+import type { FlagRule } from './setting-rules.js';
 import type { SettingScope } from './setting.types.js';
 
 /**
@@ -29,6 +30,8 @@ export const settingOverrides = pgTable(
     value: jsonb('value'),
     /** A flag's rollout percentage (0–100), tenant scope only. */
     rollout: integer('rollout'),
+    /** A flag's targeting rules, first match wins, before the value and the rollout. */
+    rules: jsonb('rules').$type<FlagRule[]>().notNull().default([]),
     /** Who set it: a principal key. */
     updatedBy: text('updated_by').notNull(),
     ...timestamps(),
@@ -60,6 +63,8 @@ export const platformSettingValues = pgTable('platform_setting_values', {
   enforced: boolean('enforced').notNull().default(false),
   /** A flag's rollout percentage (0–100) in every tenant, when no value is set. */
   rollout: integer('rollout'),
+  /** A flag's targeting rules, first match wins, before the value and the rollout. */
+  rules: jsonb('rules').$type<FlagRule[]>().notNull().default([]),
   /** Who set it: an operator's principal key. */
   updatedBy: text('updated_by').notNull(),
   ...timestamps(),
