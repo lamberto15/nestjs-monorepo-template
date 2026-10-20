@@ -65,8 +65,8 @@ first project is built on the template; until then they report only.
   tenant; a membership still active in a deactivated tenant exports that tenant's
   records; the migrate-time wall check compares policy names and commands, not their
   expressions; whether operators may act in any tenant without its invitation (a
-  break-glass support route: the owner's decision, docs/tenancy.md, "Operators");
-  tenant export and deletion (get, rename and deactivation are done, #195).
+  break-glass support route: the owner's decision, docs/tenancy.md, "Operators").
+  Tenant export and deletion are done (#226; get, rename and deactivation, #195).
 - **Passkeys:** renaming needs no recent sign-in; a token sign-in naming a tenant the
   user isn't in writes no failure entry; `crossOrigin`/`topOrigin` aren't checked.
   Token clients with two-factor still send a code with a passkey until
@@ -251,8 +251,9 @@ Split into **1a** (core) and **1b** (per-tenant product features).
 
 - Per-tenant settings, flags, quotas and branding.
 - The tenant switcher UX.
-- Tenant export and deletion: in-flight workflows, queued jobs, outbox rows, the S3
-  prefix.
+- Tenant export and deletion: **done** (#226): the operators' export (a data
+  transfer, step-up) and deletion (deactivated, a grace period, then a worker erases
+  rows, files, queued jobs, workflows and outbox messages). docs/tenancy.md.
 - The platform "super tenant" for operators.
 - **The tenant tree** for holding groups: a `parent_id` on `tenants` (closure table).
   - A user granted "consolidated reader" on a parent gets `app.read_tenants` set to the

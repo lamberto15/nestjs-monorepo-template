@@ -238,8 +238,9 @@ suppression list (every address), and `/v1/tenants` (below). `GET
 there, false elsewhere; `tenant` is null without one): the web shows the
 operators' screens when it is true and `can['Access.manageTenants']` too.
 Roadmap 1b replaces this with the platform's super tenant, and adds tenant
-settings, export and deletion. With `TENANT_SIGN_UP` a sign-up makes a
-tenant too ("Tenants made at sign-up").
+settings. With `TENANT_SIGN_UP` a sign-up makes a tenant too ("Tenants
+made at sign-up"). The operators export a tenant and delete one (below,
+"Exporting a tenant", "Deleting a tenant").
 
 **The tenants** (all `Access.manageTenants`, in the operator tenant only;
 another tenant's administrator gets 403 `operator_required`, and nobody
@@ -250,7 +251,9 @@ outside the operators ever sees another tenant):
 | `GET /v1/tenants` | A page, newest first: `listQuery()` filters (`name`, `slug`: `eq`, `contains`, `startsWith`; `active`, `operator`; `createdAt`, `updatedAt` ranges), `sort` (`name`, `slug`, `createdAt`, `updatedAt`), `cursor`/`page`, `count`, `fields`. `GET /v1/lists/Tenant` describes it (to the same callers). |
 | `POST /v1/tenants { name, slug, administratorEmail }` | A tenant, its roles and its first administrator's invitation (`administrator: { email, status: 'invited', expiresAt }`), audited in both tenants. 409 `tenant_slug_taken` (with `errors: [{ path: 'slug' }]`), 409 `single_tenant`. |
 | `GET /v1/tenants/{id}` | One tenant, with an `ETag`. |
-| `PATCH /v1/tenants/{id} { name?, slug?, active? }` | Rename, a new slug (409 `tenant_slug_taken` on the field), (de)activate. `If-Match` optional (412 `precondition_failed`). Audited `tenant.updated` (each field from → to) in the operator's tenant and in that one. |
+| `PATCH /v1/tenants/{id} { name?, slug?, active? }` | Rename, a new slug (409 `tenant_slug_taken` on the field), (de)activate. `If-Match` optional (412 `precondition_failed`). Audited `tenant.updated` (each field from → to) in the operator's tenant and in that one. `active: true` while a deletion is pending: 409 `tenant_deletion_pending`. |
+| `POST /v1/tenants/{id}/export { format? }` | Every record of it, as a file (202, a data transfer): "Exporting a tenant", below. A recent sign-in, `Idempotency-Key`. |
+| `POST /v1/tenants/{id}/deletion { slug }`, `DELETE /v1/tenants/{id}/deletion` | Its deletion after a grace period, and its cancel: "Deleting a tenant", below. The request wants a recent sign-in. |
 
 **The first administrator is always invited.** The create's answer says
 `status: 'invited'` whether or not the address has an account: like every
@@ -287,6 +290,72 @@ themselves can't add themselves to a tenant: the tenant consents. A
 "break-glass" route for operators to act in any tenant without its consent
 is not built: it needs the owner's decision (who may, for how long, how the
 tenant is told), and belongs with the platform super tenant (roadmap 1b).
+
+**Exporting a tenant** (`POST /v1/tenants/{id}/export { format? }`,
+`json` by default; `csv`, `xlsx`): a data transfer
+([data-transfer](data-transfer.md)) of the `tenant` exporter
+(`TenantTransfer`, `platform/tenants/tenant.transfer.ts`), queued in a
+worker, never built in the request. 202 with its id; the operator follows
+it at `GET /v1/data/transfers/{id}` (and in `GET /v1/data/transfers`),
+whose answer gives the file's link once done (signed, 30 minutes; asked
+again, a new one); the operator's connection hears `data.export-ready`,
+as for the account export. One row per record: `kind` (its table, `tenant`
+for the tenant itself, `member` for its members' accounts: id, address,
+name), `id`, `data`. Every table with a `tenant_id` is in it, a feature's
+own included (`tenantTables()`, read from the Drizzle declarations), paged
+by its primary key; each page is read in that tenant's scope and filtered
+by its `tenant_id` too, so the wall holds: never another tenant's row, nor
+a row of no tenant, never the bypass. Left out: the hashes of stored
+credentials (`keyHash`, `tokenHash`); the stored files themselves (their
+rows are in it: names, sizes, keys). The job runs as the operator in the
+operators' tenant, so the file is theirs (`tenants/<operator tenant>/transfers/`)
+and outlives the tenant it copies; it stays as long as BullMQ keeps the
+job (7 days). Operators only (the route's `@OperatorOnly()` and
+`Access.manageTenants`, the exporter's own check again), a recent sign-in
+(step-up, [auth](auth.md)), `Idempotency-Key` (a retry never queues a
+second export). `internal`: `POST /v1/data/exports` answers 404 for it
+and no scheduled report runs it. Audited `tenant.export-requested` in the
+operators' tenant and in that one (its administrators see that a copy was
+taken); `data.export-started` and `data.exported` in the operators'.
+
+**Deleting a tenant** (`POST /v1/tenants/{id}/deletion { slug }`): the
+`slug` typed again (400 `validation_failed` on `slug` otherwise), a recent
+sign-in. In one transaction under the tenant's row lock: it is
+deactivated (as `PATCH { active: false }`: its sessions, tokens, keys and
+connections end after the commit) and its erase scheduled
+`TENANT_DELETION_GRACE_DAYS` (30) later (`deletionRequestedAt`,
+`deletionScheduledFor`). Asked again while pending: the same, unchanged.
+`DELETE /v1/tenants/{id}/deletion` cancels until the erase starts (404
+with none pending, 409 `tenant_deletion_started` once it has); the tenant
+stays deactivated, `PATCH { active: true }` brings it back (refused, 409
+`tenant_deletion_pending`, while the deletion is pending). The operator
+tenant is never deleted (409 `operator_tenant`). Audited
+`tenant.deletion-requested` and `tenant.deletion-cancelled` in the
+operators' tenant and in that one.
+
+The erase is a worker's, never the request's: `TenantDeletionJob`
+(`iam/access/tenant-deletion.job.ts`, every night at 04:30, on one
+instance, as `system:tenant-deletion`, up to 50 tenants a night). Per
+tenant: claimed under its row's lock (`deletionStartedAt`: no cancel from
+then on); then what lives outside its tables, the `beforeErase` of the
+`TenantLifecycleRegistry` listeners (`platform/tenants/tenant-cleanup.ts`),
+in order: its jobs in every queue (by their envelope's `tenantId`,
+waiting, delayed or finished; one still running postpones the erase to the
+next night), its workflow instances (by their input's `tenantId`, deleted
+without compensations), its outbox messages not yet delivered and its
+dead letters, then its stored files (the `tenants/<id>/` prefix:
+attachments, documents, its own transfers); then its row
+(`TenantsService.deleteRow()`, the database cascading to every tenant
+table's rows and its memberships) in one transaction with the
+`tenant.purged` entry outside any tenant (`details.reason: 'deletion'`),
+since its own log goes with it; last, its API clients' cleanups (their
+webhook endpoints, `ApiClientLifecycleRegistry`). Each step can run again:
+one that fails leaves the tenant claimed and there, and the next night
+starts over (failures reported together, `TenantRunsFailed`). The accounts
+stay, in their other tenants or in none. Audit retention is the tenant's
+own log, kept until the erase: retention rules are roadmap item 5.
+`test/tenant-lifecycle.e2e-spec.ts` runs both; `security.e2e-spec.ts` the
+refusals (operators only, step-up, never through `/v1/data/exports`).
 
 ## Tenants made at sign-up
 
@@ -328,8 +397,9 @@ operators' route does). Off, only operators make tenants.
   (`POST /v1/auth/email/verification/resend`, docs/auth.md). Each deletion runs in its own transaction, under its
   members' account locks, checked again there (an address proved meanwhile
   keeps its tenant). The tenant's row goes (`TenantsService.deleteRow()`,
-  the database cascading to its rows and memberships; tenant deletion,
-  roadmap 1b, adds files and jobs around it), audited outside any tenant
+  the database cascading to its rows and memberships; its members never
+  signed in, so it holds no files, jobs or workflows: the operators'
+  deletion, above, removes those first), audited outside any tenant
   (`tenant.purged`, `details.reason: 'sign-up-unverified'`, the members'
   ids), since the tenant's own log goes with it. The accounts stay:
   unverified, in no tenant. Operators' tenants are never swept.

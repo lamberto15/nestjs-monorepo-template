@@ -221,6 +221,13 @@ export const iamEnv = z.object({
     .max(30 * 24)
     .default(7 * 24),
   /**
+   * How many days an operator has to cancel a tenant's deletion
+   * (POST /v1/tenants/{id}/deletion) before TenantDeletionJob erases it
+   * (docs/tenancy.md, "Deleting a tenant"). The tenant is deactivated
+   * meanwhile.
+   */
+  TENANT_DELETION_GRACE_DAYS: z.coerce.number().int().min(0).default(30),
+  /**
    * Support impersonation (an administrator acts as a user:
    * POST /access/users/{id}/impersonate). Off: those routes answer 404
    * `feature_off`, and a running impersonation ends at its next request.

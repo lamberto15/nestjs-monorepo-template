@@ -124,6 +124,10 @@ import { AccountDeletionMail } from './account/account.mails.js';
 import { AccountLifecycleService } from './account/account.service.js';
 import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
 import { AccountTransfer } from './account/account.transfer.js';
+import { TenantCleanup } from './tenants/tenant-cleanup.js';
+import { TenantExportController } from './tenants/tenant-export.controller.js';
+import { TenantExports } from './tenants/tenant-exports.service.js';
+import { TenantTransfer } from './tenants/tenant.transfer.js';
 import { PersonalDataRegistry } from './account/personal-data.registry.js';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
 import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
@@ -353,6 +357,8 @@ export class PlatformModule {
         AccountController,
         AccountDeletionLinkController,
         ConsentKindsController,
+        // The operators' export of a tenant (POST /v1/tenants/{id}/export).
+        TenantExportController,
         SubscriptionsController,
         SearchController,
         ListsController,
@@ -487,6 +493,10 @@ export class PlatformModule {
         AccountTransfer,
         AccountDeletionJob,
         AccountDeletionMail,
+        // A tenant's export (the operators'), and what its erase removes besides its rows.
+        TenantTransfer,
+        TenantExports,
+        TenantCleanup,
         // Watching records: features subscribe creators and notify the watchers of a change.
         SubscriptionsService,
         SubscriptionsRegistry,

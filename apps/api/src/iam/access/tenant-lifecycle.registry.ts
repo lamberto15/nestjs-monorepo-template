@@ -5,8 +5,10 @@ import { Injectable } from '@nestjs/common';
  * (`PATCH /v1/tenants/{id} { active: false }`): what lives outside the
  * database, which the `tenants.active` checks can't reach (realtime
  * connections, authenticated at their handshake, keep their tenant's
- * rooms). The same pattern as UserLifecycleRegistry: register from a
- * constructor, `lifecycle.register(this)`.
+ * rooms); and what a tenant's erase (TenantDeletionJob) removes besides
+ * its rows (`beforeErase`: its stored files, queued jobs, workflows,
+ * outbox messages). The same pattern as UserLifecycleRegistry: register
+ * from a constructor, `lifecycle.register(this)`.
  */
 export interface TenantLifecycleListener {
   /** For the uniqueness check and the logs: `realtime`. */
@@ -15,10 +17,18 @@ export interface TenantLifecycleListener {
    * After the deactivation committed (never for one that rolled back):
    * the tenant's members and API clients, every one, active or not.
    */
-  afterDeactivation(
+  afterDeactivation?(
     tenantId: string,
     principals: readonly { kind: 'user' | 'client'; id: string }[],
   ): void | Promise<void>;
+  /**
+   * Before the erase deletes the tenant's row (the database cascading to
+   * its rows): what of the tenant lives outside its tables, in a worker,
+   * outside any tenant's scope. It must be safe to run again: a listener
+   * that throws stops the erase, the tenant stays marked, and the next
+   * night's run starts over.
+   */
+  beforeErase?(tenantId: string): void | Promise<void>;
 }
 
 @Injectable()

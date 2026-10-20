@@ -1093,6 +1093,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenants/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export every record of a tenant (operators)
+         * @description Answers 202 with the transfer: follow it at GET /v1/data/transfers/{id} (yours, in your tenant; GET /v1/data/transfers lists it), which gives the file’s link when done (valid 30 minutes; ask again for a new one). The connection hears `data.export-ready`. One row per record: `kind` (its table; `tenant`, `member` for its members’ accounts), `id`, `data`; stored credentials’ hashes left out, stored files listed by their rows. Wants a recent sign-in (`reauthentication_required`). Audited (`tenant.export-requested`) in your tenant and in that one.
+         */
+        post: operations["TenantExportController_start_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -2915,6 +2935,30 @@ export interface paths {
          * @description Audited (`tenant.updated`) in your tenant and in that one. Deactivated (`active: false`): its sessions and token families end (its members sign in again, into another of their tenants), its API keys and invitations stop, a sign-in never starts in it, its realtime connections end, its jobs are skipped. Nothing else is deleted: `active: true` gives back its data, memberships and API keys. docs/tenancy.md, "Operators".
          */
         patch: operations["TenantsController_update_v1"];
+        trace?: never;
+    };
+    "/v1/tenants/{id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete a tenant, after a grace period (operators)
+         * @description Send its `slug` to confirm. The tenant is deactivated now (as `PATCH { active: false }`: its sessions, tokens, API keys and connections end) and erased TENANT_DELETION_GRACE_DAYS later by a worker: every row of it, its stored files, its queued jobs and workflows. Until the erase starts, DELETE /v1/tenants/{id}/deletion cancels it. Asked again while one is pending: that one, unchanged. Wants a recent sign-in (`reauthentication_required`: POST /v1/auth/reauthenticate). Audited (`tenant.deletion-requested`) in your tenant and in that one; the erase as `tenant.purged`, outside any tenant. docs/tenancy.md, "Deleting a tenant".
+         */
+        post: operations["TenantsController_requestDeletion_v1"];
+        /**
+         * Keep a tenant: cancel its pending deletion (operators)
+         * @description Until the erase starts. The tenant stays deactivated: `PATCH { active: true }` brings it back. Audited (`tenant.deletion-cancelled`) in your tenant and in that one.
+         */
+        delete: operations["TenantsController_cancelDeletion_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/notes": {
@@ -7888,6 +7932,55 @@ export interface operations {
                         }[];
                     };
                 };
+            };
+        };
+    };
+    TenantExportController_start_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @default json
+                     * @enum {string}
+                     */
+                    format?: "csv" | "json" | "xlsx";
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Follow it at GET /v1/data/transfers/{id}. */
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16274,6 +16367,21 @@ export interface operations {
                             operator: boolean;
                             /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
                             createdBySignUp?: boolean;
+                            /**
+                             * Format: date-time
+                             * @description An operator asked for its deletion (POST /v1/tenants/{id}/deletion); null: none pending. Always sent.
+                             */
+                            deletionRequestedAt?: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it is erased (TENANT_DELETION_GRACE_DAYS after the request), unless cancelled before; null: none pending. Always sent.
+                             */
+                            deletionScheduledFor?: string | null;
+                            /**
+                             * Format: date-time
+                             * @description The erase began: it can no longer be cancelled. Always sent.
+                             */
+                            deletionStartedAt?: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -16339,6 +16447,21 @@ export interface operations {
                         operator: boolean;
                         /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
                         createdBySignUp?: boolean;
+                        /**
+                         * Format: date-time
+                         * @description An operator asked for its deletion (POST /v1/tenants/{id}/deletion); null: none pending. Always sent.
+                         */
+                        deletionRequestedAt?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it is erased (TENANT_DELETION_GRACE_DAYS after the request), unless cancelled before; null: none pending. Always sent.
+                         */
+                        deletionScheduledFor?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description The erase began: it can no longer be cancelled. Always sent.
+                         */
+                        deletionStartedAt?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -16404,6 +16527,21 @@ export interface operations {
                         operator: boolean;
                         /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
                         createdBySignUp?: boolean;
+                        /**
+                         * Format: date-time
+                         * @description An operator asked for its deletion (POST /v1/tenants/{id}/deletion); null: none pending. Always sent.
+                         */
+                        deletionRequestedAt?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it is erased (TENANT_DELETION_GRACE_DAYS after the request), unless cancelled before; null: none pending. Always sent.
+                         */
+                        deletionScheduledFor?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description The erase began: it can no longer be cancelled. Always sent.
+                         */
+                        deletionStartedAt?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -16464,6 +16602,21 @@ export interface operations {
                         operator: boolean;
                         /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
                         createdBySignUp?: boolean;
+                        /**
+                         * Format: date-time
+                         * @description An operator asked for its deletion (POST /v1/tenants/{id}/deletion); null: none pending. Always sent.
+                         */
+                        deletionRequestedAt?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it is erased (TENANT_DELETION_GRACE_DAYS after the request), unless cancelled before; null: none pending. Always sent.
+                         */
+                        deletionScheduledFor?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description The erase began: it can no longer be cancelled. Always sent.
+                         */
+                        deletionStartedAt?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -16484,7 +16637,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated. */
+            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16493,6 +16646,159 @@ export interface operations {
             };
             /** @description It changed since you read it (precondition_failed). */
             412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_requestDeletion_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The tenant’s slug, typed again: what you mean to delete. */
+                    slug: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        active: boolean;
+                        operator: boolean;
+                        /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
+                        createdBySignUp?: boolean;
+                        /**
+                         * Format: date-time
+                         * @description An operator asked for its deletion (POST /v1/tenants/{id}/deletion); null: none pending. Always sent.
+                         */
+                        deletionRequestedAt?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it is erased (TENANT_DELETION_GRACE_DAYS after the request), unless cancelled before; null: none pending. Always sent.
+                         */
+                        deletionScheduledFor?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description The erase began: it can no longer be cancelled. Always sent.
+                         */
+                        deletionStartedAt?: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description `validation_failed` on `slug`: not this tenant’s. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `operator_tenant`: the operator tenant is never deleted. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantsController_cancelDeletion_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        name: string;
+                        active: boolean;
+                        operator: boolean;
+                        /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
+                        createdBySignUp?: boolean;
+                        /**
+                         * Format: date-time
+                         * @description An operator asked for its deletion (POST /v1/tenants/{id}/deletion); null: none pending. Always sent.
+                         */
+                        deletionRequestedAt?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it is erased (TENANT_DELETION_GRACE_DAYS after the request), unless cancelled before; null: none pending. Always sent.
+                         */
+                        deletionScheduledFor?: string | null;
+                        /**
+                         * Format: date-time
+                         * @description The erase began: it can no longer be cancelled. Always sent.
+                         */
+                        deletionStartedAt?: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No deletion is pending. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `tenant_deletion_started`: the erase is running. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
