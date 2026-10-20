@@ -6,6 +6,8 @@ import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
+import { ApprovalsService } from '../approvals/approvals.service.js';
+import { applyingEffect } from './record-approvals.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
@@ -105,6 +107,7 @@ export class RecordLifecycle {
     private readonly webhooks: Webhooks<Transaction>,
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
+    private readonly approvals: ApprovalsService,
   ) {}
 
   private snapshot(row: Record<string, unknown>) {
@@ -218,6 +221,35 @@ export class RecordLifecycle {
     await this.emit(tx, 'created', row);
   }
 
+  /**
+   * With approvable actions (`approvals`): the record can't change or go
+   * while any request on it is being decided (409 `approval_pending`), and
+   * a request sent back for changes goes with the record. Inside the
+   * write's transaction: the record's approval lock is held until it
+   * commits. The writes of an approval effect (applyEffect(): one approved,
+   * or one run at once) are exempt, so a sibling action's open request
+   * doesn't stall them.
+   */
+  private async waiting(tx: Transaction, by: Principal | null, id: string) {
+    if (Object.keys(this.declaration.approvals ?? {}).length === 0) {
+      return;
+    }
+    if (!applyingEffect()) {
+      await this.approvals.assertNotPending(this.declaration.subject, id);
+    }
+    if (by) {
+      await this.approvals.withdraw(tx, by, this.declaration.subject, id);
+    }
+  }
+
+  /** Before a record goes (to the recycle bin or for good). */
+  async deleting(
+    tx: Transaction,
+    { row, by }: { row: RecordRow; by: Principal },
+  ) {
+    await this.waiting(tx, by, row.id);
+  }
+
   async updated(
     tx: Transaction,
     {
@@ -232,6 +264,7 @@ export class RecordLifecycle {
       restoredFrom?: number;
     },
   ) {
+    await this.waiting(tx, null, after.id);
     if (takes(this.declaration, 'revisions')) {
       await this.revisions.record(tx, this.declaration.subject, after.id, {
         snapshot: this.snapshot(after),

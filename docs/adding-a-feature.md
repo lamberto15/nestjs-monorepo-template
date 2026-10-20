@@ -117,12 +117,39 @@ export const INVOICE = defineRecord({
   Texts go to every locale in English (each locale's plural forms); the
   command lists the keys to translate.
 
+- **Approvals (`--approvals publish,markPaid`, or `approvals` in the
+  declaration)** and **settings (`--settings "paymentDays:int=30,autoSend:flag"`,
+  or `settings`)** are declared in the same file, one line each, and are
+  not capabilities: they bring no table and no column, so no migration.
+
+  ```ts
+  approvals: {
+    publish: { label: 'Publish an invoice' },
+  },
+  settings: {
+    paymentDays: recordSetting.int(30).min(1).max(365),
+    autoSend: recordSetting.flag(),
+    tone: recordSetting.enum(['formal', 'casual'], 'formal'),
+  },
+  ```
+
+  | Declared | The platform derives | The feature writes |
+  | --- | --- | --- |
+  | `approvals.<action>` | the approvable action `Invoice.publish` (default policy: one stage, decided by any user who may update the record, never the requester; an option `policy` replaces it, administrators store their own at runtime), its handler, the flag `invoices.publishApproval` (off by default, tenant and team scopes; `flag: false` makes approval always required), `POST /v1/invoices/{id}/publish` (200 `applied` at once, 202 `pending` with the approval's id; whoever may update the record asks), and the wait: while a request is open the record can't be changed or deleted (409 `approval_pending`; a delete withdraws a request sent back for changes) | what happens once approved (and at once when no approval is needed): an entry in `<item>.approvals.ts`, `apply({ id, actor, service })`, idempotent, as a workflow step |
+  | `settings.<name>` | the setting or flag `invoices.paymentDays` (kinds `flag`, `int`, `string`, `enum`; `.min() .max() .label() .describe() .scopes([…]) .hidden()`), registered with the platform | reading it: `settings.get(recordSettings(INVOICE).paymentDays)` |
+
+  `pnpm feature:add` writes the effects file and passes it to `recordParts()`
+  in the module (`approvals: INVOICE_APPROVALS`); a missing entry for a
+  declared action fails the build. A project can still declare approvals and
+  settings by hand, as notes does ([approvals](approvals.md),
+  [settings](settings.md)); the two ways may live side by side.
+
 ## Changing a feature
 
 Edit its `<item>.record.ts`, then:
 
 ```bash
-pnpm feature:sync      # texts (comments, pdf) in every locale, the OpenAPI test's paths, the migration guard
+pnpm feature:sync      # texts (comments, pdf) in every locale, the OpenAPI test's paths, approvals' effects, the migration guard
 pnpm db:generate       # when it says the table changes (review the SQL)
 pnpm client:generate   # when it says the routes change
 ```
@@ -139,6 +166,17 @@ pnpm client:generate   # when it says the routes change
   `describeCapabilities(() => node, RECORD)` (test/record-capabilities.ts).
 - **Removing a capability** takes its paths out of the OpenAPI test; its texts
   stay (harmless) until removed by hand.
+- **An approval or a setting:** a line under `approvals` or `settings` (one
+  per line, four spaces in). Sync adds the OpenAPI test's path for an action
+  (run `pnpm client:generate`), appends a stub entry to `<item>.approvals.ts`
+  (creating the file and wiring the module's `recordParts()` with the first
+  action) and takes an entry out while it is still the stub; an entry with
+  business logic in it is never touched: sync fails and says to move the
+  logic and remove it by hand. Settings need nothing from sync. It warns
+  when one is removed: open requests of a removed action can no longer be
+  decided or applied (let them end first), and values administrators stored
+  for a removed setting stay unread in the database.
+
 - **The recycle bin or teams:** flip `softDelete` or `team`. Their code is
   the platform's (`RecordStore`, `recordPermissions`, `RecordPolicy`,
   `recordResource`, the restore route, the e2e tests), so nothing else
@@ -167,8 +205,10 @@ pnpm client:generate   # when it says the routes change
 - `pnpm feature:sync --check` fails when anything is out of line (CI's
   feature-smoke job runs it after changing a feature this way).
 
-- **Not generated:** approvals, settings, workflows and
-  webhook events beyond the record's own changes (`events`): add them as the sections below say, notes as the
+- **Approvals and settings:** see the section below; both are generated
+  from the declaration.
+- **Not generated:** workflows and webhook events beyond the record's own
+  changes (`events`): add them as the sections below say, notes as the
   example.
 - **Adding seed roles to an existing database:** the roles are written when a
   tenant is made; an existing tenant's administrators grant the new

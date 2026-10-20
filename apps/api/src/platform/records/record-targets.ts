@@ -74,7 +74,7 @@ import {
  */
 
 /** The record's first `.searchable()` or string field: what it is called by (comments, search, PDF). */
-const titleOf = (
+export const titleOf = (
   declaration: RecordDeclaration,
   row: Record<string, unknown>,
 ) => {

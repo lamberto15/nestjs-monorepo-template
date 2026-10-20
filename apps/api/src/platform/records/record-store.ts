@@ -130,6 +130,7 @@ export class RecordStore {
   /** Deletes one: to the recycle bin (restorable until purged) when it has one, else for good; its `events` follow. */
   async delete(tx: Transaction, by: Principal, row: RecordRow) {
     const table = this.table;
+    await this.lifecycle.deleting(tx, { row, by });
     if (this.declaration.softDelete) {
       const [deleted] = await tx
         .update(table)

@@ -9,6 +9,12 @@ is the example (`features/notes/note-settings.ts`).
 
 ## For features
 
+A generated feature declares its settings in its record
+(`settings: { paymentDays: recordSetting.int(30) }`,
+[adding-a-feature](adding-a-feature.md)) and the platform declares them under
+`<path>.<name>`; `recordSettings(INVOICE).paymentDays` is the declaration to
+read. The hand-written way follows.
+
 ```ts
 // features/notes/note-settings.ts
 export const NOTE_PUBLISH_DELAY = setting({ key: 'notes.publishDelay', label: 'Publication delay', schema: duration, default: '10s' });

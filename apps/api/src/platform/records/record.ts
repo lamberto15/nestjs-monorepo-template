@@ -33,7 +33,13 @@ import {
   type FieldView,
   searchableFields,
 } from '../fields/fields.js';
+import {
+  APPROVAL_ACTION,
+  type RecordApproval,
+  RESERVED_ACTIONS,
+} from './record-approvals.js';
 import type { RecordRouteSpec } from './record-routes.js';
+import type { RecordSettingSpec } from './record-settings.js';
 
 /**
  * A feature's records, declared once (`features/<x>/<x>.record.ts`): what
@@ -100,6 +106,18 @@ export interface RecordDeclaration<
    * default: the subject's initials as prefix, per year, 5 digits).
    */
   number?: RecordNumber;
+  /**
+   * Actions that need approval, by name (`publish`): the policy, the flag,
+   * the route that asks (`POST /<path>/{id}/<action>`) and the handler are
+   * derived; the feature writes what happens once approved
+   * (`<item>.approvals.ts`). See record-approvals.ts.
+   */
+  approvals?: Record<string, RecordApproval>;
+  /**
+   * Settings and flags administrators change at runtime, by name
+   * (`<path>.<name>` is the key): see record-settings.ts.
+   */
+  settings?: Record<string, RecordSettingSpec>;
   fields: F;
   capabilities: C;
 }
@@ -130,6 +148,25 @@ export function defineRecord<
     throw new Error(
       `${declaration.subject} takes pdf: add attachments too (a PDF is one of the record's attachments).`,
     );
+  }
+  for (const action of Object.keys(declaration.approvals ?? {})) {
+    if (!APPROVAL_ACTION.test(action) || RESERVED_ACTIONS.includes(action)) {
+      throw new Error(
+        `${declaration.subject}: "${action}" can't be an approval's action: a word like publish or markPaid, none of ${RESERVED_ACTIONS.join(', ')} (the record's own routes).`,
+      );
+    }
+  }
+  for (const name of Object.keys(declaration.settings ?? {})) {
+    if (
+      !APPROVAL_ACTION.test(name) ||
+      Object.keys(declaration.approvals ?? {}).some(
+        (action) => `${action}Approval` === name,
+      )
+    ) {
+      throw new Error(
+        `${declaration.subject}: "${name}" can't be a setting's name: a camelCase word, not <action>Approval (the approval's flag).`,
+      );
+    }
   }
   return declaration;
 }

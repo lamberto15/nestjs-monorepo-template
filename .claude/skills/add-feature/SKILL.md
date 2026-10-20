@@ -1,6 +1,6 @@
 ---
 name: add-feature
-description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, custom fields, export, webhooks for its changes or human-readable numbers, turn its recycle bin or teams on or off, let API keys use it, change who gets access by default or its Idempotency-Key), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
+description: Add a new feature (a resource with its routes, permissions, table and tests) to this template, or change one (add a field, add tags, comments, attachments, revisions, a PDF, bulk, watch, search, custom fields, export, webhooks for its changes or human-readable numbers, turn its recycle bin or teams on or off, add an approval or a setting, let API keys use it, change who gets access by default or its Idempotency-Key), the standard way. Asks what is wanted, runs `pnpm feature:add` or edits the feature's `<item>.record.ts` and runs `pnpm feature:sync`, then writes only the business logic. Use whenever the user wants to add or change a feature, resource, entity, module, CRUD or "something to manage" (invoices, customers, tickets…), even if they don't name the generator.
 ---
 
 # Add a feature
@@ -59,8 +59,22 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
      `numbered`; ask the prefix (default: the name's first letters) and
      whether the year restarts it, and set `number: { prefix, perYear, width }`
      in the declaration.
-6. **Business rules.** What must be true on create and update, what happens
-   after (notifications, webhooks, workflows, approvals), anything slow
+6. **Approvals and settings.** Two more, by name:
+   - **"Does an action on it need someone's approval (publish, pay,
+     send…)?"** → `--approvals publish,markPaid` (camelCase actions). Each gets
+     `POST /v1/<x>/{id}/<action>`, a flag that switches the approval on per
+     tenant or team (off by default; `flag: false` in the declaration makes it
+     always required), a default policy (any user who may update the record
+     decides, never the requester; `policy` in the declaration replaces it)
+     and an entry in `<item>.approvals.ts` where **you write what happens once
+     it is approved** (`apply`).
+   - **"Anything administrators should change at runtime without a deploy?"**
+     (a limit, a delay, a mode, a feature switch) → `--settings
+     "paymentDays:int=30,autoSend:flag,tone:enum(formal|casual)=formal"`
+     (kinds `flag`, `int` with its default, `string`, `enum(a|b)`); read it
+     with `settings.get(recordSettings(INVOICE).paymentDays)`.
+7. **Business rules.** What must be true on create and update, what happens
+   after (notifications, webhooks, workflows), anything slow
    (that goes to a queue worker, never the request: CLAUDE.md).
 
 ## 2. Confirm the command
@@ -69,6 +83,7 @@ Show the exact command and what it will write, e.g.:
 
 ```bash
 pnpm feature:add invoices --team --with comments,attachments,pdf \
+  --approvals send --settings "paymentDays:int=30" \
   --fields "number:string!unique,customerId:ref(customers)?,total:money,dueOn:date,status:enum(draft|sent|paid)" \
   --description "Invoices sent to customers"
 ```
@@ -95,8 +110,9 @@ the user they are to translate.
   transaction with the audit entry.
 - Use the template's tools instead of new code; CLAUDE.md's map points to
   each doc: notifications (`docs/notifications.md`), outgoing webhook events
-  and workflows (`docs/background-work.md`), approvals (`docs/approvals.md`),
-  settings and flags (`docs/settings.md`), numbers (`docs/sequences.md`),
+  and workflows (`docs/background-work.md`), approvals beyond a record's
+  declared actions (`docs/approvals.md`), settings and flags beyond its
+  declared ones (`docs/settings.md`), numbers (`docs/sequences.md`),
   money (`docs/money.md`), custom fields (`docs/custom-fields.md`).
 - New rules on fields (lengths, formats, examples) go in `<item>.schemas.ts`;
   extra filters in `<item>.list.ts`; field-level permissions and conditions
@@ -125,10 +141,14 @@ declares its fields, capabilities, recycle bin (`softDelete`) and teams
    flipped, `clientAccess`
    (`false` | `'own'`), `grants` (`'standard'` | `'none'`) or `idempotency`
    (`'required'` | `'optional'` | `'off'`; delete the line to follow the
-   deployment). Permission changes need no migration, but the seed roles'
+   deployment), a line under `approvals` (`publish: { label: '…' }`) or
+   `settings` (`paymentDays: recordSetting.int(30)`): sync writes an
+   `apply` stub for an action in `<item>.approvals.ts`, which you fill in, and
+   takes it out again only while it is still the stub. Permission changes need no migration, but the seed roles'
    grants reach only tenants made afterwards: sync warns, and existing
    tenants' administrators change their roles at `/v1/access/roles`.
-3. `pnpm feature:sync`: it writes the texts and OpenAPI paths, and its guard
+3. `pnpm feature:sync`: it writes the texts, OpenAPI paths and approval
+   stubs, and its guard
    refuses a new required field without `.default(…)`, an optional field made
    required, a removed field, or `softDelete` / `team` turned off (their
    columns dropped: deleted records would come back, teams are lost), and a
