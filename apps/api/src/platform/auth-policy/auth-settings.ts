@@ -42,8 +42,27 @@ export const AUTH_PASSWORD_MIN_LENGTH = setting({
   public: false,
 });
 
+/**
+ * Whether the deployment's operators may open this tenant with a
+ * break-glass grant (docs/tenancy.md, "Break-glass"): read only, an hour
+ * at most, a reason its administrators are told. `false` opts the tenant
+ * out (an enterprise customer's contract): new grants are refused (403
+ * `break_glass_disabled`) and running ones stop on their next request.
+ * The tenant's own choice only: no team or user scope.
+ */
+export const AUTH_ALLOW_BREAK_GLASS = setting({
+  key: 'auth.allowBreakGlass',
+  label: 'Allow break-glass access by the operators',
+  description:
+    "Off: the deployment's operators can never read this tenant without an invitation, not even in an emergency.",
+  schema: z.boolean(),
+  default: true,
+  public: false,
+});
+
 /** IAM's auth policies as settings, added by the platform to the features'. */
 export const AUTH_SETTINGS = defineSettings([
   AUTH_REQUIRE_MFA,
   AUTH_PASSWORD_MIN_LENGTH,
+  AUTH_ALLOW_BREAK_GLASS,
 ]);

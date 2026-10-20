@@ -543,6 +543,7 @@ daily, never off.
 | `security.mfaChanged` | two-factor confirmed on, or turned off | `enabled`, `ip` |
 | `security.passkeyAdded`, `security.passkeyRemoved` | a passkey registered, or removed | `name`, `ip` |
 | `security.apiKeyRotated` | to the API client: `POST /access/clients/{id}/rotate` (webhook) | `clientId`, `keyId`, `previousKeysEnd` |
+| `security.breakGlassStarted` | to each administrator of a tenant an operator opened with break-glass, in that tenant ([tenancy](tenancy.md#break-glass)) | `operator` (their address), `reason`, `expiresAt`, `ip` |
 
 - **A device** is the user agent without its version numbers (a browser
   update is the same browser) plus the network: an IPv4 address whole, an
@@ -822,8 +823,9 @@ connections.
   two-factor guard). Nothing is stored on the session: turning the policy
   on restricts sessions already open, turning it off frees them. Never
   restricted: API clients (SCIM's token included), impersonations.
-- **Break-glass.** `PUT /v1/sso/exemptions/{userId} { reason }` exempts an
-  active member: their password and passkey still sign in (when the IdP is
+- **Exemptions (the tenant's own break-glass members; not the operators'
+  read-only break-glass access of docs/tenancy.md).** `PUT
+  /v1/sso/exemptions/{userId} { reason }` exempts an active member: their password and passkey still sign in (when the IdP is
   down or misconfigured), each use audited (`sso.exemption-used`). Only a
   member with two-factor set up (409 `sso_exemption_needs_mfa`; not asked
   with `AUTH_MFA=off`, where nobody can). `DELETE` ends it.

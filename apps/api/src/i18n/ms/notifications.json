@@ -71,6 +71,11 @@
       "label": "Kunci API diputar",
       "title": "Kunci API baharu",
       "body": "Kunci baharu ({keyId}) telah dibuat untuk klien ini; kunci sebelumnya berhenti berfungsi pada {previousKeysEnd}."
+    },
+    "breakGlassStarted": {
+      "label": "Akses pecah kaca ke penyewa anda",
+      "title": "Seorang pengendali membuka penyewa anda (pecah kaca)",
+      "body": "{operator} membuka penyewa ini tanpa jemputan, baca sahaja, sehingga {expiresAt} (dari {ip}). Sebabnya: “{reason}”. Ia ada dalam log audit dan log log masuk; pentadbir boleh menolaknya (tetapan auth.allowBreakGlass)."
     }
   },
   "approval": {

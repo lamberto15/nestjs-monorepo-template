@@ -388,10 +388,9 @@ operator's address (`POST /v1/access/users`, with the roles they choose,
 `roleExpiresAt` to make it temporary), the operator accepts and switches;
 everything is audited in that tenant, and its administrators see it and end
 it (`PATCH /v1/access/users/{id} { active: false }`). The operators
-themselves can't add themselves to a tenant: the tenant consents. A
-"break-glass" route for operators to act in any tenant without its consent
-is not built: it needs the owner's decision (who may, for how long, how the
-tenant is told), and belongs with the platform super tenant (roadmap 1b).
+themselves can't add themselves to a tenant: the tenant consents. The one
+exception, for emergencies, is break-glass ("Break-glass", below): read only, an hour,
+told to the tenant.
 
 **Exporting a tenant** (`POST /v1/tenants/{id}/export { format? }`,
 `json` by default; `csv`, `xlsx`): a data transfer
@@ -460,6 +459,26 @@ stay, in their other tenants or in none. Audit retention is the tenant's
 own log, kept until the erase: retention rules are roadmap item 5.
 `test/tenant-lifecycle.e2e-spec.ts` runs both; `security.e2e-spec.ts` the
 refusals (operators only, step-up, never through `/v1/data/exports`).
+
+## Break-glass
+
+An operator reads a tenant that never invited them (an incident, a support
+case the tenant can't open the door for). The owner's decision is pending
+(#227); this is the recommended option, built so it can be removed whole.
+
+| | |
+| --- | --- |
+| **Who** | A member of the operator tenant holding `Platform.breakGlass` (its Administrator role does), acting as themselves (not while impersonating), with a recent sign-in. `@OperatorOnly()` and the permission are checked when the grant opens and again on every request through it. |
+| **Opening** | `POST /v1/tenants/{id}/break-glass { reason, minutes? }` (201): a grant (`break_glass_grants`, a row of the operators' tenant) with its `id`, `reason` (10 to 1000 characters, required) and `expiresAt`. 409 `break_glass_active` while you hold an open one to that tenant, `break_glass_own_tenant` for the operator tenant, `tenant_inactive`; 403 `break_glass_disabled` when the tenant opted out. `GET /v1/tenants/{id}/break-glass` lists your grants to it. |
+| **Using** | GET requests with the header `Break-Glass: <grant id>`: the request acts in that tenant (`GET /v1/auth/me` says so), with every read action of the catalog (`read`, `readAudit`), unconditional, and nothing else. A request that isn't a read answers 403 `break_glass_read_only`; a grant that ended, isn't yours, or whose permission you lost, 403 `break_glass_invalid`; one past its time, 403 `break_glass_expired`. HTTP only: a socket never breaks glass. |
+| **Read only, in the database** | `BreakGlassGuard` (after the authentication and two-factor guards, before authorization's) sets the request's scope to `readOnlyTenantScope()`: the consolidated read's scope ("The tenant tree") with no descendants, so `app.tenant_id` and `app.read_tenants` are that tenant alone (the read policies' tree check passes on the tenant itself) and `TenantPool`'s one read-only path applies: every query in a transaction begun with `set transaction read only`, a global table's too, so PostgreSQL refuses any write (SQLSTATE 25006) whatever a route would do. The method check is the clear answer; the database is the wall. A grant never reads the tenant's subtree (`Access.readConsolidated` is not among its permissions). |
+| **How long** | At most 60 minutes (`minutes`, default 60), never extended: another grant to the same tenant needs the first ended (`DELETE /v1/tenants/{id}/break-glass/{grantId}`, which stops it at once) or expired, and a new reason. |
+| **Told** | In one transaction in the tenant opened: `tenant.break-glass-started` in its audit log (with the reason and the grant), a `member.signed-in` entry with `method: break-glass` in its sign-in log (`GET /v1/access/sign-ins`), and `security.breakGlassStarted` to each of its administrators (the built-in role, active members; mandatory: in the app and by mail). Then the grant and the same entry in the operators' log. Ending it: `tenant.break-glass-ended` in both. The reads themselves are logged by the api (`BreakGlass` logger), not audited: the transactions are read only. |
+| **Opt-out** | The tenant's setting `auth.allowBreakGlass: false` ([settings](settings.md)): new grants are refused, running ones stop on their next request. Any tenant's administrator may set it; there is no plan tier in the template to restrict it to enterprise tenants. |
+
+**The super tenant.** Break-glass uses today's operator tenant
+(`tenants.operator`) as the platform's: no migration of the flag into a
+separate super tenant was needed, so none is made here (roadmap 1b keeps it).
 
 ## Tenants made at sign-up
 
@@ -606,7 +625,11 @@ their closure, moves, a cycle refused, the operator tenant kept out, a tenant
 with children kept from deletion; as the app role in SQL, one tenant without
 the opt-in, the subtree with it, never a parent or a sibling whatever
 `app.read_tenants` says, writes to `app.tenant_id` only, the consolidated
-scope read-only; the consolidated audit log over HTTP and its permission.
+scope read-only; the consolidated audit log over HTTP and its permission. `break-glass.e2e-spec.ts`: a grant's reads, its
+audit entries, notification and sign-in log entry, the refusal of writes
+(the guard, and PostgreSQL's 25006 in the read-only scope), no consolidated
+read through it, its expiry, no renewal, ending it, the refusals without the
+permission, and the opt-out.
 Test helpers: `node.otherTenant()` (a second tenant, its administrator signed
 in), `node.inTenant(work, tenantId?)` and `node.acrossTenants(work)` for a
 test's own queries (`database.db` is the app's pool: no tenant, no rows).

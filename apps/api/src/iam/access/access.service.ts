@@ -459,7 +459,9 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
     }
     // Per tenant: the same person holds other roles in another tenant, and
     // the system principal's conditions read the job's tenant's rows.
-    const key = `${currentTenantId() ?? '-'}:${principalKey(principal)}`;
+    // A break-glass request's ability is its grant's, never the person's
+    // own in that tenant (an operator may also be a member there).
+    const key = `${currentTenantId() ?? '-'}:${principalKey(principal)}${principal.kind === 'user' && principal.breakGlass ? `:break-glass:${principal.breakGlass.grantId}` : ''}`;
     const cached = this.cache.get(key);
     if (
       cached &&
@@ -510,6 +512,12 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       // Roles are per tenant: without one (a user who has none), none.
       return { permissions: [] };
     }
+    if (principal.kind === 'user' && principal.breakGlass) {
+      // An operator reading a tenant through a break-glass grant: every
+      // read action of the catalog, no condition, and nothing else (no
+      // role of theirs there counts). The transactions are read only too.
+      return { permissions: this.catalog.readPermissions() };
+    }
     const now = new Date();
     const grants = principal.kind === 'user' ? userRoles : apiClientRoles;
     const holder =
@@ -552,7 +560,11 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
 
   /** The principal's teams and every unit below them (users only). */
   private async loadContext(principal: Principal): Promise<AccessContext> {
-    if (principal.kind !== 'user' || !currentTenantId()) {
+    if (
+      principal.kind !== 'user' ||
+      !currentTenantId() ||
+      principal.breakGlass
+    ) {
       return { teamIds: [] };
     }
     const rows = await this.db

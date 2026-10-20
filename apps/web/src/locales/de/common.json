@@ -29,7 +29,9 @@
         "reauthentication_required": "Bestätigen Sie dafür, dass Sie es sind: Melden Sie sich erneut an.",
         "reauthentication_failed": "Die Bestätigung hat nicht funktioniert. Versuchen Sie es erneut.",
         "access_denied": "Die Anmeldung wurde abgebrochen.",
-        "email_unverified": "Bestätigen Sie zuerst Ihre Adresse: Öffnen Sie den Link in der E-Mail, die wir Ihnen gesendet haben."
+        "email_unverified": "Bestätigen Sie zuerst Ihre Adresse: Öffnen Sie den Link in der E-Mail, die wir Ihnen gesendet haben.",
+        "sso_failed": "Die SSO-Anmeldung hat nicht funktioniert. Fragen Sie Ihre Administration oder versuchen Sie es erneut.",
+        "sso_unavailable": "Diese SSO-Verbindung ist noch nicht bereit. Versuchen Sie es in einer Minute erneut."
       }
     },
     "signOut": "Abmelden",
@@ -145,6 +147,15 @@
     },
     "errors": {
       "network": "Der Server ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "sso": {
+      "button": "Mit SSO anmelden",
+      "description": "Geben Sie die Arbeitsbereichs- und Verbindungs-ID ein, die Ihnen Ihre Administration gegeben hat.",
+      "tenant": "Arbeitsbereichs-ID",
+      "connection": "Verbindungs-ID",
+      "invalid": "Diese IDs sind ungültig. Kopieren Sie sie von der SSO-Seite.",
+      "continue": "Weiter",
+      "cancel": "Abbrechen"
     }
   },
   "account": {

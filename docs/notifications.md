@@ -37,7 +37,7 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
    `data` is checked when sending; its keys are the texts' placeholders.
    IAM declares its own mandatory types, `IAM_NOTIFICATIONS` (`security.newSignIn`,
    `security.passwordChanged`, `security.passwordBreached`, `security.mfaChanged`,
-   `security.apiKeyRotated`;
+   `security.apiKeyRotated`, `security.breakGlassStarted`;
    [auth.md](auth.md), "Security notifications"), passed before the features'.
 2. Its **texts** live in `apps/api/src/i18n/<locale>/notifications.json`, under the
    type's segments, for every locale (`catalogs.spec.ts` checks them):

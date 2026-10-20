@@ -19,6 +19,12 @@
       "provisionScim": "Provision users and groups over SCIM 2.0 (API clients: the identity provider's SCIM token)"
     }
   },
+  "platform": {
+    "label": "Platform",
+    "actions": {
+      "breakGlass": "Read any tenant without its invitation, for an hour at most, with a reason its administrators are told (break-glass; the deployment's operators: only in the operator tenant)"
+    }
+  },
   "approval": {
     "label": "Approvals",
     "actions": {

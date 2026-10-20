@@ -33,6 +33,8 @@ import { SignUpTenantSweepJob } from './access/sign-up-tenant-sweep.job.js';
 import { TenantDeletionJob } from './access/tenant-deletion.job.js';
 import { SingleTenant } from './access/single-tenant.js';
 import { TenantsService } from './access/tenants.service.js';
+import { BreakGlassGuard } from './access/break-glass.guard.js';
+import { BreakGlassService } from './access/break-glass.service.js';
 import { TenantTree } from './access/tenant-tree.js';
 import { TenantSwitchService } from './access/tenant-switch.service.js';
 import { InvitationsService } from './access/invitations.service.js';
@@ -328,8 +330,13 @@ export class IamModule {
         // two-factor of, without one, reaches only the enrollment routes
         // (auth.requireMfa, docs/auth.md "Policies").
         { provide: APP_GUARD, useClass: MfaEnrollmentGuard },
-        // After it: "SSO required" (docs/auth.md), on the same principal.
+        // After it: "SSO required" (docs/auth.md), on the principal's own
+        // session and tenant: before a break-glass grant moves the request.
         { provide: APP_GUARD, useClass: SsoRequiredGuard },
+        // Then, still before authorization: a request naming a break-glass
+        // grant moves to the tenant it opened, read only (docs/tenancy.md).
+        { provide: APP_GUARD, useClass: BreakGlassGuard },
+        BreakGlassService,
         // The auth policies: the platform's settings (AUTH_POLICY) under the env's ceiling.
         AuthPolicyService,
         // Authentication: the credential providers and the store of everything they keep.
