@@ -266,6 +266,26 @@ Both packages have a `components.json` with the same style, icon library
 and base colour. Prettier skips `packages/ui` and the lint rules are
 relaxed there, so a CLI update stays a clean diff.
 
+**Rich text** (`components/markdown/`): neither Dice UI nor shadcn's registry
+has a Markdown editor, so the web app uses [Tiptap](https://tiptap.dev) (with
+its official `@tiptap/markdown`) for editing and `react-markdown` for reading.
+A rich text value is a Markdown string in the API's existing text field: no
+API change, and a body written as plain text is already valid Markdown. Both
+are lazy (`components/markdown/lazy.tsx`: `MarkdownText`, `LazyMarkdownEditor`,
+the form field `MarkdownField`), so the main bundle does not grow. The viewer
+is XSS-safe by construction: it builds React elements (never an HTML string),
+HTML in the text is shown as text, images are not rendered, and only `http(s)`
+and `mailto` links survive (`safe-url.ts`, shared with the editor's link
+button), each `rel="noopener noreferrer"`. Notes use it when the
+`notes.richText` flag ([settings](settings.md)) is on (`useRichText()` in
+`features/notes/use-rich-text.ts`); off, the body stays a plain textarea and
+plain text. A body the editor cannot keep whole (a `<name>` placeholder, an
+image, raw HTML: ProseMirror's schema has no place for them) is checked when the
+form opens, by parsing and writing it back, and edited in the plain textarea
+with a notice instead, so opening a note never loses text. The form keeps the
+control it opened with if the flag changes meanwhile. In tests, `src/test/setup.ts` gives jsdom the range boxes
+ProseMirror asks for.
+
 ### Record pages
 
 What a feature's record pages share; `features/notes` and

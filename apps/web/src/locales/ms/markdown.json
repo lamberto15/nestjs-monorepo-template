@@ -1,0 +1,17 @@
+{
+  "toolbar": "Pemformatan",
+  "bold": "Tebal",
+  "italic": "Condong",
+  "strike": "Garis lorek",
+  "code": "Kod",
+  "heading": "Tajuk",
+  "bulletList": "Senarai berpeluru",
+  "orderedList": "Senarai bernombor",
+  "quote": "Petikan",
+  "link": "Pautan",
+  "linkUrl": "Alamat pautan",
+  "linkInvalid": "Gunakan alamat web (https://) atau alamat e-mel (mailto:).",
+  "linkApply": "Guna",
+  "linkRemove": "Alih keluar pautan",
+  "plainOnly": "Nota ini mempunyai kandungan yang tidak dapat dikekalkan oleh editor; disunting sebagai teks biasa."
+}

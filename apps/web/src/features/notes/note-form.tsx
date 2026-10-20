@@ -1,5 +1,6 @@
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
+import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -33,6 +34,7 @@ import {
   type Note,
   type NoteChanges,
 } from './api';
+import { useRichTextOnOpen } from './use-rich-text';
 
 /**
  * Create (no `note`) or edit (`note` and the `etag` it was read with): one
@@ -54,6 +56,8 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
   const [conflict, setConflict] = useState(false);
   const [reloading, setReloading] = useState(false);
   const showBody = !note || note.body !== undefined;
+  // With `notes.richText` on, the body is Markdown, edited in an editor.
+  const { richText, pending: settingsPending } = useRichTextOnOpen();
   // `custom` left out of a note (field-level permissions) is not edited.
   const showCustom = !note || note.custom !== undefined;
   const definitions = useQuery({
@@ -179,11 +183,21 @@ export function NoteForm(props: { note?: Note; etag?: string }) {
         <form.AppField name="title">
           {(field) => <field.TextField label={t('form.title')} autoFocus />}
         </form.AppField>
-        {showBody && (
-          <form.AppField name="body">
-            {(field) => <field.TextAreaField label={t('form.body')} />}
-          </form.AppField>
-        )}
+        {showBody &&
+          (settingsPending ? (
+            // The flag decides the control: not the plain one for a moment first.
+            <Skeleton className="h-48 w-full" aria-hidden />
+          ) : (
+            <form.AppField name="body">
+              {(field) =>
+                richText ? (
+                  <field.MarkdownField label={t('form.body')} />
+                ) : (
+                  <field.TextAreaField label={t('form.body')} />
+                )
+              }
+            </form.AppField>
+          ))}
         {showCustom && (
           <CustomFieldInputs
             fields={fields}

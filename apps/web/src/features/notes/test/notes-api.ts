@@ -75,6 +75,8 @@ export function useNotesApi(options: {
   recordCan?: (note: TestNote) => Partial<NoteCan>;
   /** The ids of the notes the user watches. */
   watched?: string[];
+  /** The `notes.richText` flag as GET /v1/settings resolves it (off by default). */
+  richText?: boolean;
 }) {
   const notes = new Map(options.notes.map((note) => [note.id, { ...note }]));
   const held = new Set(options.can);
@@ -141,6 +143,28 @@ export function useNotesApi(options: {
     ...subscriptions.handlers,
     // The detail page mounts the record panels: empty ones unless a test sets them.
     ...panelHandlers({ record: NOTE_RECORD }).handlers,
+    // The pages read the notes.richText flag to choose the body's control.
+    http.get('/v1/settings', () =>
+      HttpResponse.json({
+        items: [
+          {
+            key: 'notes.richText',
+            label: 'Rich text editor',
+            description: null,
+            flag: true,
+            scopes: ['tenant', 'team', 'user'],
+            public: true,
+            value: options.richText ?? false,
+            source: 'default',
+            default: false,
+            type: 'boolean',
+            schema: {},
+            canEdit: false,
+            canSetMine: false,
+          },
+        ],
+      }),
+    ),
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
     // The note form and page read the custom fields; none unless a test sets them.
     http.get('/v1/custom-fields', () => HttpResponse.json({ items: [] })),

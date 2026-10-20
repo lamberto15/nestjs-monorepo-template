@@ -7,10 +7,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
+import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeftIcon, EllipsisIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { MarkdownText } from '@/components/markdown/lazy';
 import { ApprovalBanner } from '@/features/approvals/record-banner';
 import { CustomFieldValues } from '@/components/records/custom-field-values';
 import { DetailItem, DetailList } from '@/components/records/detail-list';
@@ -19,6 +21,7 @@ import { RecordState } from '@/components/records/record-state';
 import { WatchButton } from '@/components/records/watch-button';
 import { noteQuery, setNoteWatching, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
+import { useRichText } from '@/features/notes/use-rich-text';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { useRecordCan } from '@/lib/records';
 
@@ -63,6 +66,7 @@ function NoteView({ note }: { note: Note }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   // The note's own `can`: its conditions too, not only the permission.
+  const { richText, pending: settingsPending } = useRichText();
   const { update: canUpdate, delete: canDelete } = useRecordCan('Note')(note);
   const { ask, dialog } = useNoteDelete({
     onDeleted: () => void navigate({ to: '/notes' }),
@@ -134,13 +138,17 @@ function NoteView({ note }: { note: Note }) {
         />
         {/* `body` is left out when the user's permissions don't include the
             text: then there is no field at all, which is what undefined means. */}
-        {/* TODO(notes.richText): the setting (GET /v1/settings, a flag) lets
-            the web app offer a rich text editor for bodies; until one is
-            chosen the body is plain text, kept as typed. */}
+        {/* With the notes.richText flag (GET /v1/settings) on, the body is
+            Markdown (the same text field), rendered safely; off, plain text,
+            kept as typed. */}
         <DetailItem
           label={t('fields.body')}
           value={
-            note.body === undefined ? undefined : (
+            note.body === undefined ? undefined : settingsPending ? (
+              <Skeleton className="h-5 w-48" aria-hidden />
+            ) : richText ? (
+              <MarkdownText>{note.body}</MarkdownText>
+            ) : (
               <p className="whitespace-pre-wrap">{note.body}</p>
             )
           }

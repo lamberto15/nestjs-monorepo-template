@@ -58,3 +58,25 @@ globalThis.ResizeObserver ??= class {
 
 // Nor scrollIntoView, which cmdk (the command palette) calls on the selected item.
 Element.prototype.scrollIntoView = () => {};
+
+// Nor layout boxes on ranges and text, which ProseMirror (the rich text
+// editor) asks for to scroll the caret into view after an edit.
+const noRects = () => ({
+  length: 0,
+  item: () => null,
+  [Symbol.iterator]: [][Symbol.iterator],
+});
+const emptyRect = () => ({
+  x: 0,
+  y: 0,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  width: 0,
+  height: 0,
+  toJSON: () => ({}),
+});
+Range.prototype.getClientRects = noRects as unknown as Range['getClientRects'];
+Range.prototype.getBoundingClientRect =
+  emptyRect as unknown as Range['getBoundingClientRect'];

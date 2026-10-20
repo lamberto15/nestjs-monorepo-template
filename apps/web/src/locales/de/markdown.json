@@ -1,0 +1,17 @@
+{
+  "toolbar": "Formatierung",
+  "bold": "Fett",
+  "italic": "Kursiv",
+  "strike": "Durchgestrichen",
+  "code": "Code",
+  "heading": "Überschrift",
+  "bulletList": "Aufzählung",
+  "orderedList": "Nummerierte Liste",
+  "quote": "Zitat",
+  "link": "Link",
+  "linkUrl": "Link-Adresse",
+  "linkInvalid": "Verwenden Sie eine Webadresse (https://) oder eine E-Mail-Adresse (mailto:).",
+  "linkApply": "Übernehmen",
+  "linkRemove": "Link entfernen",
+  "plainOnly": "Diese Notiz enthält Inhalt, den der Editor nicht beibehalten kann; sie wird als reiner Text bearbeitet."
+}
