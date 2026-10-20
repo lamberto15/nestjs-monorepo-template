@@ -28672,7 +28672,7 @@
                       "additionalProperties": false
                     },
                     "watching": {
-                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.",
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
                       "type": "boolean"
                     }
                   },
@@ -29175,7 +29175,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags, watching.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags.",
             "schema": {
               "type": "string"
             }
@@ -29306,7 +29306,7 @@
                             "additionalProperties": false
                           },
                           "watching": {
-                            "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.",
+                            "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
                             "type": "boolean"
                           }
                         },
@@ -29537,7 +29537,7 @@
                       "additionalProperties": false
                     },
                     "watching": {
-                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.",
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
                       "type": "boolean"
                     }
                   },
@@ -29748,7 +29748,7 @@
                       "additionalProperties": false
                     },
                     "watching": {
-                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.",
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
                       "type": "boolean"
                     }
                   },
@@ -29976,7 +29976,7 @@
                       "additionalProperties": false
                     },
                     "watching": {
-                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.",
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
                       "type": "boolean"
                     }
                   },
@@ -31485,7 +31485,7 @@
                       "additionalProperties": false
                     },
                     "watching": {
-                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.",
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
                       "type": "boolean"
                     }
                   },

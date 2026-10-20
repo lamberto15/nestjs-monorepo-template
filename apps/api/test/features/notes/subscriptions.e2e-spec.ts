@@ -127,8 +127,11 @@ describe('record subscriptions: watching notes (e2e)', () => {
       .get(`/v1/notes/${first.id}?include=watching`)
       .expect(200);
     expect(detail.body.watching).toBe(false);
-    // About the reader, not the record: the ETag stays the plain one.
-    expect(detail.headers.etag).toBe(plain.headers.etag);
+    // About the reader, not the record: the tag carries a marker of it, and a write's If-Match ignores the marker.
+    expect(detail.headers.etag).not.toBe(plain.headers.etag);
+    expect(
+      detail.headers.etag!.startsWith(plain.headers.etag!.slice(0, -1)),
+    ).toBe(true);
     expect(
       (
         await editor.agent
@@ -182,6 +185,42 @@ describe('record subscriptions: watching notes (e2e)', () => {
     expect(
       (await admin.get('/v1/notes').expect(200)).body.items[0],
     ).not.toHaveProperty('watching');
+
+    // A 304 only while `watching` is unchanged too: watch, and the old tag gets a 200 with the new value.
+    const stale = detail.headers.etag as string;
+    await admin
+      .get(`/v1/notes/${first.id}?include=watching`)
+      .set('If-None-Match', stale)
+      .expect(304);
+    await admin.post(`/v1/notes/${first.id}/watch`).expect(200);
+    const fresh = await admin
+      .get(`/v1/notes/${first.id}?include=watching`)
+      .set('If-None-Match', stale)
+      .expect(200);
+    expect(fresh.body.watching).toBe(true);
+    expect(fresh.headers.etag).not.toBe(stale);
+    // Lists too.
+    const listTag = (await admin.get('/v1/notes?include=watching').expect(200))
+      .headers.etag as string;
+    await admin
+      .get('/v1/notes?include=watching')
+      .set('If-None-Match', listTag)
+      .expect(304);
+    await admin.delete(`/v1/notes/${first.id}/watch`).expect(204);
+    const relisted = await admin
+      .get('/v1/notes?include=watching')
+      .set('If-None-Match', listTag)
+      .expect(200);
+    expect(
+      relisted.body.items.find((item: { id: string }) => item.id === first.id)
+        .watching,
+    ).toBe(false);
+    // An edit from a page that read with include=watching: its tag is good as If-Match.
+    await admin
+      .patch(`/v1/notes/${first.id}`)
+      .set('If-Match', fresh.headers.etag as string)
+      .send({ title: 'Renamed' })
+      .expect(200);
 
     // Watching and unwatching show at once.
     await admin.post(`/v1/notes/${first.id}/watch`).expect(200);

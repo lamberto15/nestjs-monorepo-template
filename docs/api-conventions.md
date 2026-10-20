@@ -92,8 +92,12 @@ Every resource has the same shape and the same routes:
   asks once for its whole page (one query on the page's ids, your own
   subscriptions in your tenant), so a client needs no
   `GET /v1/subscriptions` per record. Left out by default; `fields=` never
-  removes it; the ETag leaves it out; on a feature without `watch` it is a
-  400, like any other unknown `include` value.
+  removes it; on a feature without `watch` it is a 400 (before the record is
+  loaded), like any other unknown `include` value. It is the reader's, not the
+  record's, so a write's `If-Match` ignores it (below); but the GET's ETag
+  carries a marker of the `watching` values it holds, so a `304` happens only
+  while they are unchanged too (watch a record, read it again with the old
+  tag: a 200 with `watching: true`).
 - **Routes:** `GET /v1/<x>` (a list), `GET /v1/<x>/{id}`, `POST /v1/<x>`
   (201, with `Idempotency-Key`), `PATCH /v1/<x>/{id}` (only what's sent
   changes; `null` clears), `DELETE /v1/<x>/{id}` (204); actions as
@@ -411,6 +415,11 @@ the representation, with `Cache-Control: private, no-cache`.
   does a create (201) and a restore: the tag `GET /{id}` would send, so the
   next write's `If-Match` needs no read first. Every one is strong.
 - Tags are per reader: a field you may not see is not in yours.
+- A record's `watching` (`?include=watching`) is not in the tag a write
+  compares either, but the `ETag` of a GET that carries it ends in a short
+  marker of the flags (`etagOfResponse()`), and `If-Match` ignores the marker
+  (`assertUnchanged()`): the tag of `GET /{id}?include=watching` is good as
+  `If-Match`, and a changed flag is never answered `304`.
 - A record's `can` (`?include=can`) is not in its tag: the tag of
   `GET /{id}?include=can` is the plain `GET`'s, good as `If-Match`. A
   `304` may then keep a `can` from before a change to your roles (never

@@ -16586,7 +16586,7 @@ export interface operations {
                 sort?: string;
                 /** @description true: the recycle bin (deleted records), for those who may restore them. */
                 deleted?: "true" | "false";
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags, watching. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, teamId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
                 fields?: string;
                 /** @description Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`. */
                 "custom.<key>[.<op>]"?: string;
@@ -16649,7 +16649,7 @@ export interface operations {
                                 /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                                 issue: boolean;
                             };
-                            /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag. */
+                            /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
                             watching?: boolean;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
@@ -16768,7 +16768,7 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
-                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag. */
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
                         watching?: boolean;
                     };
                 };
@@ -16878,7 +16878,7 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
-                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag. */
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
                         watching?: boolean;
                     };
                 };
@@ -17037,7 +17037,7 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
-                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag. */
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
                         watching?: boolean;
                     };
                 };
@@ -17133,7 +17133,7 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
-                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag. */
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
                         watching?: boolean;
                     };
                 };
@@ -17854,7 +17854,7 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
-                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag. */
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
                         watching?: boolean;
                     };
                 };

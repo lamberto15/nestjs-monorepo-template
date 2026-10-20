@@ -12,7 +12,6 @@ import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
 import { SequencesService } from '../sequences/sequences.service.js';
-import { validationException } from '../../core/http/problem-details.filter.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { TagsService } from '../tags/tags.service.js';
 import {
@@ -29,13 +28,14 @@ import type { RecordList } from './record-list.js';
 import {
   recordCan,
   recordCanActions,
+  assertWatchable,
   type RecordInclude,
   withIncluded,
 } from './record-can.js';
+import { RECORD_DECLARATION } from './record-declaration.token.js';
 import type { RecordSchemas } from './record.schemas.js';
 
-/** A feature module's record declaration (record-parts.ts provides it). */
-export const RECORD_DECLARATION = Symbol('RECORD_DECLARATION');
+export { RECORD_DECLARATION } from './record-declaration.token.js';
 /** A feature module's record table (record-parts.ts provides it, for RecordStore). */
 export const RECORD_TABLE = Symbol('RECORD_TABLE');
 /** A feature module's record contract: its service, policy, table, list and schemas. */
@@ -386,16 +386,9 @@ export class RecordPresenter {
     };
   }
 
-  /** `?include=watching` on a record that cannot be watched is a 400, as any other unknown value. */
+  /** The pipe has refused it already; this covers a caller that skipped the pipe. */
   private assertIncluded(include?: RecordInclude) {
-    if (include?.watching && !takes(this.declaration, 'watch')) {
-      throw validationException([
-        {
-          message: `${this.declaration.subject} records cannot be watched: \`watching\` is not available here.`,
-          path: ['include'],
-        },
-      ]);
-    }
+    assertWatchable(this.declaration, include);
   }
 
   /**

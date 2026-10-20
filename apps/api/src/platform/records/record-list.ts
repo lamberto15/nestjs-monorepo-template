@@ -62,9 +62,9 @@ export function recordList(
       },
     },
     {
-      // `can` (?include=can) is no field to pick.
+      // `can` and `watching` (?include=) are no fields to pick.
       select: Object.keys(schemas.response.shape).filter(
-        (key) => key !== 'can',
+        (key) => key !== 'can' && key !== 'watching',
       ),
       softDelete: declaration.softDelete,
     },

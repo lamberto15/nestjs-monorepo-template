@@ -1,10 +1,18 @@
-import { Injectable, type PipeTransform, type Type } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Optional,
+  type PipeTransform,
+  type Type,
+} from '@nestjs/common';
 import type { AuthorizationService } from '@nestjs/authorization';
 import type { ApiQueryOptions } from '@nestjs/swagger';
 import { z } from 'zod';
 import { untagged } from '../../core/http/etag.js';
 import { validationException } from '../../core/http/problem-details.filter.js';
 import type { Principal } from '../../iam/auth/principal.js';
+import { RECORD_DECLARATION } from './record-declaration.token.js';
+import { type RecordDeclaration, takes } from './record.js';
 
 /**
  * What a record says the reader may do with it now (`?include=can`): its
@@ -39,9 +47,22 @@ const includeSchema = z
   )
   .pipe(z.array(z.enum(INCLUDES)));
 
-/** `@Query('include', IncludePipe)`: `?include=can,watching` as `{ can: true, watching: true }`; another value is a 400. */
+/**
+ * `@Query('include', IncludePipe)`: `?include=can,watching` as `{ can: true,
+ * watching: true }`; another value is a 400, and so is `watching` on a
+ * record that cannot be watched (no `watch` capability), before the route
+ * loads anything (a 400, not a 404). The record's declaration is the
+ * feature module's (record-parts.ts); a module without one (notes) is not
+ * checked here.
+ */
 @Injectable()
 export class IncludePipe implements PipeTransform<unknown, RecordInclude> {
+  constructor(
+    @Optional()
+    @Inject(RECORD_DECLARATION)
+    private readonly declaration?: RecordDeclaration,
+  ) {}
+
   transform(value: unknown): RecordInclude {
     const parsed = includeSchema.safeParse(value);
     if (!parsed.success) {
@@ -52,10 +73,12 @@ export class IncludePipe implements PipeTransform<unknown, RecordInclude> {
         })),
       );
     }
-    return {
+    const include = {
       can: parsed.data.includes('can'),
       watching: parsed.data.includes('watching'),
     };
+    assertWatchable(this.declaration, include);
+    return include;
   }
 }
 
@@ -116,7 +139,7 @@ export const recordWatchingSchema = z
   .boolean()
   .optional()
   .describe(
-    'Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of the ETag.',
+    'Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.',
   );
 
 /** The fields a record's `can` is checked against: the row as stored. */
@@ -211,3 +234,18 @@ export const withCan = <T extends Record<string, unknown>>(
   shown: T,
   can: Map<string, Record<string, boolean>>,
 ) => withIncluded(shown, { can });
+
+/** `?include=watching` on a record that cannot be watched is a 400, as any other unknown value. */
+export function assertWatchable(
+  declaration: RecordDeclaration | undefined,
+  include: RecordInclude | undefined,
+) {
+  if (include?.watching && declaration && !takes(declaration, 'watch')) {
+    throw validationException([
+      {
+        message: `${declaration.subject} records cannot be watched: \`watching\` is not available here.`,
+        path: ['include'],
+      },
+    ]);
+  }
+}
