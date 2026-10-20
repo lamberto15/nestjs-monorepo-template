@@ -69,6 +69,18 @@ export const consolidatedScope = (
     readOnly: true,
   });
 
+/**
+ * One tenant, read only: an operator's break-glass request
+ * (docs/tenancy.md, "Break-glass"). A consolidated read of that tenant
+ * alone (no descendants), so the one read-only mechanism applies:
+ * `app.tenant_id` and `app.read_tenants` are that tenant (the read
+ * policies' tree check passes on the tenant itself), and every
+ * transaction is `READ ONLY`, the global tables' too (TenantPool):
+ * PostgreSQL refuses any write (25006), whatever a route would do.
+ */
+export const readOnlyTenantScope = (tenantId: string): TenantScope =>
+  consolidatedScope(tenantId, []);
+
 /** No tenant: global tables only; a query on a tenant table is refused (TenantScopeMissingError). */
 export const NO_TENANT: TenantScope = Object.freeze({
   tenantId: null,

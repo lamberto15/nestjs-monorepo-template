@@ -72,8 +72,9 @@ first project is built on the template; until then they report only.
   tenant; a membership still active in a deactivated tenant exporting that tenant's
   records (**done** (#220): docs/tenancy.md, "Operators"); the migrate-time wall check
   compares the policies' expressions, roles and kind too (**done** (#221): docs/tenancy.md,
-  "The wall"); whether operators may act in any tenant without its invitation (a
-  break-glass support route: the owner's decision, docs/tenancy.md, "Operators").
+  "The wall"); break-glass (operators read any tenant without its invitation, read
+  only, an hour, told to it: built as the recommended option, the owner's decision
+  pending, #227; docs/tenancy.md, "Break-glass").
   Tenant export and deletion are done (#226; get, rename and deactivation, #195);
   per-tenant senders for incoming webhooks are done (#234: docs/webhooks-and-realtime.md,
   "Incoming webhooks of a tenant").

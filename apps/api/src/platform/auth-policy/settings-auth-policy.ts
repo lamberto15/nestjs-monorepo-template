@@ -8,7 +8,11 @@ import {
 import type { IamEnv } from '../../iam/iam.env.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
 import { SettingsService } from '../settings/settings.service.js';
-import { AUTH_PASSWORD_MIN_LENGTH, AUTH_REQUIRE_MFA } from './auth-settings.js';
+import {
+  AUTH_ALLOW_BREAK_GLASS,
+  AUTH_PASSWORD_MIN_LENGTH,
+  AUTH_REQUIRE_MFA,
+} from './auth-settings.js';
 
 /**
  * IAM's `AUTH_POLICY` port, from the tenants' settings (`auth.*`,
@@ -49,6 +53,12 @@ export class SettingsAuthPolicy implements AuthPolicySource {
   passwordMinLength(tenantId: string): Promise<number | undefined> {
     return this.tenancy.run(tenantId, () =>
       this.settings.get(AUTH_PASSWORD_MIN_LENGTH),
+    );
+  }
+
+  allowsBreakGlass(tenantId: string): Promise<boolean> {
+    return this.tenancy.run(tenantId, () =>
+      this.settings.get(AUTH_ALLOW_BREAK_GLASS),
     );
   }
 }

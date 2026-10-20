@@ -75,6 +75,11 @@
       "label": "API key rotated",
       "title": "New API key",
       "body": "A new key ({keyId}) was made for this client; its previous keys stop working at {previousKeysEnd}."
+    },
+    "breakGlassStarted": {
+      "label": "Break-glass access to your tenant",
+      "title": "An operator opened your tenant (break-glass)",
+      "body": "{operator} opened this tenant without an invitation, read only, until {expiresAt} (from {ip}). Their reason: “{reason}”. It is in the audit log and the sign-in log; an administrator can opt out (setting auth.allowBreakGlass)."
     }
   },
   "approval": {

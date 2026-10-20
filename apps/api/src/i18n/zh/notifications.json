@@ -71,6 +71,11 @@
       "label": "API 密钥已轮换",
       "title": "新的 API 密钥",
       "body": "已为此客户端生成新密钥（{keyId}）；之前的密钥将于 {previousKeysEnd} 失效。"
+    },
+    "breakGlassStarted": {
+      "label": "对您租户的紧急访问",
+      "title": "一名运营者打开了您的租户（紧急访问）",
+      "body": "{operator} 在未受邀请的情况下打开了此租户，仅可读取，直至 {expiresAt}（来自 {ip}）。理由：“{reason}”。此事记录在审计日志和登录日志中；管理员可以选择退出（设置 auth.allowBreakGlass）。"
     }
   },
   "approval": {

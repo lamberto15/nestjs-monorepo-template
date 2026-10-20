@@ -186,10 +186,11 @@ before the features' like approvals' settings) for IAM, which reads them
 through its `AUTH_POLICY` port under the environment's ceiling
 ([auth.md](auth.md#policies)). Shown to managers only (`public: false`).
 
-| Key                      | Value             | Scopes                                                     | Default |
-| ------------------------ | ----------------- | ---------------------------------------------------------- | ------- |
-| `auth.requireMfa`        | boolean           | `tenant`, `team` (never `user`: nobody exempts themselves) | `false` |
-| `auth.passwordMinLength` | integer, 12 to 64 | `tenant`                                                   | `12`    |
+| Key                      | Value             | Scopes                                                     | Default                                                                                                                   |
+| ------------------------ | ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `auth.requireMfa`        | boolean           | `tenant`, `team` (never `user`: nobody exempts themselves) | `false`                                                                                                                   |
+| `auth.passwordMinLength` | integer, 12 to 64 | `tenant`                                                   | `12`                                                                                                                      |
+| `auth.allowBreakGlass`   | boolean           | `tenant`                                                   | `true` (`false`: the operators' break-glass grants are refused, and running ones stop: [tenancy](tenancy.md#break-glass)) |
 
 - **`true` wins for `auth.requireMfa`**: it applies to a user when the
   tenant's value or one of their teams' is `true` (`SettingsService.anyOn()`),

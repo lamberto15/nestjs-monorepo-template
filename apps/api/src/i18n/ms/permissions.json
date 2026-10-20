@@ -19,6 +19,12 @@
       "provisionScim": "Peruntukkan pengguna dan kumpulan melalui SCIM 2.0 (klien API: token SCIM pembekal identiti)"
     }
   },
+  "platform": {
+    "label": "Platform",
+    "actions": {
+      "breakGlass": "Baca mana-mana penyewa tanpa jemputannya, paling lama sejam, dengan sebab yang dimaklumkan kepada pentadbirnya (pecah kaca; pengendali pemasangan: hanya dalam penyewa pengendali)"
+    }
+  },
   "approval": {
     "label": "Kelulusan",
     "actions": {

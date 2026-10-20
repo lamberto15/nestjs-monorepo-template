@@ -49,6 +49,10 @@ import { OperatorOnly } from '../auth/operator-only.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
+import {
+  BREAK_GLASS_MAX_MINUTES,
+  BreakGlassService,
+} from './break-glass.service.js';
 import { InvitationsService } from './invitations.service.js';
 import { AccessPolicy } from './policies.js';
 import { TenantSwitchService } from './tenant-switch.service.js';
@@ -131,6 +135,46 @@ const requestDeletionSchema = z.object({
     .min(1)
     .max(48)
     .describe('The tenant’s slug, typed again: what you mean to delete.'),
+});
+
+const startBreakGlassSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(10)
+    .max(1000)
+    .describe(
+      'Why, in your words (an incident, a ticket): kept with the grant, in both tenants’ audit logs, and told to the tenant’s administrators.',
+    ),
+  minutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(BREAK_GLASS_MAX_MINUTES)
+    .optional()
+    .describe(
+      `How long it lasts, at most ${BREAK_GLASS_MAX_MINUTES} (the default). Never extended.`,
+    ),
+});
+
+const breakGlassGrantSchema = z.object({
+  id: z
+    .uuid()
+    .describe(
+      'Send it as the `Break-Glass` header of a GET request to read the tenant.',
+    ),
+  tenantId: z.uuid().describe('The tenant it opens.'),
+  reason: z.string(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso
+    .datetime()
+    .describe(
+      'After this, requests through it answer 403 `break_glass_expired`.',
+    ),
+  endedAt: z.iso
+    .datetime()
+    .nullable()
+    .describe('Ended before its time (DELETE); null: not ended.'),
 });
 
 const tenantName = z.string().trim().min(1).max(120);
@@ -298,7 +342,10 @@ export class TenantSwitchController {
 @Controller('tenants')
 @OperatorOnly()
 export class TenantsController {
-  constructor(private readonly tenants: TenantsService) {}
+  constructor(
+    private readonly tenants: TenantsService,
+    private readonly breakGlass: BreakGlassService,
+  ) {}
 
   @Get()
   @Can(AccessPolicy, 'manageTenants')
@@ -430,5 +477,61 @@ export class TenantsController {
     @Ip() ip: string,
   ) {
     return this.tenants.cancelDeletion(user, id, ip);
+  }
+
+  @Post(':id/break-glass')
+  @Can(AccessPolicy, 'breakGlass')
+  @RecentAuthentication()
+  @ApiOperation({
+    summary: 'Open a tenant read only, without its invitation (break-glass)',
+    description:
+      'An emergency: read the tenant for at most an hour (`minutes`, default 60), never extended, with a `reason`. Send the grant’s `id` as the `Break-Glass` header of GET requests: they act in that tenant, read only (the database refuses any write; a request that isn’t a read answers 403 `break_glass_read_only`), with every read permission and nothing else. The tenant’s administrators are notified at once (`security.breakGlassStarted`) and see it in their sign-in log (`method: break-glass`); audited `tenant.break-glass-started` with the reason in your tenant and in that one. Needs `Platform.breakGlass` in the operator tenant and a recent sign-in. docs/tenancy.md, "Break-glass".',
+  })
+  @ApiCreatedResponse({ standardSchema: breakGlassGrantSchema })
+  @ApiNotFoundResponse()
+  @ApiConflictResponse({
+    description:
+      '`break_glass_active`: you hold an open grant to it (end it first; a new one needs a new reason); `break_glass_own_tenant`: the operator tenant; `tenant_inactive`.',
+  })
+  startBreakGlass(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body({ schema: startBreakGlassSchema })
+    body: z.infer<typeof startBreakGlassSchema>,
+    @Ip() ip: string,
+  ) {
+    return this.breakGlass.start(user, id, body, ip);
+  }
+
+  @Get(':id/break-glass')
+  @Can(AccessPolicy, 'breakGlass')
+  @ApiOperation({
+    summary: 'Your break-glass grants to a tenant, newest first',
+    description: 'Yours only, the 50 latest.',
+  })
+  @ApiOkResponse({ standardSchema: listSchema(breakGlassGrantSchema) })
+  async breakGlassGrants(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return { items: await this.breakGlass.list(user, id) };
+  }
+
+  @Delete(':id/break-glass/:grantId')
+  @Can(AccessPolicy, 'breakGlass')
+  @ApiOperation({
+    summary: 'End a break-glass grant before its time',
+    description:
+      'Requests through it stop at once. Audited `tenant.break-glass-ended` in your tenant and in that one. An ended or expired grant: unchanged.',
+  })
+  @ApiOkResponse({ standardSchema: breakGlassGrantSchema })
+  @ApiNotFoundResponse({ description: 'Not a grant of yours to this tenant.' })
+  endBreakGlass(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('grantId', ParseUUIDPipe) grantId: string,
+    @Ip() ip: string,
+  ) {
+    return this.breakGlass.end(user, id, grantId, ip);
   }
 }

@@ -26,6 +26,12 @@ export interface AuthPolicySource {
   requireMfa(user: UserPrincipal): Promise<boolean>;
   /** The tenant's minimum password length, if it chose one. */
   passwordMinLength(tenantId: string): Promise<number | undefined>;
+  /**
+   * Whether the tenant lets the deployment's operators open it with a
+   * break-glass grant (docs/tenancy.md, "Break-glass"); false: it opted
+   * out, and grants it has stop at once. Absent: allowed.
+   */
+  allowsBreakGlass?(tenantId: string): Promise<boolean>;
 }
 
 /** NIST SP 800-63B: the floor every password meets, whatever a tenant says. */

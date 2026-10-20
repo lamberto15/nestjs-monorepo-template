@@ -19,6 +19,12 @@
       "provisionScim": "通过 SCIM 2.0 预配用户和组（API 客户端：身份提供方的 SCIM 令牌）"
     }
   },
+  "platform": {
+    "label": "平台",
+    "actions": {
+      "breakGlass": "无需租户邀请即可读取任一租户，最长一小时，并须提供告知其管理员的理由（紧急访问；部署的运营者：仅限运营者租户）"
+    }
+  },
   "approval": {
     "label": "审批",
     "actions": {

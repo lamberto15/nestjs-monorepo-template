@@ -75,6 +75,11 @@
       "label": "API-Schlüssel erneuert",
       "title": "Neuer API-Schlüssel",
       "body": "Für diesen Client wurde ein neuer Schlüssel ({keyId}) erstellt; die bisherigen Schlüssel gelten bis {previousKeysEnd}."
+    },
+    "breakGlassStarted": {
+      "label": "Break-Glass-Zugriff auf Ihren Mandanten",
+      "title": "Ein Betreiber hat Ihren Mandanten geöffnet (Break-Glass)",
+      "body": "{operator} hat diesen Mandanten ohne Einladung geöffnet, nur lesend, bis {expiresAt} (von {ip}). Begründung: „{reason}“. Es steht im Audit-Log und im Anmeldeprotokoll; ein Administrator kann es abschalten (Einstellung auth.allowBreakGlass)."
     }
   },
   "approval": {
