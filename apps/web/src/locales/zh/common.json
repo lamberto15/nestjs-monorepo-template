@@ -212,6 +212,21 @@
       "neverUsed": "从未使用",
       "unsupported": "此浏览器不支持通行密钥。"
     },
+    "identities": {
+      "title": "已关联的账户",
+      "description": "你可以用来登录的服务商。",
+      "none": "尚未关联任何账户。",
+      "connectedOn": "关联于 {{date}}",
+      "connect": "关联 {{provider}}",
+      "disconnect": "取消关联",
+      "disconnectTitle": "取消关联 {{provider}}？",
+      "disconnectDescription": "你将无法再使用 {{provider}} 登录。",
+      "unverified": "请先验证你的电子邮件地址，再关联账户。",
+      "failed": "关联账户失败，请重试。",
+      "loadFailed": "无法加载已关联的账户。",
+      "retry": "重试",
+      "disconnectLabel": "取消关联 {{provider}}"
+    },
     "sessions": {
       "title": "会话",
       "description": "您的账户已登录的位置。",
