@@ -113,8 +113,8 @@ const googleLink =
 /** jsdom can't navigate: `location.assign` is a spy (with the parts of location the app reads). */
 function stubAssign() {
   const assign = vi.fn();
-  const { origin, pathname, search } = window.location;
-  vi.stubGlobal('location', { origin, pathname, search, assign });
+  const { href, origin, pathname, search } = window.location;
+  vi.stubGlobal('location', { href, origin, pathname, search, assign });
   return assign;
 }
 
@@ -247,7 +247,6 @@ describe('the connected accounts section', () => {
 
   it('asks to confirm it is you before connecting from a stale sign-in', async () => {
     useSecurityApi({ recentUntil: '2020-01-01T00:00:00.000Z' });
-    const assign = stubAssign();
     server.use(
       http.get('/v1/auth/reauthenticate', () =>
         HttpResponse.json({
@@ -261,6 +260,8 @@ describe('the connected accounts section', () => {
     );
     await renderApp('/account/security');
     const card = await section();
+    // After the first render: the app reads the whole location while starting.
+    const assign = stubAssign();
     const user = userEvent.setup();
     await user.click(
       await card.findByRole('button', { name: 'Connect Google' }),
@@ -275,9 +276,10 @@ describe('the connected accounts section', () => {
 
   it('goes to the provider at once from a recent sign-in', async () => {
     useSecurityApi();
-    const assign = stubAssign();
     await renderApp('/account/security');
     const card = await section();
+    // After the first render: the app reads the whole location while starting.
+    const assign = stubAssign();
     await userEvent
       .setup()
       .click(await card.findByRole('button', { name: 'Connect Google' }));
