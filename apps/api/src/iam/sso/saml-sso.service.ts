@@ -24,6 +24,10 @@ import {
   SSO_REQUEST_TTL_MS,
 } from './sso-browser.js';
 import { ssoAssertions, ssoRequests } from './sso.tables.js';
+import {
+  checkXmlAlgorithms,
+  hasEncryptedAssertion,
+} from './saml-algorithms.js';
 
 /** Clocks of the IdP and this app may differ this much (NotBefore, NotOnOrAfter). */
 const CLOCK_SKEW_MS = 2 * 60_000;
@@ -39,6 +43,11 @@ const EMAIL_ATTRIBUTES = [
   'mail',
   'urn:oid:0.9.2342.19200300.100.1.3',
   'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
+];
+/** Where IdPs list groups when the connection names no attribute (Entra ID's claim URI too). */
+const GROUP_ATTRIBUTES = [
+  'groups',
+  'http://schemas.microsoft.com/ws/2008/06/identity/claims/groups',
 ];
 const NAME_ATTRIBUTES = [
   'displayName',
@@ -72,6 +81,15 @@ type Assertion = {
  * - The `Issuer` must be the connection's IdP entity id.
  * - A transient NameID (another value at each sign-in) is refused: an
  *   identity is keyed by a stable subject.
+ * - Strict signatures: the Response **and** its assertion must be signed
+ *   (node-saml's `wantAuthnResponseSigned`, `wantAssertionsSigned`), so an
+ *   encrypted assertion is authenticated before it is decrypted; then the
+ *   algorithms of every signature, digest and encryption must be on an
+ *   allowlist (saml-algorithms.ts): xml-crypto still accepts SHA-1.
+ * - Our AuthnRequests are signed (HTTP-Redirect's `SigAlg`/`Signature`)
+ *   with the connection's own key, which also decrypts assertions the IdP
+ *   encrypts to its certificate (`requireEncryptedAssertions` refuses any
+ *   other).
  *
  * The IdP's answer is a cross-site POST, where the session package refuses
  * to sign in (CSRF), so the ACS hands over: the checked result is stored
@@ -106,7 +124,7 @@ export class SamlSso {
       .returning({ id: ssoRequests.id });
     // node-saml makes the AuthnRequest's ID and hands it to the cache
     // provider: it lands on this browser's request.
-    const saml = this.saml(connection, {
+    const saml = await this.saml(connection, {
       saveAsync: async (key, value) => {
         await this.db
           .update(ssoRequests)
@@ -138,7 +156,7 @@ export class SamlSso {
   }> {
     const hash = binding ? bindingHash(binding) : undefined;
     const now = new Date();
-    const saml = this.saml(connection, {
+    const saml = await this.saml(connection, {
       saveAsync: () => Promise.resolve(null),
       // A request of this browser's, unused and unexpired.
       getAsync: async (key) => {
@@ -175,6 +193,21 @@ export class SamlSso {
     }
     if (!profile) {
       throw new SsoRefused('no_assertion');
+    }
+    // What the library verified, read again for what it lets through.
+    const responseXml = profile.getSamlResponseXml?.() ?? '';
+    const assertionXml = profile.getAssertionXml?.() ?? '';
+    const weak =
+      checkXmlAlgorithms(responseXml, { signed: true }) ??
+      checkXmlAlgorithms(assertionXml, { signed: true });
+    if (weak) {
+      throw new SsoRefused(`algorithm_refused:${weak.slice(0, 100)}`);
+    }
+    if (
+      connection.requireEncryptedAssertions &&
+      !hasEncryptedAssertion(responseXml)
+    ) {
+      throw new SsoRefused('assertion_not_encrypted');
     }
     if (profile.issuer !== connection.idpEntityId) {
       throw new SsoRefused('issuer_mismatch');
@@ -252,6 +285,12 @@ export class SamlSso {
           Number.isFinite(authnInstant) && authnInstant <= now.getTime()
             ? new Date(authnInstant)
             : undefined,
+        groups: allStrings(
+          profile,
+          connection.groupsAttribute
+            ? [connection.groupsAttribute]
+            : GROUP_ATTRIBUTES,
+        ),
       },
       requestId,
       redirectTo,
@@ -331,13 +370,22 @@ export class SamlSso {
     };
   }
 
-  /** Our SP metadata (XML) for the IdP: entity id, ACS URL, signed assertions wanted. */
-  metadata(connection: SsoConnection) {
-    return this.saml(connection).generateServiceProviderMetadata(null, null);
+  /**
+   * Our SP metadata (XML) for the IdP: entity id, ACS URL, signed
+   * assertions wanted, our requests signed, and our certificate for both
+   * signing and encryption.
+   */
+  async metadata(connection: SsoConnection) {
+    const { certificate } = await this.connections.samlKeys(connection);
+    return (await this.saml(connection)).generateServiceProviderMetadata(
+      certificate,
+      certificate,
+    );
   }
 
-  private saml(connection: SsoConnection, cacheProvider?: CacheProvider) {
+  private async saml(connection: SsoConnection, cacheProvider?: CacheProvider) {
     const urls = this.connections.urls(connection);
+    const keys = await this.connections.samlKeys(connection);
     return new SAML({
       // Our entity id is the metadata's URL: unique per connection.
       issuer: urls.samlMetadata,
@@ -345,9 +393,17 @@ export class SamlSso {
       callbackUrl: urls.samlAcs,
       entryPoint: connection.idpSsoUrl ?? undefined,
       idpCert: connection.idpCertificates,
-      // Only signed assertions; a signed response around an unsigned one is not enough.
+      // The library's own Issuer check (the Response's); the assertion's is checked in consume().
+      idpIssuer: connection.idpEntityId ?? undefined,
+      // Both signed: the assertion (whose content is what we trust), and the
+      // Response around it, which covers an encrypted assertion before it is
+      // decrypted (no decryption oracle) and the response's own attributes.
       wantAssertionsSigned: true,
-      wantAuthnResponseSigned: false,
+      wantAuthnResponseSigned: true,
+      // Ours: signs the AuthnRequest, decrypts an encrypted assertion.
+      privateKey: keys.privateKey,
+      publicCert: keys.certificate,
+      decryptionPvk: keys.privateKey,
       acceptedClockSkewMs: CLOCK_SKEW_MS,
       maxAssertionAgeMs: MAX_ASSERTION_AGE_MS,
       validateInResponseTo: connection.allowIdpInitiated
@@ -362,6 +418,21 @@ export class SamlSso {
       digestAlgorithm: 'sha256',
     });
   }
+}
+
+/** Every string value of the first of these attributes present (a group list). */
+function allStrings(profile: Profile, names: string[]) {
+  for (const name of names) {
+    const value = profile[name];
+    if (value === undefined || value === null) {
+      continue;
+    }
+    return (Array.isArray(value) ? value : [value])
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
 }
 
 function firstString(profile: Profile, names: string[]) {

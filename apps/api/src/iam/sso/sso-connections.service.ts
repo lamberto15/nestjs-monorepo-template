@@ -1,4 +1,3 @@
-import { X509Certificate } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -9,7 +8,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Queue } from 'bullmq';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import { pgErrorCode, UNIQUE_VIOLATION } from '../../core/database/errors.js';
 import {
@@ -20,14 +19,23 @@ import {
 import { EncryptionService } from '../../core/encryption/encryption.service.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { withTenant } from '../../core/tenancy/tenant-job.js';
+import type { Transaction } from '../../core/database/drizzle.js';
+import { AccessAdminService } from '../access/access-admin.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { Principal, UserPrincipal } from '../auth/principal.js';
 import type { IamEnv } from '../iam.env.js';
 import type { CreateConnection, UpdateConnection } from './sso.schemas.js';
 import { SSO_QUEUE, type SsoJob } from './sso.queue.js';
-import { ssoConnections } from './sso.tables.js';
+import { ssoConnections, ssoRoleMappings } from './sso.tables.js';
+import { describeCertificate, newSpKeyPair } from './sp-keys.js';
 
 export type SsoConnection = typeof ssoConnections.$inferSelect;
+
+/** A connection's role mappings as the API shows them. */
+interface RoleSetup {
+  roleMappings: { group: string; roleId: string }[];
+  defaultRoleIds: string[];
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -37,6 +45,7 @@ const SAML_FIELDS = [
   'idpSsoUrl',
   'idpCertificates',
   'allowIdpInitiated',
+  'requireEncryptedAssertions',
 ] as const;
 
 /**
@@ -54,6 +63,7 @@ export class SsoConnectionsService {
     private readonly encryption: EncryptionService,
     private readonly tenancy: Tenancy,
     private readonly config: ConfigService<IamEnv & CoreEnv, true>,
+    private readonly accessAdmin: AccessAdminService,
     @InjectQueue(SSO_QUEUE) private readonly queue: Queue<SsoJob>,
   ) {}
 
@@ -66,14 +76,17 @@ export class SsoConnectionsService {
       .select()
       .from(ssoConnections)
       .orderBy(asc(ssoConnections.name));
-    return rows.map((row) => this.view(row));
+    const roles = await this.roleSetups(rows.map((row) => row.id));
+    return rows.map((row) => this.view(row, roles.get(row.id)));
   }
 
   async get(id: string) {
-    return this.view(await this.find(id));
+    const row = await this.find(id);
+    return this.view(row, (await this.roleSetups([id])).get(id));
   }
 
   async create(actor: UserPrincipal, input: CreateConnection, ip?: string) {
+    await this.checkRoles(actor, input);
     const values =
       input.protocol === 'oidc'
         ? {
@@ -89,6 +102,9 @@ export class SsoConnectionsService {
             idpSsoUrl: this.checkUrl(input.idpSsoUrl, 'idpSsoUrl'),
             idpCertificates: input.idpCertificates,
             allowIdpInitiated: input.allowIdpInitiated ?? false,
+            requireEncryptedAssertions:
+              input.requireEncryptedAssertions ?? false,
+            ...(await this.newSpKeys()),
           };
     const row = await inTransaction(this.txHost, async (tx) => {
       const [created] = await tx
@@ -98,12 +114,14 @@ export class SsoConnectionsService {
           protocol: input.protocol,
           enabled: input.enabled ?? false,
           jitProvisioning: input.jitProvisioning ?? false,
+          groupsAttribute: input.groupsAttribute ?? null,
           ...values,
         })
         .returning()
         .catch((error: unknown) => {
           throw isUniqueViolation(error) ? nameTaken(input.name) : error;
         });
+      await this.writeRoleSetup(tx, created.id, input);
       await this.audit.record(
         actor,
         {
@@ -115,6 +133,7 @@ export class SsoConnectionsService {
             protocol: created.protocol,
             enabled: created.enabled,
             jitProvisioning: created.jitProvisioning,
+            ...roleDetails(input),
           },
           ip,
         },
@@ -125,7 +144,7 @@ export class SsoConnectionsService {
     if (row.protocol === 'oidc') {
       await this.queueDiscovery(row.id);
     }
-    return this.view(row);
+    return this.get(row.id);
   }
 
   async update(
@@ -147,6 +166,7 @@ export class SsoConnectionsService {
         })),
       });
     }
+    await this.checkRoles(actor, changes);
     const issuerChanged =
       changes.issuer !== undefined && changes.issuer !== before.issuer;
     const row = await inTransaction(this.txHost, async (tx) => {
@@ -186,12 +206,19 @@ export class SsoConnectionsService {
           ...(changes.allowIdpInitiated !== undefined && {
             allowIdpInitiated: changes.allowIdpInitiated,
           }),
+          ...(changes.requireEncryptedAssertions !== undefined && {
+            requireEncryptedAssertions: changes.requireEncryptedAssertions,
+          }),
+          ...(changes.groupsAttribute !== undefined && {
+            groupsAttribute: changes.groupsAttribute,
+          }),
         })
         .where(eq(ssoConnections.id, id))
         .returning()
         .catch((error: unknown) => {
           throw isUniqueViolation(error) ? nameTaken(changes.name!) : error;
         });
+      await this.writeRoleSetup(tx, id, changes);
       await this.audit.record(
         actor,
         {
@@ -207,6 +234,7 @@ export class SsoConnectionsService {
             ...(changes.enabled !== undefined && {
               enabled: { from: before.enabled, to: changes.enabled },
             }),
+            ...roleDetails(changes),
           },
           ip,
         },
@@ -217,7 +245,7 @@ export class SsoConnectionsService {
     if (issuerChanged) {
       await this.queueDiscovery(id);
     }
-    return this.view(row);
+    return this.get(row.id);
   }
 
   async remove(actor: UserPrincipal, id: string, ip?: string) {
@@ -351,6 +379,49 @@ export class SsoConnectionsService {
     );
   }
 
+  /**
+   * Our key and certificate of a SAML connection: its own, made with it.
+   * A connection made before keys existed gets its pair now, once (the
+   * update is conditional: two first sign-ins at once keep one pair).
+   */
+  async samlKeys(
+    connection: SsoConnection,
+  ): Promise<{ privateKey: string; certificate: string }> {
+    if (connection.spPrivateKey && connection.spCertificate) {
+      return {
+        privateKey: this.encryption.decrypt(
+          ssoConnections.spPrivateKey,
+          connection.spPrivateKey,
+          connection.tenantId,
+        )!,
+        certificate: connection.spCertificate,
+      };
+    }
+    const keys = await this.newSpKeys();
+    const [stored] = await this.db
+      .update(ssoConnections)
+      .set(keys)
+      .where(
+        and(
+          eq(ssoConnections.id, connection.id),
+          isNull(ssoConnections.spCertificate),
+        ),
+      )
+      .returning();
+    return this.samlKeys(stored ?? (await this.find(connection.id)));
+  }
+
+  /**
+   * The roles a connection maps the IdP's groups to (`group` set) and those
+   * it gives a just-in-time member (`group` null).
+   */
+  async roleMappingsOf(connectionId: string) {
+    return this.db
+      .select({ group: ssoRoleMappings.group, roleId: ssoRoleMappings.roleId })
+      .from(ssoRoleMappings)
+      .where(eq(ssoRoleMappings.connectionId, connectionId));
+  }
+
   /** The URLs of a connection, under APP_URL. */
   urls(connection: Pick<SsoConnection, 'id' | 'tenantId'>) {
     const base = `${this.config.get('APP_URL', { infer: true })}/v1/auth/sso/${connection.tenantId}/${connection.id}`;
@@ -361,6 +432,102 @@ export class SsoConnectionsService {
       samlComplete: `${base}/saml/complete`,
       samlMetadata: `${base}/saml/metadata`,
     };
+  }
+
+  /** A new SP key pair, its key encrypted for the column. */
+  private async newSpKeys() {
+    const host = new URL(this.config.get('APP_URL', { infer: true })).hostname;
+    const keys = await newSpKeyPair(`${host} SAML SP`);
+    return {
+      spPrivateKey: this.encryption.encrypt(
+        ssoConnections.spPrivateKey,
+        keys.privateKey,
+      ),
+      spCertificate: keys.certificate,
+    };
+  }
+
+  /**
+   * Whoever maps a group to a role, or gives one to just-in-time members,
+   * must be able to grant it themselves (the access API's rule): else
+   * `Access.manageSso` and an IdP of one's own would hand out any role.
+   */
+  private async checkRoles(
+    actor: UserPrincipal,
+    input: Partial<Pick<RoleSetup, 'roleMappings' | 'defaultRoleIds'>>,
+  ) {
+    const roleIds = [
+      ...(input.roleMappings ?? []).map((mapping) => mapping.roleId),
+      ...(input.defaultRoleIds ?? []),
+    ];
+    if (roleIds.length > 0) {
+      await this.accessAdmin.checkRoleGrant(actor, [...new Set(roleIds)]);
+    }
+  }
+
+  /** Replaces what was sent of a connection's role mappings (in its transaction). */
+  private async writeRoleSetup(
+    tx: Transaction,
+    connectionId: string,
+    input: Partial<Pick<RoleSetup, 'roleMappings' | 'defaultRoleIds'>>,
+  ) {
+    const rows: { group: string | null; roleId: string }[] = [];
+    if (input.roleMappings !== undefined) {
+      await tx
+        .delete(ssoRoleMappings)
+        .where(
+          and(
+            eq(ssoRoleMappings.connectionId, connectionId),
+            isNotNull(ssoRoleMappings.group),
+          ),
+        );
+      rows.push(...input.roleMappings);
+    }
+    if (input.defaultRoleIds !== undefined) {
+      await tx
+        .delete(ssoRoleMappings)
+        .where(
+          and(
+            eq(ssoRoleMappings.connectionId, connectionId),
+            isNull(ssoRoleMappings.group),
+          ),
+        );
+      rows.push(
+        ...input.defaultRoleIds.map((roleId) => ({ group: null, roleId })),
+      );
+    }
+    if (rows.length > 0) {
+      await tx
+        .insert(ssoRoleMappings)
+        .values(rows.map((row) => ({ ...row, connectionId })))
+        .onConflictDoNothing();
+    }
+  }
+
+  /** The role setups of these connections, by connection. */
+  private async roleSetups(connectionIds: string[]) {
+    const setups = new Map<string, RoleSetup>();
+    if (connectionIds.length === 0) {
+      return setups;
+    }
+    const rows = await this.db
+      .select()
+      .from(ssoRoleMappings)
+      .where(inArray(ssoRoleMappings.connectionId, connectionIds))
+      .orderBy(asc(ssoRoleMappings.group), asc(ssoRoleMappings.createdAt));
+    for (const row of rows) {
+      const setup = setups.get(row.connectionId) ?? {
+        roleMappings: [],
+        defaultRoleIds: [],
+      };
+      if (row.group === null) {
+        setup.defaultRoleIds.push(row.roleId);
+      } else {
+        setup.roleMappings.push({ group: row.group, roleId: row.roleId });
+      }
+      setups.set(row.connectionId, setup);
+    }
+    return setups;
   }
 
   private async queueDiscovery(connectionId: string) {
@@ -406,8 +573,11 @@ export class SsoConnectionsService {
     return row;
   }
 
-  /** What an administrator sees: never the client secret. */
-  private view(row: SsoConnection) {
+  /** What an administrator sees: never the client secret nor our private key. */
+  private view(
+    row: SsoConnection,
+    roles: RoleSetup = { roleMappings: [], defaultRoleIds: [] },
+  ) {
     const urls = this.urls(row);
     return {
       id: row.id,
@@ -415,6 +585,9 @@ export class SsoConnectionsService {
       protocol: row.protocol,
       enabled: row.enabled,
       jitProvisioning: row.jitProvisioning,
+      groupsAttribute: row.groupsAttribute,
+      roleMappings: roles.roleMappings,
+      defaultRoleIds: roles.defaultRoleIds,
       loginUrl: urls.login,
       oidc:
         row.protocol === 'oidc'
@@ -433,6 +606,13 @@ export class SsoConnectionsService {
               idpSsoUrl: row.idpSsoUrl ?? '',
               idpCertificates: row.idpCertificates.map(describeCertificate),
               allowIdpInitiated: row.allowIdpInitiated,
+              requireEncryptedAssertions: row.requireEncryptedAssertions,
+              spCertificate: row.spCertificate
+                ? {
+                    pem: row.spCertificate,
+                    ...describeCertificate(row.spCertificate),
+                  }
+                : null,
               spEntityId: urls.samlMetadata,
               acsUrl: urls.samlAcs,
               metadataUrl: urls.samlMetadata,
@@ -444,14 +624,17 @@ export class SsoConnectionsService {
   }
 }
 
-function describeCertificate(pem: string) {
-  const certificate = new X509Certificate(pem);
-  return {
-    subject: certificate.subject,
-    notAfter: new Date(certificate.validTo).toISOString(),
-    fingerprint256: certificate.fingerprint256,
-  };
-}
+/** The role setup of a change, for its audit entry. */
+const roleDetails = (
+  input: Partial<Pick<RoleSetup, 'roleMappings' | 'defaultRoleIds'>>,
+) => ({
+  ...(input.roleMappings !== undefined && {
+    roleMappings: input.roleMappings,
+  }),
+  ...(input.defaultRoleIds !== undefined && {
+    defaultRoleIds: input.defaultRoleIds,
+  }),
+});
 
 const isUniqueViolation = (error: unknown) =>
   pgErrorCode(error) === UNIQUE_VIOLATION;

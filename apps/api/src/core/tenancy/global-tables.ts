@@ -8,6 +8,9 @@
  *   what a membership grants (its roles) is in tenant tables.
  * - `api_keys`: a key is looked up by its id before its client's tenant is
  *   known; the client itself is a tenant table.
+ * - `sso_domain_routes`: which tenants verified an email domain, for the
+ *   sign-in page to find their SSO connections from an address (iam/sso).
+ *   Domains only: the verification itself is the tenant's (`sso_domains`).
  *
  * Code reading them on behalf of a tenant filters by `tenant_id` itself.
  * Every other table with a `tenant_id` must have its wall, which the role
@@ -16,4 +19,5 @@
 export const GLOBAL_TABLES_WITH_TENANT: readonly string[] = [
   'memberships',
   'api_keys',
+  'sso_domain_routes',
 ];

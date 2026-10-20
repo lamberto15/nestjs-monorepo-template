@@ -763,7 +763,10 @@ or OpenID Connect, one or more **connections** per tenant
      the queue (`oidc.metadataFetchedAt`, `oidc.metadataError`; `POST
      …/{id}/refresh` again).
    - `jitProvisioning`: a person of a verified domain who isn't a member
-     becomes one at their first sign-in (no roles). Off by default.
+     becomes one at their first sign-in, with the connection's
+     `defaultRoleIds` (none by default). Off by default.
+   - `roleMappings` and `groupsAttribute`: roles from the IdP's groups
+     (below, "Roles from the IdP").
 3. **Turn it on** (`PATCH`, `enabled: true`) and link people to
    `loginUrl` (`/v1/auth/sso/{tenantId}/{connectionId}/login`, with
    `?redirectTo=/path` of the web app). Every outcome lands on the web app:
@@ -775,10 +778,93 @@ The session records `method: sso`, `provider: <connection id>` and the
 IdP's `auth_time` or `AuthnInstant` as `authenticatedAt` (step-up reads
 them), and it acts in the connection's tenant.
 
+### Roles from the IdP
+
+A connection may give roles (all optional, set on `POST`/`PATCH
+/v1/sso/connections`):
+
+- `defaultRoleIds`: the roles a member it provisions just in time gets at
+  their first sign-in, once. Theirs to keep, as an invitation's roles.
+- `roleMappings` (`[{ group, roleId }]`) with `groupsAttribute` (the SAML
+  attribute or ID token claim listing the groups; `groups` when null, and
+  for SAML also Entra ID's `http://schemas.microsoft.com/ws/2008/06/identity/claims/groups`):
+  at **each** sign-in the person gets the roles of the groups the IdP
+  lists (compared exactly: Entra ID sends group ids), and loses those a
+  mapping of this connection gave whose group it no longer lists. Only
+  those: a role an administrator gave stays, listed or not, and a role
+  they set again (`PATCH /v1/access/users/{id}` `roleIds`) becomes theirs
+  (`sso_role_grants` marks what a mapping gave). Taking back the tenant's
+  last administrator role is skipped (audited as `keptLastAdministrator`).
+  Without group mappings nothing is synced.
+- **Who may map.** Whoever sets a mapping or a default role must be able
+  to grant that role (the access API's rule, 403 otherwise): else
+  `Access.manageSso` and an IdP of one's own would hand out any role.
+- Each change is audited (`sso.roles-synced`: `added`, `removed`), with the
+  connection; a role deleted takes its mappings with it.
+
+### SSO required
+
+`PUT /v1/sso/policy { "requireSso": true }` (`Access.manageSso`, recent
+sign-in): the tenant's members act in it only through one of its own
+connections.
+
+- **Sign-in.** A password or passkey sign-in (browser or tokens) lands in
+  the user's last chosen tenant when that tenant allows it, else in the
+  next of their tenants that does; when none does, or the token route's
+  `tenantId` doesn't, it answers **403 `sso_required`** (after the
+  credential checked out: nothing is told to a wrong password).
+- **Every request.** A session or token in the tenant not signed in
+  through one of its connections (a password, passkey, magic link or
+  Google session, an access token, a switch into the tenant) gets 403
+  `sso_required` everywhere but `GET /v1/auth/me`, signing out, `GET
+  /v1/auth/tenants`, `POST /v1/auth/tenant` and accepting an invitation
+  (`SsoRequiredGuard`, `iam/sso/sso-required.guard.ts`, after the
+  two-factor guard). Nothing is stored on the session: turning the policy
+  on restricts sessions already open, turning it off frees them. Never
+  restricted: API clients (SCIM's token included), impersonations.
+- **Break-glass.** `PUT /v1/sso/exemptions/{userId} { reason }` exempts an
+  active member: their password and passkey still sign in (when the IdP is
+  down or misconfigured), each use audited (`sso.exemption-used`). Only a
+  member with two-factor set up (409 `sso_exemption_needs_mfa`; not asked
+  with `AUTH_MFA=off`, where nobody can). `DELETE` ends it.
+- **No lockout.** Turning it on needs an enabled connection (409
+  `sso_connection_required`), and an administrator signed in through one
+  of them or exempted (409 `sso_lockout`); nobody removes their own
+  exemption while it is how they are signed in.
+- **Proof:** `test/sso-policy.e2e-spec.ts`.
+
+### Finding the connection by address
+
+`POST /v1/auth/sso/discover { "email": "…" }` (public, 10 a minute per IP
+address) answers `{ "loginUrl": "…" }`, the login URL of an enabled
+connection of the tenant that verified the address's domain, or `{
+"loginUrl": null }`. The sign-in page sends the browser there. It doesn't
+enumerate accounts: only the domain is read (never the local part, never
+the accounts), every address of a domain gets the same answer, and no
+tenant name or id is told beyond the URL the browser goes to. That a domain
+uses SSO is what its verification's DNS record publishes anyway. Several
+(two tenants verified the domain, a tenant has two connections): the
+tenant that verified it first, its oldest connection on. The lookup is
+global (`sso_domain_routes`, docs/tenancy.md), kept with the
+verification; a domain verified before it existed is added at its next
+`POST /v1/sso/domains/{id}/verify`.
+
 ### What is checked
 
 - **SAML** (@node-saml/node-saml, never a hand-written signature check):
-  only signed assertions, against the connection's certificates (RSA-SHA256);
+  the Response **and** its assertion must be signed, against the
+  connection's certificates (`wantAuthnResponseSigned`,
+  `wantAssertionsSigned`), so an encrypted assertion is authenticated
+  before it is decrypted. Then every signature, digest and encryption
+  algorithm must be on an allowlist (`iam/sso/saml-algorithms.ts`, read
+  with a namespace-aware parser): RSA or ECDSA with SHA-256/384/512,
+  SHA-2 digests, AES-CBC or AES-GCM with RSA-OAEP; SHA-1 (which xml-crypto
+  still accepts), RSA PKCS#1 v1.5 and 3DES are refused, and anything
+  unknown fails closed. Each connection has its own key pair
+  (`saml.spCertificate`, RSA-3072, five years, the key in an encrypted
+  column): it signs our AuthnRequests (HTTP-Redirect `SigAlg`/`Signature`)
+  and decrypts assertions the IdP encrypts to it, both in our metadata;
+  `requireEncryptedAssertions` refuses a plain one. Also checked:
   audience (our entity id), `NotBefore`/`NotOnOrAfter` with two minutes of
   clock skew, the assertion's age (ten minutes), and the `Issuer`. SP-
   initiated by default: `InResponseTo` must name a request **this browser**
@@ -841,17 +927,22 @@ details.
 - **Groups** are teams: a group the IdP creates is a top-level team, its
   members those of the team. Only the teams it created and the users it
   provisioned are the SCIM client's: it never reaches the teams and members
-  administrators manage. No roles are granted over SCIM.
+  administrators manage. No roles are granted over SCIM (map groups to
+  roles on the SSO connection instead). The teams it manages are
+  read-only in the app (`managedByScim` on `GET /v1/access/teams`):
+  renaming, moving, deleting one or changing its members there is a 409
+  `team_managed_by_scim`.
+- **Rate.** `/v1/scim` allows 6000 requests a minute per IP address, ten
+  times the default: an IdP's full sync comes from a handful of addresses.
+  The client's daily quota still meters it; an unknown token is throttled
+  the same.
 
 Every change is audited with the API client as actor (`scim.user-*`,
 `scim.group-*`).
 
-Not built yet (roadmap item 2): "SSO required" per tenant and its
-break-glass account, signed AuthnRequests and encrypted assertions, SAML
-metadata import by URL, default roles for just-in-time members, group to
-role mapping, deactivating an account when its last membership ends, a
-sign-in page that finds the connection by email domain, the web app's
-setup pages.
+Not built yet (roadmap item 2): SAML metadata import by URL, and
+deactivating an account when its last membership ends (an account is the
+person's own, in every tenant: an owner's decision first).
 
 ## Bot protection
 

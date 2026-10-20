@@ -6,10 +6,12 @@ import {
   pgTable,
   primaryKey,
   text,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../../core/database/columns.js';
+import { tenants } from '../../core/tenancy/tenancy.tables.js';
 import {
   encrypted,
   encryptedText,
@@ -19,7 +21,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { memberships, teams } from '../iam.tables.js';
+import { memberships, roles, teams, userRoles } from '../iam.tables.js';
 
 /**
  * A tenant's enterprise sign-in (docs/auth.md, "Enterprise SSO"): an OpenID
@@ -66,6 +68,28 @@ export const ssoConnections = pgTable(
       .default([]),
     /** Accept responses no request of ours asked for (a login-CSRF vector): opt-in. */
     allowIdpInitiated: boolean('allow_idp_initiated').notNull().default(false),
+    /**
+     * Refuse a response whose assertion isn't encrypted to our certificate
+     * (`spCertificate`). Off: an encrypted one is decrypted, a plain one
+     * accepted (both signed).
+     */
+    requireEncryptedAssertions: boolean('require_encrypted_assertions')
+      .notNull()
+      .default(false),
+    /**
+     * Our key for this connection (PEM, PKCS#8): signs the AuthnRequests and
+     * decrypts encrypted assertions. Made with the connection; encrypted
+     * (docs/encryption.md), never returned.
+     */
+    spPrivateKey: encryptedText('sp_private_key'),
+    /** Its self-signed certificate (PEM), published in our SP metadata. */
+    spCertificate: text('sp_certificate'),
+    // Both protocols
+    /**
+     * Where the IdP lists the person's groups: a SAML attribute's name or an
+     * ID token claim (`groups` when null). Read for `sso_role_mappings`.
+     */
+    groupsAttribute: text('groups_attribute'),
     ...timestamps(),
   },
   (table) => [
@@ -78,6 +102,124 @@ export const ssoConnections = pgTable(
 ).enableRLS();
 
 encrypted(ssoConnections.clientSecret);
+encrypted(ssoConnections.spPrivateKey);
+
+/**
+ * The roles a connection gives (docs/auth.md, "Roles from the IdP"): with
+ * a `group`, to whoever the IdP lists in that group at each sign-in (and
+ * taken back when it no longer does); without one, to a member it
+ * provisions just in time, once. A role deleted takes its rows with it.
+ */
+export const ssoRoleMappings = pgTable(
+  'sso_role_mappings',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    connectionId: uuid('connection_id').notNull(),
+    /** The IdP's group (or claim value), compared exactly; null: a just-in-time member's default role. */
+    group: text('group'),
+    roleId: uuid('role_id').notNull(),
+    createdAt: at('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    ...tenantTable('sso_role_mappings', table),
+    // A default role (no group) once per connection, too.
+    unique('sso_role_mappings_connection_group_role_key')
+      .on(table.connectionId, table.group, table.roleId)
+      .nullsNotDistinct(),
+    index('sso_role_mappings_role_id_idx').on(table.roleId),
+    tenantReference(
+      'sso_role_mappings_connection_fk',
+      [table.tenantId, table.connectionId],
+      [ssoConnections.tenantId, ssoConnections.id],
+    ),
+    tenantReference(
+      'sso_role_mappings_role_fk',
+      [table.tenantId, table.roleId],
+      [roles.tenantId, roles.id],
+    ),
+  ],
+).enableRLS();
+
+/**
+ * The role grants (`user_roles`) a connection's group mapping made: only
+ * these are taken back when the IdP stops listing the group. A grant an
+ * administrator made stays theirs; one they set again (PATCH the user's
+ * roles) rewrites `user_roles` and drops its row here, so it becomes theirs.
+ */
+export const ssoRoleGrants = pgTable(
+  'sso_role_grants',
+  {
+    tenantId: tenantColumn(),
+    userId: uuid('user_id').notNull(),
+    roleId: uuid('role_id').notNull(),
+    connectionId: uuid('connection_id').notNull(),
+    createdAt: at('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.roleId] }),
+    index('sso_role_grants_connection_idx').on(
+      table.connectionId,
+      table.userId,
+    ),
+    ...tenantTable('sso_role_grants', table),
+    foreignKey({
+      name: 'sso_role_grants_user_role_fk',
+      columns: [table.userId, table.roleId],
+      foreignColumns: [userRoles.userId, userRoles.roleId],
+    }).onDelete('cascade'),
+    tenantReference(
+      'sso_role_grants_connection_fk',
+      [table.tenantId, table.connectionId],
+      [ssoConnections.tenantId, ssoConnections.id],
+    ),
+  ],
+).enableRLS();
+
+/**
+ * A tenant's SSO policy (docs/auth.md, "SSO required"): one row, absent
+ * until an administrator sets it.
+ */
+export const ssoPolicies = pgTable(
+  'sso_policies',
+  {
+    tenantId: tenantColumn().primaryKey(),
+    /**
+     * Its members act in it only through one of its connections: a session
+     * signed in otherwise (password, passkey, a link, Google…) or an access
+     * token is refused there (403 `sso_required`), save the exempted.
+     */
+    requireSso: boolean('require_sso').notNull().default(false),
+    ...timestamps(),
+  },
+  (table) => [...tenantTable('sso_policies', table)],
+).enableRLS();
+
+/**
+ * The break-glass members of a tenant that requires SSO: they may still
+ * sign in with their password or passkey (when the IdP is down, or
+ * misconfigured). Each use is audited (`sso.exemption-used`).
+ */
+export const ssoExemptions = pgTable(
+  'sso_exemptions',
+  {
+    tenantId: tenantColumn(),
+    userId: uuid('user_id').notNull(),
+    /** Why (shown to the other administrators). */
+    reason: text('reason').notNull(),
+    createdBy: uuid('created_by'),
+    createdAt: at('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.tenantId, table.userId] }),
+    ...tenantTable('sso_exemptions', table),
+    foreignKey({
+      name: 'sso_exemptions_membership_fk',
+      columns: [table.tenantId, table.userId],
+      foreignColumns: [memberships.tenantId, memberships.userId],
+    }).onDelete('cascade'),
+  ],
+).enableRLS();
 
 /**
  * The email domains a tenant proved it controls (a DNS TXT record). An SSO
@@ -107,6 +249,29 @@ export const ssoDomains = pgTable(
     ),
   ],
 ).enableRLS();
+
+/**
+ * Which tenants verified an email domain: the sign-in page's lookup by
+ * address (`POST /v1/auth/sso/discover`), made before there is a tenant,
+ * so global (core/tenancy/global-tables.ts), as `memberships`. Kept with
+ * `sso_domains` in the same transactions (a verification adds the row, a
+ * removal takes it); it holds nothing `sso_domains` doesn't.
+ */
+export const ssoDomainRoutes = pgTable(
+  'sso_domain_routes',
+  {
+    domain: text('domain').notNull(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    /** When the tenant verified it: of two tenants, the first answers. */
+    createdAt: at('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.domain, table.tenantId] }),
+    index('sso_domain_routes_tenant_id_idx').on(table.tenantId),
+  ],
+);
 
 /**
  * Sign-ins through a connection under way, bound to the browser that

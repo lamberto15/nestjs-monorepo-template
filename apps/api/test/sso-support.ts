@@ -2,6 +2,7 @@ import {
   generateKeyPairSync,
   randomUUID,
   sign,
+  X509Certificate,
   type KeyObject,
 } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
@@ -10,6 +11,7 @@ import { inflateRawSync } from 'node:zlib';
 import { generate } from 'selfsigned';
 import type request from 'supertest';
 import { SignedXml } from 'xml-crypto';
+import * as xmlenc from 'xml-encryption';
 import { SsoProcessor } from '../src/iam/sso/sso.processor.js';
 import type { TxtResolver } from '../src/iam/sso/sso.queue.js';
 import type { TestApp } from './support.js';
@@ -85,30 +87,85 @@ export type SamlIdp = Awaited<ReturnType<typeof samlIdp>>;
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
-/**
- * A SAML response as an IdP posts it: the assertion signed (enveloped
- * signature, RSA-SHA256, exclusive c14n), in an unsigned Response.
- */
-export function samlResponse(
-  idp: SamlIdp,
-  options: {
-    audience: string;
-    acs: string;
-    nameId: string;
-    email?: string;
-    inResponseTo?: string;
-    assertionId?: string;
-    notOnOrAfter?: number;
-    issuer?: string;
-    signWith?: { key: string; cert: string };
-    tamper?: (signedAssertion: string) => string;
-  },
+/** What a test may vary in an IdP's response. */
+export interface SamlResponseOptions {
+  audience: string;
+  acs: string;
+  nameId: string;
+  email?: string;
+  inResponseTo?: string;
+  assertionId?: string;
+  notOnOrAfter?: number;
+  issuer?: string;
+  signWith?: { key: string; cert: string };
+  tamper?: (signedAssertion: string) => string;
+  /** More attributes (a group list: `{ groups: ['admins'] }`). */
+  attributes?: Record<string, string[]>;
+  /** Sign the Response around the assertion too (true: as the app requires). */
+  signResponse?: boolean;
+  /** Sign with RSA-SHA1 and SHA-1 digests (what the app refuses). */
+  sha1?: boolean;
+}
+
+const RSA_SHA256 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256';
+const SHA256 = 'http://www.w3.org/2001/04/xmlenc#sha256';
+const RSA_SHA1 = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
+const SHA1 = 'http://www.w3.org/2000/09/xmldsig#sha1';
+
+/** An enveloped signature (exclusive c14n) of the element `localName`, after its Issuer. */
+function signElement(
+  xml: string,
+  localName: string,
+  signer: { key: string; cert: string },
+  sha1 = false,
 ) {
+  const signature = new SignedXml({
+    privateKey: signer.key,
+    publicCert: signer.cert,
+    signatureAlgorithm: sha1 ? RSA_SHA1 : RSA_SHA256,
+    canonicalizationAlgorithm: 'http://www.w3.org/2001/10/xml-exc-c14n#',
+  });
+  signature.addReference({
+    xpath: `/*[local-name(.)='${localName}']`,
+    transforms: [
+      'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
+      'http://www.w3.org/2001/10/xml-exc-c14n#',
+    ],
+    digestAlgorithm: sha1 ? SHA1 : SHA256,
+  });
+  signature.computeSignature(xml, {
+    location: {
+      reference: `/*[local-name(.)='${localName}']/*[local-name(.)='Issuer']`,
+      action: 'after',
+    },
+  });
+  return signature.getSignedXml();
+}
+
+/** The assertion, signed as an IdP signs it (enveloped, RSA-SHA256, exclusive c14n). */
+function signedAssertion(idp: SamlIdp, options: SamlResponseOptions) {
   const now = Date.now();
   const issuer = options.issuer ?? idp.entityId;
   const notOnOrAfter = iso(options.notOnOrAfter ?? now + 5 * 60_000);
   const inResponseTo = options.inResponseTo
     ? ` InResponseTo="${options.inResponseTo}"`
+    : '';
+  const attributes = {
+    ...(options.email && { email: [options.email] }),
+    ...options.attributes,
+  };
+  const statement = Object.keys(attributes).length
+    ? `<saml:AttributeStatement>${Object.entries(attributes)
+        .map(
+          ([name, values]) =>
+            `<saml:Attribute Name="${name}">${values
+              .map(
+                (value) =>
+                  `<saml:AttributeValue>${value}</saml:AttributeValue>`,
+              )
+              .join('')}</saml:Attribute>`,
+        )
+        .join('')}</saml:AttributeStatement>`
     : '';
   const assertion =
     `<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="${options.assertionId ?? `_${randomUUID()}`}" Version="2.0" IssueInstant="${iso(now)}">` +
@@ -117,39 +174,95 @@ export function samlResponse(
     `<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"><saml:SubjectConfirmationData${inResponseTo} NotOnOrAfter="${notOnOrAfter}" Recipient="${options.acs}"/></saml:SubjectConfirmation></saml:Subject>` +
     `<saml:Conditions NotBefore="${iso(now - 60_000)}" NotOnOrAfter="${notOnOrAfter}"><saml:AudienceRestriction><saml:Audience>${options.audience}</saml:Audience></saml:AudienceRestriction></saml:Conditions>` +
     `<saml:AuthnStatement AuthnInstant="${iso(now - 1000)}" SessionIndex="_${randomUUID()}"><saml:AuthnContext><saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</saml:AuthnContextClassRef></saml:AuthnContext></saml:AuthnStatement>` +
-    (options.email
-      ? `<saml:AttributeStatement><saml:Attribute Name="email"><saml:AttributeValue>${options.email}</saml:AttributeValue></saml:Attribute></saml:AttributeStatement>`
-      : '') +
+    statement +
     `</saml:Assertion>`;
-  const signer = options.signWith ?? idp;
-  const signature = new SignedXml({
-    privateKey: signer.key,
-    publicCert: signer.cert,
-    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
-    canonicalizationAlgorithm: 'http://www.w3.org/2001/10/xml-exc-c14n#',
-  });
-  signature.addReference({
-    xpath: "//*[local-name(.)='Assertion']",
-    transforms: [
-      'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
-      'http://www.w3.org/2001/10/xml-exc-c14n#',
-    ],
-    digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
-  });
-  signature.computeSignature(assertion, {
-    location: { reference: "//*[local-name(.)='Issuer']", action: 'after' },
-  });
-  let signed = signature.getSignedXml();
+  let signed = signElement(
+    assertion,
+    'Assertion',
+    options.signWith ?? idp,
+    options.sha1,
+  );
   if (options.tamper) {
     signed = options.tamper(signed);
   }
-  const response =
-    `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_${randomUUID()}" Version="2.0" IssueInstant="${iso(now)}" Destination="${options.acs}"${inResponseTo}>` +
+  return signed;
+}
+
+/** The Response around an assertion (plain or encrypted), signed unless asked not to. */
+function wrapResponse(
+  idp: SamlIdp,
+  options: SamlResponseOptions,
+  assertion: string,
+) {
+  const issuer = options.issuer ?? idp.entityId;
+  const inResponseTo = options.inResponseTo
+    ? ` InResponseTo="${options.inResponseTo}"`
+    : '';
+  let response =
+    `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_${randomUUID()}" Version="2.0" IssueInstant="${iso(Date.now())}" Destination="${options.acs}"${inResponseTo}>` +
     `<saml:Issuer>${issuer}</saml:Issuer>` +
     `<samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>` +
-    signed +
+    assertion +
     `</samlp:Response>`;
+  if (options.signResponse ?? true) {
+    response = signElement(
+      response,
+      'Response',
+      options.signWith ?? idp,
+      options.sha1,
+    );
+  }
   return Buffer.from(response).toString('base64');
+}
+
+/**
+ * A SAML response as an IdP posts it: the assertion signed, in a Response
+ * signed too (RSA-SHA256, exclusive c14n), unless the options say not to.
+ */
+export function samlResponse(idp: SamlIdp, options: SamlResponseOptions) {
+  return wrapResponse(idp, options, signedAssertion(idp, options));
+}
+
+/**
+ * The same with the signed assertion encrypted to our certificate (the
+ * connection's `saml.spCertificate.pem`): AES-256-GCM, its key by RSA-OAEP.
+ */
+export async function encryptedSamlResponse(
+  idp: SamlIdp,
+  options: SamlResponseOptions,
+  spCertificate: string,
+  algorithms: {
+    encryptionAlgorithm?: xmlenc.EncryptionAlgorithm;
+    keyEncryptionAlgorithm?: xmlenc.KeyEncryptionAlgorithm;
+  } = {},
+) {
+  const encrypted = await new Promise<string>((resolve, reject) =>
+    xmlenc.encrypt(
+      signedAssertion(idp, options),
+      {
+        rsa_pub: new X509Certificate(spCertificate).publicKey.export({
+          type: 'spki',
+          format: 'pem',
+        }),
+        pem: spCertificate,
+        encryptionAlgorithm:
+          algorithms.encryptionAlgorithm ??
+          'http://www.w3.org/2009/xmlenc11#aes256-gcm',
+        keyEncryptionAlgorithm:
+          algorithms.keyEncryptionAlgorithm ??
+          'http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p',
+        // A test may encrypt as a weak IdP does, to see it refused.
+        disallowEncryptionWithInsecureAlgorithm: false,
+        warnInsecureAlgorithm: false,
+      },
+      (error, result) => (error ? reject(error) : resolve(result)),
+    ),
+  );
+  return wrapResponse(
+    idp,
+    options,
+    `<saml:EncryptedAssertion>${encrypted}</saml:EncryptedAssertion>`,
+  );
 }
 
 /** The AuthnRequest's ID in a redirect to the IdP (HTTP-Redirect binding: deflated, base64). */

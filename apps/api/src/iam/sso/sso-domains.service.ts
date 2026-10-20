@@ -24,7 +24,7 @@ import {
   type SsoJob,
   type TxtResolver,
 } from './sso.queue.js';
-import { ssoDomains } from './sso.tables.js';
+import { ssoDomainRoutes, ssoDomains } from './sso.tables.js';
 
 /** Where the TXT record goes, under the domain. */
 export const VERIFICATION_RECORD = '_sso-verification';
@@ -111,6 +111,15 @@ export class SsoDomainsService {
       if (!row) {
         throw notFound(id);
       }
+      // Global: filtered by the tenant here (no row-level security).
+      await tx
+        .delete(ssoDomainRoutes)
+        .where(
+          and(
+            eq(ssoDomainRoutes.domain, row.domain),
+            eq(ssoDomainRoutes.tenantId, row.tenantId),
+          ),
+        );
       await this.audit.record(
         actor,
         {
@@ -172,6 +181,13 @@ export class SsoDomainsService {
           ...(found && !row.verifiedAt && { verifiedAt: now }),
         })
         .where(eq(ssoDomains.id, id));
+      if (found) {
+        // The sign-in page's lookup (global; kept with the verification).
+        await tx
+          .insert(ssoDomainRoutes)
+          .values({ domain: row.domain, tenantId: row.tenantId })
+          .onConflictDoNothing();
+      }
       if (found && !row.verifiedAt) {
         await this.audit.record(
           actor,

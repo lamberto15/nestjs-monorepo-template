@@ -33,9 +33,10 @@ import { UsersRepository } from '../auth/users.repository.js';
 import { userIdentities, users } from '../iam.tables.js';
 import {
   authenticationOf,
-  signInOptions,
+  methodMetadata,
   tokenClaims,
 } from '../auth/authentication-method.js';
+import { SsoPolicyService } from '../sso/sso-policy.service.js';
 import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
 import { AuthPolicyService } from '../auth/auth-policy.service.js';
@@ -98,6 +99,7 @@ export class AccountService {
     private readonly tenancy: Tenancy,
     private readonly signUpTenant: SignUpTenant,
     private readonly authPolicy: AuthPolicyService,
+    private readonly ssoPolicy: SsoPolicyService,
   ) {}
 
   /** A new account with a password (not one found in data breaches), audited. */
@@ -245,10 +247,19 @@ export class AccountService {
     context: { ip: string; userAgent: string | undefined },
   ) {
     const user = await this.credentials.verify(email, password, context.ip);
-    const issued = await this.signInService.signIn(
-      user.id,
-      signInOptions('password'),
+    // A tenant that lets a password in ("SSO required": 403 when none does).
+    const tenantId = await this.ssoPolicy.signInTenant(
+      user,
+      'password',
+      context.ip,
     );
+    const issued = await this.signInService.signIn(user.id, {
+      method: 'password',
+      metadata: {
+        ...methodMetadata('password'),
+        ...(tenantId && { tenantId }),
+      },
+    });
     await this.securityAlerts.signedIn(user, {
       ...context,
       method: 'password',
@@ -275,7 +286,7 @@ export class AccountService {
     // else the last chosen (docs/tenancy.md).
     const tenant =
       tenantId === undefined
-        ? await this.users.defaultTenant(user.id)
+        ? await this.ssoPolicy.signInTenant(user, 'password', context.ip)
         : (await this.users.isMember(user.id, tenantId))
           ? tenantId
           : null;
@@ -286,6 +297,15 @@ export class AccountService {
         tenantId,
       });
       throw new UnauthorizedException(t('auth.invalidCredentials'));
+    }
+    if (tenantId !== undefined && tenant) {
+      // "SSO required": 403 when that tenant doesn't let a password in.
+      await this.ssoPolicy.assertSignInTenant(
+        user,
+        tenant,
+        'password',
+        context.ip,
+      );
     }
     const tokens = await this.tokens.issue(user.id, {
       method: 'password',

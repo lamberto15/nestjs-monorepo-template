@@ -3582,6 +3582,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sso/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the tenant requires SSO, and who is exempted */
+        get: operations["SsoController_getPolicy_v1"];
+        /**
+         * Require SSO (or stop): members sign in only through a connection
+         * @description Turning it on needs an enabled connection, and you signed in through one of them or exempted (else 409 `sso_lockout`: you would lock yourself out). It applies to sessions already open at their next request.
+         */
+        put: operations["SsoController_setPolicy_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sso/exemptions/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Exempt a member from "SSO required" (break-glass): their password and passkey still sign in
+         * @description For an emergency administrator, when the IdP is down or misconfigured. Each sign-in it allows is audited (`sso.exemption-used`). Give it to few, with two-factor on.
+         */
+        put: operations["SsoController_exempt_v1"];
+        post?: never;
+        /** End an exemption */
+        delete: operations["SsoController_removeExemption_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sso/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The SSO login URL for an address's domain, if it has one */
+        post: operations["SsoDiscoveryController_discover_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/sso/{tenantId}/{connectionId}/login": {
         parameters: {
             query?: never;
@@ -20265,6 +20324,8 @@ export interface operations {
                             /** @description 0 for a top-level team. */
                             depth: number;
                             members: number;
+                            /** @description Always sent. The IdP manages it over SCIM: its name, place and members change there (409 `team_managed_by_scim` here). */
+                            managedByScim?: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -20338,7 +20399,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description It still has teams under it, or members. */
+            /** @description It still has teams under it, or members; or `team_managed_by_scim`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -20388,6 +20449,13 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `team_managed_by_scim`: the IdP manages it. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -21086,6 +21154,14 @@ export interface operations {
                             protocol: "oidc" | "saml";
                             enabled: boolean;
                             jitProvisioning: boolean;
+                            groupsAttribute: string | null;
+                            roleMappings: {
+                                /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                                group: string;
+                                /** Format: uuid */
+                                roleId: string;
+                            }[];
+                            defaultRoleIds: string[];
                             /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                             loginUrl: string;
                             oidc: {
@@ -21107,6 +21183,15 @@ export interface operations {
                                     fingerprint256: string;
                                 }[];
                                 allowIdpInitiated: boolean;
+                                requireEncryptedAssertions: boolean;
+                                /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
+                                spCertificate: {
+                                    pem: string;
+                                    subject: string;
+                                    /** Format: date-time */
+                                    notAfter: string;
+                                    fingerprint256: string;
+                                } | null;
                                 /** @description Our entity id (the metadata's URL): the assertions' audience. */
                                 spEntityId: string;
                                 /** @description The assertion consumer service URL to register at the IdP. */
@@ -21137,6 +21222,17 @@ export interface operations {
                     /** @enum {string} */
                     protocol: "oidc";
                     name: string;
+                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. */
+                    groupsAttribute?: string | null;
+                    /** @description The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role. */
+                    roleMappings?: {
+                        /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                        group: string;
+                        /** Format: uuid */
+                        roleId: string;
+                    }[];
+                    /** @description The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each. */
+                    defaultRoleIds?: string[];
                     /** @description Off by default: the connection signs nobody in until on. */
                     enabled?: boolean;
                     /** @description A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default. */
@@ -21153,6 +21249,17 @@ export interface operations {
                     /** @enum {string} */
                     protocol: "saml";
                     name: string;
+                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. */
+                    groupsAttribute?: string | null;
+                    /** @description The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role. */
+                    roleMappings?: {
+                        /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                        group: string;
+                        /** Format: uuid */
+                        roleId: string;
+                    }[];
+                    /** @description The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each. */
+                    defaultRoleIds?: string[];
                     /** @description Off by default: the connection signs nobody in until on. */
                     enabled?: boolean;
                     /** @description A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default. */
@@ -21168,6 +21275,8 @@ export interface operations {
                     idpCertificates: string[];
                     /** @description Accept sign-ins the IdP starts (no request of ours): a login-CSRF vector, off by default. */
                     allowIdpInitiated?: boolean;
+                    /** @description Refuse an assertion not encrypted to `saml.spCertificate`. Off by default: an encrypted one is decrypted, a plain one accepted (both must be signed). */
+                    requireEncryptedAssertions?: boolean;
                 };
             };
         };
@@ -21185,6 +21294,14 @@ export interface operations {
                         protocol: "oidc" | "saml";
                         enabled: boolean;
                         jitProvisioning: boolean;
+                        groupsAttribute: string | null;
+                        roleMappings: {
+                            /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                            group: string;
+                            /** Format: uuid */
+                            roleId: string;
+                        }[];
+                        defaultRoleIds: string[];
                         /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                         loginUrl: string;
                         oidc: {
@@ -21206,6 +21323,15 @@ export interface operations {
                                 fingerprint256: string;
                             }[];
                             allowIdpInitiated: boolean;
+                            requireEncryptedAssertions: boolean;
+                            /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
+                            spCertificate: {
+                                pem: string;
+                                subject: string;
+                                /** Format: date-time */
+                                notAfter: string;
+                                fingerprint256: string;
+                            } | null;
                             /** @description Our entity id (the metadata's URL): the assertions' audience. */
                             spEntityId: string;
                             /** @description The assertion consumer service URL to register at the IdP. */
@@ -21260,6 +21386,14 @@ export interface operations {
                         protocol: "oidc" | "saml";
                         enabled: boolean;
                         jitProvisioning: boolean;
+                        groupsAttribute: string | null;
+                        roleMappings: {
+                            /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                            group: string;
+                            /** Format: uuid */
+                            roleId: string;
+                        }[];
+                        defaultRoleIds: string[];
                         /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                         loginUrl: string;
                         oidc: {
@@ -21281,6 +21415,15 @@ export interface operations {
                                 fingerprint256: string;
                             }[];
                             allowIdpInitiated: boolean;
+                            requireEncryptedAssertions: boolean;
+                            /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
+                            spCertificate: {
+                                pem: string;
+                                subject: string;
+                                /** Format: date-time */
+                                notAfter: string;
+                                fingerprint256: string;
+                            } | null;
                             /** @description Our entity id (the metadata's URL): the assertions' audience. */
                             spEntityId: string;
                             /** @description The assertion consumer service URL to register at the IdP. */
@@ -21368,6 +21511,18 @@ export interface operations {
                     /** @description The IdP's signing certificates: one, or two while it rotates. Only signed assertions are accepted. */
                     idpCertificates?: string[];
                     allowIdpInitiated?: boolean;
+                    requireEncryptedAssertions?: boolean;
+                    /** @description Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. */
+                    groupsAttribute?: string | null;
+                    /** @description The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role. */
+                    roleMappings?: {
+                        /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                        group: string;
+                        /** Format: uuid */
+                        roleId: string;
+                    }[];
+                    /** @description The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each. */
+                    defaultRoleIds?: string[];
                 };
             };
         };
@@ -21385,6 +21540,14 @@ export interface operations {
                         protocol: "oidc" | "saml";
                         enabled: boolean;
                         jitProvisioning: boolean;
+                        groupsAttribute: string | null;
+                        roleMappings: {
+                            /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
+                            group: string;
+                            /** Format: uuid */
+                            roleId: string;
+                        }[];
+                        defaultRoleIds: string[];
                         /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                         loginUrl: string;
                         oidc: {
@@ -21406,6 +21569,15 @@ export interface operations {
                                 fingerprint256: string;
                             }[];
                             allowIdpInitiated: boolean;
+                            requireEncryptedAssertions: boolean;
+                            /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
+                            spCertificate: {
+                                pem: string;
+                                subject: string;
+                                /** Format: date-time */
+                                notAfter: string;
+                                fingerprint256: string;
+                            } | null;
                             /** @description Our entity id (the metadata's URL): the assertions' audience. */
                             spEntityId: string;
                             /** @description The assertion consumer service URL to register at the IdP. */
@@ -21622,6 +21794,227 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    SsoController_getPolicy_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted). */
+                        requireSso: boolean;
+                        /** Format: date-time */
+                        updatedAt: string | null;
+                        /** @description Break-glass members: their password and passkey still sign in here (each use audited, `sso.exemption-used`). */
+                        exemptions: {
+                            /** Format: uuid */
+                            userId: string;
+                            email: string;
+                            name: string;
+                            reason: string;
+                            /** Format: uuid */
+                            createdBy: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    SsoController_setPolicy_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted). */
+                    requireSso: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted). */
+                        requireSso: boolean;
+                        /** Format: date-time */
+                        updatedAt: string | null;
+                        /** @description Break-glass members: their password and passkey still sign in here (each use audited, `sso.exemption-used`). */
+                        exemptions: {
+                            /** Format: uuid */
+                            userId: string;
+                            email: string;
+                            name: string;
+                            reason: string;
+                            /** Format: uuid */
+                            createdBy: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `sso_connection_required`, `sso_lockout`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_exempt_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Why (an emergency administrator, the IdP outage plan). */
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted). */
+                        requireSso: boolean;
+                        /** Format: date-time */
+                        updatedAt: string | null;
+                        /** @description Break-glass members: their password and passkey still sign in here (each use audited, `sso.exemption-used`). */
+                        exemptions: {
+                            /** Format: uuid */
+                            userId: string;
+                            email: string;
+                            name: string;
+                            reason: string;
+                            /** Format: uuid */
+                            createdBy: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an active member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_removeExemption_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not exempted. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `sso_lockout`: your own, while it is how you are signed in. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoDiscoveryController_discover_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description What the person typed: only its domain is used. */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Navigate the browser here (add `?redirectTo=` a path of the web app). Null: sign in another way. The same for every address of a domain, whether it has an account or not. */
+                        loginUrl: string | null;
+                    };
+                };
             };
         };
     };

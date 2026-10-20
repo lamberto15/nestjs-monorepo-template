@@ -36,6 +36,14 @@ const teamSchema = z.object({
   parentId: z.uuid().nullable(),
   depth: z.number().int().describe('0 for a top-level team.'),
   members: z.number().int(),
+  // Optional in the schema only: always sent, but frontends' fixtures typed
+  // before it (apps/web's) still compile.
+  managedByScim: z
+    .boolean()
+    .optional()
+    .describe(
+      'Always sent. The IdP manages it over SCIM: its name, place and members change there (409 `team_managed_by_scim` here).',
+    ),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -82,7 +90,11 @@ export class TeamsController {
   @Can(AccessPolicy, 'manageTeams')
   @ApiOperation({ summary: 'Create a team' })
   @ApiCreatedResponse({
-    standardSchema: teamSchema.omit({ depth: true, members: true }),
+    standardSchema: teamSchema.omit({
+      depth: true,
+      members: true,
+      managedByScim: true,
+    }),
   })
   create(
     @CurrentUser() user: UserPrincipal,
@@ -98,9 +110,16 @@ export class TeamsController {
     summary: 'Rename a team, or move it with everything under it',
   })
   @ApiOkResponse({
-    standardSchema: teamSchema.omit({ depth: true, members: true }),
+    standardSchema: teamSchema.omit({
+      depth: true,
+      members: true,
+      managedByScim: true,
+    }),
   })
   @ApiNotFoundResponse()
+  @ApiConflictResponse({
+    description: '`team_managed_by_scim`: the IdP manages it.',
+  })
   update(
     @CurrentUser() user: UserPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
@@ -117,7 +136,8 @@ export class TeamsController {
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
   @ApiConflictResponse({
-    description: 'It still has teams under it, or members.',
+    description:
+      'It still has teams under it, or members; or `team_managed_by_scim`.',
   })
   async remove(
     @CurrentUser() user: UserPrincipal,

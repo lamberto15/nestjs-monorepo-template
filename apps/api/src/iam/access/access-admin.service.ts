@@ -685,7 +685,12 @@ export class AccessAdminService {
     return valid;
   }
 
-  private async checkRoleGrant(
+  /**
+   * The roles exist in this tenant (400 otherwise) and the actor may grant
+   * each (403). Also SSO's (iam/sso): who maps an IdP group to a role must
+   * be able to grant it, or the mapping would hand it out for them.
+   */
+  async checkRoleGrant(
     actor: UserPrincipal | SystemPrincipal,
     roleIds: string[],
   ) {

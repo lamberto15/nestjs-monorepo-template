@@ -110,6 +110,7 @@ import { JwtAuth } from './auth/jwt-auth.provider.js';
 import { PrincipalGuard } from './auth/principal.guard.js';
 import { AuthPolicyService } from './auth/auth-policy.service.js';
 import { MfaEnrollmentGuard } from './auth/mfa-enrollment.guard.js';
+import { SsoRequiredGuard } from './sso/sso-required.guard.js';
 import { SessionAuth } from './auth/session-auth.provider.js';
 import { UsersRepository } from './auth/users.repository.js';
 import type { IamEnv } from './iam.env.js';
@@ -327,6 +328,8 @@ export class IamModule {
         // two-factor of, without one, reaches only the enrollment routes
         // (auth.requireMfa, docs/auth.md "Policies").
         { provide: APP_GUARD, useClass: MfaEnrollmentGuard },
+        // After it: "SSO required" (docs/auth.md), on the same principal.
+        { provide: APP_GUARD, useClass: SsoRequiredGuard },
         // The auth policies: the platform's settings (AUTH_POLICY) under the env's ceiling.
         AuthPolicyService,
         // Authentication: the credential providers and the store of everything they keep.

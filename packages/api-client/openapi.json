@@ -35151,6 +35151,10 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
                           },
+                          "managedByScim": {
+                            "description": "Always sent. The IdP manages it over SCIM: its name, place and members change there (409 `team_managed_by_scim` here).",
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -35371,6 +35375,9 @@
           },
           "404": {
             "description": ""
+          },
+          "409": {
+            "description": "`team_managed_by_scim`: the IdP manages it."
           }
         },
         "security": [
@@ -35406,7 +35413,7 @@
             "description": ""
           },
           "409": {
-            "description": "It still has teams under it, or members."
+            "description": "It still has teams under it, or members; or `team_managed_by_scim`."
           }
         },
         "security": [
@@ -36821,6 +36828,42 @@
                           "jitProvisioning": {
                             "type": "boolean"
                           },
+                          "groupsAttribute": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "roleMappings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "group": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 256,
+                                  "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                                },
+                                "roleId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                }
+                              },
+                              "required": [
+                                "group",
+                                "roleId"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "defaultRoleIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          },
                           "loginUrl": {
                             "type": "string",
                             "description": "Where the browser starts a sign-in (`?redirectTo=` a path of the web app)."
@@ -36897,6 +36940,37 @@
                               "allowIdpInitiated": {
                                 "type": "boolean"
                               },
+                              "requireEncryptedAssertions": {
+                                "type": "boolean"
+                              },
+                              "spCertificate": {
+                                "nullable": true,
+                                "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                                "type": "object",
+                                "properties": {
+                                  "pem": {
+                                    "type": "string"
+                                  },
+                                  "subject": {
+                                    "type": "string"
+                                  },
+                                  "notAfter": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "fingerprint256": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "pem",
+                                  "subject",
+                                  "notAfter",
+                                  "fingerprint256"
+                                ],
+                                "additionalProperties": false
+                              },
                               "spEntityId": {
                                 "type": "string",
                                 "description": "Our entity id (the metadata's URL): the assertions' audience."
@@ -36915,6 +36989,8 @@
                               "idpSsoUrl",
                               "idpCertificates",
                               "allowIdpInitiated",
+                              "requireEncryptedAssertions",
+                              "spCertificate",
                               "spEntityId",
                               "acsUrl",
                               "metadataUrl"
@@ -36938,6 +37014,9 @@
                           "protocol",
                           "enabled",
                           "jitProvisioning",
+                          "groupsAttribute",
+                          "roleMappings",
+                          "defaultRoleIds",
                           "loginUrl",
                           "oidc",
                           "saml",
@@ -36994,6 +37073,48 @@
                         "minLength": 1,
                         "maxLength": 120
                       },
+                      "groupsAttribute": {
+                        "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.",
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "roleMappings": {
+                        "description": "The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role.",
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                            },
+                            "roleId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "roleId"
+                          ]
+                        }
+                      },
+                      "defaultRoleIds": {
+                        "description": "The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each.",
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
                       "enabled": {
                         "description": "Off by default: the connection signs nobody in until on.",
                         "type": "boolean"
@@ -37042,6 +37163,48 @@
                         "minLength": 1,
                         "maxLength": 120
                       },
+                      "groupsAttribute": {
+                        "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.",
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "roleMappings": {
+                        "description": "The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role.",
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                            },
+                            "roleId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "roleId"
+                          ]
+                        }
+                      },
+                      "defaultRoleIds": {
+                        "description": "The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each.",
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
                       "enabled": {
                         "description": "Off by default: the connection signs nobody in until on.",
                         "type": "boolean"
@@ -37075,6 +37238,10 @@
                       },
                       "allowIdpInitiated": {
                         "description": "Accept sign-ins the IdP starts (no request of ours): a login-CSRF vector, off by default.",
+                        "type": "boolean"
+                      },
+                      "requireEncryptedAssertions": {
+                        "description": "Refuse an assertion not encrypted to `saml.spCertificate`. Off by default: an encrypted one is decrypted, a plain one accepted (both must be signed).",
                         "type": "boolean"
                       }
                     },
@@ -37119,6 +37286,42 @@
                     },
                     "jitProvisioning": {
                       "type": "boolean"
+                    },
+                    "groupsAttribute": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "roleMappings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "group": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                          },
+                          "roleId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "group",
+                          "roleId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "defaultRoleIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
                     },
                     "loginUrl": {
                       "type": "string",
@@ -37196,6 +37399,37 @@
                         "allowIdpInitiated": {
                           "type": "boolean"
                         },
+                        "requireEncryptedAssertions": {
+                          "type": "boolean"
+                        },
+                        "spCertificate": {
+                          "nullable": true,
+                          "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                          "type": "object",
+                          "properties": {
+                            "pem": {
+                              "type": "string"
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "notAfter": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "fingerprint256": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "pem",
+                            "subject",
+                            "notAfter",
+                            "fingerprint256"
+                          ],
+                          "additionalProperties": false
+                        },
                         "spEntityId": {
                           "type": "string",
                           "description": "Our entity id (the metadata's URL): the assertions' audience."
@@ -37214,6 +37448,8 @@
                         "idpSsoUrl",
                         "idpCertificates",
                         "allowIdpInitiated",
+                        "requireEncryptedAssertions",
+                        "spCertificate",
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
@@ -37237,6 +37473,9 @@
                     "protocol",
                     "enabled",
                     "jitProvisioning",
+                    "groupsAttribute",
+                    "roleMappings",
+                    "defaultRoleIds",
                     "loginUrl",
                     "oidc",
                     "saml",
@@ -37311,6 +37550,42 @@
                     "jitProvisioning": {
                       "type": "boolean"
                     },
+                    "groupsAttribute": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "roleMappings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "group": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                          },
+                          "roleId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "group",
+                          "roleId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "defaultRoleIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
                     "loginUrl": {
                       "type": "string",
                       "description": "Where the browser starts a sign-in (`?redirectTo=` a path of the web app)."
@@ -37387,6 +37662,37 @@
                         "allowIdpInitiated": {
                           "type": "boolean"
                         },
+                        "requireEncryptedAssertions": {
+                          "type": "boolean"
+                        },
+                        "spCertificate": {
+                          "nullable": true,
+                          "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                          "type": "object",
+                          "properties": {
+                            "pem": {
+                              "type": "string"
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "notAfter": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "fingerprint256": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "pem",
+                            "subject",
+                            "notAfter",
+                            "fingerprint256"
+                          ],
+                          "additionalProperties": false
+                        },
                         "spEntityId": {
                           "type": "string",
                           "description": "Our entity id (the metadata's URL): the assertions' audience."
@@ -37405,6 +37711,8 @@
                         "idpSsoUrl",
                         "idpCertificates",
                         "allowIdpInitiated",
+                        "requireEncryptedAssertions",
+                        "spCertificate",
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
@@ -37428,6 +37736,9 @@
                     "protocol",
                     "enabled",
                     "jitProvisioning",
+                    "groupsAttribute",
+                    "roleMappings",
+                    "defaultRoleIds",
                     "loginUrl",
                     "oidc",
                     "saml",
@@ -37528,6 +37839,51 @@
                   },
                   "allowIdpInitiated": {
                     "type": "boolean"
+                  },
+                  "requireEncryptedAssertions": {
+                    "type": "boolean"
+                  },
+                  "groupsAttribute": {
+                    "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.",
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "roleMappings": {
+                    "description": "The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "group": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                        },
+                        "roleId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
+                      "required": [
+                        "group",
+                        "roleId"
+                      ]
+                    }
+                  },
+                  "defaultRoleIds": {
+                    "description": "The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each.",
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
                   }
                 }
               }
@@ -37562,6 +37918,42 @@
                     },
                     "jitProvisioning": {
                       "type": "boolean"
+                    },
+                    "groupsAttribute": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "roleMappings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "group": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                          },
+                          "roleId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "group",
+                          "roleId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "defaultRoleIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
                     },
                     "loginUrl": {
                       "type": "string",
@@ -37639,6 +38031,37 @@
                         "allowIdpInitiated": {
                           "type": "boolean"
                         },
+                        "requireEncryptedAssertions": {
+                          "type": "boolean"
+                        },
+                        "spCertificate": {
+                          "nullable": true,
+                          "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                          "type": "object",
+                          "properties": {
+                            "pem": {
+                              "type": "string"
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "notAfter": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "fingerprint256": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "pem",
+                            "subject",
+                            "notAfter",
+                            "fingerprint256"
+                          ],
+                          "additionalProperties": false
+                        },
                         "spEntityId": {
                           "type": "string",
                           "description": "Our entity id (the metadata's URL): the assertions' audience."
@@ -37657,6 +38080,8 @@
                         "idpSsoUrl",
                         "idpCertificates",
                         "allowIdpInitiated",
+                        "requireEncryptedAssertions",
+                        "spCertificate",
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
@@ -37680,6 +38105,9 @@
                     "protocol",
                     "enabled",
                     "jitProvisioning",
+                    "groupsAttribute",
+                    "roleMappings",
+                    "defaultRoleIds",
                     "loginUrl",
                     "oidc",
                     "saml",
@@ -38125,6 +38553,432 @@
         "summary": "Remove a domain: its addresses no longer sign in or provision",
         "tags": [
           "sso"
+        ]
+      }
+    },
+    "/v1/sso/policy": {
+      "get": {
+        "operationId": "SsoController_getPolicy_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requireSso": {
+                      "type": "boolean",
+                      "description": "Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted)."
+                    },
+                    "updatedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "exemptions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "createdBy": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "email",
+                          "name",
+                          "reason",
+                          "createdBy",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Break-glass members: their password and passkey still sign in here (each use audited, `sso.exemption-used`)."
+                    }
+                  },
+                  "required": [
+                    "requireSso",
+                    "updatedAt",
+                    "exemptions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Whether the tenant requires SSO, and who is exempted",
+        "tags": [
+          "sso"
+        ]
+      },
+      "put": {
+        "description": "Turning it on needs an enabled connection, and you signed in through one of them or exempted (else 409 `sso_lockout`: you would lock yourself out). It applies to sessions already open at their next request.",
+        "operationId": "SsoController_setPolicy_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "requireSso": {
+                    "type": "boolean",
+                    "description": "Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted)."
+                  }
+                },
+                "required": [
+                  "requireSso"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requireSso": {
+                      "type": "boolean",
+                      "description": "Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted)."
+                    },
+                    "updatedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "exemptions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "createdBy": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "email",
+                          "name",
+                          "reason",
+                          "createdBy",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Break-glass members: their password and passkey still sign in here (each use audited, `sso.exemption-used`)."
+                    }
+                  },
+                  "required": [
+                    "requireSso",
+                    "updatedAt",
+                    "exemptions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "409": {
+            "description": "`sso_connection_required`, `sso_lockout`."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Require SSO (or stop): members sign in only through a connection",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/sso/exemptions/{userId}": {
+      "put": {
+        "description": "For an emergency administrator, when the IdP is down or misconfigured. Each sign-in it allows is audited (`sso.exemption-used`). Give it to few, with two-factor on.",
+        "operationId": "SsoController_exempt_v1",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "description": "Why (an emergency administrator, the IdP outage plan)."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requireSso": {
+                      "type": "boolean",
+                      "description": "Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted)."
+                    },
+                    "updatedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "exemptions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "createdBy": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "email",
+                          "name",
+                          "reason",
+                          "createdBy",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Break-glass members: their password and passkey still sign in here (each use audited, `sso.exemption-used`)."
+                    }
+                  },
+                  "required": [
+                    "requireSso",
+                    "updatedAt",
+                    "exemptions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "Not an active member."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Exempt a member from \"SSO required\" (break-glass): their password and passkey still sign in",
+        "tags": [
+          "sso"
+        ]
+      },
+      "delete": {
+        "operationId": "SsoController_removeExemption_v1",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "Not exempted."
+          },
+          "409": {
+            "description": "`sso_lockout`: your own, while it is how you are signed in."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "End an exemption",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/v1/auth/sso/discover": {
+      "post": {
+        "operationId": "SsoDiscoveryController_discover_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "description": "What the person typed: only its domain is used."
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "loginUrl": {
+                      "nullable": true,
+                      "description": "Navigate the browser here (add `?redirectTo=` a path of the web app). Null: sign in another way. The same for every address of a domain, whether it has an account or not.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "loginUrl"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "The SSO login URL for an address's domain, if it has one",
+        "tags": [
+          "auth"
         ]
       }
     },

@@ -18,6 +18,7 @@ is a tenant. A way one customer organizes itself is a group.
 | `users` | global | one account per address, in every tenant it belongs to |
 | `memberships` | global, with `tenant_id` | which tenants a user belongs to, `active`, `selected_at` |
 | `api_keys` | global, with `tenant_id` | keys are looked up by id before the tenant is known |
+| `sso_domain_routes` | global, with `tenant_id` | which tenants verified an email domain: the sign-in page finds an address's SSO connection before there is a tenant (docs/auth.md) |
 | `sessions`, `refresh_tokens`, two-factor, links | global | the person's; a session's tenant is `metadata.tenantId` |
 | `notification_preferences`, `consents`, `account_deletions` | global | the person's |
 | `idempotency_keys`, `locks`, `app_secrets`, `exchange_rates`, `mail_*`, `webhook_delivery_requests` | global | infrastructure (an idempotency key carries the tenant; a delivery's request is read only after its tenant-scoped delivery) |

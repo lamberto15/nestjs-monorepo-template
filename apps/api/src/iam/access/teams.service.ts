@@ -16,7 +16,15 @@ import { Tree, TreeCycleError } from '../../core/database/tree.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { SystemPrincipal, UserPrincipal } from '../auth/principal.js';
 import { teamTree, teams, userTeams } from '../iam.tables.js';
+import { scimGroups } from '../sso/sso.tables.js';
 import { AccessService } from './access.service.js';
+
+/** The 409 of a change to a team the tenant's IdP manages over SCIM. */
+const managedByScim = (what: string) =>
+  new ConflictException({
+    code: 'team_managed_by_scim',
+    message: `${what}: the identity provider manages this team over SCIM. Change it there.`,
+  });
 
 /**
  * The organization's teams, in a tree kept by a closure table: create,
@@ -41,7 +49,7 @@ export class TeamsService {
 
   /** Every team, with its parent and depth, top-level first. */
   async list() {
-    const [rows, depths, members] = await Promise.all([
+    const [rows, depths, members, managed] = await Promise.all([
       this.db.select().from(teams).orderBy(asc(teams.name)),
       this.db
         .select({ id: teamTree.descendantId, depth: count() })
@@ -51,13 +59,16 @@ export class TeamsService {
         .select({ id: userTeams.teamId, members: count() })
         .from(userTeams)
         .groupBy(userTeams.teamId),
+      this.db.select({ id: scimGroups.teamId }).from(scimGroups),
     ]);
+    const scim = new Set(managed.map((row) => row.id));
     return rows
       .map((team) => ({
         ...team,
         // A team is its own ancestor: the count of its ancestors, minus one.
         depth: (depths.find((row) => row.id === team.id)?.depth ?? 1) - 1,
         members: members.find((row) => row.id === team.id)?.members ?? 0,
+        managedByScim: scim.has(team.id),
       }))
       .sort((a, b) => a.depth - b.depth);
   }
@@ -103,6 +114,9 @@ export class TeamsService {
   ) {
     const team = await inTransaction(this.txHost, async (tx) => {
       const before = await this.find(tx, id);
+      if ((await this.scimManaged(tx, [id])).size > 0) {
+        throw managedByScim('Not renamed or moved');
+      }
       if (
         changes.parentId !== undefined &&
         changes.parentId !== before.parentId
@@ -157,6 +171,9 @@ export class TeamsService {
   async remove(actor: UserPrincipal, id: string, ip?: string) {
     await inTransaction(this.txHost, async (tx) => {
       const team = await this.find(tx, id);
+      if ((await this.scimManaged(tx, [id])).size > 0) {
+        throw managedByScim('Not deleted');
+      }
       const [{ children }] = await tx
         .select({ children: count() })
         .from(teams)
@@ -195,7 +212,12 @@ export class TeamsService {
     return rows.map((row) => row.id);
   }
 
-  /** Replaces a user's teams (in the change's transaction); the caller invalidates abilities. */
+  /**
+   * Replaces a user's teams (in the change's transaction); the caller
+   * invalidates abilities. A team the IdP manages over SCIM keeps its
+   * members as SCIM left them: sending one more, or one fewer, is a 409
+   * `team_managed_by_scim`.
+   */
   async setUserTeams(tx: Transaction, userId: string, teamIds: string[]) {
     const unique = [...new Set(teamIds)];
     if (unique.length) {
@@ -207,12 +229,32 @@ export class TeamsService {
         throw new BadRequestException('Unknown team.');
       }
     }
+    const current = await this.teamsOf(userId, tx);
+    const changed = [
+      ...unique.filter((id) => !current.includes(id)),
+      ...current.filter((id) => !unique.includes(id)),
+    ];
+    if ((await this.scimManaged(tx, changed)).size > 0) {
+      throw managedByScim('Members not changed');
+    }
     await tx.delete(userTeams).where(eq(userTeams.userId, userId));
     if (unique.length) {
       await tx
         .insert(userTeams)
         .values(unique.map((teamId) => ({ userId, teamId })));
     }
+  }
+
+  /** Those of these teams the tenant's IdP manages over SCIM (iam/sso/scim). */
+  private async scimManaged(db: Database | Transaction, ids: string[]) {
+    if (ids.length === 0) {
+      return new Set<string>();
+    }
+    const rows = await db
+      .select({ id: scimGroups.teamId })
+      .from(scimGroups)
+      .where(inArray(scimGroups.teamId, ids));
+    return new Set(rows.map((row) => row.id));
   }
 
   /** Refuses ids that aren't this tenant's teams (400). */

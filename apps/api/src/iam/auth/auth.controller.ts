@@ -69,6 +69,7 @@ import { DuringMfaEnrollment } from './mfa-enrollment.guard.js';
 import { AuthPolicyService } from './auth-policy.service.js';
 import { SignUpTenant } from '../access/sign-up-tenant.js';
 import { UsersRepository } from './users.repository.js';
+import { WithoutSso } from '../sso/sso-required.guard.js';
 
 const signInSchema = z.object({
   email: email.meta({ example: 'admin@example.com' }),
@@ -353,6 +354,7 @@ export class AuthController {
 
   @Public()
   @DuringMfaEnrollment()
+  @WithoutSso()
   @Post('sign-out')
   @HttpCode(204)
   @ApiOperation({ summary: "Sign out: ends this browser's session" })
@@ -371,6 +373,7 @@ export class AuthController {
   @UserOnly()
   @Can.Anyone()
   @DuringMfaEnrollment()
+  @WithoutSso()
   @Get('me')
   @ApiCookieAuth('user-session')
   @ApiBearerAuth('user-token')
