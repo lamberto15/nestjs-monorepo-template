@@ -1,7 +1,7 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { findToast } from '@/test/toast';
 import { renderApp } from '@/test/render-app';
 import { useSignedIn } from '@/test/signed-in';
@@ -22,6 +22,13 @@ function useSignedInUnverified(extra: object = {}) {
 }
 
 describe('resending the verification email', () => {
+  // The 429 lock lives in sessionStorage: one test's must not reach the next.
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+  });
+
   it('offers it in a banner to a signed-in user whose address is unproved, with a toast on success', async () => {
     useSignedInUnverified();
     let sent = 0;
@@ -119,7 +126,9 @@ describe('resending the verification email', () => {
 
     await router.navigate({ to: '/verify-email' });
     expect(
-      await screen.findByText(/link is missing|incomplete|missing/i),
+      await screen.findByText(
+        'This link is incomplete. Open it again from the email.',
+      ),
     ).toBeVisible();
     expect(
       screen.getAllByRole('button', { name: 'Resend the verification email' }),
@@ -129,6 +138,106 @@ describe('resending the verification email', () => {
   it('is not on the verify-email page for nobody signed in (the API needs a session)', async () => {
     await renderApp('/verify-email?token=abc');
     expect(await screen.findByLabelText('Password')).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: 'Resend the verification email' }),
+    ).toBeNull();
+  });
+
+  it('keeps the lock across buttons', async () => {
+    useSignedInUnverified();
+    server.use(
+      http.post('/v1/auth/email/verification', () =>
+        problem(429, 'rate_limited'),
+      ),
+    );
+    const user = userEvent.setup();
+    const { router } = await renderApp('/');
+    const name = 'Resend the verification email';
+    await user.click(await screen.findByRole('button', { name }));
+    await screen.findByText(
+      'Too many requests. Try again in about 15 minutes.',
+    );
+
+    // Another page's button (a new instance) is locked as well.
+    await router.navigate({ to: '/verify-email' });
+    await screen.findByText(
+      'This link is incomplete. Open it again from the email.',
+    );
+    expect(screen.getByRole('button', { name })).toBeDisabled();
+    expect(
+      screen.getByText('Too many requests. Try again in about 15 minutes.'),
+    ).toBeVisible();
+  });
+
+  it('lifts the lock after 15 minutes', async () => {
+    useSignedInUnverified();
+    server.use(
+      http.post('/v1/auth/email/verification', () =>
+        problem(429, 'rate_limited'),
+      ),
+    );
+    const name = 'Resend the verification email';
+    const message = 'Too many requests. Try again in about 15 minutes.';
+    await renderApp('/');
+    const button = await screen.findByRole('button', { name });
+
+    // Only the clock is faked (the page's own timers, msw's and
+    // user-event's stay real): the 15-minute timer is caught as it is set,
+    // the clock jumps past it, and the timer fires.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const timers: Array<{ run: () => void; ms: number }> = [];
+    const realSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      run: () => void,
+      ms?: number,
+      ...rest: unknown[]
+    ) => {
+      timers.push({ run, ms: ms ?? 0 });
+      return realSetTimeout(run, ms, ...rest);
+    }) as typeof setTimeout);
+    const user = userEvent.setup();
+    await user.click(button);
+    await screen.findByText(message);
+    expect(button).toBeDisabled();
+
+    const lift = timers.find((timer) => timer.ms > 14 * 60_000);
+    expect(lift).toBeDefined();
+    expect(lift!.ms).toBeLessThanOrEqual(15 * 60_000);
+    vi.setSystemTime(Date.now() + 15 * 60_000 + 1000);
+    act(() => lift!.run());
+    expect(button).toBeEnabled();
+    expect(screen.queryByText(message)).toBeNull();
+  });
+
+  it('forgets the unverified address once it is verified', async () => {
+    let verified = false;
+    useSignedIn([]);
+    server.use(
+      http.get('/v1/auth/me', () =>
+        HttpResponse.json({
+          ...signedInUser,
+          user: { ...signedInUser.user, emailVerified: verified },
+        }),
+      ),
+      http.post('/v1/auth/email/verify', () => {
+        verified = true;
+        return HttpResponse.json({
+          email: 'ada@example.com',
+          emailVerified: true,
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    const { router } = await renderApp('/verify-email?token=abc');
+    await user.type(await screen.findByLabelText('Password'), 'correct horse');
+    await user.click(screen.getByRole('button', { name: 'Verify' }));
+    expect(
+      await screen.findByText(/ada@example\.com is verified/),
+    ).toBeVisible();
+
+    // `me` was cached as unverified (60 s): the app must not show the banner.
+    await router.navigate({ to: '/' });
+    await screen.findByText('Dashboard', { selector: 'h1' });
     expect(
       screen.queryByRole('button', { name: 'Resend the verification email' }),
     ).toBeNull();
