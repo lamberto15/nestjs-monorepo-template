@@ -1,7 +1,6 @@
 import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
 import {
   infiniteQueryOptions,
-  queryOptions,
   useMutation,
   useMutationState,
   useQueryClient,
@@ -14,28 +13,12 @@ import { api } from '@/lib/api';
  * What the caller watches (docs/notifications.md, "Watching records"):
  * `GET /v1/subscriptions` and `DELETE /v1/subscriptions/{subject}/{recordId}`.
  * The record's own `POST`/`DELETE …/{id}/watch` is the feature's route, called
- * by `components/records/watch-button.tsx` (it shares these keys).
+ * by `components/records/watch-button.tsx`; whether a record is watched is its
+ * own `watching` (`?include=watching`).
  */
 export type Subscription = GetResponse<'/v1/subscriptions'>['items'][number];
 
 const root = ['watching'] as const;
-
-/** Whether one record is watched: the list filtered to it (the record carries no flag). */
-export const watchedKey = (subject: string, recordId: string) =>
-  [...root, 'record', subject, recordId] as const;
-
-export const watchedQuery = (subject: string, recordId: string) =>
-  queryOptions({
-    queryKey: watchedKey(subject, recordId),
-    queryFn: async () => {
-      const page = await unwrap(
-        api.GET('/v1/subscriptions', {
-          params: { query: { subject, recordId, limit: 1 } },
-        }),
-      );
-      return page.items.length > 0;
-    },
-  });
 
 /** Everything the caller watches, newest first, cursor pages. */
 export const subscriptionsQuery = infiniteQueryOptions({
@@ -68,8 +51,10 @@ export function useStopWatching() {
           params: { path: { subject: item.subject, recordId: item.recordId } },
         }),
       ),
-    onSuccess: (_data, item) => {
-      queryClient.setQueryData(watchedKey(item.subject, item.recordId), false);
+    onSuccess: () => {
+      // An open record page holds `watching: true`: read it again (the
+      // subject's route is not known here, so every record read is stale).
+      void queryClient.invalidateQueries({ queryKey: ['record'] });
       toast.success(t('stopped'));
     },
     // Also after a failure (a 404: it was not watched after all): the list
