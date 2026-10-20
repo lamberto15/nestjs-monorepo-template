@@ -35,5 +35,39 @@
     "cancel": "إلغاء",
     "submit": "إنشاء المستأجر",
     "done": "تم إنشاء المستأجر {{name}}. {{email}} هو مسؤوله الأول."
+  },
+  "detail": {
+    "back": "Back to tenants",
+    "created": "Created {{date}}",
+    "notFound": "This tenant does not exist.",
+    "saved": "Tenant {{name}} saved.",
+    "conflict": {
+      "title": "This tenant changed",
+      "description": "Another operator changed it since you opened it. Reload it to see the current values, then make your change again.",
+      "reload": "Reload"
+    },
+    "name": {
+      "title": "Name and slug",
+      "description": "The name is what people see. The slug is the tenant's short handle.",
+      "slugHint": "Lowercase letters, digits and single dashes. Anything that refers to the tenant by its slug must use the new one.",
+      "save": "Save"
+    },
+    "state": {
+      "title": "Access",
+      "activeDescription": "The tenant is active. Deactivating ends its members' sessions and stops its API keys; nothing is deleted.",
+      "inactiveDescription": "The tenant is inactive: nobody can sign in to it and its API keys and jobs are stopped. Its data is kept.",
+      "operatorTenant": "This is the operator tenant. It is never deactivated: the operators would lock themselves out.",
+      "deactivate": "Deactivate",
+      "deactivateTitle": "Deactivate {{name}}?",
+      "deactivateDescription": "Its members are signed out of it, its API keys and invitations stop working, and its jobs are skipped. Nothing is deleted: reactivating gives everything back, but its members must sign in again.",
+      "deactivateConfirm": "Deactivate tenant",
+      "reactivate": "Reactivate",
+      "reactivateTitle": "Reactivate {{name}}?",
+      "reactivateDescription": "Its data, members and API keys are back. Its members sign in again.",
+      "reactivateConfirm": "Reactivate tenant",
+      "deactivated": "Tenant {{name}} deactivated.",
+      "reactivated": "Tenant {{name}} reactivated.",
+      "failed": "The change did not go through. Try again."
+    }
   }
 }
