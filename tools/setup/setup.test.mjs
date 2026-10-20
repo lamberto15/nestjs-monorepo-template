@@ -233,6 +233,8 @@ describe('defaults', () => {
       'MFA_ENCRYPTION_KEYS',
       'STORAGE_SIGNING_KEYS',
       'CURSOR_KEYS',
+      'DATA_ENCRYPTION_KEYS',
+      'BLIND_INDEX_KEYS',
       'JWT_SECRET',
     ]) {
       assert.match(env.get(key), /^[A-Za-z0-9+/]{43}=$/, key); // openssl rand -base64 32

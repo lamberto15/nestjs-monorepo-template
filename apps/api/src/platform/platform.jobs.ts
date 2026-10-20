@@ -143,6 +143,15 @@ export const PLATFORM_ANALYTICS_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** ReencryptionScheduler and ReencryptionProcessor: encrypted columns onto the current keys. */
+export const REENCRYPTION_JOB = defineSystemJob({
+  key: 'reencryption',
+  label: 'Re-encryption',
+  description:
+    'Rewrites encrypted values and blind indexes still under an older key with the current one, in batches, every hour.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
@@ -158,4 +167,5 @@ export const PLATFORM_SYSTEM_JOBS = [
   MAIL_EVENTS_RETENTION_JOB,
   WEBHOOK_DELIVERY_RETENTION_JOB,
   PLATFORM_ANALYTICS_JOB,
+  REENCRYPTION_JOB,
 ];

@@ -597,6 +597,9 @@ export const SECRETS = [
   { key: 'MFA_ENCRYPTION_KEYS', ...base64x32, list: true },
   { key: 'STORAGE_SIGNING_KEYS', ...base64x32, list: true },
   { key: 'CURSOR_KEYS', ...base64x32, list: true },
+  // Encrypted columns (docs/encryption.md): never created by the app itself.
+  { key: 'DATA_ENCRYPTION_KEYS', ...base64x32, list: true },
+  { key: 'BLIND_INDEX_KEYS', ...base64x32, list: true },
   { key: 'JWT_SECRET', ...base64x32 },
   {
     key: 'EXAMPLE_SENDER_WEBHOOK_SECRET',
