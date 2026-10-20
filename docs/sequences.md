@@ -50,9 +50,14 @@ T-.######                →  T-000017            (never restarts)
 ```
 
 - **Patterns** are parts between dots: text (letters, digits, `-`, `_`,
-  `/`, spaces), the date parts `YYYY`, `YY`, `MM`, `DD` (in `APP_TIMEZONE`),
-  and exactly one counter, a run of `#` whose length is the zero-padding.
-  At most 60 characters, 12 digits.
+  `/`), the date parts `YYYY`, `YY`, `MM`, `DD` (in `APP_TIMEZONE`), and
+  exactly one counter, a run of `#` whose length is the zero-padding. At
+  most 60 characters, 12 digits. Next to the counter there is no digit or
+  date part (`NOTE-1.#` is refused): it would merge with the counter, and
+  two counters could print the same number. Overlaps that remain (two
+  series of a subject whose texts line up around different counters) are
+  the administrator's to avoid: the record's unique number refuses the
+  second.
 - **The counter is keyed by what the pattern prints around it** at the
   moment (`INV-2026-10-{#}`), as Frappe keys by the prefix: a date part
   that changes starts a new counter, and two patterns that print the same

@@ -17,6 +17,9 @@ describe('naming series patterns', () => {
     expect(renderPattern(parsePattern('.YY.MM.DD.-.###'), 7, october20)).toBe(
       '261020-007',
     );
+    expect(renderPattern(parsePattern('INV/.YYYY./.###'), 7, october20)).toBe(
+      'INV/2026/007',
+    );
     // A counter wider than its #s is printed whole.
     expect(renderPattern(parsePattern('T-.##'), 1234, october20)).toBe(
       'T-1234',
@@ -46,6 +49,12 @@ describe('naming series patterns', () => {
     expect(refused('.###.-.##')).toThrow(/exactly one counter/);
     expect(refused('INV#.###')).toThrow(/is not a date part/);
     expect(refused('INV<b>.###')).toThrow(PatternError);
+    expect(refused('INV .###')).toThrow(PatternError);
+    // Digits or a date part touching the counter would merge with it.
+    expect(refused('NOTE-1.#')).toThrow(/separator/);
+    expect(refused('X-.#.1')).toThrow(/separator/);
+    expect(refused('.YYYY.###')).toThrow(/separator/);
+    expect(refused('.###.MM')).toThrow(/separator/);
     expect(refused(`.${'#'.repeat(13)}`)).toThrow(/at most 12/);
     expect(refused(`${'A'.repeat(60)}.#`)).toThrow(/1 to 60/);
     expect(refused('')).toThrow(PatternError);

@@ -19,8 +19,8 @@ export type PatternPart =
 /** The moment's date parts, as they print: `{ YYYY: '2026', YY: '26', MM: '10', DD: '20' }`. */
 export type DateValues = Record<DatePart, string>;
 
-/** Letters, digits, `-`, `_`, `/` and spaces: a number stays one token to quote and search. */
-const TEXT = /^[A-Za-z0-9_\-/ ]+$/;
+/** Letters, digits, `-`, `_` and `/`: a number stays one token to quote and search. */
+const TEXT = /^[A-Za-z0-9_\-/]+$/;
 export const MAX_PATTERN_LENGTH = 60;
 export const MAX_COUNTER_WIDTH = 12;
 
@@ -45,7 +45,7 @@ export function parsePattern(pattern: string): PatternPart[] {
       }
       if (!TEXT.test(part)) {
         throw new PatternError(
-          `"${part}" is not a date part (${DATE_PARTS.join(', ')}), a counter (#####) or text of letters, digits, "-", "_", "/" and spaces.`,
+          `"${part}" is not a date part (${DATE_PARTS.join(', ')}), a counter (#####) or text of letters, digits, "-", "_" and "/".`,
         );
       }
       return { kind: 'text', text: part };
@@ -59,6 +59,18 @@ export function parsePattern(pattern: string): PatternPart[] {
   if (counters[0]!.width > MAX_COUNTER_WIDTH) {
     throw new PatternError(
       `A counter has at most ${MAX_COUNTER_WIDTH} digits.`,
+    );
+  }
+  // Digits right next to the counter would merge with it: `NOTE-.1.#` at 5
+  // and `NOTE-.#` at 15 both print NOTE-15, from two counters.
+  const at = parts.indexOf(counters[0]!);
+  const [before, after] = [parts[at - 1], parts[at + 1]];
+  if (
+    (before && (before.kind === 'date' || /[0-9]$/.test(before.text))) ||
+    (after && (after.kind === 'date' || /^[0-9]/.test(after.text)))
+  ) {
+    throw new PatternError(
+      'The counter needs a separator that is not a digit or a date part on each side it has text, as in INV-.YYYY.-.#####.',
     );
   }
   return parts;
