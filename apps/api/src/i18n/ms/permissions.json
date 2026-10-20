@@ -9,6 +9,7 @@
       "manageCustomFields": "Tambah, ubah, susun semula dan nyahaktifkan medan tersuai (medan yang ditambah oleh pentadbir pada nota dan rekod lain)",
       "manageSettings": "Tetapkan tetapan dan bendera ciri untuk semua orang, satu pasukan atau seorang pengguna (platform/settings)",
       "manageTags": "Cipta, namakan semula, warnakan semula dan padam tag yang dibawa oleh rekod (platform/tags)",
+      "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
       "readAudit": "Baca log audit",
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",

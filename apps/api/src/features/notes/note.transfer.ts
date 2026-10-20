@@ -30,7 +30,7 @@ import { notes } from './notes.tables.js';
  * caller without its permission gets a template without it).
  */
 const noteRow = createNoteSchema
-  .omit({ custom: true })
+  .omit({ custom: true, namingSeriesId: true })
   .extend({ body: createNoteSchema.shape.body.default('') });
 type NoteRow = z.infer<typeof noteRow> & {
   custom?: Record<string, unknown>;

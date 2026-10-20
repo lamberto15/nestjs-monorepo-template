@@ -57,6 +57,13 @@ export class AccessPolicy {
     return manager(user) && this.access.can(user, 'manageTags', 'Access');
   }
 
+  /** Naming series (platform/sequences): the number formats of numbered records, their counters. */
+  async manageNamingSeries(user: Principal | null) {
+    return (
+      manager(user) && this.access.can(user, 'manageNamingSeries', 'Access')
+    );
+  }
+
   /** The deployment's tenants (TenantsController, also @OperatorOnly()). */
   async manageTenants(user: Principal | null) {
     return manager(user) && this.access.can(user, 'manageTenants', 'Access');

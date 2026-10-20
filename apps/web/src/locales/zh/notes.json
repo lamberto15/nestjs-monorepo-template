@@ -43,7 +43,9 @@
     "save": "保存更改",
     "cancel": "取消",
     "created": "笔记已创建",
-    "saved": "笔记已保存"
+    "saved": "笔记已保存",
+    "numbering": "编号",
+    "numberingHint": "由哪个系列为笔记分配编号。"
   },
   "detail": {
     "back": "返回笔记"

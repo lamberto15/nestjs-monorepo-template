@@ -11,7 +11,7 @@ import { applyingEffect } from './record-approvals.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
-import { SequencesService } from '../sequences/sequences.service.js';
+import { NamingSeriesService } from '../sequences/naming-series.service.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 import { TagsService } from '../tags/tags.service.js';
 import {
@@ -104,12 +104,21 @@ export class RecordLifecycle {
     @Inject(RECORD_DECLARATION) private readonly declaration: RecordDeclaration,
     private readonly subscriptions: SubscriptionsService,
     private readonly revisions: RevisionsService,
-    private readonly sequences: SequencesService,
+    private readonly namingSeries: NamingSeriesService,
     private readonly webhooks: Webhooks<Transaction>,
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
     private readonly approvals: ApprovalsService,
-  ) {}
+  ) {
+    if (takes(declaration, 'numbered')) {
+      // Its number formats: the declared one, or the tenant's naming series.
+      namingSeries.register({
+        subject: declaration.subject,
+        sequence: recordKey(declaration),
+        declared: numberFormat(declaration),
+      });
+    }
+  }
 
   private snapshot(row: Record<string, unknown>) {
     return recordSnapshot(this.declaration, recordView(this.declaration, row));
@@ -154,16 +163,22 @@ export class RecordLifecycle {
 
   /**
    * The values a new record's insert takes besides its own: its number
-   * (numbered), gapless per tenant, from the transaction's counter.
+   * (numbered), gapless per tenant, from the transaction's counter, in the
+   * naming series the body names (`namingSeriesId`), else the default.
    */
-  async creating(tx: Transaction): Promise<{ number?: string }> {
+  async creating(
+    tx: Transaction,
+    // Any create body: only a numbered record's has `namingSeriesId`.
+    dto: object = {},
+  ): Promise<{ number?: string }> {
     if (!takes(this.declaration, 'numbered')) {
       return {};
     }
-    const { formatted } = await this.sequences.next(
+    const { namingSeriesId } = dto as { namingSeriesId?: string };
+    const { formatted } = await this.namingSeries.next(
       tx,
-      recordKey(this.declaration),
-      numberFormat(this.declaration),
+      this.declaration.subject,
+      { seriesId: namingSeriesId },
     );
     return { number: formatted };
   }

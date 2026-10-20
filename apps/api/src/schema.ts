@@ -12,6 +12,7 @@ export * from './platform/notifications/notifications.tables.js';
 export * from './platform/settings/settings.tables.js';
 export * from './platform/account/account.tables.js';
 export * from './platform/subscriptions/subscriptions.tables.js';
+export * from './platform/sequences/naming-series.tables.js';
 export * from './platform/sequences/sequences.tables.js';
 export * from './platform/attachments/attachments.tables.js';
 export * from './platform/documents/documents.tables.js';

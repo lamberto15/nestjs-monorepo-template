@@ -281,6 +281,13 @@
       "when": 1792488766699,
       "tag": "0039_platform_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792491555188,
+      "tag": "0040_naming_series",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,7 @@ import {
   recordCanSchema,
   recordWatchingSchema,
 } from '../../platform/records/record-can.js';
+import { namingSeriesIdSchema } from '../../platform/sequences/naming-series.schemas.js';
 import { tagRefSchema } from '../../platform/tags/tag.schemas.js';
 import type { notes } from './notes.tables.js';
 
@@ -27,11 +28,14 @@ export const createNoteSchema = z.object({
   body: z.string().max(10_000).meta({ example: 'My first note.' }),
   // Checked against the active custom fields of Note by NotesService.
   custom: customValuesInputSchema.optional(),
+  namingSeriesId: namingSeriesIdSchema,
 });
 export type CreateNoteDto = z.infer<typeof createNoteSchema>;
 
-/** Body of `PATCH /notes/{id}`: only what is sent changes. */
-export const updateNoteSchema = createNoteSchema.partial();
+/** Body of `PATCH /notes/{id}`: only what is sent changes (its naming series is chosen once). */
+export const updateNoteSchema = createNoteSchema
+  .omit({ namingSeriesId: true })
+  .partial();
 export type UpdateNoteDto = z.infer<typeof updateNoteSchema>;
 
 /** Body of `POST /notes/bulk`: an action on many notes (NoteBulk). */
