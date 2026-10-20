@@ -1,19 +1,19 @@
 {
-  "title": "Watching",
-  "description": "The records you are told about when they change. Stop watching one to stop those notifications.",
-  "empty": "You are not watching any record.",
-  "error": "The list could not be loaded.",
-  "retry": "Try again",
-  "loadMore": "Load more",
-  "since": "since {{date}}",
+  "title": "Beobachtet",
+  "description": "Die Datensätze, über deren Änderungen Sie informiert werden. Beenden Sie die Beobachtung, um diese Benachrichtigungen nicht mehr zu erhalten.",
+  "empty": "Sie beobachten keinen Datensatz.",
+  "error": "Die Liste konnte nicht geladen werden.",
+  "retry": "Erneut versuchen",
+  "loadMore": "Mehr laden",
+  "since": "seit {{date}}",
   "subjects": {
-    "Note": "Note"
+    "Note": "Notiz"
   },
-  "watch": "Watch",
-  "stop": "Stop watching",
-  "stopNamed": "Stop watching {{name}}",
-  "hintOff": "Be told when this record changes",
-  "hintOn": "You are told when this record changes",
-  "watching": "You are watching this record.",
-  "stopped": "You stopped watching."
+  "watch": "Beobachten",
+  "stop": "Nicht mehr beobachten",
+  "stopNamed": "{{name}} nicht mehr beobachten",
+  "hintOff": "Benachrichtigt werden, wenn sich dieser Datensatz ändert",
+  "hintOn": "Sie werden benachrichtigt, wenn sich dieser Datensatz ändert",
+  "watching": "Sie beobachten diesen Datensatz.",
+  "stopped": "Sie beobachten nicht mehr."
 }
