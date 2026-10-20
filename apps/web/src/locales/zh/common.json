@@ -29,7 +29,9 @@
         "reauthentication_required": "为此请确认是您本人：请重新登录。",
         "reauthentication_failed": "确认未成功。请重试。",
         "access_denied": "登录已取消。",
-        "email_unverified": "请先验证您的地址：打开我们发给您的邮件中的链接。"
+        "email_unverified": "请先验证您的地址：打开我们发给您的邮件中的链接。",
+        "sso_failed": "SSO 登录失败。请联系管理员或重试。",
+        "sso_unavailable": "此 SSO 连接尚未就绪。请一分钟后重试。"
       }
     },
     "signOut": "退出登录",
@@ -145,6 +147,15 @@
     },
     "errors": {
       "network": "无法连接到服务器。请检查网络连接后重试。"
+    },
+    "sso": {
+      "button": "使用 SSO 登录",
+      "description": "输入管理员提供的工作区 ID 和连接 ID。",
+      "tenant": "工作区 ID",
+      "connection": "连接 ID",
+      "invalid": "这些 ID 无效。请从 SSO 页面复制。",
+      "continue": "继续",
+      "cancel": "取消"
     }
   },
   "account": {

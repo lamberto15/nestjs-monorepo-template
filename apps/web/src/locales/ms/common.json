@@ -29,7 +29,9 @@
         "reauthentication_required": "Untuk ini, sahkan bahawa ini anda: log masuk semula.",
         "reauthentication_failed": "Pengesahan itu tidak berjaya. Cuba lagi.",
         "access_denied": "Log masuk dibatalkan.",
-        "email_unverified": "Sahkan alamat anda dahulu: buka pautan yang kami e-melkan kepada anda."
+        "email_unverified": "Sahkan alamat anda dahulu: buka pautan yang kami e-melkan kepada anda.",
+        "sso_failed": "Log masuk SSO tidak berjaya. Tanya pentadbir anda atau cuba lagi.",
+        "sso_unavailable": "Sambungan SSO ini belum sedia. Cuba lagi seminit lagi."
       }
     },
     "signOut": "Log keluar",
@@ -145,6 +147,15 @@
     },
     "errors": {
       "network": "Pelayan tidak dapat dihubungi. Semak sambungan anda dan cuba lagi."
+    },
+    "sso": {
+      "button": "Log masuk dengan SSO",
+      "description": "Masukkan ID ruang kerja dan sambungan yang diberikan oleh pentadbir anda.",
+      "tenant": "ID ruang kerja",
+      "connection": "ID sambungan",
+      "invalid": "ID tersebut tidak sah. Salin daripada halaman SSO.",
+      "continue": "Teruskan",
+      "cancel": "Batal"
     }
   },
   "account": {
