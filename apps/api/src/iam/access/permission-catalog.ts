@@ -56,6 +56,11 @@ export const ACCESS_PERMISSIONS = definePermissions({
             'Create, rename, recolour and delete the tags records carry (platform/tags)',
           conditions: [],
         },
+        manageNamingSeries: {
+          label:
+            'Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)',
+          conditions: [],
+        },
         readAudit: { label: 'Read the audit log', conditions: [] },
         manageTenants: {
           label:

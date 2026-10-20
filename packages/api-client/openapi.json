@@ -14391,6 +14391,771 @@
         ]
       }
     },
+    "/v1/naming-series": {
+      "get": {
+        "description": "Every subject unless `?subject=Note`; `?isDefault=true` for the defaults; `?sort=pattern`. Each with `example`, the number it gives next. Cursor pages.",
+        "operationId": "NamingSeriesController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "subject",
+            "required": false,
+            "in": "query",
+            "description": "Filter: subject =",
+            "schema": {
+              "description": "Filter: subject =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "subject.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: subject in",
+            "schema": {
+              "description": "Filter: subject in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "pattern",
+            "required": false,
+            "in": "query",
+            "description": "Filter: pattern =",
+            "schema": {
+              "description": "Filter: pattern =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "pattern.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: pattern contains",
+            "schema": {
+              "description": "Filter: pattern contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "pattern.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: pattern startsWith",
+            "schema": {
+              "description": "Filter: pattern startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "isDefault",
+            "required": false,
+            "in": "query",
+            "description": "Filter: isDefault =",
+            "schema": {
+              "description": "Filter: isDefault =",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "createdAt.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gt",
+            "schema": {
+              "description": "Filter: createdAt gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt gte",
+            "schema": {
+              "description": "Filter: createdAt gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lt",
+            "schema": {
+              "description": "Filter: createdAt lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt lte",
+            "schema": {
+              "description": "Filter: createdAt lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "createdAt.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: createdAt between",
+            "schema": {
+              "description": "Filter: createdAt between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"subject\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: subject (eq, in); pattern (eq, contains, startsWith); isDefault (eq); createdAt (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"subject\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: subject (eq, in); pattern (eq, contains, startsWith); isDefault (eq); createdAt (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -pattern. Sortable: pattern, createdAt.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -pattern. Sortable: pattern, createdAt.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingSeriesPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The naming series, newest first",
+        "tags": [
+          "naming-series"
+        ]
+      },
+      "post": {
+        "description": "For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. Audited (`namingSeries.created`).",
+        "operationId": "NamingSeriesController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
+                    "example": "Note"
+                  },
+                  "pattern": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+                    "example": "INV-.YYYY.-.MM.-.#####"
+                  },
+                  "label": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "isDefault": {
+                    "description": "The subject's default from now on; its first series is.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "subject",
+                  "pattern"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingSeries"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A subject that takes no number, an invalid pattern (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "409": {
+            "description": "The subject has this pattern."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Create a naming series",
+        "tags": [
+          "naming-series"
+        ]
+      }
+    },
+    "/v1/naming-series/subjects": {
+      "get": {
+        "description": "Each with the format it has in code (`declaredPattern`), which numbers it while it has no series.",
+        "operationId": "NamingSeriesController_subjects_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NumberedSubjectList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The subjects whose records take a number",
+        "tags": [
+          "naming-series"
+        ]
+      }
+    },
+    "/v1/naming-series/preview": {
+      "get": {
+        "description": "What the pattern would give now, before it is saved: its counter key, the last value taken under that key (shared with any series printing the same), the next number.",
+        "operationId": "NamingSeriesController_preview_v1",
+        "parameters": [
+          {
+            "name": "subject",
+            "required": true,
+            "in": "query",
+            "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
+              "example": "Note"
+            }
+          },
+          {
+            "name": "pattern",
+            "required": true,
+            "in": "query",
+            "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60,
+              "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+              "example": "INV-.YYYY.-.MM.-.#####"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingCounter"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An invalid pattern, or a subject that takes no number (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Preview a pattern",
+        "tags": [
+          "naming-series"
+        ]
+      }
+    },
+    "/v1/naming-series/{id}": {
+      "get": {
+        "operationId": "NamingSeriesController_findOne_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingSeries"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A naming series",
+        "tags": [
+          "naming-series"
+        ]
+      },
+      "patch": {
+        "description": "Its pattern, its label, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).",
+        "operationId": "NamingSeriesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pattern": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+                    "example": "INV-.YYYY.-.MM.-.#####"
+                  },
+                  "label": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "isDefault": {
+                    "description": "Makes it the subject's default (another series becomes the default to stop being it).",
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingSeries"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An invalid body (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "The subject has this pattern."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change a naming series",
+        "tags": [
+          "naming-series"
+        ]
+      },
+      "delete": {
+        "description": "Records keep their numbers, and the counter stays. Deleting the default makes the oldest series left the default (or the format in code, when none is left). Audited (`namingSeries.deleted`).",
+        "operationId": "NamingSeriesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Delete a naming series",
+        "tags": [
+          "naming-series"
+        ]
+      }
+    },
+    "/v1/naming-series/{id}/counter": {
+      "get": {
+        "description": "This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number.",
+        "operationId": "NamingSeriesController_counter_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingCounter"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A naming series' counter now",
+        "tags": [
+          "naming-series"
+        ]
+      },
+      "put": {
+        "description": "Starts this period's counter at `current`: the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).",
+        "operationId": "NamingSeriesController_setCounter_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "current": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "The last value taken: the next record gets this + 1. Never below the value already taken.",
+                    "example": 1000
+                  }
+                },
+                "required": [
+                  "current"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingCounter"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An invalid body (validation_failed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "Below the last value taken: that number is given."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Set a naming series' counter",
+        "tags": [
+          "naming-series"
+        ]
+      }
+    },
     "/v1/reports": {
       "get": {
         "description": "`?active=true`, `?exporter=notes`, `?name.contains=`, `?sort=nextRunAt`; newest first; cursor pages.",
@@ -32254,6 +33019,12 @@
                       "region": "eu"
                     },
                     "description": "Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one."
+                  },
+                  "namingSeriesId": {
+                    "description": "The naming series that numbers it (GET /v1/naming-series?subject=…); the default series when left out.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
@@ -36066,6 +36837,172 @@
           "description",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "NamingSeriesPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NamingSeries"
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+            "type": "string"
+          },
+          "page": {
+            "description": "With `page`: this page.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextPage": {
+            "description": "With `page`: the next page; null: no more.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pageCount": {
+            "description": "With `page` and `count=true`: ceil(total / limit).",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalCapped": {
+            "description": "true: there are more than `total` (show \"10,000+\").",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "NamingSeries": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "subject": {
+            "type": "string",
+            "description": "What it numbers: a permission subject, `Note`.",
+            "example": "Note"
+          },
+          "pattern": {
+            "type": "string",
+            "example": "INV-.YYYY.-.MM.-.#####"
+          },
+          "label": {
+            "nullable": true,
+            "example": "Invoices",
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "What a new record takes when its body names no series."
+          },
+          "example": {
+            "type": "string",
+            "description": "The number it gives next, if taken now.",
+            "example": "INV-2026-10-00043"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "pattern",
+          "label",
+          "isDefault",
+          "example",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "NumberedSubjectList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NumberedSubject"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "NumberedSubject": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "example": "Note"
+          },
+          "declaredPattern": {
+            "type": "string",
+            "description": "The format in code: used while the subject has no series.",
+            "example": "NOTE-.YYYY.-.#####"
+          }
+        },
+        "required": [
+          "subject",
+          "declaredPattern"
+        ],
+        "additionalProperties": false
+      },
+      "NamingCounter": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "What the pattern prints around its counter now; patterns printing the same share the counter.",
+            "example": "INV-2026-10-{#}"
+          },
+          "current": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The last value taken (0 when none).",
+            "example": 42
+          },
+          "next": {
+            "type": "string",
+            "description": "The number the next record gets.",
+            "example": "INV-2026-10-00043"
+          }
+        },
+        "required": [
+          "key",
+          "current",
+          "next"
         ],
         "additionalProperties": false
       },

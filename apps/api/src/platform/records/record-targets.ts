@@ -756,6 +756,8 @@ export class RecordTransfer {
       const row = c.schemas.create.omit({
         ...flat,
         ...(custom && { custom: true }),
+        // Imported rows take the default naming series.
+        ...(takes(c.declaration, 'numbered') && { namingSeriesId: true }),
       } as never) as unknown as z.ZodObject;
       this.schema = row as never;
       if (custom) {

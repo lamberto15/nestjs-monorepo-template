@@ -260,6 +260,13 @@
       "when": 1792469574946,
       "tag": "0036_tenant_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792486099844,
+      "tag": "0037_naming_series",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@
       "manageCustomFields": "Add, change, reorder and deactivate custom fields (the fields administrators add to notes and other records)",
       "manageSettings": "Set settings and feature flags for everyone, a team or a user (platform/settings)",
       "manageTags": "Create, rename, recolour and delete the tags records carry (platform/tags)",
+      "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
       "readAudit": "Read the audit log",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
       "impersonate": "Act as another user (support), never as an administrator"
