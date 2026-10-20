@@ -321,6 +321,13 @@ event or a changed payload like a changed response. The typed client's
 client:generate`; `RealtimeEvents` in `realtime.ts` is built on that map. Add an event:
 declare it in the manifest, push it, run `pnpm client:generate`.
 
+A feature declares its own events in its `<x>.feature.ts`: `realtimeEvents:
+defineRealtimeEvents({ 'thumbnail.ready': defineRealtimeEvent('RealtimeThumbnailReadyEvent',
+'A thumbnail is ready.', z.object({ fileKey: z.string() })) })`. They join the document,
+the generated client and the check below. In development and tests
+`Realtime.toPrincipal()` throws for an event no manifest declares and for a payload that
+doesn't parse against its schema; production sends what it is given.
+
 ### Record events
 
 A record page reloads a panel when it hears of a change on it, instead of

@@ -6,6 +6,8 @@ import type { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.regist
 import type { Principal } from '../../iam/auth/principal.js';
 import type { PeopleService } from '../people/people.service.js';
 import type { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
+import { z } from 'zod';
+import { defineRealtimeEvent } from './realtime-events.js';
 import { RecordActivity } from './record-activity.js';
 import { Realtime } from './realtime.service.js';
 
@@ -32,7 +34,9 @@ describe('Realtime without a socket server', () => {
     const warn = vi.spyOn(Logger.prototype, 'warn');
     const realtime = serverless();
 
-    expect(() => realtime.toPrincipal(user, 'some.event', {})).not.toThrow();
+    expect(() =>
+      realtime.toPrincipal(user, 'notification.removed', { id: 'n1' }),
+    ).not.toThrow();
     expect(() => realtime.toRoom('a-room', 'some.event', {})).not.toThrow();
     expect(warn).not.toHaveBeenCalled();
   });
@@ -84,5 +88,50 @@ describe('Realtime without a socket server', () => {
       'record.commented was not pushed',
       expect.objectContaining({ error: 'Error: database away' }),
     );
+  });
+});
+
+describe('Realtime declared events', () => {
+  const realtimeWith = (realtimeEvents = {}) =>
+    new Realtime(
+      {} as WsAuthenticator,
+      { register: vi.fn() } as unknown as UserLifecycleRegistry,
+      { register: vi.fn() } as unknown as ApiClientLifecycleRegistry,
+      { register: vi.fn() } as unknown as TenantLifecycleRegistry,
+      { realtimeEvents },
+    );
+
+  it('refuses an undeclared event and a payload off its schema (development and tests)', () => {
+    const realtime = realtimeWith();
+    expect(() => realtime.toPrincipal(user, 'some.event', {})).toThrow(
+      /not declared/,
+    );
+    expect(() =>
+      realtime.toPrincipal(user, 'notification.removed', {} as never),
+    ).toThrow(/payload/);
+  });
+
+  it('takes a feature event once it is declared', () => {
+    const realtime = realtimeWith({
+      'thumbnail.ready': defineRealtimeEvent(
+        'RealtimeThumbnailReadyEvent',
+        'A thumbnail is ready.',
+        z.object({ fileKey: z.string() }),
+      ),
+    });
+    expect(() =>
+      realtime.toPrincipal(user, 'thumbnail.ready', { fileKey: 'k' }),
+    ).not.toThrow();
+    expect(() =>
+      realtime.toPrincipal(user, 'thumbnail.ready', { fileKey: 1 }),
+    ).toThrow(/payload/);
+  });
+
+  it('refuses a feature event named like a platform one', () => {
+    expect(() =>
+      realtimeWith({
+        'bulk.failed': defineRealtimeEvent('X', 'x', z.object({})),
+      }),
+    ).toThrow(/already a platform event/);
   });
 });
