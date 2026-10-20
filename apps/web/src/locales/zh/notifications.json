@@ -59,5 +59,45 @@
     "banner": "你登录时使用的密码出现在已知的数据泄露中。请立即改成一个你没在别处使用过的密码。",
     "action": "修改密码",
     "settleFailed": "你的密码已修改，但无法将泄露提醒标记为已读。"
+  },
+  "phone": {
+    "title": "短信号码",
+    "description": "短信发送到的号码。确认发到该号码的验证码后才会使用。",
+    "number": "手机号码",
+    "numberHint": "含国家区号，如 +4915112345678。",
+    "invalid": "请输入含国家区号的号码，如 +4915112345678。",
+    "add": "添加号码",
+    "save": "发送验证码",
+    "change": "使用其他号码",
+    "codeSent": "我们已向你发送验证码。",
+    "code": "验证码",
+    "codeHint": "我们发给你的六位验证码，十分钟内有效。",
+    "codeInvalid": "请输入六位数字。",
+    "verify": "确认号码",
+    "confirmed": "号码已确认。",
+    "verified": "已确认",
+    "unverified": "未确认",
+    "optedOut": "已停止（STOP）",
+    "optedOutHint": "该号码回复了 STOP，因此不会发送短信。从该号码回复 START 可重新接收。",
+    "remove": "移除",
+    "removed": "号码已移除。",
+    "removeTitle": "移除你的号码？",
+    "removeDescription": "将不再向你发送短信。"
+  },
+  "devices": {
+    "title": "设备",
+    "description": "接收推送通知的手机和浏览器，由应用注册。",
+    "none": "没有已注册的设备。",
+    "lastSeen": "最近活动 {{date}}",
+    "platforms": {
+      "web": "网页",
+      "ios": "iOS",
+      "android": "Android"
+    },
+    "remove": "移除",
+    "removeLabel": "移除 {{name}}",
+    "removed": "设备已移除。",
+    "removeTitle": "移除此设备？",
+    "removeDescription": "在应用重新注册之前，{{name}} 将不再收到推送通知。"
   }
 }
