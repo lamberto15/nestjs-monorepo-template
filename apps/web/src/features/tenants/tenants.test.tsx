@@ -39,6 +39,7 @@ function api(
     http.get('/v1/auth/me', () =>
       HttpResponse.json({
         ...signedInUser,
+        tenant: { ...signedInUser.tenant!, operator: options.operator ?? true },
         can: { 'Access.manageTenants': options.can ?? true },
       }),
     ),
@@ -202,19 +203,20 @@ describe('tenants page', () => {
 });
 
 describe('gating', () => {
-  it('hides the menu entry from a non-operator (403 operator_required)', async () => {
+  it('hides the menu entry from a tenant administrator who is no operator, and never asks', async () => {
     const state = api({ operator: false });
     await renderApp('/');
     await screen.findByRole('link', { name: 'Dashboard' });
-    await waitFor(() => expect(state.listed).toBe(1));
     expect(screen.queryByRole('link', { name: 'Tenants' })).toBeNull();
+    expect(state.listed).toBe(0);
   });
 
-  it('has no tenants page for a non-operator', async () => {
-    api({ operator: false });
+  it('has no tenants page for a non-operator, and never asks', async () => {
+    const state = api({ operator: false });
     await renderApp('/tenants');
     await screen.findByText(/not found|doesn.t exist/i);
     expect(screen.queryByRole('heading', { name: 'Tenants' })).toBeNull();
+    expect(state.listed).toBe(0);
   });
 
   it('has no tenants page without the permission, and never asks', async () => {

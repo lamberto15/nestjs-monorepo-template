@@ -1,7 +1,6 @@
 import {
   queryOptions,
   useMutation,
-  useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
 import {
@@ -22,31 +21,34 @@ export type CreateTenantBody = paths['/v1/tenants']['post'] extends {
   : never;
 
 /**
- * Every tenant (`GET /v1/tenants`). Only the operators may ask: anyone else
- * gets 403 `operator_required`, which is how the app tells them apart
- * (`GET /v1/auth/me` does not say), so a failure is the caller's to read,
- * never a toast.
+ * Every tenant (`GET /v1/tenants`). Only the operators may ask (anyone else
+ * gets 403 `operator_required`): the app asks only once `/me` says the user
+ * is one (`isOperator`).
  */
 export const tenantsAdminQuery = queryOptions({
   queryKey: ['tenants', 'list'],
   queryFn: () => unwrap(api.GET('/v1/tenants')),
   retry: false,
-  // A 403 `operator_required` stays one: mounting the page or the menu must
-  // not ask again (the route guard has just asked).
-  retryOnMount: false,
-  meta: { errorToast: false },
 });
 
 /**
- * Whether the user is one of the deployment's operators: the list answers
- * (no 403) in a multi-tenant deployment, for someone who may manage tenants.
- * False until known; asks only whoever could be one.
+ * Whether the signed-in user acts as one of the deployment's operators:
+ * `GET /v1/auth/me` says so (`tenant.operator`), in a multi-tenant
+ * deployment, for someone who may manage tenants. No request of its own.
  */
+export function isOperator(
+  me: ReturnType<typeof useMe>,
+  tenancy: string | undefined,
+): boolean {
+  return (
+    tenancy === 'multi' &&
+    me?.tenant?.operator === true &&
+    me.can['Access.manageTenants'] === true
+  );
+}
+
 export function useOperator(): boolean {
-  const multi = useFeatures()?.tenancy === 'multi';
-  const may = useMe()?.can['Access.manageTenants'] === true;
-  const list = useQuery({ ...tenantsAdminQuery, enabled: multi && may });
-  return multi && may && list.isSuccess;
+  return isOperator(useMe(), useFeatures()?.tenancy);
 }
 
 /** Makes a tenant and invites its first administrator. */

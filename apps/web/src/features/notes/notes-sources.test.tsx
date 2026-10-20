@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { sampleNote, useNotesApi } from '@/features/notes/test/notes-api';
@@ -99,7 +99,7 @@ describe('the notes list requests only what the user may read', () => {
     expect(asked).toEqual([]);
   });
 
-  it('still lets an administrator ask the operators’ tenants', async () => {
+  it('never asks the tenants for an administrator who is no operator (/me says)', async () => {
     const asked = useGatedApi([
       'Note.read',
       'Access.manageUsers',
@@ -107,6 +107,6 @@ describe('the notes list requests only what the user may read', () => {
       'Access.manageTenants',
     ]);
     await openList();
-    await waitFor(() => expect(asked).toContain('/v1/tenants'));
+    expect(asked).not.toContain('/v1/tenants');
   });
 });
