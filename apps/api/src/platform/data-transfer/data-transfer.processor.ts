@@ -7,7 +7,7 @@ import {
 import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { StorageDisk } from '@nestjs/storage';
-import type { Job } from 'bullmq';
+import { type Job, UnrecoverableError } from 'bullmq';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import { inTenantOf, TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
 import type { ListQuery } from '../../core/http/list-query.js';
@@ -37,6 +37,19 @@ import { columnsOf } from './import-columns.js';
 
 /** BullMQ's reason for a job it fails itself: stalled past `maxStalledCount` (the worker died mid-run). */
 export const STALLED_REASON = 'job stalled more than allowable limit';
+
+/**
+ * Why a transfer failed, as people read it: its message goes to the
+ * realtime `data.failed` event. Anything else that failed it (a database
+ * error, a stall) is told as `TRANSFER_UNAVAILABLE`, never its own text.
+ */
+export class TransferRefused extends Error {}
+
+export const TRANSFER_UNAVAILABLE =
+  'The transfer failed; start it again later, or ask an administrator.';
+
+/** An export tells its progress at most this often (ms); an import's is every PROGRESS_EVERY rows. */
+const PROGRESS_INTERVAL = 1000;
 
 /** An import reports its progress every this many rows. */
 const PROGRESS_EVERY = 500;
@@ -167,17 +180,45 @@ export class DataTransferProcessor extends TenantWorkerHost<
    */
   @OnWorkerEvent('failed')
   async onFailed(job: Job<TransferJob> | undefined, error: Error) {
-    if (!job || error.message !== STALLED_REASON) {
+    if (!job) {
       return;
     }
-    this.logger.warn('A transfer stalled and was failed', { id: job.id });
+    const stalled = error.message === STALLED_REASON;
+    // BullMQ emits `failed` for every attempt: only the last one is the end.
+    const final =
+      stalled ||
+      error instanceof UnrecoverableError ||
+      job.attemptsMade >= (job.opts.attempts ?? 1);
+    if (!final) {
+      return;
+    }
+    if (stalled) {
+      this.logger.warn('A transfer stalled and was failed', { id: job.id });
+    }
     // Outside process(): the listeners (a report's failure) write in the job's tenant.
-    await inTenantOf(job.data, () =>
-      this.registry.finished({
-        id: job.id!,
-        job: job.data,
-        status: 'failed',
-        error: error.message,
+    await inTenantOf(job.data, async () => {
+      if (stalled) {
+        await this.registry.finished({
+          id: job.id!,
+          job: job.data,
+          status: 'failed',
+          error: error.message,
+        });
+      }
+      // After the queue marked it failed (this event), so a refetch says `failed`.
+      this.realtime.toPrincipal(job.data.principal, 'data.failed', {
+        id: job.id,
+        name: job.data.name,
+        kind: job.data.kind,
+        error:
+          error instanceof TransferRefused
+            ? error.message
+            : TRANSFER_UNAVAILABLE,
+      });
+    }).catch((failure: unknown) =>
+      this.logger.error('A failed transfer could not be announced', {
+        id: job.id,
+        error: String(failure),
       }),
     );
   }
@@ -191,7 +232,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
       { account: job.data.tenantId === null },
     );
     if (!principal) {
-      throw new Error(
+      throw new TransferRefused(
         'The account that started this transfer is no longer active.',
       );
     }
@@ -228,6 +269,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
       );
     }
     let rows = 0;
+    let toldAt = 0;
     const columns = exporter.columnsFor
       ? await exporter.columnsFor(principal)
       : exporter.columns;
@@ -255,6 +297,15 @@ export class DataTransferProcessor extends TenantWorkerHost<
           );
           rows += batch.length;
           await job.updateProgress({ processed: rows });
+          if (Date.now() - toldAt >= PROGRESS_INTERVAL) {
+            toldAt = Date.now();
+            this.realtime.toPrincipal(principal, 'data.progress', {
+              id: job.id,
+              name: job.data.name,
+              kind: 'export',
+              processed: rows,
+            });
+          }
         }
       },
       timeZone,
@@ -314,7 +365,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
     const refuse = (refused: ImportRowError[]) => {
       errors.push(...refused);
       if (errors.length > MAX_ERRORS) {
-        throw new Error(
+        throw new TransferRefused(
           `More than ${MAX_ERRORS} errors: check the file's format and columns.`,
         );
       }
@@ -325,7 +376,9 @@ export class DataTransferProcessor extends TenantWorkerHost<
       !job.data.tenantId ||
       !isTenantFileKey(job.data.tenantId, job.data.key)
     ) {
-      throw new Error('The upload is not one of this tenant’s files.');
+      throw new TransferRefused(
+        'The upload is not one of this tenant’s files.',
+      );
     }
     try {
       const { body } = await this.disk.get(job.data.key);
@@ -342,7 +395,7 @@ export class DataTransferProcessor extends TenantWorkerHost<
             Object.keys(record),
           );
           if (refused.length) {
-            throw new Error(
+            throw new TransferRefused(
               `Unknown columns: ${refused.join(', ')}. Check the template.`,
             );
           }
@@ -391,6 +444,14 @@ export class DataTransferProcessor extends TenantWorkerHost<
         }
         if (row % PROGRESS_EVERY === 0) {
           await job.updateProgress({
+            processed: rows,
+            imported,
+            failed: errors.length,
+          });
+          this.realtime.toPrincipal(principal, 'data.progress', {
+            id: job.id,
+            name: job.data.name,
+            kind: 'import',
             processed: rows,
             imported,
             failed: errors.length,

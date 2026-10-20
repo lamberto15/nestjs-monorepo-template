@@ -309,6 +309,24 @@ export class NotificationsService {
     return item;
   }
 
+  /**
+   * Marks the recipient's unread notifications of `type` read, in `tx` (the
+   * change that settles them): IAM_NOTIFIER's settle(). The caller then
+   * runs announceUnread() after the commit.
+   */
+  async settle(tx: Transaction, input: { type: string; to: string }) {
+    await tx
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(notifications.recipient, input.to),
+          eq(notifications.type, input.type),
+          isNull(notifications.readAt),
+        ),
+      );
+  }
+
   /** Tells the recipient's connections their unread count (after a change to it). */
   async announceUnread(recipient: Pick<Principal, 'kind' | 'id'>) {
     this.realtime.toPrincipal(

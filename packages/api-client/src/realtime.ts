@@ -44,6 +44,30 @@ export interface RealtimeEvents {
     imported: number;
     failed: number;
   }) => void;
+  /**
+   * An export or import is running: `processed` rows so far (an import also
+   * `imported` and `failed`). Throttled (an export: at most once a second; an
+   * import: every 500 rows); `GET /v1/data/transfers/{id}` has the same numbers.
+   */
+  'data.progress': (event: {
+    id: string;
+    name: string;
+    kind: 'export' | 'import';
+    processed: number;
+    imported?: number;
+    failed?: number;
+  }) => void;
+  /**
+   * An export or import failed for good (not a few refused rows: that is
+   * `data.import-finished`); `error` says why, for people. The transfer
+   * reads `failed` at `GET /v1/data/transfers/{id}` by now.
+   */
+  'data.failed': (event: {
+    id: string;
+    name: string;
+    kind: 'export' | 'import';
+    error: string;
+  }) => void;
   /** An approval request waits for you (or for someone you stand in for): `GET /v1/approvals/{id}` (docs/approvals.md). */
   'approval.assigned': (event: {
     id: string;
@@ -89,6 +113,25 @@ export interface RealtimeEvents {
     action: string;
     done: number;
     failed: number;
+  }) => void;
+  /** A queued bulk run is running: items processed so far, every few hundred items. */
+  'bulk.progress': (event: {
+    id: string;
+    name: string;
+    action: string;
+    processed: number;
+    done: number;
+    failed: number;
+  }) => void;
+  /**
+   * A queued bulk run failed for good (its worker was lost, say); items done
+   * stay done (`GET /v1/bulk/{id}`, the audit log). `error` says why, for people.
+   */
+  'bulk.failed': (event: {
+    id: string;
+    name: string;
+    action: string;
+    error: string;
   }) => void;
   /**
    * A document you asked for (`POST /v1/notes/{id}/pdf`) was issued: the PDF

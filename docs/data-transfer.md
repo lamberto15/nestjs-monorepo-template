@@ -21,14 +21,14 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
 }
 ```
 
-| Route | Does |
-| --- | --- |
-| `GET /v1/data` | what the caller may export and import; each import's columns and template link |
-| `GET /v1/data/imports/{name}/template?format=&timezone=` | a file to fill: the columns, an example row |
-| `POST /v1/data/exports { name, format, filters, timezone? }` | 202; the file lands in private storage |
-| `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`) | 202; every row is validated, valid rows written |
-| `GET /v1/data/transfers/{id}` | progress, then the result: a signed link (30 min), counts, the error report; `createdAt`, `finishedAt`, `expiresAt` |
-| `GET /v1/data/transfers?kind=&status=&limit=&cursor=` | the caller's transfers in this tenant, newest first, each as the route above tells it |
+| Route                                                         | Does                                                                                                                |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/data`                                                | what the caller may export and import; each import's columns and template link                                      |
+| `GET /v1/data/imports/{name}/template?format=&timezone=`      | a file to fill: the columns, an example row                                                                         |
+| `POST /v1/data/exports { name, format, filters, timezone? }`  | 202; the file lands in private storage                                                                              |
+| `POST /v1/data/imports` (multipart: `name`, `file`, `dryRun`) | 202; every row is validated, valid rows written                                                                     |
+| `GET /v1/data/transfers/{id}`                                 | progress, then the result: a signed link (30 min), counts, the error report; `createdAt`, `finishedAt`, `expiresAt` |
+| `GET /v1/data/transfers?kind=&status=&limit=&cursor=`         | the caller's transfers in this tenant, newest first, each as the route above tells it                               |
 
 - **Per tenant** ([tenancy](tenancy.md)): a transfer job names the tenant
   it was started in (`tenantId`, required by its type); the worker runs it
@@ -63,14 +63,14 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
 - `GET /v1/data` is described in the OpenAPI document (`catalogSchema`), so
   the typed client types it.
 - **The account export** (an exporter with `scope: 'account'`: `POST
-  /v1/account/export`) is the person's, across their tenants: queued with
+/v1/account/export`) is the person's, across their tenants: queued with
   `tenantId: null`, run in no tenant (it reads each tenant in turn, as
   docs/tenancy.md says), filed under `accounts/<user id>/transfers/`, and
   shown to that user in any tenant or none. Users only, never while
   impersonating.
 - **An internal exporter** (`internal: true`) starts only from its own
   route, in code (`startExport(…, { internal: true })`): `POST
-  /v1/data/exports` answers 404 for it, the catalog and the scheduled
+/v1/data/exports` answers 404 for it, the catalog and the scheduled
   reports leave it out. The operators' tenant export is one
   (`TenantTransfer`, `POST /v1/tenants/{id}/export`, which wants a recent
   sign-in: [tenancy](tenancy.md), "Exporting a tenant").
@@ -119,7 +119,16 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   dropdown on every column with choices. Built in the request: two rows.
 - The realtime connection hears `data.export-ready` and
   `data.import-finished`. Both are audited; the principal is checked again
-  when the job runs.
+  when the job runs. While it runs: `data.progress { id, name, kind,
+processed }` (an import also `imported`, `failed`; an export's at most once
+  a second, an import's every 500 rows). When it fails for good (the handler
+  throws on its last attempt, or BullMQ fails a stalled job):
+  `data.failed { id, name, kind, error }`, sent from the worker's `failed`
+  event, so the transfer already reads `failed`. `error` is a reason for
+  people (a `TransferRefused` message: the account gone, unknown columns,
+  too many errors, a foreign upload), else a generic one; the raw error stays
+  in the logs and in `registry.onFinished` listeners. A page needs no poll
+  for these.
 - Code that starts a transfer and acts on its end (scheduled reports mail
   the file): `startExport(principal, { …, tag: 'report:<id>' })`, and
   `registry.onFinished(listener)` from a constructor; the listener hears

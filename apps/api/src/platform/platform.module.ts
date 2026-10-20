@@ -64,6 +64,7 @@ import {
   SNS_HTTP,
   SnsGateway,
 } from './deliverability/sns/sns-gateway.js';
+import { MailSuppressionListSource } from './deliverability/suppression.list-source.js';
 import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
 import { SuppressionsController } from './deliverability/suppressions.controller.js';
 import { SuppressionsService } from './deliverability/suppressions.service.js';
@@ -153,6 +154,8 @@ import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
+import { ViewsController } from './views/views.controller.js';
+import { ViewsService } from './views/views.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
 import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
 import { ReportsController } from './reports/reports.controller.js';
@@ -366,6 +369,7 @@ export class PlatformModule {
         AttachmentsController,
         DocumentsController,
         TagsController,
+        ViewsController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
         // Email deliverability: the providers' bounces and complaints, the suppression list.
@@ -515,6 +519,8 @@ export class PlatformModule {
         ...whenOn('WEBHOOKS', WebhookListSource),
         // The operators' tenants list (GET /v1/lists/Tenant).
         TenantListSource,
+        // The suppression list (GET /v1/lists/MailSuppression), for the operators.
+        MailSuppressionListSource,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,
         // Files attached to records: features register an AttachmentTarget.
@@ -533,6 +539,8 @@ export class PlatformModule {
         // Tags: features register a TagTarget and call TagsService.
         TagsRegistry,
         TagsService,
+        // Saved views: a list's filters, sort and columns under a name (private, team, tenant).
+        ViewsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',

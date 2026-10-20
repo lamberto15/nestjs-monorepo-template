@@ -192,6 +192,7 @@ have none.
 | Need | Route |
 | --- | --- |
 | The list: `?address=…` (any case), `?address.endsWith=@example.com`, `?reason=complaint`, `?source=ses`, `?suppressedAt.isNull=true` (watched only), `?sort=-lastSeenAt` | `GET /v1/mail/suppressions` |
+| The list's description (filters, sorts, columns), to the operators holding `MailSuppression.view` | `GET /v1/lists/MailSuppression` |
 | One entry | `GET /v1/mail/suppressions/{id}` |
 | Stop mail to an address (`{ address, note? }`; 409 when listed) | `POST /v1/mail/suppressions` |
 | Send to it again (after checking the mailbox works, or the person asked) | `DELETE /v1/mail/suppressions/{id}` |
