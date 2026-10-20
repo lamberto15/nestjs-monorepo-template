@@ -137,12 +137,16 @@ realtime() {
     echo "REALTIME_RATE and PHASE_SECONDS are whole numbers" >&2
     exit 2
   }
+  # Run as the caller (the report lands owned by them), whom the image's
+  # /etc/passwd doesn't know: Node's os.userInfo() (Artillery calls it) fails
+  # with ENOENT, so the host's passwd file is mounted read-only.
   ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
     docker run --rm \
     --network "${project}_default" \
     --user "$(id -u):$(id -g)" \
     -v "$PWD/loadtest:/scripts:ro" \
     -v "$out:/out" \
+    -v /etc/passwd:/etc/passwd:ro \
     -e HOME=/tmp \
     -e ARTILLERY_DISABLE_TELEMETRY=true \
     -e BASE_URL=http://caddy \
