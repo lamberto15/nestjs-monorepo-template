@@ -61,5 +61,45 @@
     "banner": "The password you signed in with appears in a known data breach. Change it now, to one you use nowhere else.",
     "action": "Change your password",
     "settleFailed": "Your password was changed, but the breach alert could not be marked as read."
+  },
+  "phone": {
+    "title": "SMS number",
+    "description": "Where text messages are sent. A number is used only after you confirm the code texted to it.",
+    "number": "Phone number",
+    "numberHint": "With the country code, like +4915112345678.",
+    "invalid": "Enter the number with its country code, like +4915112345678.",
+    "add": "Add number",
+    "save": "Send code",
+    "change": "Use a different number",
+    "codeSent": "We texted you a code.",
+    "code": "Code",
+    "codeHint": "The six-digit code we texted you. It lasts ten minutes.",
+    "codeInvalid": "Enter the six digits.",
+    "verify": "Confirm number",
+    "confirmed": "Number confirmed.",
+    "verified": "Confirmed",
+    "unverified": "Not confirmed",
+    "optedOut": "Stopped (STOP)",
+    "optedOutHint": "This number replied STOP, so no text is sent. Reply START from it to receive texts again.",
+    "remove": "Remove",
+    "removed": "Number removed.",
+    "removeTitle": "Remove your number?",
+    "removeDescription": "No text messages will be sent to you."
+  },
+  "devices": {
+    "title": "Devices",
+    "description": "Phones and browsers that receive push notifications. The app registers them.",
+    "none": "No devices registered.",
+    "lastSeen": "Last seen {{date}}",
+    "platforms": {
+      "web": "Web",
+      "ios": "iOS",
+      "android": "Android"
+    },
+    "remove": "Remove",
+    "removeLabel": "Remove {{name}}",
+    "removed": "Device removed.",
+    "removeTitle": "Remove this device?",
+    "removeDescription": "{{name}} will stop receiving push notifications until the app registers it again."
   }
 }

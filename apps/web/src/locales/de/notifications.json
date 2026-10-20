@@ -61,5 +61,45 @@
     "banner": "Das Passwort, mit dem Sie sich angemeldet haben, taucht in einem bekannten Datenleck auf. Ändern Sie es jetzt in eines, das Sie sonst nirgends verwenden.",
     "action": "Passwort ändern",
     "settleFailed": "Ihr Passwort wurde geändert, aber die Leck-Warnung konnte nicht als gelesen markiert werden."
+  },
+  "phone": {
+    "title": "SMS-Nummer",
+    "description": "Wohin Textnachrichten gehen. Eine Nummer wird erst nach Bestätigung des per SMS gesendeten Codes verwendet.",
+    "number": "Telefonnummer",
+    "numberHint": "Mit Ländervorwahl, z. B. +4915112345678.",
+    "invalid": "Geben Sie die Nummer mit Ländervorwahl ein, z. B. +4915112345678.",
+    "add": "Nummer hinzufügen",
+    "save": "Code senden",
+    "change": "Andere Nummer verwenden",
+    "codeSent": "Wir haben Ihnen einen Code gesendet.",
+    "code": "Code",
+    "codeHint": "Der sechsstellige Code aus der SMS. Er gilt zehn Minuten.",
+    "codeInvalid": "Geben Sie die sechs Ziffern ein.",
+    "verify": "Nummer bestätigen",
+    "confirmed": "Nummer bestätigt.",
+    "verified": "Bestätigt",
+    "unverified": "Nicht bestätigt",
+    "optedOut": "Gestoppt (STOP)",
+    "optedOutHint": "Diese Nummer hat mit STOP geantwortet, daher werden keine SMS gesendet. Antworten Sie mit START, um wieder SMS zu erhalten.",
+    "remove": "Entfernen",
+    "removed": "Nummer entfernt.",
+    "removeTitle": "Nummer entfernen?",
+    "removeDescription": "Es werden keine SMS mehr an Sie gesendet."
+  },
+  "devices": {
+    "title": "Geräte",
+    "description": "Handys und Browser, die Push-Benachrichtigungen erhalten. Die App registriert sie.",
+    "none": "Keine Geräte registriert.",
+    "lastSeen": "Zuletzt gesehen {{date}}",
+    "platforms": {
+      "web": "Web",
+      "ios": "iOS",
+      "android": "Android"
+    },
+    "remove": "Entfernen",
+    "removeLabel": "{{name}} entfernen",
+    "removed": "Gerät entfernt.",
+    "removeTitle": "Dieses Gerät entfernen?",
+    "removeDescription": "{{name}} erhält keine Push-Benachrichtigungen mehr, bis die App es erneut registriert."
   }
 }
