@@ -1,7 +1,7 @@
 # The load-test baseline (docs/development.md, "Load tests"): on demand
 # (manual only for now, to save Actions minutes), the production stack on a GitHub runner (its own Compose project,
 # compose.loadtest.yaml on top), the k6 scenarios (sign-in, a filtered list,
-# create) at fixed rates, and the numbers kept as the `load-test-baseline`
+# create, export) at fixed rates, then Artillery's socket.io run, and the numbers kept as the `load-test-baseline`
 # artifact. The run fails only on a 2× regression (median or p95, failed
 # share, dropped iterations) against the previous successful run or the
 # anchor, the last accepted baseline (loadtest/compare.mjs); the first run

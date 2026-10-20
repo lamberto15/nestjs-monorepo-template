@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
   database,
@@ -24,6 +28,7 @@ import { NotificationsService } from '../../platform/notifications/notifications
 import { NamingSeriesService } from '../../platform/sequences/naming-series.service.js';
 import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
 import { TagsService } from '../../platform/tags/tags.service.js';
+import { IncomingEventHandlers } from '../../platform/webhooks/incoming-event-handlers.js';
 import { RevisionsService } from '../../platform/revisions/revisions.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { TeamsService } from '../../iam/access/teams.service.js';
@@ -61,12 +66,27 @@ export class NotesService {
     private readonly revisions: RevisionsService,
     private readonly approvals: ApprovalsService,
     private readonly tenancy: Tenancy,
+    incomingEvents: IncomingEventHandlers,
   ) {
     // Numbered NOTE-2026-00042 until the tenant defines naming series of its own.
     namingSeries.register({
       subject: 'Note',
       sequence: 'note',
       declared: { prefix: 'NOTE', perYear: true, width: 5 },
+    });
+    // A tenant's own sender (docs/webhooks-and-realtime.md): the tenant is the
+    // sender's, so the event names only the note, and the request already runs in it.
+    incomingEvents.register('note.publish-requested', ({ webhook }) => {
+      const data = webhook.payload.data as { noteId?: unknown } | null;
+      const noteId = data?.noteId;
+      if (typeof noteId !== 'string') {
+        throw new BadRequestException('data.noteId is required.');
+      }
+      return inTransaction(this.txHost, async (tx) =>
+        webhook.processInTransaction(tx, () =>
+          this.requestPublish(tx, noteId, webhook.id),
+        ),
+      );
     });
   }
 

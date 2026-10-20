@@ -1,0 +1,48 @@
+# An outside uptime probe (docs/deployment.md, "Alerting", "The outside
+# probe"): reaches the API from a GitHub runner, so it sees what the
+# monitoring stack on the host cannot: the host down, DNS, the firewall, the
+# router. A failed run is the alert: GitHub mails the repository's watchers and
+# whoever last edited the schedule, and the run shows red.
+#
+# Off by default: nothing runs until the repository variable UPTIME_PROBE_URL
+# is set (Settings > Secrets and variables > Actions > Variables), e.g.
+# https://api.example.com/health/live. No paid key, no secret. It needs a
+# public name: a host only /etc/hosts knows (app10) can't be probed from here.
+#
+# Hourly, to spare Actions minutes (a run takes seconds, billed as a
+# minute): GitHub also delays or drops scheduled runs under load, and
+# disables them after 60 days without repository activity. For a faster or
+# surer check use an uptime service (healthchecks.io's, UptimeRobot's free tier).
+name: Uptime probe
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    # Skipped (not failed) while the variable is unset or empty.
+    if: vars.UPTIME_PROBE_URL != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe ${{ vars.UPTIME_PROBE_URL }}
+        env:
+          URL: ${{ vars.UPTIME_PROBE_URL }}
+        run: |
+          case "$URL" in
+            https://*) ;;
+            *) echo "UPTIME_PROBE_URL must start with https:// (got: $URL)" >&2; exit 1 ;;
+          esac
+          # Three tries, 10 s apart, so one dropped packet does not page anyone.
+          # --fail: any status of 400 or more fails; redirects are not followed.
+          curl --fail --silent --show-error --max-time 20 \
+            --retry 2 --retry-delay 10 --retry-all-errors \
+            --output /dev/null --write-out 'HTTP %{http_code} in %{time_total}s\n' "$URL"

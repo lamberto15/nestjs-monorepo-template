@@ -53,7 +53,7 @@ export const APPROVAL_EVENT_TYPES = [
 ] as const;
 export type ApprovalEventType = (typeof APPROVAL_EVENT_TYPES)[number];
 
-/** The realtime events (packages/api-client/src/realtime.ts mirrors them). */
+/** The realtime events (declared in platform/realtime/realtime-events.ts). */
 export const APPROVAL_REALTIME = {
   /** To an approver (and their delegates): a request waits for them. */
   assigned: 'approval.assigned',

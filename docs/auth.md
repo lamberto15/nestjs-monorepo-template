@@ -848,7 +848,8 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   fail-open / fail-closed behaviour. The unit
   test `captcha.providers.spec.ts` proves the production configuration
   resolves `TurnstileVerifier`, never the stub, and that the stub is refused
-  with `NODE_ENV=production`.
+  with `NODE_ENV=production` (any `APP_ENV` but exactly `loadtest`, with or
+  without a secret).
 
 **The load-test hook.** `CAPTCHA_PROVIDER=stub` replaces the provider with
 `StubCaptchaVerifier`, which judges by the token's text and calls nothing:
@@ -857,11 +858,13 @@ refuses a repeat, so send a fresh suffix per request), `stub:fail`,
 `stub:spent`, `stub:elsewhere`, `stub:other-action` are refused with that
 reason, `stub:down` and `stub:slow` play an outage and a hang (the real
 timeout and fail-open / fail-closed policy run around them). It exists for
-the load tests (roadmap item 17: a staging run with `CAPTCHA_MODE=always
-CAPTCHA_PROVIDER=stub` measures the routes with the guard in place) and the
-e2e tests; **production refuses it** at startup: `NODE_ENV=production`, an
-`APP_ENV` that names production (`prod…`), or a `TURNSTILE_SECRET_KEY` in
-place (a stub next to a real key is a switch someone forgot). A bare `node
+the load tests (roadmap item 17: `LOADTEST_CAPTCHA=always loadtest/run.sh`
+measures the routes with the guard in place) and the
+e2e tests; **production refuses it** at startup: `NODE_ENV=production`
+(unless `APP_ENV=loadtest`, the load test's stack, which runs the production
+image: [development](development.md), "Load tests"), an `APP_ENV` that names
+production (`prod…`), or a `TURNSTILE_SECRET_KEY` in place (a stub next to a
+real key is a switch someone forgot). A bare `node
 dist/main` outside Compose must set `NODE_ENV=production` itself
 ([deployment.md](deployment.md), "The image"). `compose.prod.yaml` pins
 `turnstile`, and `GET /v1/auth/methods` shows `provider: stub` so nobody

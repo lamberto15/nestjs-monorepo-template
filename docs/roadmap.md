@@ -33,13 +33,15 @@ first project is built on the template; until then they report only.
 | 1a, part 1. Database roles | **Done** (#36): `migrate` connects as the owner (`DATABASE_OWNER_URL`), api and worker as `app_runtime` (NOSUPERUSER NOBYPASSRLS, owns nothing, DML only, no role memberships), created and checked by `roles.ts` on every migrate. Tests run as the app role over scram. The rest of 1a: the next row. |
 | 10, part 1. Git hooks | **Done** (#33): lefthook (Prettier, oxlint, commitlint) and the PR-title check in CI. Demo seed and devcontainer: the 10 row below. |
 | 16a. Dead-man's switch and certificate probe | **Done** (#32). Off until the owner sets `ALERT_WATCHDOG_URL_FILE` (healthchecks.io ping URL). |
+| 16b. Host monitoring | **Done** (#256): node-exporter and six `host` alerts in `compose.monitoring.yaml`; an hourly outside probe workflow, off until the `UPTIME_PROBE_URL` variable is set. docs/deployment.md, "Alerting". |
 | 19. Secrets | **Done** (#35): every secret can come from `X_FILE`; Docker secrets in production Compose; Redis' password never on a command line. Follow-up: a `pg_monitor` role for the exporter. |
 | 20. Expand/contract migrations | **Done** (#34): the policy in docs/pitfalls.md and squawk's lint in CI (report-only until `MIGRATION_LINT_FAIL` is set; changed merged migrations always fail). |
 | 21. OpenAPI breaking changes | **Done** (#31): oasdiff in CI, report-only until `OASDIFF_FAIL_ON` is set. |
 | 24. Session method and step-up | **Done** (#37): the session records how it was signed into; `@RecentAuthentication()` on sensitive routes, `POST /v1/auth/reauthenticate`. Follow-ups: a no-sign-in cancel link in the deletion mail; per-request `prompt=login` for OIDC. |
 | 4. Bot protection | **Done** (#42): Cloudflare Turnstile behind a `CaptchaVerifier` interface, `@Captcha()` on sign-in, sign-up, the magic-link request and forgot password, the token in `X-Captcha-Token`; modes `off` (default), `always`, `after-failures` (per address and per email and address, the same for unknown accounts); 2 s timeout and a circuit breaker (@nestjs/resilience); fail-open under a strict tier with a metric, an alert and a replay set, fail-closed configurable; the token sign-in of native apps shares the counters and the challenge (a web view when asked); the stub verifier for tests and load tests, refused in production. docs/auth.md, "Bot protection". Follow-ups: the widget in the frontend starter (7); app attestation for the token sign-in. |
 | 14. Money and currency | **Done** (#41): `Money` (bigint minor units, ISO 4217 exponents, one rounding by a named mode, largest-remainder allocation), `formatMoney()` with an explicit numbering system, `moneyColumns()`; the ECB's daily rates fetched by `system:exchange-rates`, conversion through the euro carrying rate, day and source, `GET /v1/money/rates` and `/convert`, the `ExchangeRatesStale` alert. docs/money.md. |
-| 17-lite. Load-test baseline | **Done** (#43): k6 (sign-in, a filtered list, create) on the production stack (`compose.loadtest.yaml`, `loadtest/run.sh`), on a GitHub runner, manual only for now (`workflow_dispatch`, to save Actions minutes; a schedule is one line under `on:`), the `load-test-baseline` artifact, fails at 2× the previous run or the anchor (median, p95, errors, dropped iterations); `RATE_LIMIT_MULTIPLIER` and the `load-test` API client (high quota) instead of disabled limits. docs/development.md, "Load tests". The bot check stays off on its stack (`CAPTCHA_MODE=off`); measuring it is a follow-up. Follow-up: concurrent sign-ins OOM-kill an api replica (four scrypt hashes of 128 MiB pass `API_MEMORY` 512M), so the baseline signs in at 2/s; bound the hashes in flight (done in #4 here). |
+| 17-lite. Load-test baseline | **Done** (#43): k6 (sign-in, a filtered list, create) on the production stack (`compose.loadtest.yaml`, `loadtest/run.sh`), on a GitHub runner, manual only for now (`workflow_dispatch`, to save Actions minutes; a schedule is one line under `on:`), the `load-test-baseline` artifact, fails at 2× the previous run or the anchor (median, p95, errors, dropped iterations); `RATE_LIMIT_MULTIPLIER` and the `load-test` API client (high quota) instead of disabled limits. docs/development.md, "Load tests". Follow-up: concurrent sign-ins OOM-kill an api replica (four scrypt hashes of 128 MiB pass `API_MEMORY` 512M), so the baseline signs in at 2/s; bound the hashes in flight (done in #4 here). |
+| 17-full. Full load tests | **Done** (#255): the export scenario in k6 (queue, worker, storage: the request's latency and the time to a ready file), realtime through Artillery's socket.io engine (`loadtest/realtime.yml`, pinned image), `LOADTEST_REPLICAS` (1 to 6 api replicas), and the bot check's cost (`LOADTEST_CAPTCHA=always`: the stub verifier, which `captcha.providers.ts` allows under `NODE_ENV=production` only with `APP_ENV=loadtest`, unit-tested). Manual only, not in CI. Not measured yet: the delivery latency of a pushed realtime event. docs/development.md, "Load tests". |
 | 22. Email deliverability | **Done** (#3 here): `POST /v1/webhooks/mail/ses` verifies SNS notifications (signature versions 1 and 2, certificate URL and `SubscribeURL` restricted to SNS hosts, `SES_SNS_TOPIC_ARNS` allow-list, replay-safe), a queue job as `system:mail-intake` keeps the suppression list (hard/soft bounces with a threshold, complaints, manual entries; `GET/POST/DELETE /v1/mail/suppressions`, audited); the mail worker skips listed recipients (`@EssentialMail()` still reaches an address that complained); entries in the data export and erased with the account; SPF/DKIM/DMARC and the SNS setup in docs/deliverability.md; `MailBounceRateHigh`, `MailComplaints` alerts. Pluggable: Postmark, SendGrid… as adapters later. |
 | 12. Saved views | **Done** (#231): `platform/views`; `saved_views` (a list's `query` and `columns` under a name, private, team or tenant-wide), `GET/POST /v1/views`, `GET/PATCH/DELETE /v1/views/{id}`, `GET /v1/views/{id}/apply`; validated against the list with its custom fields on save and again on apply (stale: 400; a filter, sort or search on a field the viewer may not read: 403 `field_forbidden`; columns they may not see are hidden, not an error); `Access.manageViews` shares with the tenant and changes shared views, team members share with their team; a `PersonalDataSource` (private views go with the account, shared ones become ownerless); audited. Follow-ups: the view picker in the web list pages (`frontend` issue), views as exports' and reports' filters. docs/saved-views.md. |
 | 13. PDF generation | **Done** (#5 here): `platform/documents`; features register a `DocumentSource`, `POST /v1/notes/{id}/pdf` answers 202 and `GET /v1/documents/{id}` follows it; the worker renders a template with @nestjs/mail's escaping `FileTemplateEngine` (RTL, Noto fonts for Arabic and CJK, CSP `default-src 'none'`) through a pinned Gotenberg on an `internal: true` network (no JavaScript, private and public IPs denied, read-only, `cap_drop: ALL`), and one transaction adds the `locked` attachment and completes the document; per-run claims make duplicate runs safe; the attachment records the fields it shows, and a reader must see all of them; realtime `document.ready` and `document.failed`; off (503 `documents_unavailable`) without `GOTENBERG_URL`; the scanned image is published to GHCR. docs/documents.md. |
@@ -62,12 +64,14 @@ first project is built on the template; until then they report only.
 
 ### Open follow-ups
 
-- **Tenancy (1b):** per-tenant senders for incoming webhooks; sign-ins visible to tenant administrators (**done** (#228): `GET /v1/access/sign-ins`, docs/auth.md, "Sign-in log"); the platform super
+- **Tenancy (1b):** sign-ins visible to tenant administrators (**done** (#228): `GET /v1/access/sign-ins`, docs/auth.md, "Sign-in log"); the platform super
   tenant; a membership still active in a deactivated tenant exports that tenant's
   records; the migrate-time wall check compares policy names and commands, not their
   expressions; whether operators may act in any tenant without its invitation (a
   break-glass support route: the owner's decision, docs/tenancy.md, "Operators").
-  Tenant export and deletion are done (#226; get, rename and deactivation, #195).
+  Tenant export and deletion are done (#226; get, rename and deactivation, #195);
+  per-tenant senders for incoming webhooks are done (#234: docs/webhooks-and-realtime.md,
+  "Incoming webhooks of a tenant").
 - **Passkeys:** renaming needs no recent sign-in; a token sign-in naming a tenant the
   user isn't in writes no failure entry; `crossOrigin`/`topOrigin` aren't checked.
   Token clients with two-factor still send a code with a passkey until
@@ -160,7 +164,7 @@ CLAUDE.md), so no outside probe can reach it; 16a probes from inside the stack.
 | F | **5** encryption service + column registry; **19** secrets; **23** log redaction | 2, 11, 15 all store secrets or PII |
 | G | **24** session method + step-up; **3** passkeys; **4** bot protection; then **2** SSO/SCIM | 2 needs 1a, 5, 24 and domain verification |
 | H | **1b**; **10** (lefthook before 9); **9**; **22** email deliverability; **7** | Each later auth item adds UI to 7 |
-| I | 11, 12, 13, 14, 15, 16b, 17-full | By product need; 11 needs 5 |
+| I | 11, 12, 13, 14, 15, 17-full | By product need; 11 needs 5 |
 
 ---
 
@@ -412,9 +416,10 @@ Planned as:
   `template-without-notes` proves the core stands with the example removed.
 - **One event declaration.** Notifications, webhooks and realtime each declare event
   types today; they become one domain-event declaration with channels, and the
-  generator emits one.
-- **The realtime manifest** goes into the OpenAPI document as `x-realtime-events`, so
-  `client:check` already diffs it and oasdiff (21) catches breaking changes.
+  generator emits one. **Open (#229 follow-up):** only the realtime part is unified.
+- **The realtime manifest** (done, #229): `platform/realtime/realtime-events.ts` goes into
+  the OpenAPI document as `x-realtime-events`, so `client:check` diffs it and oasdiff
+  (21) catches breaking changes; the client's `src/realtime-events.ts` is generated.
 - Events are emitted only through the typed map. Payloads are validated at runtime in
   dev and test only.
 
@@ -559,7 +564,10 @@ After 1a and 5.
     probing **`https://caddy:443`** with `tls_config.server_name` set to the public
     host.
   - `BackupTooOld` already exists (`monitoring/prometheus/alerts.yml:265`).
-- **16b.**
+- **16b (done, #256).** node-exporter in `compose.monitoring.yaml` (job `node`, six
+  `host` alerts with promtool tests) and the outside probe
+  (`.github/workflows/uptime-probe.yml`, off until the `UPTIME_PROBE_URL` variable
+  is set). docs/deployment.md, "Alerting". What was planned:
   - node-exporter in Docker Desktop sees the Linux VM. That is still useful, because
     `Docker.raw` is what fills.
   - The Mac itself needs a Homebrew `node_exporter` scraped through
@@ -572,10 +580,12 @@ After 1a and 5.
   - sign-in, list with filters, and create;
   - nightly on a GitHub runner, with a JSON baseline artifact (built as manual-only for now, to save Actions minutes);
   - fails only on 2× regressions.
-- **17-full:**
-  - export and realtime;
-  - realtime through Artillery's socket.io engine, because k6 doesn't speak socket.io;
-  - several replicas.
+- **17-full (done, #255):**
+  - an export scenario in k6 (the request, then the time to a ready file);
+  - realtime through Artillery's socket.io engine (`loadtest/realtime.yml`, pinned image), because k6 doesn't speak socket.io;
+  - several replicas (`LOADTEST_REPLICAS`);
+  - the bot check's cost: the stub verifier, allowed under `NODE_ENV=production` only with `APP_ENV=loadtest` (`LOADTEST_CAPTCHA=always`);
+  - still open: the delivery latency of a pushed realtime event; manual runs only, not in CI.
 - A dedicated load-test API client with a high quota and env-raised throttling, rather
   than disabled limits. The bot guard is stubbed for this run only.
 - A self-hosted runner (the Mac) only behind `workflow_dispatch`.

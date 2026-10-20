@@ -39,6 +39,11 @@ import { WebhookEndpointsController } from './webhooks/webhook-endpoints.control
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
 import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
+import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
+import { IncomingSendersService } from './webhooks/incoming-senders.service.js';
+import { TenantSenderGuard } from './webhooks/tenant-sender.guard.js';
+import { TenantWebhookReceiverController } from './webhooks/tenant-webhook-receiver.controller.js';
 import { WebhookListSource } from './webhooks/webhook-lists.js';
 import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
@@ -340,6 +345,9 @@ export class PlatformModule {
           // An administrator managing a client's webhooks on its behalf.
           ClientWebhooksController,
         ),
+        // Incoming webhooks of a tenant's own senders: not behind WEBHOOKS (that switch is for the outgoing ones).
+        IncomingSendersController,
+        TenantWebhookReceiverController,
         OpsController,
         FeaturesController,
         FilesController,
@@ -432,6 +440,10 @@ export class PlatformModule {
         },
         // Both doors to a client's webhooks: its own routes and an administrator's.
         WebhookManagementService,
+        // A tenant's incoming webhook senders; features register the events they handle.
+        IncomingSendersService,
+        IncomingEventHandlers,
+        TenantSenderGuard,
         // Idempotency records in idempotency_keys; registers itself with IdempotencyStorage.
         DrizzleIdempotencyStore,
         OpsPolicy,
@@ -620,6 +632,7 @@ export class PlatformModule {
         MoneyModule,
         MAIL_SUPPRESSION,
         MailEventIntakeRegistry,
+        IncomingEventHandlers,
       ],
     };
   }

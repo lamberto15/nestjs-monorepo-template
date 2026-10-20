@@ -338,6 +338,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhook-senders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tenant's incoming webhook senders */
+        get: operations["IncomingSendersController_list_v1"];
+        put?: never;
+        /**
+         * Register a sender
+         * @description The secret is in the response, this once. The sender signs its calls with it (Standard Webhooks) and POSTs to the returned `path`. Audited (`webhookSender.created`).
+         */
+        post: operations["IncomingSendersController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-senders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One sender */
+        get: operations["IncomingSendersController_get_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Remove a sender
+         * @description Its calls are refused (401) from now on. Audited (`webhookSender.deleted`).
+         */
+        delete: operations["IncomingSendersController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Describe, disable or enable a sender
+         * @description Audited (`webhookSender.updated`).
+         */
+        patch: operations["IncomingSendersController_update_v1"];
+        trace?: never;
+    };
+    "/v1/webhook-senders/{id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A new secret (the old one verifies for a grace period)
+         * @description The new secret is in the response, this once; the old one keeps verifying for `graceSeconds` (default 24 hours). Audited (`webhookSender.secret-rotated`).
+         */
+        post: operations["IncomingSendersController_rotate_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/tenants/{tenantId}/senders/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive an event from a tenant's sender
+         * @description Signed with Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature) using the secret of the sender registered at POST /v1/webhook-senders. The body is `{ type, data }`. A redelivered webhook-id is answered 200 and not processed again.
+         */
+        post: operations["TenantWebhookReceiverController_handle_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/outbox": {
         parameters: {
             query?: never;
@@ -3519,6 +3605,52 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        IncomingWebhookSenderList: {
+            items: components["schemas"]["IncomingWebhookSender"][];
+        };
+        IncomingWebhookSender: {
+            id: string;
+            name: string;
+            description: string | null;
+            enabled: boolean;
+            /** @description Where the sender POSTs, under the API origin: `/v1/webhooks/tenants/{tenantId}/senders/{name}`. */
+            path: string;
+            /**
+             * Format: date-time
+             * @description While set and in the future, the secret before the last rotation still verifies.
+             */
+            previousSecretExpiresAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CreatedIncomingWebhookSender: {
+            id: string;
+            name: string;
+            description: string | null;
+            enabled: boolean;
+            /** @description Where the sender POSTs, under the API origin: `/v1/webhooks/tenants/{tenantId}/senders/{name}`. */
+            path: string;
+            /**
+             * Format: date-time
+             * @description While set and in the future, the secret before the last rotation still verifies.
+             */
+            previousSecretExpiresAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description The `whsec_…` signing secret (Standard Webhooks). Shown this once. */
+            secret: string;
+        };
+        IncomingWebhookResult: {
+            /** @enum {boolean} */
+            received: true;
+            duplicate: boolean;
+            /** @description false: no handler is registered for the event type (acknowledged and ignored, so the sender does not retry). */
+            handled: boolean;
+        };
         TagPage: {
             items: components["schemas"]["Tag"][];
             /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
@@ -4001,6 +4133,143 @@ export interface components {
             attachmentId: string | null;
             /** @description Why it failed, written for people. */
             error: string | null;
+        };
+        RealtimeNotificationEvent: {
+            /** Format: uuid */
+            id: string;
+            /** @example note.published */
+            type: string;
+            title: string;
+            body: string;
+            /** @description What the texts were made from, and what a client needs to act on it. */
+            data: {
+                [key: string]: unknown;
+            };
+            /** @description A path of the web app, or null. */
+            link: string | null;
+            /** @description The collapse key, when it has one. */
+            key: string | null;
+            /** @description How many notifications this one stands for (collapsed). */
+            count: number;
+            read: boolean;
+            /** Format: date-time */
+            readAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RealtimeNotificationReadEvent: {
+            id: string;
+            readAt: string | null;
+        };
+        RealtimeNotificationsReadAllEvent: {
+            before: string | null;
+            updated: number;
+        };
+        RealtimeNotificationRemovedEvent: {
+            id: string;
+        };
+        RealtimeNotificationsUnreadCountEvent: {
+            unread: number;
+        };
+        RealtimeDataExportReadyEvent: {
+            id: string;
+            name: string;
+            rows: number;
+            url: string;
+        };
+        RealtimeDataImportFinishedEvent: {
+            id: string;
+            name: string;
+            rows: number;
+            imported: number;
+            failed: number;
+        };
+        RealtimeDataProgressEvent: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "export" | "import";
+            processed: number;
+            imported?: number;
+            failed?: number;
+        };
+        RealtimeDataFailedEvent: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "export" | "import";
+            error: string;
+        };
+        RealtimeApprovalAssignedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            action: string;
+            stage: number;
+        };
+        RealtimeApprovalDecidedEvent: {
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+            round: number;
+            stage: number;
+            /** @enum {string|null} */
+            decision: "approved" | "rejected" | "changes_requested" | null;
+        };
+        RealtimeApprovalAppliedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            outcomeAppliedAt: string;
+        };
+        RealtimeBulkFinishedEvent: {
+            id: string;
+            name: string;
+            action: string;
+            done: number;
+            failed: number;
+        };
+        RealtimeBulkProgressEvent: {
+            id: string;
+            name: string;
+            action: string;
+            processed: number;
+            done: number;
+            failed: number;
+        };
+        RealtimeBulkFailedEvent: {
+            id: string;
+            name: string;
+            action: string;
+            error: string;
+        };
+        RealtimeDocumentReadyEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            attachmentId: string;
+        };
+        RealtimeDocumentFailedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            error: string;
+        };
+        RealtimeRecordCommentedEvent: {
+            subject: string;
+            recordId: string;
+            commentId: string;
+            /** @enum {string} */
+            action: "added" | "edited" | "removed";
+        };
+        RealtimeRecordAttachmentsChangedEvent: {
+            subject: string;
+            recordId: string;
+            attachmentId: string;
+            /** @enum {string} */
+            action: "added" | "removed";
         };
     };
     responses: never;
@@ -5469,6 +5738,313 @@ export interface operations {
              *     No such client in your tenant, endpoint or delivery.
              */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IncomingSendersController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomingWebhookSenderList"];
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IncomingSendersController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example billing-system */
+                    name: string;
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedIncomingWebhookSender"];
+                };
+            };
+            /** @description An invalid name (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has a sender of this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IncomingSendersController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomingWebhookSender"];
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IncomingSendersController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IncomingSendersController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description null clears it. */
+                    description?: string | null;
+                    /** @description false: the sender is refused (401) until it is enabled again. */
+                    enabled?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomingWebhookSender"];
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions, or a step-up is due (reauthentication_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IncomingSendersController_rotate_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description How long the old secret keeps verifying (default 24 hours; 0: it stops now).
+                     * @default 86400
+                     */
+                    graceSeconds?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedIncomingWebhookSender"];
+                };
+            };
+            /** @description No session (an API key is none). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TenantWebhookReceiverController_handle_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+                /** @description The sender registered by this name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example note.publish-requested */
+                    type: string;
+                    data: unknown;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncomingWebhookResult"];
+                };
+            };
+            /** @description Missing, invalid or stale signature, or no such enabled sender in that tenant (not told apart). */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

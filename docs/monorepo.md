@@ -181,14 +181,15 @@ web app needs the API, so `dev:web` alone suits an API already running.
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The
   notifications, the panels, the lists of transfers and bulk runs, the
   approvals and the jobs still running are refetched on every reconnect.
-  Jobs follow their events (`data.export-ready`, `data.import-finished`,
-  `bulk.finished`, `approval.applied`: the query of that id is refetched,
-  others are left alone); `useLivePoll()` makes the poll a fallback: 1 s
-  (2 s in lists) without a connected socket (`useRealtimeConnected()`),
-  while one is up 5 s for a running job (no progress event yet) and 30 s
-  for a queued one (the API now also pushes `data.progress`/`data.failed` and `bulk.progress`/`bulk.failed`: the poll can go, tracked in a frontend issue), and fast
-  again for a job whose event came but which the queue still reports
-  running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
+  Jobs follow their events: the end (`data.export-ready`,
+  `data.import-finished`, `bulk.finished`, `approval.applied`) and the failure
+  (`data.failed`, `bulk.failed`) refetch the query of that id (others are left
+  alone), and the progress (`data.progress`, `bulk.progress`) is written into
+  the cached job or list item (`withProgress()`), so a queued job turns
+  running on its first one. With a connected socket nothing is polled;
+  `useLivePoll()` makes the poll a fallback: 1 s (2 s in lists) without one
+  (`useRealtimeConnected()`), and fast again for a job whose end event came
+  but which the queue still reports running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
 title …>` is a server-paginated, filterable, sortable list of any subject;
   its filters, sorts, custom-field columns and tag filter come from

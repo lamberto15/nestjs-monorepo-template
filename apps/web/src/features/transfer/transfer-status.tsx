@@ -17,7 +17,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useLivePoll, useRealtimeEvent } from '@/lib/realtime';
+import { useLivePoll, useRealtimeEvent, withProgress } from '@/lib/realtime';
 import { useIsPast } from '@/lib/use-is-past';
 import { parseRowErrors } from './csv';
 import { POLL, transferQuery, type Transfer } from './api';
@@ -28,9 +28,9 @@ const SHOWN_ERRORS = 100;
 /**
  * One transfer on screen: the worker's progress, then the file to download
  * (an export) or the counts and the refused rows (an import). Its end comes
- * as a realtime event (`data.export-ready`, `data.import-finished`) for this
- * id; the progress is polled every second when there is no connected
- * socket, and every 5 s (30 s while queued) when there is (useLivePoll).
+ * as a realtime event (`data.export-ready`, `data.import-finished`,
+ * `data.failed`) for this id and its progress as `data.progress`; the job is
+ * polled every second only when there is no connected socket (useLivePoll).
  */
 export function TransferStatus(props: { id: string }) {
   const { t } = useTranslation('transfer');
@@ -53,6 +53,22 @@ export function TransferStatus(props: { id: string }) {
   };
   useRealtimeEvent('data.export-ready', ended);
   useRealtimeEvent('data.import-finished', ended);
+  useRealtimeEvent('data.failed', ended);
+  useRealtimeEvent('data.progress', (event) => {
+    if (event.id !== props.id) {
+      return;
+    }
+    queryClient.setQueryData(
+      transferQuery(props.id).queryKey,
+      (job) =>
+        job &&
+        withProgress(job, {
+          processed: event.processed,
+          imported: event.imported,
+          failed: event.failed,
+        }),
+    );
+  });
 
   if (query.isPending) {
     return <Skeleton className="h-10 w-full" aria-busy />;

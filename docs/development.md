@@ -366,8 +366,8 @@ settings pages. It is not part of `pnpm test:e2e` (the API's).
 
 ## Load tests
 
-A baseline of what three routes cost under load on the production stack,
-kept from run to run, so a change that makes one twice as slow fails, and the
+A baseline of what four routes cost under load on the production stack, and
+a socket.io check beside it, kept from run to run, so a change that makes one twice as slow fails, and the
 cost of tenancy's row-level security ([roadmap](roadmap.md), 1a) can be
 measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
 
@@ -376,6 +376,8 @@ measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
 | `signIn` | `POST /v1/auth/sign-in`, 20 seeded users | 2/s (below) |
 | `list` | `GET /v1/notes` with filters and a sort (status, `title.contains`, `createdAt.gte`…), the load-test client's key | 50/s |
 | `create` | `POST /v1/notes` with an `Idempotency-Key`, the same key | 20/s |
+| `export` | `POST /v1/data/exports` (notes, CSV, the load-test client's key), then `GET /v1/data/transfers/{id}` every 500 ms until `completed` with its link | 1/s |
+| realtime | socket.io, `/realtime` (Artillery, below) | 10 new connections/s |
 
 - **What runs:** `loadtest/run.sh` starts `compose.yaml` + `compose.prod.yaml`
   (api ×2, worker, migrate, PostgreSQL, Redis: the image and limits a
@@ -408,14 +410,53 @@ measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
   once its address is proved, by mail, which a load test can't do for
   accounts of its own: docs/tenancy.md). `setup()` first checks the target's rate limit is raised (only a
   load-test stack's is), so k6 pointed at a real deployment seeds nothing.
-- **The bot check (roadmap item 4) is off:** the load test measures the
-  app, not a captcha, so `compose.loadtest.yaml` sets `CAPTCHA_MODE=off`
-  (whatever its default becomes) and k6 sends no captcha token. Measuring
-  the guard's own cost would need its stub provider, which production
-  refuses, allowed with `APP_ENV=loadtest`: a follow-up.
+- **The bot check (roadmap item 4) is off by default:** the baseline
+  measures the app, not a captcha, so `compose.loadtest.yaml` sets
+  `CAPTCHA_MODE=off` unless `LOADTEST_CAPTCHA=always` asks for it, and k6
+  then sends no captcha token. **Its cost** is measured with
+  `LOADTEST_CAPTCHA=always`: the guard is in place with the **stub
+  provider** (`CAPTCHA_PROVIDER=stub`, which judges by the token's text and
+  calls nothing, [auth](auth.md), "Bot protection"), and k6 sends a fresh
+  `X-Captcha-Token: stub:pass:<uuid>` on the administrator's sign-in
+  (`/v1/auth/token`, in `setup()`) and on the sign-in scenario. The stub
+  runs under `NODE_ENV=production` **only with `APP_ENV=loadtest`**, which
+  only this overlay sets; production, any other `APP_ENV` and a Turnstile
+  secret next to it still refuse it at startup
+  (`captcha.providers.spec.ts` proves it). The cost is the difference
+  between two runs: `loadtest/run.sh` once as usual, once with
+  `LOADTEST_CAPTCHA=always` in another `LOADTEST_OUT`, then
+  `node loadtest/compare.mjs --report-only --current captcha/baseline.json --previous plain/baseline.json`
+  (the baseline records `captcha`; a different bot check is compared, since
+  its cost is the point). It measures the guard (the replay set in Redis and
+  the verdict), not Cloudflare's round trip, which the stub doesn't make.
   `RATE_LIMIT_MULTIPLIER` raises the throttler's limits only, not the
   captcha's fail-open tier (`CAPTCHA_DEGRADED_LIMIT`), which an off captcha
   never reaches.
+- **The export** runs a real transfer each time: the request is queued, the
+  worker reads the load-test client's 300 notes into a CSV in storage, and
+  the iteration ends when the transfer reads `completed` with its link. The
+  baseline has the request's latency (`ms`) and the time to a ready file
+  (`readyMs`: median, p95, max), which `compare.mjs` holds to the same 2×
+  bar; a transfer that fails or isn't ready in 60 s counts as an error.
+- **Realtime** (`loadtest/realtime.yml`) uses **Artillery** (pinned in
+  `run.sh`, `ARTILLERY_IMAGE`) because k6 doesn't speak socket.io. Each
+  virtual user connects to `/realtime` through Caddy (websocket only),
+  authenticated with the administrator's token (signed in once by
+  `realtime.processor.cjs`: a custom step, since the engine can't template
+  a handshake header from an HTTP answer), asks `whoami` once a second for
+  ten seconds (each acknowledged), and leaves. It measures the handshake,
+  the message round trip and the connections held (rate × 10 at once); a
+  refused handshake or a missing answer fails the run, as do a p95 over 500
+  ms or a p99 over 2 s (`ensure`). It does **not** measure the delivery of a
+  pushed event (`record.commented`, `data.export-ready`): a follow-up. Its
+  report is `realtime.json` in the output directory; it is not part of
+  `baseline.json` and not compared between runs.
+- **Several replicas:** `LOADTEST_REPLICAS=4 loadtest/run.sh` runs 1 to 6
+  api replicas behind Caddy (default 2, `compose.prod.yaml`'s). Each holds
+  10 database connections of PostgreSQL's 100, hence the limit of 6. The
+  baseline records `replicas`; runs with a different count aren't compared
+  (the numbers are another stack's), so a scaling comparison is read by eye
+  or with `--report-only`. The CI run stays at 2 (the anchor's).
 
 **Why sign-in runs at 2/s only:** a password check (scrypt, N = 2^17) takes
 about 0.4 s of a CPU and 128 MiB outside the heap, and libuv runs four at
@@ -435,13 +476,18 @@ node loadtest/compare.mjs --current loadtest/results/baseline.json --previous ol
 loadtest/run.sh up && loadtest/run.sh run && loadtest/run.sh down   # keep the stack between runs
 node --test loadtest/compare.test.mjs loadtest/run.test.mjs   # the comparison's and run.sh's tests
 SIGN_IN_RATE=1 PHASE_SECONDS=20 loadtest/run.sh   # a lighter load (not comparable with CI's)
+LOADTEST_REPLICAS=4 LOADTEST_OUT=/tmp/lt4 loadtest/run.sh   # four api replicas
+LOADTEST_CAPTCHA=always LOADTEST_OUT=/tmp/ltbot loadtest/run.sh   # the bot check in place (stub provider)
+loadtest/run.sh up && loadtest/run.sh realtime && loadtest/run.sh down   # only the socket.io run
+LOADTEST_REALTIME=off loadtest/run.sh   # without the Artillery run
 ```
 
 **The baseline** (`baseline.json`, the `load-test-baseline` artifact of
 each run, kept 90 days) has, per scenario, its rate, the requests made, the
 failed share, the dropped iterations (requests k6 couldn't start on time:
 the stack didn't keep up with the rate), and the latency in milliseconds
-(`avg`, `med`, `p90`, `p95`, `p99`, `max`), with the commit and k6's image.
+(`avg`, `med`, `p90`, `p95`, `p99`, `max`), with the commit, k6's image, the
+api replicas and the bot check's mode.
 
 **In CI** (`.github/workflows/load-test.yml`): **manual only for now**, to
 save Actions minutes: Actions → Load test → Run workflow, on `main`, on a
@@ -558,8 +604,10 @@ pages, ETags. Usage, the bell-icon recipe included:
   them. A component no route uses is left out of the document: list it in
   `PANEL_COMPONENT_SCHEMAS` (`platform/records/panel-components.ts`) to have it
   always, and add it to `PANEL_COMPONENTS` in `test/openapi.e2e-spec.ts`.
-- A new realtime event (`Realtime.toPrincipal()`) goes into `RealtimeEvents`
-  (`packages/api-client/src/realtime.ts`).
+- A new realtime event (`Realtime.toPrincipal()`) is declared in the manifest
+  (`platform/realtime/realtime-events.ts`: name, description, payload schema);
+  `pnpm client:generate` then writes `src/realtime-events.ts` (generated, with
+  `schema.ts`; `client:check` fails when stale) and `RealtimeEvents` follows.
 - `pnpm --filter @nestjs-monorepo-template/api-client build` compiles it on
   its own (no NestJS in it); `pnpm build` builds it before the packages that
   depend on it. Its unit tests run with `pnpm test`.
