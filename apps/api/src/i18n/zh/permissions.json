@@ -14,7 +14,9 @@
       "readAudit": "查看审计日志",
       "readConsolidated": "读取租户树中位于此租户之下的租户，只读（控股集团的合并报表）",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
-      "impersonate": "以其他用户身份操作（支持），绝不以管理员身份"
+      "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
+      "manageSso": "设置租户的单点登录：SAML 和 OpenID Connect 连接、已验证的电子邮件域",
+      "provisionScim": "通过 SCIM 2.0 预配用户和组（API 客户端：身份提供方的 SCIM 令牌）"
     }
   },
   "platform": {
@@ -114,6 +116,10 @@
       "label": "租户删除",
       "description": "每晚清除删除宽限期已过的租户（其记录、文件、排队的任务和工作流）。"
     },
+    "sso": {
+      "label": "单点登录",
+      "description": "获取 SSO 连接的 OpenID Connect 发现文档，并检查租户所验证域的 DNS 记录。"
+    },
     "account-deletion": {
       "label": "账户删除",
       "description": "每晚将删除宽限期已过的账户匿名化，并清除其个人数据。"
@@ -173,6 +179,18 @@
     "reencryption": {
       "label": "重新加密",
       "description": "每小时分批用当前密钥重写仍使用旧密钥的加密值和盲索引。"
+    },
+    "messaging": {
+      "label": "推送与短信发送",
+      "description": "在防盗打限额内，发送通知排入队列的短信和推送消息。"
+    },
+    "messaging-inbound": {
+      "label": "入站短信",
+      "description": "根据短信服务商的 webhook，记录号码退订（STOP）或重新订阅（START）。"
+    },
+    "messaging-retention": {
+      "label": "消息数据保留",
+      "description": "每晚移除超过 DEVICES_RETENTION_DAYS 未出现的设备，以及过往日期的防盗打计数器。"
     },
     "demo-seed": {
       "label": "演示数据",

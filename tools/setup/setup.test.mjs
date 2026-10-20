@@ -167,7 +167,7 @@ describe('envfile', () => {
 });
 
 describe('defaults', () => {
-  test('development: changes only what the spec asks (sign-up off), keeps the template', async () => {
+  test('development: changes only what the spec asks (sign-up off, the data key made), keeps the template', async () => {
     const root = fixture();
     const out = temp();
     const { code, text } = await setup(root, out, ['--target', 'development']);
@@ -182,9 +182,18 @@ describe('defaults', () => {
       path.join(root, TEMPLATES.development),
       'utf8',
     );
+    // The encrypted columns' key (SSO's client secrets): generated, as in production.
+    const key = env.get('DATA_ENCRYPTION_KEYS');
+    const indexKey = env.get('BLIND_INDEX_KEYS');
+    assert.equal(Buffer.from(key, 'base64').length, 32);
+    assert.equal(Buffer.from(indexKey, 'base64').length, 32);
+    assert.notEqual(key, indexKey);
     assert.equal(
       read(out, 'development'),
-      template.replace('AUTH_SIGN_UP=on', 'AUTH_SIGN_UP=off'),
+      template
+        .replace('AUTH_SIGN_UP=on', 'AUTH_SIGN_UP=off')
+        .replace('DATA_ENCRYPTION_KEYS=\n', `DATA_ENCRYPTION_KEYS=${key}\n`)
+        .replace('BLIND_INDEX_KEYS=\n', `BLIND_INDEX_KEYS=${indexKey}\n`),
     );
     assert.doesNotMatch(text, /Password/);
   });

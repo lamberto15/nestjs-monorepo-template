@@ -81,6 +81,16 @@ export const ACCESS_PERMISSIONS = definePermissions({
           label: 'Act as another user (support), never as an administrator',
           conditions: [],
         },
+        manageSso: {
+          label:
+            "Set up the tenant's single sign-on: SAML and OpenID Connect connections, verified email domains",
+          conditions: [],
+        },
+        provisionScim: {
+          label:
+            "Provision users and groups over SCIM 2.0 (API clients: the identity provider's SCIM token)",
+          conditions: [],
+        },
       },
     },
     // The deployment's operators acting past their tenant (docs/tenancy.md).

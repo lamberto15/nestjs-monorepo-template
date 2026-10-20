@@ -75,6 +75,9 @@ if [ ! -f "$env_file" ]; then
       for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD POSTGRES_MAINTENANCE_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD; do
         echo "$name=$(openssl rand -hex 24)"
       done
+      # The encrypted columns' key (docs/encryption.md), required at boot.
+      echo "DATA_ENCRYPTION_KEYS=$(openssl rand -base64 32)"
+      echo "BLIND_INDEX_KEYS=$(openssl rand -base64 32)"
     } > "$env_file"
   )
 fi

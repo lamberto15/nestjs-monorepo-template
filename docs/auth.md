@@ -304,8 +304,8 @@ Every session's metadata (the package's `SessionRecord.metadata`, the
 
 | Key | What |
 | --- | --- |
-| `method` | `password`, `magic-link`, `oidc`, `passkey`; `sso` is reserved for roadmap item 2; `impersonation` for an administrator's session as the user |
-| `provider` | the OIDC provider (`google`), later the SSO connection |
+| `method` | `password`, `magic-link`, `oidc`, `passkey`, `sso` (a tenant's connection, [Enterprise SSO](#enterprise-sso)); `impersonation` for an administrator's session as the user |
+| `provider` | the OIDC provider (`google`), or the SSO connection's id |
 | `authenticatedAt` | the sign-in, then each re-authentication (ISO 8601) |
 
 The second factor is the session's own `mfa` (`verified`). Both keys are
@@ -739,6 +739,120 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   at once), a forged user handle, cross-origin ceremonies, a stale rename
   and the audited foreign-tenant token sign-in; `passkeys.config.spec.ts` and
   `env.spec.ts` the configuration checks.
+
+## Enterprise SSO
+
+A tenant signs its people in through its own identity provider: SAML 2.0
+or OpenID Connect, one or more **connections** per tenant
+(`iam/sso`). Nothing is set in the environment: an administrator with
+`Access.manageSso` sets it up over the API, and every connection starts
+**off**.
+
+1. **Verify the email domains** (`POST /v1/sso/domains`): the answer names
+   a TXT record (`_sso-verification.<domain>`, value
+   `sso-verification=…`); once it is published, `POST
+   /v1/sso/domains/{id}/verify` looks it up on the queue (`GET` shows
+   `verified`, or `lastError`). Only addresses of verified domains sign in
+   or are provisioned: a tenant can't claim someone else's addresses.
+2. **Add a connection** (`POST /v1/sso/connections`, recent sign-in):
+   - `protocol: "saml"`: the IdP's entity id, its SSO URL (HTTP-Redirect
+     binding) and one or two signing certificates (two while it rotates).
+     Give the IdP our SP metadata (`saml.metadataUrl`): the entity id (that
+     URL), the ACS (`saml.acsUrl`, HTTP-POST), signed assertions wanted.
+   - `protocol: "oidc"`: the issuer, client id and secret. Register
+     `oidc.redirectUri` at the IdP. The discovery document is fetched on
+     the queue (`oidc.metadataFetchedAt`, `oidc.metadataError`; `POST
+     …/{id}/refresh` again).
+   - `jitProvisioning`: a person of a verified domain who isn't a member
+     becomes one at their first sign-in (no roles). Off by default.
+3. **Turn it on** (`PATCH`, `enabled: true`) and link people to
+   `loginUrl` (`/v1/auth/sso/{tenantId}/{connectionId}/login`, with
+   `?redirectTo=/path` of the web app). Every outcome lands on the web app:
+   signed in, or `?error=sso_failed` (`sso_unavailable` while an OIDC
+   discovery document hasn't arrived). Why a sign-in failed is in the
+   audit log (`auth.sign-in-failed`, `reason`), never in the URL.
+
+The session records `method: sso`, `provider: <connection id>` and the
+IdP's `auth_time` or `AuthnInstant` as `authenticatedAt` (step-up reads
+them), and it acts in the connection's tenant.
+
+### What is checked
+
+- **SAML** (@node-saml/node-saml, never a hand-written signature check):
+  only signed assertions, against the connection's certificates (RSA-SHA256);
+  audience (our entity id), `NotBefore`/`NotOnOrAfter` with two minutes of
+  clock skew, the assertion's age (ten minutes), and the `Issuer`. SP-
+  initiated by default: `InResponseTo` must name a request **this browser**
+  started (a cookie bound to it, `__Host-sso_tx`), so another browser's
+  assertion is refused (login CSRF). `allowIdpInitiated` accepts
+  unsolicited responses, a login-CSRF vector: off by default. Each
+  assertion's ID is kept until it expires: a replay is refused. A transient
+  NameID is refused (an identity needs a stable subject).
+- **OpenID Connect** (openid-client): the authorization code flow with
+  PKCE, `state` (the browser's binding) and `nonce`; the ID token's
+  signature, `iss`, `aud`, `exp`; `email_verified` must be `true`.
+- **No account takeover.** An identity is keyed by the IdP's subject under
+  `sso:<connection id>` (never shared between tenants). A first sign-in
+  links an existing account only when its address is in a domain the tenant
+  verified and the account proved its address (else whoever registered it
+  first, with a password of their choosing, would get the person's
+  sign-ins); a deactivated account or membership is refused.
+- **SSRF.** The issuer, its discovery document, keys and token endpoint are
+  fetched through `core/http/safe-fetch.ts`: https only, every resolved
+  address checked in the socket's own lookup (link-local, metadata,
+  private and reserved ranges refused), no redirects, 10 s and 512 KiB.
+  `SSO_ALLOW_LOOPBACK=on` (development and tests only) allows `http://` on
+  loopback and private networks.
+- **Secrets.** The OIDC client secret is an encrypted column
+  (docs/encryption.md: `DATA_ENCRYPTION_KEYS` is required at boot), never
+  answered. Requests' PKCE verifiers and bindings live ten minutes;
+  bindings are stored as their SHA-256.
+- **The ACS** is a cross-site form POST by design: it is exempt from the
+  CSRF check (`http-setup.ts`), signs nobody in, and hands over to `GET
+  …/saml/complete` (same site, the same browser's binding, two minutes,
+  once), which does.
+
+### SCIM provisioning
+
+The IdP provisions people and groups over SCIM 2.0 (RFC 7643, 7644) at
+`{APP_URL}/v1/scim`: `Users`, `Groups`, `ServiceProviderConfig`,
+`ResourceTypes`. The **SCIM token** is an API client's key (stored as its
+SHA-256, rotated as any key, metered by usage) whose role holds
+`Access.provisionScim`: make a role with that one permission, an API
+client with it, and give the IdP the key. Its tenant is the client's.
+Errors are SCIM's (`application/scim+json`, `scimType`), not problem
+details.
+
+- **Users.** `POST` provisions an address of a verified domain: the account
+  with that address is linked (when its address is proved) or made (no
+  password: it signs in through SSO), and made a member; an existing member
+  with that address is linked too, and the IdP deprovisions them from then
+  on. `PUT`, `PATCH`
+  (scim-patch) and `GET` with `filter` (`eq` on `userName`, `externalId`,
+  `id`, `emails.value`, `active`, joined with `and`), `startIndex` and
+  `count` (at most 200). What the IdP sends is kept and answered; SCIM
+  never changes an account's name or address (they are the person's, in
+  every tenant).
+- **Deprovisioning.** `active: false` (Azure's `"False"` too) or `DELETE`
+  deactivates the membership as an administrator would: that tenant's
+  sessions and tokens end, what waits on the person moves on (approvals,
+  delegations), and at least one administrator remains. `DELETE` also
+  forgets the link: a later `POST` provisions them again. The account and
+  its other tenants are untouched.
+- **Groups** are teams: a group the IdP creates is a top-level team, its
+  members those of the team. Only the teams it created and the users it
+  provisioned are the SCIM client's: it never reaches the teams and members
+  administrators manage. No roles are granted over SCIM.
+
+Every change is audited with the API client as actor (`scim.user-*`,
+`scim.group-*`).
+
+Not built yet (roadmap item 2): "SSO required" per tenant and its
+break-glass account, signed AuthnRequests and encrypted assertions, SAML
+metadata import by URL, default roles for just-in-time members, group to
+role mapping, deactivating an account when its last membership ends, a
+sign-in page that finds the connection by email domain, the web app's
+setup pages.
 
 ## Bot protection
 

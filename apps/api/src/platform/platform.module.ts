@@ -199,6 +199,17 @@ import { ApprovalsRegistry } from './approvals/approvals.registry.js';
 import { ApprovalsService } from './approvals/approvals.service.js';
 import { ApprovalMetrics } from './approvals/approval-metrics.js';
 import { ReencryptionMetrics } from './encryption/reencryption.metrics.js';
+import { MessagingController } from './messaging/messaging.controller.js';
+import { SmsInboundController } from './messaging/sms-inbound.controller.js';
+import { MessagingService } from './messaging/messaging.service.js';
+import { MessagingLimits } from './messaging/messaging-limits.service.js';
+import { MessagingProcessor } from './messaging/messaging.processor.js';
+import { MessagingRetentionJob } from './messaging/messaging.retention.job.js';
+import { MessagingMetrics } from './messaging/messaging.metrics.js';
+import { pushProvider, smsProvider } from './messaging/messaging.providers.js';
+import { MESSAGING_SETTINGS } from './messaging/messaging.settings.js';
+import { SmsChannel } from './messaging/channels/sms.channel.js';
+import { PushChannel } from './messaging/channels/push.channel.js';
 import { ReencryptionProcessor } from './encryption/reencryption.processor.js';
 import { ReencryptionScheduler } from './encryption/reencryption.scheduler.js';
 import { ReencryptionService } from './encryption/reencryption.service.js';
@@ -371,6 +382,9 @@ export class PlatformModule {
         BulkController,
         CustomFieldsController,
         NotificationsController,
+        // Push devices and the SMS number; the provider's inbound STOP/START webhook.
+        MessagingController,
+        SmsInboundController,
         // Development and tests only: POST /v1/notifications/test (production: 404, not in the OpenAPI document).
         ...inDevelopment<Type>(NotificationTestController),
         SettingsController,
@@ -419,6 +433,7 @@ export class PlatformModule {
               ...AUTH_SETTINGS,
               ...NUMBERING_SETTINGS,
               ...APPROVAL_SETTINGS,
+              ...MESSAGING_SETTINGS,
               ...AI_SETTINGS,
               ...(options.settings ?? []),
             ],
@@ -505,6 +520,16 @@ export class PlatformModule {
         RealtimeChannel,
         EmailChannel,
         WebhookChannel,
+        // Push and SMS (docs/notifications.md): channels that queue, a worker that sends within the caps.
+        smsProvider,
+        pushProvider,
+        MessagingService,
+        MessagingLimits,
+        MessagingProcessor,
+        MessagingRetentionJob,
+        MessagingMetrics,
+        SmsChannel,
+        PushChannel,
         NotificationDigestJob,
         NotificationRetentionJob,
         NotificationTransfer,

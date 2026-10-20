@@ -85,7 +85,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Exports and imports | [docs/data-transfer.md](docs/data-transfer.md) |
 | Bulk operations (delete, restore, change many records; 202 jobs) | [docs/bulk-operations.md](docs/bulk-operations.md) |
 | Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
-| Notifications (in-app, realtime, mail, webhook; preferences, digests) | [docs/notifications.md](docs/notifications.md) |
+| Notifications (in-app, realtime, mail, webhook, push, SMS; preferences, digests, devices, toll-fraud caps, STOP) | [docs/notifications.md](docs/notifications.md) |
 | Settings and feature flags (runtime values, scopes, rollouts) | [docs/settings.md](docs/settings.md) |
 | Human-readable numbers (gapless sequences); naming series: the number formats administrators define (`INV-.YYYY.-.{region}.-.#####`: dates, the record's fields, variables like `FY`, `ABBR`; rules with conditions and priority) | [docs/sequences.md](docs/sequences.md) |
 | Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |

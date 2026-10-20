@@ -116,6 +116,11 @@ import { SessionAuth } from './auth/session-auth.provider.js';
 import { UsersRepository } from './auth/users.repository.js';
 import type { IamEnv } from './iam.env.js';
 import { IAM_OPTIONS, type IamOptions } from './iam.options.js';
+import {
+  ssoControllers,
+  ssoImports,
+  ssoProviders,
+} from './sso/sso.providers.js';
 
 const random256 = () => randomBytes(32).toString('base64url');
 
@@ -294,6 +299,8 @@ export class IamModule {
             retry: false,
           }),
         }),
+        // Enterprise SSO's queue (OIDC discovery, domain verification).
+        ...ssoImports,
       ],
       controllers: [
         AuthController,
@@ -311,6 +318,7 @@ export class IamModule {
         TeamsController,
         TenantSwitchController,
         TenantsController,
+        ...ssoControllers,
       ],
       providers: [
         { provide: IAM_OPTIONS, useValue: options },
@@ -418,6 +426,8 @@ export class IamModule {
         ApiClientCountsRegistry,
         TenantLifecycleRegistry,
         AccessPolicy,
+        // Enterprise SSO (SAML, OpenID Connect) per tenant, and SCIM provisioning.
+        ...ssoProviders,
       ],
       exports: exported,
     };

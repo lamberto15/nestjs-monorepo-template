@@ -920,6 +920,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your registered devices */
+        get: operations["MessagingController_devices_v1"];
+        /**
+         * Register this device for push, or refresh it
+         * @description Call it whenever the app opens: the same token again updates the name and the last-seen time. A token another person registered moves to you. A device not seen for DEVICES_RETENTION_DAYS is removed. The token is stored encrypted and never returned.
+         */
+        put: operations["MessagingController_registerDevice_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a device: its token is deleted */
+        delete: operations["MessagingController_removeDevice_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your SMS number (masked), and whether it is verified */
+        get: operations["MessagingController_phone_v1"];
+        /**
+         * Set your SMS number
+         * @description With its country code (E.164). Texts a six-digit code to confirm it (`POST /messaging/phone/verify`); the number is not used before that. Only the countries in SMS_ALLOWED_PREFIXES are accepted. A different number starts unverified.
+         */
+        put: operations["MessagingController_setPhone_v1"];
+        post?: never;
+        /** Remove your SMS number */
+        delete: operations["MessagingController_removePhone_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/phone/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm your SMS number with the code texted to it
+         * @description The code lasts ten minutes and is void after five wrong guesses.
+         */
+        post: operations["MessagingController_verifyPhone_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/sms/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The SMS provider reports a message sent to the number
+         * @description `twilio`: a form-encoded inbound message, signed with `X-Twilio-Signature` (verified with TWILIO_AUTH_TOKEN and the webhook URL). STOP opts the sender out; START opts them back in.
+         */
+        post: operations["SmsInboundController_receive_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications/test": {
         parameters: {
             query?: never;
@@ -3415,6 +3515,325 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/sso/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tenant's SSO connections */
+        get: operations["SsoController_listConnections_v1"];
+        put?: never;
+        /**
+         * Add a SAML or OpenID Connect connection (off by default)
+         * @description An OpenID Connect connection's discovery document is fetched on the queue: `oidc.metadataFetchedAt` says when it arrived, `oidc.metadataError` why not. It signs nobody in before.
+         */
+        post: operations["SsoController_createConnection_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sso/connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One SSO connection (never its client secret) */
+        get: operations["SsoController_getConnection_v1"];
+        put?: never;
+        post?: never;
+        /** Delete a connection (the identities it linked stay) */
+        delete: operations["SsoController_removeConnection_v1"];
+        options?: never;
+        head?: never;
+        /** Change a connection: turn it on or off, rotate its secret or certificates */
+        patch: operations["SsoController_updateConnection_v1"];
+        trace?: never;
+    };
+    "/v1/sso/connections/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fetch an OpenID Connect connection's discovery document again */
+        post: operations["SsoController_refreshConnection_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sso/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tenant's email domains and their verification */
+        get: operations["SsoController_listDomains_v1"];
+        put?: never;
+        /** Add a domain to verify: publish its `record`, then verify */
+        post: operations["SsoController_createDomain_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sso/domains/{id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Look the TXT record up (on the queue): `verified` once found */
+        post: operations["SsoController_verifyDomain_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sso/domains/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a domain: its addresses no longer sign in or provision */
+        delete: operations["SsoController_removeDomain_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sso/{tenantId}/{connectionId}/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start signing in with the tenant's identity provider (navigate the browser here) */
+        get: operations["SsoAuthController_login_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sso/{tenantId}/{connectionId}/oidc/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where an OpenID Connect IdP sends the browser back */
+        get: operations["SsoAuthController_oidcCallback_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sso/{tenantId}/{connectionId}/saml/acs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The assertion consumer service: where a SAML IdP POSTs its response
+         * @description A form post (`application/x-www-form-urlencoded`, `SAMLResponse`), cross-site by nature: exempt from the CSRF check, which the browser binding (its cookie) and `InResponseTo` replace.
+         */
+        post: operations["SsoAuthController_acs_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sso/{tenantId}/{connectionId}/saml/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Signs the browser in once the ACS checked the SAML response */
+        get: operations["SsoAuthController_samlComplete_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sso/{tenantId}/{connectionId}/saml/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Our SAML service provider's metadata, for the IdP
+         * @description The entity id (this URL), the assertion consumer service, and that assertions must be signed. A document for the IdP to import, not a page.
+         */
+        get: operations["SsoAuthController_samlMetadata_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scim/ServiceProviderConfig": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What this SCIM service supports (RFC 7643 §5) */
+        get: operations["ScimController_serviceProviderConfig_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scim/ResourceTypes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The resource types: User and Group (RFC 7643 §6) */
+        get: operations["ScimController_resourceTypes_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scim/Users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The users provisioned over SCIM
+         * @description Filter: `eq` on `userName`, `externalId`, `id`, `emails.value` or `active`, joined with `and`. `startIndex` (1-based), `count` (at most 200).
+         */
+        get: operations["ScimController_listUsers_v1"];
+        put?: never;
+        /**
+         * Provision a user: an address of a verified domain
+         * @description Links the account with that address (when its address is proved) or makes one without a password, and makes it a member. 409 `uniqueness`: already provisioned, or the externalId is taken.
+         */
+        post: operations["ScimController_createUser_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scim/Users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One provisioned user */
+        get: operations["ScimController_getUser_v1"];
+        /** Replace a user: `active: false` deprovisions it */
+        put: operations["ScimController_replaceUser_v1"];
+        post?: never;
+        /** Deprovision a user: the membership deactivated, its sessions in the tenant ended */
+        delete: operations["ScimController_deleteUser_v1"];
+        options?: never;
+        head?: never;
+        /** Change a user (PatchOp): `replace active false` deprovisions it */
+        patch: operations["ScimController_patchUser_v1"];
+        trace?: never;
+    };
+    "/v1/scim/Groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The groups (teams) made over SCIM
+         * @description Filter: `eq` on `displayName`, `externalId` or `id`, joined with `and`. `excludedAttributes=members` leaves the members out.
+         */
+        get: operations["ScimController_listGroups_v1"];
+        put?: never;
+        /** Make a group: a top-level team, its members provisioned users */
+        post: operations["ScimController_createGroup_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scim/Groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One group, with its members */
+        get: operations["ScimController_getGroup_v1"];
+        /** Replace a group: its name and members */
+        put: operations["ScimController_replaceGroup_v1"];
+        post?: never;
+        /** Delete a group: its team goes, not its members */
+        delete: operations["ScimController_deleteGroup_v1"];
+        options?: never;
+        head?: never;
+        /** Change a group (PatchOp): members added or removed */
+        patch: operations["ScimController_patchGroup_v1"];
         trace?: never;
     };
     "/v1/notes": {
@@ -8489,6 +8908,10 @@ export interface operations {
                                 email?: ("immediate" | "hourly" | "daily") | false;
                                 /** @description API clients only: whether the `notification.created` webhook is sent. */
                                 webhook?: boolean;
+                                /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                                sms?: boolean;
+                                /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                                push?: boolean;
                             };
                         }[];
                     };
@@ -8538,6 +8961,10 @@ export interface operations {
                                 email?: ("immediate" | "hourly" | "daily") | false;
                                 /** @description API clients only: whether the `notification.created` webhook is sent. */
                                 webhook?: boolean;
+                                /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                                sms?: boolean;
+                                /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                                push?: boolean;
                             };
                         };
                     };
@@ -8574,6 +9001,10 @@ export interface operations {
                         email?: ("immediate" | "hourly" | "daily") | false;
                         /** @description API clients only: whether the `notification.created` webhook is sent. */
                         webhook?: boolean;
+                        /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                        sms?: boolean;
+                        /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                        push?: boolean;
                     } & {
                         [key: string]: unknown;
                     };
@@ -8600,6 +9031,10 @@ export interface operations {
                                 email?: ("immediate" | "hourly" | "daily") | false;
                                 /** @description API clients only: whether the `notification.created` webhook is sent. */
                                 webhook?: boolean;
+                                /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                                sms?: boolean;
+                                /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                                push?: boolean;
                             };
                         };
                     };
@@ -8726,6 +9161,383 @@ export interface operations {
                 content?: never;
             };
             /** @description Not yours, or gone. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_devices_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @enum {string} */
+                            platform: "web" | "ios" | "android";
+                            name: string;
+                            /** Format: date-time */
+                            lastSeenAt: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_registerDevice_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    platform: "web" | "ios" | "android";
+                    /** @example Pixel 9 */
+                    name: string;
+                    /** @description The push provider's token. Web: the browser's `PushSubscription` as JSON. */
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        platform: "web" | "ios" | "android";
+                        name: string;
+                        /** Format: date-time */
+                        lastSeenAt: string;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description validation_failed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_removeDevice_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of your devices. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_phone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Masked (`+49•••••78`); null when none is set. */
+                        phone: string | null;
+                        verified: boolean;
+                        /** @description The number replied STOP: no SMS is sent until it replies START. */
+                        optedOut: boolean;
+                    };
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_setPhone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description With its country code (E.164).
+                     * @example +4915112345678
+                     */
+                    phone: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Masked (`+49•••••78`); null when none is set. */
+                        phone: string | null;
+                        verified: boolean;
+                        /** @description The number replied STOP: no SMS is sent until it replies START. */
+                        optedOut: boolean;
+                    };
+                };
+            };
+            /** @description phone_invalid, or phone_country_not_allowed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_removePhone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_verifyPhone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Masked (`+49•••••78`); null when none is set. */
+                        phone: string | null;
+                        verified: boolean;
+                        /** @description The number replied STOP: no SMS is sent until it replies START. */
+                        optedOut: boolean;
+                    };
+                };
+            };
+            /** @description code_invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No number set. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SmsInboundController_receive_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        /** @description The provider's form fields, as it sends them. */
+        requestBody: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description Processed (or ignored). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An empty body. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signature does not verify (sms_signature_invalid). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description That provider is not the configured one. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20476,6 +21288,1312 @@ export interface operations {
             };
             /** @description Not a grant of yours to this tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_listConnections_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            /** @enum {string} */
+                            protocol: "oidc" | "saml";
+                            enabled: boolean;
+                            jitProvisioning: boolean;
+                            /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
+                            loginUrl: string;
+                            oidc: {
+                                issuer: string;
+                                clientId: string;
+                                /** @description The redirect URI to register at the IdP. */
+                                redirectUri: string;
+                                /** Format: date-time */
+                                metadataFetchedAt: string | null;
+                                metadataError: string | null;
+                            } | null;
+                            saml: {
+                                idpEntityId: string;
+                                idpSsoUrl: string;
+                                idpCertificates: {
+                                    subject: string;
+                                    /** Format: date-time */
+                                    notAfter: string;
+                                    fingerprint256: string;
+                                }[];
+                                allowIdpInitiated: boolean;
+                                /** @description Our entity id (the metadata's URL): the assertions' audience. */
+                                spEntityId: string;
+                                /** @description The assertion consumer service URL to register at the IdP. */
+                                acsUrl: string;
+                                /** @description Our SP metadata (XML) for the IdP. */
+                                metadataUrl: string;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    SsoController_createConnection_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    protocol: "oidc";
+                    name: string;
+                    /** @description Off by default: the connection signs nobody in until on. */
+                    enabled?: boolean;
+                    /** @description A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default. */
+                    jitProvisioning?: boolean;
+                    /**
+                     * Format: uri
+                     * @description The OpenID Connect issuer; its discovery document is fetched on the queue.
+                     */
+                    issuer: string;
+                    clientId: string;
+                    /** @description Stored encrypted, never returned. */
+                    clientSecret: string;
+                } | {
+                    /** @enum {string} */
+                    protocol: "saml";
+                    name: string;
+                    /** @description Off by default: the connection signs nobody in until on. */
+                    enabled?: boolean;
+                    /** @description A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default. */
+                    jitProvisioning?: boolean;
+                    /** @description The IdP's entity id: what its assertions name as `Issuer`. */
+                    idpEntityId: string;
+                    /**
+                     * Format: uri
+                     * @description The IdP's single sign-on URL (HTTP-Redirect binding).
+                     */
+                    idpSsoUrl: string;
+                    /** @description The IdP's signing certificates: one, or two while it rotates. Only signed assertions are accepted. */
+                    idpCertificates: string[];
+                    /** @description Accept sign-ins the IdP starts (no request of ours): a login-CSRF vector, off by default. */
+                    allowIdpInitiated?: boolean;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        name: string;
+                        /** @enum {string} */
+                        protocol: "oidc" | "saml";
+                        enabled: boolean;
+                        jitProvisioning: boolean;
+                        /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
+                        loginUrl: string;
+                        oidc: {
+                            issuer: string;
+                            clientId: string;
+                            /** @description The redirect URI to register at the IdP. */
+                            redirectUri: string;
+                            /** Format: date-time */
+                            metadataFetchedAt: string | null;
+                            metadataError: string | null;
+                        } | null;
+                        saml: {
+                            idpEntityId: string;
+                            idpSsoUrl: string;
+                            idpCertificates: {
+                                subject: string;
+                                /** Format: date-time */
+                                notAfter: string;
+                                fingerprint256: string;
+                            }[];
+                            allowIdpInitiated: boolean;
+                            /** @description Our entity id (the metadata's URL): the assertions' audience. */
+                            spEntityId: string;
+                            /** @description The assertion consumer service URL to register at the IdP. */
+                            acsUrl: string;
+                            /** @description Our SP metadata (XML) for the IdP. */
+                            metadataUrl: string;
+                        } | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `sso_connection_name_taken`: on the `name` field. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_getConnection_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        name: string;
+                        /** @enum {string} */
+                        protocol: "oidc" | "saml";
+                        enabled: boolean;
+                        jitProvisioning: boolean;
+                        /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
+                        loginUrl: string;
+                        oidc: {
+                            issuer: string;
+                            clientId: string;
+                            /** @description The redirect URI to register at the IdP. */
+                            redirectUri: string;
+                            /** Format: date-time */
+                            metadataFetchedAt: string | null;
+                            metadataError: string | null;
+                        } | null;
+                        saml: {
+                            idpEntityId: string;
+                            idpSsoUrl: string;
+                            idpCertificates: {
+                                subject: string;
+                                /** Format: date-time */
+                                notAfter: string;
+                                fingerprint256: string;
+                            }[];
+                            allowIdpInitiated: boolean;
+                            /** @description Our entity id (the metadata's URL): the assertions' audience. */
+                            spEntityId: string;
+                            /** @description The assertion consumer service URL to register at the IdP. */
+                            acsUrl: string;
+                            /** @description Our SP metadata (XML) for the IdP. */
+                            metadataUrl: string;
+                        } | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_removeConnection_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_updateConnection_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    enabled?: boolean;
+                    jitProvisioning?: boolean;
+                    /**
+                     * Format: uri
+                     * @description A new issuer: its discovery document is fetched again.
+                     */
+                    issuer?: string;
+                    clientId?: string;
+                    /** @description Stored encrypted, never returned. */
+                    clientSecret?: string;
+                    /** @description The IdP's entity id: what its assertions name as `Issuer`. */
+                    idpEntityId?: string;
+                    /**
+                     * Format: uri
+                     * @description The IdP's single sign-on URL (HTTP-Redirect binding).
+                     */
+                    idpSsoUrl?: string;
+                    /** @description The IdP's signing certificates: one, or two while it rotates. Only signed assertions are accepted. */
+                    idpCertificates?: string[];
+                    allowIdpInitiated?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        name: string;
+                        /** @enum {string} */
+                        protocol: "oidc" | "saml";
+                        enabled: boolean;
+                        jitProvisioning: boolean;
+                        /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
+                        loginUrl: string;
+                        oidc: {
+                            issuer: string;
+                            clientId: string;
+                            /** @description The redirect URI to register at the IdP. */
+                            redirectUri: string;
+                            /** Format: date-time */
+                            metadataFetchedAt: string | null;
+                            metadataError: string | null;
+                        } | null;
+                        saml: {
+                            idpEntityId: string;
+                            idpSsoUrl: string;
+                            idpCertificates: {
+                                subject: string;
+                                /** Format: date-time */
+                                notAfter: string;
+                                fingerprint256: string;
+                            }[];
+                            allowIdpInitiated: boolean;
+                            /** @description Our entity id (the metadata's URL): the assertions' audience. */
+                            spEntityId: string;
+                            /** @description The assertion consumer service URL to register at the IdP. */
+                            acsUrl: string;
+                            /** @description Our SP metadata (XML) for the IdP. */
+                            metadataUrl: string;
+                        } | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_refreshConnection_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_listDomains_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            domain: string;
+                            verified: boolean;
+                            /** Format: date-time */
+                            verifiedAt: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            lastError: string | null;
+                            /** @description The DNS record that proves the domain is the tenant’s. */
+                            record: {
+                                /** @enum {string} */
+                                type: "TXT";
+                                name: string;
+                                value: string;
+                            };
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    SsoController_createDomain_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    domain: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        domain: string;
+                        verified: boolean;
+                        /** Format: date-time */
+                        verifiedAt: string | null;
+                        /** Format: date-time */
+                        lastCheckedAt: string | null;
+                        lastError: string | null;
+                        /** @description The DNS record that proves the domain is the tenant’s. */
+                        record: {
+                            /** @enum {string} */
+                            type: "TXT";
+                            name: string;
+                            value: string;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `sso_domain_exists`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_verifyDomain_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoController_removeDomain_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoAuthController_login_v1: {
+        parameters: {
+            query?: {
+                /** @description A path of the web app to land on (one leading `/`, printable ASCII, no `\`); anything else is ignored. */
+                redirectTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the IdP; an OpenID Connect connection whose discovery document has not arrived yet: to the web app with `?error=sso_unavailable`. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such tenant or connection, or it is off. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoAuthController_oidcCallback_v1: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+                iss?: string;
+                session_state?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the web app: signed in, or `?error=sso_failed` (the reason is audited). */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoAuthController_acs_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    SAMLResponse: string;
+                    RelayState?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description To `saml/complete`, which signs the browser in; or to the web app with `?error=sso_failed`. */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoAuthController_samlComplete_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the web app: signed in, or `?error=sso_failed`. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SsoAuthController_samlMetadata_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SAML 2.0 metadata (XML). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such tenant or connection, it is off, or it is not a SAML connection. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_serviceProviderConfig_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_resourceTypes_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_listUsers_v1: {
+        parameters: {
+            query?: {
+                filter?: string;
+                startIndex?: number;
+                count?: number;
+                excludedAttributes?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_createUser_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/scim+json": {
+                    schemas?: string[];
+                    userName: string;
+                    externalId?: string | null;
+                    active?: boolean;
+                    displayName?: string | null;
+                    name?: ({
+                        formatted?: string | null;
+                        givenName?: string | null;
+                        familyName?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    }) | null;
+                    emails?: ({
+                        value: string;
+                        primary?: boolean;
+                        type?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+                "application/json": {
+                    schemas?: string[];
+                    userName: string;
+                    externalId?: string | null;
+                    active?: boolean;
+                    displayName?: string | null;
+                    name?: ({
+                        formatted?: string | null;
+                        givenName?: string | null;
+                        familyName?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    }) | null;
+                    emails?: ({
+                        value: string;
+                        primary?: boolean;
+                        type?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_getUser_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_replaceUser_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/scim+json": {
+                    schemas?: string[];
+                    userName: string;
+                    externalId?: string | null;
+                    active?: boolean;
+                    displayName?: string | null;
+                    name?: ({
+                        formatted?: string | null;
+                        givenName?: string | null;
+                        familyName?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    }) | null;
+                    emails?: ({
+                        value: string;
+                        primary?: boolean;
+                        type?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+                "application/json": {
+                    schemas?: string[];
+                    userName: string;
+                    externalId?: string | null;
+                    active?: boolean;
+                    displayName?: string | null;
+                    name?: ({
+                        formatted?: string | null;
+                        givenName?: string | null;
+                        familyName?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    }) | null;
+                    emails?: ({
+                        value: string;
+                        primary?: boolean;
+                        type?: string | null;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_deleteUser_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_patchUser_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description A PatchOp (`urn:ietf:params:scim:api:messages:2.0:PatchOp`). */
+        requestBody: {
+            content: {
+                "application/scim+json": Record<string, never>;
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_listGroups_v1: {
+        parameters: {
+            query?: {
+                filter?: string;
+                startIndex?: number;
+                count?: number;
+                excludedAttributes?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_createGroup_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/scim+json": {
+                    schemas?: string[];
+                    displayName: string;
+                    externalId?: string | null;
+                    members?: ({
+                        value: string;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+                "application/json": {
+                    schemas?: string[];
+                    displayName: string;
+                    externalId?: string | null;
+                    members?: ({
+                        value: string;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_getGroup_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_replaceGroup_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/scim+json": {
+                    schemas?: string[];
+                    displayName: string;
+                    externalId?: string | null;
+                    members?: ({
+                        value: string;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+                "application/json": {
+                    schemas?: string[];
+                    displayName: string;
+                    externalId?: string | null;
+                    members?: ({
+                        value: string;
+                    } & {
+                        [key: string]: unknown;
+                    })[] | null;
+                } & {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_deleteGroup_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScimController_patchGroup_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description A PatchOp (`urn:ietf:params:scim:api:messages:2.0:PatchOp`). */
+        requestBody: {
+            content: {
+                "application/scim+json": Record<string, never>;
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or unknown SCIM token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key’s client lacks `Access.provisionScim`. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

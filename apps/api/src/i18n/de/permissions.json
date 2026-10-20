@@ -14,7 +14,9 @@
       "readAudit": "Das Audit-Protokoll lesen",
       "readConsolidated": "Die Mandanten unterhalb dieses Mandanten in seinem Mandantenbaum lesen, nur lesend (konsolidierte Berichte einer Holding)",
       "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
-      "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator"
+      "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator",
+      "manageSso": "Single Sign-on des Mandanten einrichten: SAML- und OpenID-Connect-Verbindungen, verifizierte E-Mail-Domains",
+      "provisionScim": "Benutzer und Gruppen über SCIM 2.0 bereitstellen (API-Clients: das SCIM-Token des Identitätsanbieters)"
     }
   },
   "platform": {
@@ -114,6 +116,10 @@
       "label": "Mandantenlöschung",
       "description": "Löscht jede Nacht die Mandanten, deren Löschfrist abgelaufen ist (ihre Datensätze, Dateien, wartenden Aufträge und Workflows)."
     },
+    "sso": {
+      "label": "Single Sign-on",
+      "description": "Ruft die OpenID-Connect-Discovery-Dokumente der SSO-Verbindungen ab und prüft die DNS-Einträge der Domains, die Mandanten verifizieren."
+    },
     "account-deletion": {
       "label": "Kontolöschung",
       "description": "Anonymisiert jede Nacht die Konten, deren Löschfrist abgelaufen ist, und löscht ihre personenbezogenen Daten."
@@ -173,6 +179,18 @@
     "reencryption": {
       "label": "Neuverschlüsselung",
       "description": "Schreibt verschlüsselte Werte und Blind-Indizes, die noch unter einem älteren Schlüssel stehen, stündlich in Stapeln mit dem aktuellen Schlüssel neu."
+    },
+    "messaging": {
+      "label": "Push- und SMS-Versand",
+      "description": "Sendet die SMS und Push-Nachrichten, die Benachrichtigungen eingereiht haben, innerhalb der Limits gegen SMS-Betrug."
+    },
+    "messaging-inbound": {
+      "label": "Eingehende SMS",
+      "description": "Erfasst, dass eine Nummer sich über den Webhook des SMS-Anbieters abmeldet (STOP) oder wieder anmeldet (START)."
+    },
+    "messaging-retention": {
+      "label": "Aufbewahrung der Nachrichten",
+      "description": "Entfernt jede Nacht Geräte, die DEVICES_RETENTION_DAYS lang nicht gesehen wurden, und die Betrugs-Zähler vergangener Tage."
     },
     "demo-seed": {
       "label": "Demodaten",

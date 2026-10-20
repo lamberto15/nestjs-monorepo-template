@@ -12,6 +12,12 @@ pnpm install
 # the container's environment, which wins over the file's 127.0.0.1.
 if [ ! -f apps/api/.env.development ]; then
   cp apps/api/env.development.example apps/api/.env.development
+  # The encrypted columns' key (docs/encryption.md): made here, never committed.
+  # The blind indexes' key is another one: the app refuses the same key in both.
+  for name in DATA_ENCRYPTION_KEYS BLIND_INDEX_KEYS; do
+    key=$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))")
+    sed -i "s|^$name=\$|$name=$key|" apps/api/.env.development
+  done
   echo 'Made apps/api/.env.development from apps/api/env.development.example: review it.'
 fi
 

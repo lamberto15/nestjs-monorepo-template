@@ -51,13 +51,19 @@ export const webhookSettingSchema = z.boolean();
 
 const emailDescription =
   'Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest.';
+const smsDescription =
+  'Users with a verified phone number only, when SMS is configured: whether the notification is also texted.';
+const pushDescription =
+  'Users with a registered device only, when push is configured: whether the notification is also pushed.';
 const webhookDescription =
   'API clients only: whether the `notification.created` webhook is sent.';
 
-/** The channels a caller may set, with their settings: `email` for users, `webhook` for API clients. */
+/** The channels a caller may set, with their settings: `email`, `sms` and `push` for users, `webhook` for API clients. */
 export const channelSettingsSchema = z.object({
   email: emailSettingSchema.optional().describe(emailDescription),
   webhook: webhookSettingSchema.optional().describe(webhookDescription),
+  sms: z.boolean().optional().describe(smsDescription),
+  push: z.boolean().optional().describe(pushDescription),
 });
 
 /**
@@ -68,6 +74,8 @@ export const channelSettingsSchema = z.object({
 export const channelSettingsInputSchema = z.looseObject({
   email: emailSettingSchema.optional().describe(emailDescription),
   webhook: webhookSettingSchema.optional().describe(webhookDescription),
+  sms: z.boolean().optional().describe(smsDescription),
+  push: z.boolean().optional().describe(pushDescription),
 });
 
 /** A declared type, as the catalog shows it to this caller. */
