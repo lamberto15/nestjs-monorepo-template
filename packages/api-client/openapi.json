@@ -33893,6 +33893,392 @@
         ]
       }
     },
+    "/v1/access/consolidated/tenants": {
+      "get": {
+        "description": "Your tenant’s descendants in its tenant tree (docs/tenancy.md, \"The tenant tree\"), nearest first: the active ones with no deactivated tenant between yours and them, none whose deletion is pending. The operators place tenants in the tree (PATCH /v1/tenants/{id} `parentId`). Needs `Access.readConsolidated`; never while impersonating.",
+        "operationId": "AccessController_consolidatedTenants_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SubtreeTenant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The tenants below yours that a consolidated read spans",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/consolidated/audit": {
+      "get": {
+        "description": "A consolidated read (docs/tenancy.md, \"The tenant tree\"): the entries of your tenant and of every tenant GET /v1/access/consolidated/tenants lists, each with its `tenantId`, read-only; filtered, sorted and paged as GET /v1/access/audit. `actorName` names your tenant’s members and clients; another tenant’s show their `actorLabel`. Audited (`tenant.consolidated-read`) in your tenant and in each tenant read. Needs `Access.readAudit` and `Access.readConsolidated`; never while impersonating.",
+        "operationId": "AccessController_consolidatedAuditLog_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action =",
+            "schema": {
+              "description": "Filter: action =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "action.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action in",
+            "schema": {
+              "description": "Filter: action in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action.notIn",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action notIn",
+            "schema": {
+              "description": "Filter: action notIn",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action startsWith",
+            "schema": {
+              "description": "Filter: action startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actor",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actor =",
+            "schema": {
+              "description": "Filter: actor =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actor.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actor in",
+            "schema": {
+              "description": "Filter: actor in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorLabel",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel =",
+            "schema": {
+              "description": "Filter: actorLabel =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actorLabel.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel contains",
+            "schema": {
+              "description": "Filter: actorLabel contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actorLabel.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel startsWith",
+            "schema": {
+              "description": "Filter: actorLabel startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "targetType",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetType =",
+            "schema": {
+              "description": "Filter: targetType =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "targetType.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetType in",
+            "schema": {
+              "description": "Filter: targetType in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetType.isNull",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetType isNull",
+            "schema": {
+              "description": "Filter: targetType isNull",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "targetId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetId =",
+            "schema": {
+              "description": "Filter: targetId =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "at.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at gt",
+            "schema": {
+              "description": "Filter: at gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at gte",
+            "schema": {
+              "description": "Filter: at gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at lt",
+            "schema": {
+              "description": "Filter: at lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at lte",
+            "schema": {
+              "description": "Filter: at lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at between",
+            "schema": {
+              "description": "Filter: at between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "`consolidated_read_forbidden`: no `Access.readConsolidated`."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The audit log of your tenant and the tenants below it, newest first",
+        "tags": [
+          "access"
+        ]
+      }
+    },
     "/v1/access/sign-ins": {
       "get": {
         "description": "The sign-ins of this tenant's members, successes and wrong passwords (a wrong password to an unknown address is nobody's), as the tenant saw them: a sign-in is entered in the tenant it lands in (a token's, else the member's last chosen), so another tenant's administrators never read it. Filter by user (`user=user:<id>`), method (`method=password`, `method.startsWith=oidc:`), result (`result=failure`), `ip` and `at`; sort by `at`. GET /v1/lists/SignIn describes it. Needs the same permission as the audit log (`Access.readAudit`).",
@@ -34832,6 +35218,32 @@
             }
           },
           {
+            "name": "parentId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: parentId =",
+            "schema": {
+              "description": "Filter: parentId =",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "parentId.isNull",
+            "required": false,
+            "in": "query",
+            "description": "Filter: parentId isNull",
+            "schema": {
+              "description": "Filter: parentId isNull",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
             "name": "createdAt.gt",
             "required": false,
             "in": "query",
@@ -34951,9 +35363,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); parentId (eq, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); parentId (eq, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
               "type": "string",
               "maxLength": 20000
             }
@@ -34973,9 +35385,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, parentId, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, parentId, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -35034,6 +35446,13 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "parentId": {
+                            "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                           },
                           "createdAt": {
                             "type": "string",
@@ -35138,6 +35557,12 @@
                     "format": "email",
                     "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                     "description": "Its first administrator: an account at this address (made, and invited to choose a password, when there is none)."
+                  },
+                  "parentId": {
+                    "description": "Its parent in a holding’s tenant tree (never the operator tenant): members of the parent with `Access.readConsolidated` read it, read-only.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
@@ -35199,6 +35624,13 @@
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -35256,8 +35688,11 @@
           "403": {
             "description": "operator_required: the caller does not act in the operator tenant."
           },
+          "404": {
+            "description": "`parentId`: no such tenant."
+          },
           "409": {
-            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single)."
+            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single); `operator_tenant`: a `parentId` that is the operator tenant; `tenant_deletion_pending`: a `parentId` whose deletion is pending."
           }
         },
         "summary": "Create a tenant and its first administrator (operators)",
@@ -35338,6 +35773,13 @@
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
                     "createdAt": {
                       "type": "string",
@@ -35420,6 +35862,13 @@
                   "active": {
                     "description": "false: nobody acts in it (its sessions end, API keys stop, connections end, jobs are skipped); true: its data, members and API keys are back. Never for the operator tenant.",
                     "type": "boolean"
+                  },
+                  "parentId": {
+                    "description": "Places it under that tenant in the tenant tree (with everything below it); null makes it a root. Members of the parent with `Access.readConsolidated` then read it, read-only. Never the operator tenant, on either side; never under itself or one of its descendants (409 `tenant_tree_cycle`).",
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 }
               }
@@ -35476,6 +35925,13 @@
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -35508,13 +35964,13 @@
             "description": ""
           },
           "409": {
-            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first)."
+            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated, nor in a tenant tree; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first), or a `parentId` whose deletion is pending; `tenant_tree_cycle`: a `parentId` that is this tenant or below it."
           },
           "412": {
             "description": "It changed since you read it (precondition_failed)."
           }
         },
-        "summary": "Rename a tenant, change its slug, (de)activate it (operators)",
+        "summary": "Rename a tenant, change its slug, (de)activate it, move it in the tenant tree (operators)",
         "tags": [
           "tenants"
         ]
@@ -35605,6 +36061,13 @@
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -35640,7 +36103,7 @@
             "description": ""
           },
           "409": {
-            "description": "`operator_tenant`: the operator tenant is never deleted."
+            "description": "`operator_tenant`: the operator tenant is never deleted; `tenant_has_children`: it has children in the tenant tree (move them first)."
           }
         },
         "summary": "Delete a tenant, after a grace period (operators)",
@@ -35710,6 +36173,13 @@
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
                     "createdAt": {
                       "type": "string",
@@ -40377,6 +40847,42 @@
           "targetId",
           "details",
           "ip"
+        ],
+        "additionalProperties": false
+      },
+      "SubtreeTenant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "How far below your tenant: 1 for a child."
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "parentId",
+          "depth"
         ],
         "additionalProperties": false
       },

@@ -3148,6 +3148,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/consolidated/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenants below yours that a consolidated read spans
+         * @description Your tenant’s descendants in its tenant tree (docs/tenancy.md, "The tenant tree"), nearest first: the active ones with no deactivated tenant between yours and them, none whose deletion is pending. The operators place tenants in the tree (PATCH /v1/tenants/{id} `parentId`). Needs `Access.readConsolidated`; never while impersonating.
+         */
+        get: operations["AccessController_consolidatedTenants_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/consolidated/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audit log of your tenant and the tenants below it, newest first
+         * @description A consolidated read (docs/tenancy.md, "The tenant tree"): the entries of your tenant and of every tenant GET /v1/access/consolidated/tenants lists, each with its `tenantId`, read-only; filtered, sorted and paged as GET /v1/access/audit. `actorName` names your tenant’s members and clients; another tenant’s show their `actorLabel`. Audited (`tenant.consolidated-read`) in your tenant and in each tenant read. Needs `Access.readAudit` and `Access.readConsolidated`; never while impersonating.
+         */
+        get: operations["AccessController_consolidatedAuditLog_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/sign-ins": {
         parameters: {
             query?: never;
@@ -3303,7 +3343,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename a tenant, change its slug, (de)activate it (operators)
+         * Rename a tenant, change its slug, (de)activate it, move it in the tenant tree (operators)
          * @description Audited (`tenant.updated`) in your tenant and in that one. Deactivated (`active: false`): its sessions and token families end (its members sign in again, into another of their tenants), its API keys and invitations stop, a sign-in never starts in it, its realtime connections end, its jobs are skipped. Nothing else is deleted: `active: true` gives back its data, memberships and API keys. docs/tenancy.md, "Operators".
          */
         patch: operations["TenantsController_update_v1"];
@@ -3972,6 +4012,16 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             ip: string | null;
+        };
+        SubtreeTenant: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            name: string;
+            /** Format: uuid */
+            parentId: string | null;
+            /** @description How far below your tenant: 1 for a child. */
+            depth: number;
         };
         SignInPage: {
             items: components["schemas"]["SignInEntry"][];
@@ -19188,6 +19238,125 @@ export interface operations {
             };
         };
     };
+    AccessController_consolidatedTenants_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SubtreeTenant"][];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_consolidatedAuditLog_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: action = */
+                action?: string;
+                /** @description Filter: action in */
+                "action.in"?: string;
+                /** @description Filter: action notIn */
+                "action.notIn"?: string;
+                /** @description Filter: action startsWith */
+                "action.startsWith"?: string;
+                /** @description Filter: actor = */
+                actor?: string;
+                /** @description Filter: actor in */
+                "actor.in"?: string;
+                /** @description Filter: actorLabel = */
+                actorLabel?: string;
+                /** @description Filter: actorLabel contains */
+                "actorLabel.contains"?: string;
+                /** @description Filter: actorLabel startsWith */
+                "actorLabel.startsWith"?: string;
+                /** @description Filter: targetType = */
+                targetType?: string;
+                /** @description Filter: targetType in */
+                "targetType.in"?: string;
+                /** @description Filter: targetType isNull */
+                "targetType.isNull"?: "true" | "false";
+                /** @description Filter: targetId = */
+                targetId?: string;
+                /** @description Filter: at gt */
+                "at.gt"?: string;
+                /** @description Filter: at gte */
+                "at.gte"?: string;
+                /** @description Filter: at lt */
+                "at.lt"?: string;
+                /** @description Filter: at lte */
+                "at.lte"?: string;
+                /** @description Filter: at between */
+                "at.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `consolidated_read_forbidden`: no `Access.readConsolidated`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccessController_signIns_v1: {
         parameters: {
             query?: {
@@ -19544,6 +19713,10 @@ export interface operations {
                 active?: "true" | "false";
                 /** @description Filter: operator = */
                 operator?: "true" | "false";
+                /** @description Filter: parentId = */
+                parentId?: string;
+                /** @description Filter: parentId isNull */
+                "parentId.isNull"?: "true" | "false";
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -19564,11 +19737,11 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); parentId (eq, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, slug, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, parentId, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -19607,6 +19780,11 @@ export interface operations {
                              * @description The erase began: it can no longer be cancelled. Always sent.
                              */
                             deletionStartedAt?: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                             */
+                            parentId?: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -19654,6 +19832,11 @@ export interface operations {
                      * @description Its first administrator: an account at this address (made, and invited to choose a password, when there is none).
                      */
                     administratorEmail: string;
+                    /**
+                     * Format: uuid
+                     * @description Its parent in a holding’s tenant tree (never the operator tenant): members of the parent with `Access.readConsolidated` read it, read-only.
+                     */
+                    parentId?: string;
                 };
             };
         };
@@ -19687,6 +19870,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19715,7 +19903,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single). */
+            /** @description `parentId`: no such tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single); `operator_tenant`: a `parentId` that is the operator tenant; `tenant_deletion_pending`: a `parentId` whose deletion is pending. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19767,6 +19962,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19809,6 +20009,11 @@ export interface operations {
                     slug?: string;
                     /** @description false: nobody acts in it (its sessions end, API keys stop, connections end, jobs are skipped); true: its data, members and API keys are back. Never for the operator tenant. */
                     active?: boolean;
+                    /**
+                     * Format: uuid
+                     * @description Places it under that tenant in the tenant tree (with everything below it); null makes it a root. Members of the parent with `Access.readConsolidated` then read it, read-only. Never the operator tenant, on either side; never under itself or one of its descendants (409 `tenant_tree_cycle`).
+                     */
+                    parentId?: string | null;
                 };
             };
         };
@@ -19842,6 +20047,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19862,7 +20072,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first). */
+            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated, nor in a tenant tree; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first), or a `parentId` whose deletion is pending; `tenant_tree_cycle`: a `parentId` that is this tenant or below it. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19925,6 +20135,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19952,7 +20167,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `operator_tenant`: the operator tenant is never deleted. */
+            /** @description `operator_tenant`: the operator tenant is never deleted; `tenant_has_children`: it has children in the tenant tree (move them first). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -20001,6 +20216,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */

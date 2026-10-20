@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, type SQL, sql } from 'drizzle-orm';
+import { and, eq, notExists, type SQL, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { pgErrorCode, UNIQUE_VIOLATION } from '../../core/database/errors.js';
 import {
@@ -40,6 +41,7 @@ import { PermissionCatalog } from './permission-catalog.js';
 import { SingleTenant } from './single-tenant.js';
 import { ALL, type SeedRole } from './permissions.js';
 import { TenantLifecycleRegistry } from './tenant-lifecycle.registry.js';
+import { TenantTree } from './tenant-tree.js';
 
 /** The built-in role's key (`roles.key`). */
 export const ADMINISTRATOR_ROLE = 'administrator';
@@ -62,6 +64,8 @@ export interface NewTenant {
   operator?: boolean;
   /** Made by a self sign-up (TENANT_SIGN_UP): the unverified sign-ups' sweep may delete it. */
   createdBySignUp?: boolean;
+  /** Its parent in a holding's tenant tree (the operators'; docs/tenancy.md, "The tenant tree"). */
+  parentId?: string;
 }
 
 /** What an operator may change of a tenant (`PATCH /v1/tenants/{id}`). */
@@ -69,6 +73,8 @@ export interface TenantChanges {
   name?: string;
   slug?: string;
   active?: boolean;
+  /** Its parent in the tenant tree; null makes it a root. */
+  parentId?: string | null;
 }
 
 /**
@@ -102,6 +108,7 @@ export class TenantsService {
     private readonly singleTenant: SingleTenant,
     private readonly lifecycle: TenantLifecycleRegistry,
     private readonly config: ConfigService<IamEnv, true>,
+    private readonly tree: TenantTree,
   ) {}
 
   /**
@@ -177,12 +184,23 @@ export class TenantsService {
       if (current.deletionScheduledFor && changes.active === true) {
         throw deletionPending();
       }
+      if (
+        changes.parentId !== undefined &&
+        changes.parentId !== current.parentId
+      ) {
+        // The tree first: its closure in this transaction, under the lock.
+        await this.tree.place(tx, current, changes.parentId);
+      }
       const [updated] = await tx
         .update(tenants)
         .set({
           ...(changes.name !== undefined && { name: changes.name }),
           ...(changes.slug !== undefined && { slug: changes.slug }),
           ...(changes.active !== undefined && { active: changes.active }),
+          // As place() set it (the same value): never an empty change.
+          ...(changes.parentId !== undefined && {
+            parentId: changes.parentId,
+          }),
         })
         .where(eq(tenants.id, id))
         .returning()
@@ -241,6 +259,13 @@ export class TenantsService {
       }
       if (current.deletionScheduledFor) {
         return { before: current, after: current, requested: false };
+      }
+      if (await this.tree.hasChildren(tx, id)) {
+        throw new ConflictException({
+          code: 'tenant_has_children',
+          message:
+            'The tenant has children in its tenant tree: move them first (PATCH /v1/tenants/{id} { parentId }).',
+        });
       }
       if (slug !== current.slug) {
         throw new BadRequestException({
@@ -421,12 +446,15 @@ export class TenantsService {
             }
             throw error;
           });
+        const placed = input.parentId
+          ? await this.tree.place(tx, tenant!, input.parentId)
+          : tenant!;
         await this.seedRoles(tx);
         if (administrator) {
           await this.addAdministrator(tx, administrator);
         }
-        const result = work ? await work(tx, tenant!) : undefined;
-        return { tenant: tenant!, result };
+        const result = work ? await work(tx, placed) : undefined;
+        return { tenant: placed, result };
       }),
     );
   }
@@ -464,7 +492,7 @@ export class TenantsService {
     ip?: string,
   ) {
     const { tenant, result } = await this.create(
-      { name: input.name, slug: input.slug },
+      { name: input.name, slug: input.slug, parentId: input.parentId },
       null,
       async (tx, created) => {
         const [administrator] = await tx
@@ -485,6 +513,7 @@ export class TenantsService {
             details: {
               slug: created.slug,
               administrator: invited.invitation.email,
+              ...(created.parentId && { parentId: created.parentId }),
             },
             ip,
           },
@@ -497,7 +526,11 @@ export class TenantsService {
       action: 'tenant.created',
       targetType: 'tenant',
       targetId: tenant.id,
-      details: { slug: tenant.slug, administrator: result!.invitation.email },
+      details: {
+        slug: tenant.slug,
+        administrator: result!.invitation.email,
+        ...(tenant.parentId && { parentId: tenant.parentId }),
+      },
       ip,
     });
     await this.tenancy.run(tenant.id, () =>
@@ -525,12 +558,25 @@ export class TenantsService {
    * workflows): TenantDeletionJob removes those first (the lifecycle
    * listeners' `beforeErase`); the unverified sign-ups' sweep calls it
    * alone, for tenants whose members never signed in, so never had any.
-   * Never the operator tenant.
+   * Never the operator tenant, nor a tenant with children in the tenant
+   * tree (their `parent_id` would dangle: `restrict`): undefined then.
    */
   async deleteRow(tx: Transaction, id: string): Promise<Tenant | undefined> {
+    const child = alias(tenants, 'child');
     const [deleted] = await tx
       .delete(tenants)
-      .where(and(eq(tenants.id, id), eq(tenants.operator, false)))
+      .where(
+        and(
+          eq(tenants.id, id),
+          eq(tenants.operator, false),
+          notExists(
+            tx
+              .select({ id: child.id })
+              .from(child)
+              .where(eq(child.parentId, tenants.id)),
+          ),
+        ),
+      )
       .returning();
     return deleted;
   }
@@ -608,7 +654,7 @@ function deletionEntry(
 
 /** The audit entry of a tenant's change: what changed, from → to. */
 function tenantUpdated(before: Tenant, after: Tenant, ip?: string) {
-  const changed = (['name', 'slug', 'active'] as const).filter(
+  const changed = (['name', 'slug', 'active', 'parentId'] as const).filter(
     (field) => before[field] !== after[field],
   );
   return {
