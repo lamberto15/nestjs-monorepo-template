@@ -172,15 +172,6 @@ export function useRealtimeConnected(): boolean {
   return useSyncExternalStore(subscribe, () => !!realtime?.socket.connected);
 }
 
-/** While connected, a running job's progress is read this often (ms). */
-export const RUNNING_POLL = 5000;
-/**
- * While connected, a queued job (or one not read yet) is read this often:
- * its start has no event, and a job that fails ends with none either (the
- * API pushes no event for a failure or for progress: issue #293).
- */
-export const SAFETY_POLL = 30_000;
-
 /** A job as a poll sees it: its id and the status last read (if any). */
 export interface PolledJob {
   id: string;
@@ -188,27 +179,42 @@ export interface PolledJob {
 }
 
 /**
- * The polling of queries that a realtime event settles (an export, a bulk
+ * The polling of queries that realtime events settle (an export, a bulk
  * run): `interval(jobs)` is for `refetchInterval`. `fast` ms without a
- * connected socket (switched off, connecting, dropped). While one is up,
- * `RUNNING_POLL` for a running job (there is no progress event) and
- * `SAFETY_POLL` for one still queued; the events end them. After
- * `push(id)` (the event for that job arrived) the job is polled `fast`
- * again until it has ended, as the event is sent just before the queue
- * marks the job done, so the refetch it causes may still see it running.
+ * connected socket (switched off, connecting, dropped); with one, `false`:
+ * the events carry the progress (`data.progress`, `bulk.progress`) and the
+ * end (`*.finished`, `*.failed`). After `push(id)` (the end event for that
+ * job arrived) the job is polled `fast` until it has ended, as the event is
+ * sent just before the queue marks the job done, so the refetch it causes
+ * may still see it running.
  */
 export function useLivePoll(fast: number) {
   const connected = useRealtimeConnected();
   const [pushed, setPushed] = useState<ReadonlySet<string>>(new Set());
   return {
-    interval: (jobs: readonly PolledJob[]) => {
-      if (!connected || jobs.some((job) => pushed.has(job.id))) {
-        return fast;
-      }
-      return jobs.some((job) => job.status === 'running')
-        ? RUNNING_POLL
-        : SAFETY_POLL;
-    },
+    interval: (jobs: readonly PolledJob[]): number | false =>
+      !connected || jobs.some((job) => pushed.has(job.id)) ? fast : false,
     push: (id: string) => setPushed((current) => new Set(current).add(id)),
+  };
+}
+
+/**
+ * A job's counters as a progress event reports them, applied to the query
+ * data (a transfer, a bulk run, or an item of a list): a job already over is
+ * left as it is (a late event must not undo its end).
+ */
+export function withProgress<
+  T extends { status: string; progress: Record<string, number> },
+>(job: T, progress: Record<string, number | undefined>): T {
+  if (job.status === 'completed' || job.status === 'failed') {
+    return job;
+  }
+  const counters = Object.fromEntries(
+    Object.entries(progress).filter(([, value]) => value !== undefined),
+  ) as Record<string, number>;
+  return {
+    ...job,
+    status: 'running',
+    progress: { ...job.progress, ...counters },
   };
 }

@@ -14,6 +14,7 @@ group_eval_order:
   - app
   - background
   - dependencies
+  - host
   - edge
   - backups
   - monitoring
@@ -306,7 +307,7 @@ tests:
               state: waiting
             exp_annotations:
               summary: Queue data-transfers backlog keeps growing
-              description: '550 jobs wait, more than 30 minutes ago. The workers don''t keep up: add workers (WORKER_REPLICAS) or find the slow jobs.'
+              description: "550 jobs wait, more than 30 minutes ago. The workers don't keep up: add workers (WORKER_REPLICAS) or find the slow jobs."
       - eval_time: 5m
         alertname: JobsFailing
         exp_alerts:
@@ -345,7 +346,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: The exchange rates are stale
-              description: 'The newest stored ECB reference rates are 7d 2h 4m 0s old (+Inf: none was ever fetched). The worker''s ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md).'
+              description: "The newest stored ECB reference rates are 7d 2h 4m 0s old (+Inf: none was ever fetched). The worker's ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md)."
 
   - name: exchange rates never fetched
     interval: 1m
@@ -363,7 +364,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: The exchange rates are stale
-              description: 'The newest stored ECB reference rates are +Inf old (+Inf: none was ever fetched). The worker''s ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md).'
+              description: "The newest stored ECB reference rates are +Inf old (+Inf: none was ever fetched). The worker's ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md)."
 
   - name: outbox and webhooks
     interval: 1m
@@ -441,7 +442,7 @@ tests:
               state: failed
             exp_annotations:
               summary: Webhook deliveries fail for good
-              description: 'About 3.15 deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver''s endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried.'
+              description: "About 3.15 deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver's endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried."
 
   - name: backups
     interval: 1m
@@ -615,7 +616,7 @@ tests:
               instance: https://caddy:443/health/live
             exp_annotations:
               summary: The API does not answer over HTTPS
-              description: 'Caddy has not answered /health/live with 200 for 3 minutes: Caddy down, a certificate that is expired, missing or for another name, or no api replica healthy behind it. `docker compose logs caddy`; probe_http_status_code and the exporter''s /probe?debug=true say which.'
+              description: "Caddy has not answered /health/live with 200 for 3 minutes: Caddy down, a certificate that is expired, missing or for another name, or no api replica healthy behind it. `docker compose logs caddy`; probe_http_status_code and the exporter's /probe?debug=true say which."
       - eval_time: 12m
         alertname: CertificateExpiring
         exp_alerts: []
@@ -702,7 +703,7 @@ tests:
               job: api
             exp_annotations:
               summary: api cannot reach the captcha provider
-              description: 'Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: 16.67m per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare''s status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too).'
+              description: "Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: 16.67m per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare's status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too)."
 
   - name: hard bounces above 5% of the mail sent alert, below they don't, and few sends stay quiet
     interval: 1m
@@ -730,7 +731,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: 10.17% of the mail sent in the last hour bounced hard
-              description: 'Over 5% of the mails sent in the last hour went to addresses that don''t exist, for 15 minutes (at least 20 sent). They are being suppressed (GET /v1/mail/suppressions?reason=hard_bounce); find where the addresses came from (an import, a sign-up form without verification). SES suspends sending near 5%.'
+              description: "Over 5% of the mails sent in the last hour went to addresses that don't exist, for 15 minutes (at least 20 sent). They are being suppressed (GET /v1/mail/suppressions?reason=hard_bounce); find where the addresses came from (an import, a sign-up form without verification). SES suspends sending near 5%."
 
   - name: a few hard bounces among many mails stay quiet
     interval: 1m
@@ -763,7 +764,7 @@ tests:
               severity: warning
             exp_annotations:
               summary: 1 spam complaints in the last hour
-              description: 'Recipients reported mail from the app as spam (GET /v1/mail/suppressions?reason=complaint shows who, with the provider''s feedback type). They are suppressed; look at what was sent to them and why. Providers throttle a sender above 0.1% complaints.'
+              description: "Recipients reported mail from the app as spam (GET /v1/mail/suppressions?reason=complaint shows who, with the provider's feedback type). They are suppressed; look at what was sent to them and why. Providers throttle a sender above 0.1% complaints."
       - eval_time: 79m
         alertname: MailComplaints
         exp_alerts: []
@@ -780,3 +781,124 @@ tests:
       - eval_time: 12m
         alertname: CaptchaProviderUnavailable
         exp_alerts: []
+
+  - name: host disk nearly full, memory fine
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",mountpoint="/",fstype="ext4"}'
+        values: '4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4'
+      - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",mountpoint="/",fstype="ext4"}'
+        values: '100x20'
+      # Docker's overlay is not the disk: full, yet never alerts.
+      - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",mountpoint="/var/x",fstype="overlay"}'
+        values: '0x20'
+      - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",mountpoint="/var/x",fstype="overlay"}'
+        values: '100x20'
+      - series: 'node_memory_MemAvailable_bytes{job="node",instance="node-exporter:9100"}'
+        values: '5000000000x20'
+      - series: 'node_memory_MemTotal_bytes{job="node",instance="node-exporter:9100"}'
+        values: '8000000000x20'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: HostDiskSpaceLow
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: HostDiskSpaceLow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node
+              instance: node-exporter:9100
+              mountpoint: /
+              fstype: ext4
+            exp_annotations:
+              summary: '/ on the host has 4% free'
+              description: Under 10% of the disk is free. PostgreSQL, the backups and Docker's images and logs share it. `docker system df`, `docker image prune`, old backups.
+      - eval_time: 12m
+        alertname: HostDiskSpaceCritical
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: node
+              instance: node-exporter:9100
+              mountpoint: /
+              fstype: ext4
+            exp_annotations:
+              summary: '/ on the host has 4% free'
+              description: Under 5% of the disk is free; PostgreSQL stops accepting writes when it is full. Free space now (`docker system df`).
+      - eval_time: 19m
+        alertname: HostMemoryLow
+        exp_alerts: []
+
+  - name: host disk shrinking fast fills within a day
+    interval: 1m
+    input_series:
+      # 50% free falling 0.1 point per minute: empty within hours.
+      - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",mountpoint="/",fstype="ext4"}'
+        values: '50-0.1x400'
+      - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",mountpoint="/",fstype="ext4"}'
+        values: '100x400'
+    alert_rule_test:
+      - eval_time: 6h
+        alertname: HostDiskFillingUp
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node
+              instance: node-exporter:9100
+              mountpoint: /
+              fstype: ext4
+            exp_annotations:
+              summary: '/ on the host is on course to fill within a day'
+              description: At the last six hours' pace the disk is full within 24 hours. Find what grows (logs, a backup volume, the database).
+
+  - name: host memory exhausted, the kernel kills a process, the CPU saturates
+    interval: 1m
+    input_series:
+      - series: 'node_memory_MemAvailable_bytes{job="node",instance="node-exporter:9100"}'
+        values: '400000000x30'
+      - series: 'node_memory_MemTotal_bytes{job="node",instance="node-exporter:9100"}'
+        values: '8000000000x30'
+      - series: 'node_vmstat_oom_kill{job="node",instance="node-exporter:9100"}'
+        values: '0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'
+      # Two CPUs, idle 5% of the time.
+      - series: 'node_cpu_seconds_total{job="node",instance="node-exporter:9100",cpu="0",mode="idle"}'
+        values: '0+3x30'
+      - series: 'node_cpu_seconds_total{job="node",instance="node-exporter:9100",cpu="1",mode="idle"}'
+        values: '0+3x30'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: HostMemoryLow
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: HostMemoryLow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node
+              instance: node-exporter:9100
+            exp_annotations:
+              summary: 'The host has 5% of its memory available'
+              description: Under 10% of memory is available for 10 minutes; the kernel starts killing processes next. `docker stats`; the containers' limits should add up to less than the host's memory.
+      - eval_time: 8m
+        alertname: HostOomKilled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node
+              instance: node-exporter:9100
+            exp_annotations:
+              summary: The kernel killed a process for lack of memory
+              description: A process was OOM-killed on the host in the last 10 minutes (a container at its memory limit shows as AppRestarting). `dmesg | grep -i oom`.
+      - eval_time: 25m
+        alertname: HostOomKilled
+        exp_alerts: []
+      # 3 s idle per 60 s per CPU: 95% busy.
+      - eval_time: 25m
+        alertname: HostCpuHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 'The host CPU is 95% busy'
+              description: The CPUs have been over 90% busy for 15 minutes. `docker stats` says which container; scale out or raise the host.

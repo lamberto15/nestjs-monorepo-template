@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlertIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLivePoll, useRealtimeEvent } from '@/lib/realtime';
+import { useLivePoll, useRealtimeEvent, withProgress } from '@/lib/realtime';
 import {
   bulkJobQuery,
   runBulk,
@@ -139,10 +139,9 @@ function BulkRunDialog(props: {
 }
 
 /**
- * A queued run: its end comes as `bulk.finished` for this id (the query is
- * refetched); the progress is polled every second when there is no
- * connected socket, and every 5 s (30 s while queued) when there is
- * (useLivePoll).
+ * A queued run: its end comes as `bulk.finished` or `bulk.failed` for this id
+ * (the query is refetched) and its progress as `bulk.progress`; it is polled
+ * every second only when there is no connected socket (useLivePoll).
  */
 function JobView(props: { id: string; onFinished: () => void }) {
   const queryClient = useQueryClient();
@@ -153,7 +152,7 @@ function JobView(props: { id: string; onFinished: () => void }) {
     ),
     meta: { errorToast: false },
   });
-  useRealtimeEvent('bulk.finished', (event) => {
+  const ended = (event: { id: string }) => {
     if (event.id !== props.id) {
       return;
     }
@@ -161,6 +160,23 @@ function JobView(props: { id: string; onFinished: () => void }) {
     void queryClient.invalidateQueries({
       queryKey: bulkJobQuery(props.id).queryKey,
     });
+  };
+  useRealtimeEvent('bulk.finished', ended);
+  useRealtimeEvent('bulk.failed', ended);
+  useRealtimeEvent('bulk.progress', (event) => {
+    if (event.id !== props.id) {
+      return;
+    }
+    queryClient.setQueryData(
+      bulkJobQuery(props.id).queryKey,
+      (job) =>
+        job &&
+        withProgress(job, {
+          processed: event.processed,
+          done: event.done,
+          failed: event.failed,
+        }),
+    );
   });
   const { t } = useTranslation('bulk');
   if (query.isError) {

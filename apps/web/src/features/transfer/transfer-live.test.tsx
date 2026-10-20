@@ -11,9 +11,10 @@ import { TransferStatus } from './transfer-status';
 import { TransfersPage } from './transfers-page';
 
 // Exports, imports and bulk runs follow the realtime events
-// (`data.export-ready`, `data.import-finished`, `bulk.finished`): the event
-// finishes the flow, the poll is only the fallback when no socket is
-// connected.
+// (`data.export-ready`, `data.import-finished`, `data.failed`,
+// `bulk.finished`, `bulk.failed`) and their progress (`data.progress`,
+// `bulk.progress`): the events move the flow, the poll is only the fallback
+// when no socket is connected.
 
 const connections: FakeRealtime[] = [];
 vi.mock('@nestjs-monorepo-template/api-client', async (importOriginal) => ({
@@ -31,7 +32,7 @@ beforeEach(() => {
   connections.length = 0;
 });
 
-/** Longer than the 1 s fast poll, shorter than the 5 s poll of a running job. */
+/** Longer than the 1 s fast poll: it would have run by now. */
 const pollsWouldHaveRun = () => new Promise((r) => setTimeout(r, 1400));
 
 /** The socket of the mounted provider, once it made it. */
@@ -151,18 +152,100 @@ describe('an export or import on screen', () => {
     expect(calls.get).toBe(before);
   });
 
-  it('shows the progress while connected, polling a running job every 5 s', async () => {
+  it('shows the progress of data.progress without asking again', async () => {
     const state: State = { a: running('a') };
-    useTransfers(state);
+    const calls = useTransfers(state);
     await mountStatus(['a']);
     const fake = await socket();
     connect(fake);
     expect(await screen.findByText(/Working… 40 rows/)).toBeVisible();
+    const before = calls.get;
 
-    // No progress event: the slow poll is what moves the counter.
-    state.a = { ...running('a'), progress: { processed: 80 } };
+    act(() =>
+      fake.emit('data.progress', {
+        id: 'a',
+        name: 'test-items',
+        kind: 'export',
+        processed: 80,
+      }),
+    );
+    expect(await screen.findByText(/Working… 80 rows/)).toBeVisible();
+    await pollsWouldHaveRun();
+    expect(calls.get).toBe(before);
+  });
+
+  it('shows a queued job as running once its progress arrives', async () => {
+    const state: State = { a: { ...running('a'), status: 'queued' } };
+    useTransfers(state);
+    await mountStatus(['a']);
+    const fake = await socket();
+    connect(fake);
+    await screen.findByText('Waiting for a worker…');
+    act(() =>
+      fake.emit('data.progress', {
+        id: 'a',
+        name: 'test-items',
+        kind: 'export',
+        processed: 10,
+      }),
+    );
+    expect(await screen.findByText(/Working… 10 rows/)).toBeVisible();
+  });
+
+  it('ignores the progress of other transfers and of a finished one', async () => {
+    const state: State = { a: exported('a'), b: running('b') };
+    useTransfers(state);
+    await mountStatus(['a', 'b']);
+    const fake = await socket();
+    connect(fake);
+    await screen.findByRole('link', download);
+    await screen.findByText(/Working… 40 rows/);
+    act(() => {
+      for (const id of ['a', 'other']) {
+        fake.emit('data.progress', {
+          id,
+          name: 'test-items',
+          kind: 'export',
+          processed: 99,
+        });
+      }
+    });
+    await pollsWouldHaveRun();
+    expect(screen.queryByText(/Working… 99 rows/)).toBeNull();
+    expect(screen.getByRole('link', download)).toBeVisible();
+    expect(screen.getByText(/Working… 40 rows/)).toBeVisible();
+  });
+
+  it('shows the failure on data.failed, refetching that transfer only', async () => {
+    const state: State = { a: running('a'), b: running('b') };
+    const calls = useTransfers(state);
+    await mountStatus(['a', 'b']);
+    const fake = await socket();
+    connect(fake);
+    await waitFor(() =>
+      expect(screen.getAllByText(/Working… 40 rows/)).toHaveLength(2),
+    );
+    const before = calls.get;
+
+    state.a = {
+      ...running('a'),
+      status: 'failed',
+      error: 'The worker was lost.',
+    };
+    act(() =>
+      fake.emit('data.failed', {
+        id: 'a',
+        name: 'test-items',
+        kind: 'export',
+        error: 'The worker was lost.',
+      }),
+    );
     expect(
-      await screen.findByText(/Working… 80 rows/, {}, { timeout: 7000 }),
+      await within(screen.getByTestId('a')).findByText('The worker was lost.'),
+    ).toBeVisible();
+    expect(calls.get).toBe(before + 1);
+    expect(
+      within(screen.getByTestId('b')).getByText(/Working… 40 rows/),
     ).toBeVisible();
   });
 
@@ -335,6 +418,47 @@ describe('the list of transfers and bulk runs', () => {
     ).toBeVisible();
   });
 
+  it('follows bulk.progress in the list, and bulk.failed refetches it', async () => {
+    const state = { bulk: bulkRun('running') };
+    const calls = useLists(state);
+    await mountPage();
+    const fake = await socket();
+    connect(fake);
+    expect(
+      await screen.findByText('Working… 30 processed so far.'),
+    ).toBeVisible();
+    const before = calls.bulk;
+
+    act(() =>
+      fake.emit('bulk.progress', {
+        id: 'b1',
+        name: 'test-items',
+        action: 'delete',
+        processed: 60,
+        done: 59,
+        failed: 1,
+      }),
+    );
+    expect(
+      await screen.findByText('Working… 60 processed so far.'),
+    ).toBeVisible();
+    expect(calls.bulk).toBe(before);
+
+    state.bulk = bulkRun('failed');
+    act(() =>
+      fake.emit('bulk.failed', {
+        id: 'b1',
+        name: 'test-items',
+        action: 'delete',
+        error: 'The worker was lost.',
+      }),
+    );
+    await waitFor(() => expect(calls.bulk).toBeGreaterThan(before));
+    await waitFor(() =>
+      expect(screen.queryByText(/Working…/)).not.toBeInTheDocument(),
+    );
+  });
+
   it('polls the runs without a connected socket', async () => {
     const state = { bulk: bulkRun('running') };
     useLists(state);
@@ -429,19 +553,45 @@ describe('a queued bulk run in its dialog', () => {
     ).toBeVisible();
   });
 
-  it('shows the progress while connected, polling a running run every 5 s', async () => {
+  it('shows bulk.progress without asking again', async () => {
     const state = { job: job('running') };
-    const { dialog } = await start(state);
+    const { fake, calls, dialog } = await start(state);
+    const before = calls.get;
+    act(() =>
+      fake.emit('bulk.progress', {
+        id: 'job-1',
+        name: 'test-items',
+        action: 'delete',
+        processed: 200,
+        done: 198,
+        failed: 2,
+      }),
+    );
+    expect(
+      await within(dialog).findByText('200 processed: 198 done, 2 failed.'),
+    ).toBeVisible();
+    await pollsWouldHaveRun();
+    expect(calls.get).toBe(before);
+  });
+
+  it('ends on bulk.failed, showing why', async () => {
+    const state = { job: job('running') };
+    const { fake, dialog } = await start(state);
     state.job = {
       ...job('running'),
-      progress: { processed: 200, done: 198, failed: 2 },
-    };
+      status: 'failed',
+      error: 'The worker was lost.',
+    } as never;
+    act(() =>
+      fake.emit('bulk.failed', {
+        id: 'job-1',
+        name: 'test-items',
+        action: 'delete',
+        error: 'The worker was lost.',
+      }),
+    );
     expect(
-      await within(dialog).findByText(
-        '200 processed: 198 done, 2 failed.',
-        {},
-        { timeout: 7000 },
-      ),
+      await within(dialog).findByText('The worker was lost.'),
     ).toBeVisible();
   });
 

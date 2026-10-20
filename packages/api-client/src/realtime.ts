@@ -5,6 +5,7 @@ import {
   type SocketOptions,
 } from 'socket.io-client';
 import type { GetResponse } from './client.js';
+import type { RealtimeEventPayloads } from './realtime-events.js';
 
 /** A notification as `GET /v1/notifications` lists it, and as the `notification` event carries it. */
 export type NotificationItem =
@@ -14,161 +15,15 @@ export type NotificationItem =
 export type UnreadCount = GetResponse<'/v1/notifications/unread-count'>;
 
 /**
- * Every event the API pushes on `/realtime` (docs/notifications.md,
- * docs/data-transfer.md, docs/bulk-operations.md, docs/approvals.md). A feature that adds one
- * (`Realtime.toPrincipal(principal, event, data)`) adds it here.
+ * Every event the API pushes on `/realtime`, as a socket.io listener map. The
+ * names and payloads are generated (`RealtimeEventPayloads`, from the OpenAPI
+ * document's `x-realtime-events`: docs/webhooks-and-realtime.md, "Realtime
+ * events"); a feature that adds an event declares it in the API's manifest
+ * (`platform/realtime/realtime-events.ts`) and runs `pnpm client:generate`.
  */
-export interface RealtimeEvents {
-  /** A new notification, in the recipient's language. */
-  notification: (item: NotificationItem) => void;
-  'notification.read': (event: { id: string; readAt: string | null }) => void;
-  /** `before`: what the call passed (null: all of them); `updated`: how many changed. */
-  'notifications.read-all': (event: {
-    before: string | null;
-    updated: number;
-  }) => void;
-  'notification.removed': (event: { id: string }) => void;
-  /** After each of the above and each delivery: the badge's number. */
-  'notifications.unread-count': (event: UnreadCount) => void;
-  /** An export is ready: `url` is a signed link to the file. */
-  'data.export-ready': (event: {
-    id: string;
-    name: string;
-    rows: number;
-    url: string;
-  }) => void;
-  'data.import-finished': (event: {
-    id: string;
-    name: string;
-    rows: number;
-    imported: number;
-    failed: number;
-  }) => void;
-  /**
-   * An export or import is running: `processed` rows so far (an import also
-   * `imported` and `failed`). Throttled (an export: at most once a second; an
-   * import: every 500 rows); `GET /v1/data/transfers/{id}` has the same numbers.
-   */
-  'data.progress': (event: {
-    id: string;
-    name: string;
-    kind: 'export' | 'import';
-    processed: number;
-    imported?: number;
-    failed?: number;
-  }) => void;
-  /**
-   * An export or import failed for good (not a few refused rows: that is
-   * `data.import-finished`); `error` says why, for people. The transfer
-   * reads `failed` at `GET /v1/data/transfers/{id}` by now.
-   */
-  'data.failed': (event: {
-    id: string;
-    name: string;
-    kind: 'export' | 'import';
-    error: string;
-  }) => void;
-  /** An approval request waits for you (or for someone you stand in for): `GET /v1/approvals/{id}` (docs/approvals.md). */
-  'approval.assigned': (event: {
-    id: string;
-    subject: string;
-    recordId: string;
-    action: string;
-    stage: number;
-  }) => void;
-  /**
-   * A decision on a request you made or decide, or its end: `status` is the
-   * request's after it (pending while stages remain); `decision` null when no
-   * person decided (cancelled, expired, failed).
-   */
-  'approval.decided': (event: {
-    id: string;
-    status:
-      | 'pending'
-      | 'approved'
-      | 'rejected'
-      | 'changes_requested'
-      | 'cancelled'
-      | 'expired'
-      | 'failed';
-    round: number;
-    stage: number;
-    decision: 'approved' | 'rejected' | 'changes_requested' | null;
-  }) => void;
-  /**
-   * An approved request's outcome was applied (the note is published, say): `outcomeAppliedAt`
-   * is now set on `GET /v1/approvals/{id}`. To the requester and the approvers of the round,
-   * once; a banner showing "approved, applying" can clear without polling.
-   */
-  'approval.applied': (event: {
-    id: string;
-    subject: string;
-    recordId: string;
-    outcomeAppliedAt: string;
-  }) => void;
-  /** A queued bulk operation ended; its item results: `GET /v1/bulk/{id}` (docs/bulk-operations.md). */
-  'bulk.finished': (event: {
-    id: string;
-    name: string;
-    action: string;
-    done: number;
-    failed: number;
-  }) => void;
-  /** A queued bulk run is running: items processed so far, every few hundred items. */
-  'bulk.progress': (event: {
-    id: string;
-    name: string;
-    action: string;
-    processed: number;
-    done: number;
-    failed: number;
-  }) => void;
-  /**
-   * A queued bulk run failed for good (its worker was lost, say); items done
-   * stay done (`GET /v1/bulk/{id}`, the audit log). `error` says why, for people.
-   */
-  'bulk.failed': (event: {
-    id: string;
-    name: string;
-    action: string;
-    error: string;
-  }) => void;
-  /**
-   * A document you asked for (`POST /v1/notes/{id}/pdf`) was issued: the PDF
-   * is the record's attachment `attachmentId` (docs/documents.md).
-   */
-  'document.ready': (event: {
-    id: string;
-    subject: string;
-    recordId: string;
-    attachmentId: string;
-  }) => void;
-  /**
-   * A comment on a record you watch (or one you wrote, for your other tabs)
-   * was added, edited or removed: ids only, fetch the thread
-   * (docs/webhooks-and-realtime.md, "Record events").
-   */
-  'record.commented': (event: {
-    subject: string;
-    recordId: string;
-    commentId: string;
-    action: 'added' | 'edited' | 'removed';
-  }) => void;
-  /** A file on a record you watch was uploaded, removed or issued (a PDF): ids only. */
-  'record.attachments.changed': (event: {
-    subject: string;
-    recordId: string;
-    attachmentId: string;
-    action: 'added' | 'removed';
-  }) => void;
-  /** A document you asked for failed for good; `error` says why, for people. */
-  'document.failed': (event: {
-    id: string;
-    subject: string;
-    recordId: string;
-    error: string;
-  }) => void;
-}
+export type RealtimeEvents = {
+  [E in keyof RealtimeEventPayloads]: (event: RealtimeEventPayloads[E]) => void;
+};
 
 /** What a connection may ask the API. */
 export interface RealtimeRequests {

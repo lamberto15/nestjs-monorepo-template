@@ -33,6 +33,7 @@ first project is built on the template; until then they report only.
 | 1a, part 1. Database roles | **Done** (#36): `migrate` connects as the owner (`DATABASE_OWNER_URL`), api and worker as `app_runtime` (NOSUPERUSER NOBYPASSRLS, owns nothing, DML only, no role memberships), created and checked by `roles.ts` on every migrate. Tests run as the app role over scram. The rest of 1a: the next row. |
 | 10, part 1. Git hooks | **Done** (#33): lefthook (Prettier, oxlint, commitlint) and the PR-title check in CI. Demo seed and devcontainer: the 10 row below. |
 | 16a. Dead-man's switch and certificate probe | **Done** (#32). Off until the owner sets `ALERT_WATCHDOG_URL_FILE` (healthchecks.io ping URL). |
+| 16b. Host monitoring | **Done** (#256): node-exporter and six `host` alerts in `compose.monitoring.yaml`; an hourly outside probe workflow, off until the `UPTIME_PROBE_URL` variable is set. docs/deployment.md, "Alerting". |
 | 19. Secrets | **Done** (#35): every secret can come from `X_FILE`; Docker secrets in production Compose; Redis' password never on a command line. Follow-up: a `pg_monitor` role for the exporter. |
 | 20. Expand/contract migrations | **Done** (#34): the policy in docs/pitfalls.md and squawk's lint in CI (report-only until `MIGRATION_LINT_FAIL` is set; changed merged migrations always fail). |
 | 21. OpenAPI breaking changes | **Done** (#31): oasdiff in CI, report-only until `OASDIFF_FAIL_ON` is set. |
@@ -62,12 +63,14 @@ first project is built on the template; until then they report only.
 
 ### Open follow-ups
 
-- **Tenancy (1b):** per-tenant senders for incoming webhooks; sign-ins visible to tenant administrators (**done** (#228): `GET /v1/access/sign-ins`, docs/auth.md, "Sign-in log"); the platform super
+- **Tenancy (1b):** sign-ins visible to tenant administrators (**done** (#228): `GET /v1/access/sign-ins`, docs/auth.md, "Sign-in log"); the platform super
   tenant; a membership still active in a deactivated tenant exports that tenant's
   records; the migrate-time wall check compares policy names and commands, not their
   expressions; whether operators may act in any tenant without its invitation (a
   break-glass support route: the owner's decision, docs/tenancy.md, "Operators").
-  Tenant export and deletion are done (#226; get, rename and deactivation, #195).
+  Tenant export and deletion are done (#226; get, rename and deactivation, #195);
+  per-tenant senders for incoming webhooks are done (#234: docs/webhooks-and-realtime.md,
+  "Incoming webhooks of a tenant").
 - **Passkeys:** renaming needs no recent sign-in; a token sign-in naming a tenant the
   user isn't in writes no failure entry; `crossOrigin`/`topOrigin` aren't checked.
   Token clients with two-factor still send a code with a passkey until
@@ -160,7 +163,7 @@ CLAUDE.md), so no outside probe can reach it; 16a probes from inside the stack.
 | F | **5** encryption service + column registry; **19** secrets; **23** log redaction | 2, 11, 15 all store secrets or PII |
 | G | **24** session method + step-up; **3** passkeys; **4** bot protection; then **2** SSO/SCIM | 2 needs 1a, 5, 24 and domain verification |
 | H | **1b**; **10** (lefthook before 9); **9**; **22** email deliverability; **7** | Each later auth item adds UI to 7 |
-| I | 11, 12, 13, 14, 15, 16b, 17-full | By product need; 11 needs 5 |
+| I | 11, 12, 13, 14, 15, 17-full | By product need; 11 needs 5 |
 
 ---
 
@@ -414,9 +417,10 @@ Planned as:
   `template-without-notes` proves the core stands with the example removed.
 - **One event declaration.** Notifications, webhooks and realtime each declare event
   types today; they become one domain-event declaration with channels, and the
-  generator emits one.
-- **The realtime manifest** goes into the OpenAPI document as `x-realtime-events`, so
-  `client:check` already diffs it and oasdiff (21) catches breaking changes.
+  generator emits one. **Open (#229 follow-up):** only the realtime part is unified.
+- **The realtime manifest** (done, #229): `platform/realtime/realtime-events.ts` goes into
+  the OpenAPI document as `x-realtime-events`, so `client:check` diffs it and oasdiff
+  (21) catches breaking changes; the client's `src/realtime-events.ts` is generated.
 - Events are emitted only through the typed map. Payloads are validated at runtime in
   dev and test only.
 
@@ -561,7 +565,10 @@ After 1a and 5.
     probing **`https://caddy:443`** with `tls_config.server_name` set to the public
     host.
   - `BackupTooOld` already exists (`monitoring/prometheus/alerts.yml:265`).
-- **16b.**
+- **16b (done, #256).** node-exporter in `compose.monitoring.yaml` (job `node`, six
+  `host` alerts with promtool tests) and the outside probe
+  (`.github/workflows/uptime-probe.yml`, off until the `UPTIME_PROBE_URL` variable
+  is set). docs/deployment.md, "Alerting". What was planned:
   - node-exporter in Docker Desktop sees the Linux VM. That is still useful, because
     `Docker.raw` is what fills.
   - The Mac itself needs a Homebrew `node_exporter` scraped through

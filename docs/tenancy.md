@@ -99,6 +99,7 @@ The scope lives in CLS (nestjs-cls), so the pool reads it without injection:
 | Work | Its tenant |
 | --- | --- |
 | An HTTP request | the principal's, set by `PrincipalGuard` after authentication (the CLS middleware gives every request a context) |
+| An incoming webhook of a tenant's sender | the tenant in its URL, once the sender is found inside it (`TenantSenderGuard`; [webhooks](webhooks-and-realtime.md#incoming-webhooks-of-a-tenant)) |
 | A socket message | the socket's principal's (`ClsInterceptor` on the gateway) |
 | A queue job | its envelope's `tenantId` (`TenantWorkerHost` restores it) |
 | An outbox message (notifications) | its payload's `tenantId` (`inTenantOf()`) |
