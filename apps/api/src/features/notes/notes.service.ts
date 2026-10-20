@@ -73,6 +73,8 @@ export class NotesService {
       subject: 'Note',
       sequence: 'note',
       declared: { prefix: 'NOTE', perYear: true, width: 5 },
+      // What a series may print or test: NOTE-.{title}.-.### counts per title.
+      fields: { title: 'text' },
     });
     // A tenant's own sender (docs/webhooks-and-realtime.md): the tenant is the
     // sender's, so the event names only the note, and the request already runs in it.
@@ -123,9 +125,11 @@ export class NotesService {
     );
     const note = await inTransaction(this.txHost, async (tx) => {
       // Its number: gapless, in this transaction, from the naming series the
-      // body names, else the default (NOTE-2026-00042 without any).
+      // body names, else the first whose conditions hold for it, else the
+      // default (NOTE-2026-00042 without any).
       const { formatted: number } = await this.namingSeries.next(tx, 'Note', {
         seriesId: dto.namingSeriesId,
+        values: { title: dto.title },
       });
       const [row] = await tx
         .insert(notes)

@@ -5,6 +5,7 @@ import { registerTenantTables, tenantTablesIn } from './tenant-pool.js';
 import {
   assertUuid,
   BYPASS,
+  consolidatedScope,
   currentTenantScope,
   NO_TENANT,
   requireTenantId,
@@ -27,6 +28,20 @@ describe('the tenant scope', () => {
     expect(tenantSettingsStatement(NO_TENANT)).toContain(
       "set_config('app.tenant_id', '', true)",
     );
+  });
+
+  it('widens only the reads of a consolidated scope, read-only, writing to the reader', () => {
+    const scope = consolidatedScope(A, [B, A]);
+    expect(scope).toEqual({
+      tenantId: A,
+      readTenants: [A, B],
+      bypass: false,
+      readOnly: true,
+    });
+    expect(tenantSettingsStatement(scope)).toBe(
+      `select set_config('app.tenant_id', '${A}', true), set_config('app.read_tenants', '${A},${B}', true)`,
+    );
+    expect(() => consolidatedScope(A, ["x'"])).toThrow(TypeError);
   });
 
   it('takes nothing but a UUID into a setting', () => {

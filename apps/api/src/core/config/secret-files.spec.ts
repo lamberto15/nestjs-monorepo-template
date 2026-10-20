@@ -312,6 +312,7 @@ describe('the environment (env.ts)', () => {
     expect(core.sort()).toEqual(
       [
         'ADMIN_PASSWORD',
+        'ANTHROPIC_API_KEY',
         'AWS_SECRET_ACCESS_KEY',
         'AWS_SESSION_TOKEN',
         'BLIND_INDEX_KEYS',

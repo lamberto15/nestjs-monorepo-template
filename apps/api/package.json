@@ -30,6 +30,7 @@
     "openapi:dump": "nest build && node dist/openapi-dump"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@casl/ability": "^7.0.1",
     "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs-cls/transactional": "4.0.1",

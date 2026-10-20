@@ -197,6 +197,29 @@ export const platformEnv = z.object({
   /** Tries per document, the first included (exponential backoff from 1 s), before it fails. */
   DOCUMENTS_RENDER_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
 
+  /**
+   * The AI helper (platform/ai): an Anthropic API key. Unset: the helper is
+   * off and asking for it answers 503 `ai_unavailable`; nothing is sent
+   * anywhere. A tenant also opts in (the `ai.enabled` setting).
+   */
+  ANTHROPIC_API_KEY: secret(optional()),
+  /** Another Anthropic-compatible endpoint (a gateway, a test stand-in). Unset: Anthropic's. */
+  AI_BASE_URL: baseUrl(),
+  /** The model for normal tasks (pinned: the id is stored on every run and in cache keys). */
+  AI_MODEL: z.string().min(1).default('claude-sonnet-5-5'),
+  /** The model for cheap, simple tasks. */
+  AI_MODEL_CHEAP: z.string().min(1).default('claude-haiku-5-5'),
+  /** One call's limit in milliseconds (the queue's lock outlasts it: at most 120 000). */
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(60_000),
+  /** The most tokens one answer may have. */
+  AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(8192).default(1024),
+  /** Tries per run, the first included (exponential backoff from 2 s), before it fails. */
+  AI_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(2),
+  /** Tokens (in and out) one tenant may use per UTC day; 0 is no cap. Cached answers cost none. */
+  AI_TENANT_DAILY_TOKENS: z.coerce.number().int().min(0).default(500_000),
+  /** How long an answer to the same prompt (same tenant, model and prompt version) is reused; 0 is never. */
+  AI_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).default(3600),
+
   /** Where files go: `local` (STORAGE_ROOT), `s3` (any S3-compatible store), `memory` (tests). */
   STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).default('local'),
   STORAGE_ROOT: pathWithDefault('.data/storage'),

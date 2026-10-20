@@ -15828,6 +15828,254 @@
         ]
       }
     },
+    "/v1/ai/runs": {
+      "post": {
+        "description": "Whoever may use the helper on the record (its source decides). Answers at once with the run id; a worker sends the record's fields you may read to the provider and keeps a structured answer for an hour. Follow it at GET /v1/ai/runs/{id}; your realtime connection hears `ai.ready { id, subject, recordId, task }` or `ai.failed { id, subject, recordId, error }`. Off until the tenant sets `ai.enabled`. Audited (ai.requested, ai.completed).",
+        "operationId": "AiController_request_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "example": "note",
+                    "description": "The kind of record: a name the features register (`note`)."
+                  },
+                  "recordId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "task": {
+                    "type": "string",
+                    "enum": [
+                      "summarize",
+                      "classify"
+                    ],
+                    "description": "`summarize` or `classify`; each has its own answer shape."
+                  }
+                },
+                "required": [
+                  "source",
+                  "recordId",
+                  "task"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "You may not use it on this record, or the tenant has not turned it on (ai_disabled)."
+          },
+          "404": {
+            "description": "No such kind of record."
+          },
+          "409": {
+            "description": "Yours is still running for this record and task (ai_pending)."
+          },
+          "429": {
+            "description": "More than 20 a minute from one user (rate_limited), or the tenant's daily token quota is used up (ai_quota_exceeded)."
+          },
+          "503": {
+            "description": "The helper is not set up on this server (ai_unavailable)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Ask the AI helper about a record",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/v1/ai/runs/{id}": {
+      "get": {
+        "description": "Only the principal who asked. `completed`: `output` is the answer in the task's shape (kept an hour, then null), with the model id and prompt version that produced it and the tokens used.",
+        "operationId": "AiController_status_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "recordId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "task": {
+                      "type": "string"
+                    },
+                    "promptVersion": {
+                      "type": "string",
+                      "example": "v1"
+                    },
+                    "model": {
+                      "nullable": true,
+                      "description": "The model id that answered (null until it did).",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "completed",
+                        "failed"
+                      ],
+                      "description": "queued → running → completed, or failed (then `error`)."
+                    },
+                    "output": {
+                      "nullable": true,
+                      "description": "Once completed: the task's answer, validated against its schema. Kept for an hour; null after that (ask again).",
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "inputTokens": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "outputTokens": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "cached": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "nullable": true,
+                      "description": "Why it failed, written for people.",
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "source",
+                    "subject",
+                    "recordId",
+                    "task",
+                    "promptVersion",
+                    "model",
+                    "status",
+                    "output",
+                    "inputTokens",
+                    "outputTokens",
+                    "cached",
+                    "error",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "A run you asked for: its state, then the answer",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/v1/tags": {
       "get": {
         "description": "Every subject unless `?subject=Note` (or `subject.in=`); `?name.contains=urg`, `?name=Urgent` (whatever the case); `?sort=name`. Cursor pages.",
@@ -16566,9 +16814,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, dateField, conditions, priority, example, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, dateField, conditions, priority, example, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -16608,7 +16856,7 @@
         ]
       },
       "post": {
-        "description": "For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. Audited (`namingSeries.created`).",
+        "description": "For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. With `conditions`, it numbers the records they hold for (the first by `priority`). Audited (`namingSeries.created`).",
         "operationId": "NamingSeriesController_create_v1",
         "parameters": [],
         "requestBody": {
@@ -16629,7 +16877,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 60,
-                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.",
                     "example": "INV-.YYYY.-.MM.-.#####"
                   },
                   "label": {
@@ -16639,6 +16887,27 @@
                   "isDefault": {
                     "description": "The subject's default from now on; its first series is.",
                     "type": "boolean"
+                  },
+                  "dateField": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                    "description": "A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.",
+                    "example": "invoiceDate"
+                  },
+                  "conditions": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/NamingCondition"
+                    },
+                    "description": "All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series."
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000,
+                    "description": "Higher first, among the series whose conditions hold."
                   }
                 },
                 "required": [
@@ -16661,7 +16930,7 @@
             }
           },
           "400": {
-            "description": "A subject that takes no number, an invalid pattern (validation_failed)."
+            "description": "A subject that takes no number, an invalid pattern, date field or condition (validation_failed)."
           },
           "401": {
             "description": "No valid API key or session."
@@ -16692,7 +16961,7 @@
     },
     "/v1/naming-series/subjects": {
       "get": {
-        "description": "Each with the format it has in code (`declaredPattern`), which numbers it while it has no series.",
+        "description": "Each with the format it has in code (`declaredPattern`), which numbers it while it has no series, and the fields its series may print (`{title}`), take their date from or test in conditions.",
         "operationId": "NamingSeriesController_subjects_v1",
         "parameters": [],
         "responses": {
@@ -16730,38 +16999,106 @@
         ]
       }
     },
-    "/v1/naming-series/preview": {
+    "/v1/naming-series/variables": {
       "get": {
-        "description": "What the pattern would give now, before it is saved: its counter key, the last value taken under that key (shared with any series printing the same), the next number.",
-        "operationId": "NamingSeriesController_preview_v1",
-        "parameters": [
-          {
-            "name": "subject",
-            "required": true,
-            "in": "query",
-            "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
-              "example": "Note"
+        "description": "As Frappe's naming series variables: `FY` (the fiscal year), `ABBR` (the tenant's abbreviation), and any a feature declares. Written `.FY.` or `{FY}`.",
+        "operationId": "NamingSeriesController_variables_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamingVariableList"
+                }
+              }
             }
           },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
           {
-            "name": "pattern",
-            "required": true,
-            "in": "query",
-            "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 60,
-              "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
-              "example": "INV-.YYYY.-.MM.-.#####"
-            }
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
           }
         ],
+        "summary": "The variables patterns may print",
+        "tags": [
+          "naming-series"
+        ]
+      }
+    },
+    "/v1/naming-series/preview": {
+      "post": {
+        "description": "What the pattern would give now, before it is saved, for a record with `values` (its fields left out print as `{field}`): its counter key, the last value taken under that key (shared with any series printing the same), the next number.",
+        "operationId": "NamingSeriesController_preview_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "A subject whose records take a number (GET /v1/naming-series/subjects).",
+                    "example": "Note"
+                  },
+                  "pattern": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.",
+                    "example": "INV-.YYYY.-.MM.-.#####"
+                  },
+                  "dateField": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                    "description": "A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.",
+                    "example": "invoiceDate"
+                  },
+                  "values": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
+                    },
+                    "description": "A record's field values, as its create body takes them: the counter of the number such a record gets. Fields left out print as `{field}`."
+                  }
+                },
+                "required": [
+                  "subject",
+                  "pattern"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -16851,7 +17188,7 @@
         ]
       },
       "patch": {
-        "description": "Its pattern, its label, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).",
+        "description": "Its pattern, label, date field, conditions or priority, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).",
         "operationId": "NamingSeriesController_update_v1",
         "parameters": [
           {
@@ -16874,7 +17211,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 60,
-                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.",
+                    "description": "Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.",
                     "example": "INV-.YYYY.-.MM.-.#####"
                   },
                   "label": {
@@ -16888,6 +17225,28 @@
                     "enum": [
                       true
                     ]
+                  },
+                  "dateField": {
+                    "nullable": true,
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                    "description": "A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.",
+                    "example": "invoiceDate"
+                  },
+                  "conditions": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/NamingCondition"
+                    },
+                    "description": "All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series."
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": -1000,
+                    "maximum": 1000,
+                    "description": "Higher first, among the series whose conditions hold."
                   }
                 }
               }
@@ -16983,7 +17342,7 @@
     },
     "/v1/naming-series/{id}/counter": {
       "get": {
-        "description": "This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number.",
+        "description": "This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number. A pattern printing fields counts per value: they show as `{field}` here; POST /v1/naming-series/preview with `values` gives one value's.",
         "operationId": "NamingSeriesController_counter_v1",
         "parameters": [
           {
@@ -17033,7 +17392,7 @@
         ]
       },
       "put": {
-        "description": "Starts this period's counter at `current`: the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).",
+        "description": "Starts this period's counter at `current` (with fields in the pattern, the counter of `values`): the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).",
         "operationId": "NamingSeriesController_setCounter_v1",
         "parameters": [
           {
@@ -17058,6 +17417,24 @@
                     "maximum": 9007199254740991,
                     "description": "The last value taken: the next record gets this + 1. Never below the value already taken.",
                     "example": 1000
+                  },
+                  "values": {
+                    "description": "For a pattern printing fields: the field values whose counter is set (`{ customer: 'ACME' }`); each value has its own.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
+                    }
                   }
                 },
                 "required": [
@@ -34077,6 +34454,392 @@
         ]
       }
     },
+    "/v1/access/consolidated/tenants": {
+      "get": {
+        "description": "Your tenant’s descendants in its tenant tree (docs/tenancy.md, \"The tenant tree\"), nearest first: the active ones with no deactivated tenant between yours and them, none whose deletion is pending. The operators place tenants in the tree (PATCH /v1/tenants/{id} `parentId`). Needs `Access.readConsolidated`; never while impersonating.",
+        "operationId": "AccessController_consolidatedTenants_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SubtreeTenant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The tenants below yours that a consolidated read spans",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/access/consolidated/audit": {
+      "get": {
+        "description": "A consolidated read (docs/tenancy.md, \"The tenant tree\"): the entries of your tenant and of every tenant GET /v1/access/consolidated/tenants lists, each with its `tenantId`, read-only; filtered, sorted and paged as GET /v1/access/audit. `actorName` names your tenant’s members and clients; another tenant’s show their `actorLabel`. Audited (`tenant.consolidated-read`) in your tenant and in each tenant read. Needs `Access.readAudit` and `Access.readConsolidated`; never while impersonating.",
+        "operationId": "AccessController_consolidatedAuditLog_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action =",
+            "schema": {
+              "description": "Filter: action =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "action.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action in",
+            "schema": {
+              "description": "Filter: action in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action.notIn",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action notIn",
+            "schema": {
+              "description": "Filter: action notIn",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: action startsWith",
+            "schema": {
+              "description": "Filter: action startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actor",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actor =",
+            "schema": {
+              "description": "Filter: actor =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actor.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actor in",
+            "schema": {
+              "description": "Filter: actor in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorLabel",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel =",
+            "schema": {
+              "description": "Filter: actorLabel =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actorLabel.contains",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel contains",
+            "schema": {
+              "description": "Filter: actorLabel contains",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actorLabel.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: actorLabel startsWith",
+            "schema": {
+              "description": "Filter: actorLabel startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "targetType",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetType =",
+            "schema": {
+              "description": "Filter: targetType =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "targetType.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetType in",
+            "schema": {
+              "description": "Filter: targetType in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetType.isNull",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetType isNull",
+            "schema": {
+              "description": "Filter: targetType isNull",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "targetId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: targetId =",
+            "schema": {
+              "description": "Filter: targetId =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "at.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at gt",
+            "schema": {
+              "description": "Filter: at gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at gte",
+            "schema": {
+              "description": "Filter: at gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at lt",
+            "schema": {
+              "description": "Filter: at lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at lte",
+            "schema": {
+              "description": "Filter: at lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at between",
+            "schema": {
+              "description": "Filter: at between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"action\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "`consolidated_read_forbidden`: no `Access.readConsolidated`."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The audit log of your tenant and the tenants below it, newest first",
+        "tags": [
+          "access"
+        ]
+      }
+    },
     "/v1/access/sign-ins": {
       "get": {
         "description": "The sign-ins of this tenant's members, successes and wrong passwords (a wrong password to an unknown address is nobody's), as the tenant saw them: a sign-in is entered in the tenant it lands in (a token's, else the member's last chosen), so another tenant's administrators never read it. Filter by user (`user=user:<id>`), method (`method=password`, `method.startsWith=oidc:`), result (`result=failure`), `ip` and `at`; sort by `at`. GET /v1/lists/SignIn describes it. Needs the same permission as the audit log (`Access.readAudit`).",
@@ -35016,6 +35779,32 @@
             }
           },
           {
+            "name": "parentId",
+            "required": false,
+            "in": "query",
+            "description": "Filter: parentId =",
+            "schema": {
+              "description": "Filter: parentId =",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "parentId.isNull",
+            "required": false,
+            "in": "query",
+            "description": "Filter: parentId isNull",
+            "schema": {
+              "description": "Filter: parentId isNull",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
             "name": "createdAt.gt",
             "required": false,
             "in": "query",
@@ -35135,9 +35924,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); parentId (eq, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); parentId (eq, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between).",
               "type": "string",
               "maxLength": 20000
             }
@@ -35157,9 +35946,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, parentId, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, parentId, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -35218,6 +36007,13 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "parentId": {
+                            "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                           },
                           "createdAt": {
                             "type": "string",
@@ -35322,6 +36118,12 @@
                     "format": "email",
                     "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                     "description": "Its first administrator: an account at this address (made, and invited to choose a password, when there is none)."
+                  },
+                  "parentId": {
+                    "description": "Its parent in a holding’s tenant tree (never the operator tenant): members of the parent with `Access.readConsolidated` read it, read-only.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
@@ -35383,6 +36185,13 @@
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -35440,8 +36249,11 @@
           "403": {
             "description": "operator_required: the caller does not act in the operator tenant."
           },
+          "404": {
+            "description": "`parentId`: no such tenant."
+          },
           "409": {
-            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single)."
+            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single); `operator_tenant`: a `parentId` that is the operator tenant; `tenant_deletion_pending`: a `parentId` whose deletion is pending."
           }
         },
         "summary": "Create a tenant and its first administrator (operators)",
@@ -35522,6 +36334,13 @@
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
                     "createdAt": {
                       "type": "string",
@@ -35604,6 +36423,13 @@
                   "active": {
                     "description": "false: nobody acts in it (its sessions end, API keys stop, connections end, jobs are skipped); true: its data, members and API keys are back. Never for the operator tenant.",
                     "type": "boolean"
+                  },
+                  "parentId": {
+                    "description": "Places it under that tenant in the tenant tree (with everything below it); null makes it a root. Members of the parent with `Access.readConsolidated` then read it, read-only. Never the operator tenant, on either side; never under itself or one of its descendants (409 `tenant_tree_cycle`).",
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 }
               }
@@ -35660,6 +36486,13 @@
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -35692,13 +36525,13 @@
             "description": ""
           },
           "409": {
-            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first)."
+            "description": "`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated, nor in a tenant tree; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first), or a `parentId` whose deletion is pending; `tenant_tree_cycle`: a `parentId` that is this tenant or below it."
           },
           "412": {
             "description": "It changed since you read it (precondition_failed)."
           }
         },
-        "summary": "Rename a tenant, change its slug, (de)activate it (operators)",
+        "summary": "Rename a tenant, change its slug, (de)activate it, move it in the tenant tree (operators)",
         "tags": [
           "tenants"
         ]
@@ -35789,6 +36622,13 @@
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -35824,7 +36664,7 @@
             "description": ""
           },
           "409": {
-            "description": "`operator_tenant`: the operator tenant is never deleted."
+            "description": "`operator_tenant`: the operator tenant is never deleted; `tenant_has_children`: it has children in the tenant tree (move them first)."
           }
         },
         "summary": "Delete a tenant, after a grace period (operators)",
@@ -35894,6 +36734,13 @@
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "parentId": {
+                      "description": "Its parent in a holding’s tenant tree (docs/tenancy.md, \"The tenant tree\"); null: a root. Always sent.",
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
                     "createdAt": {
                       "type": "string",
@@ -40024,11 +40871,27 @@
           },
           "isDefault": {
             "type": "boolean",
-            "description": "What a new record takes when its body names no series."
+            "description": "What a new record takes when its body names no series and no series' conditions hold for it."
+          },
+          "dateField": {
+            "nullable": true,
+            "example": "invoiceDate",
+            "type": "string"
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NamingCondition"
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           },
           "example": {
             "type": "string",
-            "description": "The number it gives next, if taken now.",
+            "description": "The number it gives next, if taken now; the fields it prints show as `{field}`.",
             "example": "INV-2026-10-00043"
           },
           "createdAt": {
@@ -40048,9 +40911,56 @@
           "pattern",
           "label",
           "isDefault",
+          "dateField",
+          "conditions",
+          "priority",
           "example",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "NamingCondition": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+            "example": "region"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "ne",
+              "gt",
+              "gte",
+              "lt",
+              "lte"
+            ],
+            "description": "Compared as numbers for number fields, as ISO dates for date fields, else as text."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ],
+            "example": "EU"
+          }
+        },
+        "required": [
+          "field",
+          "op",
+          "value"
         ],
         "additionalProperties": false
       },
@@ -40080,11 +40990,72 @@
             "type": "string",
             "description": "The format in code: used while the subject has no series.",
             "example": "NOTE-.YYYY.-.#####"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "title"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "number",
+                    "date",
+                    "datetime",
+                    "boolean"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The fields a pattern may print (`{title}`; not `boolean` ones), a series take its date from (`date`, `datetime`) or its conditions test."
           }
         },
         "required": [
           "subject",
-          "declaredPattern"
+          "declaredPattern",
+          "fields"
+        ],
+        "additionalProperties": false
+      },
+      "NamingVariableList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NamingVariable"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "NamingVariable": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "FY"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
         ],
         "additionalProperties": false
       },
@@ -40437,6 +41408,42 @@
           "targetId",
           "details",
           "ip"
+        ],
+        "additionalProperties": false
+      },
+      "SubtreeTenant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "How far below your tenant: 1 for a child."
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "parentId",
+          "depth"
         ],
         "additionalProperties": false
       },
@@ -41672,6 +42679,54 @@
         ],
         "additionalProperties": false
       },
+      "RealtimeAiReadyEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "recordId": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "RealtimeAiFailedEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "recordId": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "recordId",
+          "error"
+        ],
+        "additionalProperties": false
+      },
       "RealtimeRecordCommentedEvent": {
         "type": "object",
         "properties": {
@@ -41832,6 +42887,18 @@
       "description": "A document you asked for failed for good; `error` says why, for people.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeDocumentFailedEvent"
+      }
+    },
+    "ai.ready": {
+      "description": "An AI run you asked for (`POST /v1/ai/runs`) finished: read the answer at `GET /v1/ai/runs/{id}`.",
+      "payload": {
+        "$ref": "#/components/schemas/RealtimeAiReadyEvent"
+      }
+    },
+    "ai.failed": {
+      "description": "An AI run you asked for failed for good; `error` says why, for people.",
+      "payload": {
+        "$ref": "#/components/schemas/RealtimeAiFailedEvent"
       }
     },
     "record.commented": {

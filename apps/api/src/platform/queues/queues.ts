@@ -1,4 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
+import { AI } from '../ai/ai.service.js';
 import { BULK } from '../bulk/bulk.service.js';
 import { DATA_TRANSFERS } from '../data-transfer/data-transfer.service.js';
 import { MAIL_EVENTS } from '../deliverability/mail-event.types.js';
@@ -16,6 +17,7 @@ export const PLATFORM_QUEUES: readonly string[] = [
   DATA_TRANSFERS,
   BULK,
   DOCUMENTS,
+  AI,
   MAIL_EVENTS,
   REENCRYPTION,
   MESSAGING,
