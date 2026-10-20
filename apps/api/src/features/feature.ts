@@ -7,7 +7,11 @@ import type {
 import type { SystemPrincipal } from '../iam/auth/principal.js';
 import type { ResourceDefinition } from '../iam/resources/resource.js';
 import { commentedData } from '../platform/comments/comment-notifications.js';
-import { defineNotifications } from '../platform/notifications/notification.types.js';
+import {
+  type DomainEventDeclaration,
+  expandDomainEvents,
+} from '../platform/events/domain-event.js';
+import type { NotificationType } from '../platform/notifications/notification.types.js';
 import type { PlatformOptions } from '../platform/platform.options.js';
 import { recordApprovalActions } from '../platform/records/record-approvals.js';
 import { recordSettings } from '../platform/records/record-settings.js';
@@ -45,6 +49,12 @@ export interface FeatureDefinition {
   /** The realtime events it pushes (`defineRealtimeEvents()`). */
   realtimeEvents?: PlatformOptions['realtimeEvents'];
   /**
+   * Its domain events (`defineDomainEvents()`): each declared once for the
+   * channels that carry it (webhook, notification, realtime). Added to the
+   * separate lists above, which stay available.
+   */
+  events?: readonly DomainEventDeclaration[];
+  /**
    * Its records' declaration (`<x>.record.ts`), when they are declared:
    * what their capabilities need of the platform is derived from it (the
    * `<item>.commented` notification with comments, the custom fields'
@@ -79,20 +89,39 @@ export interface FeatureDemoSeeder {
   seed(context: FeatureDemoContext): Promise<Record<string, number>>;
 }
 
-/** The notifications a record's capabilities bring: `<item>.commented` with comments. */
-const recordNotifications = (record: RecordDeclaration | undefined) =>
-  record && takes(record, 'comments')
-    ? defineNotifications([
-        {
-          // Someone else commented on one they watch (platform/comments): bundled daily by default.
-          // Typed against i18n/en/notifications.json's keys: `pnpm feature:sync` writes
-          // this one, and the catalogs' test fails without it.
-          type: `${recordKey(record)}.commented` as never,
-          channels: { email: 'daily', webhook: true },
-          data: commentedData,
-        },
-      ])
-    : [];
+/**
+ * The domain events a record's capabilities bring: `<item>.created`,
+ * `.updated`, `.deleted` (`.restored`) as webhook event types with `events`,
+ * and the `<item>.commented` notification with comments. This is what
+ * `pnpm feature:add` relies on: its feature file declares only `record`.
+ */
+const recordDomainEvents = (
+  record: RecordDeclaration | undefined,
+): DomainEventDeclaration[] => {
+  if (!record) {
+    return [];
+  }
+  return [
+    ...recordEventTypes(record).map(({ type, description, group }) => ({
+      type,
+      webhook: { description, group },
+    })),
+    ...(takes(record, 'comments')
+      ? [
+          {
+            // Someone else commented on one they watch (platform/comments): bundled daily by default.
+            // Typed against i18n/en/notifications.json's keys: `pnpm feature:sync` writes
+            // this one, and the catalogs' test fails without it.
+            type: `${recordKey(record)}.commented` as NotificationType,
+            notification: {
+              channels: { email: 'daily', webhook: true },
+              data: commentedData,
+            },
+          } satisfies DomainEventDeclaration,
+        ]
+      : []),
+  ];
+};
 
 /** The settings a record declares, and the flags that switch its approvals on. */
 const recordSettingList = (record: RecordDeclaration) => [
@@ -103,6 +132,13 @@ const recordSettingList = (record: RecordDeclaration) => [
 /** A feature's declaration, typed (`<x>.feature.ts`). */
 export const defineFeature = (feature: FeatureDefinition) => feature;
 
+/** A feature's domain events (declared, and its record's), split by channel. */
+const domainEvents = (feature: FeatureDefinition) =>
+  expandDomainEvents([
+    ...(feature.events ?? []),
+    ...recordDomainEvents(feature.record),
+  ]);
+
 /** Every feature's declarations, merged in the features' order, for the groups' `forRoot()`. */
 export function featureDeclarations(features: readonly FeatureDefinition[]) {
   const all = <T>(
@@ -112,10 +148,10 @@ export function featureDeclarations(features: readonly FeatureDefinition[]) {
     modules: features.map((feature) => feature.module),
     permissions: features.map((feature) => feature.permissions),
     resources: all((feature) => feature.resources),
-    // Plus a record's `events`: <item>.created, .updated, .deleted, .restored.
+    // Plus the domain events' webhook types (a record's `events` are among them).
     eventTypes: all((feature) => [
       ...(feature.eventTypes ?? []),
-      ...(feature.record ? recordEventTypes(feature.record) : []),
+      ...domainEvents(feature).eventTypes,
     ]),
     incomingWebhooks: all((feature) => feature.incomingWebhooks),
     queues: all((feature) => feature.queues),
@@ -126,7 +162,7 @@ export function featureDeclarations(features: readonly FeatureDefinition[]) {
     ]),
     notifications: all((feature) => [
       ...(feature.notifications ?? []),
-      ...recordNotifications(feature.record),
+      ...domainEvents(feature).notifications,
     ]),
     // Plus a record's `settings` and the flags of its approvals (platform/records).
     settings: all((feature) => [
@@ -135,7 +171,10 @@ export function featureDeclarations(features: readonly FeatureDefinition[]) {
     ]),
     realtimeEvents: Object.assign(
       {},
-      ...features.map((feature) => feature.realtimeEvents ?? {}),
+      ...features.flatMap((feature) => [
+        feature.realtimeEvents ?? {},
+        domainEvents(feature).realtimeEvents,
+      ]),
     ) as NonNullable<PlatformOptions['realtimeEvents']>,
     approvals: all((feature) => [
       ...(feature.approvals ?? []),
