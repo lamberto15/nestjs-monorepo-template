@@ -130,6 +130,14 @@ export function ResendVerification(props: {
 }
 
 /**
+ * The address as the API keys its limits (throttler.guard.ts,
+ * `normalizeEmail`): trimmed, NFC, lower case.
+ */
+function normalizeEmail(email: string): string {
+  return email.trim().normalize('NFC').toLowerCase();
+}
+
+/**
  * "Send the link again" for an account with no session (a sign-up that has
  * not proved its address; sign-in answers 403 `email_unverified`):
  * `POST /v1/auth/email/verification/resend { email }`. The API answers 202
@@ -142,7 +150,8 @@ export function ResendVerification(props: {
 export function ResendVerificationByEmail(props: { email: string }) {
   const { t } = useTranslation();
   const email = props.email.trim();
-  const limited = useLimited(`${SESSION_LOCK}:${email.toLowerCase()}`);
+  const lockKey = `${SESSION_LOCK}:${normalizeEmail(email)}`;
+  const limited = useLimited(lockKey);
   const captcha = useCaptcha('resend-verification');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string>();
@@ -169,7 +178,9 @@ export function ResendVerificationByEmail(props: { email: string }) {
         return;
       }
       if (isApiError(caught) && caught.status === 429) {
-        lock(`${SESSION_LOCK}:${email.toLowerCase()}`);
+        // The earlier confirmation must not come back when the lock lifts.
+        setSent(false);
+        lock(lockKey);
       } else {
         setError(errorMessage(caught));
       }
@@ -188,17 +199,16 @@ export function ResendVerificationByEmail(props: { email: string }) {
           {resend.isPending && <Spinner />}
           {t('auth.verify.resend.again')}
         </Button>
-        {limited && (
-          <span role="status" className="text-sm text-muted-foreground">
-            {t('auth.verify.resend.limited')}
-          </span>
-        )}
       </div>
-      {sent && !limited && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('auth.verify.resend.sent')}
-        </p>
-      )}
+      {/* Always rendered: a live region inserted already filled is often not
+          announced, so only its text changes. */}
+      <p role="status" className="text-sm text-muted-foreground empty:hidden">
+        {limited
+          ? t('auth.verify.resend.limited')
+          : sent
+            ? t('auth.verify.resend.sent')
+            : null}
+      </p>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

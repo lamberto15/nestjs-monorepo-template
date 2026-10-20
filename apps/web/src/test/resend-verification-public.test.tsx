@@ -1,9 +1,10 @@
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
-import { problem, server } from '@/test/server';
+import { useSignedIn } from '@/test/signed-in';
+import { problem, server, signedInUser } from '@/test/server';
 
 const RESEND = '/v1/auth/email/verification/resend';
 const SENT =
@@ -47,6 +48,18 @@ async function signInUnverified(user: ReturnType<typeof userEvent.setup>) {
   await renderApp('/sign-in');
   await user.type(await screen.findByLabelText('Email'), 'ada@example.com');
   await user.type(screen.getByLabelText('Password'), 'correct horse');
+  await user.click(screen.getByRole('button', { name: 'Sign in' }));
+}
+
+// Another sign-in attempt on the same page (the refusal brings the resend
+// back for the address typed now).
+async function signInAs(
+  user: ReturnType<typeof userEvent.setup>,
+  email: string,
+) {
+  const field = screen.getByLabelText('Email');
+  await user.clear(field);
+  await user.type(field, email);
   await user.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
@@ -148,5 +161,89 @@ describe('resending the verification email without a session', () => {
     expect(seen[0]!.token).toBeNull();
     // The development stand-in provider passes with a fresh stub token.
     expect(seen[1]!.token).toMatch(/^stub:pass:/);
+  });
+
+  describe('the 429 lock', () => {
+    async function lockAda(user: ReturnType<typeof userEvent.setup>) {
+      server.use(http.post(RESEND, () => problem(429, 'rate_limited')));
+      await signInUnverified(user);
+      await user.click(await screen.findByRole('button', again));
+      await screen.findByText(LIMITED);
+    }
+
+    it('is for the address: another address keeps its button', async () => {
+      const user = userEvent.setup();
+      await lockAda(user);
+
+      await signInAs(user, 'grace@example.com');
+
+      expect(await screen.findByRole('button', again)).toBeEnabled();
+      expect(screen.queryByText(LIMITED)).toBeNull();
+    });
+
+    it('is shared by spellings of the address the API counts as one', async () => {
+      const user = userEvent.setup();
+      await lockAda(user);
+
+      await signInAs(user, 'ADA@Example.com');
+
+      expect(await screen.findByRole('button', again)).toBeDisabled();
+      expect(screen.getByText(LIMITED)).toBeVisible();
+    });
+
+    it('survives a remount of the button', async () => {
+      const user = userEvent.setup();
+      await lockAda(user);
+
+      // A new sign-in attempt unmounts the resend and mounts it again.
+      await signInAs(user, 'ada@example.com');
+
+      expect(await screen.findByRole('button', again)).toBeDisabled();
+      expect(screen.getByText(LIMITED)).toBeVisible();
+    });
+
+    it('does not touch the signed-in resend, which has its own lock', async () => {
+      const user = userEvent.setup();
+      await lockAda(user);
+      // The sign-in page goes; the lock stays in sessionStorage.
+      cleanup();
+
+      useSignedIn([]);
+      server.use(
+        http.get('/v1/auth/me', () =>
+          HttpResponse.json({
+            ...signedInUser,
+            user: { ...signedInUser.user, emailVerified: false },
+          }),
+        ),
+        http.post('/v1/auth/email/verification', () =>
+          problem(429, 'rate_limited'),
+        ),
+      );
+      await renderApp('/');
+      const name = 'Resend the verification email';
+      const button = await screen.findByRole('button', { name });
+      expect(button).toBeEnabled();
+
+      await userEvent.click(button);
+      expect(await screen.findByText(LIMITED)).toBeVisible();
+      expect(button).toBeDisabled();
+    });
+
+    it('does not bring the old confirmation back when it is over', async () => {
+      const seen: Seen[] = [];
+      const user = userEvent.setup();
+      await signUp(user);
+      acceptResends(seen);
+      await user.click(screen.getByRole('button', again));
+      await screen.findByText(SENT);
+
+      server.use(http.post(RESEND, () => problem(429, 'rate_limited')));
+      await user.click(screen.getByRole('button', again));
+
+      await screen.findByText(LIMITED);
+      expect(screen.queryByText(SENT)).toBeNull();
+      expect(screen.getByText(LIMITED)).toHaveAttribute('role', 'status');
+    });
   });
 });
