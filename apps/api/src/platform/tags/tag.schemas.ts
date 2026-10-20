@@ -19,6 +19,10 @@ export const tagSchema = z
     name: z.string().meta({ example: 'Urgent' }),
     color: z.string().nullable().describe('`#rrggbb`.'),
     description: z.string().nullable(),
+    usageCount: z
+      .int()
+      .describe('How many records of the subject carry the tag.')
+      .meta({ example: 12 }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
