@@ -163,6 +163,7 @@ import { ReportsService } from './reports/reports.service.js';
 import { UsageController } from './usage/usage.controller.js';
 import { UsageInterceptor } from './usage/usage.interceptor.js';
 import { UsageRollupJob } from './usage/usage-rollup.job.js';
+import { PlatformAnalyticsJob } from './analytics/platform-analytics.job.js';
 import { UsageService } from './usage/usage.service.js';
 import { RevisionRetentionJob } from './revisions/revision-retention.job.js';
 import { RevisionsRegistry } from './revisions/revisions.registry.js';
@@ -555,6 +556,8 @@ export class PlatformModule {
           provide: APP_INTERCEPTOR,
           useClass: UsageInterceptor,
         }),
+        // Platform analytics: anonymized aggregates across tenants, for the reporting role, nightly.
+        PlatformAnalyticsJob,
         // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
         ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
         // Record revisions: features register a RevisionTarget and call RevisionsService.record().

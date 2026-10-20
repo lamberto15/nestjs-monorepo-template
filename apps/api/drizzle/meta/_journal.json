@@ -274,6 +274,13 @@
       "when": 1792486746292,
       "tag": "0038_incoming_webhook_senders",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792488766699,
+      "tag": "0039_platform_analytics",
+      "breakpoints": true
     }
   ]
 }

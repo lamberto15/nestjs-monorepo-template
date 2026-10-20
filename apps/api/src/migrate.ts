@@ -11,7 +11,10 @@ import { migrateAll } from './core/database/migrate-all.js';
  * checked and granted what the schema needs (docs/deployment.md, "Database
  * roles"). With POSTGRES_MONITOR_PASSWORD (or its _FILE) set, the
  * monitoring role too (POSTGRES_MONITOR_USER, default app_monitor: the
- * PostgreSQL exporter's, a member of pg_monitor and nothing else).
+ * PostgreSQL exporter's, a member of pg_monitor and nothing else). With
+ * POSTGRES_REPORTING_PASSWORD (or its _FILE) set, the reporting role too
+ * (POSTGRES_REPORTING_USER, default app_reporting: platform analytics, which
+ * reads the `analytics` schema's anonymized aggregates and no other table).
  *
  *   DATABASE_OWNER_URL=postgres://… DATABASE_URL=postgres://… node dist/migrate
  *   DATABASE_OWNER_URL_FILE=/run/secrets/database_owner_url \
@@ -26,11 +29,13 @@ const app = secretValue(process.env, 'DATABASE_URL');
 const maintenance = secretValue(process.env, 'DATABASE_MAINTENANCE_URL');
 // Named for the role, not its secret: only `problems` (never a value) are printed.
 const monitor = secretValue(process.env, 'POSTGRES_MONITOR_PASSWORD');
+const reporting = secretValue(process.env, 'POSTGRES_REPORTING_PASSWORD');
 const problems = [
   ...owner.problems,
   ...app.problems,
   ...maintenance.problems,
   ...monitor.problems,
+  ...reporting.problems,
 ];
 for (const { variable, message } of problems) {
   console.error(`${variable}: ${message}`);
@@ -55,11 +60,22 @@ await migrateAll(
         password: monitor.value,
       },
     }),
+    ...(reporting.value && {
+      reporting: {
+        role: process.env.POSTGRES_REPORTING_USER?.trim() || 'app_reporting',
+        password: reporting.value,
+      },
+    }),
   },
   (line) => console.log(line),
 );
 if (!monitor.value) {
   console.log(
     'No monitoring role: POSTGRES_MONITOR_PASSWORD is unset (needed with compose.monitoring.yaml only).',
+  );
+}
+if (!reporting.value) {
+  console.log(
+    'No reporting role: POSTGRES_REPORTING_PASSWORD is unset (needed for platform analytics only).',
   );
 }

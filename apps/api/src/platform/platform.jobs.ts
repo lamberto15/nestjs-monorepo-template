@@ -134,6 +134,15 @@ export const WEBHOOK_DELIVERY_RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** PlatformAnalyticsJob: the anonymized aggregates of analytics.platform_metrics. */
+export const PLATFORM_ANALYTICS_JOB = defineSystemJob({
+  key: 'platform-analytics',
+  label: 'Platform analytics',
+  description:
+    'Counts tenants, users, memberships and API use across every tenant, withholds small groups, and stores only the aggregates the reporting role reads, every night.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
@@ -148,4 +157,5 @@ export const PLATFORM_SYSTEM_JOBS = [
   MAIL_INTAKE_JOB,
   MAIL_EVENTS_RETENTION_JOB,
   WEBHOOK_DELIVERY_RETENTION_JOB,
+  PLATFORM_ANALYTICS_JOB,
 ];

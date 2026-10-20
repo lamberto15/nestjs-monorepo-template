@@ -26,5 +26,6 @@ export * from './platform/money/money.tables.js';
 export * from './platform/deliverability/deliverability.tables.js';
 export * from './platform/webhooks/webhooks.tables.js';
 export * from './platform/webhooks/incoming-senders.tables.js';
+export * from './platform/analytics/analytics.tables.js';
 // Features
 export * from './features/tables.js';

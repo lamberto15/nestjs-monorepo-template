@@ -266,7 +266,9 @@ Split into **1a** (core) and **1b** (per-tenant product features).
   - Writes and everything else stay in one tenant.
   - Cross-tenant reads are audited.
 - Platform analytics across unrelated tenants never go through the app role. They use
-  a separate reporting role on anonymized aggregates.
+  a separate reporting role on anonymized aggregates: **done** (#235): the worker's
+  nightly `PlatformAnalyticsJob` stores suppressed counts in the `analytics` schema,
+  the only one `POSTGRES_REPORTING_USER` may read. docs/tenancy.md, "Platform analytics".
 
 ## 2. Enterprise SSO (SAML 2.0, OIDC per tenant) and SCIM 2.0
 
