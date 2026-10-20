@@ -24,6 +24,7 @@ import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
 import { Route as AppNamingSeriesRouteImport } from './routes/_app/naming-series'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
+import { Route as AppRetentionRouteImport } from './routes/_app/retention'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSsoRouteImport } from './routes/_app/sso'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
@@ -133,6 +134,11 @@ const AppNamingSeriesRoute = AppNamingSeriesRouteImport.update({
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRetentionRoute = AppRetentionRouteImport.update({
+  id: '/retention',
+  path: '/retention',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -333,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/retention': typeof AppRetentionRoute
   '/settings': typeof AppSettingsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
@@ -384,6 +391,7 @@ export interface FileRoutesByTo {
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/retention': typeof AppRetentionRoute
   '/settings': typeof AppSettingsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
@@ -438,6 +446,7 @@ export interface FileRoutesById {
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
   '/_app/naming-series': typeof AppNamingSeriesRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/retention': typeof AppRetentionRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/sso': typeof AppSsoRoute
   '/_app/tags': typeof AppTagsRoute
@@ -493,6 +502,7 @@ export interface FileRouteTypes {
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
+    | '/retention'
     | '/settings'
     | '/sso'
     | '/tags'
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
+    | '/retention'
     | '/settings'
     | '/sso'
     | '/tags'
@@ -597,6 +608,7 @@ export interface FileRouteTypes {
     | '/_app/mail-suppressions'
     | '/_app/naming-series'
     | '/_app/notifications'
+    | '/_app/retention'
     | '/_app/settings'
     | '/_app/sso'
     | '/_app/tags'
@@ -753,6 +765,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/retention': {
+      id: '/_app/retention'
+      path: '/retention'
+      fullPath: '/retention'
+      preLoaderRoute: typeof AppRetentionRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -1016,6 +1035,7 @@ interface AppRouteChildren {
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
   AppNamingSeriesRoute: typeof AppNamingSeriesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppRetentionRoute: typeof AppRetentionRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSsoRoute: typeof AppSsoRoute
   AppTagsRoute: typeof AppTagsRoute
@@ -1061,6 +1081,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
   AppNamingSeriesRoute: AppNamingSeriesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppRetentionRoute: AppRetentionRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSsoRoute: AppSsoRoute,
   AppTagsRoute: AppTagsRoute,
