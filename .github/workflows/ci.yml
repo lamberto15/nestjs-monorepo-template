@@ -113,7 +113,7 @@ jobs:
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           dir=$(mktemp -d)
-          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL; do
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY; do
             echo ci > "$dir/$name"
             export "${name}_FILE=$dir/$name"
           done
@@ -134,6 +134,13 @@ jobs:
           test "$(api JWT_SECRET_FILE)" = /run/secrets/jwt_secret
           test "$(api REDIS_PASSWORD_FILE)" = /run/secrets/redis_password
           test "$(api SMTP_URL_FILE)" = /run/secrets/smtp_url
+          # The AI helper's key (docs/ai.md): api and worker read it; migrate never needs it.
+          test "$(api ANTHROPIC_API_KEY_FILE)" = /run/secrets/anthropic_api_key
+          test "$(api ANTHROPIC_API_KEY)" = ''
+          test "$(jq -r .services.worker.environment.ANTHROPIC_API_KEY_FILE files.json)" = /run/secrets/anthropic_api_key
+          test "$(jq -r '.services.worker.secrets | map(.source) | index("anthropic_api_key") != null' files.json)" = true
+          test "$(jq -r '.services.migrate.secrets | map(.source) | index("anthropic_api_key")' files.json)" = null
+          test "$(jq -r .secrets.anthropic_api_key.file files.json)" = "$dir/ANTHROPIC_API_KEY"
           test "$(api MAIL_API_KEY_FILE)" = ''
           test "$(jq -r .secrets.jwt_secret.file files.json)" = "$dir/JWT_SECRET"
           test "$(jq -r .secrets.mail_api_key.file files.json)" = "$PWD/secret.empty"

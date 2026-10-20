@@ -24,6 +24,8 @@ import { toast } from 'sonner';
 export function SecretDialog(props: {
   secret: string | undefined;
   title: string;
+  /** What to do with it, when not the endpoint wording (a receiver verifies). */
+  usage?: string;
   onClose: () => void;
 }) {
   const { t } = useTranslation('webhooks');
@@ -51,7 +53,9 @@ export function SecretDialog(props: {
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{props.title}</DialogTitle>
-          <DialogDescription>{t('secret.usage')}</DialogDescription>
+          <DialogDescription>
+            {props.usage ?? t('secret.usage')}
+          </DialogDescription>
         </DialogHeader>
         <Alert>
           <TriangleAlertIcon />

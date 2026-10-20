@@ -157,6 +157,16 @@ x-app: &app
     GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
     GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}
     DOCUMENTS_RENDER_ATTEMPTS: ${DOCUMENTS_RENDER_ATTEMPTS:-3}
+    # AI helper (docs/ai.md): off unless the key is set (in .env, or in the file ANTHROPIC_API_KEY_FILE names below).
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    AI_BASE_URL: ${AI_BASE_URL:-}
+    AI_MODEL: ${AI_MODEL:-claude-sonnet-5-5}
+    AI_MODEL_CHEAP: ${AI_MODEL_CHEAP:-claude-haiku-5-5}
+    AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-60000}
+    AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-1024}
+    AI_ATTEMPTS: ${AI_ATTEMPTS:-2}
+    AI_TENANT_DAILY_TOKENS: ${AI_TENANT_DAILY_TOKENS:-500000}
+    AI_CACHE_TTL_SECONDS: ${AI_CACHE_TTL_SECONDS:-3600}
     # Observability (NestJS Observe, when both are set)
     OBSERVE_APP_KEY: ${OBSERVE_APP_KEY:-}
     OBSERVE_APP_SECRET: ${OBSERVE_APP_SECRET:-}
@@ -188,6 +198,7 @@ x-app: &app
     BLIND_INDEX_KEYS_FILE: ${BLIND_INDEX_KEYS_FILE:+/run/secrets/blind_index_keys}
     OBSERVE_APP_SECRET_FILE: ${OBSERVE_APP_SECRET_FILE:+/run/secrets/observe_app_secret}
     EXAMPLE_SENDER_WEBHOOK_SECRET_FILE: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:+/run/secrets/example_sender_webhook_secret}
+    ANTHROPIC_API_KEY_FILE: ${ANTHROPIC_API_KEY_FILE:+/run/secrets/anthropic_api_key}
   # Every secret is mounted; those without X_FILE in .env are the empty secret.empty.
   secrets:
     - database_url
@@ -210,6 +221,7 @@ x-app: &app
     - blind_index_keys
     - observe_app_secret
     - example_sender_webhook_secret
+    - anthropic_api_key
   logging: *logging
 
 services:
@@ -336,6 +348,7 @@ services:
       - blind_index_keys
       - observe_app_secret
       - example_sender_webhook_secret
+      - anthropic_api_key
       - database_maintenance_url
     deploy:
       replicas: ${WORKER_REPLICAS:-1}
@@ -597,6 +610,8 @@ secrets:
     file: ${OBSERVE_APP_SECRET_FILE:-./secret.empty}
   example_sender_webhook_secret:
     file: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:-./secret.empty}
+  anthropic_api_key:
+    file: ${ANTHROPIC_API_KEY_FILE:-./secret.empty}
   postgres_password:
     file: ${POSTGRES_PASSWORD_FILE:-./secret.empty}
   backup_s3_secret_access_key:

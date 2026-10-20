@@ -226,6 +226,12 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
   description. Its rows are polled every 3 s while one is `pending`
   (`refetchInterval`), and a retry or a test event refreshes the list.
 
+  `/webhooks/senders` (`Access.manageClients`, linked from `/webhooks`) manages the
+  tenant's incoming-webhook senders (`/v1/webhook-senders`): create, describe,
+  switch off, rotate the secret, delete. Create and rotate show the secret once
+  in the same dialog (no cache keeps it), and each row has a copyable receiver
+  URL (the API's `path` on the web app's origin).
+
 - **Operations** (`features/ops`, `/ops`): the `/v1/ops/*` routes
   ([webhooks-and-realtime](webhooks-and-realtime.md), "Ops"), for users acting
   in the operator tenant (`me.tenant.operator`, either tenancy) who hold
