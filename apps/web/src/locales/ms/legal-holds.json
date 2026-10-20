@@ -1,0 +1,70 @@
+{
+  "nav": "Penahanan undang-undang",
+  "title": "Penahanan undang-undang",
+  "description": "Rekod yang dikekalkan walau apa pun pemadaman, pembersihan tong kitar semula, peraturan pengekalan atau pemadaman akaun. Satu penahanan menamakan jenis rekod dan satu rekod, atau semua rekod jenis itu. Ia kekal sehingga dilepaskan.",
+  "none": "Belum ada penahanan undang-undang.",
+  "noMatch": "Tiada penahanan undang-undang yang sepadan.",
+  "allRecords": "Semua rekod subjek",
+  "more": "Tunjuk lagi",
+  "open": "Buka penahanan pada {{subject}}",
+  "openButton": "Buka",
+  "filters": {
+    "status": "Status",
+    "anyStatus": "Aktif dan dilepaskan",
+    "subject": "Subjek"
+  },
+  "status": {
+    "active": "Aktif",
+    "released": "Dilepaskan"
+  },
+  "columns": {
+    "subject": "Subjek",
+    "record": "Rekod",
+    "reason": "Sebab",
+    "status": "Status",
+    "placed": "Dikenakan",
+    "actions": "Tindakan"
+  },
+  "place": {
+    "button": "Kenakan penahanan undang-undang",
+    "title": "Kenakan penahanan undang-undang",
+    "description": "Selagi penahanan aktif, rekod tidak boleh dipadam, kekal dalam tong kitar semula dan dilangkau oleh peraturan pengekalan. Penahanan pada User juga menghentikan pemadaman akaun orang itu.",
+    "subject": "Subjek",
+    "subjectHint": "Jenis rekod, seperti Note, atau User untuk seseorang.",
+    "subjectInvalid": "Subjek ialah nama seperti Note.",
+    "recordId": "ID rekod (pilihan)",
+    "recordIdHint": "Biarkan kosong untuk menahan semua rekod subjek, termasuk yang dibuat kemudian.",
+    "recordInvalid": "ID rekod ialah UUID.",
+    "reason": "Sebab",
+    "reasonHint": "Disimpan bersama penahanan, untuk sesiapa yang membaca senarai kemudian.",
+    "reasonRequired": "Masukkan sebab.",
+    "reasonTooLong": "Sebab paling banyak 1000 aksara.",
+    "cancel": "Batal",
+    "submit": "Kenakan penahanan",
+    "placed": "Penahanan undang-undang dikenakan."
+  },
+  "release": {
+    "button": "Lepaskan",
+    "title": "Lepaskan penahanan pada {{subject}}",
+    "description": "Rekod yang ditahannya boleh dipadam dan dibersihkan semula. Penahanan kekal dalam senarai sebagai dilepaskan.",
+    "note": "Catatan (pilihan)",
+    "noteHint": "Mengapa ia dilepaskan.",
+    "noteTooLong": "Catatan paling banyak 1000 aksara.",
+    "cancel": "Batal",
+    "submit": "Lepaskan penahanan",
+    "released": "Penahanan undang-undang dilepaskan."
+  },
+  "detail": {
+    "title": "Penahanan undang-undang",
+    "description": "Apa yang ditahan, mengapa, dan siapa yang mengenakan atau melepaskannya.",
+    "status": "Status",
+    "subject": "Subjek",
+    "record": "Rekod",
+    "reason": "Sebab",
+    "placed": "Dikenakan",
+    "releasedAt": "Dilepaskan",
+    "releaseNote": "Catatan pelepasan",
+    "by": "{{at}} oleh {{by}}",
+    "close": "Tutup"
+  }
+}

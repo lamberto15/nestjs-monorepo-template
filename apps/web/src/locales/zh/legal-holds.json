@@ -1,0 +1,70 @@
+{
+  "nav": "法律保全",
+  "title": "法律保全",
+  "description": "无论删除、回收站清除、保留规则或账户删除如何，这些记录都会被保留。保全针对一类记录中的某一条，或该类的所有记录，直到被解除为止。",
+  "none": "还没有法律保全。",
+  "noMatch": "没有匹配的法律保全。",
+  "allRecords": "该类的所有记录",
+  "more": "显示更多",
+  "open": "打开对 {{subject}} 的保全",
+  "openButton": "打开",
+  "filters": {
+    "status": "状态",
+    "anyStatus": "生效中和已解除",
+    "subject": "类型"
+  },
+  "status": {
+    "active": "生效中",
+    "released": "已解除"
+  },
+  "columns": {
+    "subject": "类型",
+    "record": "记录",
+    "reason": "原因",
+    "status": "状态",
+    "placed": "设置时间",
+    "actions": "操作"
+  },
+  "place": {
+    "button": "设置法律保全",
+    "title": "设置法律保全",
+    "description": "保全生效期间，记录无法删除，会留在回收站中，并被保留规则跳过。对 User 的保全还会阻止该用户的账户删除。",
+    "subject": "类型",
+    "subjectHint": "记录的类型，如 Note；用户则为 User。",
+    "subjectInvalid": "类型是形如 Note 的名称。",
+    "recordId": "记录 ID（可选）",
+    "recordIdHint": "留空则保全该类型的所有记录，包括之后创建的。",
+    "recordInvalid": "记录 ID 是 UUID。",
+    "reason": "原因",
+    "reasonHint": "与保全一起保存，供之后查看列表的人参考。",
+    "reasonRequired": "请输入原因。",
+    "reasonTooLong": "原因最多 1000 个字符。",
+    "cancel": "取消",
+    "submit": "设置保全",
+    "placed": "已设置法律保全。"
+  },
+  "release": {
+    "button": "解除",
+    "title": "解除对 {{subject}} 的保全",
+    "description": "受其保护的记录可以再次被删除和清除。该保全会以已解除状态保留在列表中。",
+    "note": "备注（可选）",
+    "noteHint": "解除的原因。",
+    "noteTooLong": "备注最多 1000 个字符。",
+    "cancel": "取消",
+    "submit": "解除保全",
+    "released": "已解除法律保全。"
+  },
+  "detail": {
+    "title": "法律保全",
+    "description": "保全了什么、为什么，以及由谁设置或解除。",
+    "status": "状态",
+    "subject": "类型",
+    "record": "记录",
+    "reason": "原因",
+    "placed": "设置",
+    "releasedAt": "解除",
+    "releaseNote": "解除备注",
+    "by": "{{at}}，由 {{by}}",
+    "close": "关闭"
+  }
+}
