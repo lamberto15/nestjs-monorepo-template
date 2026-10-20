@@ -45,10 +45,24 @@ export interface ListPageProps<P extends ListPath> {
   columns: ListColumn<ListRow<P>>[];
   /** The heading above the table. */
   title: string;
+  /** A line under the heading. */
+  subtitle?: string;
+  /** The heading's level: 2 when the list sits under a page's own `h1`. */
+  headingLevel?: 1 | 2;
   /** Buttons beside the heading: "New", a recycle-bin toggle. */
   toolbarActions?: ReactNode;
   /** More query parameters of the list route (`{ deleted: 'true' }`: the bin). */
   query?: Record<string, string>;
+  /**
+   * The values of the route's `{placeholders}` (`{ clientId }`), for a list
+   * under a parent: the path stays the template, they fill it.
+   */
+  pathParams?: Record<string, string>;
+  /**
+   * Ask the list again after this many ms (false: never), given the rows
+   * shown: for rows that settle on their own. Keep it stable.
+   */
+  refetchInterval?: (rows: ListRow<P>[]) => number | false;
   /** Where a click on a row goes (a link inside the row keeps its own). */
   rowHref?: (row: ListRow<P>) => string;
   /**
@@ -78,15 +92,19 @@ export interface ListPageProps<P extends ListPath> {
 export function ListPage<P extends ListPath>(props: ListPageProps<P>) {
   const description = useListDescription(props.subject);
   const { t } = useTranslation();
+  const Heading = props.headingLevel === 2 ? 'h2' : 'h1';
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-medium">{props.title}</h1>
+        <Heading className="text-xl font-medium">{props.title}</Heading>
         {props.toolbarActions && (
           <div className="flex items-center gap-2">{props.toolbarActions}</div>
         )}
       </div>
+      {props.subtitle && (
+        <p className="text-sm text-muted-foreground">{props.subtitle}</p>
+      )}
       {description.isPending ? (
         <DataTableSkeleton columnCount={props.columns.length} />
       ) : description.isError ? (
@@ -107,6 +125,8 @@ function ListTable<P extends ListPath>({
   columns,
   description,
   query: extraQuery,
+  pathParams,
+  refetchInterval,
   rowHref,
   rowActions,
   listActions,
@@ -148,7 +168,11 @@ function ListTable<P extends ListPath>({
   const [fields, setFields] = useState(() =>
     cols.flatMap((c) => (c.id && !(c.id in hidden) ? [c.id] : [])),
   );
-  const query = useListQuery(path, description, cols, fields, extraQuery);
+  const query = useListQuery(path, description, cols, fields, {
+    extra: extraQuery,
+    pathParams,
+    refetchInterval,
+  });
 
   const { table } = useDataTable({
     data: query.data?.items ?? EMPTY,

@@ -3,7 +3,8 @@
   "kind": {
     "export": "导出",
     "import": "导入",
-    "bulk": "批量运行"
+    "bulk": "批量运行",
+    "account": "Account export"
   },
   "formats": {
     "csv": "CSV",
@@ -35,7 +36,21 @@
       "all": "全部",
       "export": "导出",
       "import": "导入",
+      "account": "Account exports",
       "bulk": "批量运行"
+    },
+    "accountTitle": "Account exports",
+    "emptyFiltered": "Nothing with this status.",
+    "started": "Started {{date}}",
+    "finished": "Finished {{date}}",
+    "keptUntil": "Kept until {{date}}",
+    "state": {
+      "label": "Status",
+      "all": "Any status",
+      "queued": "Waiting",
+      "running": "Running",
+      "completed": "Done",
+      "failed": "Failed"
     }
   },
   "import": {
@@ -82,7 +97,8 @@
     "progressLabel": "进度",
     "failed": "失败了。请重试。",
     "notFound": "此传输已不可用。",
-    "error": "无法加载其状态。"
+    "error": "无法加载其状态。",
+    "expired": "This transfer is no longer kept. Start it again for a new file."
   },
   "bulk": {
     "queued": "等待工作进程…",

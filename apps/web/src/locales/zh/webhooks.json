@@ -86,18 +86,13 @@
   "deliveries": {
     "title": "投递记录",
     "description": "发送到此端点的内容，最新的在前。打开一条可查看请求和响应。",
-    "filter": "状态",
-    "all": "全部",
-    "empty": "还没有发送任何内容。发送一个测试事件试试。",
-    "page": "第 {{page}} 页，共 {{count}} 页",
-    "previous": "上一页",
-    "next": "下一页",
     "columns": {
       "type": "事件",
       "status": "状态",
       "attempts": "尝试次数",
       "response": "最近响应",
-      "created": "创建时间"
+      "created": "创建时间",
+      "error": "Last error"
     }
   },
   "delivery": {

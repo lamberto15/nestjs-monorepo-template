@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
@@ -58,6 +58,66 @@ const client = () => ({
   roles: [],
 });
 
+/** GET /v1/lists/WebhookDelivery, as the API describes the delivery log. */
+const deliveryList = {
+  subject: 'WebhookDelivery',
+  fields: [
+    {
+      name: 'endpointId',
+      type: 'string',
+      operators: ['eq', 'in'],
+      sortable: false,
+      custom: false,
+    },
+    {
+      name: 'status',
+      type: 'enum',
+      options: ['pending', 'succeeded', 'failed'],
+      operators: ['eq', 'in'],
+      sortable: false,
+      custom: false,
+    },
+    {
+      name: 'type',
+      type: 'string',
+      operators: ['eq', 'in', 'startsWith'],
+      sortable: true,
+      custom: false,
+    },
+    {
+      name: 'attempts',
+      type: 'number',
+      operators: ['gte', 'lte'],
+      sortable: true,
+      custom: false,
+    },
+    {
+      name: 'createdAt',
+      type: 'datetime',
+      operators: ['gt', 'gte', 'lt', 'lte', 'between'],
+      sortable: false,
+      custom: false,
+    },
+  ],
+  select: [
+    'id',
+    'messageId',
+    'endpointId',
+    'type',
+    'status',
+    'attempts',
+    'lastStatusCode',
+    'lastError',
+    'createdAt',
+  ],
+  search: false,
+  recycleBin: false,
+  defaultSort: null,
+  limits: { defaultLimit: 50, maxLimit: 100 },
+};
+
+type Condition = { field: string; op: string; value: unknown };
+
 function api(
   options: { features?: Partial<typeof allFeatures>; can?: boolean } = {},
 ) {
@@ -80,8 +140,13 @@ function api(
     retried: [] as string[],
     retryFailed: [] as unknown[],
     deliveryQueries: [] as URLSearchParams[],
+    descriptions: 0,
   };
   server.use(
+    http.get('/v1/lists/WebhookDelivery', () => {
+      state.descriptions += 1;
+      return HttpResponse.json(deliveryList);
+    }),
     http.get('/v1/auth/me', () =>
       HttpResponse.json({
         ...signedInUser,
@@ -169,16 +234,26 @@ function api(
     http.get(`${base}/webhook-deliveries`, ({ request }) => {
       const query = new URL(request.url).searchParams;
       state.deliveryQueries.push(query);
-      const status = query.get('status');
+      const conditions: Condition[] =
+        JSON.parse(query.get('filter') ?? 'null')?.and ?? [];
+      const matches = (d: Record<string, unknown>, c: Condition) =>
+        c.op === 'eq'
+          ? d[c.field] === c.value
+          : (c.value as unknown[]).includes(d[c.field]);
       const items = state.deliveries.filter(
-        (d) => !status || d.status === status,
+        (d) =>
+          (!query.get('endpointId') ||
+            d.endpointId === query.get('endpointId')) &&
+          conditions.every((c) => matches(d, c)),
       );
+      const limit = Number(query.get('limit') ?? 50);
+      const page = Number(query.get('page') ?? 1);
       return HttpResponse.json({
-        items,
+        items: items.slice((page - 1) * limit, page * limit),
         nextCursor: null,
-        page: 1,
-        nextPage: null,
-        pageCount: 1,
+        page,
+        nextPage: page * limit < items.length ? page + 1 : null,
+        pageCount: Math.max(1, Math.ceil(items.length / limit)),
         total: items.length,
       });
     }),
@@ -468,18 +543,95 @@ describe('deliveries', () => {
     expect(state.tests).toBe(1);
   });
 
-  it('filters by status', async () => {
+  it("lists this endpoint's deliveries on the list page, by the list's description", async () => {
     const state = api();
-    const user = userEvent.setup();
     await renderApp(detailPath);
-    await screen.findByRole('button', { name: 'note.updated' });
-    await user.click(screen.getByRole('combobox', { name: 'Status' }));
-    await user.click(await screen.findByRole('option', { name: 'Failed' }));
+    expect(
+      await screen.findByRole('button', { name: 'note.updated' }),
+    ).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Deliveries' })).toBeVisible();
+    expect(state.descriptions).toBe(1);
+    const asked = state.deliveryQueries.at(-1)!;
+    expect(asked.get('endpointId')).toBe(EP);
+    expect(asked.get('page')).toBe('1');
+    expect(asked.get('limit')).toBe('20');
+    // The list has no default sort: none is sent.
+    expect(asked.get('sort')).toBeNull();
+    expect(asked.get('fields')).toBe(
+      'type,status,attempts,lastStatusCode,lastError,createdAt',
+    );
+  });
+
+  it('filters by status, as the URL says', async () => {
+    const state = api();
+    await renderApp(`${detailPath}?status=in.failed`);
+    await screen.findAllByRole('button', { name: 'note.created' });
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'note.updated' })).toBeNull(),
     );
-    expect(state.deliveryQueries.at(-1)?.get('status')).toBe('failed');
-    expect(state.deliveryQueries.at(-1)?.get('endpointId')).toBe(EP);
+    const asked = state.deliveryQueries.at(-1)!;
+    expect(JSON.parse(asked.get('filter') ?? 'null')).toEqual({
+      and: [{ field: 'status', op: 'in', value: ['failed'] }],
+    });
+    expect(asked.get('endpointId')).toBe(EP);
+  });
+
+  it('offers the filters the list describes, and none it does not', async () => {
+    api();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    Element.prototype.scrollIntoView = () => {};
+    const user = userEvent.setup();
+    await renderApp(detailPath);
+    await screen.findByRole('button', { name: 'note.updated' });
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
+    await user.click(await screen.findByRole('button', { name: 'Add filter' }));
+    // The first filterable column is the event; open the list of columns.
+    // The column's header is a button too: the picker is the last one.
+    await user.click(screen.getAllByRole('button', { name: 'Event' }).at(-1)!);
+    const options = await screen.findAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Event',
+      'Status',
+      'Attempts',
+      'Created',
+    ]);
+  });
+
+  it('pages by number on the server', async () => {
+    const state = api();
+    state.deliveries = Array.from({ length: 23 }, (_, index) =>
+      delivery(
+        `0199a3f2-0000-7000-8000-0000000d${String(index).padStart(4, '0')}`,
+        {
+          type: `order.${index}`,
+        },
+      ),
+    );
+    const user = userEvent.setup();
+    await renderApp(detailPath);
+    expect(
+      await screen.findByRole('button', { name: 'order.0' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'order.22' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /next page/i }));
+    expect(
+      await screen.findByRole('button', { name: 'order.22' }),
+    ).toBeVisible();
+    expect(state.deliveryQueries.at(-1)?.get('page')).toBe('2');
+  });
+
+  it('says so when the endpoint has no deliveries yet', async () => {
+    const state = api();
+    state.deliveries = [];
+    await renderApp(detailPath);
+    expect(await screen.findByText('Nothing here yet')).toBeVisible();
   });
 
   it('opens a delivery with its request and response, the payload as text only', async () => {

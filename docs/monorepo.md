@@ -201,7 +201,11 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
   only when `fields=` can't pick it (`tag`), else a column hidden at first
   showing names (`ownerId`, `teamId`; the value itself when its name is
   unknown). Labels: `list.fields.<name>` in `common`. Another `ref` (a
-  record's subject) keeps the field's own filter.
+  record's subject) keeps the field's own filter. For a list under a parent
+  (`/v1/access/clients/{clientId}/…`) `pathParams` fills the route's
+  placeholders, `query` adds fixed parameters, `headingLevel={2}` and
+  `subtitle` fit it under a page's own `h1`, and `refetchInterval(rows)`
+  asks again while rows are still settling.
 
 - **Webhooks** (`features/webhooks`): managed per API client, as the API's
   `/v1/access/clients/{clientId}/webhook-endpoints` and `…/webhook-deliveries`
@@ -211,9 +215,13 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
   signing secret (create, rotate) is shown once in a dialog and kept in no
   cache (`gcTime: 0`, reset on close). A delivery's payload, headers and the
   receiver's response are remote text: rendered in `<pre>`, never as markup.
-  The deliveries are not a `ListPage` (their route takes a `clientId` and the
-  API has no `GET /v1/lists/WebhookDelivery`): a status filter and numbered
-  pages over `page` and `count`.
+  The deliveries are a `ListPage` (`subject="WebhookDelivery"`, described by
+  `GET /v1/lists/WebhookDelivery`): the route's `{clientId}` is filled by
+  `pathParams`, the endpoint is a fixed `query={{ endpointId }}`, and the
+  filters (status, event type, attempts, creation time) and numbered pages
+  (`page`, as every `ListPage`; the route also takes a cursor) come from the
+  description. Its rows are polled every 3 s while one is `pending`
+  (`refetchInterval`), and a retry or a test event refreshes the list.
 
 - **Operations** (`features/ops`, `/ops`): the `/v1/ops/*` routes
   ([webhooks-and-realtime](webhooks-and-realtime.md), "Ops"), for users acting
@@ -348,9 +356,15 @@ fields value onChange errors />` is a typed input per field (the drafts and
   `dialogs` to mount next to the list (confirmation, then the run: 200 at
   once or a 202 job polled at `GET /v1/bulk/{id}`). Selecting the whole page
   of a filtered list offers "all N matching", a run by the list's filter.
-  `/transfers` lists the exports and imports this browser started (the API
-  has no list of them yet), `/reports` the scheduled reports (`REPORTS=off`
-  hides it).
+  `/transfers` lists the caller's exports, imports and bulk runs from the API
+  (`GET /v1/data/transfers`, `GET /v1/bulk`: any device, scheduled reports
+  included; nothing is kept in the browser) and their account exports across
+  tenants (`GET /v1/account/exports`, the query the account page's export
+  section shares). The kind and the status are filters the API applies; each
+  row says when it started, finished and is kept until (`createdAt`,
+  `finishedAt`, `expiresAt`), and once `expiresAt` has passed it offers no
+  link. A filtered page can come back empty with a next cursor: "Show more"
+  stays. `/reports` lists the scheduled reports (`REPORTS=off` hides it).
 - **Picking people and API clients** (`components/principal-picker.tsx`,
   `lib/principals.ts`): `<PrincipalPicker>` searches
   `GET /v1/access/principals?q=` as one types (Dice UI's combobox); its value

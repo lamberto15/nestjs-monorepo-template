@@ -82,6 +82,7 @@ export function startImport(
 // ------------------------------------------------------------------ lists
 
 export type TransferKind = 'export' | 'import';
+export type TransferState = Transfer['status'];
 export type TransferListItem =
   GetResponse<'/v1/data/transfers'>['items'][number];
 export type BulkRun = GetResponse<'/v1/bulk'>['items'][number];
@@ -98,15 +99,19 @@ const LIST_POLL: ListPoll = () => 2000;
 
 /**
  * The caller's exports and imports in this tenant, newest first, by cursor
- * (`GET /v1/data/transfers`, docs/data-transfer.md "The list"). Polled while
- * one of the shown is still with the worker (`poll`: see useLivePoll).
+ * (`GET /v1/data/transfers`, docs/data-transfer.md "The list"), of one `kind`
+ * and `status` or all. A filtered page may hold fewer than `limit` items, even
+ * none, while there is a next one (the API reads a bounded number of entries):
+ * the page offers "Show more" until `nextCursor` is null. Polled while one of
+ * the shown is still with the worker (`poll`: see useLivePoll).
  */
 export const transfersListQuery = (
   kind?: TransferKind,
+  status?: TransferState,
   poll: ListPoll = LIST_POLL,
 ) =>
   infiniteQueryOptions({
-    queryKey: ['data', 'transfers', kind ?? 'all'],
+    queryKey: ['data', 'transfers', kind ?? 'all', status ?? 'all'],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       unwrap(
@@ -115,6 +120,7 @@ export const transfersListQuery = (
             query: {
               limit: PAGE,
               ...(kind && { kind }),
+              ...(status && { status }),
               ...(pageParam && { cursor: pageParam }),
             },
           },
@@ -130,15 +136,22 @@ export const transfersListQuery = (
   });
 
 /** The caller's bulk runs handed to the workers (`GET /v1/bulk`), same paging. */
-export const bulkListQuery = (poll: ListPoll = LIST_POLL) =>
+export const bulkListQuery = (
+  status?: TransferState,
+  poll: ListPoll = LIST_POLL,
+) =>
   infiniteQueryOptions({
-    queryKey: ['data', 'bulk-runs'],
+    queryKey: ['data', 'bulk-runs', status ?? 'all'],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       unwrap(
         api.GET('/v1/bulk', {
           params: {
-            query: { limit: PAGE, ...(pageParam && { cursor: pageParam }) },
+            query: {
+              limit: PAGE,
+              ...(status && { status }),
+              ...(pageParam && { cursor: pageParam }),
+            },
           },
         }),
       ),

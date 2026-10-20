@@ -1,5 +1,7 @@
 {
-  "nav": { "title": "الويب هوك" },
+  "nav": {
+    "title": "الويب هوك"
+  },
   "clients": {
     "title": "الويب هوك",
     "description": "لكل عميل API نقاط نهايته الخاصة: اختر العميل الذي تدير ويب هوكه.",
@@ -23,7 +25,11 @@
     "eventCount_few": "{{count}} أنواع أحداث",
     "eventCount_many": "{{count}} نوع حدث",
     "eventCount_other": "{{count}} نوع حدث",
-    "columns": { "url": "العنوان", "status": "الحالة", "events": "الأحداث" }
+    "columns": {
+      "url": "العنوان",
+      "status": "الحالة",
+      "events": "الأحداث"
+    }
   },
   "endpoint": {
     "enabled": "نشطة",
@@ -91,18 +97,13 @@
   "deliveries": {
     "title": "التسليمات",
     "description": "ما أُرسل إلى نقطة النهاية هذه، الأحدث أولًا. افتح تسليمًا لترى الطلب والاستجابة.",
-    "filter": "الحالة",
-    "all": "الكل",
-    "empty": "لم يُرسل شيء بعد. أرسل حدثًا تجريبيًا للتجربة.",
-    "page": "الصفحة {{page}} من {{count}}",
-    "previous": "السابق",
-    "next": "التالي",
     "columns": {
       "type": "الحدث",
       "status": "الحالة",
       "attempts": "المحاولات",
       "response": "آخر استجابة",
-      "created": "أُنشئ"
+      "created": "أُنشئ",
+      "error": "Last error"
     }
   },
   "delivery": {

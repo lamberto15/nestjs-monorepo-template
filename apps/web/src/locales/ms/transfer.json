@@ -3,7 +3,8 @@
   "kind": {
     "export": "Eksport",
     "import": "Import",
-    "bulk": "Larian pukal"
+    "bulk": "Larian pukal",
+    "account": "Account export"
   },
   "formats": {
     "csv": "CSV",
@@ -35,7 +36,21 @@
       "all": "Semua",
       "export": "Eksport",
       "import": "Import",
+      "account": "Account exports",
       "bulk": "Larian pukal"
+    },
+    "accountTitle": "Account exports",
+    "emptyFiltered": "Nothing with this status.",
+    "started": "Started {{date}}",
+    "finished": "Finished {{date}}",
+    "keptUntil": "Kept until {{date}}",
+    "state": {
+      "label": "Status",
+      "all": "Any status",
+      "queued": "Waiting",
+      "running": "Running",
+      "completed": "Done",
+      "failed": "Failed"
     }
   },
   "import": {
@@ -82,7 +97,8 @@
     "progressLabel": "Kemajuan",
     "failed": "Ia gagal. Cuba lagi.",
     "notFound": "Pemindahan ini tidak lagi tersedia.",
-    "error": "Statusnya tidak dapat dimuatkan."
+    "error": "Statusnya tidak dapat dimuatkan.",
+    "expired": "This transfer is no longer kept. Start it again for a new file."
   },
   "bulk": {
     "queued": "Menunggu pekerja…",

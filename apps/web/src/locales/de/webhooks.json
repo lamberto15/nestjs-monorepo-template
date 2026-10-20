@@ -1,5 +1,7 @@
 {
-  "nav": { "title": "Webhooks" },
+  "nav": {
+    "title": "Webhooks"
+  },
   "clients": {
     "title": "Webhooks",
     "description": "Jeder API-Client hat seine eigenen Endpunkte: Wählen Sie den Client, dessen Webhooks Sie verwalten.",
@@ -19,7 +21,11 @@
     "allEvents": "Alle Ereignisse",
     "eventCount_one": "{{count}} Ereignistyp",
     "eventCount_other": "{{count}} Ereignistypen",
-    "columns": { "url": "URL", "status": "Status", "events": "Ereignisse" }
+    "columns": {
+      "url": "URL",
+      "status": "Status",
+      "events": "Ereignisse"
+    }
   },
   "endpoint": {
     "enabled": "Aktiv",
@@ -87,18 +93,13 @@
   "deliveries": {
     "title": "Zustellungen",
     "description": "Was an diesen Endpunkt gesendet wurde, die neuesten zuerst. Öffnen Sie eine Zustellung, um Anfrage und Antwort zu sehen.",
-    "filter": "Status",
-    "all": "Alle",
-    "empty": "Noch nichts gesendet. Senden Sie ein Testereignis zum Ausprobieren.",
-    "page": "Seite {{page}} von {{count}}",
-    "previous": "Zurück",
-    "next": "Weiter",
     "columns": {
       "type": "Ereignis",
       "status": "Status",
       "attempts": "Versuche",
       "response": "Letzte Antwort",
-      "created": "Angelegt"
+      "created": "Angelegt",
+      "error": "Last error"
     }
   },
   "delivery": {

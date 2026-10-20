@@ -16,42 +16,32 @@ import {
   FieldLabel,
 } from '@nestjs-monorepo-template/ui/components/field';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@nestjs-monorepo-template/ui/components/select';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { Switch } from '@nestjs-monorepo-template/ui/components/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@nestjs-monorepo-template/ui/components/table';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { cn } from 'cn';
 import { ArrowLeftIcon } from 'lucide-react';
-import { useState } from 'react';
+import type { HeaderContext } from '@tanstack/react-table';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Section } from '@/components/account/section';
 import { ConfirmButton } from '@/components/confirm-button';
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
+import { ListPage } from '@/components/list-page';
+import type { DataTableFeatures } from '@/lib/data-table-features';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
+import type { ListColumn } from '@/lib/list-query';
 import { DeliveryDialog } from './delivery-dialog';
 import {
   EndpointFormDialog,
   type EndpointValues,
 } from './endpoint-form-dialog';
 import {
-  deliveriesQuery,
+  deliveriesPath,
   endpointQuery,
   fromMs,
   useDeleteEndpoint,
@@ -59,7 +49,7 @@ import {
   useRotateSecret,
   useSendTest,
   useUpdateEndpoint,
-  type DeliveryStatus,
+  type Delivery,
   type Endpoint,
 } from './queries';
 import { SecretDialog } from './secret-dialog';
@@ -234,138 +224,114 @@ function SettingsSection(props: { clientId: string; endpoint: Endpoint }) {
   );
 }
 
-const ALL = 'all';
-
+/**
+ * The endpoint's deliveries on the generic list page: the filters (status,
+ * event type, attempts, creation time) and the paging come from
+ * `GET /v1/lists/WebhookDelivery`, the client stays in the path and the
+ * endpoint is a fixed `endpointId` filter.
+ */
 function DeliveriesSection(props: { clientId: string; endpoint: Endpoint }) {
   const { t } = useTranslation('webhooks');
   const format = useDateTimeFormat();
-  const [page, setPage] = useState(1);
-  const [status, setStatus] = useState<DeliveryStatus | undefined>();
   const [open, setOpen] = useState<string>();
-  const list = useQuery({
-    ...deliveriesQuery(props.clientId, props.endpoint.id, page, status),
-    meta: { errorToast: false },
-  });
-  const pageCount = list.data?.pageCount ?? 1;
-  return (
-    <Section
-      title={t('deliveries.title')}
-      description={t('deliveries.description')}
-    >
-      <div className="flex flex-wrap items-end gap-3">
-        <Field className="w-48">
-          <FieldLabel htmlFor="delivery-status">
-            {t('deliveries.filter')}
-          </FieldLabel>
-          <Select
-            value={status ?? ALL}
-            onValueChange={(value) => {
-              setPage(1);
-              setStatus(value === ALL ? undefined : (value as DeliveryStatus));
-            }}
+  const columns = useMemo<ListColumn<Delivery>[]>(() => {
+    const header = (key: string) => {
+      const label = t(`deliveries.columns.${key}`);
+      return {
+        meta: { label },
+        header: ({
+          column,
+        }: HeaderContext<DataTableFeatures, Delivery, unknown>) => (
+          <DataTableColumnHeader column={column} label={label} />
+        ),
+      };
+    };
+    return [
+      {
+        id: 'type',
+        accessorKey: 'type',
+        ...header('type'),
+        cell: ({ row }) => (
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0 font-mono text-xs"
+            onClick={() => setOpen(row.original.id)}
           >
-            <SelectTrigger id="delivery-status">
-              <SelectValue>
-                {(value: string) =>
-                  value === ALL
-                    ? t('deliveries.all')
-                    : t(`delivery.status.${value as DeliveryStatus}`)
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t('deliveries.all')}</SelectItem>
-              {(['pending', 'succeeded', 'failed'] as const).map((value) => (
-                <SelectItem key={value} value={value}>
-                  {t(`delivery.status.${value}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <RetryFailedButton
-          clientId={props.clientId}
-          endpointId={props.endpoint.id}
-        />
-      </div>
-      {list.isPending ? (
-        <Spinner />
-      ) : list.isError ? (
-        <FormAlert message={errorMessage(list.error)} />
-      ) : list.data.items.length ? (
-        <>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('deliveries.columns.type')}</TableHead>
-                  <TableHead>{t('deliveries.columns.status')}</TableHead>
-                  <TableHead>{t('deliveries.columns.attempts')}</TableHead>
-                  <TableHead>{t('deliveries.columns.response')}</TableHead>
-                  <TableHead>{t('deliveries.columns.created')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {list.data.items.map((delivery) => (
-                  <TableRow key={delivery.id}>
-                    <TableCell className="font-mono text-xs">
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="h-auto p-0 font-mono text-xs"
-                        onClick={() => setOpen(delivery.id)}
-                      >
-                        {delivery.type}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <DeliveryBadge status={delivery.status} />
-                    </TableCell>
-                    <TableCell>{delivery.attempts}</TableCell>
-                    <TableCell>
-                      {delivery.lastStatusCode ?? delivery.lastError ?? ''}
-                    </TableCell>
-                    <TableCell>{format(delivery.createdAt)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-muted-foreground">
-              {t('deliveries.page', { page, count: pageCount })}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-              >
-                {t('deliveries.previous')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!list.data.nextPage}
-                onClick={() => setPage(page + 1)}
-              >
-                {t('deliveries.next')}
-              </Button>
-            </div>
-          </div>
-        </>
-      ) : (
-        <p className="text-sm text-muted-foreground">{t('deliveries.empty')}</p>
-      )}
+            {row.original.type}
+          </Button>
+        ),
+      },
+      {
+        id: 'status',
+        accessorKey: 'status',
+        ...header('status'),
+        cell: ({ row }) => <DeliveryBadge status={row.original.status} />,
+      },
+      { id: 'attempts', accessorKey: 'attempts', ...header('attempts') },
+      {
+        id: 'lastStatusCode',
+        accessorKey: 'lastStatusCode',
+        ...header('response'),
+        cell: ({ row }) => row.original.lastStatusCode ?? '',
+      },
+      {
+        id: 'lastError',
+        accessorKey: 'lastError',
+        ...header('error'),
+        cell: ({ row }) => (
+          <span className="block max-w-64 truncate">
+            {row.original.lastError ?? ''}
+          </span>
+        ),
+      },
+      {
+        id: 'createdAt',
+        accessorFn: (delivery) => format(delivery.createdAt),
+        ...header('created'),
+      },
+    ];
+  }, [t, format]);
+  // Only this endpoint's, and none in flight stays unsettled unseen.
+  const query = useMemo(
+    () => ({ endpointId: props.endpoint.id }),
+    [props.endpoint.id],
+  );
+  const pathParams = useMemo(
+    () => ({ clientId: props.clientId }),
+    [props.clientId],
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      <ListPage
+        subject="WebhookDelivery"
+        path={deliveriesPath}
+        pathParams={pathParams}
+        query={query}
+        title={t('deliveries.title')}
+        subtitle={t('deliveries.description')}
+        headingLevel={2}
+        columns={columns}
+        toolbarActions={
+          <RetryFailedButton
+            clientId={props.clientId}
+            endpointId={props.endpoint.id}
+          />
+        }
+        refetchInterval={settling}
+      />
       <DeliveryDialog
         clientId={props.clientId}
         id={open}
         onClose={() => setOpen(undefined)}
       />
-    </Section>
+    </div>
   );
 }
+
+/** A delivery in flight settles on its own: look again until none is. */
+const settling = (rows: Delivery[]) =>
+  rows.some((row) => row.status === 'pending') ? 3000 : false;
 
 /** Every failed delivery of the endpoint again, optionally since a time. */
 function RetryFailedButton(props: { clientId: string; endpointId: string }) {

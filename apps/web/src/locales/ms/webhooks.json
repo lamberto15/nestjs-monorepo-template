@@ -1,5 +1,7 @@
 {
-  "nav": { "title": "Webhook" },
+  "nav": {
+    "title": "Webhook"
+  },
   "clients": {
     "title": "Webhook",
     "description": "Setiap klien API mempunyai titik akhirnya sendiri: pilih klien yang webhooknya anda urus.",
@@ -18,7 +20,11 @@
     "empty": "Belum ada titik akhir.",
     "allEvents": "Semua peristiwa",
     "eventCount_other": "{{count}} jenis peristiwa",
-    "columns": { "url": "URL", "status": "Status", "events": "Peristiwa" }
+    "columns": {
+      "url": "URL",
+      "status": "Status",
+      "events": "Peristiwa"
+    }
   },
   "endpoint": {
     "enabled": "Aktif",
@@ -86,18 +92,13 @@
   "deliveries": {
     "title": "Penghantaran",
     "description": "Apa yang dihantar ke titik akhir ini, yang terbaharu dahulu. Buka satu untuk melihat permintaan dan respons.",
-    "filter": "Status",
-    "all": "Semua",
-    "empty": "Belum ada yang dihantar. Hantar peristiwa ujian untuk mencuba.",
-    "page": "Halaman {{page}} daripada {{count}}",
-    "previous": "Sebelumnya",
-    "next": "Seterusnya",
     "columns": {
       "type": "Peristiwa",
       "status": "Status",
       "attempts": "Percubaan",
       "response": "Respons terakhir",
-      "created": "Dicipta"
+      "created": "Dicipta",
+      "error": "Last error"
     }
   },
   "delivery": {

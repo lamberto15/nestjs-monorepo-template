@@ -1,5 +1,4 @@
 import {
-  keepPreviousData,
   queryOptions,
   useMutation,
   useQueryClient,
@@ -13,7 +12,8 @@ import { api } from '@/lib/api';
 
 const endpoints = '/v1/access/clients/{clientId}/webhook-endpoints';
 const endpoint = '/v1/access/clients/{clientId}/webhook-endpoints/{id}';
-const deliveriesPath = '/v1/access/clients/{clientId}/webhook-deliveries';
+export const deliveriesPath =
+  '/v1/access/clients/{clientId}/webhook-deliveries';
 
 export type Endpoint = GetResponse<typeof endpoints>['items'][number];
 export type EventGroups = GetResponse<'/v1/webhook-event-types'>['items'];
@@ -33,8 +33,6 @@ export type EndpointChanges = JsonBody<paths[typeof endpoint]['patch']>;
 /** Everything of one client's webhooks starts with this key. */
 export const webhooksKey = (clientId: string) =>
   ['webhooks', clientId] as const;
-
-export const DELIVERIES_PER_PAGE = 10;
 
 /** What can be subscribed to, by feature (`GET /v1/webhook-event-types`). */
 export const eventTypesQuery = queryOptions({
@@ -58,44 +56,6 @@ export const endpointQuery = (clientId: string, id: string) =>
       unwrap(api.GET(endpoint, { params: { path: { clientId, id } } })),
   });
 
-/** A page of one endpoint's deliveries, the newest first. */
-export const deliveriesQuery = (
-  clientId: string,
-  endpointId: string,
-  page: number,
-  status: DeliveryStatus | undefined,
-) =>
-  queryOptions({
-    queryKey: [
-      ...webhooksKey(clientId),
-      'deliveries',
-      endpointId,
-      page,
-      status ?? 'all',
-    ],
-    queryFn: () =>
-      unwrap(
-        api.GET(deliveriesPath, {
-          params: {
-            path: { clientId },
-            query: {
-              endpointId,
-              page,
-              limit: DELIVERIES_PER_PAGE,
-              count: 'true',
-              ...(status && { status }),
-            },
-          },
-        }),
-      ),
-    placeholderData: keepPreviousData,
-    // A delivery in flight settles on its own: look again until none is.
-    refetchInterval: (query) =>
-      query.state.data?.items.some((item) => item.status === 'pending')
-        ? 3000
-        : false,
-  });
-
 /** One delivery with the payload sent and every attempt's response. */
 export const deliveryQuery = (clientId: string, id: string) =>
   queryOptions({
@@ -111,7 +71,11 @@ export const deliveryQuery = (clientId: string, id: string) =>
 function useRefresh(clientId: string) {
   const queryClient = useQueryClient();
   return () =>
-    queryClient.invalidateQueries({ queryKey: webhooksKey(clientId) });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: webhooksKey(clientId) }),
+      // The deliveries are a ListPage: its pages are under ['list', path].
+      queryClient.invalidateQueries({ queryKey: ['list', deliveriesPath] }),
+    ]);
 }
 
 /**

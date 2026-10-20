@@ -3,7 +3,8 @@
   "kind": {
     "export": "تصدير",
     "import": "استيراد",
-    "bulk": "تشغيل جماعي"
+    "bulk": "تشغيل جماعي",
+    "account": "Account export"
   },
   "formats": {
     "csv": "CSV",
@@ -39,7 +40,21 @@
       "all": "الكل",
       "export": "عمليات التصدير",
       "import": "عمليات الاستيراد",
+      "account": "Account exports",
       "bulk": "التشغيلات الجماعية"
+    },
+    "accountTitle": "Account exports",
+    "emptyFiltered": "Nothing with this status.",
+    "started": "Started {{date}}",
+    "finished": "Finished {{date}}",
+    "keptUntil": "Kept until {{date}}",
+    "state": {
+      "label": "Status",
+      "all": "Any status",
+      "queued": "Waiting",
+      "running": "Running",
+      "completed": "Done",
+      "failed": "Failed"
     }
   },
   "import": {
@@ -94,7 +109,8 @@
     "running_zero": "جارٍ العمل… {{count}} حتى الآن.",
     "running_two": "جارٍ العمل… {{count}} حتى الآن.",
     "running_few": "جارٍ العمل… {{count}} حتى الآن.",
-    "running_many": "جارٍ العمل… {{count}} حتى الآن."
+    "running_many": "جارٍ العمل… {{count}} حتى الآن.",
+    "expired": "This transfer is no longer kept. Start it again for a new file."
   },
   "bulk": {
     "queued": "بانتظار عامل…",
