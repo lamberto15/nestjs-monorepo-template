@@ -569,3 +569,42 @@ export const userTeams = pgTable(
     ),
   ],
 ).enableRLS();
+
+/**
+ * Break-glass grants (docs/tenancy.md, "Break-glass"): an operator's
+ * read-only access to a tenant that never invited them, for at most an
+ * hour, with the reason they gave. A row of the operators' tenant (the
+ * grant is theirs: `tenant_id`), naming the tenant it opens
+ * (`target_tenant_id`, a global table's key: the grant outlives nothing
+ * of it). Read on every request that uses it (BreakGlassGuard), in the
+ * operators' tenant, before the request moves to the other one.
+ */
+export const breakGlassGrants = pgTable(
+  'break_glass_grants',
+  {
+    id: uuidPk(),
+    tenantId: tenantColumn(),
+    /** The operator who opened it; nobody else uses it. */
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    targetTenantId: uuid('target_tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    /** Why, in the operator's words: kept with the grant and in both tenants' audit entries. */
+    reason: text('reason').notNull(),
+    /** At most an hour after it was opened; never extended (a new grant needs a new reason). */
+    expiresAt: at('expires_at').notNull(),
+    /** Ended before its time by the operator (`DELETE …/break-glass/{id}`). */
+    endedAt: at('ended_at'),
+    ...timestamps(),
+  },
+  (table) => [
+    ...tenantTable('break_glass_grants', table),
+    index('break_glass_grants_user_target_idx').on(
+      table.tenantId,
+      table.userId,
+      table.targetTenantId,
+    ),
+  ],
+).enableRLS();

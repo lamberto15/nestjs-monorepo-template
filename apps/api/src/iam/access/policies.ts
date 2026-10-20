@@ -15,9 +15,9 @@ import { AccessService } from './access.service.js';
 /** For abilities only users may hold, whatever an API client's permissions say. */
 export const userOnly = (user: Principal | null) => user?.kind === 'user';
 
-/** Access management: users only, and never while an administrator acts as someone else. */
+/** Access management: users only, never while an administrator acts as someone else, never through break-glass. */
 const manager = (user: Principal | null): user is Principal =>
-  user?.kind === 'user' && !user.impersonator;
+  user?.kind === 'user' && !user.impersonator && !user.breakGlass;
 
 @Policy()
 export class AccessPolicy {
@@ -69,6 +69,14 @@ export class AccessPolicy {
     return manager(user) && this.access.can(user, 'manageTenants', 'Access');
   }
 
+  /**
+   * Opening a tenant read only without its invitation (break-glass, also
+   * @OperatorOnly()): `Platform.breakGlass`, a user acting as themselves.
+   */
+  async breakGlass(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'breakGlass', 'Platform');
+  }
+
   async readAudit(user: Principal | null) {
     return userOnly(user) && this.access.can(user, 'readAudit', 'Access');
   }
@@ -78,6 +86,7 @@ export class AccessPolicy {
     return (
       userOnly(user) &&
       !user.impersonator &&
+      !user.breakGlass &&
       this.access.can(user, 'impersonate', 'Access')
     );
   }

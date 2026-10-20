@@ -144,6 +144,7 @@ describe('PermissionCatalog', () => {
   it('merges what every declaration brings', () => {
     expect(Object.keys(catalog.subjects)).toEqual([
       'Access',
+      'Platform',
       'Approval',
       'Ops',
       'MailSuppression',
@@ -155,6 +156,23 @@ describe('PermissionCatalog', () => {
       'viewer',
     ]);
     expect(catalog.clientPermissions).toHaveLength(5); // create, read, update, delete, restore
+  });
+
+  it('gives break-glass every read action, unconditional, and nothing that writes', () => {
+    const granted = catalog
+      .readPermissions()
+      .map((p) => `${p.subject}.${p.action}`);
+    expect(granted).toEqual(
+      expect.arrayContaining([
+        'Access.readAudit',
+        'Approval.read',
+        'Note.read',
+      ]),
+    );
+    expect(granted.every((key) => /\.read(?:[A-Z]|$)/.test(key))).toBe(true);
+    expect(
+      catalog.readPermissions().every((p) => p.conditions.length === 0),
+    ).toBe(true);
   });
 
   it('refuses a subject declared twice, and a declared permission it does not know', () => {

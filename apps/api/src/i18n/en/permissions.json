@@ -16,6 +16,12 @@
       "impersonate": "Act as another user (support), never as an administrator"
     }
   },
+  "platform": {
+    "label": "Platform",
+    "actions": {
+      "breakGlass": "Read any tenant without its invitation, for an hour at most, with a reason its administrators are told (break-glass; the deployment's operators: only in the operator tenant)"
+    }
+  },
   "approval": {
     "label": "Approvals",
     "actions": {

@@ -16,6 +16,12 @@
       "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir"
     }
   },
+  "platform": {
+    "label": "Platform",
+    "actions": {
+      "breakGlass": "Baca mana-mana penyewa tanpa jemputannya, paling lama sejam, dengan sebab yang dimaklumkan kepada pentadbirnya (pecah kaca; pengendali pemasangan: hanya dalam penyewa pengendali)"
+    }
+  },
   "approval": {
     "label": "Kelulusan",
     "actions": {

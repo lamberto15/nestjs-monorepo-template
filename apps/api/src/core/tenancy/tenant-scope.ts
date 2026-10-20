@@ -48,6 +48,15 @@ export const tenantScope = (tenantId: string): TenantScope =>
     bypass: false,
   });
 
+/**
+ * One tenant, read only: an operator's break-glass request
+ * (docs/tenancy.md, "Break-glass"). Every transaction of it is `READ
+ * ONLY`, the global tables' too (TenantPool): PostgreSQL refuses any
+ * write (25006), whatever a route would do.
+ */
+export const readOnlyTenantScope = (tenantId: string): TenantScope =>
+  Object.freeze({ ...tenantScope(tenantId), readOnly: true });
+
 /** No tenant: global tables only; a query on a tenant table is refused (TenantScopeMissingError). */
 export const NO_TENANT: TenantScope = Object.freeze({
   tenantId: null,

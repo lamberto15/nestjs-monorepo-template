@@ -78,7 +78,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Outgoing and incoming webhooks, the ops API, realtime (socket.io), health | [docs/webhooks-and-realtime.md](docs/webhooks-and-realtime.md) |
 | Routes' rules: versions, errors, pagination, filters, credentials | [docs/api-conventions.md](docs/api-conventions.md) |
 | The typed client for frontends (`packages/api-client`, `pnpm client:generate` after route changes) | [docs/development.md](docs/development.md), "Typed client" |
-| Tenants: the RLS wall, the tenant of the work (requests, jobs, workflows, cron), global tables, operators, single-tenant deployments (`TENANCY=single`), adding a tenant table | [docs/tenancy.md](docs/tenancy.md) |
+| Tenants: the RLS wall, the tenant of the work (requests, jobs, workflows, cron), global tables, operators, break-glass (an operator reading a tenant read only), single-tenant deployments (`TENANCY=single`), adding a tenant table | [docs/tenancy.md](docs/tenancy.md) |
 | Sign-in, accounts, tokens, passkeys (WebAuthn), API clients, impersonation, bot protection (Turnstile); data export, account deletion, consents | [docs/auth.md](docs/auth.md) |
 | Roles, conditions, field-level, grants, teams, audit | [docs/permissions.md](docs/permissions.md) |
 | Queues, mail, outbox, workflows, cron, realtime | [docs/background-work.md](docs/background-work.md) |
