@@ -77,6 +77,8 @@ export function useNotesApi(options: {
   watched?: string[];
   /** The `notes.richText` flag as GET /v1/settings resolves it (off by default). */
   richText?: boolean;
+  /** The Note naming series the create form can pick from (none by default). */
+  namingSeries?: unknown[];
 }) {
   const notes = new Map(options.notes.map((note) => [note.id, { ...note }]));
   const held = new Set(options.can);
@@ -163,6 +165,13 @@ export function useNotesApi(options: {
             canSetMine: false,
           },
         ],
+      }),
+    ),
+    // The create form reads the subject's naming series for its picker.
+    http.get('/v1/naming-series', () =>
+      HttpResponse.json({
+        items: options.namingSeries ?? [],
+        nextCursor: null,
       }),
     ),
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
