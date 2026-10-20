@@ -1,5 +1,6 @@
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { inTransaction } from '../src/core/database/transactions.js';
+import { GLOBAL_TABLES_WITH_TENANT } from '../src/core/tenancy/global-tables.js';
 import { Tenancy } from '../src/core/tenancy/tenancy.service.js';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
@@ -140,7 +141,7 @@ describe('tenancy (e2e)', () => {
       }
     });
 
-    it('puts every table with a tenant_id behind its wall, but the two global ones', async () => {
+    it('puts every table with a tenant_id behind its wall, but the global ones', async () => {
       const app = new Client({ connectionString: node.database.url });
       await app.connect();
       try {
@@ -165,7 +166,7 @@ describe('tenancy (e2e)', () => {
            order by 1`,
         );
         const walled = rows.filter(
-          (row) => !['memberships', 'api_keys'].includes(row.name),
+          (row) => !GLOBAL_TABLES_WITH_TENANT.includes(row.name),
         );
         expect(walled.length).toBeGreaterThan(20);
         for (const row of walled) {
