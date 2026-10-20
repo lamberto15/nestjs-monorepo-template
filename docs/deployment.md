@@ -638,7 +638,7 @@ fails (PostgreSQL or Redis away) is left out of that scrape, not set to 0.
 
 `monitoring/` holds Prometheus alert rules and an optional stack that runs
 them (`compose.monitoring.yaml`): Prometheus, Alertmanager, exporters for
-PostgreSQL and Redis, `blackbox-exporter` (HTTPS and the certificate,
+PostgreSQL, Redis and the host (`node-exporter`), `blackbox-exporter` (HTTPS and the certificate,
 through Caddy) and `backup-metrics` (the backup service's state). The
 default stack doesn't need it, and nothing in it becomes required.
 
@@ -653,14 +653,14 @@ docker compose up -d
 
 Prometheus scrapes every api and worker replica through Docker's DNS (the
 token is a Compose secret, `/run/secrets/metrics_token`), the two exporters,
-the HTTPS probe, `backup-metrics`, itself and Alertmanager, every 15 s. Its data lives in the `prometheus_data`
+node-exporter (the host), the HTTPS probe, `backup-metrics`, itself and Alertmanager, every 15 s. Its data lives in the `prometheus_data`
 volume: 30 days, at most 4 GB (`monitoring/prometheus/prometheus.yml`).
 Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
 `ALERTMANAGER_MEMORY`; the exporters get 0.25 CPU and 128 MB each (the
 blackbox exporter 0.1 CPU and 64 MB). Logs are
 bounded like the rest of the stack (`DOCKER_LOG_*`).
 
-**The alerts** (38 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
+**The alerts** (45 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
 
 | Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
@@ -693,6 +693,9 @@ warning: look today):
 | `CertificateExpiring`                                        | the certificate expires within 14 days (warning) or 7 days (critical): Caddy's renewals fail                                                                                        | warning, critical |
 | `BackupFailed`, `BackupTooOld`, `BackupNeverSucceeded`       | the last backup run failed; none succeeded for `BACKUP_MAX_AGE_HOURS` + 1 h; none at all for a day                                                                                  | warning           |
 | `PrometheusRuleFailures`, `AlertmanagerNotificationsFailing` | the monitoring itself is broken (a rule, the SMTP settings, the Watchdog's URL)                                                                                                     | warning           |
+| `HostDiskSpaceLow`, `HostDiskSpaceCritical`                  | a file system has under 10% (warning, 10 min) or 5% (critical, 5 min) free                                                                                                          | warning, critical |
+| `HostDiskFillingUp`                                          | a disk over a third full is on course to fill within 24 h at the last six hours' pace (1 h)                                                                                         | warning           |
+| `HostMemoryLow`, `HostOomKilled`, `HostCpuHigh`              | under 10% of memory available (10 min); the kernel killed a process for memory; CPUs over 90% busy (15 min)                                                                         | warning           |
 | `Watchdog`                                                   | always: the dead man's switch (below), sent to its ping URL only                                                                                                                    | none              |
 
 The rules read `monitoring/prometheus/recording.yml` (rates, p95, queue
@@ -701,9 +704,50 @@ numbers across replicas). Prometheus can't see Docker's healthchecks, so
 markers the backup service leaves in the `backups` volume (read only) into
 `backup_last_success_timestamp_seconds` and
 `backup_last_failure_timestamp_seconds`: the backup's own healthcheck, as
-alerts. Not covered: the host (disk, CPU: add node_exporter), and reaching
-the API from outside (public DNS, the firewall): the probe runs inside the
-Compose network.
+alerts. Not covered by the Compose probe: reaching the API from outside
+(public DNS, the firewall); it runs inside the Compose network. That is the
+outside probe's job (below).
+
+**The host:** `node-exporter` (`prom/node-exporter`, pinned) mounts the
+host's root read only at `/host`, runs in the host's process namespace, is
+not published (Prometheus scrapes `node-exporter:9100`, job `node`) and gets
+0.1 CPU and 64 MB. Six alerts (group `host`, pseudo file systems left out):
+`HostDiskSpaceLow` (under 10% free, 10 min) and `HostDiskSpaceCritical`
+(under 5%), `HostDiskFillingUp` (at the last six hours' pace the disk is
+full within 24 h, once it is a third full), `HostMemoryLow` (under 10%
+available), `HostOomKilled` (the kernel killed a process) and `HostCpuHigh`
+(over 90% busy for 15 min). A host that is down is not one of them: nothing on it can report that, so
+the dead man's switch and the outside probe say so.
+
+- **Linux:** the numbers are the host's.
+- **Docker Desktop (a Mac):** the exporter sees the Linux VM, which is still
+  useful: `Docker.raw` is what fills, and `HostDiskSpaceLow` says so. The
+  Mac itself needs a Homebrew `node_exporter` (`brew install node_exporter`,
+  `brew services start node_exporter`, port 9100) and one more scrape job,
+  which is yours to add to `monitoring/prometheus/prometheus.yml`
+  (`host.docker.internal:9100`, job `mac`; the host rules read job `node`
+  only, copy them for it). It isn't shipped: without the Homebrew exporter it
+  would fire `TargetDown` for good.
+- Off like the rest of the file: nothing starts unless `compose.monitoring.yaml`
+  is in `COMPOSE_FILE`.
+
+**The outside probe:** the whole host down, DNS, the firewall: nothing on
+the host can report those, so the check comes from outside. Two ways, both
+without a paid key, both off until you set them up:
+
+1. **A scheduled GitHub Actions workflow** (`.github/workflows/uptime-probe.yml`):
+   set the repository **variable** `UPTIME_PROBE_URL` (Settings, Secrets and
+   variables, Actions, Variables), e.g. `https://api.example.com/health/live`.
+   Hourly, three tries, `curl --fail` over HTTPS. Unset or empty: the job is
+   skipped, not failed, and costs nothing. A failed run is the alert (GitHub
+   mails the watchers; Settings, Notifications). Limits: hourly (to spare
+   Actions minutes; scheduled runs can be late), disabled after 60 days
+   without repository activity, and the URL must resolve publicly (not
+   app10, whose name only `/etc/hosts` knows).
+2. **The dead man's switch** (below) already alarms when the host stops
+   sending: that covers a dead host without a public name. For a faster
+   check, an uptime service's free tier (UptimeRobot, healthchecks.io's
+   own HTTP checks) against the same URL.
 
 **The HTTPS probe:** `blackbox-exporter` fetches
 `https://caddy:443/health/live` every 15 s, by Caddy's Compose name, and

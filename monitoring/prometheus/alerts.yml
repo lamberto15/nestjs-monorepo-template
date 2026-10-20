@@ -121,7 +121,7 @@ groups:
           severity: warning
         annotations:
           summary: 'Queue {{ $labels.queue }} backlog keeps growing'
-          description: '{{ $value }} jobs wait, more than 30 minutes ago. The workers don''t keep up: add workers (WORKER_REPLICAS) or find the slow jobs.'
+          description: "{{ $value }} jobs wait, more than 30 minutes ago. The workers don't keep up: add workers (WORKER_REPLICAS) or find the slow jobs."
 
       - alert: JobsFailing
         expr: delta(queue:queue_jobs:max{state="failed"}[15m]) > 0
@@ -194,7 +194,7 @@ groups:
           severity: warning
         annotations:
           summary: The exchange rates are stale
-          description: 'The newest stored ECB reference rates are {{ $value | humanizeDuration }} old (+Inf: none was ever fetched). The worker''s ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md).'
+          description: "The newest stored ECB reference rates are {{ $value | humanizeDuration }} old (+Inf: none was ever fetched). The worker's ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md)."
 
       - alert: WebhookDeliveriesFailing
         expr: delta(state:webhook_deliveries:max{state="failed"}[1h]) > 0
@@ -202,7 +202,7 @@ groups:
           severity: warning
         annotations:
           summary: Webhook deliveries fail for good
-          description: 'About {{ $value | humanize }} deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver''s endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried.'
+          description: "About {{ $value | humanize }} deliveries failed for good in the last hour (after about two days of retries, or a blocked destination). Usually the receiver's endpoint; GET /v1/webhook-deliveries?status=failed shows them, and they can be retried."
 
   - name: dependencies
     rules:
@@ -236,7 +236,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $labels.job }} cannot reach the captcha provider'
-          description: 'Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: {{ $value | humanize }} per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare''s status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too).'
+          description: "Challenge verifications have failed (timeout, error or open circuit) for 5 minutes: {{ $value | humanize }} per second. Fail-open serves the sign-in routes under CAPTCHA_DEGRADED_LIMIT; fail-closed answers 503 captcha_unavailable. Check Cloudflare's status, CAPTCHA_VERIFY_URL and the secret key (a 4xx from siteverify counts here too)."
 
       # Email deliverability (docs/deliverability.md). Hard bounces against
       # the mails sent over an hour: addresses that don't exist, from stale
@@ -253,7 +253,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $value | humanizePercentage }} of the mail sent in the last hour bounced hard'
-          description: 'Over 5% of the mails sent in the last hour went to addresses that don''t exist, for 15 minutes (at least 20 sent). They are being suppressed (GET /v1/mail/suppressions?reason=hard_bounce); find where the addresses came from (an import, a sign-up form without verification). SES suspends sending near 5%.'
+          description: "Over 5% of the mails sent in the last hour went to addresses that don't exist, for 15 minutes (at least 20 sent). They are being suppressed (GET /v1/mail/suppressions?reason=hard_bounce); find where the addresses came from (an import, a sign-up form without verification). SES suspends sending near 5%."
 
       # One complaint is worth a look: providers rate limits near 0.1%, and
       # a person marking a transactional mail as spam means it looked like
@@ -264,7 +264,7 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $value | humanize }} spam complaints in the last hour'
-          description: 'Recipients reported mail from the app as spam (GET /v1/mail/suppressions?reason=complaint shows who, with the provider''s feedback type). They are suppressed; look at what was sent to them and why. Providers throttle a sender above 0.1% complaints.'
+          description: "Recipients reported mail from the app as spam (GET /v1/mail/suppressions?reason=complaint shows who, with the provider's feedback type). They are suppressed; look at what was sent to them and why. Providers throttle a sender above 0.1% complaints."
 
       # From the exporters in compose.monitoring.yaml.
       - alert: PostgresDown
@@ -323,7 +323,7 @@ groups:
           severity: critical
         annotations:
           summary: The API does not answer over HTTPS
-          description: 'Caddy has not answered /health/live with 200 for 3 minutes: Caddy down, a certificate that is expired, missing or for another name, or no api replica healthy behind it. `docker compose logs caddy`; probe_http_status_code and the exporter''s /probe?debug=true say which.'
+          description: "Caddy has not answered /health/live with 200 for 3 minutes: Caddy down, a certificate that is expired, missing or for another name, or no api replica healthy behind it. `docker compose logs caddy`; probe_http_status_code and the exporter's /probe?debug=true say which."
 
       # Caddy renews when about a third of the lifetime is left (30 days of
       # Let's Encrypt's 90): two weeks left means renewals have been failing.
@@ -377,6 +377,73 @@ groups:
         annotations:
           summary: No backup has succeeded yet
           description: The backups volume has held no successful backup for over a day. `docker compose logs backup`; one now with `docker compose exec backup backup`.
+
+  # From node-exporter (compose.monitoring.yaml). Pseudo file systems are left
+  # out; on Docker Desktop this is the Linux VM. A host that is down is not
+  # seen here (TargetDown, the Watchdog and the outside probe say so).
+  - name: host
+    rules:
+      - alert: HostDiskSpaceLow
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|devtmpfs|fuse.*"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|devtmpfs|fuse.*"} < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.mountpoint }} on the host has {{ $value | humanizePercentage }} free'
+          description: Under 10% of the disk is free. PostgreSQL, the backups and Docker's images and logs share it. `docker system df`, `docker image prune`, old backups.
+
+      - alert: HostDiskSpaceCritical
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|devtmpfs|fuse.*"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|devtmpfs|fuse.*"} < 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.mountpoint }} on the host has {{ $value | humanizePercentage }} free'
+          description: Under 5% of the disk is free; PostgreSQL stops accepting writes when it is full. Free space now (`docker system df`).
+
+      # Only on a disk that is already a third full, so a young, empty one
+      # does not alarm on its first big write.
+      - alert: HostDiskFillingUp
+        expr: |
+          predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|devtmpfs|fuse.*"}[6h], 24 * 3600) < 0
+            and node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|devtmpfs|fuse.*"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|devtmpfs|fuse.*"} < 0.67
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.mountpoint }} on the host is on course to fill within a day'
+          description: At the last six hours' pace the disk is full within 24 hours. Find what grows (logs, a backup volume, the database).
+
+      - alert: HostMemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'The host has {{ $value | humanizePercentage }} of its memory available'
+          description: Under 10% of memory is available for 10 minutes; the kernel starts killing processes next. `docker stats`; the containers' limits should add up to less than the host's memory.
+
+      - alert: HostOomKilled
+        expr: increase(node_vmstat_oom_kill[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: The kernel killed a process for lack of memory
+          description: A process was OOM-killed on the host in the last 10 minutes (a container at its memory limit shows as AppRestarting). `dmesg | grep -i oom`.
+
+      - alert: HostCpuHigh
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'The host CPU is {{ $value | humanizePercentage }} busy'
+          description: The CPUs have been over 90% busy for 15 minutes. `docker stats` says which container; scale out or raise the host.
 
   - name: monitoring
     rules:
