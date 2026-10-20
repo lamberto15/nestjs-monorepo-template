@@ -89,7 +89,14 @@
       "title": "验证您的地址",
       "description": "请输入您注册时使用的密码",
       "submit": "验证",
-      "done": "{{email}} 已验证。您现在可以登录了。"
+      "done": "{{email}} 已验证。您现在可以登录了。",
+      "banner": "Your address {{email}} is not verified yet. Open the link we emailed you.",
+      "resend": {
+        "button": "Resend the verification email",
+        "done": "Verification email sent. Check your mailbox.",
+        "limited": "Too many requests. Try again in about 15 minutes.",
+        "hint": "Lost the link, or it expired?"
+      }
     },
     "invitation": {
       "title": "接受邀请",
