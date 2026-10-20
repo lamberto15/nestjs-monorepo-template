@@ -64,11 +64,10 @@ export function parsePattern(pattern: string): PatternPart[] {
   // Digits right next to the counter would merge with it: `NOTE-.1.#` at 5
   // and `NOTE-.#` at 15 both print NOTE-15, from two counters.
   const at = parts.indexOf(counters[0]!);
-  const [before, after] = [parts[at - 1], parts[at + 1]];
-  if (
-    (before && (before.kind === 'date' || /[0-9]$/.test(before.text))) ||
-    (after && (after.kind === 'date' || /^[0-9]/.test(after.text)))
-  ) {
+  const merges = (part: PatternPart | undefined, digit: RegExp) =>
+    part !== undefined &&
+    (part.kind === 'date' || (part.kind === 'text' && digit.test(part.text)));
+  if (merges(parts[at - 1], /[0-9]$/) || merges(parts[at + 1], /^[0-9]/)) {
     throw new PatternError(
       'The counter needs a separator that is not a digit or a date part on each side it has text, as in INV-.YYYY.-.#####.',
     );
