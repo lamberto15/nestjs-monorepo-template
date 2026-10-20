@@ -39,6 +39,10 @@ export interface CeremonyFlags {
   uv?: boolean;
   /** Another challenge than the options' (a forged or replayed one). */
   challenge?: string;
+  /** Run inside a frame of another origin: `crossOrigin: true`, and `topOrigin` when given. */
+  crossOrigin?: boolean;
+  /** The top-level page's origin, as Chrome writes it for a cross-origin frame. */
+  topOrigin?: string;
 }
 
 const b64url = (bytes: Uint8Array | string) =>
@@ -116,7 +120,7 @@ export class SoftwareAuthenticator {
           clientDataJSON: this.clientData(
             'webauthn.create',
             flags.challenge ?? options.challenge,
-            flags.origin,
+            flags,
           ),
           attestationObject: b64url(attestationObject),
           transports: ['internal', 'hybrid'],
@@ -161,7 +165,7 @@ export class SoftwareAuthenticator {
     const clientDataJSON = this.clientData(
       'webauthn.get',
       flags.challenge ?? options.challenge,
-      flags.origin,
+      flags,
     );
     const signature = sign(
       'sha256',
@@ -204,13 +208,14 @@ export class SoftwareAuthenticator {
     return Buffer.concat([sha256(rpId), Buffer.from([flags]), count]);
   }
 
-  private clientData(type: string, challenge: string, origin?: string) {
+  private clientData(type: string, challenge: string, flags: CeremonyFlags) {
     return b64url(
       JSON.stringify({
         type,
         challenge,
-        origin: origin ?? this.defaults.origin,
-        crossOrigin: false,
+        origin: flags.origin ?? this.defaults.origin,
+        crossOrigin: flags.crossOrigin ?? false,
+        ...(flags.topOrigin !== undefined && { topOrigin: flags.topOrigin }),
       }),
     );
   }

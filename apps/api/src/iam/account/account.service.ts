@@ -50,6 +50,7 @@ import {
 import { PasswordHashLimiter } from './password-hashing.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
+import { SignInLog } from './sign-in-log.service.js';
 import { deviceLabel } from './devices.js';
 import { assertNotLastSignInMethod } from './sign-in-methods.js';
 
@@ -78,6 +79,7 @@ export class AccountService {
     private readonly users: UsersRepository,
     private readonly audit: AuditService,
     private readonly securityAlerts: SecurityAlertsService,
+    private readonly signInLog: SignInLog,
     private readonly credentials: CredentialsService,
     private readonly passwordHasher: PasswordHasher,
     private readonly signInService: SignInService,
@@ -278,6 +280,11 @@ export class AccountService {
           ? tenantId
           : null;
     if (tenantId !== undefined && !tenant) {
+      await this.signInLog.tenantRefused(user, {
+        method: 'password',
+        ip: context.ip,
+        tenantId,
+      });
       throw new UnauthorizedException(t('auth.invalidCredentials'));
     }
     const tokens = await this.tokens.issue(user.id, {

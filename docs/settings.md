@@ -4,7 +4,7 @@ What administrators change at runtime without a deploy, and what users
 set for themselves: typed values declared by the features, with defaults
 in code and overrides in the database, for everyone, for a team, or
 per principal. Feature flags are boolean settings that can also roll out
-to a share of principals. The deployment's operators may also set a value
+to a share of principals or, by rule, to the people with an attribute. The deployment's operators may also set a value
 for every tenant at once, as a runtime default or as a kill switch. The code is in `apps/api/src/platform/settings/`; notes
 is the example (`features/notes/note-settings.ts`).
 
@@ -37,8 +37,9 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
   setting with every scope and a rollout.
 - Precedence for a principal: the operators' **enforced** platform value →
   their own value → one of their teams' (in the order of their units) → the
-  tenant's value → a flag's rollout → the operators' platform value (or
-  rollout) → the default. `settings.resolve()` also says which (`source`).
+  tenant's targeting rules → the tenant's value → a flag's rollout → the
+  operators' platform rules → their platform value (or rollout) → the
+  default. `settings.resolve()` also says which (`source`).
 - **Every stored value is a tenant's** (`setting_overrides` under
   row-level security, [tenancy](tenancy.md)): the declaration's default is
   what holds for every tenant, and each tenant's administrators change
@@ -102,6 +103,82 @@ Operators only (`Access.manageSettings` in the operator tenant,
   `source: platform` when it decides) and whether the caller may change it
   (`canEditPlatform`).
 
+## Targeting rules (flags)
+
+A flag may be switched by attribute: an ordered list of rules at the tenant
+scope and at the platform scope, each rule conditions that must **all** hold
+and an outcome. The first rule that matches decides (`source: rule`), before
+that scope's plain value and rollout; a principal's own value and their
+team's still come first (they are the more specific choice), and an
+enforced platform value beats everything. Code: `setting-rules.ts`.
+
+```
+PUT /v1/settings/{key}             { rules: [...], value?, rollout? }   tenant scope
+PUT /v1/settings/{key}/platform    { rules: [...], value?, enforced?, rollout? }
+```
+
+```json
+{
+  "rules": [
+    {
+      "conditions": [
+        { "key": "emailDomain", "params": { "domains": ["acme.com"] } },
+        { "key": "principalKind", "params": { "kinds": ["user"] } }
+      ],
+      "outcome": { "rollout": 25 }
+    },
+    {
+      "conditions": [
+        { "key": "principalKind", "params": { "kinds": ["client"] } }
+      ],
+      "outcome": { "value": false }
+    }
+  ]
+}
+```
+
+- **Conditions have the shape of a permission's** (`{ key, params }`,
+  [permissions](permissions.md)): a key naming a template of a closed catalog,
+  evaluated in code. There is no expression language; nothing stored is
+  executed.
+
+  | Key              | Params                        | Holds when                                                                                                    |
+  | ---------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
+  | `principalKind`  | `kinds: ['user' \| 'client']` | the caller is one of these                                                                                    |
+  | `role`           | `roleIds: [uuid]`             | they hold one of these roles of the tenant (unexpired grants); tenant scope only: roles are each tenant's own |
+  | `emailDomain`    | `domains: ['acme.com']`       | a user whose **verified** email is at exactly that domain (no subdomains, case-insensitive)                   |
+  | `locale`         | `locales: ['en', 'pt-BR']`    | the user's chosen language (`en` also covers `en-GB`)                                                         |
+  | `tenantSlug`     | `slugs: ['acme']`             | they act in one of these tenants (the tenant attribute)                                                       |
+  | `tenantOperator` | `operator: true \| false`     | the tenant is (or is not) the operators'                                                                      |
+
+- **Outcome**: `{ value: true | false }`, or `{ rollout: 20 }`, on for a stable
+  20 % of the matched people (drawn like a rollout, per tenant) and **off for
+  the rest of them**: the group matched, so the rule decided.
+- **Fails closed.** A condition that cannot be evaluated does not hold, so
+  its rule never matches and never switches anything on: an attribute the
+  caller lacks (an API client has no email or language; an unverified email
+  proves no domain), a key this code does not know, params that do not parse.
+  No principal (a guest, a job) matches no rule. Put an "off" rule that must
+  not be missed first, and do not rely on one for a restriction: a rule that
+  does not match leaves the plain value, which may be on.
+- **Checked at write** (400 `validation_failed`, `errors[].path` under
+  `rules.<i>.conditions.<j>`): known keys, params that parse, a `role` that is
+  one of the tenant's roles, at most 20 rules of 10 conditions of 50 values;
+  only flags take rules, at the tenant scope (not a team or a user) and the
+  platform scope. `PUT` replaces the scope's value and rollout; **left out,
+  `rules` stay**, `rules: []` clears them. A rules-only override (no value, no
+  rollout) is valid.
+- Audited with the rules from → to (`setting.updated`); every view of the
+  stored values (`GET /v1/settings/{key}/overrides`, `platform`) carries
+  `rules`. Stored as `rules` (jsonb) on `setting_overrides` and
+  `platform_setting_values`, cached with the rest.
+- The admin UI edits them on `/settings` (a flag's dialog: "Targeting rules",
+  and "Targeting rules for all tenants" for operators): conditions per rule,
+  reorder, the tags input for domains, languages and tenants. The role
+  condition is offered to the access administrators, who may list the roles.
+- Not here: A/B experiments (variants, metrics on which one wins) are a
+  different system, not flags.
+
 ## IAM's auth policies (`auth.*`)
 
 Declared by the platform (`platform/auth-policy/auth-settings.ts`, merged
@@ -109,11 +186,11 @@ before the features' like approvals' settings) for IAM, which reads them
 through its `AUTH_POLICY` port under the environment's ceiling
 ([auth.md](auth.md#policies)). Shown to managers only (`public: false`).
 
-| Key | Value | Scopes | Default |
-| --- | --- | --- | --- |
-| `auth.requireMfa` | boolean | `tenant`, `team` (never `user`: nobody exempts themselves) | `false` |
-| `auth.passwordMinLength` | integer, 12 to 64 | `tenant` | `12` |
-| `auth.allowBreakGlass` | boolean | `tenant` | `true` (`false`: the operators' break-glass grants are refused, and running ones stop: [tenancy](tenancy.md#break-glass)) |
+| Key                      | Value             | Scopes                                                     | Default                                                                                                                   |
+| ------------------------ | ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `auth.requireMfa`        | boolean           | `tenant`, `team` (never `user`: nobody exempts themselves) | `false`                                                                                                                   |
+| `auth.passwordMinLength` | integer, 12 to 64 | `tenant`                                                   | `12`                                                                                                                      |
+| `auth.allowBreakGlass`   | boolean           | `tenant`                                                   | `true` (`false`: the operators' break-glass grants are refused, and running ones stop: [tenancy](tenancy.md#break-glass)) |
 
 - **`true` wins for `auth.requireMfa`**: it applies to a user when the
   tenant's value or one of their teams' is `true` (`SettingsService.anyOn()`),
@@ -121,7 +198,7 @@ through its `AUTH_POLICY` port under the environment's ceiling
   usual precedence.
 - **The ceiling at set**: a value the deployment doesn't allow is refused
   with 400 `setting_not_allowed` (`detail` says why; `errors[0].path:
-  value`): `auth.requireMfa: true` with `AUTH_MFA=off`. A value stored
+value`): `auth.requireMfa: true` with `AUTH_MFA=off`. A value stored
   before the env changed stays stored and has no effect. Any declaration
   can be limited so (`SettingsService.restrict(declaration, check)`).
 
@@ -158,14 +235,14 @@ generated from the declaration's Zod schema (`setting-value-schema.ts`,
 with Zod's `z.toJSONSchema()`, the input side), once at start: nothing to
 declare twice, nothing to drift from what PUT checks.
 
-| Field | When | What |
-| --- | --- | --- |
-| `type` | always | `boolean`, `number`, `string`, `enum`, or `json` for anything else (an object, an array, a union, a nullable value) |
-| `options` | `enum` | the values (`z.enum([...])`, or a union of literals) |
-| `min`, `max` | `number`, when declared | inclusive bounds (`.min()`, `.max()`; exclusive ones, `.positive()`, are in `schema` only) |
-| `integer` | `number` | `true` for `.int()` |
-| `maxLength` | `string`, when declared | `.max()` |
-| `schema` | always | the value's JSON Schema (draft 2020-12): patterns, exclusive bounds, an object's shape |
+| Field        | When                    | What                                                                                                                |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `type`       | always                  | `boolean`, `number`, `string`, `enum`, or `json` for anything else (an object, an array, a union, a nullable value) |
+| `options`    | `enum`                  | the values (`z.enum([...])`, or a union of literals)                                                                |
+| `min`, `max` | `number`, when declared | inclusive bounds (`.min()`, `.max()`; exclusive ones, `.positive()`, are in `schema` only)                          |
+| `integer`    | `number`                | `true` for `.int()`                                                                                                 |
+| `maxLength`  | `string`, when declared | `.max()`                                                                                                            |
+| `schema`     | always                  | the value's JSON Schema (draft 2020-12): patterns, exclusive bounds, an object's shape                              |
 
 `type` is for simple forms; `schema` says the rest, for a generic JSON
 editor or a validator. What JSON Schema can't say (a `refine()`, a

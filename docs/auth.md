@@ -399,6 +399,7 @@ with the password (and with a token client's passkey).
 | `GET /v1/auth/oidc/{provider}/login?link=true` | a linked provider lets whoever linked it back in at will (a plain sign-in isn't asked). The browser navigates here, so a stale session isn't answered with the 403 problem but sent to the web app: `redirectTo` (else its root) with `?error=reauthentication_required`; the frontend asks `GET /v1/auth/reauthenticate` before it starts a link, and spares the round trip. Nobody signed in: 401 |
 | `DELETE /v1/auth/identities/{provider}` | removes a way to sign in |
 | `POST /v1/auth/passkeys/registration/options`, `POST /v1/auth/passkeys` | a stolen session must not add its own passkey, a way back in at will |
+| `PATCH /v1/auth/passkeys/{id}` | the name is what the owner reads in alerts and lists: a stolen session must not relabel its own passkey as the owner's |
 | `DELETE /v1/auth/passkeys/{id}` | removes a way to sign in |
 | `POST /v1/account/deletion` | irreversible after the grace period. The password stays required too (when the account has one): within the window a stolen session can enrol its own authenticator, and re-authenticating with that must not be enough to lock the owner out of "sign in and cancel". Passwordless accounts: step-up alone |
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
@@ -581,6 +582,12 @@ tenant): `member.signed-in`, with `details.method` (and `via`, `userAgent`).
 A wrong password to a real account writes `member.sign-in-failed` the same
 way, in that account's default tenant, after the 401 is sent and not waited
 for (an unknown address has no tenant, and the two must take the same time).
+So does a token sign-in (`POST /v1/auth/token`, `/v1/auth/passkeys/token`)
+whose credentials held but whose `tenantId` names a tenant the user isn't a
+member of (`details.reason: tenant`), next to an account-level
+`auth.sign-in-failed` that names the tenant asked for; never in the tenant
+named, whose administrators learn nothing of someone who isn't theirs
+(`SignInLog.tenantRefused`).
 `SignInLog` writes them. Not logged: wrong passkey assertions, magic links and
 provider failures (no account is known), a wrong second factor.
 
@@ -626,6 +633,15 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   origin. That header narrows the configured origins, never widens them:
   the library checks `clientDataJSON.origin` and the RP ID hash against
   configuration.
+- **Never in a frame.** A ceremony whose `clientDataJSON` says
+  `crossOrigin: true`, or names a `topOrigin`, ran in an iframe of another
+  page (which could frame the real origin) and is refused, registering
+  (400, `reason: cross-origin`) and signing in or re-authenticating (401 /
+  403), after its challenge is spent (`isCrossOriginCeremony()`). Custom:
+  @simplewebauthn/server checks `topOrigin` only for assertions (refused
+  without `expectedTopOrigin`, which is never given), accepts
+  `crossOrigin: true` without one (Safari sends none) and checks neither
+  when registering.
 - **User verification.** Every ceremony asks for it (`required`).
   Registering wants the `uv` flag (a passkey that can't verify its user
   could never be a second factor: 400 `passkey_invalid`, `reason:
@@ -641,7 +657,9 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   (`metadata.tenantId`, set by the store), or none for a user without a
   tenant (who still signs in). The token route takes `tenantId` like
   `POST /v1/auth/token`: a tenant the user isn't a member of is the same
-  401 as a refused assertion; the tokens carry it as `tid`.
+  401 as a refused assertion, audited as a failed sign-in with `reason:
+  tenant` ([sign-in log](#sign-in-log-tenant-administrators)); the tokens
+  carry it as `tid`.
 - **Verify first.** An account whose address was never proved (a self
   sign-up) can't register a passkey (403 `email_unverified`, as for
   two-factor and providers), and a passkey never signs it in (403
@@ -651,7 +669,7 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   `userVerified`) and a new device is told as for any sign-in. A refused
   assertion is a 401 that says nothing more, audited as
   `auth.sign-in-failed` with `details.reason` (`challenge`, `origin`,
-  `user`, `unknown`, `counter`, `invalid`…).
+  `cross-origin`, `user`, `unknown`, `counter`, `invalid`…).
 - **Usernameless or with an email.** Without an email, the options list no
   credentials and the browser offers the site's discoverable ones; the
   user handle (the user id's 16 bytes, no personal data) must match the
@@ -718,7 +736,8 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   the last-method checks, re-authentication, tokens, the limits, the
   export and the association files; `security.e2e-spec.ts` has the races
   (one challenge answered twice at once, a passkey and a provider removed
-  at once) and a forged user handle; `passkeys.config.spec.ts` and
+  at once), a forged user handle, cross-origin ceremonies, a stale rename
+  and the audited foreign-tenant token sign-in; `passkeys.config.spec.ts` and
   `env.spec.ts` the configuration checks.
 
 ## Bot protection
