@@ -118,6 +118,7 @@ import { JwtAuth } from './auth/jwt-auth.provider.js';
 import { PrincipalGuard } from './auth/principal.guard.js';
 import { AuthPolicyService } from './auth/auth-policy.service.js';
 import { MfaEnrollmentGuard } from './auth/mfa-enrollment.guard.js';
+import { SsoRequiredGuard } from './sso/sso-required.guard.js';
 import { SessionAuth } from './auth/session-auth.provider.js';
 import { UsersRepository } from './auth/users.repository.js';
 import type { IamEnv } from './iam.env.js';
@@ -334,6 +335,9 @@ export class IamModule {
         // two-factor of, without one, reaches only the enrollment routes
         // (auth.requireMfa, docs/auth.md "Policies").
         { provide: APP_GUARD, useClass: MfaEnrollmentGuard },
+        // After it: "SSO required" (docs/auth.md), on the principal's own
+        // session and tenant: before a break-glass grant moves the request.
+        { provide: APP_GUARD, useClass: SsoRequiredGuard },
         // Then, still before authorization: a request naming a break-glass
         // grant moves to the tenant it opened, read only (docs/tenancy.md).
         { provide: APP_GUARD, useClass: BreakGlassGuard },

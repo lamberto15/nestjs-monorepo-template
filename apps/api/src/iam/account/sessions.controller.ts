@@ -32,6 +32,7 @@ import { UserOnly } from '../auth/user-only.decorator.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
 import { AccountService } from './account.service.js';
 import { notWhileImpersonating } from './account.schemas.js';
+import { WithoutSso } from '../sso/sso-required.guard.js';
 
 const sessionSchema = z.object({
   id: z.string(),
@@ -104,6 +105,7 @@ export class SessionsController {
   }
 
   @DuringMfaEnrollment()
+  @WithoutSso()
   @Post('sign-out-everywhere')
   @HttpCode(204)
   @ApiOperation({ summary: 'Sign out of every browser and every app' })

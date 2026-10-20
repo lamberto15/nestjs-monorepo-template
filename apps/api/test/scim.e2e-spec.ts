@@ -285,8 +285,22 @@ describe('SCIM provisioning (e2e)', () => {
     // A team of the tenant, as the access API shows it.
     const teams = await node.admin().get('/v1/access/teams').expect(200);
     expect(
-      teams.body.items.some((team: { id: string }) => team.id === group.id),
-    ).toBe(true);
+      teams.body.items.find((team: { id: string }) => team.id === group.id),
+    ).toMatchObject({ managedByScim: true });
+    // Read-only in the app: the IdP manages its name, place and members.
+    const renamed = await node
+      .admin()
+      .patch(`/v1/access/teams/${group.id}`)
+      .send({ name: 'Renamed here' })
+      .expect(409);
+    expect(renamed.body.code).toBe('team_managed_by_scim');
+    await node.admin().delete(`/v1/access/teams/${group.id}`).expect(409);
+    const joined = await node
+      .admin()
+      .patch(`/v1/access/users/${outsider.id}`)
+      .send({ teamIds: [group.id] })
+      .expect(409);
+    expect(joined.body.code).toBe('team_managed_by_scim');
     // PATCH: add one, remove one (by filter), rename.
     const patched = await as(scim)
       .patch(`/Groups/${group.id}`, {

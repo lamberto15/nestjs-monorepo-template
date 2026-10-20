@@ -9,8 +9,9 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
-import { CurrentUser } from '@nestjs/authentication';
+import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import {
   ApiAcceptedResponse,
@@ -32,12 +33,16 @@ import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
 import { SsoConnectionsService } from './sso-connections.service.js';
 import { SsoDomainsService } from './sso-domains.service.js';
+import { SsoPolicyService } from './sso-policy.service.js';
 import {
   acceptedSchema,
   connectionSchema,
   createConnectionSchema,
   domainSchema,
   domainViewSchema,
+  exemptSchema,
+  policySchema,
+  policyViewSchema,
   updateConnectionSchema,
 } from './sso.schemas.js';
 
@@ -55,6 +60,7 @@ export class SsoController {
   constructor(
     private readonly connections: SsoConnectionsService,
     private readonly domains: SsoDomainsService,
+    private readonly policy: SsoPolicyService,
   ) {}
 
   @Get('connections')
@@ -198,5 +204,76 @@ export class SsoController {
     @Ip() ip: string,
   ) {
     await this.domains.remove(user, id, ip);
+  }
+
+  @Get('policy')
+  @Can(AccessPolicy, 'manageSso')
+  @ApiOperation({
+    summary: 'Whether the tenant requires SSO, and who is exempted',
+  })
+  @ApiOkResponse({ standardSchema: policyViewSchema })
+  getPolicy() {
+    return this.policy.get();
+  }
+
+  @Put('policy')
+  @Can(AccessPolicy, 'manageSso')
+  @RecentAuthentication()
+  @ApiOperation({
+    summary: 'Require SSO (or stop): members sign in only through a connection',
+    description:
+      'Turning it on needs an enabled connection, and you signed in through one of them or exempted (else 409 `sso_lockout`: you would lock yourself out). It applies to sessions already open at their next request.',
+  })
+  @ApiOkResponse({ standardSchema: policyViewSchema })
+  @ApiConflictResponse({
+    description: '`sso_connection_required`, `sso_lockout`.',
+  })
+  setPolicy(
+    @CurrentUser() user: UserPrincipal,
+    @CurrentSession() session: unknown,
+    @Body({ schema: policySchema }) body: z.infer<typeof policySchema>,
+    @Ip() ip: string,
+  ) {
+    return this.policy.setRequired(user, session, body.requireSso, ip);
+  }
+
+  @Put('exemptions/:userId')
+  @Can(AccessPolicy, 'manageSso')
+  @RecentAuthentication()
+  @ApiOperation({
+    summary:
+      'Exempt a member from "SSO required" (break-glass): their password and passkey still sign in',
+    description:
+      'For an emergency administrator, when the IdP is down or misconfigured. Each sign-in it allows is audited (`sso.exemption-used`). Give it to few, with two-factor on.',
+  })
+  @ApiOkResponse({ standardSchema: policyViewSchema })
+  @ApiNotFoundResponse({ description: 'Not an active member.' })
+  async exempt(
+    @CurrentUser() user: UserPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body({ schema: exemptSchema }) body: z.infer<typeof exemptSchema>,
+    @Ip() ip: string,
+  ) {
+    await this.policy.exempt(user, userId, body.reason, ip);
+    return this.policy.get();
+  }
+
+  @Delete('exemptions/:userId')
+  @Can(AccessPolicy, 'manageSso')
+  @RecentAuthentication()
+  @HttpCode(204)
+  @ApiOperation({ summary: 'End an exemption' })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ description: 'Not exempted.' })
+  @ApiConflictResponse({
+    description: '`sso_lockout`: your own, while it is how you are signed in.',
+  })
+  async removeExemption(
+    @CurrentUser() user: UserPrincipal,
+    @CurrentSession() session: unknown,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Ip() ip: string,
+  ) {
+    await this.policy.removeExemption(user, session, userId, ip);
   }
 }

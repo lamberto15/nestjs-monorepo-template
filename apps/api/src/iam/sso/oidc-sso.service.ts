@@ -185,6 +185,7 @@ export class OidcSso {
         emailVerified: claims.email_verified === true,
         name: typeof claims.name === 'string' ? claims.name : undefined,
         authenticatedAt: authTimeOf(claims),
+        groups: claimStrings(claims[connection.groupsAttribute ?? 'groups']),
       },
       redirectTo: request.redirectTo,
     };
@@ -207,4 +208,13 @@ export class OidcSso {
     }
     return configuration;
   }
+}
+
+/** A claim's string values: an array's strings, or one string; else none. */
+function claimStrings(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

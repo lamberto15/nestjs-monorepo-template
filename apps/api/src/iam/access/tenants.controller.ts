@@ -58,6 +58,7 @@ import { AccessPolicy } from './policies.js';
 import { TenantSwitchService } from './tenant-switch.service.js';
 import { TENANT_LIST } from './tenants.lists.js';
 import { TenantsService } from './tenants.service.js';
+import { WithoutSso } from '../sso/sso-required.guard.js';
 
 const myTenantSchema = z.object({
   id: z.uuid(),
@@ -254,6 +255,7 @@ export class TenantSwitchController {
   @UserOnly()
   @Can.Anyone()
   @DuringMfaEnrollment()
+  @WithoutSso()
   @Get('tenants')
   @ApiCookieAuth('user-session')
   @ApiOperation({
@@ -269,6 +271,7 @@ export class TenantSwitchController {
   @SessionOnly()
   @Can.Anyone()
   @DuringMfaEnrollment()
+  @WithoutSso()
   @Post('tenant')
   @HttpCode(204)
   @ApiCookieAuth('user-session')
@@ -304,6 +307,7 @@ export class TenantSwitchController {
   // The global limit only: a token is 256 random bits (nothing to guess),
   // and the one hash a new account costs waits in PasswordHashLimiter.
   @DuringMfaEnrollment()
+  @WithoutSso()
   @Post('invitations/accept')
   @HttpCode(200)
   @ApiOperation({

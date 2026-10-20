@@ -45,6 +45,7 @@ import {
   scimUserSchema,
   ScimUsersService,
 } from './scim-users.service.js';
+import { minutes, Throttle } from '@nestjs/throttler';
 
 const listQuerySchema = z.object({
   filter: z.string().optional(),
@@ -68,7 +69,14 @@ const patchBody = {
  * key) whose role holds `Access.provisionScim`: its tenant is the one
  * provisioned. Errors are SCIM's (`application/scim+json`), not problem
  * details.
+ *
+ * Rate: an IdP's full sync (Entra ID, Okta) sends thousands of requests
+ * from a handful of addresses, which the default per-address limit (600 a
+ * minute) would cut short; SCIM gets ten times that, and the client's
+ * daily quota (platform/usage) still meters it. Raised, not skipped: an
+ * unknown token is throttled too.
  */
+@Throttle({ default: { limit: 6000, ttl: minutes(1) } })
 @ApiTags('scim')
 @ApiBearerAuth('api-key')
 @ApiProduces(SCIM_CONTENT_TYPE)

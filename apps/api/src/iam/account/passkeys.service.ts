@@ -46,7 +46,8 @@ import {
 import { REDIS } from '../../core/redis/redis.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { AuditService } from '../audit/audit.service.js';
-import { signInOptions, tokenClaims } from '../auth/authentication-method.js';
+import { methodMetadata, tokenClaims } from '../auth/authentication-method.js';
+import { SsoPolicyService } from '../sso/sso-policy.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import type { IamEnv } from '../iam.env.js';
@@ -228,6 +229,7 @@ export class PasskeysService {
     private readonly sessions: SessionService,
     private readonly tokens: TokenService,
     private readonly tenancy: Tenancy,
+    private readonly ssoPolicy: SsoPolicyService,
     config: ConfigService<IamEnv & CoreEnv, true>,
   ) {
     this.settings = passkeySettingsOf(config);
@@ -550,7 +552,7 @@ export class PasskeysService {
    * A browser's sign-in with a passkey: the assertion is verified (401 for
    * anything that doesn't hold, audited as a failed sign-in, with nothing
    * said about why), the session is made by the package as for a password
-   * (`signInOptions('passkey')`: the method lands in its metadata), and a
+   * (`passkey`, with the tenant "SSO required" allows: the method lands in its metadata), and a
    * verified user (`uv`) completes a pending second factor in place: the
    * session is rotated to `mfa: verified` with `authenticatedAt` now, and
    * the new cookie is returned for the route to set. Audited, and the user
@@ -567,10 +569,19 @@ export class PasskeysService {
       context.ip,
     );
     assertVerified(user);
-    let issued: IssuedSession = await this.signInService.signIn(
-      user.id,
-      signInOptions('passkey'),
+    // A tenant that lets a passkey in ("SSO required": 403 when none does).
+    const tenantId = await this.ssoPolicy.signInTenant(
+      user,
+      'passkey',
+      context.ip,
     );
+    let issued: IssuedSession = await this.signInService.signIn(user.id, {
+      method: 'passkey',
+      metadata: {
+        ...methodMetadata('passkey'),
+        ...(tenantId && { tenantId }),
+      },
+    });
     let cookie: string | undefined;
     if (issued.session.mfa === 'pending' && userVerified) {
       // The authenticator verified its user: both factors are done. The
@@ -625,7 +636,7 @@ export class PasskeysService {
     // else the last chosen; none for a user without a tenant.
     const tenant =
       tenantId === undefined
-        ? await this.users.defaultTenant(user.id)
+        ? await this.ssoPolicy.signInTenant(user, 'passkey', context.ip)
         : (await this.users.isMember(user.id, tenantId))
           ? tenantId
           : null;
@@ -637,6 +648,15 @@ export class PasskeysService {
         details: { passkey: passkey.id },
       });
       throw new UnauthorizedException(t('auth.passkeyInvalid'));
+    }
+    if (tenantId !== undefined && tenant) {
+      // "SSO required": 403 when that tenant doesn't let a passkey in.
+      await this.ssoPolicy.assertSignInTenant(
+        user,
+        tenant,
+        'passkey',
+        context.ip,
+      );
     }
     const tokens = await this.tokens.issue(user.id, {
       method: 'passkey',

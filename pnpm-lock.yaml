@@ -304,6 +304,9 @@ importers:
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
+      '@xmldom/xmldom':
+        specifier: 0.8.15
+        version: 0.8.15
       bullmq:
         specifier: ^6.3.15
         version: 6.3.15(ioredis@6.0.0(supports-color@10.2.2))(pg@8.23.1)
@@ -349,6 +352,9 @@ importers:
       scim2-parse-filter:
         specifier: 0.3.0
         version: 0.3.0
+      selfsigned:
+        specifier: 5.5.0
+        version: 5.5.0
       socket.io:
         specifier: ^4.8.4
         version: 4.8.4(supports-color@10.2.2)
@@ -392,15 +398,15 @@ importers:
       '@types/web-push':
         specifier: 3.6.4
         version: 3.6.4
+      '@types/xml-encryption':
+        specifier: 1.2.4
+        version: 1.2.4
       '@vitest/coverage-v8':
         specifier: ^5.0.4
         version: 5.0.4(vitest@5.0.4)
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
-      selfsigned:
-        specifier: 5.5.0
-        version: 5.5.0
       socket.io-client:
         specifier: ^4.8.4
         version: 4.8.4(supports-color@10.2.2)
@@ -419,6 +425,9 @@ importers:
       xml-crypto:
         specifier: 6.4.0
         version: 6.4.0
+      xml-encryption:
+        specifier: 4.0.0
+        version: 4.0.0
 
   apps/web:
     dependencies:
@@ -7769,6 +7778,9 @@ packages:
   xml-encryption@3.1.0:
     resolution: {integrity: sha512-PV7qnYpoAMXbf1kvQkqMScLeQpjCMixddAKq9PtqVrho8HnYbBOWNfG0kA4R7zxQDo7w9kiYAyzS/ullAyO55Q==}
 
+  xml-encryption@4.0.0:
+    resolution: {integrity: sha512-UvSSRKoDfmyH/ECiKPbhHXMKhcXKOYLva7ifmzitN4BNXLAfdgez+nQANJ3jllmY42D5bdeVvIK0Y7hzcAAlyQ==}
+
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
     engines: {node: '>=18'}
@@ -14806,6 +14818,12 @@ snapshots:
       xpath: 0.0.33
 
   xml-encryption@3.1.0:
+    dependencies:
+      '@xmldom/xmldom': 0.8.15
+      escape-html: 1.0.3
+      xpath: 0.0.32
+
+  xml-encryption@4.0.0:
     dependencies:
       '@xmldom/xmldom': 0.8.15
       escape-html: 1.0.3

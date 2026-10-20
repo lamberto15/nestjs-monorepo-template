@@ -11,7 +11,10 @@ import {
   SsoConnectionGuard,
 } from './sso-auth.controller.js';
 import { SsoConnectionsService } from './sso-connections.service.js';
+import { SsoDiscoveryController } from './sso-discovery.controller.js';
+import { SsoDiscovery } from './sso-discovery.service.js';
 import { SsoDomainsService } from './sso-domains.service.js';
+import { SsoPolicyService } from './sso-policy.service.js';
 import { SsoController } from './sso.controller.js';
 import { SsoProcessor } from './sso.processor.js';
 import { SSO_QUEUE, SSO_TXT_RESOLVER } from './sso.queue.js';
@@ -26,6 +29,7 @@ export const ssoImports = [BullModule.registerQueue({ name: SSO_QUEUE })];
 
 export const ssoControllers = [
   SsoController,
+  SsoDiscoveryController,
   SsoAuthController,
   ScimController,
 ];
@@ -33,6 +37,8 @@ export const ssoControllers = [
 export const ssoProviders = [
   SsoConnectionsService,
   SsoDomainsService,
+  SsoPolicyService,
+  SsoDiscovery,
   SsoAccounts,
   OidcSso,
   SamlSso,

@@ -1,17 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { SignInService } from '@nestjs/authentication';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, lte } from 'drizzle-orm';
 import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { SecurityAlertsService } from '../account/security-alerts.service.js';
+import { AccessAdminService } from '../access/access-admin.service.js';
+import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { methodMetadata } from '../auth/authentication-method.js';
 import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
-import { memberships, userIdentities, users } from '../iam.tables.js';
+import {
+  memberships,
+  userIdentities,
+  userRoles,
+  users,
+} from '../iam.tables.js';
+import { ssoRoleGrants, ssoRoleMappings } from './sso.tables.js';
 import { emailDomain, SsoDomainsService } from './sso-domains.service.js';
 import type { SsoConnection } from './sso-connections.service.js';
 
@@ -29,6 +37,8 @@ export interface SsoIdentity {
   name?: string;
   /** When the IdP authenticated the person, when it says (`auth_time`, `AuthnInstant`). */
   authenticatedAt?: Date;
+  /** The groups the IdP lists (the connection's `groupsAttribute`), for its role mappings. */
+  groups?: string[];
 }
 
 /** A sign-in refused: `reason` goes to the audit log, never to the browser. */
@@ -56,7 +66,8 @@ export const ssoProvider = (connectionId: string) => `sso:${connectionId}`;
  * - no membership yet: one is made only with just-in-time provisioning on
  *   (and the account too, when the address has none).
  *
- * Then the session (`method: sso`, `provider: <connection id>`, in the
+ * Then the roles the connection maps the IdP's groups to (`syncRoles()`),
+ * and the session (`method: sso`, `provider: <connection id>`, in the
  * connection's tenant), audited and alerted as any sign-in.
  */
 @Injectable()
@@ -70,10 +81,26 @@ export class SsoAccounts {
     private readonly audit: AuditService,
     private readonly signInService: SignInService,
     private readonly securityAlerts: SecurityAlertsService,
+    private readonly accessAdmin: AccessAdminService,
+    private readonly access: AccessService,
   ) {}
 
   /** The account to sign in, or SsoRefused. Runs in the connection's tenant. */
   async resolve(connection: SsoConnection, identity: SsoIdentity) {
+    const { userId, rolesChanged } = await this.resolveInTransaction(
+      connection,
+      identity,
+    );
+    if (rolesChanged) {
+      this.access.invalidate();
+    }
+    return userId;
+  }
+
+  private async resolveInTransaction(
+    connection: SsoConnection,
+    identity: SsoIdentity,
+  ) {
     const provider = ssoProvider(connection.id);
     const tenantId = connection.tenantId;
     return inTransaction(this.txHost, async (tx) => {
@@ -91,8 +118,22 @@ export class SsoAccounts {
         if (!known.active) {
           throw new SsoRefused('account_inactive');
         }
-        await this.ensureMember(tx, connection, known.userId, identity);
-        return known.userId;
+        const provisioned = await this.ensureMember(
+          tx,
+          connection,
+          known.userId,
+          identity,
+        );
+        return {
+          userId: known.userId,
+          rolesChanged: await this.syncRoles(
+            tx,
+            connection,
+            known.userId,
+            identity,
+            provisioned,
+          ),
+        };
       }
       const email = identity.email ? normalizeEmail(identity.email) : undefined;
       if (!email) {
@@ -138,7 +179,12 @@ export class SsoAccounts {
           tx,
         );
       }
-      await this.ensureMember(tx, connection, userId, identity);
+      const provisioned = await this.ensureMember(
+        tx,
+        connection,
+        userId,
+        identity,
+      );
       await tx.insert(userIdentities).values({
         provider,
         subject: identity.subject,
@@ -155,14 +201,179 @@ export class SsoAccounts {
         },
         tx,
       );
-      return userId;
+      return {
+        userId,
+        rolesChanged: await this.syncRoles(
+          tx,
+          connection,
+          userId,
+          identity,
+          provisioned,
+        ),
+      };
     });
   }
 
   /**
+   * The roles the connection gives (docs/auth.md, "Roles from the IdP"), in
+   * the sign-in's transaction; whether any grant changed.
+   *
+   * - A member it just provisioned gets its default roles (`group` null),
+   *   once: theirs to keep, as an invitation's.
+   * - With group mappings, at every sign-in: the roles of the groups the IdP
+   *   lists are granted (marked in `sso_role_grants`), and those a mapping of
+   *   this connection granted whose group it no longer lists are taken back.
+   *   A role the member holds otherwise (an administrator's grant) is left
+   *   alone, given or not. Without group mappings nothing is touched.
+   * - Taking back the tenant's last administrator role is skipped (a
+   *   savepoint, audited): the IdP can't lock the tenant out.
+   *
+   * No grant check here: the administrator who set the mappings had to be
+   * able to grant each role (SsoConnectionsService).
+   */
+  private async syncRoles(
+    tx: Transaction,
+    connection: SsoConnection,
+    userId: string,
+    identity: SsoIdentity,
+    provisioned: boolean,
+  ) {
+    const mappings = await tx
+      .select({ group: ssoRoleMappings.group, roleId: ssoRoleMappings.roleId })
+      .from(ssoRoleMappings)
+      .where(eq(ssoRoleMappings.connectionId, connection.id));
+    if (mappings.length === 0) {
+      return false;
+    }
+    const now = new Date();
+    // A grant that ended counts as none (a later grant replaces it).
+    await tx
+      .delete(userRoles)
+      .where(
+        and(
+          eq(userRoles.tenantId, connection.tenantId),
+          eq(userRoles.userId, userId),
+          lte(userRoles.expiresAt, now),
+        ),
+      );
+    const held = new Set(
+      (
+        await tx
+          .select({ roleId: userRoles.roleId })
+          .from(userRoles)
+          .where(
+            and(
+              eq(userRoles.tenantId, connection.tenantId),
+              eq(userRoles.userId, userId),
+            ),
+          )
+      ).map((row) => row.roleId),
+    );
+    const added: string[] = [];
+    if (provisioned) {
+      const defaults = mappings
+        .filter((mapping) => mapping.group === null)
+        .map((mapping) => mapping.roleId)
+        .filter((roleId) => !held.has(roleId));
+      if (defaults.length > 0) {
+        await tx
+          .insert(userRoles)
+          .values(defaults.map((roleId) => ({ userId, roleId })))
+          .onConflictDoNothing();
+        defaults.forEach((roleId) => held.add(roleId));
+        added.push(...defaults);
+      }
+    }
+    const grouped = mappings.filter((mapping) => mapping.group !== null);
+    let removed: string[] = [];
+    let kept: string[] = [];
+    if (grouped.length > 0) {
+      const listed = new Set(identity.groups ?? []);
+      const wanted = new Set(
+        grouped
+          .filter((mapping) => listed.has(mapping.group!))
+          .map((mapping) => mapping.roleId),
+      );
+      const granting = [...wanted].filter((roleId) => !held.has(roleId));
+      if (granting.length > 0) {
+        await tx
+          .insert(userRoles)
+          .values(granting.map((roleId) => ({ userId, roleId })))
+          .onConflictDoNothing();
+        await tx
+          .insert(ssoRoleGrants)
+          .values(
+            granting.map((roleId) => ({
+              userId,
+              roleId,
+              connectionId: connection.id,
+            })),
+          )
+          .onConflictDoNothing();
+        added.push(...granting);
+      }
+      const ours = await tx
+        .select({ roleId: ssoRoleGrants.roleId })
+        .from(ssoRoleGrants)
+        .where(
+          and(
+            eq(ssoRoleGrants.userId, userId),
+            eq(ssoRoleGrants.connectionId, connection.id),
+          ),
+        );
+      const taking = ours
+        .map((row) => row.roleId)
+        .filter((roleId) => !wanted.has(roleId));
+      if (taking.length > 0) {
+        try {
+          // A savepoint: refused, the grants stay and the sign-in goes on.
+          await tx.transaction(async (savepoint) => {
+            await savepoint
+              .delete(userRoles)
+              .where(
+                and(
+                  eq(userRoles.userId, userId),
+                  inArray(userRoles.roleId, taking),
+                ),
+              );
+            await this.accessAdmin.assertAnAdministratorRemains(savepoint);
+          });
+          removed = taking;
+        } catch (error) {
+          if (!(error instanceof ConflictException)) {
+            throw error;
+          }
+          kept = taking;
+        }
+      }
+    }
+    if (added.length === 0 && removed.length === 0 && kept.length === 0) {
+      return false;
+    }
+    await this.audit.record(
+      null,
+      {
+        action: 'sso.roles-synced',
+        targetType: 'user',
+        targetId: userId,
+        details: {
+          connectionId: connection.id,
+          added,
+          removed,
+          // Not taken back: the tenant's last administrator.
+          ...(kept.length > 0 && { keptLastAdministrator: kept }),
+        },
+      },
+      tx,
+    );
+    return added.length > 0 || removed.length > 0;
+  }
+
+  /**
    * The user is an active member of the connection's tenant: already, or
-   * now (just-in-time, for an address of a verified domain). A deactivated
-   * membership (deprovisioned) is refused, never brought back by a sign-in.
+   * now (just-in-time, for an address of a verified domain; true). A
+   * deactivated membership (deprovisioned) is refused, never brought back
+   * by a sign-in.
    */
   private async ensureMember(
     tx: Transaction,
@@ -184,7 +395,7 @@ export class SsoAccounts {
       if (!membership.active) {
         throw new SsoRefused('membership_inactive');
       }
-      return;
+      return false;
     }
     if (!connection.jitProvisioning) {
       throw new SsoRefused('not_a_member');
@@ -220,6 +431,7 @@ export class SsoAccounts {
       userId,
       connectionId: connection.id,
     });
+    return true;
   }
 
   /**

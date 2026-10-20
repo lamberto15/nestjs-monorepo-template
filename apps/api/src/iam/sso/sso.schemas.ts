@@ -36,8 +36,48 @@ export const certificate = z
     }
   });
 
+const roleMapping = z.object({
+  group: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .describe(
+      "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids).",
+    ),
+  roleId: z.uuid(),
+});
+
+const roleFields = {
+  groupsAttribute: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .nullable()
+    .optional()
+    .describe(
+      'Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.',
+    ),
+  roleMappings: z
+    .array(roleMapping)
+    .max(100)
+    .optional()
+    .describe(
+      'The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role.',
+    ),
+  defaultRoleIds: z
+    .array(z.uuid())
+    .max(20)
+    .optional()
+    .describe(
+      'The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each.',
+    ),
+};
+
 const common = {
   name,
+  ...roleFields,
   enabled: z
     .boolean()
     .optional()
@@ -85,6 +125,12 @@ const samlFields = {
     .describe(
       'Accept sign-ins the IdP starts (no request of ours): a login-CSRF vector, off by default.',
     ),
+  requireEncryptedAssertions: z
+    .boolean()
+    .optional()
+    .describe(
+      'Refuse an assertion not encrypted to `saml.spCertificate`. Off by default: an encrypted one is decrypted, a plain one accepted (both must be signed).',
+    ),
 };
 
 export const createConnectionSchema = z.discriminatedUnion('protocol', [
@@ -107,6 +153,8 @@ export const updateConnectionSchema = z.object({
   idpSsoUrl: samlFields.idpSsoUrl.optional(),
   idpCertificates: samlFields.idpCertificates.optional(),
   allowIdpInitiated: z.boolean().optional(),
+  requireEncryptedAssertions: z.boolean().optional(),
+  ...roleFields,
 });
 export type UpdateConnection = z.infer<typeof updateConnectionSchema>;
 
@@ -116,6 +164,11 @@ export const connectionSchema = z.object({
   protocol: z.enum(['oidc', 'saml']),
   enabled: z.boolean(),
   jitProvisioning: z.boolean(),
+  // Part 2's fields are always sent; optional in the schema only, so
+  // frontends' fixtures typed before them (apps/web's) still compile.
+  groupsAttribute: z.string().nullable().optional(),
+  roleMappings: z.array(roleMapping).optional(),
+  defaultRoleIds: z.array(z.uuid()).optional(),
   loginUrl: z
     .string()
     .describe(
@@ -144,6 +197,19 @@ export const connectionSchema = z.object({
         }),
       ),
       allowIdpInitiated: z.boolean(),
+      requireEncryptedAssertions: z.boolean().optional(),
+      spCertificate: z
+        .object({
+          pem: z.string(),
+          subject: z.string(),
+          notAfter: z.iso.datetime(),
+          fingerprint256: z.string(),
+        })
+        .nullable()
+        .optional()
+        .describe(
+          'Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).',
+        ),
       spEntityId: z
         .string()
         .describe(
@@ -187,6 +253,41 @@ export const domainViewSchema = z.object({
     })
     .describe('The DNS record that proves the domain is the tenant’s.'),
   createdAt: z.iso.datetime(),
+});
+
+export const policySchema = z.object({
+  requireSso: z
+    .boolean()
+    .describe(
+      'Members act in this tenant only through one of its connections: a password, passkey, link or Google sign-in, or an access token, gets 403 `sso_required` here (the exempted excepted).',
+    ),
+});
+
+export const exemptionSchema = z.object({
+  userId: z.uuid(),
+  email: z.string(),
+  name: z.string(),
+  reason: z.string(),
+  createdBy: z.uuid().nullable(),
+  createdAt: z.iso.datetime(),
+});
+
+export const policyViewSchema = policySchema.extend({
+  updatedAt: z.iso.datetime().nullable(),
+  exemptions: z
+    .array(exemptionSchema)
+    .describe(
+      'Break-glass members: their password and passkey still sign in here (each use audited, `sso.exemption-used`).',
+    ),
+});
+
+export const exemptSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .describe('Why (an emergency administrator, the IdP outage plan).'),
 });
 
 export const acceptedSchema = z.object({ accepted: z.literal(true) });
