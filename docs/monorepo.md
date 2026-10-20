@@ -158,6 +158,16 @@ web app needs the API, so `dev:web` alone suits an API already running.
   button off for the limit's 15 minutes. Nobody signed in has no session to
   ask with (sign-in refuses an unproved password account), so the sign-up and
   sign-in pages cannot offer it until the API has a public resend.
+- **The breached-password alert** (`components/breached-password-banner.tsx`,
+  `features/notifications/breach-alert.ts`): while the user has an unread
+  `security.passwordBreached` notification (the API has no `/me` flag for
+  it), a red banner in the signed-in layout links to `/account/security`.
+  It reads `GET /v1/notifications?read=false&type=…` under the notifications
+  `list` key, so the realtime event and every mark-read refresh it (no loop
+  of its own). Reading the notification, or changing the password in
+  `PasswordSection` (which marks it read), hides it; none while impersonating.
+  In the list the row gets a shield icon, a tint and a "Change your password"
+  link to the same page (the API sends the notification without a link).
 - **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
   `realtime` is on, reopened when the session changes (tenant switch,
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The

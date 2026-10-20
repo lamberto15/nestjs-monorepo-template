@@ -10,6 +10,7 @@ import { TooltipProvider } from '@nestjs-monorepo-template/ui/components/tooltip
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
+import { BreachedPasswordBanner } from '@/components/breached-password-banner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
@@ -48,6 +49,7 @@ function AppLayout() {
           <SidebarInset>
             <ImpersonationBanner />
             <UnverifiedBanner />
+            <BreachedPasswordBanner />
             <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger className="-ms-1" />
               <Separator
