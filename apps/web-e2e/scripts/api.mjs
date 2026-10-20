@@ -47,8 +47,9 @@ const env = {
   MAIL_TRANSPORT: 'log',
   STORAGE_DRIVER: 'local',
   PASSWORD_BREACH_CHECK: 'off',
-  // Devices and phone numbers are encrypted columns with blind indexes
-  // (docs/encryption.md): their keys are required at boot, made per run.
+  // SSO connections, devices and phone numbers are encrypted columns, the
+  // last two with blind indexes (docs/encryption.md): their keys are required
+  // at boot, made per run.
   DATA_ENCRYPTION_KEYS: randomBytes(32).toString('base64'),
   BLIND_INDEX_KEYS: randomBytes(32).toString('base64'),
   // The suite signs in a few times per account on a database that may be reused.

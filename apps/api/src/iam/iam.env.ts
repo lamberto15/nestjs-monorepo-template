@@ -280,6 +280,14 @@ export const iamEnv = z.object({
   MICROSOFT_CLIENT_SECRET: secret(optional()),
   GITHUB_CLIENT_ID: optional(),
   GITHUB_CLIENT_SECRET: secret(optional()),
+
+  /**
+   * Development and tests only: a tenant's OpenID Connect issuer (and its
+   * endpoints) may be `http://` on loopback or a private network, as a
+   * local identity provider is. Off: only public `https://` hosts
+   * (docs/auth.md, "Enterprise SSO").
+   */
+  SSO_ALLOW_LOOPBACK: flag('off'),
 });
 
 export type IamEnv = z.output<typeof iamEnv>;

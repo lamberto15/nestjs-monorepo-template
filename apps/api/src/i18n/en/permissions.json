@@ -14,7 +14,9 @@
       "readAudit": "Read the audit log",
       "readConsolidated": "Read the tenants below this one in its tenant tree, read-only (consolidated reports of a holding)",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
-      "impersonate": "Act as another user (support), never as an administrator"
+      "impersonate": "Act as another user (support), never as an administrator",
+      "manageSso": "Set up the tenant's single sign-on: SAML and OpenID Connect connections, verified email domains",
+      "provisionScim": "Provision users and groups over SCIM 2.0 (API clients: the identity provider's SCIM token)"
     }
   },
   "approval": {
@@ -107,6 +109,10 @@
     "tenant-deletion": {
       "label": "Tenant deletion",
       "description": "Erases the tenants whose deletion grace period passed (their rows, files, queued jobs and workflows), every night."
+    },
+    "sso": {
+      "label": "Single sign-on",
+      "description": "Fetches SSO connections' OpenID Connect discovery documents and checks the DNS records of the domains tenants verify."
     },
     "account-deletion": {
       "label": "Account deletion",

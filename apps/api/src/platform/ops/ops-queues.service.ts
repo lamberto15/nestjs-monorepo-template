@@ -5,6 +5,7 @@ import type { JobType, Queue } from 'bullmq';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { redactString } from '../../core/logging/redaction.js';
 import { MAIL_QUEUE } from '../../core/mail/mail-queue.js';
+import { SSO_QUEUE } from '../../iam/sso/sso.queue.js';
 import { platformQueues } from '../queues/queues.js';
 
 /** The states the metrics count jobs in. */
@@ -35,9 +36,9 @@ export class OpsQueues {
     private readonly moduleRef: ModuleRef,
   ) {}
 
-  /** The queues the platform and core keep, and the features' own. */
+  /** The queues core, IAM (SSO) and the platform keep, and the features' own. */
   private get names() {
-    return [MAIL_QUEUE, ...platformQueues(this.options.queues)];
+    return [MAIL_QUEUE, SSO_QUEUE, ...platformQueues(this.options.queues)];
   }
 
   private queue(name: string): Queue {
