@@ -149,6 +149,8 @@ import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
+import { ViewsController } from './views/views.controller.js';
+import { ViewsService } from './views/views.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
 import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
 import { ReportsController } from './reports/reports.controller.js';
@@ -359,6 +361,7 @@ export class PlatformModule {
         AttachmentsController,
         DocumentsController,
         TagsController,
+        ViewsController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
         // Email deliverability: the providers' bounces and complaints, the suppression list.
@@ -524,6 +527,8 @@ export class PlatformModule {
         // Tags: features register a TagTarget and call TagsService.
         TagsRegistry,
         TagsService,
+        // Saved views: a list's filters, sort and columns under a name (private, team, tenant).
+        ViewsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',
