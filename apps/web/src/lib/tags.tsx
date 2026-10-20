@@ -1,6 +1,6 @@
 import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { FilterOption } from '@/lib/data-table-types';
 
@@ -15,7 +15,8 @@ export type Tag = GetResponse<'/v1/tags'>['items'][number];
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 
-async function fetchTags(subject: string): Promise<Tag[]> {
+/** One subject's tags, or (no subject) every subject's: the management page. */
+async function fetchTags(subject?: string): Promise<Tag[]> {
   const tags: Tag[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -32,6 +33,16 @@ async function fetchTags(subject: string): Promise<Tag[]> {
   }
   return tags;
 }
+
+/**
+ * Every tag of every subject (`GET /v1/tags` without `?subject=`: "a management
+ * screen lists every subject", docs/tags.md), for the tags admin page. Under
+ * `['tags', …]`, so whatever refreshes a subject's tags refreshes it too.
+ */
+export const allTagsQuery = queryOptions({
+  queryKey: ['tags', 'all-subjects'],
+  queryFn: () => fetchTags(),
+});
 
 export function useTags(subject: string, enabled = true) {
   return useQuery({

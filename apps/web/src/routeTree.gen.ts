@@ -23,6 +23,7 @@ import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppTagsRouteImport } from './routes/_app/tags'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountNotificationsRouteImport } from './routes/_app/account/notifications'
@@ -124,6 +125,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTagsRoute = AppTagsRouteImport.update({
+  id: '/tags',
+  path: '/tags',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccessUsersRoute = AppAccessUsersRouteImport.update({
@@ -308,6 +314,7 @@ export interface FileRoutesByFullPath {
   '/custom-fields': typeof AppCustomFieldsRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
+  '/tags': typeof AppTagsRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
   '/account/preferences': typeof AppAccountPreferencesRoute
@@ -355,6 +362,7 @@ export interface FileRoutesByTo {
   '/custom-fields': typeof AppCustomFieldsRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
+  '/tags': typeof AppTagsRoute
   '/': typeof AppIndexRoute
   '/access/users': typeof AppAccessUsersRoute
   '/account/notifications': typeof AppAccountNotificationsRoute
@@ -405,6 +413,7 @@ export interface FileRoutesById {
   '/_app/custom-fields': typeof AppCustomFieldsRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/tags': typeof AppTagsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/access/users': typeof AppAccessUsersRoute
   '/_app/account/notifications': typeof AppAccountNotificationsRoute
@@ -456,6 +465,7 @@ export interface FileRouteTypes {
     | '/custom-fields'
     | '/notifications'
     | '/settings'
+    | '/tags'
     | '/access/users'
     | '/account/notifications'
     | '/account/preferences'
@@ -503,6 +513,7 @@ export interface FileRouteTypes {
     | '/custom-fields'
     | '/notifications'
     | '/settings'
+    | '/tags'
     | '/'
     | '/access/users'
     | '/account/notifications'
@@ -552,6 +563,7 @@ export interface FileRouteTypes {
     | '/_app/custom-fields'
     | '/_app/notifications'
     | '/_app/settings'
+    | '/_app/tags'
     | '/_app/'
     | '/_app/access/users'
     | '/_app/account/notifications'
@@ -698,6 +710,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tags': {
+      id: '/_app/tags'
+      path: '/tags'
+      fullPath: '/tags'
+      preLoaderRoute: typeof AppTagsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/access/users': {
@@ -939,6 +958,7 @@ interface AppRouteChildren {
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTagsRoute: typeof AppTagsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccessUsersRoute: typeof AppAccessUsersRoute
   AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
@@ -980,6 +1000,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCustomFieldsRoute: AppCustomFieldsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppTagsRoute: AppTagsRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccessUsersRoute: AppAccessUsersRoute,
   AppAccountNotificationsRoute: AppAccountNotificationsRoute,
