@@ -555,6 +555,7 @@ export function useListQuery<P extends ListPath>(
       q,
       description,
       extra,
+      allFields,
     ],
   );
 
