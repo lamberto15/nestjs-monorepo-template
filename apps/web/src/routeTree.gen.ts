@@ -30,6 +30,7 @@ import { Route as AppAccountPreferencesRouteImport } from './routes/_app/account
 import { Route as AppAccountPrivacyRouteImport } from './routes/_app/account/privacy'
 import { Route as AppAccountProfileRouteImport } from './routes/_app/account/profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
+import { Route as AppAccountWatchingRouteImport } from './routes/_app/account/watching'
 import { Route as AppApiClientsIndexRouteImport } from './routes/_app/api-clients/index'
 import { Route as AppApiClientsIdRouteImport } from './routes/_app/api-clients/$id'
 import { Route as AppApiClientsUsageRouteImport } from './routes/_app/api-clients/usage'
@@ -39,6 +40,7 @@ import { Route as AppApprovalsIndexRouteImport } from './routes/_app/approvals/i
 import { Route as AppApprovalsIdRouteImport } from './routes/_app/approvals/$id'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
+import { Route as AppOpsIndexRouteImport } from './routes/_app/ops/index'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppTenantsIndexRouteImport } from './routes/_app/tenants/index'
 import { Route as AppTenantsIdRouteImport } from './routes/_app/tenants/$id'
@@ -159,6 +161,11 @@ const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
   path: '/account/security',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountWatchingRoute = AppAccountWatchingRouteImport.update({
+  id: '/account/watching',
+  path: '/account/watching',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppApiClientsIndexRoute = AppApiClientsIndexRouteImport.update({
   id: '/api-clients/',
   path: '/api-clients/',
@@ -203,6 +210,11 @@ const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
 const AppNotesNewRoute = AppNotesNewRouteImport.update({
   id: '/notes/new',
   path: '/notes/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOpsIndexRoute = AppOpsIndexRouteImport.update({
+  id: '/ops/',
+  path: '/ops/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
@@ -302,6 +314,7 @@ export interface FileRoutesByFullPath {
   '/account/privacy': typeof AppAccountPrivacyRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/account/watching': typeof AppAccountWatchingRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
   '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
@@ -314,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/approval-policies/': typeof AppApprovalPoliciesIndexRoute
   '/approvals/': typeof AppApprovalsIndexRoute
   '/notes/': typeof AppNotesIndexRoute
+  '/ops/': typeof AppOpsIndexRoute
   '/reports/': typeof AppReportsIndexRoute
   '/tenants/': typeof AppTenantsIndexRoute
   '/transfers/': typeof AppTransfersIndexRoute
@@ -348,6 +362,7 @@ export interface FileRoutesByTo {
   '/account/privacy': typeof AppAccountPrivacyRoute
   '/account/profile': typeof AppAccountProfileRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/account/watching': typeof AppAccountWatchingRoute
   '/api-clients/$id': typeof AppApiClientsIdRoute
   '/api-clients/usage': typeof AppApiClientsUsageRoute
   '/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
@@ -360,6 +375,7 @@ export interface FileRoutesByTo {
   '/approval-policies': typeof AppApprovalPoliciesIndexRoute
   '/approvals': typeof AppApprovalsIndexRoute
   '/notes': typeof AppNotesIndexRoute
+  '/ops': typeof AppOpsIndexRoute
   '/reports': typeof AppReportsIndexRoute
   '/tenants': typeof AppTenantsIndexRoute
   '/transfers': typeof AppTransfersIndexRoute
@@ -396,6 +412,7 @@ export interface FileRoutesById {
   '/_app/account/privacy': typeof AppAccountPrivacyRoute
   '/_app/account/profile': typeof AppAccountProfileRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
+  '/_app/account/watching': typeof AppAccountWatchingRoute
   '/_app/api-clients/$id': typeof AppApiClientsIdRoute
   '/_app/api-clients/usage': typeof AppApiClientsUsageRoute
   '/_app/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
@@ -408,6 +425,7 @@ export interface FileRoutesById {
   '/_app/approval-policies/': typeof AppApprovalPoliciesIndexRoute
   '/_app/approvals/': typeof AppApprovalsIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
+  '/_app/ops/': typeof AppOpsIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/tenants/': typeof AppTenantsIndexRoute
   '/_app/transfers/': typeof AppTransfersIndexRoute
@@ -444,6 +462,7 @@ export interface FileRouteTypes {
     | '/account/privacy'
     | '/account/profile'
     | '/account/security'
+    | '/account/watching'
     | '/api-clients/$id'
     | '/api-clients/usage'
     | '/approval-policies/$key'
@@ -456,6 +475,7 @@ export interface FileRouteTypes {
     | '/approval-policies/'
     | '/approvals/'
     | '/notes/'
+    | '/ops/'
     | '/reports/'
     | '/tenants/'
     | '/transfers/'
@@ -490,6 +510,7 @@ export interface FileRouteTypes {
     | '/account/privacy'
     | '/account/profile'
     | '/account/security'
+    | '/account/watching'
     | '/api-clients/$id'
     | '/api-clients/usage'
     | '/approval-policies/$key'
@@ -502,6 +523,7 @@ export interface FileRouteTypes {
     | '/approval-policies'
     | '/approvals'
     | '/notes'
+    | '/ops'
     | '/reports'
     | '/tenants'
     | '/transfers'
@@ -537,6 +559,7 @@ export interface FileRouteTypes {
     | '/_app/account/privacy'
     | '/_app/account/profile'
     | '/_app/account/security'
+    | '/_app/account/watching'
     | '/_app/api-clients/$id'
     | '/_app/api-clients/usage'
     | '/_app/approval-policies/$key'
@@ -549,6 +572,7 @@ export interface FileRouteTypes {
     | '/_app/approval-policies/'
     | '/_app/approvals/'
     | '/_app/notes/'
+    | '/_app/ops/'
     | '/_app/reports/'
     | '/_app/tenants/'
     | '/_app/transfers/'
@@ -725,6 +749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountSecurityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account/watching': {
+      id: '/_app/account/watching'
+      path: '/account/watching'
+      fullPath: '/account/watching'
+      preLoaderRoute: typeof AppAccountWatchingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/api-clients/': {
       id: '/_app/api-clients/'
       path: '/api-clients'
@@ -786,6 +817,13 @@ declare module '@tanstack/react-router' {
       path: '/notes/new'
       fullPath: '/notes/new'
       preLoaderRoute: typeof AppNotesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ops/': {
+      id: '/_app/ops/'
+      path: '/ops'
+      fullPath: '/ops/'
+      preLoaderRoute: typeof AppOpsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reports/': {
@@ -908,6 +946,7 @@ interface AppRouteChildren {
   AppAccountPrivacyRoute: typeof AppAccountPrivacyRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
+  AppAccountWatchingRoute: typeof AppAccountWatchingRoute
   AppApiClientsIdRoute: typeof AppApiClientsIdRoute
   AppApiClientsUsageRoute: typeof AppApiClientsUsageRoute
   AppApprovalPoliciesKeyRoute: typeof AppApprovalPoliciesKeyRoute
@@ -920,6 +959,7 @@ interface AppRouteChildren {
   AppApprovalPoliciesIndexRoute: typeof AppApprovalPoliciesIndexRoute
   AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
+  AppOpsIndexRoute: typeof AppOpsIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppTenantsIndexRoute: typeof AppTenantsIndexRoute
   AppTransfersIndexRoute: typeof AppTransfersIndexRoute
@@ -947,6 +987,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountPrivacyRoute: AppAccountPrivacyRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
+  AppAccountWatchingRoute: AppAccountWatchingRoute,
   AppApiClientsIdRoute: AppApiClientsIdRoute,
   AppApiClientsUsageRoute: AppApiClientsUsageRoute,
   AppApprovalPoliciesKeyRoute: AppApprovalPoliciesKeyRoute,
@@ -959,6 +1000,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApprovalPoliciesIndexRoute: AppApprovalPoliciesIndexRoute,
   AppApprovalsIndexRoute: AppApprovalsIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
+  AppOpsIndexRoute: AppOpsIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
   AppTenantsIndexRoute: AppTenantsIndexRoute,
   AppTransfersIndexRoute: AppTransfersIndexRoute,

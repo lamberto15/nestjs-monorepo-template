@@ -24,6 +24,7 @@ type Suffix =
   | '/attachments'
   | '/tags'
   | '/pdf'
+  | '/watch'
   | '/revisions'
   | '/revisions/{number}/restore'
   | '/revisions/{a}/diff/{b}';
@@ -203,6 +204,18 @@ export function uploadAttachment(
     onProgress,
   );
 }
+
+/** Watch the record: its owner and watchers are told of changes (docs/notifications.md). */
+export const watchRecord = (base: string, id: string) =>
+  unwrap(
+    call<{ watching: boolean }>('POST', base, '/watch', {
+      params: { path: { id } },
+    }),
+  );
+
+/** Stop watching it (404 when it was not watched). */
+export const unwatchRecord = (base: string, id: string) =>
+  unwrap(call<unknown>('DELETE', base, '/watch', { params: { path: { id } } }));
 
 export const setTags = (base: string, id: string, tagIds: string[]) =>
   unwrap(

@@ -4,6 +4,8 @@ import { getDrizzleToken } from '@nestjs/drizzle';
 import { and, eq, sql } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { AccountService } from '../src/iam/account/account.service.js';
+import { VerificationRequests } from '../src/iam/account/verification-requests.service.js';
+import { EmailVerificationService } from '@nestjs/authentication';
 import { PasskeysService } from '../src/iam/account/passkeys.service.js';
 import type { UserPrincipal } from '../src/iam/auth/principal.js';
 import { AccessService } from '../src/iam/access/access.service.js';
@@ -1380,5 +1382,60 @@ describe('security (e2e)', () => {
       }
       await cancel('guess-10', from).expect(429);
     });
+  });
+
+  it('answers the public verification resend the same for every address: no enumeration (#260)', async () => {
+    // Unproved (with a password), proved, deactivated, and nobody's.
+    const unproved = await node.user([]);
+    await node.db
+      .update(users)
+      .set({ emailVerified: false })
+      .where(eq(users.id, unproved.id));
+    const proved = await node.user([]);
+    const inactive = await node.user([]);
+    await node.db
+      .update(users)
+      .set({ emailVerified: false, active: false })
+      .where(eq(users.id, inactive.id));
+    const nobody = `${randomUUID().slice(0, 8)}@example.com`;
+    const send = vi.spyOn(node.app.get(EmailVerificationService), 'send');
+
+    const shape = (res: request.Response) => ({
+      status: res.status,
+      body: res.body,
+      type: res.headers['content-type'],
+      length: res.headers['content-length'],
+      headers: Object.keys(res.headers)
+        .filter((name) => !['date', 'x-request-id', 'etag'].includes(name))
+        .sort(),
+    });
+    const answers = [];
+    for (const address of [
+      nobody,
+      proved.email,
+      inactive.email,
+      unproved.email,
+    ]) {
+      answers.push(
+        shape(
+          await node
+            .http()
+            .post('/v1/auth/email/verification/resend')
+            .send({ email: address.toUpperCase() }),
+        ),
+      );
+    }
+    for (const answer of answers) {
+      expect(answer).toEqual(answers[0]);
+    }
+    expect(answers[0]!.status).toBe(202);
+    await node.app.get(VerificationRequests).settled();
+    // Only the active, unproved account was sent a link: to its stored address.
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]![0]).toMatchObject({
+      id: unproved.id,
+      email: unproved.email,
+    });
+    send.mockRestore();
   });
 });

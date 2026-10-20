@@ -39,7 +39,7 @@ const CAPTCHA = Symbol('captcha');
 
 /**
  * A public route bots go for (sign-in and its two-factor step, sign-up,
- * the magic-link request, forgot password): with CAPTCHA_MODE on, it wants a challenge token in
+ * the magic-link request, forgot password, the verification resend): with CAPTCHA_MODE on, it wants a challenge token in
  * `X-Captcha-Token`, always or after N failed attempts from the address or
  * for the account (docs/auth.md, "Bot protection"). Off (the default
  * without keys): nothing changes. Documented in OpenAPI as a header, so the

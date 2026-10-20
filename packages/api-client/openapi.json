@@ -20133,7 +20133,7 @@
                     },
                     "captcha": {
                       "nullable": true,
-                      "description": "Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
+                      "description": "Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request, forgot password and the verification resend: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
                       "type": "object",
                       "properties": {
                         "provider": {
@@ -21142,6 +21142,73 @@
           }
         ],
         "summary": "Send the verification link again",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/email/verification/resend": {
+      "post": {
+        "description": "For a sign-up whose address is not proved yet (it has no session: sign-in answers 403 `email_unverified`). Always 202, at once, whether the address has an account, a verified one or none: the answer reveals nothing. An unproved account with a password gets a new link (WEB_URL/verify-email?token=…), at most one a minute. Signed in, use POST /auth/email/verification.",
+        "operationId": "EmailController_resendByEmail_v1",
+        "parameters": [
+          {
+            "name": "X-Captcha-Token",
+            "in": "header",
+            "description": "The challenge token (Cloudflare Turnstile, widget action `resend-verification`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "example": "ada@example.com",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance."
+          }
+        },
+        "summary": "Send the verification link again, without a session",
         "tags": [
           "account"
         ]
