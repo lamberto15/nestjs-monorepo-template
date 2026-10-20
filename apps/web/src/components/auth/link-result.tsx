@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next';
 export function LinkResult(props: {
   ok: boolean;
   children: ReactNode;
+  /** Something to do about the outcome, between it and the way on. */
+  extra?: ReactNode;
   action?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -21,6 +23,7 @@ export function LinkResult(props: {
         {props.ok ? <CircleCheckIcon /> : <CircleAlertIcon />}
         <AlertDescription>{props.children}</AlertDescription>
       </Alert>
+      {props.extra}
       {props.action ?? (
         <Button nativeButton={false} render={<Link to="/sign-in" />}>
           {t('auth.signIn.title')}

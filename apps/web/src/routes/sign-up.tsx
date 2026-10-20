@@ -12,6 +12,7 @@ import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { useCaptcha } from '@/components/auth/captcha';
 import { LinkResult } from '@/components/auth/link-result';
+import { ResendVerificationByEmail } from '@/components/auth/resend-verification';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
@@ -39,7 +40,8 @@ function SignUpPage() {
   const { t, i18n } = useTranslation();
   const search = Route.useSearch();
   const [error, setError] = useState<string>();
-  const [done, setDone] = useState(false);
+  // The address just signed up with, once the account is made.
+  const [doneEmail, setDoneEmail] = useState<string>();
   const captcha = useCaptcha('sign-up');
   // TENANT_SIGN_UP: the sign-up makes a tenant, so it asks for the name
   // (beforeLoad already fetched the methods; absent means false).
@@ -81,7 +83,7 @@ function SignUpPage() {
           }),
         );
         captcha.settle();
-        setDone(true);
+        setDoneEmail(account.email);
       } catch (caught) {
         if (captcha.settle(caught) || applyFieldErrors(form, caught)) {
           return;
@@ -96,8 +98,10 @@ function SignUpPage() {
       title={t('auth.signUp.title')}
       description={t('auth.signUp.description')}
     >
-      {done ? (
-        <LinkResult ok>{t('auth.signUp.done')}</LinkResult>
+      {doneEmail ? (
+        <LinkResult ok extra={<ResendVerificationByEmail email={doneEmail} />}>
+          {t('auth.signUp.done')}
+        </LinkResult>
       ) : (
         <form
           noValidate
