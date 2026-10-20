@@ -42,6 +42,13 @@ export const iamEnv = z.object({
    */
   AUTH_SIGN_UP: flag('off'),
   /**
+   * TENANCY=multi with AUTH_SIGN_UP=on: a self sign-up makes its own tenant,
+   * the new account its first administrator (docs/tenancy.md, "Tenants made
+   * at sign-up"). Off: sign-ups join no tenant, operators make tenants
+   * (POST /v1/tenants). Ignored, with a warning, with TENANCY=single.
+   */
+  TENANT_SIGN_UP: flag('off'),
+  /**
    * Refuse a new password found in data breaches (Have I Been Pwned's
    * Pwned Passwords, by k-anonymity: only 5 characters of its SHA-1 leave
    * the process). Sign-up, reset and invitation links, change, an

@@ -32,6 +32,7 @@ describe('accounts (e2e)', () => {
     expect(methods.body).toEqual({
       password: true,
       signUp: false,
+      tenantSignUp: false,
       magicLink: true,
       passkeys: true,
       providers: [],

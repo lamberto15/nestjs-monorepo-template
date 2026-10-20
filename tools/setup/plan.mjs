@@ -182,6 +182,16 @@ export const QUESTIONS = [
     write: (v) => ({ SIGN_UP_ROLES: v || null }),
   },
   {
+    id: 'tenantSignUp',
+    label: 'Does a sign-up make its own tenant (and administer it)?',
+    type: 'bool',
+    keys: ['TENANT_SIGN_UP'],
+    when: (a) => a.tenancy === 'multi' && a.signUp,
+    fresh: () => false,
+    read: (env) => isOn(env.TENANT_SIGN_UP),
+    write: (v) => ({ TENANT_SIGN_UP: flag(v) }),
+  },
+  {
     id: 'mail',
     label: 'Mail transport',
     type: 'choice',

@@ -30,6 +30,11 @@ export const tenants = pgTable('tenants', {
    * the platform's super tenant.
    */
   operator: boolean('operator').notNull().default(false),
+  /**
+   * Made by a self sign-up (TENANT_SIGN_UP), not by the operators: the
+   * tenants the unverified sign-ups' sweep may delete (SignUpTenantSweepJob).
+   */
+  createdBySignUp: boolean('created_by_sign_up').notNull().default(false),
   ...timestamps(),
 });
 

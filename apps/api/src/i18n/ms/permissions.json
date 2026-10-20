@@ -97,6 +97,10 @@
       "label": "Pengosongan tong kitar semula",
       "description": "Memadam secara kekal rekod yang dipadam lebih lama daripada tempoh penyimpanannya, setiap malam."
     },
+    "sign-up-tenant-sweep": {
+      "label": "Penyewa pendaftaran yang tidak disahkan",
+      "description": "Memadam penyewa yang dibuat oleh pendaftaran sendiri (TENANT_SIGN_UP) yang akaunnya tidak pernah mengesahkan alamat, setiap malam."
+    },
     "account-deletion": {
       "label": "Pemadaman akaun",
       "description": "Menjadikan tanpa nama akaun yang tempoh tangguh pemadamannya telah berlalu, dan memadam data peribadinya, setiap malam."
