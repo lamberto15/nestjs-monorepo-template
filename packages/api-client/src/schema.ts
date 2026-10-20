@@ -16503,7 +16503,7 @@ export interface operations {
     NotesController_list_v1: {
         parameters: {
             query?: {
-                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`. */
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. `watching`: each record says whether you watch it (`watching: true`), where records can be watched; any other record type answers 400. Left out, the records carry neither. Combine them with a comma: `can,watching`. */
                 include?: string;
                 limit?: number;
                 /** @description `nextCursor` of the previous page (the same `sort`). */
@@ -16649,6 +16649,8 @@ export interface operations {
                                 /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                                 issue: boolean;
                             };
+                            /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                            watching?: boolean;
                         }[];
                         /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
                         nextCursor: string | null;
@@ -16766,6 +16768,8 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
                     };
                 };
             };
@@ -16809,7 +16813,7 @@ export interface operations {
     NotesController_get_v1: {
         parameters: {
             query?: {
-                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`. */
+                /** @description `can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. `watching`: each record says whether you watch it (`watching: true`), where records can be watched; any other record type answers 400. Left out, the records carry neither. Combine them with a comma: `can,watching`. */
                 include?: string;
             };
             header?: {
@@ -16874,6 +16878,8 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
                     };
                 };
             };
@@ -17031,6 +17037,8 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
                     };
                 };
             };
@@ -17125,6 +17133,8 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
                     };
                 };
             };
@@ -17844,6 +17854,8 @@ export interface operations {
                             /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
                             issue: boolean;
                         };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
                     };
                 };
             };

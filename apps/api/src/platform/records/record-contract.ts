@@ -28,13 +28,14 @@ import type { RecordList } from './record-list.js';
 import {
   recordCan,
   recordCanActions,
+  assertWatchable,
   type RecordInclude,
-  withCan,
+  withIncluded,
 } from './record-can.js';
+import { RECORD_DECLARATION } from './record-declaration.token.js';
 import type { RecordSchemas } from './record.schemas.js';
 
-/** A feature module's record declaration (record-parts.ts provides it). */
-export const RECORD_DECLARATION = Symbol('RECORD_DECLARATION');
+export { RECORD_DECLARATION } from './record-declaration.token.js';
 /** A feature module's record table (record-parts.ts provides it, for RecordStore). */
 export const RECORD_TABLE = Symbol('RECORD_TABLE');
 /** A feature module's record contract: its service, policy, table, list and schemas. */
@@ -290,7 +291,8 @@ export class RecordLifecycle {
 /**
  * Records as a caller reads them: the API's view (money as objects), their
  * tags (tags), their active custom values (custom), less the fields the caller may not see,
- * and with `?include=can` what the caller may do with each (record-can.ts). The controller
+ * and with `?include=can` what the caller may do with each (record-can.ts), with
+ * `?include=watching` whether they watch each (one query on the page's ids). The controller
  * always calls it (and its ETags cover what it returns, `can` aside).
  */
 @Injectable()
@@ -303,6 +305,7 @@ export class RecordPresenter {
     private readonly tags: TagsService,
     private readonly customFields: CustomFieldsService,
     private readonly documents: DocumentsService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   /**
@@ -334,14 +337,21 @@ export class RecordPresenter {
     return { list: extended, query };
   }
 
-  /** One record, as the caller may see it (with `include.can`, its `can`). */
+  /**
+   * One record, as the caller may see it (with `include.can` its `can`,
+   * with `include.watching` whether they watch it).
+   */
   async one(
     user: Principal,
     row: Record<string, unknown>,
     include?: RecordInclude,
   ) {
+    this.assertIncluded(include);
     const [shown] = await this.many(user, [row]);
-    return include?.can ? withCan(shown!, await this.can(user, [row])) : shown!;
+    if (!include?.can && !include?.watching) {
+      return shown!;
+    }
+    return withIncluded(shown!, await this.included(user, [row], include));
   }
 
   /**
@@ -358,20 +368,49 @@ export class RecordPresenter {
       include,
     }: { list: List; query: ListQuery; include?: RecordInclude },
   ) {
+    this.assertIncluded(include);
     const picked = list.pick(
       { ...page, items: await this.many(user, page.items) },
       query,
     );
-    if (!include?.can) {
+    if (!include?.can && !include?.watching) {
       return picked;
     }
-    const can = await this.can(user, page.items);
+    // From the stored rows, whatever `fields` picked.
+    const included = await this.included(user, page.items, include);
     return {
       ...picked,
       items: picked.items.map((item) =>
-        withCan(item as Record<string, unknown>, can),
+        withIncluded(item as Record<string, unknown>, included),
       ),
     };
+  }
+
+  /** The pipe has refused it already; this covers a caller that skipped the pipe. */
+  private assertIncluded(include?: RecordInclude) {
+    assertWatchable(this.declaration, include);
+  }
+
+  /**
+   * What `?include=` asked for, for a page's rows: their `can` (in memory)
+   * and their `watching` (one query on the page's ids, the caller's own).
+   */
+  private async included(
+    user: Principal,
+    rows: Record<string, unknown>[],
+    include: RecordInclude,
+  ) {
+    const [can, watching] = await Promise.all([
+      include.can ? this.can(user, rows) : undefined,
+      include.watching
+        ? this.subscriptions.watching(
+            user,
+            this.declaration.subject,
+            rows.map((row) => row.id as string),
+          )
+        : undefined,
+    ]);
+    return { can, watching };
   }
 
   /**

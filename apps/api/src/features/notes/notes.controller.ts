@@ -61,8 +61,9 @@ import {
   recordCan,
   recordCanActions,
   type RecordInclude,
-  withCan,
+  withIncluded,
 } from '../../platform/records/record-can.js';
+import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
 import { NotesService } from './notes.service.js';
 import { pageSchema } from '../../core/http/pagination.js';
 import { ApiListQuery } from '../../core/http/list-docs.js';
@@ -89,6 +90,7 @@ export class NotesController {
     private readonly authorization: AuthorizationService,
     private readonly customFields: CustomFieldsService,
     private readonly documents: DocumentsService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   @Post()
@@ -212,14 +214,14 @@ export class NotesController {
       },
       query,
     );
-    if (!include.can) {
+    if (!include.can && !include.watching) {
       return picked;
     }
-    // Each note's `can`, from the stored rows (whatever `fields` picked).
-    const can = await this.can(user, page.items);
+    // Each note's `can` and `watching`, from the stored rows (whatever `fields` picked).
+    const included = await this.included(user, page.items, include);
     return {
       ...picked,
-      items: picked.items.map((item) => withCan(item, can)),
+      items: picked.items.map((item) => withIncluded(item, included)),
     };
   }
 
@@ -243,7 +245,9 @@ export class NotesController {
     const note = await this.notes.findOne(id);
     await this.authorization.authorize(NotePolicy, 'read', user, note);
     const shown = await this.shown(user, note);
-    return include.can ? withCan(shown, await this.can(user, [note])) : shown;
+    return include.can || include.watching
+      ? withIncluded(shown, await this.included(user, [note], include))
+      : shown;
   }
 
   @Patch(':id')
@@ -341,6 +345,28 @@ export class NotesController {
       await this.notes.withTags([noteView(note)]),
     );
     return this.access.redact(user, 'read', 'Note', shown!);
+  }
+
+  /**
+   * What ?include= asked for: each note's `can` (in memory) and `watching`
+   * (one query on the page's ids: the caller's own subscriptions).
+   */
+  private async included(
+    user: RequestPrincipal,
+    notes: Note[],
+    include: RecordInclude,
+  ) {
+    const [can, watching] = await Promise.all([
+      include.can ? this.can(user, notes) : undefined,
+      include.watching
+        ? this.subscriptions.watching(
+            user,
+            'Note',
+            notes.map((note) => note.id),
+          )
+        : undefined,
+    ]);
+    return { can, watching };
   }
 
   /**

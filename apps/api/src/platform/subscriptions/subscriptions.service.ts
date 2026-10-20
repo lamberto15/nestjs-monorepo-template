@@ -119,6 +119,32 @@ export class SubscriptionsService {
     return row !== undefined;
   }
 
+  /**
+   * Which of a subject's records the principal watches, among `recordIds`
+   * (a page's ids): one query, the principal's own subscriptions in the
+   * current tenant (row-level security). `?include=watching`.
+   */
+  async watching(
+    principal: Pick<Principal, 'kind' | 'id'>,
+    subject: string,
+    recordIds: readonly string[],
+  ): Promise<Set<string>> {
+    if (recordIds.length === 0) {
+      return new Set();
+    }
+    const rows = await this.db
+      .select({ recordId: recordSubscriptions.recordId })
+      .from(recordSubscriptions)
+      .where(
+        and(
+          eq(recordSubscriptions.subject, subject),
+          eq(recordSubscriptions.subscriber, principalKey(principal)),
+          inArray(recordSubscriptions.recordId, [...recordIds]),
+        ),
+      );
+    return new Set(rows.map((row) => row.recordId));
+  }
+
   /** The principal keys watching a record. */
   async watchers(record: RecordRef): Promise<string[]> {
     const rows = await this.db

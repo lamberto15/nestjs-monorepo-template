@@ -28670,6 +28670,10 @@
                         "issue"
                       ],
                       "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -28728,9 +28732,9 @@
             "name": "include",
             "required": false,
             "in": "query",
-            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`.",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. `watching`: each record says whether you watch it (`watching: true`), where records can be watched; any other record type answers 400. Left out, the records carry neither. Combine them with a comma: `can,watching`.",
             "schema": {
-              "example": "can",
+              "example": "can,watching",
               "type": "string"
             }
           },
@@ -29300,6 +29304,10 @@
                               "issue"
                             ],
                             "additionalProperties": false
+                          },
+                          "watching": {
+                            "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -29401,9 +29409,9 @@
             "name": "include",
             "required": false,
             "in": "query",
-            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`.",
+            "description": "`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. `watching`: each record says whether you watch it (`watching: true`), where records can be watched; any other record type answers 400. Left out, the records carry neither. Combine them with a comma: `can,watching`.",
             "schema": {
-              "example": "can",
+              "example": "can,watching",
               "type": "string"
             }
           },
@@ -29527,6 +29535,10 @@
                         "issue"
                       ],
                       "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -29734,6 +29746,10 @@
                         "issue"
                       ],
                       "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -29958,6 +29974,10 @@
                         "issue"
                       ],
                       "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -31463,6 +31483,10 @@
                         "issue"
                       ],
                       "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
