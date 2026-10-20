@@ -288,6 +288,13 @@
       "when": 1792491555188,
       "tag": "0040_naming_series",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792493927819,
+      "tag": "0041_greedy_nightcrawler",
+      "breakpoints": true
     }
   ]
 }

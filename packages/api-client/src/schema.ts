@@ -949,7 +949,7 @@ export interface paths {
         };
         /**
          * Every setting and flag, with your value of each
-         * @description Your value: your own, else your team's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.
+         * @description Your value: the operators' enforced value, else your own, else your team's, else your tenant's (or a rollout), else the operators' value for every tenant, else the default. Settings not marked public show only to those who manage settings.
          */
         get: operations["SettingsController_list_v1"];
         put?: never;
@@ -998,6 +998,27 @@ export interface paths {
         post?: never;
         /** Drop your own value of a setting: back to the shared one */
         delete: operations["SettingsController_unsetMine_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/{key}/platform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a setting for every tenant (operators)
+         * @description The runtime default of every tenant, below each tenant's own values; `enforced: true` puts it above them all (a kill switch). Operators only. Applies on the next request. Audited.
+         */
+        put: operations["SettingsController_setPlatform_v1"];
+        post?: never;
+        /** Remove the value for every tenant (operators): each tenant's own, or the default, holds again */
+        delete: operations["SettingsController_unsetPlatform_v1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -8586,7 +8607,7 @@ export interface operations {
                              * @description Where your value comes from.
                              * @enum {string}
                              */
-                            source: "tenant" | "team" | "user" | "rollout" | "default";
+                            source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
                             default: unknown;
                             /**
                              * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -8611,6 +8632,17 @@ export interface operations {
                             canEdit: boolean;
                             /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                             canSetMine: boolean;
+                            /** @description What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set. */
+                            platform: {
+                                /** @description Null: only `rollout` applies. */
+                                value: unknown;
+                                /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                                enforced: boolean;
+                                /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
+                                rollout: number | null;
+                            } | null;
+                            /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
+                            canEditPlatform: boolean;
                         }[];
                     };
                 };
@@ -8662,7 +8694,7 @@ export interface operations {
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rollout" | "default";
+                        source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -8687,6 +8719,17 @@ export interface operations {
                         canEdit: boolean;
                         /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                         canSetMine: boolean;
+                        /** @description What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set. */
+                        platform: {
+                            /** @description Null: only `rollout` applies. */
+                            value: unknown;
+                            /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                            enforced: boolean;
+                            /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
+                            rollout: number | null;
+                        } | null;
+                        /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
+                        canEditPlatform: boolean;
                     };
                 };
             };
@@ -8868,7 +8911,7 @@ export interface operations {
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rollout" | "default";
+                        source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -8893,6 +8936,17 @@ export interface operations {
                         canEdit: boolean;
                         /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                         canSetMine: boolean;
+                        /** @description What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set. */
+                        platform: {
+                            /** @description Null: only `rollout` applies. */
+                            value: unknown;
+                            /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                            enforced: boolean;
+                            /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
+                            rollout: number | null;
+                        } | null;
+                        /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
+                        canEditPlatform: boolean;
                     };
                 };
             };
@@ -8956,7 +9010,7 @@ export interface operations {
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rollout" | "default";
+                        source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -8981,6 +9035,17 @@ export interface operations {
                         canEdit: boolean;
                         /** @description You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`. */
                         canSetMine: boolean;
+                        /** @description What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set. */
+                        platform: {
+                            /** @description Null: only `rollout` applies. */
+                            value: unknown;
+                            /** @description Beats every tenant's, team's and principal's value (a kill switch). */
+                            enforced: boolean;
+                            /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
+                            rollout: number | null;
+                        } | null;
+                        /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
+                        canEditPlatform: boolean;
                     };
                 };
             };
@@ -8992,6 +9057,116 @@ export interface operations {
                 content?: never;
             };
             /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SettingsController_setPlatform_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The value, checked by the setting's schema; left out with `rollout`: the flag's rollout alone applies. */
+                    value?: unknown;
+                    /**
+                     * @description true: beats every tenant's, team's and principal's value (a kill switch; needs a value); false: the default for every tenant that set nothing.
+                     * @default false
+                     */
+                    enforced?: boolean;
+                    /** @description Flags: the percentage of principals it is on for in every tenant that set nothing (each tenant drawn apart). */
+                    rollout?: number | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example notes.publishDelay */
+                        key: string;
+                        value: unknown;
+                        enforced: boolean;
+                        rollout: number | null;
+                        updatedBy: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description A value its schema refuses (validation_failed), or one the deployment does not allow (setting_not_allowed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SettingsController_unsetPlatform_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description operator_required: the caller does not act in the operator tenant. */
             403: {
                 headers: {
                     [name: string]: unknown;
