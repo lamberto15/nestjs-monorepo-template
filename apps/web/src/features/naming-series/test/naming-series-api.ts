@@ -15,6 +15,9 @@ export const series = (over: Partial<NamingSeries> = {}): NamingSeries => ({
   label: 'Notes',
   isDefault: true,
   example: 'NOTE-2026-00043',
+  dateField: null,
+  conditions: [],
+  priority: 0,
   createdAt: '2026-10-17T09:00:00.000Z',
   updatedAt: '2026-10-17T09:00:00.000Z',
   ...over,
@@ -32,8 +35,26 @@ export const SERIES = [
 ];
 
 export const SUBJECTS = [
-  { subject: 'Note', declaredPattern: 'NOTE-.YYYY.-.#####' },
-  { subject: 'Invoice', declaredPattern: 'INV-.YYYY.-.#####' },
+  {
+    subject: 'Note',
+    declaredPattern: 'NOTE-.YYYY.-.#####',
+    fields: [{ name: 'title', kind: 'text' as const }],
+  },
+  {
+    subject: 'Invoice',
+    declaredPattern: 'INV-.YYYY.-.#####',
+    fields: [
+      { name: 'code', kind: 'text' as const },
+      { name: 'total', kind: 'number' as const },
+      { name: 'paid', kind: 'boolean' as const },
+      { name: 'issuedOn', kind: 'date' as const },
+    ],
+  },
+];
+
+export const VARIABLES = [
+  { name: 'FY', description: 'The fiscal year.' },
+  { name: 'ABBR', description: 'The abbreviation of the company.' },
 ];
 
 /** The last value taken by the counter of every series in the fake API. */
@@ -45,7 +66,7 @@ export function useNamingSeriesApi(options: {
 }) {
   let rows = [...(options.series ?? SERIES)];
   const calls = {
-    previews: [] as string[],
+    previews: [] as Record<string, unknown>[],
     created: [] as Record<string, unknown>[],
     patched: [] as { id: string; body: Record<string, unknown> }[],
     deleted: [] as string[],
@@ -57,9 +78,16 @@ export function useNamingSeriesApi(options: {
     http.get('/v1/naming-series/subjects', () =>
       HttpResponse.json({ items: SUBJECTS }),
     ),
-    http.get('/v1/naming-series/preview', ({ request }) => {
-      const pattern = new URL(request.url).searchParams.get('pattern') ?? '';
-      calls.previews.push(pattern);
+    http.get('/v1/naming-series/variables', () =>
+      HttpResponse.json({ items: VARIABLES }),
+    ),
+    http.post('/v1/naming-series/preview', async ({ request }) => {
+      const body = (await request.json()) as {
+        pattern: string;
+        values?: Record<string, string | number>;
+      };
+      const pattern = body.pattern;
+      calls.previews.push(body);
       if (!pattern.includes('#')) {
         return problem(400, 'validation_failed', {
           detail: 'The pattern needs one run of # for the counter.',
@@ -67,8 +95,12 @@ export function useNamingSeriesApi(options: {
       }
       return HttpResponse.json({
         key: pattern,
-        current: 0,
-        next: pattern.replace(/#+/, '00001'),
+        current: body.values ? 7 : 0,
+        next: pattern
+          .replace(/#+/, '00001')
+          .replace(/\{(\w+)\}/g, (all, name: string) =>
+            String(body.values?.[name] ?? all),
+          ),
       });
     }),
     http.get('/v1/naming-series', ({ request }) => {
@@ -80,7 +112,7 @@ export function useNamingSeriesApi(options: {
       });
     }),
     http.post('/v1/naming-series', async ({ request }) => {
-      const body = (await request.json()) as Record<string, string>;
+      const body = (await request.json()) as Record<string, any>;
       calls.created.push(body);
       if (
         rows.some(
@@ -95,6 +127,9 @@ export function useNamingSeriesApi(options: {
         pattern: body.pattern,
         label: body.label ?? null,
         isDefault: false,
+        dateField: body.dateField ?? null,
+        conditions: body.conditions ?? [],
+        priority: body.priority ?? 0,
       });
       rows = [...rows, created];
       return HttpResponse.json(created, { status: 201 });
@@ -126,7 +161,10 @@ export function useNamingSeriesApi(options: {
       }),
     ),
     http.put('/v1/naming-series/:id/counter', async ({ params, request }) => {
-      const body = (await request.json()) as { current: number };
+      const body = (await request.json()) as {
+        current: number;
+        values?: Record<string, unknown>;
+      };
       calls.counters.push({ id: params.id as string, body });
       if (body.current < LAST_TAKEN) return problem(409, 'conflict');
       return HttpResponse.json({
