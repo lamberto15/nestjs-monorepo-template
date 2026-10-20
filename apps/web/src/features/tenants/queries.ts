@@ -62,24 +62,27 @@ export const tenantQuery = (id: string) =>
 
 /**
  * Renames, changes the slug, (de)activates. Each caller shows its own
- * refusals (a taken slug on its field, a 412 as a conflict). A rename shows
+ * refusals (a taken slug on its field, a 412 as a conflict). The ETag is
+ * required: a write without `If-Match` would skip the concurrency check. A rename shows
  * in the list, in the tenant switcher and in `/me`, so those are read again.
  */
 export function useUpdateTenant(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     meta: { errorToast: false },
-    mutationFn: (change: { body: TenantChanges; etag?: string }) =>
+    mutationFn: (change: { body: TenantChanges; etag: string }) =>
       unwrap(
         api.PATCH('/v1/tenants/{id}', {
           params: {
             path: { id },
-            ...(change.etag && { header: { 'If-Match': change.etag } }),
+            header: { 'If-Match': change.etag },
           },
           body: change.body,
         }),
       ),
-    onSettled: () =>
+    // Only a change that went through is read again: after a refusal (a 412
+    // above all) the page keeps what it shows, and the user's input with it.
+    onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ['tenants'] }),
         queryClient.invalidateQueries({ queryKey: tenantsQuery.queryKey }),

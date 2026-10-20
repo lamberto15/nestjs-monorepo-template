@@ -121,7 +121,17 @@ function api(
       const found = state.tenants[index]!;
       const ifMatch = request.headers.get('if-match');
       state.patched.push({ id: found.id, body, ifMatch });
-      if (state.changedMeanwhile || (ifMatch && ifMatch !== etagOf(found))) {
+      if (state.changedMeanwhile) {
+        // Another operator renamed it: its updatedAt, so its ETag, moved on.
+        state.changedMeanwhile = false;
+        state.tenants[index] = {
+          ...found,
+          name: 'Renamed elsewhere',
+          updatedAt: '2026-10-11T08:00:00.000Z',
+        };
+        return problem(412, 'precondition_failed');
+      }
+      if (ifMatch && ifMatch !== etagOf(found)) {
         return problem(412, 'precondition_failed');
       }
       if (body.slug === 'taken') {
@@ -320,20 +330,38 @@ describe('tenant detail', () => {
     expect(await screen.findByText('That slug is taken.')).toBeInTheDocument();
   });
 
-  it('tells a tenant changed meanwhile (412) and offers to reload it', async () => {
+  it('tells a tenant changed meanwhile (412), keeps what was typed, and reloads on request', async () => {
     const state = api();
     state.changedMeanwhile = true;
     await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
     const name = await screen.findByLabelText('Name');
-    await userEvent.clear(name);
-    await userEvent.type(name, 'Mine');
-    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await user.clear(name);
+    await user.type(name, 'Mine');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    // The tenant moved on (new updatedAt) but the page did not read it
+    // again: the alert stays and so does the input.
     expect(await screen.findByText('This tenant changed')).toBeInTheDocument();
-    state.changedMeanwhile = false;
-    await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
     await waitFor(() =>
       expect(screen.queryByText('This tenant changed')).toBeNull(),
     );
+    expect(screen.getByLabelText('Name')).toHaveValue('Renamed elsewhere');
+  });
+
+  it('tells a tenant changed meanwhile when deactivating', async () => {
+    const state = api();
+    state.changedMeanwhile = true;
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Deactivate' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Deactivate tenant',
+      }),
+    );
+    expect(await screen.findByText('This tenant changed')).toBeInTheDocument();
   });
 
   it('deactivates after a confirmation, then reactivates after another', async () => {
@@ -407,6 +435,14 @@ describe('tenant detail', () => {
     await user.click(within(reauth).getByRole('button', { name: /Confirm/ }));
     await findToast('Tenant Globex deactivated.');
     expect(state.patched.map((call) => call.body)).toEqual([{ active: false }]);
+  });
+
+  it('has no page for an id that is no UUID, and never asks', async () => {
+    const state = api();
+    await renderApp('/tenants/not-a-uuid');
+    await screen.findByText(/not found|doesn.t exist/i);
+    expect(screen.queryByLabelText('Slug')).toBeNull();
+    expect(state.patched).toEqual([]);
   });
 
   it('says so for a tenant that does not exist', async () => {

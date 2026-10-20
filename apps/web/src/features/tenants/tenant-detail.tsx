@@ -39,6 +39,9 @@ export function TenantDetail(props: { id: string }) {
     ...tenantQuery(props.id),
     meta: { errorToast: false },
   });
+  // Above the sections, which are keyed by what was read: a 412 refetches
+  // nothing, and the conflict stays on screen with the user's input.
+  const conflict = useConflict(props.id);
   if (read.isPending) {
     return <Spinner />;
   }
@@ -71,13 +74,20 @@ export function TenantDetail(props: { id: string }) {
               })}
             </span>
           </div>
+          <ConflictNotice conflict={conflict} />
           <NameSection
-            // Read again after a change: a fresh form.
+            // Read again after a change (or the reload of a conflict): a
+            // fresh form.
             key={`${loaded.tenant.updatedAt}-${loaded.etag}`}
             tenant={loaded.tenant}
             etag={loaded.etag}
+            conflict={conflict}
           />
-          <StateSection tenant={loaded.tenant} etag={loaded.etag} />
+          <StateSection
+            tenant={loaded.tenant}
+            etag={loaded.etag}
+            conflict={conflict}
+          />
         </>
       ) : isNotFound(read.error) ? (
         <p className="text-sm text-muted-foreground">{t('detail.notFound')}</p>
@@ -89,6 +99,8 @@ export function TenantDetail(props: { id: string }) {
 }
 
 /** The 412 of a change, and the way out: read the tenant again. */
+type Conflict = ReturnType<typeof useConflict>;
+
 function useConflict(id: string) {
   const queryClient = useQueryClient();
   const [conflict, setConflict] = useState(false);
@@ -117,7 +129,7 @@ function useConflict(id: string) {
   };
 }
 
-function ConflictNotice(props: { conflict: ReturnType<typeof useConflict> }) {
+function ConflictNotice(props: { conflict: Conflict }) {
   const { t } = useTranslation('tenants');
   return props.conflict.conflict ? (
     <ConflictAlert
@@ -131,11 +143,14 @@ function ConflictNotice(props: { conflict: ReturnType<typeof useConflict> }) {
 }
 
 /** The name and the slug, saved together: only what changed is sent. */
-function NameSection(props: { tenant: TenantRow; etag: string | undefined }) {
+function NameSection(props: {
+  tenant: TenantRow;
+  etag: string | undefined;
+  conflict: Conflict;
+}) {
   const { t } = useTranslation('tenants');
-  const { tenant } = props;
+  const { tenant, conflict } = props;
   const update = useUpdateTenant(tenant.id);
-  const conflict = useConflict(tenant.id);
   const [error, setError] = useState<string>();
   const form = useAppForm({
     defaultValues: { name: tenant.name, slug: tenant.slug },
@@ -155,7 +170,7 @@ function NameSection(props: { tenant: TenantRow; etag: string | undefined }) {
         ...(name !== tenant.name && { name }),
         ...(value.slug !== tenant.slug && { slug: value.slug }),
       };
-      if (!Object.keys(body).length) {
+      if (!Object.keys(body).length || !props.etag) {
         return;
       }
       try {
@@ -185,7 +200,6 @@ function NameSection(props: { tenant: TenantRow; etag: string | undefined }) {
         }}
       >
         <FieldGroup>
-          <ConflictNotice conflict={conflict} />
           <FormAlert message={error} />
           <form.AppField name="name">
             {(field) => <field.TextField label={t('create.name')} />}
@@ -200,7 +214,9 @@ function NameSection(props: { tenant: TenantRow; etag: string | undefined }) {
           </form.AppField>
           <div>
             <form.AppForm>
-              <form.SubmitButton>{t('detail.name.save')}</form.SubmitButton>
+              <form.SubmitButton disabled={!props.etag}>
+                {t('detail.name.save')}
+              </form.SubmitButton>
             </form.AppForm>
           </div>
         </FieldGroup>
@@ -215,14 +231,20 @@ function NameSection(props: { tenant: TenantRow; etag: string | undefined }) {
  * The operator tenant is never deactivated (the API answers 409
  * `operator_tenant`): no button offered for it.
  */
-function StateSection(props: { tenant: TenantRow; etag: string | undefined }) {
+function StateSection(props: {
+  tenant: TenantRow;
+  etag: string | undefined;
+  conflict: Conflict;
+}) {
   const { t } = useTranslation('tenants');
-  const { tenant } = props;
+  const { tenant, conflict, etag } = props;
   const update = useUpdateTenant(tenant.id);
-  const conflict = useConflict(tenant.id);
   const change = async (active: boolean) => {
+    if (!etag) {
+      return;
+    }
     try {
-      await update.mutateAsync({ body: { active }, etag: props.etag });
+      await update.mutateAsync({ body: { active }, etag });
       conflict.clear();
       toast.success(
         t(active ? 'detail.state.reactivated' : 'detail.state.deactivated', {
@@ -249,7 +271,6 @@ function StateSection(props: { tenant: TenantRow; etag: string | undefined }) {
           : 'detail.state.inactiveDescription',
       )}
     >
-      <ConflictNotice conflict={conflict} />
       {tenant.operator ? (
         <p className="text-sm text-muted-foreground">
           {t('detail.state.operatorTenant')}
@@ -258,6 +279,8 @@ function StateSection(props: { tenant: TenantRow; etag: string | undefined }) {
         <div className="flex flex-wrap gap-2">
           {tenant.active ? (
             <ConfirmButton
+              key="deactivate"
+              disabled={!etag}
               variant="destructive"
               title={t('detail.state.deactivateTitle', { name: tenant.name })}
               description={t('detail.state.deactivateDescription')}
@@ -268,6 +291,8 @@ function StateSection(props: { tenant: TenantRow; etag: string | undefined }) {
             </ConfirmButton>
           ) : (
             <ConfirmButton
+              key="reactivate"
+              disabled={!etag}
               title={t('detail.state.reactivateTitle', { name: tenant.name })}
               description={t('detail.state.reactivateDescription')}
               confirm={t('detail.state.reactivateConfirm')}
