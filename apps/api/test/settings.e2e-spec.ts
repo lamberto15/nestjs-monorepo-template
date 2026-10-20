@@ -144,9 +144,22 @@ describe('settings (e2e)', () => {
     ).toHaveLength(1);
   });
 
-  /** The test-only feature's keys of a listing, in their declared order. */
+  /**
+   * The test-only feature's own keys of a listing, in their declared order
+   * (not those its record declares: record-approvals.e2e-spec.ts).
+   */
+  const RECORD_DECLARED = [
+    'testItems.archiveAfterDays',
+    'testItems.autoArchive',
+    'testItems.sortBy',
+    'testItems.archiveApproval',
+  ];
   const testItemKeys = (body: { items: { key: string }[] }) =>
-    body.items.map((i) => i.key).filter((key) => key.startsWith('testItems.'));
+    body.items
+      .map((i) => i.key)
+      .filter(
+        (key) => key.startsWith('testItems.') && !RECORD_DECLARED.includes(key),
+      );
 
   it('shows a feature’s settings with their defaults; managers set values for everyone or a team, audited', async () => {
     const manager = await node.user([await role(['Access', 'manageSettings'])]);

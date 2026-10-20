@@ -138,6 +138,20 @@ describe('a record that declares approvals and settings (e2e)', () => {
       .put('/v1/settings/testItems.archiveApproval')
       .send({ value: true })
       .expect(200);
+    // Someone besides the requester must be able to decide (else 422 approval_no_approvers).
+    await admin
+      .put('/v1/approvals/policies/TestItem.archive')
+      .send({
+        stages: [
+          {
+            name: 'Review',
+            approvers: [{ type: 'role', role: 'editor' }],
+            mode: { type: 'any' },
+          },
+        ],
+      })
+      .expect(200);
+    await node.user(['editor']);
     const id = await aTestItem();
     const approvalId = (await archive(id).expect(202)).body
       .approvalId as string;
