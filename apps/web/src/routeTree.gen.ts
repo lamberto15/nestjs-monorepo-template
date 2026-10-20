@@ -21,6 +21,7 @@ import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
+import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
 import { Route as AppNamingSeriesRouteImport } from './routes/_app/naming-series'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
@@ -121,6 +122,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
 const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
   id: '/custom-fields',
   path: '/custom-fields',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLegalHoldsRoute = AppLegalHoldsRouteImport.update({
+  id: '/legal-holds',
+  path: '/legal-holds',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMailSuppressionsRoute = AppMailSuppressionsRouteImport.update({
@@ -348,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
@@ -402,6 +409,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
@@ -459,6 +467,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
+  '/_app/legal-holds': typeof AppLegalHoldsRoute
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
   '/_app/naming-series': typeof AppNamingSeriesRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -517,6 +526,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/audit'
     | '/custom-fields'
+    | '/legal-holds'
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
@@ -571,6 +581,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/audit'
     | '/custom-fields'
+    | '/legal-holds'
     | '/mail-suppressions'
     | '/naming-series'
     | '/notifications'
@@ -627,6 +638,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_app/audit'
     | '/_app/custom-fields'
+    | '/_app/legal-holds'
     | '/_app/mail-suppressions'
     | '/_app/naming-series'
     | '/_app/notifications'
@@ -768,6 +780,13 @@ declare module '@tanstack/react-router' {
       path: '/custom-fields'
       fullPath: '/custom-fields'
       preLoaderRoute: typeof AppCustomFieldsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/legal-holds': {
+      id: '/_app/legal-holds'
+      path: '/legal-holds'
+      fullPath: '/legal-holds'
+      preLoaderRoute: typeof AppLegalHoldsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/mail-suppressions': {
@@ -1070,6 +1089,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
+  AppLegalHoldsRoute: typeof AppLegalHoldsRoute
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
   AppNamingSeriesRoute: typeof AppNamingSeriesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -1118,6 +1138,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
+  AppLegalHoldsRoute: AppLegalHoldsRoute,
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
   AppNamingSeriesRoute: AppNamingSeriesRoute,
   AppNotificationsRoute: AppNotificationsRoute,

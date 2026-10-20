@@ -1,0 +1,70 @@
+{
+  "nav": "Legal Holds",
+  "title": "Legal Holds",
+  "description": "Datensätze, die unabhängig von Löschungen, dem Leeren des Papierkorbs, Aufbewahrungsregeln oder einer Kontolöschung erhalten bleiben. Ein Hold betrifft eine Art von Datensatz und einen bestimmten Datensatz oder alle dieser Art. Er gilt, bis er aufgehoben wird.",
+  "none": "Noch keine Legal Holds.",
+  "noMatch": "Kein Legal Hold passt.",
+  "allRecords": "Alle Datensätze des Typs",
+  "more": "Mehr anzeigen",
+  "open": "Hold auf {{subject}} öffnen",
+  "openButton": "Öffnen",
+  "filters": {
+    "status": "Status",
+    "anyStatus": "Aktiv und aufgehoben",
+    "subject": "Typ"
+  },
+  "status": {
+    "active": "Aktiv",
+    "released": "Aufgehoben"
+  },
+  "columns": {
+    "subject": "Typ",
+    "record": "Datensatz",
+    "reason": "Grund",
+    "status": "Status",
+    "placed": "Erstellt",
+    "actions": "Aktionen"
+  },
+  "place": {
+    "button": "Legal Hold setzen",
+    "title": "Legal Hold setzen",
+    "description": "Solange der Hold aktiv ist, kann der Datensatz nicht gelöscht werden, bleibt im Papierkorb und wird von den Aufbewahrungsregeln übersprungen. Ein Hold auf einen User verhindert auch die Löschung des Kontos dieser Person.",
+    "subject": "Typ",
+    "subjectHint": "Die Art des Datensatzes, etwa Note, oder User für eine Person.",
+    "subjectInvalid": "Ein Typ ist ein Name wie Note.",
+    "recordId": "Datensatz-ID (optional)",
+    "recordIdHint": "Leer lassen, um alle Datensätze des Typs zu sperren, auch später angelegte.",
+    "recordInvalid": "Eine Datensatz-ID ist eine UUID.",
+    "reason": "Grund",
+    "reasonHint": "Wird mit dem Hold gespeichert, für alle, die die Liste später lesen.",
+    "reasonRequired": "Geben Sie einen Grund an.",
+    "reasonTooLong": "Ein Grund hat höchstens 1000 Zeichen.",
+    "cancel": "Abbrechen",
+    "submit": "Hold setzen",
+    "placed": "Legal Hold gesetzt."
+  },
+  "release": {
+    "button": "Aufheben",
+    "title": "Hold auf {{subject}} aufheben",
+    "description": "Die gesperrten Datensätze können wieder gelöscht und bereinigt werden. Der Hold bleibt als aufgehoben in der Liste.",
+    "note": "Notiz (optional)",
+    "noteHint": "Warum er aufgehoben wird.",
+    "noteTooLong": "Eine Notiz hat höchstens 1000 Zeichen.",
+    "cancel": "Abbrechen",
+    "submit": "Hold aufheben",
+    "released": "Legal Hold aufgehoben."
+  },
+  "detail": {
+    "title": "Legal Hold",
+    "description": "Was gesperrt ist, warum und wer den Hold gesetzt oder aufgehoben hat.",
+    "status": "Status",
+    "subject": "Typ",
+    "record": "Datensatz",
+    "reason": "Grund",
+    "placed": "Gesetzt",
+    "releasedAt": "Aufgehoben",
+    "releaseNote": "Notiz zur Aufhebung",
+    "by": "{{at}} von {{by}}",
+    "close": "Schließen"
+  }
+}

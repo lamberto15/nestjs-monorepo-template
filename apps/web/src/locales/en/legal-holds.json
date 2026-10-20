@@ -1,0 +1,70 @@
+{
+  "nav": "Legal holds",
+  "title": "Legal holds",
+  "description": "Records kept whatever a delete, the recycle bin's purge, a retention rule or an account deletion would do. A hold names a kind of record and one record, or every record of that kind. It lasts until it is released.",
+  "none": "No legal holds yet.",
+  "noMatch": "No legal hold matches.",
+  "allRecords": "Every record of the subject",
+  "more": "Show more",
+  "open": "Open the hold on {{subject}}",
+  "openButton": "Open",
+  "filters": {
+    "status": "Status",
+    "anyStatus": "Active and released",
+    "subject": "Subject"
+  },
+  "status": {
+    "active": "Active",
+    "released": "Released"
+  },
+  "columns": {
+    "subject": "Subject",
+    "record": "Record",
+    "reason": "Reason",
+    "status": "Status",
+    "placed": "Placed",
+    "actions": "Actions"
+  },
+  "place": {
+    "button": "Place a legal hold",
+    "title": "Place a legal hold",
+    "description": "While the hold is active the record cannot be deleted, is left in the recycle bin and is skipped by the retention rules. A hold on a User also stops that person's account deletion.",
+    "subject": "Subject",
+    "subjectHint": "The kind of record, such as Note, or User for a person.",
+    "subjectInvalid": "A subject is a name such as Note.",
+    "recordId": "Record ID (optional)",
+    "recordIdHint": "Leave empty to hold every record of the subject, the ones made later too.",
+    "recordInvalid": "A record ID is a UUID.",
+    "reason": "Reason",
+    "reasonHint": "Kept with the hold, for whoever reads the list later.",
+    "reasonRequired": "Enter a reason.",
+    "reasonTooLong": "A reason is at most 1000 characters.",
+    "cancel": "Cancel",
+    "submit": "Place hold",
+    "placed": "Legal hold placed."
+  },
+  "release": {
+    "button": "Release",
+    "title": "Release the hold on {{subject}}",
+    "description": "The records it kept can be deleted and purged again. The hold stays in the list as released.",
+    "note": "Note (optional)",
+    "noteHint": "Why it is released.",
+    "noteTooLong": "A note is at most 1000 characters.",
+    "cancel": "Cancel",
+    "submit": "Release hold",
+    "released": "Legal hold released."
+  },
+  "detail": {
+    "title": "Legal hold",
+    "description": "What is held, why, and who placed or released it.",
+    "status": "Status",
+    "subject": "Subject",
+    "record": "Record",
+    "reason": "Reason",
+    "placed": "Placed",
+    "releasedAt": "Released",
+    "releaseNote": "Release note",
+    "by": "{{at}} by {{by}}",
+    "close": "Close"
+  }
+}
