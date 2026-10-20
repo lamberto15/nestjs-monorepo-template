@@ -12,6 +12,11 @@
   "consents": {
     "title": "同意",
     "description": "你同意了什么，以及何时同意。每项都作为证明保存。",
+    "kinds": {
+      "terms": "服务条款",
+      "privacy": "隐私政策",
+      "marketing": "电子邮件资讯与优惠"
+    },
     "required": "必需",
     "acceptedAt": "版本 {{version}}，接受于 {{date}}",
     "outdated": "你于 {{date}} 接受了版本 {{version}}；当前版本为 {{current}}。",
@@ -21,7 +26,10 @@
     "withdrawable": "你可以随时撤回。",
     "withdrawnAt": "已于 {{date}} 撤回。打开开关即可重新同意。",
     "withdrawn": "{{kind}}：已撤回。",
-    "withdraw": "撤回"
+    "withdraw": "撤回",
+    "loadFailed": "无法加载同意项。",
+    "retry": "重试",
+    "acceptCurrent": "接受版本 {{version}}"
   },
   "deletion": {
     "title": "删除你的账户",

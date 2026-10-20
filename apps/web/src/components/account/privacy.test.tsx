@@ -238,19 +238,37 @@ describe('the privacy page', () => {
     });
     expect(terms).toHaveAttribute('aria-checked', 'true');
     expect(terms).toHaveAttribute('data-disabled');
+    // Both required kinds are in force (one at an older version): both locked.
     expect(
-      screen.getByText("Required to use the app: it can't be withdrawn here."),
-    ).toBeVisible();
+      screen.getAllByText(
+        "Required to use the app: it can't be withdrawn here.",
+      ),
+    ).toHaveLength(2);
 
-    // An older version: not the current one, so it can be given again.
+    // An older version is still in force (the switch is on, locked as it is
+    // required); the current one is accepted with the button.
     const privacy = screen.getByRole('switch', { name: 'Privacy policy' });
-    expect(privacy).toHaveAttribute('aria-checked', 'false');
-    expect(privacy).not.toHaveAttribute('data-disabled');
+    expect(privacy).toHaveAttribute('aria-checked', 'true');
+    expect(privacy).toHaveAttribute('data-disabled');
     expect(
       screen.getByText(
         /You accepted version 2025-06 on .*; version 2026-01 is current\./,
       ),
     ).toBeVisible();
+    await user.click(
+      screen.getByRole('button', { name: 'Accept version 2026-01' }),
+    );
+    await waitFor(() =>
+      expect(api.consentBodies).toEqual([
+        { kind: 'privacy', version: '2026-01' },
+      ]),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Accept version 2026-01' }),
+      ).toBeNull(),
+    );
+    api.consentBodies.length = 0;
 
     const marketing = screen.getByRole('switch', {
       name: 'News and offers by email',
@@ -267,6 +285,131 @@ describe('the privacy page', () => {
     // Given, the optional consent can be taken back as easily.
     expect(marketing).not.toHaveAttribute('data-disabled');
     expect(screen.getByText('You can withdraw it at any time.')).toBeVisible();
+  });
+
+  it('withdraws an optional consent given at an older version', async () => {
+    const api = useAccountApi({
+      consents: [
+        {
+          kind: 'marketing',
+          version: '2025-06',
+          acceptedAt: '2025-06-01T08:00:00.000Z',
+          withdrawnAt: null,
+        },
+      ],
+    });
+    await renderApp('/account/privacy');
+    const user = userEvent.setup();
+
+    const marketing = await screen.findByRole('switch', {
+      name: 'News and offers by email',
+    });
+    expect(marketing).toHaveAttribute('aria-checked', 'true');
+    expect(marketing).not.toHaveAttribute('data-disabled');
+    await user.click(marketing);
+    await waitFor(() => expect(api.withdrawn).toEqual(['marketing']));
+    await waitFor(() =>
+      expect(marketing).toHaveAttribute('aria-checked', 'false'),
+    );
+  });
+
+  it("offers no withdrawal when the kinds can't be loaded, and retries", async () => {
+    const api = useAccountApi({
+      consents: [
+        {
+          kind: 'terms',
+          version: '2026-01',
+          acceptedAt: '2026-01-05T08:00:00.000Z',
+          withdrawnAt: null,
+        },
+      ],
+    });
+    let failing = true;
+    server.use(
+      http.get('/v1/account/consent-kinds', () =>
+        failing
+          ? problem(500, 'internal_error')
+          : HttpResponse.json({
+              items: [
+                {
+                  kind: 'terms',
+                  version: '2026-01',
+                  required: true,
+                  label: 'Terms of service',
+                  description: 'The rules of using the service.',
+                },
+              ],
+            }),
+      ),
+    );
+    await renderApp('/account/privacy');
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText('The consents could not be loaded.'),
+    ).toBeVisible();
+    // Without the kinds, nothing held may look like a withdrawable leftover.
+    expect(screen.queryByRole('button', { name: /^Withdraw/ })).toBeNull();
+    expect(api.withdrawn).toEqual([]);
+
+    failing = false;
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(
+      await screen.findByRole('switch', { name: 'Terms of service' }),
+    ).toHaveAttribute('data-disabled');
+    expect(screen.queryByRole('button', { name: /^Withdraw/ })).toBeNull();
+  });
+
+  it('holds a kind while a request for it is in flight, even after another kind is toggled', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const api = useAccountApi({
+      consents: [
+        {
+          kind: 'marketing',
+          version: '2026-01',
+          acceptedAt: '2026-01-05T08:00:00.000Z',
+          withdrawnAt: null,
+        },
+      ],
+    });
+    server.use(
+      http.delete('/v1/account/consents/:kind', async ({ params }) => {
+        await gate;
+        api.withdrawn.push(String(params.kind));
+        return HttpResponse.json({
+          kind: String(params.kind),
+          version: '2026-01',
+          acceptedAt: '2026-01-05T08:00:00.000Z',
+          withdrawnAt: '2026-10-20T11:00:00.000Z',
+        });
+      }),
+    );
+    await renderApp('/account/privacy');
+    const user = userEvent.setup();
+
+    const marketing = await screen.findByRole('switch', {
+      name: 'News and offers by email',
+    });
+    await user.click(marketing);
+    await waitFor(() => expect(marketing).toHaveAttribute('data-disabled'));
+    // Another kind's request must not free this one.
+    await user.click(screen.getByRole('switch', { name: 'Privacy policy' }));
+    await waitFor(() =>
+      expect(api.consentBodies).toEqual([
+        { kind: 'privacy', version: '2026-01' },
+      ]),
+    );
+    expect(marketing).toHaveAttribute('data-disabled');
+    await user.click(marketing);
+    expect(api.consentBodies).toHaveLength(1);
+
+    release();
+    await waitFor(() => expect(api.withdrawn).toEqual(['marketing']));
+    await waitFor(() =>
+      expect(marketing).toHaveAttribute('aria-checked', 'false'),
+    );
+    expect(marketing).not.toHaveAttribute('data-disabled');
   });
 
   it('withdraws an optional consent, and gives it again', async () => {
@@ -349,6 +492,12 @@ describe('the privacy page', () => {
           acceptedAt: '2025-01-05T08:00:00.000Z',
           withdrawnAt: null,
         },
+        {
+          kind: 'marketing',
+          version: '2025-01',
+          acceptedAt: '2025-01-05T08:00:00.000Z',
+          withdrawnAt: null,
+        },
       ],
     });
     server.use(
@@ -381,6 +530,12 @@ describe('the privacy page', () => {
       screen.getByRole('button', { name: 'Withdraw: newsletter' }),
     );
     await waitFor(() => expect(api.withdrawn).toEqual(['newsletter']));
+    // A kind the app has a text for is named with it, an unknown one by itself.
+    expect(
+      screen.getByRole('button', {
+        name: 'Withdraw: News and offers by email',
+      }),
+    ).toBeVisible();
     await waitFor(() =>
       expect(
         screen.queryByRole('button', { name: 'Withdraw: newsletter' }),

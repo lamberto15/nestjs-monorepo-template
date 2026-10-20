@@ -12,6 +12,11 @@
   "consents": {
     "title": "الموافقات",
     "description": "ما وافقت عليه ومتى. تُحفظ كل موافقة كدليل.",
+    "kinds": {
+      "terms": "شروط الخدمة",
+      "privacy": "سياسة الخصوصية",
+      "marketing": "الأخبار والعروض عبر البريد الإلكتروني"
+    },
     "required": "مطلوبة",
     "acceptedAt": "الإصدار {{version}}، قُبل في {{date}}",
     "outdated": "قبلت الإصدار {{version}} في {{date}}؛ والإصدار الحالي هو {{current}}.",
@@ -21,7 +26,10 @@
     "withdrawable": "يمكنك سحبها في أي وقت.",
     "withdrawnAt": "سُحبت في {{date}}. فعّل المفتاح لمنحها من جديد.",
     "withdrawn": "{{kind}}: تم السحب.",
-    "withdraw": "سحب"
+    "withdraw": "سحب",
+    "loadFailed": "تعذّر تحميل الموافقات.",
+    "retry": "حاول مرة أخرى",
+    "acceptCurrent": "قبول الإصدار {{version}}"
   },
   "deletion": {
     "title": "حذف حسابك",

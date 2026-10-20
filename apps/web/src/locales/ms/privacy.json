@@ -12,6 +12,11 @@
   "consents": {
     "title": "Persetujuan",
     "description": "Perkara yang anda setujui, dan bila. Setiap satu disimpan sebagai bukti.",
+    "kinds": {
+      "terms": "Terma perkhidmatan",
+      "privacy": "Dasar privasi",
+      "marketing": "Berita dan tawaran melalui e-mel"
+    },
     "required": "Wajib",
     "acceptedAt": "Versi {{version}}, diterima {{date}}",
     "outdated": "Anda menerima versi {{version}} pada {{date}}; versi semasa ialah {{current}}.",
@@ -21,7 +26,10 @@
     "withdrawable": "Anda boleh menariknya balik pada bila-bila masa.",
     "withdrawnAt": "Ditarik balik pada {{date}}. Hidupkan untuk memberinya semula.",
     "withdrawn": "{{kind}}: ditarik balik.",
-    "withdraw": "Tarik balik"
+    "withdraw": "Tarik balik",
+    "loadFailed": "Persetujuan tidak dapat dimuatkan.",
+    "retry": "Cuba lagi",
+    "acceptCurrent": "Terima versi {{version}}"
   },
   "deletion": {
     "title": "Padam akaun anda",

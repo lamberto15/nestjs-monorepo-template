@@ -12,6 +12,11 @@
   "consents": {
     "title": "Einwilligungen",
     "description": "Wozu Sie eingewilligt haben, und wann. Jede wird als Nachweis aufbewahrt.",
+    "kinds": {
+      "terms": "Nutzungsbedingungen",
+      "privacy": "Datenschutzerklärung",
+      "marketing": "Neuigkeiten und Angebote per E-Mail"
+    },
     "required": "Erforderlich",
     "acceptedAt": "Version {{version}}, akzeptiert {{date}}",
     "outdated": "Sie haben Version {{version}} am {{date}} akzeptiert; aktuell ist Version {{current}}.",
@@ -21,7 +26,10 @@
     "withdrawable": "Sie können sie jederzeit widerrufen.",
     "withdrawnAt": "Widerrufen am {{date}}. Schalten Sie sie ein, um sie erneut zu erteilen.",
     "withdrawn": "{{kind}}: widerrufen.",
-    "withdraw": "Widerrufen"
+    "withdraw": "Widerrufen",
+    "loadFailed": "Die Einwilligungen konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "acceptCurrent": "Version {{version}} akzeptieren"
   },
   "deletion": {
     "title": "Ihr Konto löschen",
