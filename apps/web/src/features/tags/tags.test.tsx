@@ -26,7 +26,7 @@ describe('gating', () => {
   });
 
   it('sends a user without the permission away, with no request', async () => {
-    const { calls } = useTagsApi({ can: ['Note.read'] });
+    const { calls } = useTagsApi({ can: ['TestItem.read'] });
     const { router } = await renderApp('/tags');
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(calls.reads).toEqual([]);
@@ -48,7 +48,7 @@ describe('the list', () => {
     const user = userEvent.setup();
     await renderApp('/tags');
     const urgent = await rowOf('Urgent');
-    expect(within(urgent).getByText('Note')).toBeVisible();
+    expect(within(urgent).getByText('TestItem')).toBeVisible();
     expect(within(urgent).getByText('Needs an answer today')).toBeVisible();
     expect(await rowOf('Overdue')).toBeVisible();
     // No subject asked for: the management screen lists them all.
@@ -240,7 +240,9 @@ describe('deleting', () => {
     const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).getByText('Delete the tag “Urgent”?')).toBeVisible();
     expect(
-      within(dialog).getByText(/Every Note record carrying “Urgent” loses it/),
+      within(dialog).getByText(
+        /Every TestItem record carrying “Urgent” loses it/,
+      ),
     ).toBeVisible();
     expect(calls.deleted).toEqual([]);
     // Cancelling deletes nothing.
@@ -267,14 +269,14 @@ describe('what shows the tags is refreshed', () => {
     const { queryClient } = await renderApp('/tags');
     // What a record page holds: the subject's tags (the picker), a list page,
     // one record.
-    queryClient.setQueryData(['tags', 'Note'], []);
-    queryClient.setQueryData(['list', '/v1/notes', {}], {});
-    queryClient.setQueryData(['record', '/v1/notes', 'n1'], {});
+    queryClient.setQueryData(['tags', 'TestItem'], []);
+    queryClient.setQueryData(['list', '/v1/test-items', {}], {});
+    queryClient.setQueryData(['record', '/v1/test-items', 'i1'], {});
     const stale = () =>
       [
-        ['tags', 'Note'],
-        ['list', '/v1/notes', {}],
-        ['record', '/v1/notes', 'n1'],
+        ['tags', 'TestItem'],
+        ['list', '/v1/test-items', {}],
+        ['record', '/v1/test-items', 'i1'],
       ].map((key) => queryClient.getQueryState(key)!.isInvalidated);
     expect(stale()).toEqual([false, false, false]);
 
@@ -290,9 +292,9 @@ describe('what shows the tags is refreshed', () => {
     expect(stale()).toEqual([true, true, true]);
 
     // Fresh again, then a delete.
-    queryClient.setQueryData(['tags', 'Note'], []);
-    queryClient.setQueryData(['list', '/v1/notes', {}], {});
-    queryClient.setQueryData(['record', '/v1/notes', 'n1'], {});
+    queryClient.setQueryData(['tags', 'TestItem'], []);
+    queryClient.setQueryData(['list', '/v1/test-items', {}], {});
+    queryClient.setQueryData(['record', '/v1/test-items', 'i1'], {});
     await user.click(
       await screen.findByRole('button', { name: 'Delete Critical' }),
     );

@@ -9,7 +9,7 @@ import { useSignedIn } from '@/test/signed-in';
 
 export const tag = (over: Partial<Tag> = {}): Tag => ({
   id: 't1',
-  subject: 'Note',
+  subject: 'TestItem',
   name: 'Urgent',
   color: '#ef4444',
   description: 'Needs an answer today',
