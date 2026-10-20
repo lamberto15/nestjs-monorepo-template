@@ -264,6 +264,10 @@ export class AiService implements PersonalDataSource {
     let output: Record<string, unknown> | null = null;
     if (row.status === 'completed') {
       const job = await this.queue.getJob(id);
+      // The row commits before BullMQ stores the job's result: until the job
+      // has finished, the run is still running for its reader.
+      if (job && !job.finishedOn)
+        return view({ ...row, status: 'running' }, null);
       const kept: unknown = job?.returnvalue;
       output =
         kept && typeof kept === 'object'
