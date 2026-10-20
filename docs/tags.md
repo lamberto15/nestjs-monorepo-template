@@ -41,3 +41,17 @@ const tags = await this.tags.tagsOf('Note', rows.map((row) => row.id)); // Map<i
   The soft-delete purge does it by itself (`RecordPurgeRegistry`); a
   feature that deletes outright calls `tags.forget(tx, record)`. A note in
   the recycle bin keeps its tags.
+
+## In the web app
+
+`/tags` (`apps/web/src/features/tags`, in the menu for `Access.manageTags`)
+lists every subject's tags (`GET /v1/tags` without `?subject=`), filtered by
+part of a name in the browser and by subject (a chosen subject is read with
+`?subject=`; the all-subjects list stops at 1000 tags and says so). Edit renames, recolours (Dice UI's
+color picker, `#rrggbb`; "Remove the color" sends `null`) and describes
+(`PATCH /v1/tags/{id}`, only what changed; a taken name is a 409 on the name
+field); Delete asks first and says every record of the subject loses the tag.
+The tag routes take no ETag, so there is no `If-Match` and no 412: the last
+write wins. Tags are still created in a record's tag editor. A change refreshes
+the tag lists (`['tags', …]`) and the record lists and details (`['list', …]`,
+`['record', …]`), which embed tags by name.
