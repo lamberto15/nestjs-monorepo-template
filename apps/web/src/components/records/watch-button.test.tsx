@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { TEST_RECORD, panelHandlers } from '@/test/panels-api';
 import { renderComponent } from '@/test/render-component';
@@ -9,37 +10,63 @@ import { findToast } from '@/test/toast';
 import { WatchButton } from './watch-button';
 
 // The Watch toggle on the test-only subject's record (no feature's page hosts
-// it): it follows the API's `capabilities.watch`, and the state is the
-// subscriptions list filtered to the record.
+// it): it follows the API's `capabilities.watch`, and its state is the
+// record's own `watching` (`?include=watching`), which the page passes in:
+// the subscriptions list is never asked.
 const ID = '0199a3f2-0000-7000-8000-000000000601';
+
+/** What a page does: it holds the record's `watching` and sets it when told. */
+function Page(props: {
+  initial: boolean | undefined;
+  onToggled: (watching: boolean) => void;
+}) {
+  const [watching, setWatching] = useState(props.initial);
+  return (
+    <WatchButton
+      subject={TEST_RECORD.subject}
+      path={TEST_RECORD.path}
+      id={ID}
+      watching={watching}
+      onToggled={(next) => {
+        props.onToggled(next);
+        setWatching(next);
+      }}
+    />
+  );
+}
 
 async function mount(options: {
   watch?: boolean;
-  watched?: boolean;
+  watching?: boolean | undefined;
   can?: string[];
 }) {
   const panelsApi = panelHandlers({
     capabilities: { watch: options.watch ?? true },
   });
   const api = subscriptionsHandlers({
-    watched: options.watched
+    watched: options.watching
       ? [{ subject: TEST_RECORD.subject, recordId: ID }]
       : [],
   });
   server.use(...panelsApi.handlers, ...api.handlers);
+  const toggled: boolean[] = [];
   const view = await renderComponent(
-    <WatchButton
-      subject={TEST_RECORD.subject}
-      path={TEST_RECORD.path}
-      id={ID}
+    <Page
+      initial={'watching' in options ? options.watching : false}
+      onToggled={(watching) => toggled.push(watching)}
     />,
     { can: options.can ?? ['TestItem.read'] },
   );
-  return { ...api, panels: panelsApi.calls, queryClient: view.queryClient };
+  return {
+    ...api,
+    panels: panelsApi.calls,
+    queryClient: view.queryClient,
+    toggled,
+  };
 }
 
 describe('the watch toggle', () => {
-  it('watches the record, then stops', async () => {
+  it('watches the record, then stops, telling the page each time', async () => {
     const api = await mount({});
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Watch' }));
@@ -51,16 +78,26 @@ describe('the watch toggle', () => {
     await findToast('You stopped watching.');
     expect(api.calls.unwatched).toEqual([ID]);
     expect(await screen.findByRole('button', { name: 'Watch' })).toBeVisible();
+    expect(api.toggled).toEqual([true, false]);
   });
 
-  it('shows a watched record as watched', async () => {
-    const api = await mount({ watched: true });
+  it('shows a watched record as watched, without asking the subscriptions', async () => {
+    const api = await mount({ watching: true });
     expect(
       await screen.findByRole('button', { name: 'Stop watching' }),
     ).toBeVisible();
-    // The state is asked of the list, filtered to this record.
-    expect(api.calls.listed[0]).toContain(`recordId=${ID}`);
-    expect(api.calls.listed[0]).toContain('subject=TestItem');
+    expect(api.calls.listed).toEqual([]);
+  });
+
+  it('shows nothing while the record does not say', async () => {
+    const api = await mount({ watching: undefined });
+    await waitFor(() =>
+      expect(
+        api.queryClient.getQueryData(['lists', TEST_RECORD.subject]),
+      ).toBeDefined(),
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(api.calls.listed).toEqual([]);
   });
 
   it('is absent for a subject that does not take watching', async () => {

@@ -84,10 +84,19 @@ export function useNotesApi(options: {
     restore: !!note.deletedAt && held.has('Note.restore'),
     ...options.recordCan?.(note),
   });
-  const withCan = (note: TestNote, url: string) =>
-    new URL(url).searchParams.get('include') === 'can'
-      ? { ...note, can: canOf(note) }
-      : note;
+  // `?include=can,watching`: each part only when asked, as the API does.
+  const withIncluded = (note: TestNote, url: string) => {
+    const include = (new URL(url).searchParams.get('include') ?? '').split(',');
+    return {
+      ...note,
+      ...(include.includes('can') && { can: canOf(note) }),
+      ...(include.includes('watching') && {
+        watching: subscriptions.watched.some(
+          (s) => s.subject === 'Note' && s.recordId === note.id,
+        ),
+      }),
+    };
+  };
   let version = 1;
   const etagOf = (note: TestNote) => `"${note.id}-${version}-${note.title}"`;
   const calls = {
@@ -98,6 +107,8 @@ export function useNotesApi(options: {
     listQueries: [] as string[],
     /** The ids `GET /v1/notes/{id}` was asked for. */
     reads: [] as string[],
+    /** The query string of each `GET /v1/notes/{id}`. */
+    readQueries: [] as string[],
   };
   /** Another user's write: the note changes, its ETag with it. */
   const changeElsewhere = (id: string, changes: Partial<TestNote>) => {
@@ -126,7 +137,7 @@ export function useNotesApi(options: {
       const bin = url.searchParams.get('deleted') === 'true';
       const items = [...notes.values()]
         .filter((n) => !!n.deletedAt === bin)
-        .map((n) => withCan(n, request.url));
+        .map((n) => withIncluded(n, request.url));
       return HttpResponse.json({ items, page: 1, pageCount: 1 });
     }),
     http.post('/v1/notes', async ({ request }) => {
@@ -147,10 +158,11 @@ export function useNotesApi(options: {
     }),
     http.get('/v1/notes/:id', ({ params, request }) => {
       calls.reads.push(params.id as string);
+      calls.readQueries.push(new URL(request.url).search);
       const note = notes.get(params.id as string);
       if (!note || note.deletedAt) return problem(404, 'not_found');
-      // `can` is not part of the ETag.
-      return HttpResponse.json(withCan(note, request.url), {
+      // `can` and `watching` are not part of the ETag.
+      return HttpResponse.json(withIncluded(note, request.url), {
         headers: { etag: etagOf(note) },
       });
     }),
