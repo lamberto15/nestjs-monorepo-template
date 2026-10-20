@@ -4,6 +4,7 @@ import { TestItemPublishApproval } from './test-item-approvals.js';
 import { TEST_ITEM_APPROVALS } from './test-item.approvals.js';
 import { TEST_ITEM_LIST } from './test-item.list.js';
 import { TestItemPolicy } from './test-item.policy.js';
+import { TestItemAi } from './test-item-ai.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { TEST_ITEM_SCHEMAS } from './test-item.schemas.js';
 import { TestItemsController } from './test-items.controller.js';
@@ -27,6 +28,7 @@ const parts = recordParts(TEST_ITEM, {
     TestItemsService,
     TestItemPolicy,
     TestItemPublishApproval,
+    TestItemAi,
     ...parts.providers,
   ],
   exports: [TestItemsService],

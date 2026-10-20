@@ -210,6 +210,24 @@ export const REALTIME_EVENTS = {
       error: z.string(),
     }),
   ),
+  'ai.ready': event(
+    'RealtimeAiReadyEvent',
+    'An AI run you asked for (`POST /v1/ai/runs`) finished: read the answer at `GET /v1/ai/runs/{id}`.',
+    z.object({
+      id: z.string(),
+      ...subjectRecord,
+      task: z.string(),
+    }),
+  ),
+  'ai.failed': event(
+    'RealtimeAiFailedEvent',
+    'An AI run you asked for failed for good; `error` says why, for people.',
+    z.object({
+      id: z.string(),
+      ...subjectRecord,
+      error: z.string(),
+    }),
+  ),
   'record.commented': event(
     'RealtimeRecordCommentedEvent',
     'A comment on a record you watch (or one you wrote, for your other tabs) was added, edited or removed: ids only, fetch the thread.',
