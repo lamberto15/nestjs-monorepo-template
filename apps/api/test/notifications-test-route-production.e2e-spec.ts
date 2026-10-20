@@ -8,6 +8,8 @@ vi.hoisted(() => {
   process.env.NODE_ENV = 'production';
   process.env.APP_URL = 'https://api.example.com';
   process.env.PASSKEYS = 'off';
+  // Production takes the two-factor keys from the environment only.
+  process.env.MFA_ENCRYPTION_KEYS ??= Buffer.alloc(32, 7).toString('base64');
 });
 
 /** POST /v1/notifications/test exists in development and tests only. */
