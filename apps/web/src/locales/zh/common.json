@@ -52,9 +52,9 @@
       "confirmPassword": "确认密码",
       "name": "姓名",
       "nameRequired": "请输入姓名。",
-      "tenantName": "Organization name",
-      "tenantNameHint": "Your new organization. You will be its administrator. Leave it empty to use your name.",
-      "tenantNameTooLong": "At most {{max}} characters."
+      "tenantName": "组织名称",
+      "tenantNameHint": "你的新组织。你将成为它的管理员。留空则使用你的姓名。",
+      "tenantNameTooLong": "最多 {{max}} 个字符。"
     },
     "mfa": {
       "hint": "请输入身份验证器应用中的 6 位验证码。",
@@ -93,14 +93,14 @@
       "description": "请输入您注册时使用的密码",
       "submit": "验证",
       "done": "{{email}} 已验证。您现在可以登录了。",
-      "banner": "Your address {{email}} is not verified yet. Open the link we emailed you.",
+      "banner": "你的邮箱 {{email}} 尚未验证。请打开我们发给你的邮件中的链接。",
       "resend": {
-        "button": "Resend the verification email",
-        "done": "Verification email sent. Check your mailbox.",
-        "limited": "Too many requests. Try again in about 15 minutes.",
-        "hint": "Lost the link, or it expired?",
-        "again": "Send the link again",
-        "sent": "If this address has an account waiting for confirmation, we sent a new link."
+        "button": "重新发送验证邮件",
+        "done": "验证邮件已发送，请查看你的邮箱。",
+        "limited": "请求过于频繁，请约 15 分钟后再试。",
+        "hint": "链接丢了，或者已过期？",
+        "again": "再次发送链接",
+        "sent": "如果该邮箱有等待确认的账号，我们已发送新的链接。"
       }
     },
     "invitation": {

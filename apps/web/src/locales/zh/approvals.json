@@ -1,7 +1,7 @@
 {
   "nav": {
     "title": "审批",
-    "policies": "Approval policies"
+    "policies": "审批策略"
   },
   "inbox": {
     "title": "审批",
@@ -60,28 +60,28 @@
     "commentRequiredLabel": "拒绝原因",
     "commentRequired": "请说明拒绝的原因。",
     "requestChanges": {
-      "title": "Request changes",
-      "button": "Request changes",
-      "submit": "Request changes",
-      "done": "Changes requested.",
-      "commentLabel": "What should change",
-      "commentRequired": "Say what should change.",
-      "hint": "The request goes back to the requester, who can change the record and resubmit it."
+      "title": "要求修改",
+      "button": "要求修改",
+      "submit": "要求修改",
+      "done": "已要求修改。",
+      "commentLabel": "需要修改什么",
+      "commentRequired": "请说明需要修改什么。",
+      "hint": "请求会退回给发起人，发起人可以修改记录后重新提交。"
     },
     "resubmit": {
-      "title": "Resubmit for approval",
-      "button": "Resubmit",
-      "submit": "Resubmit",
-      "done": "Resubmitted.",
-      "hint": "A new round starts from the first stage, and the approvers are resolved again."
+      "title": "重新提交审批",
+      "button": "重新提交",
+      "submit": "重新提交",
+      "done": "已重新提交。",
+      "hint": "新一轮从第一阶段开始，审批人会重新确定。"
     },
     "abandon": {
-      "title": "Abandon the request",
-      "button": "Abandon",
-      "submit": "Abandon",
-      "done": "Request abandoned.",
-      "commentLabel": "Reason (optional)",
-      "hint": "The request was approved but its outcome was never applied. Abandoning ends it as failed and unlocks the record. It is refused while the outcome is still being applied or retried."
+      "title": "放弃请求",
+      "button": "放弃",
+      "submit": "放弃",
+      "done": "请求已放弃。",
+      "commentLabel": "原因（可选）",
+      "hint": "请求已获批准，但其结果从未被应用。放弃后请求以失败结束，并解锁记录。结果仍在应用或重试时，不能放弃。"
     }
   },
   "conflict": {
@@ -194,134 +194,134 @@
     "details": "审批详情"
   },
   "policies": {
-    "back": "Back to approval policies",
-    "title": "Approval policies",
-    "description": "The actions that can need approval, and who decides them. Changes apply to new requests; a running request keeps the policy it started with.",
-    "none": "No action needs approval.",
+    "back": "返回审批策略",
+    "title": "审批策略",
+    "description": "哪些操作可能需要审批，以及由谁决定。更改只对新请求生效；进行中的请求沿用它开始时的策略。",
+    "none": "没有需要审批的操作。",
     "source": {
-      "code": "Default",
-      "override": "Customized (version {{version}})"
+      "code": "默认",
+      "override": "已自定义（版本 {{version}}）"
     },
-    "off": "Off",
-    "conditional": "Conditional",
-    "stagesSummary": "Stages: {{names}}",
-    "edit": "Edit",
-    "editLabel": "Edit {{label}}",
-    "setting": "Switched on per team by the setting",
-    "saved": "Policy saved.",
+    "off": "关闭",
+    "conditional": "有条件",
+    "stagesSummary": "阶段：{{names}}",
+    "edit": "编辑",
+    "editLabel": "编辑{{label}}",
+    "setting": "由设置按团队开启",
+    "saved": "策略已保存。",
     "notFound": {
-      "title": "Policy not found",
-      "description": "No action has this key."
+      "title": "找不到策略",
+      "description": "没有操作使用这个键。"
     },
     "error": {
-      "title": "Could not load the policy",
-      "generic": "Something went wrong.",
-      "retry": "Try again"
+      "title": "无法加载策略",
+      "generic": "出了点问题。",
+      "retry": "重试"
     },
     "conflict": {
-      "title": "This policy changed",
-      "description": "Someone saved it since you opened it.",
-      "reload": "Reload"
+      "title": "此策略已更改",
+      "description": "自你打开以来，有人保存了它。",
+      "reload": "重新加载"
     },
-    "enabled": "Needs approval",
-    "enabledHint": "Off: the action needs no approval for anyone.",
-    "resubmitWithin": "Time to resubmit",
-    "resubmitWithinHint": "How long the requester has after changes were requested, before the request expires. 30m, 8h, 2d, 1w.",
-    "stages": "Stages",
-    "addStage": "Add a stage",
-    "save": "Save policy",
-    "remove": "Remove {{label}}",
-    "invalidJson": "Not valid JSON.",
+    "enabled": "需要审批",
+    "enabledHint": "关闭：该操作对任何人都不需要审批。",
+    "resubmitWithin": "重新提交时限",
+    "resubmitWithinHint": "被要求修改后，发起人在请求过期前有多长时间。30m、8h、2d、1w。",
+    "stages": "阶段",
+    "addStage": "添加阶段",
+    "save": "保存策略",
+    "remove": "移除{{label}}",
+    "invalidJson": "不是有效的 JSON。",
     "reset": {
-      "button": "Reset to default",
-      "title": "Reset {{label}} to the default?",
-      "description": "The policy goes back to the one declared in code, stored as a new version. Running requests keep their policy.",
-      "confirm": "Reset",
-      "done": "Policy reset."
+      "button": "恢复为默认",
+      "title": "将{{label}}恢复为默认？",
+      "description": "策略将恢复为代码中声明的版本，并保存为新版本。进行中的请求沿用它们的策略。",
+      "confirm": "恢复",
+      "done": "策略已恢复。"
     },
     "when": {
-      "title": "Condition",
-      "only": "Only when a condition holds",
-      "hint": "Otherwise every request needs approval.",
-      "fields": "Fields of the proposed change: {{fields}}.",
-      "condition": "Condition",
-      "inner": "Condition inside",
-      "item": "Condition {{n}}",
-      "add": "Add a condition"
+      "title": "条件",
+      "only": "仅在满足条件时",
+      "hint": "否则每个请求都需要审批。",
+      "fields": "拟议更改的字段：{{fields}}。",
+      "condition": "条件",
+      "inner": "内部条件",
+      "item": "条件 {{n}}",
+      "add": "添加条件"
     },
     "stage": {
-      "label": "Stage {{n}}",
-      "up": "Move stage {{n}} up",
-      "down": "Move stage {{n}} down",
-      "remove": "Remove stage {{n}}",
-      "name": "Name",
-      "approvers": "Approvers",
-      "approversHint": "Everyone any of these rules names decides the stage, except the requester.",
-      "approver": "Approver",
-      "addApprover": "Add an approver rule",
-      "mode": "How the stage completes",
-      "remindAfter": "Remind after",
-      "dueAfter": "Overdue after",
-      "onOverdue": "When overdue",
+      "label": "阶段 {{n}}",
+      "up": "上移阶段 {{n}}",
+      "down": "下移阶段 {{n}}",
+      "remove": "移除阶段 {{n}}",
+      "name": "名称",
+      "approvers": "审批人",
+      "approversHint": "这些规则指定的所有人（发起人除外）共同决定该阶段。",
+      "approver": "审批人",
+      "addApprover": "添加审批人规则",
+      "mode": "阶段如何完成",
+      "remindAfter": "提醒时间",
+      "dueAfter": "逾期时间",
+      "onOverdue": "逾期时",
       "overdue": {
-        "expire": "Expire the request",
-        "escalate": "Escalate"
+        "expire": "使请求过期",
+        "escalate": "升级"
       },
-      "durationHint": "Durations: 30m, 8h, 2d, 1w. Leave empty for none.",
-      "escalateTo": "Escalate to",
-      "escalation": "Escalation approver",
-      "addEscalation": "Add an escalation rule",
-      "escalationDueAfter": "Expire after escalating, after"
+      "durationHint": "时长：30m、8h、2d、1w。留空表示不设置。",
+      "escalateTo": "升级给",
+      "escalation": "升级审批人",
+      "addEscalation": "添加升级规则",
+      "escalationDueAfter": "升级后过期时间"
     },
     "params": {
-      "path": "Path",
-      "op": "Comparison",
-      "value": "Value",
-      "role": "Role",
-      "levelsUp": "Levels up",
-      "nearest": "Nearest with someone",
-      "action": "Permission",
-      "subject": "Subject",
-      "userIds": "Users (ids)",
-      "n": "Approvals needed"
+      "path": "路径",
+      "op": "比较",
+      "value": "值",
+      "role": "角色",
+      "levelsUp": "上溯层级",
+      "nearest": "最近的有人者",
+      "action": "权限",
+      "subject": "对象",
+      "userIds": "用户（ID）",
+      "n": "所需审批数"
     },
     "paramHints": {
-      "path": "A dotted path into the proposed change: amount, lines.0.total.",
-      "value": "A number, text or true/false; a JSON list for in and notIn: [\"a\", \"b\"].",
-      "levelsUp": "0: the requester's own unit, 1: the unit above.",
-      "userIds": "Press Enter or comma after each id (GET /v1/people).",
-      "subject": "Optional: the record's own subject when empty."
+      "path": "指向拟议更改的点路径：amount、lines.0.total。",
+      "value": "数字、文本或 true/false；in 和 notIn 用 JSON 列表：[\"a\", \"b\"]。",
+      "levelsUp": "0：发起人自己的单位，1：上一级单位。",
+      "userIds": "每输入一个 ID 后按 Enter 或逗号（GET /v1/people）。",
+      "subject": "可选：留空则使用记录本身的对象。"
     },
     "enums": {
       "op": {
-        "eq": "equals",
-        "ne": "does not equal",
-        "gt": "is greater than",
-        "gte": "is at least",
-        "lt": "is less than",
-        "lte": "is at most",
-        "in": "is one of",
-        "notIn": "is none of",
-        "exists": "exists"
+        "eq": "等于",
+        "ne": "不等于",
+        "gt": "大于",
+        "gte": "不小于",
+        "lt": "小于",
+        "lte": "不大于",
+        "in": "属于其中之一",
+        "notIn": "不属于其中任何一个",
+        "exists": "存在"
       }
     },
     "types": {
       "rule": {
-        "role": "Users holding a role",
-        "teamRole": "Users holding a role in the requester's team, or above",
-        "permission": "Users who may do an action on the record",
-        "users": "Named users"
+        "role": "拥有某角色的用户",
+        "teamRole": "在发起人团队或其上级中拥有某角色的用户",
+        "permission": "可以对该记录执行某操作的用户",
+        "users": "指定的用户"
       },
       "mode": {
-        "any": "Any approver: the first decision decides",
-        "all": "All approvers",
-        "quorum": "A quorum of approvers"
+        "any": "任一审批人：第一个决定即为结果",
+        "all": "所有审批人",
+        "quorum": "达到法定人数的审批人"
       },
       "condition": {
-        "all": "All of these conditions",
-        "any": "Any of these conditions",
-        "not": "Not this condition",
-        "payload": "A value of the proposed change"
+        "all": "满足所有这些条件",
+        "any": "满足其中任一条件",
+        "not": "不满足此条件",
+        "payload": "拟议更改中的某个值"
       }
     }
   }
