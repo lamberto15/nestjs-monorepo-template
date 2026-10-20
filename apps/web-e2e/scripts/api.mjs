@@ -12,6 +12,7 @@
 // shell: CI sets its own services' URLs (.github/workflows/web-e2e.yml). The
 // seed refuses a database that isn't marked as a development one.
 import { spawn, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +47,10 @@ const env = {
   MAIL_TRANSPORT: 'log',
   STORAGE_DRIVER: 'local',
   PASSWORD_BREACH_CHECK: 'off',
+  // Devices and phone numbers are encrypted columns with blind indexes
+  // (docs/encryption.md): their keys are required at boot, made per run.
+  DATA_ENCRYPTION_KEYS: randomBytes(32).toString('base64'),
+  BLIND_INDEX_KEYS: randomBytes(32).toString('base64'),
   // The suite signs in a few times per account on a database that may be reused.
   RATE_LIMIT_MULTIPLIER: '20',
   LOG_LEVEL: 'error',
