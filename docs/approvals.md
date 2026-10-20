@@ -232,7 +232,7 @@ switches it per requester.
 | Route | Does |
 | --- | --- |
 | `GET /v1/approvals` | the inbox: `?assignedToMe=true` (pending on you now, yours and those of people you stand in for), `?requestedByMe=true`, `?decidedByMe=true` (what you decided, yourself or standing in for someone: the history), `status`, `subject`, `action`, `recordId`, `dueAt`, `createdAt`, `updatedAt`; cursor pages; ETag. Each item has its `can` and `etag` (below) |
-| `GET /v1/approvals/{id}` | the request: `stages` (their state in the current round), `assignments` (every round), `timeline`, and `can` (`decide`, `cancel`, `resubmit`); ETag |
+| `GET /v1/approvals/{id}` | the request: `stages` (their state in the current round), `assignments` (every round), `timeline`, and `can` (`decide`, `cancel`, `resubmit`, `abandon`); ETag |
 | `POST /v1/approvals/{id}/approve` | `{ comment? }`: for your assignment and those of the people you stand in for |
 | `POST /v1/approvals/{id}/reject` | `{ comment }` (required) |
 | `POST /v1/approvals/{id}/request-changes` | `{ comment }` (required): back to the requester |
@@ -245,8 +245,10 @@ Every decision route takes `If-Match` (412 `precondition_failed` when the
 request changed since read) and answers the request as `GET` does.
 
 - **The inbox's rows** carry what `GET /v1/approvals/{id}` would give you:
-  `can` (`decide`, `cancel`, `resubmit`: what the routes would allow you
-  now) and `etag` (the tag of that `GET`, which covers the stages,
+  `can` (`decide`, `cancel`, `resubmit`, `abandon`: what the routes would allow you
+  now; `abandon` is `Approval.manage` on an approved, unapplied request, and
+  the call can still answer 409 `approval_not_stuck` while its workflow
+  runs; requesting changes is `decide`) and `etag` (the tag of that `GET`, which covers the stages,
   assignments, timeline and your `can`), so a row decides with
   `If-Match: <etag>` without reading the request first. Both are the
   single request's own computation (`detailsOf()`), for the whole page in

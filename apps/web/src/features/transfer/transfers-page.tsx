@@ -9,7 +9,11 @@ import {
 } from '@nestjs-monorepo-template/ui/components/select';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +22,7 @@ import {
   accountExportsQuery,
 } from '@/components/account/privacy-api';
 import { useDateTimeFormat } from '@/lib/date-time';
-import { useLivePoll, useRealtimeEvent } from '@/lib/realtime';
+import { useLivePoll, useRealtimeEvent, withProgress } from '@/lib/realtime';
 import {
   bulkListQuery,
   transfersListQuery,
@@ -28,6 +32,12 @@ import {
   type TransferState,
 } from './api';
 import { TransferView } from './transfer-status';
+
+type JobItem = {
+  id: string;
+  status: string;
+  progress: Record<string, number>;
+};
 
 type Show = 'all' | TransferKind | 'account' | 'bulk';
 type StatusFilter = 'all' | TransferState;
@@ -80,6 +90,33 @@ export function TransfersPage() {
   useRealtimeEvent('data.export-ready', ended);
   useRealtimeEvent('data.import-finished', ended);
   useRealtimeEvent('bulk.finished', ended);
+  useRealtimeEvent('data.failed', ended);
+  useRealtimeEvent('bulk.failed', ended);
+  // Progress events update the counters of the shown item in place.
+  const progressed = (
+    key: 'transfers' | 'bulk-runs',
+    id: string,
+    counters: Record<string, number | undefined>,
+  ) =>
+    queryClient.setQueriesData<InfiniteData<{ items: JobItem[] }>>(
+      { queryKey: ['data', key] },
+      (data) =>
+        data && {
+          ...data,
+          pages: data.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.id === id ? withProgress(item, counters) : item,
+            ),
+          })),
+        },
+    );
+  useRealtimeEvent('data.progress', ({ id, processed, imported, failed }) =>
+    progressed('transfers', id, { processed, imported, failed }),
+  );
+  useRealtimeEvent('bulk.progress', ({ id, processed, done, failed }) =>
+    progressed('bulk-runs', id, { processed, done, failed }),
+  );
 
   const items = showTransfers
     ? (transfers.data?.pages.flatMap((page) => page.items) ?? [])

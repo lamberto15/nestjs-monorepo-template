@@ -160,7 +160,8 @@ acceptance (`POST /v1/auth/invitations/accept`) and
   the account as actor and target) and its owner told,
   `security.passwordBreached` (mandatory: in-app at once, by mail
   immediately; [Security notifications](#security-notifications)), asking
-  for a change. The sign-in still goes through: a deployment that wants a
+  for a change, linking to `/account/security`. Changing the password or
+  resetting it marks the unread alert read in the same transaction. The sign-in still goes through: a deployment that wants a
   forced change must add it (nothing in `GET /v1/auth/me` says so yet).
 - **Checked once per password, then every `PASSWORD_BREACH_RECHECK_DAYS`**
   (30): a Redis key per account and stored hash
@@ -570,6 +571,24 @@ daily, never off.
   hears its `sign-in` event instead and records it right after; its
   bookkeeping still running is awaited on shutdown (`settled()`).
 
+### Sign-in log (tenant administrators)
+
+`auth.signed-in` belongs to the person and sits in no tenant (docs/tenancy.md),
+so no tenant's administrator reads it. Each sign-in also writes a second entry
+in the tenant it lands in (a token's `tenantId`, else the member's last chosen
+tenant): `member.signed-in`, with `details.method` (and `via`, `userAgent`).
+A wrong password to a real account writes `member.sign-in-failed` the same
+way, in that account's default tenant, after the 401 is sent and not waited
+for (an unknown address has no tenant, and the two must take the same time).
+`SignInLog` writes them. Not logged: wrong passkey assertions, magic links and
+provider failures (no account is known), a wrong second factor.
+
+`GET /v1/access/sign-ins` (`Access.readAudit`, the audit log's permission)
+reads them, newest first: filter by `user` (`user:<id>`), `method`,
+`result` (`success`/`failure`), `ip` and `at`; `GET /v1/lists/SignIn`
+describes it. Row-level security keeps it to the caller's tenant. They age
+out with the audit log (its retention).
+
 ## Passkeys
 
 WebAuthn credentials (`@simplewebauthn/server`; `@nestjs/authentication`
@@ -829,7 +848,8 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   fail-open / fail-closed behaviour. The unit
   test `captcha.providers.spec.ts` proves the production configuration
   resolves `TurnstileVerifier`, never the stub, and that the stub is refused
-  with `NODE_ENV=production`.
+  with `NODE_ENV=production` (any `APP_ENV` but exactly `loadtest`, with or
+  without a secret).
 
 **The load-test hook.** `CAPTCHA_PROVIDER=stub` replaces the provider with
 `StubCaptchaVerifier`, which judges by the token's text and calls nothing:
@@ -838,11 +858,13 @@ refuses a repeat, so send a fresh suffix per request), `stub:fail`,
 `stub:spent`, `stub:elsewhere`, `stub:other-action` are refused with that
 reason, `stub:down` and `stub:slow` play an outage and a hang (the real
 timeout and fail-open / fail-closed policy run around them). It exists for
-the load tests (roadmap item 17: a staging run with `CAPTCHA_MODE=always
-CAPTCHA_PROVIDER=stub` measures the routes with the guard in place) and the
-e2e tests; **production refuses it** at startup: `NODE_ENV=production`, an
-`APP_ENV` that names production (`prod…`), or a `TURNSTILE_SECRET_KEY` in
-place (a stub next to a real key is a switch someone forgot). A bare `node
+the load tests (roadmap item 17: `LOADTEST_CAPTCHA=always loadtest/run.sh`
+measures the routes with the guard in place) and the
+e2e tests; **production refuses it** at startup: `NODE_ENV=production`
+(unless `APP_ENV=loadtest`, the load test's stack, which runs the production
+image: [development](development.md), "Load tests"), an `APP_ENV` that names
+production (`prod…`), or a `TURNSTILE_SECRET_KEY` in place (a stub next to a
+real key is a switch someone forgot). A bare `node
 dist/main` outside Compose must set `NODE_ENV=production` itself
 ([deployment.md](deployment.md), "The image"). `compose.prod.yaml` pins
 `turnstile`, and `GET /v1/auth/methods` shows `provider: stub` so nobody

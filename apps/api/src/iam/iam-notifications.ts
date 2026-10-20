@@ -92,8 +92,20 @@ export interface IamNotifier {
       to: string;
       data: Record<string, unknown>;
       key?: string;
+      /** Where to go about it: a path of the web app. */
+      link?: string;
     },
   ): Promise<unknown>;
+  /**
+   * Marks the unread notifications of `type` for `to` (a principal key) read,
+   * in `tx`: the news is settled, e.g. a breached password that was changed.
+   */
+  settle(
+    tx: Transaction,
+    input: { type: IamNotificationType; to: string },
+  ): Promise<unknown>;
+  /** After the commit: tells the recipient's connections their unread count. */
+  announceUnread(recipient: { kind: 'user'; id: string }): Promise<unknown>;
   /** After the commit: skip the relay's poll. */
   deliverNow(): void;
 }

@@ -9,6 +9,7 @@
       "manageCustomFields": "添加、更改、重新排序和停用自定义字段（管理员为笔记和其他记录添加的字段）",
       "manageSettings": "为所有人、某个团队或某个用户设置设置项和功能开关（platform/settings）",
       "manageTags": "创建、重命名、更改颜色和删除记录所带的标签（platform/tags）",
+      "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
       "readAudit": "查看审计日志",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份"
@@ -156,6 +157,10 @@
     "webhook-delivery-retention": {
       "label": "Webhook 投递保留",
       "description": "每晚删除完成时间早于 WEBHOOKS_DELIVERY_RETENTION_DAYS 的出站 webhook 投递，连同其尝试日志和已记录的请求（仍在重试的投递不会被删除）。"
+    },
+    "platform-analytics": {
+      "label": "平台分析",
+      "description": "每晚统计所有租户的租户、用户、成员资格和 API 使用量，隐去小群体，只存储报表角色可读取的聚合数据。"
     },
     "demo-seed": {
       "label": "演示数据",

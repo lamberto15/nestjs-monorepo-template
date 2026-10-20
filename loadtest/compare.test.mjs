@@ -132,3 +132,32 @@ test('the command exits 1 on a regression, 0 with --report-only or without a ref
   assert.equal(run('--previous', previous), 2);
   assert.equal(run('--unknown-flag'), 2);
 });
+
+test('holds an export to the same bar for its time to a ready file', () => {
+  const exportRun = (med, p95, readyMs) => ({ ...scenario(med, p95, 1), readyMs });
+  const result = compare(
+    baseline({ export: exportRun(30, 60, { med: 1000, p95: 1500, max: 2000 }) }),
+    baseline({ export: exportRun(30, 60, { med: 800, p95: 1500, max: 2000 }) }),
+  );
+  assert.equal(result.regressed, false);
+  const slow = compare(
+    baseline({ export: exportRun(30, 60, { med: 2000, p95: 3500, max: 4000 }) }),
+    baseline({ export: exportRun(30, 60, { med: 800, p95: 1500, max: 2000 }) }),
+  );
+  assert.equal(slow.regressed, true);
+  assert.match(slow.rows[0].regressions[0], /^ready med 800 → 2000 ms/);
+});
+
+test('does not compare runs with a different number of api replicas, but compares the bot check', () => {
+  const slow = baseline({ list: scenario(200, 400) }, { replicas: 4 });
+  const reference = baseline({ list: scenario(40, 90) }, { replicas: 2 });
+  const replicas = compare(slow, reference);
+  assert.equal(replicas.regressed, false);
+  assert.match(replicas.rows[0].note, /load changed/);
+  // A baseline from before `replicas` ran two.
+  assert.equal(compare(baseline({ list: scenario(200, 400) }), baseline({ list: scenario(40, 90) })).regressed, true);
+  assert.equal(compare(baseline({ list: scenario(200, 400) }, { replicas: 2 }), reference).regressed, true);
+  // The bot check on: its cost shows as a difference.
+  const captcha = compare(baseline({ list: scenario(200, 400) }, { replicas: 2, captcha: 'always' }), reference);
+  assert.equal(captcha.regressed, true);
+});

@@ -67,6 +67,12 @@ export const platformEnv = z.object({
   /** API clients' daily usage (platform/usage) older than this many days is deleted every night. */
   USAGE_RETENTION_DAYS: z.coerce.number().int().min(1).default(400),
   /**
+   * Platform analytics (platform/analytics): a count below this many is
+   * withheld from the aggregates the reporting role reads (small-group
+   * suppression, docs/tenancy.md, "Platform analytics").
+   */
+  ANALYTICS_MIN_GROUP_SIZE: z.coerce.number().int().min(2).default(10),
+  /**
    * Outgoing webhook deliveries (platform/webhooks) that finished (succeeded, or failed
    * for good) more than this many days ago are deleted every night, with their attempt log
    * and recorded requests; one still being retried stays.

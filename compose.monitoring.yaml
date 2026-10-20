@@ -1,7 +1,7 @@
 # Optional monitoring for the production stack: Prometheus (scrapes every api
 # and worker replica, evaluates monitoring/prometheus/alerts.yml), Alertmanager
 # (mail, a webhook or Slack; the Watchdog to a dead man's switch), exporters
-# for PostgreSQL and Redis, an HTTPS and certificate probe through Caddy, and
+# for PostgreSQL, Redis and the host (node-exporter), an HTTPS and certificate probe through Caddy, and
 # the backup service's state as metrics. Nothing
 # in the default stack needs it. Add it to COMPOSE_FILE in .env:
 #
@@ -212,6 +212,29 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+    logging: *logging
+
+  # The host's disk, memory, CPU and load (on Docker Desktop: the Linux VM, whose
+  # Docker.raw is what fills). Read only; the host's root is mounted at /host
+  # and node-exporter reads /proc and /sys through it. Not published: only
+  # Prometheus reaches it, as node-exporter:9100. On Linux this is the host; a
+  # Mac itself needs a Homebrew node_exporter (docs/deployment.md, "Alerting").
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      # Pseudo and container file systems are not the disk.
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+|var/lib/kubelet/.+)($$|/)
+    # The host's process namespace: the process and load numbers are the host's.
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
     deploy:
       resources:
         limits:

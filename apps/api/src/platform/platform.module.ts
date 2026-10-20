@@ -39,6 +39,11 @@ import { WebhookEndpointsController } from './webhooks/webhook-endpoints.control
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
 import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
 import { WebhookManagementService } from './webhooks/webhook-management.service.js';
+import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
+import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
+import { IncomingSendersService } from './webhooks/incoming-senders.service.js';
+import { TenantSenderGuard } from './webhooks/tenant-sender.guard.js';
+import { TenantWebhookReceiverController } from './webhooks/tenant-webhook-receiver.controller.js';
 import { WebhookListSource } from './webhooks/webhook-lists.js';
 import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
@@ -59,6 +64,7 @@ import {
   SNS_HTTP,
   SnsGateway,
 } from './deliverability/sns/sns-gateway.js';
+import { MailSuppressionListSource } from './deliverability/suppression.list-source.js';
 import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
 import { SuppressionsController } from './deliverability/suppressions.controller.js';
 import { SuppressionsService } from './deliverability/suppressions.service.js';
@@ -148,6 +154,8 @@ import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { TagsRegistry } from './tags/tags.registry.js';
 import { TagsService } from './tags/tags.service.js';
+import { ViewsController } from './views/views.controller.js';
+import { ViewsService } from './views/views.service.js';
 import { ReportRunnerJob } from './reports/report-runner.job.js';
 import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
 import { ReportsController } from './reports/reports.controller.js';
@@ -155,6 +163,7 @@ import { ReportsService } from './reports/reports.service.js';
 import { UsageController } from './usage/usage.controller.js';
 import { UsageInterceptor } from './usage/usage.interceptor.js';
 import { UsageRollupJob } from './usage/usage-rollup.job.js';
+import { PlatformAnalyticsJob } from './analytics/platform-analytics.job.js';
 import { UsageService } from './usage/usage.service.js';
 import { RevisionRetentionJob } from './revisions/revision-retention.job.js';
 import { RevisionsRegistry } from './revisions/revisions.registry.js';
@@ -334,6 +343,9 @@ export class PlatformModule {
           // An administrator managing a client's webhooks on its behalf.
           ClientWebhooksController,
         ),
+        // Incoming webhooks of a tenant's own senders: not behind WEBHOOKS (that switch is for the outgoing ones).
+        IncomingSendersController,
+        TenantWebhookReceiverController,
         OpsController,
         FeaturesController,
         FilesController,
@@ -358,6 +370,7 @@ export class PlatformModule {
         AttachmentsController,
         DocumentsController,
         TagsController,
+        ViewsController,
         ...whenOn('REPORTS', ReportsController),
         ...whenOn('USAGE', UsageController),
         // Email deliverability: the providers' bounces and complaints, the suppression list.
@@ -424,6 +437,10 @@ export class PlatformModule {
         },
         // Both doors to a client's webhooks: its own routes and an administrator's.
         WebhookManagementService,
+        // A tenant's incoming webhook senders; features register the events they handle.
+        IncomingSendersService,
+        IncomingEventHandlers,
+        TenantSenderGuard,
         // Idempotency records in idempotency_keys; registers itself with IdempotencyStorage.
         DrizzleIdempotencyStore,
         OpsPolicy,
@@ -503,6 +520,8 @@ export class PlatformModule {
         ...whenOn('WEBHOOKS', WebhookListSource),
         // The operators' tenants list (GET /v1/lists/Tenant).
         TenantListSource,
+        // The suppression list (GET /v1/lists/MailSuppression), for the operators.
+        MailSuppressionListSource,
         // Gapless human-readable numbers, taken in a write's transaction.
         SequencesService,
         // Files attached to records: features register an AttachmentTarget.
@@ -521,6 +540,8 @@ export class PlatformModule {
         // Tags: features register a TagTarget and call TagsService.
         TagsRegistry,
         TagsService,
+        // Saved views: a list's filters, sort and columns under a name (private, team, tenant).
+        ViewsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',
@@ -535,6 +556,8 @@ export class PlatformModule {
           provide: APP_INTERCEPTOR,
           useClass: UsageInterceptor,
         }),
+        // Platform analytics: anonymized aggregates across tenants, for the reporting role, nightly.
+        PlatformAnalyticsJob,
         // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
         ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
         // Record revisions: features register a RevisionTarget and call RevisionsService.record().
@@ -604,6 +627,7 @@ export class PlatformModule {
         MoneyModule,
         MAIL_SUPPRESSION,
         MailEventIntakeRegistry,
+        IncomingEventHandlers,
       ],
     };
   }

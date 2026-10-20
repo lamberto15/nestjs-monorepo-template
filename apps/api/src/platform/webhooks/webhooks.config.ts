@@ -10,6 +10,10 @@ import type {
   WebhookEventTypeDeclaration,
 } from '../platform.options.js';
 import { switchedOn } from '../switches.js';
+import {
+  TENANT_SENDERS_RECEIVER,
+  TenantSenderScheme,
+} from './tenant-sender.scheme.js';
 
 /**
  * `WEBHOOKS_ALLOW_LOOPBACK=on` lets endpoints be http://127.0.0.1, for local
@@ -124,15 +128,24 @@ export function webhooksOptions(
         }
       : undefined,
     // The senders whose webhooks this API accepts, by the name @VerifyWebhook() uses.
-    receivers: Object.fromEntries(
-      (options.incomingWebhooks ?? []).map((sender) => [
-        sender.name,
-        {
-          scheme: sender.scheme,
-          ...(sender.header && { header: sender.header }),
-          secret: secrets[sender.name],
-        },
-      ]),
-    ),
+    receivers: {
+      ...Object.fromEntries(
+        (options.incomingWebhooks ?? []).map((sender) => [
+          sender.name,
+          {
+            scheme: sender.scheme,
+            ...(sender.header && { header: sender.header }),
+            secret: secrets[sender.name],
+          },
+        ]),
+      ),
+      // The tenants' own senders: their secrets are in the database, one set per
+      // sender, handed to the scheme per request (TenantSenderGuard); this
+      // placeholder only satisfies the receiver's configuration and verifies nothing.
+      [TENANT_SENDERS_RECEIVER]: {
+        scheme: new TenantSenderScheme(),
+        secret: TENANT_SENDERS_RECEIVER,
+      },
+    },
   };
 }

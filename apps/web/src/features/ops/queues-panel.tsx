@@ -16,8 +16,7 @@ import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
 import { useCan } from '@/lib/features';
 import { FormAlert } from '@/lib/form';
-import { opsQueuesQuery, useRetryFailed } from './queries';
-import type { QueueCounts } from './types';
+import { opsQueuesQuery, useRetryFailed, type QueueCounts } from './queries';
 
 const states = [
   'waiting',

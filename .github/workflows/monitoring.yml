@@ -14,11 +14,13 @@ on:
       - monitoring/**
       - compose.monitoring.yaml
       - .github/workflows/monitoring.yml
+      - .github/workflows/uptime-probe.yml
   pull_request:
     paths:
       - monitoring/**
       - compose.monitoring.yaml
       - .github/workflows/monitoring.yml
+      - .github/workflows/uptime-probe.yml
 
 permissions:
   contents: read
@@ -45,6 +47,14 @@ jobs:
             echo "BLACKBOX_IMAGE=$blackbox"
           } >> "$GITHUB_ENV"
           echo "$prometheus, $alertmanager, $blackbox"
+
+      - name: The outside probe workflow is valid YAML and off without its variable
+        run: |
+          python3 - <<'PY'
+          import yaml
+          w = yaml.safe_load(open(".github/workflows/uptime-probe.yml"))
+          assert w["jobs"]["probe"]["if"] == "vars.UPTIME_PROBE_URL != ''"
+          PY
 
       - name: Prometheus configuration (promtool check config)
         run: |

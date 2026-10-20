@@ -237,7 +237,7 @@ features/notes/
   note.bulk.ts                          bulk delete, restore, change
   notes.service.ts                      writes and reads
   notes.controller.ts                   /v1/notes
-  note-events.ts                        webhook event types, the workflow signal
+  note-events.ts                        domain events (webhook, notification, realtime), the workflow signal
   note-publication.workflow.ts          the workflow
   note-publisher.service.ts             the workflow's steps (webhooks, realtime)
   note-approvals.ts                     publishing needs approval (the declaration, its handler)

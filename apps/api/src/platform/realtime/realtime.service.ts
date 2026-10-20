@@ -1,7 +1,7 @@
 import { ApiClientLifecycleRegistry } from '../../iam/access/api-client-lifecycle.registry.js';
 import { UserLifecycleRegistry } from '../../iam/auth/user-lifecycle.registry.js';
 import { TenantLifecycleRegistry } from '../../iam/access/tenant-lifecycle.registry.js';
-import { Logger, UseInterceptors } from '@nestjs/common';
+import { Inject, Logger, Optional, UseInterceptors } from '@nestjs/common';
 import { ClsInterceptor } from 'nestjs-cls';
 import { CurrentUser, WsAuthenticator } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
@@ -16,6 +16,14 @@ import {
 import type { Namespace, Socket } from 'socket.io';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
+import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
+import {
+  allRealtimeEvents,
+  checkRealtimePayload,
+  type RealtimeEventDeclaration,
+  type RealtimeEventName,
+  type RealtimeEventPayload,
+} from './realtime-events.js';
 
 /**
  * The room of a principal in a tenant (docs/tenancy.md): every connection
@@ -71,6 +79,8 @@ export const principalRoom = (
 @UseInterceptors(ClsInterceptor)
 export class Realtime implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger('Realtime');
+  /** The manifest and the features' events: what may be pushed. */
+  private readonly events: Record<string, RealtimeEventDeclaration>;
 
   @WebSocketServer()
   private readonly server: Namespace;
@@ -80,7 +90,11 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
     lifecycle: UserLifecycleRegistry,
     clientLifecycle: ApiClientLifecycleRegistry,
     tenantLifecycle: TenantLifecycleRegistry,
+    @Optional()
+    @Inject(PLATFORM_OPTIONS)
+    options?: Pick<PlatformOptions, 'realtimeEvents'>,
   ) {
+    this.events = allRealtimeEvents(options?.realtimeEvents);
     // A membership deactivated: that user's connections in that tenant end
     // (a socket is authenticated at its handshake; its tenant room would
     // keep hearing the tenant's events). After the commit: a deactivation
@@ -129,11 +143,31 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
    * outside any tenant, to a user's account room (an API client always has
    * a tenant: nothing to tell outside one).
    */
+  toPrincipal<E extends RealtimeEventName>(
+    principal: Pick<Principal, 'kind' | 'id'>,
+    event: E,
+    data: RealtimeEventPayload<E>,
+  ): void;
+  /** An event a feature declared (`realtimeEvents`): its payload is checked in development and tests, not typed. */
+  toPrincipal(
+    principal: Pick<Principal, 'kind' | 'id'>,
+    event: string,
+    data: unknown,
+  ): void;
   toPrincipal(
     principal: Pick<Principal, 'kind' | 'id'>,
     event: string,
     data: unknown,
   ) {
+    // Development and tests: an undeclared event or a payload off its schema
+    // is a bug in the caller, so it fails where it is written. Production
+    // sends what it is given (a live event is best-effort, never worth a 500).
+    if (process.env.NODE_ENV !== 'production') {
+      const problem = checkRealtimePayload(this.events, event, data);
+      if (problem) {
+        throw new Error(problem);
+      }
+    }
     if (principal.kind === 'system') {
       return; // never connected: nobody to tell
     }

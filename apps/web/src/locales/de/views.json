@@ -1,0 +1,48 @@
+{
+  "button": "Ansichten",
+  "title": "Ansichten",
+  "loading": "Ansichten werden geladen…",
+  "failed": "Die Ansichten konnten nicht geladen werden.",
+  "none": "Noch keine gespeicherten Ansichten.",
+  "groups": {
+    "private": "Meine",
+    "team": "Meine Teams",
+    "tenant": "Alle"
+  },
+  "current": "Aktuelle Ansicht: {{name}}",
+  "clear": "„{{name}}“ nicht mehr verwenden",
+  "saveCurrent": "Aktuelle Ansicht speichern…",
+  "rename": "„{{name}}“ umbenennen…",
+  "delete": "„{{name}}“ löschen…",
+  "applied": "Ansicht „{{name}}“ angewendet.",
+  "stale": "„{{name}}“ ist veraltet. {{detail}} Ändern oder löschen Sie die Ansicht.",
+  "unshowable": "„{{name}}“ nutzt einen Filter, den diese Tabelle nicht darstellen kann ({{what}}).",
+  "forbidden": "„{{name}}“ kann nicht angewendet werden. {{detail}}",
+  "gone": "„{{name}}“ existiert nicht mehr.",
+  "visibility": {
+    "private": "Privat (nur ich)",
+    "team": "Ein Team",
+    "tenant": "Alle in der Organisation"
+  },
+  "form": {
+    "saveTitle": "Aktuelle Ansicht speichern",
+    "saveDescription": "Speichert Filter, Suche, Sortierung und Spalten dieser Liste unter einem Namen.",
+    "renameTitle": "Ansicht „{{name}}“ umbenennen",
+    "name": "Name",
+    "nameRequired": "Geben Sie einen Namen ein.",
+    "nameTooLong": "Ein Name hat höchstens 200 Zeichen.",
+    "nameTaken": "Eine Ansicht namens „{{name}}“ gibt es hier bereits.",
+    "visibility": "Wer sie sieht",
+    "team": "Team",
+    "teamRequired": "Wählen Sie ein Team.",
+    "teamPlaceholder": "Team wählen",
+    "save": "Speichern",
+    "cancel": "Abbrechen"
+  },
+  "saved": "Ansicht „{{name}}“ gespeichert.",
+  "renamed": "Ansicht in „{{name}}“ umbenannt.",
+  "deleted": "Ansicht gelöscht.",
+  "deleteTitle": "Ansicht „{{name}}“ löschen?",
+  "deleteDescription": "Die Ansicht ist für alle, die sie sehen, weg. Die Datensätze bleiben unverändert.",
+  "deleteConfirm": "Ansicht löschen"
+}

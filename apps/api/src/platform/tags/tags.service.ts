@@ -8,6 +8,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import {
   and,
   asc,
+  count,
   eq,
   getTableColumns,
   inArray,
@@ -44,8 +45,9 @@ type Tag = typeof tags.$inferSelect;
 /** Tags are audited as `tag.created`, `tag.updated` (what changed), `tag.deleted`. */
 export const TAG = defineResource({ subject: 'Tag', audit: {} });
 
-const view = (tag: Tag) => ({
+const view = (tag: Tag, usageCount: number) => ({
   ...tag,
+  usageCount,
   createdAt: tag.createdAt.toISOString(),
   updatedAt: tag.updatedAt.toISOString(),
 });
@@ -100,7 +102,25 @@ export class TagsService {
       countPage(this.db, tags, where, query),
     ]);
     const page = toPage(rows, query, total);
-    return { ...page, items: page.items.map(view) };
+    // How many records carry each tag: one grouped query per page.
+    const usage = await this.usageOf(page.items.map((row) => row.id));
+    return {
+      ...page,
+      items: page.items.map((row) => view(row, usage.get(row.id) ?? 0)),
+    };
+  }
+
+  /** Records carrying each tag (`record_tags`), one query for all `ids`. */
+  private async usageOf(ids: string[]): Promise<Map<string, number>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const rows = await this.db
+      .select({ tagId: recordTags.tagId, count: count() })
+      .from(recordTags)
+      .where(inArray(recordTags.tagId, ids))
+      .groupBy(recordTags.tagId);
+    return new Map(rows.map((row) => [row.tagId, row.count]));
   }
 
   async findOne(id: string): Promise<Tag> {
@@ -146,7 +166,7 @@ export class TagsService {
     }).catch((error: unknown) => {
       throw uniqueToConflict(error, this.taken(dto.subject, dto.name));
     });
-    return view(row);
+    return view(row, 0);
   }
 
   /** Renames, recolours or redescribes a tag: only what is sent changes. */
@@ -164,7 +184,7 @@ export class TagsService {
       values.description = null;
     }
     if (Object.keys(values).length === 0) {
-      return view(tag);
+      return view(tag, (await this.usageOf([id])).get(id) ?? 0);
     }
     const row = await inTransaction(this.txHost, async (tx) => {
       const [updated] = await tx
@@ -186,7 +206,7 @@ export class TagsService {
         this.taken(tag.subject, values.name ?? tag.name),
       );
     });
-    return view(row);
+    return view(row, (await this.usageOf([id])).get(id) ?? 0);
   }
 
   /** Deletes a tag: every record loses it (the links cascade). */

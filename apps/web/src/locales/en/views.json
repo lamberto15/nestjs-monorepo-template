@@ -1,0 +1,48 @@
+{
+  "button": "Views",
+  "title": "Views",
+  "loading": "Loading views…",
+  "failed": "The views could not be loaded.",
+  "none": "No saved views yet.",
+  "groups": {
+    "private": "Mine",
+    "team": "My teams",
+    "tenant": "Everyone"
+  },
+  "current": "Current view: {{name}}",
+  "clear": "Stop using “{{name}}”",
+  "saveCurrent": "Save the current view…",
+  "rename": "Rename “{{name}}”…",
+  "delete": "Delete “{{name}}”…",
+  "applied": "View “{{name}}” applied.",
+  "stale": "“{{name}}” is out of date. {{detail}} Change it or delete it.",
+  "unshowable": "“{{name}}” uses a filter this table cannot show ({{what}}).",
+  "forbidden": "“{{name}}” cannot be applied. {{detail}}",
+  "gone": "“{{name}}” no longer exists.",
+  "visibility": {
+    "private": "Private (only me)",
+    "team": "A team",
+    "tenant": "Everyone in the organization"
+  },
+  "form": {
+    "saveTitle": "Save the current view",
+    "saveDescription": "Keeps this list’s filters, search, sort and columns under a name.",
+    "renameTitle": "Rename the view “{{name}}”",
+    "name": "Name",
+    "nameRequired": "Enter a name.",
+    "nameTooLong": "A name has at most 200 characters.",
+    "nameTaken": "A view called “{{name}}” already exists here.",
+    "visibility": "Who sees it",
+    "team": "Team",
+    "teamRequired": "Choose a team.",
+    "teamPlaceholder": "Choose a team",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "saved": "View “{{name}}” saved.",
+  "renamed": "View renamed to “{{name}}”.",
+  "deleted": "View deleted.",
+  "deleteTitle": "Delete the view “{{name}}”?",
+  "deleteDescription": "The view is gone for everyone who sees it. The records are not changed.",
+  "deleteConfirm": "Delete view"
+}

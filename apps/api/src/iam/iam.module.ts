@@ -83,6 +83,7 @@ import { AccountService } from './account/account.service.js';
 import { VerificationRequests } from './account/verification-requests.service.js';
 import { ImpersonationService } from './account/impersonation.service.js';
 import { SecurityAlertsService } from './account/security-alerts.service.js';
+import { SignInLog } from './account/sign-in-log.service.js';
 import { MagicLinkController } from './account/magic-link.controller.js';
 import { MfaController } from './account/mfa.controller.js';
 import { OidcController } from './account/oidc.controller.js';
@@ -380,6 +381,7 @@ export class IamModule {
         passkeyDecoyKeyProvider,
         // Security notifications (IAM_NOTIFICATIONS), sent through the platform's IAM_NOTIFIER.
         SecurityAlertsService,
+        SignInLog,
         // Authorization: the catalog, the CASL abilities, their admin, the audit log.
         PermissionCatalog,
         AccessService,

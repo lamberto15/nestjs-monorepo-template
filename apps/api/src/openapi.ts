@@ -2,12 +2,16 @@ import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { APP_FEATURES } from './app.tokens.js';
-import type { FeatureDefinition } from './features/feature.js';
+import {
+  featureDeclarations,
+  type FeatureDefinition,
+} from './features/feature.js';
 import {
   applyIdempotencyMode,
   swaggerRequestInterceptor,
 } from './platform/idempotency/idempotency.openapi.js';
 import type { PlatformEnv } from './platform/platform.env.js';
+import { addRealtimeEvents } from './platform/realtime/realtime-events.js';
 import { addPanelComponents } from './platform/records/panel-components.js';
 
 /** Your API's name, in the document and Swagger UI's title. */
@@ -68,10 +72,11 @@ export function buildOpenApiDocument(
       'data',
       'Exports and imports (CSV, JSON, Excel), as background jobs',
     );
-  // Each feature's tag (its `<x>.feature.ts`), in the features' order.
-  for (const { apiTag } of app.get<FeatureDefinition[]>(APP_FEATURES, {
+  const features = app.get<FeatureDefinition[]>(APP_FEATURES, {
     strict: false,
-  })) {
+  });
+  // Each feature's tag (its `<x>.feature.ts`), in the features' order.
+  for (const { apiTag } of features) {
     builder.addTag(apiTag.name, apiTag.description);
   }
   const config = builder
@@ -110,6 +115,8 @@ export function buildOpenApiDocument(
   const document = SwaggerModule.createDocument(app, config);
   // The record panels' shared components, even with no panel route.
   addPanelComponents(document);
+  // The realtime events: their payload components and `x-realtime-events`.
+  addRealtimeEvents(document, featureDeclarations(features).realtimeEvents);
   applyIdempotencyMode(document, idempotency);
   return document;
 }

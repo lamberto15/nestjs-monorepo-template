@@ -155,6 +155,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/principals',
         '/v1/access/roles',
         '/v1/access/roles/{id}',
+        '/v1/access/sign-ins',
         '/v1/access/teams',
         '/v1/access/teams/{id}',
         '/v1/access/users',
@@ -276,6 +277,9 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/tenants/{id}/deletion',
         '/v1/tenants/{id}/export',
         '/v1/usage',
+        '/v1/views',
+        '/v1/views/{id}',
+        '/v1/views/{id}/apply',
         '/v1/webhook-deliveries',
         '/v1/webhook-deliveries/retry',
         '/v1/webhook-deliveries/{id}',
@@ -285,7 +289,11 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/webhook-endpoints/{id}/rotate-secret',
         '/v1/webhook-endpoints/{id}/test',
         '/v1/webhook-event-types',
+        '/v1/webhook-senders',
+        '/v1/webhook-senders/{id}',
+        '/v1/webhook-senders/{id}/rotate-secret',
         '/v1/webhooks/mail/{provider}',
+        '/v1/webhooks/tenants/{tenantId}/senders/{name}',
       ]);
     check({
       paths: Object.fromEntries(

@@ -31,14 +31,19 @@ export function verifyEndpoint(url: string | undefined) {
 const productionLike = (appEnv: string | undefined) =>
   /^prod/i.test(appEnv ?? '');
 
+/** The APP_ENV of the load test's stack (compose.loadtest.yaml): the one name that lets a production build run the stub. */
+export const LOADTEST_APP_ENV = 'loadtest';
+
 /**
  * The verifier CAPTCHA_PROVIDER names, checked at startup like any other
  * setting: Turnstile wants both keys once the mode is on, and the stub is
- * never accepted where production might be: NODE_ENV=production, an
- * APP_ENV that names production, or a Turnstile secret in place (a stub
- * next to a real key is a switch someone forgot). A load test runs it on
- * staging (APP_ENV=staging, no secret) or with NODE_ENV=test. `http` is the
- * client registered on CAPTCHA_VERIFY_URL's origin (TURNSTILE_HTTP).
+ * never accepted where production might be: NODE_ENV=production (except
+ * with APP_ENV=loadtest, the load test's stack, which runs the production
+ * image to measure the bot check's cost), an APP_ENV that names production,
+ * or a Turnstile secret in place (a stub next to a real key is a switch
+ * someone forgot). A test runs it on staging (APP_ENV=staging, no secret) or
+ * with NODE_ENV=test. `http` is the client registered on CAPTCHA_VERIFY_URL's
+ * origin (TURNSTILE_HTTP).
  */
 export function createCaptchaVerifier(
   env: CaptchaEnv,
@@ -46,8 +51,8 @@ export function createCaptchaVerifier(
 ): CaptchaVerifier {
   if (env.CAPTCHA_PROVIDER === 'stub') {
     const refused =
-      env.NODE_ENV === 'production'
-        ? 'NODE_ENV=production'
+      env.NODE_ENV === 'production' && env.APP_ENV !== LOADTEST_APP_ENV
+        ? `NODE_ENV=production without APP_ENV=${LOADTEST_APP_ENV}`
         : productionLike(env.APP_ENV)
           ? `APP_ENV=${env.APP_ENV}`
           : env.TURNSTILE_SECRET_KEY
