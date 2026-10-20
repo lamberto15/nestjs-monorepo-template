@@ -5,8 +5,7 @@ import type { JobType, Queue } from 'bullmq';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { redactText } from '../../core/logging/redaction.js';
 import { MAIL_QUEUE } from '../../core/mail/mail-queue.js';
-import { DATA_TRANSFERS } from '../data-transfer/data-transfer.service.js';
-import { BULK } from '../bulk/bulk.service.js';
+import { platformQueues } from '../queues/queues.js';
 
 /** The states the metrics count jobs in. */
 export const QUEUE_GAUGE_STATES = [
@@ -38,7 +37,7 @@ export class OpsQueues {
 
   /** The queues the platform and core keep, and the features' own. */
   private get names() {
-    return [MAIL_QUEUE, DATA_TRANSFERS, BULK, ...(this.options.queues ?? [])];
+    return [MAIL_QUEUE, ...platformQueues(this.options.queues)];
   }
 
   private queue(name: string): Queue {

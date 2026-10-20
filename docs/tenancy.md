@@ -339,17 +339,19 @@ instance, as `system:tenant-deletion`, up to 50 tenants a night). Per
 tenant: claimed under its row's lock (`deletionStartedAt`: no cancel from
 then on); then what lives outside its tables, the `beforeErase` of the
 `TenantLifecycleRegistry` listeners (`platform/tenants/tenant-cleanup.ts`),
-in order: its jobs in every queue (by their envelope's `tenantId`,
-waiting, delayed or finished; one still running postpones the erase to the
-next night), its workflow instances (by their input's `tenantId`, deleted
+in order: its jobs in every queue (`PLATFORM_QUEUES`, the features' and
+the mail queue; by their envelope's `tenantId`, waiting, delayed or
+finished; one still running postpones the erase to the next night, and a
+document render that starts after the claim writes no PDF), its workflow
+instances (by their input's `tenantId`, deleted
 without compensations), its outbox messages not yet delivered and its
 dead letters, then its stored files (the `tenants/<id>/` prefix:
-attachments, documents, its own transfers); then its row
+attachments, documents, its own transfers); its API clients' cleanups
+(their webhook endpoints, `ApiClientLifecycleRegistry`); then its row
 (`TenantsService.deleteRow()`, the database cascading to every tenant
 table's rows and its memberships) in one transaction with the
 `tenant.purged` entry outside any tenant (`details.reason: 'deletion'`),
-since its own log goes with it; last, its API clients' cleanups (their
-webhook endpoints, `ApiClientLifecycleRegistry`). Each step can run again:
+since its own log goes with it. Each step can run again:
 one that fails leaves the tenant claimed and there, and the next night
 starts over (failures reported together, `TenantRunsFailed`). The accounts
 stay, in their other tenants or in none. Audit retention is the tenant's

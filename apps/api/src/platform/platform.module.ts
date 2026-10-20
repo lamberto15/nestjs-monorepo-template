@@ -46,7 +46,6 @@ import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
 import { HttpClientModule } from '@nestjs/http-client';
 import { MAIL_SUPPRESSION } from '../core/mail/mail-suppression.js';
-import { MAIL_EVENTS } from './deliverability/mail-event.types.js';
 import { MailEventsController } from './deliverability/mail-events.controller.js';
 import { MailEventsProcessor } from './deliverability/mail-events.processor.js';
 import { MailEventsRetentionJob } from './deliverability/mail-events-retention.job.js';
@@ -74,19 +73,16 @@ import { PeopleService } from './people/people.service.js';
 import { switchedOn, whenOn } from './switches.js';
 import { FilesController } from './storage/files.controller.js';
 import { storage } from './storage/storage.config.js';
-import { queues } from './queues/queues.js';
+import { platformQueues, queues } from './queues/queues.js';
 import { DataTransferController } from './data-transfer/data-transfer.controller.js';
 import { DataTransferProcessor } from './data-transfer/data-transfer.processor.js';
 import { DataTransferRegistry } from './data-transfer/data-transfer.registry.js';
-import {
-  DATA_TRANSFERS,
-  DataTransferService,
-} from './data-transfer/data-transfer.service.js';
+import { DataTransferService } from './data-transfer/data-transfer.service.js';
 import { integrations } from './integrations/integrations.js';
 import { BulkController } from './bulk/bulk.controller.js';
 import { BulkProcessor } from './bulk/bulk.processor.js';
 import { BulkRegistry } from './bulk/bulk.registry.js';
-import { BULK, BulkService } from './bulk/bulk.service.js';
+import { BulkService } from './bulk/bulk.service.js';
 import { JobIndex } from './queues/job-index.js';
 import { CustomFieldPolicy } from './custom-fields/custom-field.policy.js';
 import { CustomFieldsController } from './custom-fields/custom-fields.controller.js';
@@ -183,7 +179,7 @@ import { DocumentTemplates } from './documents/document-templates.js';
 import { DocumentsController } from './documents/documents.controller.js';
 import { DocumentsProcessor } from './documents/documents.processor.js';
 import { DocumentsRegistry } from './documents/documents.registry.js';
-import { DOCUMENTS, DocumentsService } from './documents/documents.service.js';
+import { DocumentsService } from './documents/documents.service.js';
 import { gotenbergClient, PdfRenderer } from './documents/pdf-renderer.js';
 import { MoneyModule } from './money/money.module.js';
 
@@ -284,13 +280,7 @@ export class PlatformModule {
         // After IdempotencyModule, whose interceptor must come first.
         // Private file storage (local or S3) behind signed URLs.
         storage(),
-        ...queues([
-          DATA_TRANSFERS,
-          BULK,
-          DOCUMENTS,
-          MAIL_EVENTS,
-          ...(options.queues ?? []),
-        ]),
+        ...queues(platformQueues(options.queues)),
         // Gotenberg, which renders the PDF documents (GOTENBERG_URL).
         gotenbergClient(),
         ...integrations(options.resiliencePresets ?? {}),

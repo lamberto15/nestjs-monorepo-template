@@ -40,8 +40,8 @@ const BATCH = 50;
  * cascading to every tenant table's rows and its memberships, in one
  * transaction with the `tenant.purged` entry outside any tenant (the
  * tenant's own log goes with it: retention rules are roadmap item 5).
- * Last, its API clients' cleanups (ApiClientLifecycleRegistry: their
- * webhook endpoints). A step that fails leaves the tenant claimed and
+ * Before the row, its API clients' cleanups too (ApiClientLifecycleRegistry:
+ * their webhook endpoints). A step that fails leaves the tenant claimed and
  * still there: the next night starts over (every step can run again),
  * and the failures are reported together (`TenantRunsFailed`).
  * `run(now)` lets a test choose the moment.
@@ -146,13 +146,23 @@ export class TenantDeletionJob {
     if (!claimed) {
       return false;
     }
-    // Read before the rows go: the cleanups after the erase need them.
-    const clients = (await this.tenants.principalsOf(claimed.id)).filter(
-      (principal) => principal.kind === 'client',
-    );
     for (const listener of this.lifecycle.all()) {
       await listener.beforeErase?.(claimed.id);
     }
+    // Its API clients' cleanups (their webhook endpoints: URLs, signing
+    // secrets), as a client's own deletion runs them, but before the row
+    // goes and without catching: one that fails stops the erase, and the
+    // next night tries again, rather than leave them behind for good.
+    const clients = (await this.tenants.principalsOf(claimed.id)).filter(
+      (principal) => principal.kind === 'client',
+    );
+    await this.tenancy.run(claimed.id, async () => {
+      for (const { id } of clients) {
+        for (const listener of this.clientLifecycle.all()) {
+          await listener.afterDeletion(id, claimed.id);
+        }
+      }
+    });
     const deleted = await inTransaction(this.txHost, async (tx) => {
       const row = await this.tenants.deleteRow(tx, claimed.id);
       if (!row) {
@@ -179,20 +189,6 @@ export class TenantDeletionJob {
     if (!deleted) {
       return false;
     }
-    // As a client's own deletion does, after the commit, each on its own.
-    await this.tenancy.run(claimed.id, async () => {
-      for (const { id } of clients) {
-        for (const listener of this.clientLifecycle.all()) {
-          try {
-            await listener.afterDeletion(id, claimed.id);
-          } catch (error) {
-            this.logger.error(
-              `Tenant ${claimed.slug} erased, but "${listener.name}" failed to clean up client ${id}: ${(error as Error).message}`,
-            );
-          }
-        }
-      }
-    });
     this.logger.log(`Tenant ${claimed.slug} erased`, { tenant: claimed.id });
     return true;
   }

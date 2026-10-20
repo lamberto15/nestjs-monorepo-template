@@ -9,6 +9,7 @@ import { TenantDeletionJob } from '../src/iam/access/tenant-deletion.job.js';
 import { memberships } from '../src/iam/iam.tables.js';
 import { ApprovalWorkflow } from '../src/platform/approvals/approval.workflow.js';
 import { DATA_TRANSFERS } from '../src/platform/data-transfer/data-transfer.service.js';
+import { DOCUMENTS } from '../src/platform/documents/documents.service.js';
 import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
@@ -252,6 +253,15 @@ describe('tenant export and deletion (e2e)', () => {
       { tenantId: third.id } as never,
       { delay: 3_600_000 },
     );
+    // A document render of the tenant, not yet run (every platform queue is swept).
+    const documentsQueue = node.app.get<Queue>(getQueueToken(DOCUMENTS), {
+      strict: false,
+    });
+    const render = await documentsQueue.add(
+      'render',
+      { tenantId: other.id, id: randomUUID() } as never,
+      { delay: 3_600_000 },
+    );
     // The test app runs no workflow worker: the instance stays pending.
     const workflow = await node.workflows.start(ApprovalWorkflow, {
       requestId: randomUUID(),
@@ -289,6 +299,7 @@ describe('tenant export and deletion (e2e)', () => {
     expect(await disk.exists(notTheirs)).toBe(true);
     expect(await queue.getJob(queued.id!)).toBeUndefined();
     expect(await queue.getJob(otherQueued.id!)).toBeDefined();
+    expect(await documentsQueue.getJob(render.id!)).toBeUndefined();
     expect(await node.workflows.getStatus(workflow.id)).toBeNull();
 
     // The tenant's own log went with it; the entry is outside any tenant.

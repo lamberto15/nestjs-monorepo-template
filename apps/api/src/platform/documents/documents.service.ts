@@ -13,6 +13,7 @@ import { StorageDisk } from '@nestjs/storage';
 import { type Queue, UnrecoverableError } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray, lt } from 'drizzle-orm';
+import { tenants } from '../../core/tenancy/tenancy.tables.js';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
@@ -362,6 +363,15 @@ export class DocumentsService implements PersonalDataSource {
     return view(row);
   }
 
+  /** Whether the tenant's erase has started (`tenants.deletion_started_at`). */
+  private async tenantBeingErased(tenantId: string) {
+    const [tenant] = await this.db
+      .select({ startedAt: tenants.deletionStartedAt })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId));
+    return !tenant || tenant.startedAt !== null;
+  }
+
   /**
    * On the worker: renders the document and issues it.
    *
@@ -428,6 +438,15 @@ export class DocumentsService implements PersonalDataSource {
         { locale: row.locale, title: content.title },
       );
       const pdf = await this.renderer.render(html, { trace: row.id });
+      // A tenant being erased gets no new file: its files' sweep may have
+      // run already (TenantDeletionJob claims the tenant before it removes
+      // its jobs and files; a render that passed here is still running,
+      // which postpones the erase).
+      if (await this.tenantBeingErased(row.tenantId)) {
+        throw new UnrecoverableError(
+          `Document ${row.id}: its tenant is being erased, not rendered.`,
+        );
+      }
       written = true;
       await this.disk.put(key, pdf, { contentType: 'application/pdf' });
       const fields = [...new Set(content.fields)].sort();
