@@ -105,12 +105,23 @@ describe('choosing a view', () => {
 
     expect(await findToast('View “Drafts” applied.')).toBeVisible();
     expect(calls.applied).toEqual(['v1']);
-    await waitFor(() => {
-      const query = lastList(calls.lists);
-      expect(query.get('q')).toBe('targets');
-      expect(query.get('sort')).toBe('-title');
-      expect(query.get('fields')).toBe('title,status');
-    });
+    // The column the view leaves out is gone, and the list was asked for
+    // the view's query with only the columns it names.
+    await waitFor(() =>
+      expect(screen.queryByRole('columnheader', { name: /Number/ })).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(
+        calls.lists
+          .map((search) => new URLSearchParams(search))
+          .some(
+            (query) =>
+              query.get('q') === 'targets' &&
+              query.get('sort') === '-title' &&
+              query.get('fields') === 'title,status',
+          ),
+      ).toBe(true),
+    );
     expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue(
       'targets',
     );
