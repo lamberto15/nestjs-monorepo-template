@@ -16,6 +16,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service.js'
 import { TagsService } from '../tags/tags.service.js';
 import {
   numberFormat,
+  numberingFields,
   type RecordDeclaration,
   recordKey,
   recordSnapshot,
@@ -116,6 +117,7 @@ export class RecordLifecycle {
         subject: declaration.subject,
         sequence: recordKey(declaration),
         declared: numberFormat(declaration),
+        fields: numberingFields(declaration),
       });
     }
   }
@@ -164,7 +166,8 @@ export class RecordLifecycle {
   /**
    * The values a new record's insert takes besides its own: its number
    * (numbered), gapless per tenant, from the transaction's counter, in the
-   * naming series the body names (`namingSeriesId`), else the default.
+   * naming series the body names (`namingSeriesId`), else the first whose
+   * conditions hold for the body, else the default.
    */
   async creating(
     tx: Transaction,
@@ -174,11 +177,14 @@ export class RecordLifecycle {
     if (!takes(this.declaration, 'numbered')) {
       return {};
     }
-    const { namingSeriesId } = dto as { namingSeriesId?: string };
+    const { namingSeriesId, ...values } = dto as {
+      namingSeriesId?: string;
+    } & Record<string, unknown>;
+    // The body's own values: a series prints them, dates by them, tests them.
     const { formatted } = await this.namingSeries.next(
       tx,
       this.declaration.subject,
-      { seriesId: namingSeriesId },
+      { seriesId: namingSeriesId, values },
     );
     return { number: formatted };
   }

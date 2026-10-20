@@ -23,6 +23,7 @@ import {
 import { teams } from '../../iam/iam.tables.js';
 import { defineCustomFields } from '../custom-fields/custom-field.types.js';
 import { columnName, type Fields, tableHolds } from '../fields/field.js';
+import type { NumberingFieldKind } from '../sequences/naming-series.registry.js';
 import {
   type FieldColumns,
   fieldColumns,
@@ -190,6 +191,26 @@ export const numberFormat = (declaration: RecordDeclaration) => {
     width: declaration.number?.width ?? 5,
   };
 };
+
+/** How numbering reads each field kind from a create body; the others (long text, money, json, refs) a series can't use. */
+const NUMBERING_KINDS: Partial<Record<string, NumberingFieldKind>> = {
+  string: 'text',
+  enum: 'text',
+  int: 'number',
+  decimal: 'number',
+  date: 'date',
+  datetime: 'datetime',
+  bool: 'boolean',
+};
+
+/** The fields a numbered record's naming series may print, date by or test (platform/sequences). */
+export const numberingFields = (declaration: RecordDeclaration) =>
+  Object.fromEntries(
+    Object.entries(declaration.fields).flatMap(([name, f]) => {
+      const kind = NUMBERING_KINDS[(f as { kind: string }).kind];
+      return kind ? [[name, kind]] : [];
+    }),
+  ) as Record<string, NumberingFieldKind>;
 
 /**
  * The webhook event types a record's `events` capability declares:

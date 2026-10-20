@@ -288,6 +288,13 @@
       "when": 1792491555188,
       "tag": "0040_naming_series",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792495157921,
+      "tag": "0041_naming_rules",
+      "breakpoints": true
     }
   ]
 }

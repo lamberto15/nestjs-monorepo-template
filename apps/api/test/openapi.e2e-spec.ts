@@ -246,6 +246,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/naming-series',
         '/v1/naming-series/preview',
         '/v1/naming-series/subjects',
+        '/v1/naming-series/variables',
         '/v1/naming-series/{id}',
         '/v1/naming-series/{id}/counter',
         '/v1/notifications',
