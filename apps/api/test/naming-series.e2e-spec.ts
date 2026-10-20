@@ -11,7 +11,7 @@ import { bootApp, type TestApp } from './support.js';
  * Naming series: the number formats administrators define for numbered
  * records (platform/sequences), on test items (a generated record: the
  * numbers come through RecordLifecycle). Notes (a hand-written service):
- * test/features/notes/naming-series.e2e-spec.ts.
+ * the notes feature's own naming-series spec.
  */
 describe('naming series (e2e)', () => {
   let node: TestApp;
@@ -169,7 +169,7 @@ describe('naming series (e2e)', () => {
       monthly.id,
     ]);
 
-    // No such series: refused, nothing created (another subject's: test/features/notes).
+    // No such series: refused, nothing created (another subject's: the notes feature's spec).
     const refused = await item({ namingSeriesId: randomUUID() });
     expect(refused.status).toBe(400);
     expect(paths(refused.body)).toEqual(['namingSeriesId']);
