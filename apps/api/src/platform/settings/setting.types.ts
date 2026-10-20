@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { FlagRule } from './setting-rules.js';
 
 /**
  * Where a setting's value may be set: for the whole tenant, for an org
@@ -75,6 +76,8 @@ export interface PlatformSettingValue {
   enforced: boolean;
   /** Flags: the percentage of each tenant's principals it is on for, when no value is set. */
   rollout: number | null;
+  /** Flags: targeting rules, before the value and the rollout (setting-rules.ts). */
+  rules?: readonly FlagRule[];
 }
 
 /** A stored override: one scope's value of a setting (and a flag's rollout at the tenant scope). */
@@ -86,4 +89,6 @@ export interface SettingOverride {
   value: unknown;
   /** Flags, tenant scope: the percentage of the tenant's principals it is on for, when no value is set. */
   rollout: number | null;
+  /** Flags, tenant scope: targeting rules, before the value (setting-rules.ts). */
+  rules?: readonly FlagRule[];
 }

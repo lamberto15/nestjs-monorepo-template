@@ -22,14 +22,17 @@ import { FormAlert, useAppForm } from '@/lib/form';
 import { teamRefsQuery } from '@/lib/list-refs';
 import { usePeopleNames, useTeamNames } from '@/lib/people';
 import { PlatformEditor } from './platform-editor';
+import { RulesEditor } from './rules-editor';
 import {
   fromDraft,
   overrideBody,
   overridesQuery,
+  rolesQuery,
   settingsQuery,
   toDraft,
   type Draft,
   type Override,
+  type Rule,
   type Scope,
   type Setting,
 } from './settings';
@@ -74,6 +77,11 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
   // The teams, from the route every member may read.
   const teams = useQuery({ ...teamRefsQuery, enabled: hasTeam });
   const mayReadPrincipals = holds(useMe()?.can, principalReaders);
+  // The roles, for a rule's role condition: the access administrators read them.
+  const roles = useQuery({
+    ...rolesQuery,
+    enabled: setting.flag && mayReadPrincipals,
+  });
   // Names for the stored values, by key and id (every member may read them).
   const people = usePeopleNames(
     (overrides.data ?? [])
@@ -143,6 +151,29 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
   });
 
   const initial = overrides.data?.find((o) => o.scope === 'tenant');
+  /**
+   * Saves the tenant's targeting rules beside the value or rollout it
+   * already has (the PUT replaces them); with neither and no rules left,
+   * the override goes.
+   */
+  const saveRules = async (rules: Rule[]) => {
+    const own = initial && (initial.rollout != null || initial.value !== null);
+    if (!rules.length && !own) {
+      if (initial) await clear.mutateAsync(initial);
+    } else {
+      await save.mutateAsync(
+        overrideBody({
+          scope: 'tenant',
+          scopeId: '',
+          rules,
+          ...(initial?.rollout != null
+            ? { rollout: initial.rollout }
+            : { value: initial?.value }),
+        }),
+      );
+    }
+    toast.success(t('rules.saved'));
+  };
   const form = useAppForm({
     defaultValues: {
       scope: setting.scopes[0] as Scope,
@@ -212,6 +243,22 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
   return (
     <div className="flex flex-col gap-6">
       <PlatformEditor setting={setting} />
+      {setting.flag && overrides.data && (
+        <section aria-label={t('rules.title')} className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">{t('rules.title')}</h3>
+          <p className="text-xs text-muted-foreground">
+            {t('rules.description')}
+          </p>
+          <RulesEditor
+            // Reloaded when the stored rules change (saved, or cleared with the override).
+            key={JSON.stringify(initial?.rules ?? [])}
+            scope="tenant"
+            rules={initial?.rules}
+            roles={roles.data}
+            onSave={saveRules}
+          />
+        </section>
+      )}
       <section aria-label={t('overrides')} className="flex flex-col gap-2">
         <h3 className="text-sm font-medium">{t('overrides')}</h3>
         {overrides.data?.length === 0 && (
@@ -226,10 +273,14 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
               <span className="flex-1">
                 {labelOf(override)}:{' '}
                 <strong>
-                  {override.rollout == null
-                    ? formatValue(override.value, t('on'), t('off'))
-                    : t('rolloutOf', { percent: override.rollout })}
+                  {override.rollout != null
+                    ? t('rolloutOf', { percent: override.rollout })
+                    : override.value === null && override.rules.length
+                      ? t('rules.only')
+                      : formatValue(override.value, t('on'), t('off'))}
                 </strong>
+                {override.rules.length > 0 &&
+                  ` (${t('rules.count', { count: override.rules.length })})`}
               </span>
               <Button
                 type="button"
