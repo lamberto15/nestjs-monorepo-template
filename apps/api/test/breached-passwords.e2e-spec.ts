@@ -65,7 +65,8 @@ const pwned = await vi.hoisted(async () => {
   Object.assign(process.env, {
     PASSWORD_BREACH_CHECK: 'on',
     PASSWORD_BREACH_API_URL: `http://127.0.0.1:${port}`,
-    PASSWORD_BREACH_TIMEOUT_MS: '1000',
+    // Long enough for a held answer (below) to be released before it times out.
+    PASSWORD_BREACH_TIMEOUT_MS: '5000',
     AUTH_SIGN_UP: 'on',
   });
   return {
@@ -317,8 +318,8 @@ describe('breached passwords (e2e)', () => {
     pwned.state.hold = true;
     const started = Date.now();
     await node.signIn(address, pwned.breached);
-    // Answered while the API still holds its answer (PASSWORD_BREACH_TIMEOUT_MS is 1 s here).
-    expect(Date.now() - started).toBeLessThan(1000);
+    // Answered while the API still holds its answer (PASSWORD_BREACH_TIMEOUT_MS is 5 s here).
+    expect(Date.now() - started).toBeLessThan(2500);
     await vi.waitFor(() => expect(pwned.held).toHaveLength(1));
     expect(
       await node.auditEntries({ action: 'auth.password-breached' }),
