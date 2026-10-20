@@ -61,12 +61,14 @@ first project is built on the template; until then they report only.
 
 ### Open follow-ups
 
-- **Tenancy (1b):** per-tenant senders for incoming webhooks; sign-ins visible to tenant administrators; the platform super
+- **Tenancy (1b):** sign-ins visible to tenant administrators; the platform super
   tenant; a membership still active in a deactivated tenant exports that tenant's
   records; the migrate-time wall check compares policy names and commands, not their
   expressions; whether operators may act in any tenant without its invitation (a
   break-glass support route: the owner's decision, docs/tenancy.md, "Operators").
-  Tenant export and deletion are done (#226; get, rename and deactivation, #195).
+  Tenant export and deletion are done (#226; get, rename and deactivation, #195);
+  per-tenant senders for incoming webhooks are done (#234: docs/webhooks-and-realtime.md,
+  "Incoming webhooks of a tenant").
 - **Passkeys:** renaming needs no recent sign-in; a token sign-in naming a tenant the
   user isn't in writes no failure entry; `crossOrigin`/`topOrigin` aren't checked.
   Token clients with two-factor still send a code with a passkey until
