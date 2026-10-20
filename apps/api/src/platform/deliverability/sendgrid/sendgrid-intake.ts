@@ -30,6 +30,14 @@ const eventSchema = z.looseObject({
   reason: z.string().optional(),
   status: z.string().optional(),
 });
+/** Only these four names map; anything else (a Map, not an object: no inherited keys) is ignored. */
+const EVENT_TYPES = new Map<string, MailEvent['type']>([
+  ['bounce', 'hard_bounce'],
+  ['blocked', 'soft_bounce'],
+  ['spamreport', 'complaint'],
+  ['delivered', 'delivery'],
+]);
+
 const bodySchema = z.array(eventSchema);
 
 /**
@@ -114,14 +122,7 @@ export class SendGridIntake implements MailEventIntake {
     }
     const events: MailEvent[] = [];
     for (const item of parsed.data) {
-      const type = (
-        {
-          bounce: 'hard_bounce',
-          blocked: 'soft_bounce',
-          spamreport: 'complaint',
-          delivered: 'delivery',
-        } as const
-      )[item.event as 'bounce'];
+      const type = EVENT_TYPES.get(item.event);
       if (!type) continue;
       const detail = [item.reason, item.status].filter(Boolean).join(' ');
       events.push({

@@ -93,6 +93,14 @@ describe('SendGridIntake', () => {
     expect(result.id).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('ignores event names that are Object.prototype members', async () => {
+    await expect(
+      intake().intake.receive(
+        signed([event('constructor'), event('toString'), event('__proto__')]),
+      ),
+    ).resolves.toEqual({ kind: 'ignored', detail: 'no-delivery-events' });
+  });
+
   it('gives a redelivered request the same id', async () => {
     const { intake: i } = intake();
     const request = signed([event('bounce')]);
