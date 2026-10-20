@@ -11,7 +11,7 @@ import { Switch } from '@nestjs-monorepo-template/ui/components/switch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ArrowLeftIcon, PlusIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
@@ -39,6 +39,7 @@ import {
 } from './policy-draft';
 import { SourceBadge } from './policies-page';
 import { StageEditor } from './stage-editor';
+import { InvalidFieldsContext } from './typed-editor';
 
 type FieldIssue = { path: string; message: string };
 
@@ -109,6 +110,19 @@ function PolicyForm(props: {
   const [error, setError] = useState<string>();
   const [issues, setIssues] = useState<FieldIssue[]>([]);
   const [conflict, setConflict] = useState(false);
+  // The fields holding JSON that doesn't parse: saving waits for them.
+  const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const reportInvalid = useCallback((id: string, invalid: boolean) => {
+    setInvalidFields((current) => {
+      if (current.has(id) === invalid) return current;
+      const next = new Set(current);
+      if (invalid) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
 
   const form = useAppForm({
     defaultValues: toDraft(policy.policy) satisfies PolicyDraft,
@@ -164,178 +178,182 @@ function PolicyForm(props: {
           </p>
         )}
       </header>
-      <form
-        noValidate
-        className="flex flex-col gap-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit();
-        }}
-      >
-        <FieldGroup>
-          <FormAlert message={error} />
-          {conflict && (
-            <ConflictAlert
-              title={t('policies.conflict.title')}
-              description={t('policies.conflict.description')}
-              reload={t('policies.conflict.reload')}
-              onReload={() =>
-                void queryClient.invalidateQueries({ queryKey: approvalsKey })
-              }
-            />
-          )}
-          {otherIssues.length > 0 && <IssueList issues={otherIssues} />}
-          <form.Field name="enabled">
-            {(field) => (
-              <Field orientation="horizontal">
-                <Switch
-                  id="policy-enabled"
-                  checked={field.state.value}
-                  onCheckedChange={(checked) => field.handleChange(checked)}
-                />
-                <div className="flex flex-col gap-1">
-                  <FieldLabel htmlFor="policy-enabled">
-                    {t('policies.enabled')}
-                  </FieldLabel>
-                  <FieldDescription>
-                    {t('policies.enabledHint')}
-                  </FieldDescription>
-                </div>
-              </Field>
-            )}
-          </form.Field>
-          <form.AppField name="resubmitWithin">
-            {(field) => (
-              <field.TextField
-                label={t('policies.resubmitWithin')}
-                description={t('policies.resubmitWithinHint')}
+      <InvalidFieldsContext.Provider value={reportInvalid}>
+        <form
+          noValidate
+          className="flex flex-col gap-6"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
+          <FieldGroup>
+            <FormAlert message={error} />
+            {conflict && (
+              <ConflictAlert
+                title={t('policies.conflict.title')}
+                description={t('policies.conflict.description')}
+                reload={t('policies.conflict.reload')}
+                onReload={() =>
+                  void queryClient.invalidateQueries({ queryKey: approvalsKey })
+                }
               />
             )}
-          </form.AppField>
-
-          <section
-            aria-labelledby="policy-when"
-            className="flex flex-col gap-3"
-          >
-            <h2 id="policy-when" className="font-medium">
-              {t('policies.when.title')}
-            </h2>
-            <form.Field name="when">
+            {otherIssues.length > 0 && <IssueList issues={otherIssues} />}
+            <form.Field name="enabled">
               {(field) => (
-                <>
-                  <Field orientation="horizontal">
-                    <Switch
-                      id="policy-when-on"
-                      checked={field.state.value !== null}
-                      onCheckedChange={(on) =>
-                        field.handleChange(
-                          on ? defaultCondition(types.conditions) : null,
+                <Field orientation="horizontal">
+                  <Switch
+                    id="policy-enabled"
+                    checked={field.state.value}
+                    onCheckedChange={(checked) => field.handleChange(checked)}
+                  />
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel htmlFor="policy-enabled">
+                      {t('policies.enabled')}
+                    </FieldLabel>
+                    <FieldDescription>
+                      {t('policies.enabledHint')}
+                    </FieldDescription>
+                  </div>
+                </Field>
+              )}
+            </form.Field>
+            <form.AppField name="resubmitWithin">
+              {(field) => (
+                <field.TextField
+                  label={t('policies.resubmitWithin')}
+                  description={t('policies.resubmitWithinHint')}
+                />
+              )}
+            </form.AppField>
+
+            <section
+              aria-labelledby="policy-when"
+              className="flex flex-col gap-3"
+            >
+              <h2 id="policy-when" className="font-medium">
+                {t('policies.when.title')}
+              </h2>
+              <form.Field name="when">
+                {(field) => (
+                  <>
+                    <Field orientation="horizontal">
+                      <Switch
+                        id="policy-when-on"
+                        checked={field.state.value !== null}
+                        onCheckedChange={(on) =>
+                          field.handleChange(
+                            on ? defaultCondition(types.conditions) : null,
+                          )
+                        }
+                      />
+                      <div className="flex flex-col gap-1">
+                        <FieldLabel htmlFor="policy-when-on">
+                          {t('policies.when.only')}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t('policies.when.hint')}
+                          {payloadFields.length > 0 &&
+                            ` ${t('policies.when.fields', { fields: payloadFields.join(', ') })}`}
+                        </FieldDescription>
+                      </div>
+                    </Field>
+                    {whenIssues.length > 0 && <IssueList issues={whenIssues} />}
+                    {field.state.value && (
+                      <ConditionEditor
+                        options={types.conditions}
+                        value={field.state.value}
+                        label={t('policies.when.condition')}
+                        onChange={(next) => field.handleChange(next)}
+                      />
+                    )}
+                  </>
+                )}
+              </form.Field>
+            </section>
+
+            <section
+              aria-labelledby="policy-stages"
+              className="flex flex-col gap-3"
+            >
+              <h2 id="policy-stages" className="font-medium">
+                {t('policies.stages')}
+              </h2>
+              <form.Field name="stages" mode="array">
+                {(field) => (
+                  <>
+                    {field.state.value.map((stage, index) => (
+                      <StageEditor
+                        // Stages have no identity of their own: the position is it.
+                        key={index}
+                        index={index}
+                        count={field.state.value.length}
+                        types={types}
+                        value={stage}
+                        errors={stageErrors(issues, index)}
+                        onChange={(next) => field.replaceValue(index, next)}
+                        onMove={(by) => field.moveValue(index, index + by)}
+                        onRemove={() => field.removeValue(index)}
+                      />
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="self-start"
+                      disabled={field.state.value.length >= 10}
+                      onClick={() =>
+                        field.pushValue(
+                          emptyStage(types.approverRules, types.modes),
                         )
                       }
-                    />
-                    <div className="flex flex-col gap-1">
-                      <FieldLabel htmlFor="policy-when-on">
-                        {t('policies.when.only')}
-                      </FieldLabel>
-                      <FieldDescription>
-                        {t('policies.when.hint')}
-                        {payloadFields.length > 0 &&
-                          ` ${t('policies.when.fields', { fields: payloadFields.join(', ') })}`}
-                      </FieldDescription>
-                    </div>
-                  </Field>
-                  {whenIssues.length > 0 && <IssueList issues={whenIssues} />}
-                  {field.state.value && (
-                    <ConditionEditor
-                      options={types.conditions}
-                      value={field.state.value}
-                      label={t('policies.when.condition')}
-                      onChange={(next) => field.handleChange(next)}
-                    />
-                  )}
-                </>
-              )}
-            </form.Field>
-          </section>
+                    >
+                      <PlusIcon />
+                      {t('policies.addStage')}
+                    </Button>
+                  </>
+                )}
+              </form.Field>
+            </section>
 
-          <section
-            aria-labelledby="policy-stages"
-            className="flex flex-col gap-3"
-          >
-            <h2 id="policy-stages" className="font-medium">
-              {t('policies.stages')}
-            </h2>
-            <form.Field name="stages" mode="array">
-              {(field) => (
-                <>
-                  {field.state.value.map((stage, index) => (
-                    <StageEditor
-                      // Stages have no identity of their own: the position is it.
-                      key={index}
-                      index={index}
-                      count={field.state.value.length}
-                      types={types}
-                      value={stage}
-                      errors={stageErrors(issues, index)}
-                      onChange={(next) => field.replaceValue(index, next)}
-                      onMove={(by) => field.moveValue(index, index + by)}
-                      onRemove={() => field.removeValue(index)}
-                    />
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="self-start"
-                    disabled={field.state.value.length >= 10}
-                    onClick={() =>
-                      field.pushValue(
-                        emptyStage(types.approverRules, types.modes),
-                      )
+            <div className="flex flex-wrap items-center gap-2">
+              <form.AppForm>
+                <form.SubmitButton
+                  disabled={conflict || invalidFields.size > 0}
+                >
+                  {t('policies.save')}
+                </form.SubmitButton>
+              </form.AppForm>
+              <ConfirmButton
+                disabled={policy.source === 'code'}
+                title={t('policies.reset.title', { label: policy.label })}
+                description={t('policies.reset.description')}
+                confirm={t('policies.reset.confirm')}
+                onConfirm={async () => {
+                  try {
+                    await reset.mutateAsync({
+                      key: policy.key,
+                      etag: props.etag,
+                    });
+                    toast.success(t('policies.reset.done'));
+                  } catch (caught) {
+                    // A changed policy is the page's to explain; any other
+                    // failure keeps the dialog open to try again.
+                    if (isPreconditionFailed(caught)) {
+                      setConflict(true);
+                      return;
                     }
-                  >
-                    <PlusIcon />
-                    {t('policies.addStage')}
-                  </Button>
-                </>
-              )}
-            </form.Field>
-          </section>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <form.AppForm>
-              <form.SubmitButton disabled={conflict}>
-                {t('policies.save')}
-              </form.SubmitButton>
-            </form.AppForm>
-            <ConfirmButton
-              disabled={policy.source === 'code'}
-              title={t('policies.reset.title', { label: policy.label })}
-              description={t('policies.reset.description')}
-              confirm={t('policies.reset.confirm')}
-              onConfirm={async () => {
-                try {
-                  await reset.mutateAsync({
-                    key: policy.key,
-                    etag: props.etag,
-                  });
-                  toast.success(t('policies.reset.done'));
-                } catch (caught) {
-                  // A changed policy is the page's to explain; any other
-                  // failure keeps the dialog open to try again.
-                  if (isPreconditionFailed(caught)) {
-                    setConflict(true);
-                    return;
+                    toast.error(errorMessage(caught));
+                    throw caught;
                   }
-                  toast.error(errorMessage(caught));
-                  throw caught;
-                }
-              }}
-            >
-              {t('policies.reset.button')}
-            </ConfirmButton>
-          </div>
-        </FieldGroup>
-      </form>
+                }}
+              >
+                {t('policies.reset.button')}
+              </ConfirmButton>
+            </div>
+          </FieldGroup>
+        </form>
+      </InvalidFieldsContext.Provider>
     </>
   );
 }

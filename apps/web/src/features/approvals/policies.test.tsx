@@ -60,6 +60,14 @@ const types = {
       params: object({ role: { type: 'string', maxLength: 100 } }, ['role']),
     },
     {
+      type: 'permission',
+      label: 'Users who may do an action on the record',
+      params: object(
+        { action: { type: 'string' }, subject: { type: 'string' } },
+        ['action'],
+      ),
+    },
+    {
       type: 'users',
       label: 'Named users',
       params: object(
@@ -90,6 +98,13 @@ const types = {
       type: 'not',
       label: 'not of conditions',
       params: object({ condition: {} }, ['condition']),
+    },
+    {
+      type: 'between',
+      label: 'A range',
+      params: object({ range: { type: 'array', items: { type: 'number' } } }, [
+        'range',
+      ]),
     },
     {
       type: 'payload',
@@ -385,12 +400,66 @@ describe('editing a policy', () => {
     await user.click(
       screen.getByRole('button', { name: 'Remove Condition 1' }),
     );
+    // What is shown is what is saved: the survivor has no value, and the
+    // removed condition's 5 must not linger in its field.
+    const survivor = screen.getByRole('group', { name: 'Condition 1' });
+    expect(within(survivor).getByLabelText('Path')).toHaveValue('');
+    expect(within(survivor).getByLabelText('Value')).toHaveValue('');
     await user.click(screen.getByRole('button', { name: 'Save policy' }));
     await findToast('Policy saved.');
     expect(api.puts[0]!.body.when).toEqual({
       type: 'all',
       conditions: [{ type: 'payload', path: '', op: 'eq' }],
     });
+  });
+
+  it('does not send an optional text left empty', async () => {
+    const { api, user } = await open();
+    const stage1 = screen.getByRole('region', { name: 'Stage 1' });
+    await user.click(
+      within(stage1).getByRole('combobox', { name: 'Approver 1' }),
+    );
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'Users who may do an action on the record',
+      }),
+    );
+    await user.type(within(stage1).getByLabelText('Permission'), 'update');
+    await user.type(within(stage1).getByLabelText('Subject'), 'Note');
+    await user.clear(within(stage1).getByLabelText('Subject'));
+    await user.click(screen.getByRole('button', { name: 'Save policy' }));
+    await findToast('Policy saved.');
+    // `subject` is optional with a minimum length of 1: unset, not ''.
+    expect(api.puts[0]!.body.stages[0].approvers).toEqual([
+      { type: 'permission', action: 'update' },
+    ]);
+  });
+
+  it('refuses to save while a JSON field holds text that does not parse', async () => {
+    const { api, user } = await open();
+    await user.click(
+      screen.getByRole('switch', { name: 'Only when a condition holds' }),
+    );
+    const condition = await screen.findByRole('group', { name: 'Condition' });
+    await user.click(
+      within(condition).getByRole('combobox', { name: 'Condition' }),
+    );
+    await user.click(await screen.findByRole('option', { name: 'A range' }));
+    const range = within(condition).getByLabelText('range');
+    await user.click(range);
+    await user.paste('[1,');
+    expect(await within(condition).findByText('Not valid JSON.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Save policy' })).toBeDisabled();
+
+    await user.clear(range);
+    await user.click(range);
+    await user.paste('[1,2]');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save policy' })).toBeEnabled(),
+    );
+    await user.click(screen.getByRole('button', { name: 'Save policy' }));
+    await findToast('Policy saved.');
+    expect(api.puts[0]!.body.when).toEqual({ type: 'between', range: [1, 2] });
   });
 
   it('removes the condition when it is switched off', async () => {

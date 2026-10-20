@@ -742,6 +742,19 @@ describe('the approval page', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('waits a while after the approval, while its outcome is being applied', async () => {
+      const now = new Date().toISOString();
+      useApprovalsApi({
+        request: stuck({ updatedAt: now, endedAt: now }),
+        can: { 'Approval.manage': true },
+      });
+      await renderApp(`/approvals/${REQUEST_ID}`);
+      await screen.findByRole('heading', { name: 'Q3 targets' });
+      expect(
+        screen.queryByRole('button', { name: 'Abandon' }),
+      ).not.toBeInTheDocument();
+    });
+
     it('is not offered for a pending request', async () => {
       useApprovalsApi({
         request: stuck({ status: 'pending' }),

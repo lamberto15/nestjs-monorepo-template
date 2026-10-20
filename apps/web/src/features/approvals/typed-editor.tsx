@@ -21,7 +21,14 @@ import {
   TagsInputList,
 } from '@nestjs-monorepo-template/ui/components/tags-input';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   initialOf,
@@ -33,6 +40,14 @@ import {
   type TypeOption,
   type Typed,
 } from './policy-draft';
+
+/**
+ * Where a field that can hold text it can't use (invalid JSON) says so, so
+ * the form can refuse to save meanwhile. The form provides it.
+ */
+export const InvalidFieldsContext = createContext<
+  ((id: string, invalid: boolean) => void) | null
+>(null);
 
 /** One of a few values: shadcn's Select (Base UI), as `lib/form.tsx`'s SelectField is for forms. */
 export function OptionSelect(props: {
@@ -168,6 +183,7 @@ function ParamsEditor(props: {
           id={`${props.id}-${name}`}
           name={name}
           schema={schema}
+          required={props.schema.required?.includes(name) ?? false}
           value={props.value[name]}
           onChange={(next) => set(name, next)}
         />
@@ -180,6 +196,7 @@ function ParamField(props: {
   id: string;
   name: string;
   schema: JsonSchema;
+  required: boolean;
   value: unknown;
   onChange: (next: unknown) => void;
 }) {
@@ -222,7 +239,14 @@ function ParamField(props: {
             id={id}
             value={typeof value === 'string' ? value : ''}
             maxLength={schema.maxLength}
-            onChange={(event) => props.onChange(event.target.value)}
+            // An optional text left empty is not set: the API refuses '' (min length 1).
+            onChange={(event) =>
+              props.onChange(
+                event.target.value === '' && !props.required
+                  ? undefined
+                  : event.target.value,
+              )
+            }
           />
           {hint && <FieldDescription>{hint}</FieldDescription>}
         </Field>
@@ -300,8 +324,34 @@ function JsonField(props: {
   onChange: (next: unknown) => void;
 }) {
   const { t } = useTranslation('approvals');
-  const [text, setText] = useState(looseToText(props.value));
+  const shown = looseToText(props.value);
+  const [text, setText] = useState(shown);
+  const [seen, setSeen] = useState(shown);
   const [invalid, setInvalid] = useState(false);
+  const report = useContext(InvalidFieldsContext);
+  const id = useId();
+  useEffect(() => {
+    report?.(id, invalid);
+    return () => report?.(id, false);
+  }, [report, id, invalid]);
+  // The value changed from outside (a sibling removed, the type switched):
+  // show it, unless the text already says it (typing " 5" is the value 5).
+  if (shown !== seen) {
+    setSeen(shown);
+    const typed = props.loose
+      ? looseFromText(text)
+      : (() => {
+          try {
+            return text.trim() === '' ? undefined : JSON.parse(text);
+          } catch {
+            return undefined;
+          }
+        })();
+    if (looseToText(typed) !== shown) {
+      setText(shown);
+      setInvalid(false);
+    }
+  }
   return (
     <Field data-invalid={invalid}>
       <FieldLabel htmlFor={props.id}>{props.label}</FieldLabel>
