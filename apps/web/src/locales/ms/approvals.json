@@ -1,7 +1,7 @@
 {
   "nav": {
     "title": "Kelulusan",
-    "policies": "Approval policies"
+    "policies": "Dasar kelulusan"
   },
   "inbox": {
     "title": "Kelulusan",
@@ -60,28 +60,28 @@
     "commentRequiredLabel": "Sebab penolakan",
     "commentRequired": "Nyatakan sebab anda menolak.",
     "requestChanges": {
-      "title": "Request changes",
-      "button": "Request changes",
-      "submit": "Request changes",
-      "done": "Changes requested.",
-      "commentLabel": "What should change",
-      "commentRequired": "Say what should change.",
-      "hint": "The request goes back to the requester, who can change the record and resubmit it."
+      "title": "Minta pindaan",
+      "button": "Minta pindaan",
+      "submit": "Minta pindaan",
+      "done": "Pindaan diminta.",
+      "commentLabel": "Apa yang perlu diubah",
+      "commentRequired": "Nyatakan apa yang perlu diubah.",
+      "hint": "Permintaan dikembalikan kepada pemohon, yang boleh mengubah rekod dan menghantarnya semula."
     },
     "resubmit": {
-      "title": "Resubmit for approval",
-      "button": "Resubmit",
-      "submit": "Resubmit",
-      "done": "Resubmitted.",
-      "hint": "A new round starts from the first stage, and the approvers are resolved again."
+      "title": "Hantar semula untuk kelulusan",
+      "button": "Hantar semula",
+      "submit": "Hantar semula",
+      "done": "Dihantar semula.",
+      "hint": "Pusingan baharu bermula dari peringkat pertama, dan pelulus ditentukan semula."
     },
     "abandon": {
-      "title": "Abandon the request",
-      "button": "Abandon",
-      "submit": "Abandon",
-      "done": "Request abandoned.",
-      "commentLabel": "Reason (optional)",
-      "hint": "The request was approved but its outcome was never applied. Abandoning ends it as failed and unlocks the record. It is refused while the outcome is still being applied or retried."
+      "title": "Tinggalkan permintaan",
+      "button": "Tinggalkan",
+      "submit": "Tinggalkan",
+      "done": "Permintaan ditinggalkan.",
+      "commentLabel": "Sebab (pilihan)",
+      "hint": "Permintaan telah diluluskan tetapi hasilnya tidak pernah digunakan. Meninggalkannya menamatkannya sebagai gagal dan membuka kunci rekod. Ia ditolak selagi hasilnya masih sedang digunakan atau dicuba semula."
     }
   },
   "conflict": {
@@ -194,134 +194,134 @@
     "details": "Butiran kelulusan"
   },
   "policies": {
-    "back": "Back to approval policies",
-    "title": "Approval policies",
-    "description": "The actions that can need approval, and who decides them. Changes apply to new requests; a running request keeps the policy it started with.",
-    "none": "No action needs approval.",
+    "back": "Kembali ke dasar kelulusan",
+    "title": "Dasar kelulusan",
+    "description": "Tindakan yang mungkin memerlukan kelulusan, dan siapa yang memutuskannya. Perubahan terpakai pada permintaan baharu; permintaan yang sedang berjalan mengekalkan dasar yang digunakan semasa ia bermula.",
+    "none": "Tiada tindakan yang memerlukan kelulusan.",
     "source": {
-      "code": "Default",
-      "override": "Customized (version {{version}})"
+      "code": "Lalai",
+      "override": "Disesuaikan (versi {{version}})"
     },
-    "off": "Off",
-    "conditional": "Conditional",
-    "stagesSummary": "Stages: {{names}}",
+    "off": "Mati",
+    "conditional": "Bersyarat",
+    "stagesSummary": "Peringkat: {{names}}",
     "edit": "Edit",
     "editLabel": "Edit {{label}}",
-    "setting": "Switched on per team by the setting",
-    "saved": "Policy saved.",
+    "setting": "Dihidupkan bagi setiap pasukan oleh tetapan",
+    "saved": "Dasar disimpan.",
     "notFound": {
-      "title": "Policy not found",
-      "description": "No action has this key."
+      "title": "Dasar tidak ditemui",
+      "description": "Tiada tindakan yang mempunyai kunci ini."
     },
     "error": {
-      "title": "Could not load the policy",
-      "generic": "Something went wrong.",
-      "retry": "Try again"
+      "title": "Dasar tidak dapat dimuatkan",
+      "generic": "Sesuatu telah berlaku.",
+      "retry": "Cuba lagi"
     },
     "conflict": {
-      "title": "This policy changed",
-      "description": "Someone saved it since you opened it.",
-      "reload": "Reload"
+      "title": "Dasar ini telah berubah",
+      "description": "Seseorang telah menyimpannya sejak anda membukanya.",
+      "reload": "Muat semula"
     },
-    "enabled": "Needs approval",
-    "enabledHint": "Off: the action needs no approval for anyone.",
-    "resubmitWithin": "Time to resubmit",
-    "resubmitWithinHint": "How long the requester has after changes were requested, before the request expires. 30m, 8h, 2d, 1w.",
-    "stages": "Stages",
-    "addStage": "Add a stage",
-    "save": "Save policy",
-    "remove": "Remove {{label}}",
-    "invalidJson": "Not valid JSON.",
+    "enabled": "Memerlukan kelulusan",
+    "enabledHint": "Mati: tindakan ini tidak memerlukan kelulusan daripada sesiapa.",
+    "resubmitWithin": "Masa untuk hantar semula",
+    "resubmitWithinHint": "Berapa lama pemohon mempunyai masa selepas pindaan diminta, sebelum permintaan tamat tempoh. 30m, 8h, 2d, 1w.",
+    "stages": "Peringkat",
+    "addStage": "Tambah peringkat",
+    "save": "Simpan dasar",
+    "remove": "Buang {{label}}",
+    "invalidJson": "JSON tidak sah.",
     "reset": {
-      "button": "Reset to default",
-      "title": "Reset {{label}} to the default?",
-      "description": "The policy goes back to the one declared in code, stored as a new version. Running requests keep their policy.",
-      "confirm": "Reset",
-      "done": "Policy reset."
+      "button": "Tetapkan semula kepada lalai",
+      "title": "Tetapkan semula {{label}} kepada lalai?",
+      "description": "Dasar kembali kepada yang diisytiharkan dalam kod, disimpan sebagai versi baharu. Permintaan yang sedang berjalan mengekalkan dasarnya.",
+      "confirm": "Tetapkan semula",
+      "done": "Dasar ditetapkan semula."
     },
     "when": {
-      "title": "Condition",
-      "only": "Only when a condition holds",
-      "hint": "Otherwise every request needs approval.",
-      "fields": "Fields of the proposed change: {{fields}}.",
-      "condition": "Condition",
-      "inner": "Condition inside",
-      "item": "Condition {{n}}",
-      "add": "Add a condition"
+      "title": "Syarat",
+      "only": "Hanya apabila syarat dipenuhi",
+      "hint": "Jika tidak, setiap permintaan memerlukan kelulusan.",
+      "fields": "Medan perubahan yang dicadangkan: {{fields}}.",
+      "condition": "Syarat",
+      "inner": "Syarat di dalam",
+      "item": "Syarat {{n}}",
+      "add": "Tambah syarat"
     },
     "stage": {
-      "label": "Stage {{n}}",
-      "up": "Move stage {{n}} up",
-      "down": "Move stage {{n}} down",
-      "remove": "Remove stage {{n}}",
-      "name": "Name",
-      "approvers": "Approvers",
-      "approversHint": "Everyone any of these rules names decides the stage, except the requester.",
-      "approver": "Approver",
-      "addApprover": "Add an approver rule",
-      "mode": "How the stage completes",
-      "remindAfter": "Remind after",
-      "dueAfter": "Overdue after",
-      "onOverdue": "When overdue",
+      "label": "Peringkat {{n}}",
+      "up": "Alihkan peringkat {{n}} ke atas",
+      "down": "Alihkan peringkat {{n}} ke bawah",
+      "remove": "Buang peringkat {{n}}",
+      "name": "Nama",
+      "approvers": "Pelulus",
+      "approversHint": "Semua yang dinamakan oleh mana-mana peraturan ini memutuskan peringkat itu, kecuali pemohon.",
+      "approver": "Pelulus",
+      "addApprover": "Tambah peraturan pelulus",
+      "mode": "Bagaimana peringkat selesai",
+      "remindAfter": "Ingatkan selepas",
+      "dueAfter": "Lewat selepas",
+      "onOverdue": "Apabila lewat",
       "overdue": {
-        "expire": "Expire the request",
-        "escalate": "Escalate"
+        "expire": "Tamatkan tempoh permintaan",
+        "escalate": "Tingkatkan"
       },
-      "durationHint": "Durations: 30m, 8h, 2d, 1w. Leave empty for none.",
-      "escalateTo": "Escalate to",
-      "escalation": "Escalation approver",
-      "addEscalation": "Add an escalation rule",
-      "escalationDueAfter": "Expire after escalating, after"
+      "durationHint": "Tempoh: 30m, 8h, 2d, 1w. Biarkan kosong jika tiada.",
+      "escalateTo": "Tingkatkan kepada",
+      "escalation": "Pelulus peningkatan",
+      "addEscalation": "Tambah peraturan peningkatan",
+      "escalationDueAfter": "Tamat tempoh selepas peningkatan, selepas"
     },
     "params": {
-      "path": "Path",
-      "op": "Comparison",
-      "value": "Value",
-      "role": "Role",
-      "levelsUp": "Levels up",
-      "nearest": "Nearest with someone",
-      "action": "Permission",
-      "subject": "Subject",
-      "userIds": "Users (ids)",
-      "n": "Approvals needed"
+      "path": "Laluan",
+      "op": "Perbandingan",
+      "value": "Nilai",
+      "role": "Peranan",
+      "levelsUp": "Tahap ke atas",
+      "nearest": "Terdekat yang ada orangnya",
+      "action": "Kebenaran",
+      "subject": "Subjek",
+      "userIds": "Pengguna (id)",
+      "n": "Kelulusan diperlukan"
     },
     "paramHints": {
-      "path": "A dotted path into the proposed change: amount, lines.0.total.",
-      "value": "A number, text or true/false; a JSON list for in and notIn: [\"a\", \"b\"].",
-      "levelsUp": "0: the requester's own unit, 1: the unit above.",
-      "userIds": "Press Enter or comma after each id (GET /v1/people).",
-      "subject": "Optional: the record's own subject when empty."
+      "path": "Laluan bertitik ke dalam perubahan yang dicadangkan: amount, lines.0.total.",
+      "value": "Nombor, teks atau true/false; senarai JSON untuk in dan notIn: [\"a\", \"b\"].",
+      "levelsUp": "0: unit pemohon sendiri, 1: unit di atasnya.",
+      "userIds": "Tekan Enter atau koma selepas setiap id (GET /v1/people).",
+      "subject": "Pilihan: subjek rekod itu sendiri jika kosong."
     },
     "enums": {
       "op": {
-        "eq": "equals",
-        "ne": "does not equal",
-        "gt": "is greater than",
-        "gte": "is at least",
-        "lt": "is less than",
-        "lte": "is at most",
-        "in": "is one of",
-        "notIn": "is none of",
-        "exists": "exists"
+        "eq": "sama dengan",
+        "ne": "tidak sama dengan",
+        "gt": "lebih besar daripada",
+        "gte": "sekurang-kurangnya",
+        "lt": "kurang daripada",
+        "lte": "paling banyak",
+        "in": "salah satu daripada",
+        "notIn": "bukan salah satu daripada",
+        "exists": "wujud"
       }
     },
     "types": {
       "rule": {
-        "role": "Users holding a role",
-        "teamRole": "Users holding a role in the requester's team, or above",
-        "permission": "Users who may do an action on the record",
-        "users": "Named users"
+        "role": "Pengguna yang memegang sesuatu peranan",
+        "teamRole": "Pengguna yang memegang sesuatu peranan dalam pasukan pemohon, atau di atasnya",
+        "permission": "Pengguna yang dibenarkan melakukan sesuatu tindakan pada rekod",
+        "users": "Pengguna yang dinamakan"
       },
       "mode": {
-        "any": "Any approver: the first decision decides",
-        "all": "All approvers",
-        "quorum": "A quorum of approvers"
+        "any": "Mana-mana pelulus: keputusan pertama menentukan",
+        "all": "Semua pelulus",
+        "quorum": "Kuorum pelulus"
       },
       "condition": {
-        "all": "All of these conditions",
-        "any": "Any of these conditions",
-        "not": "Not this condition",
-        "payload": "A value of the proposed change"
+        "all": "Semua syarat ini",
+        "any": "Mana-mana syarat ini",
+        "not": "Bukan syarat ini",
+        "payload": "Nilai daripada perubahan yang dicadangkan"
       }
     }
   }

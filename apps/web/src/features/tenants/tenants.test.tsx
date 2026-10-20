@@ -645,6 +645,13 @@ describe('deleting a tenant', () => {
     expect(submit).toBeDisabled();
     await user.type(input, 'xx');
     expect(submit).toBeDisabled();
+    // The slug is compared as typed: another case is not it.
+    await user.clear(input);
+    await user.type(input, 'GLOBEX');
+    expect(submit).toBeDisabled();
+    await user.clear(input);
+    await user.type(input, 'globex');
+    expect(submit).toBeEnabled();
     expect(state.deletions).toEqual([]);
   });
 
@@ -769,6 +776,69 @@ describe('deleting a tenant', () => {
     expect(reactivate).toBeDisabled();
     expect(screen.getByText(/A deletion is pending/)).toBeInTheDocument();
     expect(state.patched).toEqual([]);
+  });
+
+  it('blocks reactivating once the erase started, and says it cannot be undone', async () => {
+    const state = api();
+    withDeletion(state, {
+      ...PENDING,
+      deletionStartedAt: '2026-10-20T10:00:00.000Z',
+    });
+    await renderApp(`/tenants/${GLOBEX}`);
+    expect(
+      await screen.findByRole('button', { name: 'Reactivate' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        'The tenant is being erased. It can no longer be reactivated.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/cancel it/)).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Cancel deletion' }),
+    ).toBeNull();
+  });
+
+  it('tells a reactivation refused because a deletion was asked meanwhile (409)', async () => {
+    const state = api();
+    withDeletion(state, { active: false });
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    const reactivate = await screen.findByRole('button', {
+      name: 'Reactivate',
+    });
+    expect(reactivate).toBeEnabled();
+    // Another operator asked for the deletion after the page was read.
+    withDeletion(state);
+    await user.click(reactivate);
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Reactivate tenant',
+      }),
+    );
+    await findToast('tenant_deletion_pending (test)');
+    expect(state.tenants[1]!.active).toBe(false);
+  });
+
+  it('keeps what was typed in the name when a deletion is cancelled', async () => {
+    const state = api();
+    withDeletion(state);
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Typed, not saved');
+    await user.click(screen.getByRole('button', { name: 'Cancel deletion' }));
+    await findToast(/Deletion of Globex cancelled/);
+    expect(state.cancels).toBe(1);
+    expect(screen.getByLabelText('Name')).toHaveValue('Typed, not saved');
+    // The save then carries the fresh ETag.
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(state.patched).toHaveLength(1));
+    expect(state.patched[0]).toMatchObject({
+      body: { name: 'Typed, not saved' },
+      ifMatch: etagOf({ id: GLOBEX, updatedAt: '2026-10-20T09:00:00.000Z' }),
+    });
   });
 
   it('allows reactivating when no deletion is pending', async () => {

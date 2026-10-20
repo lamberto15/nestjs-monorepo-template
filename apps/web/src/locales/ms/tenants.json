@@ -40,38 +40,39 @@
     "done": "Penyewa {{name}} dicipta. {{email}} ialah pentadbir pertamanya."
   },
   "detail": {
-    "back": "Back to tenants",
-    "created": "Created {{date}}",
-    "notFound": "This tenant does not exist.",
-    "saved": "Tenant {{name}} saved.",
+    "back": "Kembali ke penyewa",
+    "created": "Dicipta {{date}}",
+    "notFound": "Penyewa ini tidak wujud.",
+    "saved": "Penyewa {{name}} disimpan.",
     "conflict": {
-      "title": "This tenant changed",
-      "description": "Another operator changed it since you opened it. Reload it to see the current values, then make your change again.",
-      "reload": "Reload"
+      "title": "Penyewa ini telah berubah",
+      "description": "Pengendali lain telah mengubahnya sejak anda membukanya. Muat semulanya untuk melihat nilai semasa, kemudian buat perubahan anda sekali lagi.",
+      "reload": "Muat semula"
     },
     "name": {
-      "title": "Name and slug",
-      "description": "The name is what people see. The slug is the tenant's short handle.",
-      "slugHint": "Lowercase letters, digits and single dashes. Anything that refers to the tenant by its slug must use the new one.",
-      "save": "Save"
+      "title": "Nama dan slug",
+      "description": "Nama ialah apa yang dilihat orang. Slug ialah pengecam ringkas penyewa.",
+      "slugHint": "Huruf kecil, digit dan sempang tunggal. Apa-apa yang merujuk penyewa melalui slugnya mesti menggunakan yang baharu.",
+      "save": "Simpan"
     },
     "state": {
-      "title": "Access",
-      "activeDescription": "The tenant is active. Deactivating ends its members' sessions and stops its API keys; nothing is deleted.",
-      "inactiveDescription": "The tenant is inactive: nobody can sign in to it and its API keys and jobs are stopped. Its data is kept.",
-      "operatorTenant": "This is the operator tenant. It is never deactivated: the operators would lock themselves out.",
-      "deactivate": "Deactivate",
-      "deactivateTitle": "Deactivate {{name}}?",
-      "deactivateDescription": "Its members are signed out of it, its API keys and invitations stop working, and its jobs are skipped. Nothing is deleted: reactivating gives everything back, but its members must sign in again.",
-      "deactivateConfirm": "Deactivate tenant",
-      "reactivate": "Reactivate",
-      "reactivateTitle": "Reactivate {{name}}?",
-      "reactivateDescription": "Its data, members and API keys are back. Its members sign in again.",
-      "reactivateConfirm": "Reactivate tenant",
-      "deactivated": "Tenant {{name}} deactivated.",
-      "reactivated": "Tenant {{name}} reactivated.",
-      "failed": "The change did not go through. Try again.",
-      "deletionPending": "A deletion is pending: cancel it (under Delete tenant) before reactivating."
+      "title": "Akses",
+      "activeDescription": "Penyewa ini aktif. Menyahaktifkannya menamatkan sesi ahlinya dan menghentikan kunci API-nya; tiada apa yang dipadam.",
+      "inactiveDescription": "Penyewa ini tidak aktif: tiada sesiapa boleh log masuk kepadanya dan kunci API serta kerjanya dihentikan. Datanya dikekalkan.",
+      "operatorTenant": "Ini ialah penyewa pengendali. Ia tidak pernah dinyahaktifkan: pengendali akan mengunci diri mereka sendiri.",
+      "deactivate": "Nyahaktifkan",
+      "deactivateTitle": "Nyahaktifkan {{name}}?",
+      "deactivateDescription": "Ahlinya dilog keluar daripadanya, kunci API dan jemputannya berhenti berfungsi, dan kerjanya dilangkau. Tiada apa yang dipadam: mengaktifkannya semula memulihkan semuanya, tetapi ahlinya mesti log masuk semula.",
+      "deactivateConfirm": "Nyahaktifkan penyewa",
+      "reactivate": "Aktifkan semula",
+      "reactivateTitle": "Aktifkan semula {{name}}?",
+      "reactivateDescription": "Data, ahli dan kunci API-nya kembali. Ahlinya log masuk semula.",
+      "reactivateConfirm": "Aktifkan semula penyewa",
+      "deactivated": "Penyewa {{name}} dinyahaktifkan.",
+      "reactivated": "Penyewa {{name}} diaktifkan semula.",
+      "failed": "Perubahan tidak berjaya. Cuba lagi.",
+      "deletionPending": "A deletion is pending: cancel it (under Delete tenant) before reactivating.",
+      "deletionStarted": "The tenant is being erased. It can no longer be reactivated."
     },
     "export": {
       "title": "Export",

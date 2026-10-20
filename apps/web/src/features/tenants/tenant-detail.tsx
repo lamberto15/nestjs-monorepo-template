@@ -86,9 +86,10 @@ export function TenantDetail(props: { id: string }) {
           </div>
           <ConflictNotice conflict={conflict} />
           <NameSection
-            // Read again after a change (or the reload of a conflict): a
-            // fresh form.
-            key={`${loaded.tenant.updatedAt}-${loaded.etag}`}
+            // A fresh form when what it edits changed (a save, the reload of
+            // a conflict). Other changes (a deletion asked or cancelled) move
+            // the ETag only: the typed edits stay, and `etag` is the new one.
+            key={`${loaded.tenant.name}-${loaded.tenant.slug}`}
             tenant={loaded.tenant}
             etag={loaded.etag}
             conflict={conflict}
@@ -254,7 +255,9 @@ function StateSection(props: {
   const { t } = useTranslation('tenants');
   const { tenant, conflict, etag } = props;
   const update = useUpdateTenant(tenant.id);
-  const blocked = !tenant.active && deletionPending(tenant);
+  // The API refuses reactivating while a deletion is scheduled, started or
+  // not (409 `tenant_deletion_pending`).
+  const blocked = !tenant.active && Boolean(tenant.deletionScheduledFor);
   const change = async (active: boolean) => {
     if (!etag) {
       return;
@@ -324,7 +327,11 @@ function StateSection(props: {
               role="status"
               className="self-center text-sm text-muted-foreground"
             >
-              {t('detail.state.deletionPending')}
+              {t(
+                tenant.deletionStartedAt
+                  ? 'detail.state.deletionStarted'
+                  : 'detail.state.deletionPending',
+              )}
             </p>
           )}
         </div>

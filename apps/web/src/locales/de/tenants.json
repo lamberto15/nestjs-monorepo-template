@@ -40,38 +40,39 @@
     "done": "Mandant {{name}} angelegt. {{email}} ist sein erster Administrator."
   },
   "detail": {
-    "back": "Back to tenants",
-    "created": "Created {{date}}",
-    "notFound": "This tenant does not exist.",
-    "saved": "Tenant {{name}} saved.",
+    "back": "Zurück zu den Mandanten",
+    "created": "Erstellt am {{date}}",
+    "notFound": "Diesen Mandanten gibt es nicht.",
+    "saved": "Mandant {{name}} gespeichert.",
     "conflict": {
-      "title": "This tenant changed",
-      "description": "Another operator changed it since you opened it. Reload it to see the current values, then make your change again.",
-      "reload": "Reload"
+      "title": "Dieser Mandant hat sich geändert",
+      "description": "Ein anderer Betreiber hat ihn geändert, seit Sie ihn geöffnet haben. Laden Sie ihn neu, um die aktuellen Werte zu sehen, und ändern Sie dann erneut.",
+      "reload": "Neu laden"
     },
     "name": {
-      "title": "Name and slug",
-      "description": "The name is what people see. The slug is the tenant's short handle.",
-      "slugHint": "Lowercase letters, digits and single dashes. Anything that refers to the tenant by its slug must use the new one.",
-      "save": "Save"
+      "title": "Name und Kürzel",
+      "description": "Der Name ist das, was Menschen sehen. Das Kürzel ist der kurze Bezeichner des Mandanten.",
+      "slugHint": "Kleinbuchstaben, Ziffern und einzelne Bindestriche. Alles, was den Mandanten über sein Kürzel anspricht, muss das neue verwenden.",
+      "save": "Speichern"
     },
     "state": {
-      "title": "Access",
-      "activeDescription": "The tenant is active. Deactivating ends its members' sessions and stops its API keys; nothing is deleted.",
-      "inactiveDescription": "The tenant is inactive: nobody can sign in to it and its API keys and jobs are stopped. Its data is kept.",
-      "operatorTenant": "This is the operator tenant. It is never deactivated: the operators would lock themselves out.",
-      "deactivate": "Deactivate",
-      "deactivateTitle": "Deactivate {{name}}?",
-      "deactivateDescription": "Its members are signed out of it, its API keys and invitations stop working, and its jobs are skipped. Nothing is deleted: reactivating gives everything back, but its members must sign in again.",
-      "deactivateConfirm": "Deactivate tenant",
-      "reactivate": "Reactivate",
-      "reactivateTitle": "Reactivate {{name}}?",
-      "reactivateDescription": "Its data, members and API keys are back. Its members sign in again.",
-      "reactivateConfirm": "Reactivate tenant",
-      "deactivated": "Tenant {{name}} deactivated.",
-      "reactivated": "Tenant {{name}} reactivated.",
-      "failed": "The change did not go through. Try again.",
-      "deletionPending": "A deletion is pending: cancel it (under Delete tenant) before reactivating."
+      "title": "Zugang",
+      "activeDescription": "Der Mandant ist aktiv. Das Deaktivieren beendet die Sitzungen seiner Mitglieder und stoppt seine API-Schlüssel; nichts wird gelöscht.",
+      "inactiveDescription": "Der Mandant ist inaktiv: Niemand kann sich bei ihm anmelden, und seine API-Schlüssel und Jobs sind gestoppt. Seine Daten bleiben erhalten.",
+      "operatorTenant": "Dies ist der Betreiber-Mandant. Er wird nie deaktiviert: Die Betreiber würden sich sonst selbst aussperren.",
+      "deactivate": "Deaktivieren",
+      "deactivateTitle": "{{name}} deaktivieren?",
+      "deactivateDescription": "Seine Mitglieder werden abgemeldet, seine API-Schlüssel und Einladungen funktionieren nicht mehr, und seine Jobs werden übersprungen. Nichts wird gelöscht: Beim Reaktivieren ist alles wieder da, aber seine Mitglieder müssen sich erneut anmelden.",
+      "deactivateConfirm": "Mandant deaktivieren",
+      "reactivate": "Reaktivieren",
+      "reactivateTitle": "{{name}} reaktivieren?",
+      "reactivateDescription": "Seine Daten, Mitglieder und API-Schlüssel sind wieder da. Seine Mitglieder melden sich erneut an.",
+      "reactivateConfirm": "Mandant reaktivieren",
+      "deactivated": "Mandant {{name}} deaktiviert.",
+      "reactivated": "Mandant {{name}} reaktiviert.",
+      "failed": "Die Änderung wurde nicht übernommen. Versuchen Sie es erneut.",
+      "deletionPending": "A deletion is pending: cancel it (under Delete tenant) before reactivating.",
+      "deletionStarted": "The tenant is being erased. It can no longer be reactivated."
     },
     "export": {
       "title": "Export",

@@ -5,7 +5,8 @@ type Handler = (...args: unknown[]) => void;
 /**
  * A stand-in for `createRealtime`'s result: tests emit what the API would
  * push (`fake.emit('notifications.unread-count', { unread: 5 })`), and
- * `emit('connect')` plays a (re)connection of the socket.
+ * `emit('connect')` plays a (re)connection of the socket
+ * (it is not connected until then) and `emit('disconnect')` a drop.
  */
 export function createFakeRealtime() {
   const listeners = new Map<string, Set<Handler>>();
@@ -20,6 +21,9 @@ export function createFakeRealtime() {
     closed: false,
     connects: 0,
     emit(event: string, ...args: unknown[]) {
+      // The socket's own flag, set before its handlers run (socket.io does too).
+      if (event === 'connect') fake.socket.connected = true;
+      if (event === 'disconnect') fake.socket.connected = false;
       // A copy: a handler may unsubscribe while the event is delivered.
       // oxlint-disable-next-line unicorn/no-useless-spread
       for (const handler of [...(listeners.get(event) ?? [])]) {
@@ -27,6 +31,7 @@ export function createFakeRealtime() {
       }
     },
     socket: {
+      connected: false,
       on: add,
       off: remove,
       connect: () => {

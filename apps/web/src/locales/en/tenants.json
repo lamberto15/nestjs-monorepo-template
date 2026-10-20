@@ -71,7 +71,8 @@
       "deactivated": "Tenant {{name}} deactivated.",
       "reactivated": "Tenant {{name}} reactivated.",
       "failed": "The change did not go through. Try again.",
-      "deletionPending": "A deletion is pending: cancel it (under Delete tenant) before reactivating."
+      "deletionPending": "A deletion is pending: cancel it (under Delete tenant) before reactivating.",
+      "deletionStarted": "The tenant is being erased. It can no longer be reactivated."
     },
     "export": {
       "title": "Export",
