@@ -42,7 +42,11 @@ export function WatchButton(props: {
       watch
         ? watchRecord(props.path, props.id)
         : unwatchRecord(props.path, props.id),
-    onSuccess: (_data, watch) => {
+    onSuccess: async (_data, watch) => {
+      // A refetch already in flight would bring the state from before.
+      await queryClient.cancelQueries({
+        queryKey: watchedKey(props.subject, props.id),
+      });
       queryClient.setQueryData(watchedKey(props.subject, props.id), watch);
       void queryClient.invalidateQueries({ queryKey: ['watching', 'list'] });
       toast.success(t(watch ? 'watching' : 'stopped'));
@@ -62,7 +66,6 @@ export function WatchButton(props: {
     <Button
       type="button"
       variant="outline"
-      aria-pressed={watched.data}
       disabled={toggle.isPending}
       title={t(watched.data ? 'hintOn' : 'hintOff')}
       onClick={() => toggle.mutate(watch)}

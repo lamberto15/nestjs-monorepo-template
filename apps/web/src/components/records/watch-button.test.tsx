@@ -1,6 +1,6 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { TEST_RECORD, panelHandlers } from '@/test/panels-api';
 import { renderComponent } from '@/test/render-component';
 import { server } from '@/test/server';
@@ -27,7 +27,7 @@ async function mount(options: {
       : [],
   });
   server.use(...panelsApi.handlers, ...api.handlers);
-  await renderComponent(
+  const view = await renderComponent(
     <WatchButton
       subject={TEST_RECORD.subject}
       path={TEST_RECORD.path}
@@ -35,7 +35,7 @@ async function mount(options: {
     />,
     { can: options.can ?? ['TestItem.read'] },
   );
-  return { ...api, panels: panelsApi.calls };
+  return { ...api, panels: panelsApi.calls, queryClient: view.queryClient };
 }
 
 describe('the watch toggle', () => {
@@ -47,7 +47,6 @@ describe('the watch toggle', () => {
     expect(api.calls.watched).toEqual([ID]);
 
     const stop = await screen.findByRole('button', { name: 'Stop watching' });
-    expect(stop).toHaveAttribute('aria-pressed', 'true');
     await user.click(stop);
     await findToast('You stopped watching.');
     expect(api.calls.unwatched).toEqual([ID]);
@@ -66,18 +65,27 @@ describe('the watch toggle', () => {
 
   it('is absent for a subject that does not take watching', async () => {
     const api = await mount({ watch: false });
-    // Wait for the subject's description (what says it takes no watching).
-    await vi.waitFor(() => expect(api.panels.described).toBe(1));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // The subject's description has arrived (it is what says no watching)…
+    await waitFor(() =>
+      expect(
+        api.queryClient.getQueryData(['lists', TEST_RECORD.subject]),
+      ).toBeDefined(),
+    );
+    await waitFor(() => expect(api.queryClient.isFetching()).toBe(0));
+    // …and nothing was asked of the subscriptions, nor shown.
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(api.calls.listed).toEqual([]);
   });
 
   it('is absent for a user who may not read the record', async () => {
     const api = await mount({ can: [] });
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await waitFor(() => expect(api.queryClient.isFetching()).toBe(0));
+    // The description is not even asked for.
+    expect(
+      api.queryClient.getQueryData(['lists', TEST_RECORD.subject]),
+    ).toBeUndefined();
+    expect(api.panels.described).toBe(0);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(api.calls.listed).toEqual([]);
-    expect(api.panels.described).toBe(0);
   });
 });

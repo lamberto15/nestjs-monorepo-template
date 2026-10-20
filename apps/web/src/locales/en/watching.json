@@ -2,6 +2,8 @@
   "title": "Watching",
   "description": "The records you are told about when they change. Stop watching one to stop those notifications.",
   "empty": "You are not watching any record.",
+  "error": "The list could not be loaded.",
+  "retry": "Try again",
   "loadMore": "Load more",
   "since": "since {{date}}",
   "subjects": {

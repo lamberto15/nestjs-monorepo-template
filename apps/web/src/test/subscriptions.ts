@@ -19,6 +19,8 @@ export function subscriptionsHandlers(
     watched?: TestSubscription[];
     /** Rows a page of `GET /v1/subscriptions` holds when the caller gives no `limit`. */
     pageSize?: number;
+    /** While it answers true, `GET /v1/subscriptions` fails (500). */
+    failList?: () => boolean;
   } = {},
 ) {
   const { subject, path } = options.record ?? TEST_RECORD;
@@ -42,6 +44,7 @@ export function subscriptionsHandlers(
     http.get('/v1/subscriptions', ({ request }) => {
       const url = new URL(request.url);
       calls.listed.push(url.search);
+      if (options.failList?.()) return problem(500, 'internal_error');
       const q = url.searchParams;
       const rows = watched.filter(
         (s) =>

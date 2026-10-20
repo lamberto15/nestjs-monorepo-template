@@ -4,9 +4,13 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { EyeOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { useDateTimeFormat } from '@/lib/date-time';
-import { subscriptionsQuery, useStopWatching, type Subscription } from './api';
+import {
+  subscriptionsQuery,
+  useStopWatching,
+  useStoppingRows,
+  type Subscription,
+} from './api';
 import { recordLinkOf } from './record-links';
 
 /** `/account/watching`: the records the user watches, with a way to stop. */
@@ -14,10 +18,21 @@ export function WatchingList() {
   const { t } = useTranslation('watching');
   const list = useInfiniteQuery(subscriptionsQuery);
   const stop = useStopWatching();
+  const stopping = useStoppingRows();
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
 
   if (list.isPending) {
     return <Spinner />;
+  }
+  if (list.isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <p className="text-sm text-muted-foreground">{t('error')}</p>
+        <Button variant="outline" onClick={() => void list.refetch()}>
+          {t('retry')}
+        </Button>
+      </div>
+    );
   }
   return (
     <div className="flex flex-col gap-4">
@@ -31,16 +46,8 @@ export function WatchingList() {
             <WatchingRow
               key={`${item.subject}/${item.recordId}`}
               item={item}
-              stopping={
-                stop.isPending &&
-                stop.variables.subject === item.subject &&
-                stop.variables.recordId === item.recordId
-              }
-              onStop={() =>
-                stop.mutate(item, {
-                  onSuccess: () => toast.success(t('stopped')),
-                })
-              }
+              stopping={stopping.has(`${item.subject}/${item.recordId}`)}
+              onStop={() => stop.mutate(item)}
             />
           ))}
         </ul>
@@ -76,6 +83,8 @@ function WatchingRow(props: {
     queryFn: () => link!.title(recordId),
     enabled: !!link,
     retry: false,
+    // One read per row: not again at every focus.
+    staleTime: 60_000,
     meta: { errorToast: false },
   });
   const label = title.data ?? recordId;

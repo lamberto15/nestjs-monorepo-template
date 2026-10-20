@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
@@ -73,5 +74,53 @@ describe('the watching list', () => {
     expect(
       screen.queryByRole('button', { name: 'Load more' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('shows an error with a retry when the list fails to load', async () => {
+    let failing = true;
+    useWatching({ watched: [row('rec-1')], failList: () => failing });
+    await renderApp('/account/watching');
+    const user = userEvent.setup();
+    expect(
+      await screen.findByText('The list could not be loaded.'),
+    ).toBeVisible();
+    expect(
+      screen.queryByText('You are not watching any record.'),
+    ).not.toBeInTheDocument();
+    failing = false;
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('rec-1')).toBeVisible();
+  });
+
+  it("keeps each row's own pending state while two are stopped", async () => {
+    const api = useWatching({ watched: [row('rec-1'), row('rec-2')] });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.delete('/v1/subscriptions/TestItem/rec-1', async () => {
+        await held;
+        api.watched.splice(0, 1);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await renderApp('/account/watching');
+    const user = userEvent.setup();
+    await screen.findByText('rec-1');
+    await user.click(
+      screen.getByRole('button', { name: 'Stop watching rec-1' }),
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Stop watching rec-2' }),
+    );
+    await findToast('You stopped watching.');
+    expect(api.calls.removed).toEqual(['TestItem/rec-2']);
+    // rec-1 is still being stopped: its button stays off.
+    expect(
+      screen.getByRole('button', { name: 'Stop watching rec-1' }),
+    ).toBeDisabled();
+    release();
+    await waitFor(() =>
+      expect(screen.queryByText('rec-1')).not.toBeInTheDocument(),
+    );
   });
 });

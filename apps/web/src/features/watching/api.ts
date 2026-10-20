@@ -3,8 +3,11 @@ import {
   infiniteQueryOptions,
   queryOptions,
   useMutation,
+  useMutationState,
   useQueryClient,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 
 /**
@@ -49,11 +52,17 @@ export const subscriptionsQuery = infiniteQueryOptions({
   getNextPageParam: (last) => last.nextCursor ?? undefined,
 });
 
+export const stopKey = [...root, 'stop'] as const;
+
+type Stopped = Pick<Subscription, 'subject' | 'recordId'>;
+
 /** Stops watching a record from the list (the subject's route is not needed). */
 export function useStopWatching() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('watching');
   return useMutation({
-    mutationFn: (item: Pick<Subscription, 'subject' | 'recordId'>) =>
+    mutationKey: stopKey,
+    mutationFn: (item: Stopped) =>
       unwrap(
         api.DELETE('/v1/subscriptions/{subject}/{recordId}', {
           params: { path: { subject: item.subject, recordId: item.recordId } },
@@ -61,7 +70,20 @@ export function useStopWatching() {
       ),
     onSuccess: (_data, item) => {
       queryClient.setQueryData(watchedKey(item.subject, item.recordId), false);
-      return queryClient.invalidateQueries({ queryKey: [...root, 'list'] });
+      toast.success(t('stopped'));
     },
+    // Also after a failure (a 404: it was not watched after all): the list
+    // shows what is true.
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: [...root, 'list'] }),
   });
+}
+
+/** The rows being stopped now, as `subject/recordId`: one mutation per row may be in flight. */
+export function useStoppingRows(): Set<string> {
+  const pending = useMutationState({
+    filters: { mutationKey: stopKey, status: 'pending' },
+    select: (mutation) => mutation.state.variables as Stopped,
+  });
+  return new Set(pending.map((v) => `${v.subject}/${v.recordId}`));
 }
