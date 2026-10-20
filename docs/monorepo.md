@@ -307,11 +307,17 @@ fields value onChange errors />` is a typed input per field (the drafts and
   `panelsDescription()`.
 
 - **Watching** (`components/records/watch-button.tsx`, `features/watching`):
-  `<WatchButton subject path id />` in a record page's header is the
-  Watch / Stop watching toggle, shown only when the subject's `capabilities.watch`
-  is true and the user may read the record; it calls the record's
-  `POST`/`DELETE …/watch`. The record carries no "watching" flag, so the state
-  is `GET /v1/subscriptions?subject=&recordId=`. `/account/watching` lists
+  `<WatchButton subject path id watching onToggled />` in a record page's
+  header is the Watch / Stop watching toggle, shown only when the subject's
+  `capabilities.watch` is true, the user may read the record and the record
+  says `watching`; it calls the record's `POST`/`DELETE …/watch`. The page
+  reads the record with `?include=can,watching` (only for a feature with the
+  `watch` capability: any other answers 400; `features/notes/api.ts` is the
+  example) and passes `note.watching`, so no `GET /v1/subscriptions` is made;
+  `onToggled` sets the new `watching` on the page's cached record
+  (`setNoteWatching`), and a stop from the list invalidates the cached
+  records. A create seeds `watching: true` (the owner watches from the start).
+  `/account/watching` lists
   `GET /v1/subscriptions` (cursor pages) with `DELETE
 /v1/subscriptions/{subject}/{recordId}`. The list knows only a subject and an
   id: a feature with record pages registers where a record opens and how to

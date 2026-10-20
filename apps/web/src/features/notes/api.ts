@@ -19,8 +19,14 @@ export const NOTES_PATH = '/v1/notes';
  */
 export const NOTE_LIMITS = { title: 200, body: 10_000 } as const;
 
-/** Each record says what the user may do with it now (`note.can`). */
+/**
+ * Each record says what the user may do with it now (`note.can`). The detail
+ * also says whether they watch it (`note.watching`): notes take the `watch`
+ * capability (note.record.ts), so the API accepts it; a feature without it
+ * answers 400 to `watching`.
+ */
 const WITH_CAN = { include: 'can' };
+const WITH_CAN_WATCHING = { include: 'can,watching' };
 
 type Json<T> = T extends { content: { 'application/json': infer B } }
   ? B
@@ -45,7 +51,7 @@ export const noteQuery = (id: string) =>
     queryKey: recordKeys.detail(NOTES_PATH, id),
     queryFn: async () => {
       const result = await api.GET('/v1/notes/{id}', {
-        params: { path: { id }, query: WITH_CAN },
+        params: { path: { id }, query: WITH_CAN_WATCHING },
       });
       return {
         note: await unwrap(Promise.resolve(result)),
@@ -81,11 +87,29 @@ export const createNote = async (body: NoteCreate) => {
   };
 };
 
-/** Puts a created note where its detail page reads it: no second request. */
+/**
+ * Puts a created note where its detail page reads it: no second request. Its
+ * creator watches it from the start (the API subscribes the owner on create).
+ */
 export const seedCreatedNote = (
   queryClient: QueryClient,
   created: { note: Note; etag: string | undefined },
-) => queryClient.setQueryData(noteQuery(created.note.id).queryKey, created);
+) =>
+  queryClient.setQueryData(noteQuery(created.note.id).queryKey, {
+    ...created,
+    note: { ...created.note, watching: true },
+  });
+
+/** After a watch / unwatch: the cached note says so, without a read. */
+export const setNoteWatching = (
+  queryClient: QueryClient,
+  id: string,
+  watching: boolean,
+) =>
+  queryClient.setQueryData(
+    noteQuery(id).queryKey,
+    (cached) => cached && { ...cached, note: { ...cached.note, watching } },
+  );
 
 /** Only what is sent changes; with the ETag, a note changed meanwhile is a 412. */
 export const updateNote = (id: string, body: NoteChanges, etag?: string) =>

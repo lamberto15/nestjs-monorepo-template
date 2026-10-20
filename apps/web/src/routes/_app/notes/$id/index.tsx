@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@nestjs-monorepo-template/ui/components/dropdown-menu';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeftIcon, EllipsisIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +17,7 @@ import { DetailItem, DetailList } from '@/components/records/detail-list';
 import { RecordPanels } from '@/components/records/panels/record-panels';
 import { RecordState } from '@/components/records/record-state';
 import { WatchButton } from '@/components/records/watch-button';
-import { noteQuery, type Note } from '@/features/notes/api';
+import { noteQuery, setNoteWatching, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useDateTimeFormat } from '@/lib/date-time';
 import { useRecordCan } from '@/lib/records';
@@ -61,6 +61,7 @@ function NoteView({ note }: { note: Note }) {
   const { t } = useTranslation('notes');
   const date = useDateTimeFormat();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   // The note's own `can`: its conditions too, not only the permission.
   const { update: canUpdate, delete: canDelete } = useRecordCan('Note')(note);
   const { ask, dialog } = useNoteDelete({
@@ -79,7 +80,15 @@ function NoteView({ note }: { note: Note }) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <WatchButton subject="Note" path="/v1/notes/{id}" id={note.id} />
+          <WatchButton
+            subject="Note"
+            path="/v1/notes/{id}"
+            id={note.id}
+            watching={note.watching}
+            onToggled={(watching) =>
+              setNoteWatching(queryClient, note.id, watching)
+            }
+          />
           {(canUpdate || canDelete) && (
             <DropdownMenu>
               <DropdownMenuTrigger
