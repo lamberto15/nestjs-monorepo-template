@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
 import { languages } from '@/i18n';
@@ -46,6 +47,7 @@ function AppLayout() {
           <AppSidebar />
           <SidebarInset>
             <ImpersonationBanner />
+            <UnverifiedBanner />
             <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger className="-ms-1" />
               <Separator

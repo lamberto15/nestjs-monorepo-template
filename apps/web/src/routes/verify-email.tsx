@@ -1,11 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { unwrap } from '@nestjs-monorepo-template/api-client';
-import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+} from '@nestjs-monorepo-template/ui/components/field';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { LinkResult, MissingToken } from '@/components/auth/link-result';
+import {
+  ResendVerification,
+  useUnverifiedUser,
+} from '@/components/auth/resend-verification';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
@@ -22,6 +30,9 @@ export const Route = createFileRoute('/verify-email')({
 function VerifyEmailPage() {
   const { t } = useTranslation();
   const { token } = Route.useSearch();
+  // Only a signed-in, unproved user can have the link mailed again (the
+  // route needs a session; docs/auth.md): the page offers it to them.
+  const unverified = useUnverifiedUser();
   const [error, setError] = useState<string>();
   const [verified, setVerified] = useState<string>();
   const form = useAppForm({
@@ -53,7 +64,16 @@ function VerifyEmailPage() {
       description={t('auth.verify.description')}
     >
       {!token ? (
-        <MissingToken />
+        unverified ? (
+          <LinkResult
+            ok={false}
+            action={<ResendVerification variant="default" />}
+          >
+            {t('auth.links.missingToken')}
+          </LinkResult>
+        ) : (
+          <MissingToken />
+        )
       ) : verified ? (
         <LinkResult ok>{t('auth.verify.done', { email: verified })}</LinkResult>
       ) : (
@@ -79,6 +99,14 @@ function VerifyEmailPage() {
             <form.AppForm>
               <form.SubmitButton>{t('auth.verify.submit')}</form.SubmitButton>
             </form.AppForm>
+            {unverified && (
+              <Field>
+                <FieldDescription className="text-center">
+                  {t('auth.verify.resend.hint')}
+                </FieldDescription>
+                <ResendVerification />
+              </Field>
+            )}
           </FieldGroup>
         </form>
       )}
