@@ -1,0 +1,35 @@
+{
+  "title": "AI helper",
+  "description": "Ask a model about this record. The fields you may read are sent to the AI provider.",
+  "actions": {
+    "summarize": "Summarize",
+    "classify": "Classify"
+  },
+  "pending": {
+    "summarize": "Summarizing…",
+    "classify": "Classifying…"
+  },
+  "result": {
+    "summary": "Summary",
+    "keyPoints": "Key points",
+    "sentiment": "Sentiment",
+    "topic": "Topic",
+    "notice": "Written by an AI model: check it before relying on it."
+  },
+  "sentiment": {
+    "positive": "Positive",
+    "neutral": "Neutral",
+    "negative": "Negative"
+  },
+  "run": {
+    "error": "The state of the request could not be loaded.",
+    "failed": "The AI helper could not answer.",
+    "expired": "The answer is no longer kept. Ask again."
+  },
+  "errors": {
+    "disabled": "The AI helper is off for this workspace. An administrator can turn it on in the settings.",
+    "unavailable": "The AI helper is not available on this server right now.",
+    "pending": "This request is already running. Try again in a moment.",
+    "quota": "The daily limit of the AI helper has been reached. Try again tomorrow."
+  }
+}

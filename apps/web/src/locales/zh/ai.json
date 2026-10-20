@@ -1,0 +1,35 @@
+{
+  "title": "AI 助手",
+  "description": "向模型询问这条记录。你有权读取的字段会发送给 AI 提供商。",
+  "actions": {
+    "summarize": "摘要",
+    "classify": "分类"
+  },
+  "pending": {
+    "summarize": "正在生成摘要…",
+    "classify": "正在分类…"
+  },
+  "result": {
+    "summary": "摘要",
+    "keyPoints": "要点",
+    "sentiment": "情感",
+    "topic": "主题",
+    "notice": "由 AI 模型撰写：请在使用前核对。"
+  },
+  "sentiment": {
+    "positive": "正面",
+    "neutral": "中性",
+    "negative": "负面"
+  },
+  "run": {
+    "error": "无法加载请求的状态。",
+    "failed": "AI 助手无法给出回答。",
+    "expired": "答案已不再保留，请重新询问。"
+  },
+  "errors": {
+    "disabled": "此工作区已关闭 AI 助手。管理员可以在设置中开启。",
+    "unavailable": "此服务器上的 AI 助手目前不可用。",
+    "pending": "该请求正在处理中，请稍后再试。",
+    "quota": "已达到 AI 助手的每日上限，请明天再试。"
+  }
+}
