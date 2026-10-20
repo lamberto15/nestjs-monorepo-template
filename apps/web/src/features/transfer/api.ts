@@ -29,15 +29,15 @@ export const catalogQuery = queryOptions({
 export const POLL = 1000;
 
 /** A job's poll, given the status last read (useLivePoll's `interval`). */
-export type JobPoll = (status: string | undefined) => number;
+export type JobPoll = (status: string | undefined) => number | false;
 
 export const transferQuery = (id: string, poll: JobPoll = () => POLL) =>
   queryOptions({
     queryKey: ['data', 'transfer', id],
     queryFn: () =>
       unwrap(api.GET('/v1/data/transfers/{id}', { params: { path: { id } } })),
-    // Polled while the worker has it (`poll`: useLivePoll slows it down
-    // while the socket is up, the events do the rest); a finished
+    // Polled while the worker has it (`poll`: useLivePoll stops it while
+    // the socket is up, the events do the rest); a finished
     // transfer stays as it is.
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -94,7 +94,7 @@ const activeJobs = (items: { id: string; status: string }[]) =>
   items.filter((item) => item.status === 'queued' || item.status === 'running');
 
 /** A list's poll: ms for the runs still with the worker (never, with none). */
-type ListPoll = (active: { id: string; status: string }[]) => number;
+type ListPoll = (active: { id: string; status: string }[]) => number | false;
 const LIST_POLL: ListPoll = () => 2000;
 
 /**
