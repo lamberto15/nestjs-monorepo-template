@@ -9,7 +9,7 @@ import { findToast } from '@/test/toast';
 
 // A subject no feature registers a page for (the test-only one): listed by
 // its name and id, with a stop button. A registered subject's link and title
-// are tested with its feature (features/notes/notes-watch.test.tsx).
+// are tested with that feature, so this test stands without any.
 const row = (recordId: string, createdAt = '2026-10-17T09:00:00.000Z') => ({
   subject: 'TestItem',
   recordId,
