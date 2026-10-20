@@ -33,6 +33,7 @@ import { SignUpTenantSweepJob } from './access/sign-up-tenant-sweep.job.js';
 import { TenantDeletionJob } from './access/tenant-deletion.job.js';
 import { SingleTenant } from './access/single-tenant.js';
 import { TenantsService } from './access/tenants.service.js';
+import { TenantTree } from './access/tenant-tree.js';
 import { TenantSwitchService } from './access/tenant-switch.service.js';
 import { InvitationsService } from './access/invitations.service.js';
 import { OperatorGuard } from './auth/operator-only.js';
@@ -166,6 +167,8 @@ export class IamModule {
       SystemContext,
       // Tenants (docs/tenancy.md): the operators' routes and the tests make them.
       TenantsService,
+      // The tenant tree and its consolidated reads (a report reads the subtree).
+      TenantTree,
       SingleTenant,
       OperatorGuard,
       // Global, so AuthenticationModule's PasswordHasher (below) reaches them.
@@ -391,6 +394,7 @@ export class IamModule {
         PrincipalsService,
         AccessSeeder,
         TenantsService,
+        TenantTree,
         SingleTenant,
         SignUpTenant,
         TenantSwitchService,

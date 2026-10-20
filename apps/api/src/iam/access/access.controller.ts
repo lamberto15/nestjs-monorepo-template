@@ -47,6 +47,7 @@ import {
 import {
   auditPageSchema,
   signInPageSchema,
+  subtreeTenantSchema,
   catalogSchema,
   createdRoleSchema,
   principalSchema,
@@ -66,6 +67,8 @@ import { InvitationsService } from './invitations.service.js';
 import { ApiClientsService } from './api-clients.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import { AccessPolicy } from './policies.js';
+import { TenantTree } from './tenant-tree.js';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 
 const permissionSchema = z.object({
   subject: z.string().min(1).meta({ example: 'Note' }),
@@ -270,6 +273,7 @@ export class AccessController {
     private readonly impersonation: ImpersonationService,
     private readonly invitationsService: InvitationsService,
     private readonly principals: PrincipalsService,
+    private readonly tree: TenantTree,
   ) {}
 
   @Get('catalog')
@@ -656,6 +660,43 @@ export class AccessController {
       { ...page, items: await this.audit.withActorNames(page.items) },
       query,
     );
+  }
+
+  @Get('consolidated/tenants')
+  @Can(AccessPolicy, 'readConsolidated')
+  @ApiOperation({
+    summary: 'The tenants below yours that a consolidated read spans',
+    description:
+      'Your tenant’s descendants in its tenant tree (docs/tenancy.md, "The tenant tree"), nearest first: the active ones with no deactivated tenant between yours and them, none whose deletion is pending. The operators place tenants in the tree (PATCH /v1/tenants/{id} `parentId`). Needs `Access.readConsolidated`; never while impersonating.',
+  })
+  @ApiOkResponse({ standardSchema: listSchema(subtreeTenantSchema) })
+  async consolidatedTenants() {
+    return { items: await this.tree.subtree(requireTenantId('The subtree')) };
+  }
+
+  @Get('consolidated/audit')
+  @Can(AccessPolicy, 'readConsolidatedAudit')
+  @ApiOperation({
+    summary:
+      'The audit log of your tenant and the tenants below it, newest first',
+    description:
+      'A consolidated read (docs/tenancy.md, "The tenant tree"): the entries of your tenant and of every tenant GET /v1/access/consolidated/tenants lists, each with its `tenantId`, read-only; filtered, sorted and paged as GET /v1/access/audit. `actorName` names your tenant’s members and clients; another tenant’s show their `actorLabel`. Audited (`tenant.consolidated-read`) in your tenant and in each tenant read. Needs `Access.readAudit` and `Access.readConsolidated`; never while impersonating.',
+  })
+  @ApiOkResponse({ standardSchema: auditPageSchema })
+  @ApiForbiddenResponse({
+    description: '`consolidated_read_forbidden`: no `Access.readConsolidated`.',
+  })
+  async consolidatedAuditLog(
+    @CurrentUser() user: UserPrincipal,
+    @Query({ schema: AUDIT_LIST.schema }) query: ListQuery,
+  ) {
+    return this.tree.consolidated(user, 'audit', async () => {
+      const page = await this.audit.page(query, AUDIT_LIST.where(query));
+      return AUDIT_LIST.pick(
+        { ...page, items: await this.audit.withActorNames(page.items) },
+        query,
+      );
+    });
   }
 
   @Get('sign-ins')

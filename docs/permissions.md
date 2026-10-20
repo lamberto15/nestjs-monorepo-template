@@ -184,7 +184,10 @@ every tenant gets the built-in Administrator and the declared `seedRoles`
 when it is made; a user's roles are their membership's in the tenant the
 session acts in. `Access.manageTenants` (the tenants: list, create, read,
 rename, deactivate) answers only in the operator tenant (`GET /v1/auth/me`'s
-`tenant.operator`).
+`tenant.operator`). `Access.readConsolidated` reads the tenants below the
+session's in its tenant tree, read-only (consolidated reports of a holding:
+[tenancy](tenancy.md), "The tenant tree"); users only, never while
+impersonating.
 
 - **Reading** the access API (`GET` of the catalog, roles, users, teams,
   API clients, principals; one role, user or client by id) takes any
