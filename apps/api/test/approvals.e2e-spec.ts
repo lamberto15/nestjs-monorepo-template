@@ -775,6 +775,7 @@ describe('approvals (e2e)', () => {
         decide: true,
         cancel: false,
         resubmit: false,
+        abandon: false,
       });
       // Policies are for those with Approval.managePolicies.
       await a.agent.get('/v1/approvals/policies').expect(403);
@@ -804,7 +805,12 @@ describe('approvals (e2e)', () => {
   describe('the inbox for ordinary users: can, etag, decidedByMe', () => {
     type Item = {
       id: string;
-      can: { decide: boolean; cancel: boolean; resubmit: boolean };
+      can: {
+        decide: boolean;
+        cancel: boolean;
+        resubmit: boolean;
+        abandon: boolean;
+      };
       etag: string;
     };
     const inbox = async (agent: request.Agent, query = '') =>
@@ -845,12 +851,14 @@ describe('approvals (e2e)', () => {
         decide: false,
         cancel: true,
         resubmit: false,
+        abandon: false,
       });
       const [theirs] = await inbox(a.agent, '?assignedToMe=true');
       expect(theirs!.can).toEqual({
         decide: true,
         cancel: false,
         resubmit: false,
+        abandon: false,
       });
       // The delegate decides for b; an administrator reads (Approval.read) and may cancel, never decide.
       expect((await inbox(delegate.agent))[0]!.can.decide).toBe(true);
@@ -858,6 +866,7 @@ describe('approvals (e2e)', () => {
         decide: false,
         cancel: true,
         resubmit: false,
+        abandon: false,
       });
       // ?fields= picks the fields, and keeps can and etag (which it can't name).
       const [picked] = (
@@ -895,6 +904,7 @@ describe('approvals (e2e)', () => {
         decide: false,
         cancel: false,
         resubmit: false,
+        abandon: false,
       });
       expect(ended!.etag).toBe(
         (await a.agent.get(`/v1/approvals/${id}`).expect(200)).headers.etag,
@@ -1000,6 +1010,7 @@ describe('approvals (e2e)', () => {
         decide: false,
         cancel: false,
         resubmit: false,
+        abandon: false,
       });
       await a.agent.post(`/v1/approvals/${id}/cancel`).send({}).expect(403);
     });
@@ -2154,6 +2165,11 @@ describe('approvals (e2e)', () => {
       expect(
         Number(/^approvals_unapplied_seconds (\S+)$/m.exec(metrics)![1]),
       ).toBeGreaterThanOrEqual(7200);
+      // can.abandon: Approval.manage on an approved, unapplied request.
+      expect(
+        (await editor.agent.get(`/v1/approvals/${approval}`).expect(200)).body
+          .can.abandon,
+      ).toBe(false);
       // Only with Approval.manage, never while impersonating.
       await editor.agent
         .post(`/v1/approvals/${approval}/abandon`)
@@ -2169,6 +2185,10 @@ describe('approvals (e2e)', () => {
         .send({})
         .expect(409);
       expect(running.body).toMatchObject({ code: 'approval_not_stuck' });
+      expect(
+        (await admin.get(`/v1/approvals/${approval}`).expect(200)).body.can
+          .abandon,
+      ).toBe(true); // the workflow check is left to call time
       // The workflow is gone (terminated, as after a failure nobody retried): now it may go.
       await node.workflows.terminate(approvalWorkflowId(approval), 'stuck');
       await node.worker.drain(); // the worker ends it
