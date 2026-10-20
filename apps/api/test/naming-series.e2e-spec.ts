@@ -72,9 +72,23 @@ describe('naming series (e2e)', () => {
       .expect(200);
     expect(subjects.body.items).toEqual(
       expect.arrayContaining([
-        { subject: 'TestItem', declaredPattern: 'TI-.YYYY.-.#####' },
+        {
+          subject: 'TestItem',
+          declaredPattern: 'TI-.YYYY.-.#####',
+          fields: [
+            { name: 'title', kind: 'text' },
+            { name: 'publishedAt', kind: 'datetime' },
+            { name: 'code', kind: 'text' },
+          ],
+        },
       ]),
     );
+    const variables = await editor.agent
+      .get('/v1/naming-series/variables')
+      .expect(200);
+    expect(
+      variables.body.items.map((variable: { name: string }) => variable.name),
+    ).toEqual(expect.arrayContaining(['FY', 'ABBR']));
 
     const { id } = await series('TI-.YYYY.-.#####', { label: 'Items' });
     const listed = await editor.agent
@@ -93,7 +107,8 @@ describe('naming series (e2e)', () => {
       .expect(403);
     await editor.agent.delete(`/v1/naming-series/${id}`).expect(403);
     await editor.agent
-      .get('/v1/naming-series/preview?subject=TestItem&pattern=X-.%23%23%23')
+      .post('/v1/naming-series/preview')
+      .send({ subject: 'TestItem', pattern: 'X-.###' })
       .expect(403);
   });
 
@@ -123,10 +138,31 @@ describe('naming series (e2e)', () => {
 
     const preview = await node
       .admin()
-      .get('/v1/naming-series/preview')
-      .query({ subject: 'TestItem', pattern: 'A-.' })
+      .post('/v1/naming-series/preview')
+      .send({ subject: 'TestItem', pattern: 'A-.' })
       .expect(400);
     expect(paths(preview.body)).toEqual(['pattern']);
+
+    // Fields the subject has, date fields that are dates, conditions on its fields.
+    for (const [extra, path] of [
+      [{ pattern: 'A-.{price}.-.###' }, 'pattern'],
+      [{ pattern: 'A-.{code}.###' }, 'pattern'],
+      [{ pattern: 'A-.###', dateField: 'title' }, 'dateField'],
+      [
+        {
+          pattern: 'A-.###',
+          conditions: [{ field: 'price', op: 'eq', value: 'x' }],
+        },
+        'conditions.0.field',
+      ],
+    ] as const) {
+      const refused = await node
+        .admin()
+        .post('/v1/naming-series')
+        .send({ subject: 'TestItem', ...extra })
+        .expect(400);
+      expect(paths(refused.body)).toEqual([path]);
+    }
   });
 
   it('numbers in the default series or the one the body names, carrying on the declared counter', async () => {
@@ -226,8 +262,8 @@ describe('naming series (e2e)', () => {
     // A pattern printing the same shares the counter, whatever its width.
     const preview = await node
       .admin()
-      .get('/v1/naming-series/preview')
-      .query({ subject: 'TestItem', pattern: 'INV-.YYYY.-.######' })
+      .post('/v1/naming-series/preview')
+      .send({ subject: 'TestItem', pattern: 'INV-.YYYY.-.######' })
       .expect(200);
     expect(preview.body).toEqual({
       key: `INV-${YYYY}-{#}`,
@@ -276,6 +312,101 @@ describe('naming series (e2e)', () => {
     expect((await take(january)).formatted).toBe('M-3001-02');
     expect((await take(february)).formatted).toBe('M-3002-01');
     expect((await take(january)).formatted).toBe('M-3001-03');
+  });
+
+  it("prints the record's fields, each value counting on its own", async () => {
+    const { YYYY } = today();
+    const { id } = await series('TI-.{code}.-.YY.-.###');
+    expect(await numberOf({ code: 'acme 1' })).toBe(
+      `TI-acme-1-${YYYY.slice(-2)}-001`,
+    );
+    expect(await numberOf({ code: 'globex' })).toBe(
+      `TI-globex-${YYYY.slice(-2)}-001`,
+    );
+
+    // A record without the value the format prints: refused at that field.
+    const refused = await item();
+    expect(refused.status).toBe(400);
+    expect(paths(refused.body)).toEqual(['code']);
+
+    // One value's counter, previewed and set.
+    const preview = await node
+      .admin()
+      .post('/v1/naming-series/preview')
+      .send({
+        subject: 'TestItem',
+        pattern: 'TI-.{code}.-.YY.-.###',
+        values: { code: 'globex' },
+      })
+      .expect(200);
+    expect(preview.body).toMatchObject({
+      current: 1,
+      next: `TI-globex-${YYYY.slice(-2)}-002`,
+    });
+    const set = await node
+      .admin()
+      .put(`/v1/naming-series/${id}/counter`)
+      .send({ current: 50, values: { code: 'globex' } })
+      .expect(200);
+    expect(set.body.next).toBe(`TI-globex-${YYYY.slice(-2)}-051`);
+    const needsValue = await node
+      .admin()
+      .put(`/v1/naming-series/${id}/counter`)
+      .send({ current: 50 })
+      .expect(400);
+    expect(paths(needsValue.body)).toEqual(['values.code']);
+    // The list shows the fields by name.
+    const listed = await node
+      .admin()
+      .get(`/v1/naming-series/${id}`)
+      .expect(200);
+    expect(listed.body.example).toBe(`TI-{code}-${YYYY.slice(-2)}-001`);
+  });
+
+  it('picks the series whose conditions hold, by priority, else the default', async () => {
+    const { YYYY } = today();
+    await series('TI-.YYYY.-.#####');
+    await series('VIP-.####', {
+      conditions: [{ field: 'code', op: 'gte', value: 'vip' }],
+      priority: 10,
+    });
+    await series('ZED-.####', {
+      conditions: [{ field: 'title', op: 'gte', value: 'Z' }],
+    });
+    expect(await numberOf()).toBe(`TI-${YYYY}-00001`);
+    expect(await numberOf({ code: 'vip' })).toBe('VIP-0001');
+    expect(await numberOf({ title: 'Zebra' })).toBe('ZED-0001');
+    // Both hold: the higher priority wins.
+    expect(await numberOf({ title: 'Zulu', code: 'vip2' })).toBe('VIP-0002');
+    // A series the body names wins over the conditions.
+    const named = await series('NAMED-.###');
+    expect(await numberOf({ code: 'vip3', namingSeriesId: named.id })).toBe(
+      'NAMED-001',
+    );
+  });
+
+  it('takes its dates from a date field of the record, and prints the variables', async () => {
+    await node
+      .admin()
+      .put('/v1/settings/numbering.abbreviation')
+      .send({ value: 'HQ' })
+      .expect(200);
+    await node
+      .admin()
+      .put('/v1/settings/numbering.fiscalYearStart')
+      .send({ value: 4 })
+      .expect(200);
+    await series('.ABBR.-.FY.-.MM.-.###', { dateField: 'publishedAt' });
+    // March 2030 is fiscal 2029-2030, April 2030 starts 2030-2031.
+    expect(await numberOf({ publishedAt: '2030-03-15T12:00:00Z' })).toBe(
+      'HQ-2029-2030-03-001',
+    );
+    expect(await numberOf({ publishedAt: '2030-04-15T12:00:00Z' })).toBe(
+      'HQ-2030-2031-04-001',
+    );
+    expect(await numberOf({ publishedAt: '2030-04-20T12:00:00Z' })).toBe(
+      'HQ-2030-2031-04-002',
+    );
   });
 
   it("keeps a tenant's series and counters its own", async () => {

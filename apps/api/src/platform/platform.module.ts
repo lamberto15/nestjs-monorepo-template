@@ -155,6 +155,8 @@ import { ListsService } from './lists/lists.service.js';
 import { NamingSeriesController } from './sequences/naming-series.controller.js';
 import { NamingSeriesRegistry } from './sequences/naming-series.registry.js';
 import { NamingSeriesService } from './sequences/naming-series.service.js';
+import { NamingVariables } from './sequences/naming-variables.js';
+import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
@@ -408,9 +410,10 @@ export class PlatformModule {
               ...inDevelopment(...TEST_NOTIFICATIONS),
               ...(options.notifications ?? []),
             ],
-            // And its own settings (IAM's auth policies, approvals' delegation limit).
+            // And its own settings (IAM's auth policies, numbering's, approvals' delegation limit).
             settings: [
               ...AUTH_SETTINGS,
+              ...NUMBERING_SETTINGS,
               ...APPROVAL_SETTINGS,
               ...AI_SETTINGS,
               ...(options.settings ?? []),
@@ -541,6 +544,7 @@ export class PlatformModule {
         SequencesService,
         // Naming series: numbered features register and take numbers through it.
         NamingSeriesRegistry,
+        NamingVariables,
         NamingSeriesService,
         // Files attached to records: features register an AttachmentTarget.
         AttachmentsRegistry,

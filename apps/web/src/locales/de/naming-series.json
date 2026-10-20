@@ -11,7 +11,8 @@
     "pattern": "Muster",
     "label": "Bezeichnung",
     "next": "Nächste Nummer",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "rules": "Regeln"
   },
   "default": "Standard",
   "defaultSet": "„{{pattern}}“ ist jetzt der Standard.",
@@ -34,7 +35,7 @@
   "form": {
     "createTitle": "Neue Serie",
     "editTitle": "Serie bearbeiten",
-    "syntax": "Schreiben Sie das Muster in Teilen zwischen Punkten: Text, YYYY, YY, MM oder DD für das Datum und genau eine Folge von # für den Zähler (mit führenden Nullen). Beispiel: INV-.YYYY.-.MM.-.#####",
+    "syntax": "Schreiben Sie das Muster in Teilen zwischen Punkten: Text, YYYY, YY, MM, DD, JJJ oder WW für das Datum, {Feld} für ein Feld des Datensatzes, FY oder ABBR für die Werte des Unternehmens und genau eine Folge von # für den Zähler (mit führenden Nullen). Beispiel: INV-.YYYY.-.MM.-.#####",
     "subject": "Datensätze",
     "pattern": "Muster",
     "patternRequired": "Geben Sie der Serie ein Muster.",
@@ -49,7 +50,29 @@
     "labelTooLong": "Die Bezeichnung hat höchstens 100 Zeichen.",
     "makeDefault": "Zum Standard für diese Datensätze machen",
     "cancel": "Abbrechen",
-    "save": "Speichern"
+    "save": "Speichern",
+    "partsHint": "Klicken Sie auf einen Teil, um ihn dem Muster hinzuzufügen.",
+    "partsFields": "Felder des Datensatzes",
+    "partsVariables": "Variablen",
+    "partsDates": "Datumsteile",
+    "insert": "{{part}} zum Muster hinzufügen",
+    "dateField": "Datum aus",
+    "dateFieldNow": "Beim Anlegen",
+    "dateFieldHint": "Die Datumsteile und FY stammen aus diesem Datum des Datensatzes; ohne Wert gilt der Zeitpunkt des Anlegens.",
+    "conditions": "Bedingungen",
+    "conditionsHint": "Optional. Ein neuer Datensatz nimmt diese Serie, wenn alle Bedingungen für ihn gelten; die erste nach Priorität gewinnt.",
+    "conditionAdd": "Bedingung hinzufügen",
+    "conditionRemove": "Bedingung {{n}} entfernen",
+    "conditionField": "Feld der Bedingung {{n}}",
+    "conditionOp": "Operator der Bedingung {{n}}",
+    "conditionValue": "Wert der Bedingung {{n}}",
+    "conditionFieldPlaceholder": "Feld",
+    "conditionIncomplete": "Vervollständigen oder entfernen Sie jede Bedingung.",
+    "yes": "Ja",
+    "no": "Nein",
+    "priority": "Priorität",
+    "priorityHint": "Höhere zuerst, unter den Serien, deren Bedingungen gelten.",
+    "priorityInvalid": "Geben Sie eine ganze Zahl ein."
   },
   "counter": {
     "title": "Zähler",
@@ -62,6 +85,14 @@
     "invalid": "Geben Sie eine ganze Zahl ab null ein.",
     "tooLow": "Der Zähler kann nicht unter den zuletzt vergebenen Wert ({{current}}) sinken.",
     "saved": "Zähler von „{{pattern}}“ gespeichert.",
-    "save": "Zähler setzen"
+    "save": "Zähler setzen",
+    "valueOf": "Wert von {{field}}",
+    "valuesHint": "Dieses Muster zählt je Wert von {{fields}}. Geben Sie die Werte ein, deren Zähler Sie möchten.",
+    "valuesRequired": "Geben Sie für jedes Feld einen Wert ein."
+  },
+  "rules": {
+    "conditions": "Bedingungen",
+    "priority": "Priorität {{priority}}",
+    "dateFrom": "Datum aus {{field}}"
   }
 }
