@@ -623,7 +623,8 @@ describe('the app role', () => {
           'user_roles',
           'audit_log',
           'notifications',
-          'notes',
+          // The test-only feature's (a project's features may be any, or none).
+          'test_items',
           // Global tables: accounts, memberships, sessions, tenants.
           'users',
           'memberships',
