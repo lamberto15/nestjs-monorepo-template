@@ -592,12 +592,13 @@ describe('your exports and imports', () => {
     useTransferApi({ list: [exported('ok', 'good-export')] });
     await renderApp('/transfers');
     expect(await screen.findByText('good-export')).toBeVisible();
-    expect(JSON.stringify({ ...localStorage })).not.toMatch(
-      /transfer|export|import/i,
-    );
-    expect(JSON.stringify({ ...sessionStorage })).not.toMatch(
-      /transfer|export|import/i,
-    );
+    for (const store of [localStorage, sessionStorage]) {
+      const kept = Array.from({ length: store.length }, (_, index) => {
+        const key = store.key(index) ?? '';
+        return `${key}=${store.getItem(key) ?? ''}`;
+      });
+      expect(kept.join('\n')).not.toMatch(/transfer|export|import/i);
+    }
   });
 
   it('says when the list cannot be loaded', async () => {
