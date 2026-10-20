@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { visibleGroups, nav } from '@/nav';
 import { renderApp } from '@/test/render-app';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
+import { findToast } from '@/test/toast';
 import { slugify } from './queries';
 
 const OPERATOR_ID = signedInUser.tenant!.id;
@@ -19,6 +20,9 @@ const row = (id: string, slug: string, extra: object = {}) => ({
   ...extra,
 });
 
+const etagOf = (tenant: { id: string; updatedAt: string }) =>
+  `"${tenant.id}-${tenant.updatedAt}"`;
+
 function api(
   options: {
     tenancy?: 'multi' | 'single';
@@ -32,6 +36,15 @@ function api(
       row('0199a3f2-0000-7000-8000-0000000000b1', 'globex', { name: 'Globex' }),
     ],
     created: undefined as unknown,
+    patched: [] as {
+      id: string;
+      body: Record<string, unknown>;
+      ifMatch: string | null;
+    }[],
+    /** The next PATCH is refused for an old sign-in (step-up), once. */
+    reauthFirst: false,
+    /** Another operator changed the tenant after it was read. */
+    changedMeanwhile: false,
     listed: 0,
     switched: [] as unknown[],
   };
@@ -87,6 +100,52 @@ function api(
       });
       state.tenants = [...state.tenants, created];
       return HttpResponse.json(created, { status: 201 });
+    }),
+    http.get('/v1/tenants/:id', ({ params }) => {
+      const found = state.tenants.find((tenant) => tenant.id === params.id);
+      return found
+        ? HttpResponse.json(found, { headers: { etag: etagOf(found) } })
+        : problem(404, 'not_found');
+    }),
+    http.patch('/v1/tenants/:id', async ({ params, request }) => {
+      const body = (await request.json()) as Record<string, unknown>;
+      if (state.reauthFirst) {
+        state.reauthFirst = false;
+        return problem(403, 'reauthentication_required', {
+          methods: ['password'],
+        });
+      }
+      const index = state.tenants.findIndex(
+        (tenant) => tenant.id === params.id,
+      );
+      const found = state.tenants[index]!;
+      const ifMatch = request.headers.get('if-match');
+      state.patched.push({ id: found.id, body, ifMatch });
+      if (state.changedMeanwhile) {
+        // Another operator renamed it: its updatedAt, so its ETag, moved on.
+        state.changedMeanwhile = false;
+        state.tenants[index] = {
+          ...found,
+          name: 'Renamed elsewhere',
+          updatedAt: '2026-10-11T08:00:00.000Z',
+        };
+        return problem(412, 'precondition_failed');
+      }
+      if (ifMatch && ifMatch !== etagOf(found)) {
+        return problem(412, 'precondition_failed');
+      }
+      if (body.slug === 'taken') {
+        return problem(409, 'tenant_slug_taken', {
+          errors: [{ path: 'slug', message: 'That slug is taken.' }],
+        });
+      }
+      const saved = {
+        ...found,
+        ...body,
+        updatedAt: new Date(Date.parse(found.updatedAt) + 1000).toISOString(),
+      };
+      state.tenants[index] = saved;
+      return HttpResponse.json(saved, { headers: { etag: etagOf(saved) } });
     }),
     http.post('/v1/auth/tenant', async ({ request }) => {
       state.switched.push(await request.json());
@@ -202,6 +261,199 @@ describe('tenants page', () => {
   });
 });
 
+const GLOBEX = '0199a3f2-0000-7000-8000-0000000000b1';
+
+describe('tenant detail', () => {
+  it('opens from the list and shows the tenant', async () => {
+    api();
+    await renderApp('/tenants');
+    await userEvent.click(await screen.findByRole('link', { name: 'Globex' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Globex' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Globex');
+    expect(screen.getByLabelText('Slug')).toHaveValue('globex');
+  });
+
+  it('renames and changes the slug with the ETag as If-Match, sending only what changed', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Globex Corp');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await findToast('Tenant Globex Corp saved.');
+    expect(state.patched).toEqual([
+      {
+        id: GLOBEX,
+        body: { name: 'Globex Corp' },
+        ifMatch: etagOf(row(GLOBEX, 'globex')),
+      },
+    ]);
+    // The page shows the saved tenant (read again, new ETag).
+    expect(
+      await screen.findByRole('heading', { name: 'Globex Corp' }),
+    ).toBeInTheDocument();
+    const slug = screen.getByLabelText('Slug');
+    await user.clear(slug);
+    await user.type(slug, 'globex-corp');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(state.patched).toHaveLength(2));
+    expect(state.patched[1]!.body).toEqual({ slug: 'globex-corp' });
+    // The second change carries the ETag the first one's answer made.
+    expect(state.patched[1]!.ifMatch).toBe(
+      etagOf({ id: GLOBEX, updatedAt: '2026-10-10T08:00:01.000Z' }),
+    );
+  });
+
+  it('refuses a bad slug before sending', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const slug = await screen.findByLabelText('Slug');
+    await userEvent.clear(slug);
+    await userEvent.type(slug, 'Not--Valid');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(
+      await screen.findByText(/Use lowercase letters and digits/),
+    ).toBeInTheDocument();
+    expect(state.patched).toEqual([]);
+  });
+
+  it('shows a taken slug (409) on the slug field', async () => {
+    api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const slug = await screen.findByLabelText('Slug');
+    await userEvent.clear(slug);
+    await userEvent.type(slug, 'taken');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('That slug is taken.')).toBeInTheDocument();
+  });
+
+  it('tells a tenant changed meanwhile (412), keeps what was typed, and reloads on request', async () => {
+    const state = api();
+    state.changedMeanwhile = true;
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Mine');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    // The tenant moved on (new updatedAt) but the page did not read it
+    // again: the alert stays and so does the input.
+    expect(await screen.findByText('This tenant changed')).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
+    await waitFor(() =>
+      expect(screen.queryByText('This tenant changed')).toBeNull(),
+    );
+    expect(screen.getByLabelText('Name')).toHaveValue('Renamed elsewhere');
+  });
+
+  it('tells a tenant changed meanwhile when deactivating', async () => {
+    const state = api();
+    state.changedMeanwhile = true;
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Deactivate' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Deactivate tenant',
+      }),
+    );
+    expect(await screen.findByText('This tenant changed')).toBeInTheDocument();
+  });
+
+  it('deactivates after a confirmation, then reactivates after another', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Deactivate' }));
+    // Nothing is sent before the confirmation.
+    const confirm = await screen.findByRole('alertdialog');
+    expect(state.patched).toEqual([]);
+    await user.click(
+      within(confirm).getByRole('button', { name: 'Deactivate tenant' }),
+    );
+    await findToast('Tenant Globex deactivated.');
+    expect(state.patched.map((call) => call.body)).toEqual([{ active: false }]);
+    expect(state.patched[0]!.ifMatch).toBe(etagOf(row(GLOBEX, 'globex')));
+    expect(await screen.findByText('Inactive')).toBeInTheDocument();
+
+    await user.click(await screen.findByRole('button', { name: 'Reactivate' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Reactivate tenant',
+      }),
+    );
+    await findToast('Tenant Globex reactivated.');
+    expect(state.patched.map((call) => call.body)).toEqual([
+      { active: false },
+      { active: true },
+    ]);
+  });
+
+  it('changes nothing when the confirmation is cancelled', async () => {
+    const state = api();
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Deactivate' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    expect(state.patched).toEqual([]);
+  });
+
+  it('offers no deactivation for the operator tenant', async () => {
+    api();
+    await renderApp(`/tenants/${OPERATOR_ID}`);
+    await screen.findByRole('heading', { name: 'Acme' });
+    expect(screen.getByText(/operator tenant/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deactivate' })).toBeNull();
+  });
+
+  it('asks for a recent sign-in when the API wants one, then sends the change again', async () => {
+    const state = api();
+    state.reauthFirst = true;
+    server.use(
+      http.post('/v1/auth/reauthenticate', () =>
+        HttpResponse.json({ ok: true }),
+      ),
+    );
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Deactivate' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Deactivate tenant',
+      }),
+    );
+    const reauth = await screen.findByRole('dialog', { name: /confirm/i });
+    await user.type(within(reauth).getByLabelText(/Password/), 'secret');
+    await user.click(within(reauth).getByRole('button', { name: /Confirm/ }));
+    await findToast('Tenant Globex deactivated.');
+    expect(state.patched.map((call) => call.body)).toEqual([{ active: false }]);
+  });
+
+  it('has no page for an id that is no UUID, and never asks', async () => {
+    const state = api();
+    await renderApp('/tenants/not-a-uuid');
+    await screen.findByText(/not found|doesn.t exist/i);
+    expect(screen.queryByLabelText('Slug')).toBeNull();
+    expect(state.patched).toEqual([]);
+  });
+
+  it('says so for a tenant that does not exist', async () => {
+    api();
+    await renderApp('/tenants/0199a3f2-0000-7000-8000-0000000000ff');
+    expect(
+      await screen.findByText('This tenant does not exist.'),
+    ).toBeInTheDocument();
+  });
+});
+
 describe('gating', () => {
   it('hides the menu entry from a tenant administrator who is no operator, and never asks', async () => {
     const state = api({ operator: false });
@@ -217,6 +469,14 @@ describe('gating', () => {
     await screen.findByText(/not found|doesn.t exist/i);
     expect(screen.queryByRole('heading', { name: 'Tenants' })).toBeNull();
     expect(state.listed).toBe(0);
+  });
+
+  it('has no tenant detail page for a non-operator, and never asks', async () => {
+    const state = api({ operator: false });
+    await renderApp(`/tenants/${GLOBEX}`);
+    await screen.findByText(/not found|doesn.t exist/i);
+    expect(screen.queryByLabelText('Slug')).toBeNull();
+    expect(state.patched).toEqual([]);
   });
 
   it('has no tenants page without the permission, and never asks', async () => {

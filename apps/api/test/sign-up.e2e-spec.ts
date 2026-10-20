@@ -130,4 +130,27 @@ describe('sign-up, verify first (e2e)', () => {
       .send({ email: victim, password: attackerPassword, tenantId: other.id })
       .expect(401);
   });
+
+  it('makes no tenant with TENANT_SIGN_UP off (the default): the account joins none, tenantName unused', async () => {
+    const methods = await node.http().get('/v1/auth/methods').expect(200);
+    expect(methods.body).toMatchObject({ signUp: true, tenantSignUp: false });
+    const count = async () =>
+      (await node.admin().get('/v1/tenants?count=true').expect(200)).body
+        .total as number;
+    const before = await count();
+    const address = email();
+    const password = newPassword();
+    await node
+      .http()
+      .post('/v1/auth/sign-up')
+      .send({ email: address, name: 'Ada', password, tenantName: 'Mine' })
+      .expect(201);
+    await node.verifySignUp(address, password);
+    const agent = await node.signIn(address, password);
+    const me = await agent.get('/v1/auth/me').expect(200);
+    expect(me.body.tenant).toBeNull();
+    const mine = await agent.get('/v1/auth/tenants').expect(200);
+    expect(mine.body.items).toEqual([]);
+    expect(await count()).toBe(before);
+  });
 });

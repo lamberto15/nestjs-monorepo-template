@@ -13,21 +13,22 @@ export const accountQuery = queryOptions({
 });
 
 /**
- * The consents this app asks for. The API records any kind and version the
- * app names (`POST /v1/account/consents`), and keeps no list of its own: the
- * kinds, their current versions and which are required are the app's to
- * declare (docs/auth.md). Publish a new version of a text: change its
- * `version` here, and everyone sees they agreed to an older one.
+ * `GET /v1/account/consent-kinds` (public): the kinds of consent the API asks
+ * for, each with its current `version`, whether it is `required` (it cannot
+ * be withdrawn) and a `label` and `description` in the request's language
+ * (docs/auth.md). The app keeps no list of its own: publishing a new version
+ * of a text is the API's change, and everyone sees they agreed to an older
+ * one. The language is in the key because the texts follow it.
  */
-export const consentKinds: readonly {
-  kind: string;
-  version: string;
-  required: boolean;
-}[] = [
-  { kind: 'terms', version: '2026-01', required: true },
-  { kind: 'privacy', version: '2026-01', required: true },
-  { kind: 'marketing', version: '2026-01', required: false },
-];
+export type ConsentKind =
+  GetResponse<'/v1/account/consent-kinds'>['items'][number];
+
+export const consentKindsQuery = (language: string) =>
+  queryOptions({
+    queryKey: ['consent-kinds', language],
+    queryFn: async () =>
+      (await unwrap(api.GET('/v1/account/consent-kinds'))).items,
+  });
 
 /** This browser's list of the account exports it started (transfer/api.ts). */
 export const ACCOUNT_EXPORTS_KEY = 'account-exports';

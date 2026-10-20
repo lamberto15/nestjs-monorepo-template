@@ -756,7 +756,7 @@ describe('templates and wizard do not drift', () => {
         passkeys: true,
         social: 'microsoft',
       },
-      { mail: 'resend', social: 'google' },
+      { tenancy: 'multi', signUp: true, mail: 'resend', social: 'google' },
     ];
     for (const q of QUESTIONS) {
       assert.ok(

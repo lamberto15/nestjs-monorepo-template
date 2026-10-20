@@ -27,8 +27,11 @@ export type DecisionTarget = {
 
 /**
  * The comment of a decision (docs/approvals.md, "The API"): optional to
- * approve, required to reject, optional (the reason) to cancel.
+ * approve, resubmit, cancel (the reason) and abandon (the reason); required
+ * to reject and to ask for changes (the requester needs to know what).
  */
+const commentRequired: readonly Decision[] = ['reject', 'requestChanges'];
+
 export function DecisionDialog(props: {
   target: DecisionTarget | null;
   onClose: () => void;
@@ -64,13 +67,23 @@ function DecisionForm(props: { target: DecisionTarget; onDone: () => void }) {
   const decide = useDecide();
   const [error, setError] = useState<string>();
   const [conflict, setConflict] = useState(false);
-  const required = target.decision === 'reject';
+  const required = commentRequired.includes(target.decision);
+  const hint = t(`decision.${target.decision}.hint`, { defaultValue: '' });
   const form = useAppForm({
     defaultValues: { comment: '' },
     validators: {
       onSubmit: z.object({
         comment: required
-          ? z.string().trim().min(1, t('decision.commentRequired'))
+          ? z
+              .string()
+              .trim()
+              .min(
+                1,
+                t([
+                  `decision.${target.decision}.commentRequired`,
+                  'decision.commentRequired',
+                ]),
+              )
           : z.string(),
       }),
     },
@@ -115,12 +128,14 @@ function DecisionForm(props: { target: DecisionTarget; onDone: () => void }) {
             }}
           />
         )}
+        {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
         <form.AppField name="comment">
           {(field) => (
             <field.TextAreaField
-              label={t(
+              label={t([
+                `decision.${target.decision}.commentLabel`,
                 required ? 'decision.commentRequiredLabel' : 'decision.comment',
-              )}
+              ])}
               rows={3}
             />
           )}

@@ -24,6 +24,12 @@ export type DelegationBody = NonNullable<
 /** Every approvals query starts with this key: one invalidation covers all. */
 export const approvalsKey = ['approvals'] as const;
 
+export type PolicyView = GetResponse<'/v1/approvals/policies'>['items'][number];
+export type PolicyTypes = GetResponse<'/v1/approvals/policy-types'>;
+export type PolicyBody = NonNullable<
+  paths['/v1/approvals/policies/{key}']['put']['requestBody']
+>['content']['application/json'];
+
 export const tabs = ['mine', 'requested', 'history'] as const;
 export type Tab = (typeof tabs)[number];
 
@@ -130,7 +136,8 @@ export const delegationsQuery = queryOptions({
     (await unwrap(api.GET('/v1/approvals/delegations'))).items,
 });
 
-export type Decision = 'approve' | 'reject' | 'cancel';
+export type Decision =
+  'approve' | 'reject' | 'requestChanges' | 'cancel' | 'resubmit' | 'abandon';
 
 /**
  * A decision on a request. `etag` makes it refuse (412) when the request
@@ -167,9 +174,32 @@ export function useDecide() {
               body: { comment: comment ?? '' },
             }),
           );
+        case 'requestChanges':
+          return unwrap(
+            api.POST('/v1/approvals/{id}/request-changes', {
+              params,
+              body: { comment: comment ?? '' },
+            }),
+          );
         case 'cancel':
           return unwrap(
             api.POST('/v1/approvals/{id}/cancel', {
+              params,
+              body: { ...(comment && { reason: comment }) },
+            }),
+          );
+        // No `payload`: an action that reads it from the record needs none,
+        // and the comment is all this page offers to change.
+        case 'resubmit':
+          return unwrap(
+            api.POST('/v1/approvals/{id}/resubmit', {
+              params,
+              body: { ...(comment && { comment }) },
+            }),
+          );
+        case 'abandon':
+          return unwrap(
+            api.POST('/v1/approvals/{id}/abandon', {
               params,
               body: { ...(comment && { reason: comment }) },
             }),
@@ -202,6 +232,71 @@ export function useEndDelegation() {
       unwrap(
         api.DELETE('/v1/approvals/delegations/{id}', {
           params: { path: { id } },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: approvalsKey }),
+  });
+}
+
+/** Every action that can need approval, with the policy in force. */
+export const policiesQuery = queryOptions({
+  queryKey: [...approvalsKey, 'policies'],
+  queryFn: async () => (await unwrap(api.GET('/v1/approvals/policies'))).items,
+});
+
+/** One action's policy with its ETag (the `If-Match` of a save or a reset). */
+export const policyQuery = (key: string) =>
+  queryOptions({
+    queryKey: [...approvalsKey, 'policy', key],
+    queryFn: async () => {
+      const result = await api.GET('/v1/approvals/policies/{key}', {
+        params: { path: { key } },
+      });
+      return {
+        policy: await unwrap(Promise.resolve(result)),
+        etag: etagOf(result),
+      };
+    },
+  });
+
+/** The registered approver rules, stage modes and conditions, with their parameters' JSON Schema. */
+export const policyTypesQuery = queryOptions({
+  queryKey: [...approvalsKey, 'policy-types'],
+  queryFn: () => unwrap(api.GET('/v1/approvals/policy-types')),
+  staleTime: Infinity,
+});
+
+/** A new version of an action's policy (the whole policy). The form shows the errors. */
+export function useSavePolicy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (input: { key: string; body: PolicyBody; etag?: string }) =>
+      unwrap(
+        api.PUT('/v1/approvals/policies/{key}', {
+          params: {
+            path: { key: input.key },
+            ...(input.etag && { header: { 'If-Match': input.etag } }),
+          },
+          body: input.body,
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: approvalsKey }),
+  });
+}
+
+/** Back to the code's default, stored as a new version. */
+export function useResetPolicy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (input: { key: string; etag?: string }) =>
+      unwrap(
+        api.DELETE('/v1/approvals/policies/{key}', {
+          params: {
+            path: { key: input.key },
+            ...(input.etag && { header: { 'If-Match': input.etag } }),
+          },
         }),
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: approvalsKey }),

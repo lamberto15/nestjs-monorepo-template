@@ -215,6 +215,12 @@ names each wrong path (`stages.0.approvers.1.role`).
 | `DELETE /v1/approvals/policies/{key}` | back to the code's default, as a new version; audited `approvalPolicy.reset` |
 | `GET /v1/approvals/policy-types` | the registered rules, modes and conditions, with their parameters' JSON Schema |
 
+The web app edits these at `/approval-policies` (`Approval.managePolicies`,
+`apps/web/src/features/approvals`): a form of the policy's stages, whose rule,
+mode and condition parameters are drawn from the JSON Schema of
+`GET /v1/approvals/policy-types`, so a type a project registers needs no
+change to the page.
+
 New requests run under the newest version; a running request keeps the
 copy it started with (`policyVersion`), resubmissions included.
 `enabled: false` switches an action off for everyone; the feature's

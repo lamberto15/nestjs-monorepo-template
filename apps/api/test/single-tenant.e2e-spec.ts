@@ -6,6 +6,8 @@ vi.hoisted(() => {
   process.env.TENANCY = 'single';
   process.env.AUTH_SIGN_UP = 'on';
   process.env.SIGN_UP_ROLES = 'editor';
+  // Ignored with TENANCY=single (a warning at start): sign-ups join the one tenant.
+  process.env.TENANT_SIGN_UP = 'on';
 });
 
 /**
@@ -27,9 +29,17 @@ describe('single-tenant deployment (e2e)', () => {
     await node
       .http()
       .post('/v1/auth/sign-up')
-      .send({ email, name: 'Ada', password })
+      .send({ email, name: 'Ada', password, tenantName: 'Ada’s own' })
       .expect(201);
     await node.verifySignUp(email, password);
+    // TENANT_SIGN_UP is ignored here: no second tenant, tenantName unused.
+    const methods = await node.http().get('/v1/auth/methods').expect(200);
+    expect(methods.body.tenantSignUp).toBe(false);
+    const tenants = await node
+      .admin()
+      .get('/v1/tenants?count=true')
+      .expect(200);
+    expect(tenants.body.total).toBe(1);
     const member = await node.signIn(email, password);
 
     const me = await member.get('/v1/auth/me').expect(200);

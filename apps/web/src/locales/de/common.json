@@ -89,7 +89,14 @@
       "title": "Adresse bestätigen",
       "description": "Geben Sie das Passwort ein, mit dem Sie sich registriert haben",
       "submit": "Bestätigen",
-      "done": "{{email}} ist bestätigt. Sie können sich jetzt anmelden."
+      "done": "{{email}} ist bestätigt. Sie können sich jetzt anmelden.",
+      "banner": "Your address {{email}} is not verified yet. Open the link we emailed you.",
+      "resend": {
+        "button": "Resend the verification email",
+        "done": "Verification email sent. Check your mailbox.",
+        "limited": "Too many requests. Try again in about 15 minutes.",
+        "hint": "Lost the link, or it expired?"
+      }
     },
     "invitation": {
       "title": "Einladung annehmen",
