@@ -11935,6 +11935,7 @@ export interface operations {
                                 decide: boolean;
                                 cancel: boolean;
                                 resubmit: boolean;
+                                abandon: boolean;
                             };
                             /**
                              * @description The ETag `GET /v1/approvals/{id}` would send you now (it covers the request's stages, assignments, timeline and your `can`): send it as `If-Match` on a decision.
@@ -12090,6 +12091,7 @@ export interface operations {
                             decide: boolean;
                             cancel: boolean;
                             resubmit: boolean;
+                            abandon: boolean;
                         };
                     };
                 };
@@ -12239,6 +12241,7 @@ export interface operations {
                             decide: boolean;
                             cancel: boolean;
                             resubmit: boolean;
+                            abandon: boolean;
                         };
                     };
                 };
@@ -12410,6 +12413,7 @@ export interface operations {
                             decide: boolean;
                             cancel: boolean;
                             resubmit: boolean;
+                            abandon: boolean;
                         };
                     };
                 };
@@ -12588,6 +12592,7 @@ export interface operations {
                             decide: boolean;
                             cancel: boolean;
                             resubmit: boolean;
+                            abandon: boolean;
                         };
                     };
                 };
@@ -12766,6 +12771,7 @@ export interface operations {
                             decide: boolean;
                             cancel: boolean;
                             resubmit: boolean;
+                            abandon: boolean;
                         };
                     };
                 };
@@ -12936,6 +12942,7 @@ export interface operations {
                             decide: boolean;
                             cancel: boolean;
                             resubmit: boolean;
+                            abandon: boolean;
                         };
                     };
                 };
@@ -13110,6 +13117,7 @@ export interface operations {
                             decide: boolean;
                             cancel: boolean;
                             resubmit: boolean;
+                            abandon: boolean;
                         };
                     };
                 };
