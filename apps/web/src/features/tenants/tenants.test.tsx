@@ -31,6 +31,7 @@ function api(
     tenancy?: 'multi' | 'single';
     can?: boolean;
     operator?: boolean;
+    breakGlass?: boolean;
   } = {},
 ) {
   const state = {
@@ -60,13 +61,26 @@ function api(
     }[],
     deletions: [] as { id: string; body: unknown }[],
     cancels: 0,
+    grants: [] as {
+      id: string;
+      tenantId: string;
+      reason: string;
+      createdAt: string;
+      expiresAt: string;
+      endedAt: string | null;
+    }[],
+    started: [] as unknown[],
+    ended: [] as string[],
   };
   server.use(
     http.get('/v1/auth/me', () =>
       HttpResponse.json({
         ...signedInUser,
         tenant: { ...signedInUser.tenant!, operator: options.operator ?? true },
-        can: { 'Access.manageTenants': options.can ?? true },
+        can: {
+          'Access.manageTenants': options.can ?? true,
+          ...(options.breakGlass && { 'Platform.breakGlass': true }),
+        },
       }),
     ),
     http.get('/v1/features', () =>
@@ -239,6 +253,37 @@ function api(
       };
       state.tenants[index] = saved;
       return HttpResponse.json(saved);
+    }),
+    http.get('/v1/tenants/:id/break-glass', () =>
+      HttpResponse.json({ items: state.grants }),
+    ),
+    http.post('/v1/tenants/:id/break-glass', async ({ params, request }) => {
+      const body = (await request.json()) as {
+        reason: string;
+        minutes?: number;
+      };
+      state.started.push(body);
+      const grant = {
+        id: '0199a3f2-0000-7000-8000-0000000000c1',
+        tenantId: params.id as string,
+        reason: body.reason,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(
+          Date.now() + (body.minutes ?? 60) * 60_000,
+        ).toISOString(),
+        endedAt: null,
+      };
+      state.grants = [grant, ...state.grants];
+      return HttpResponse.json(grant, { status: 201 });
+    }),
+    http.delete('/v1/tenants/:id/break-glass/:grantId', ({ params }) => {
+      state.ended.push(params.grantId as string);
+      const found = state.grants.find((g) => g.id === params.grantId);
+      if (!found) {
+        return problem(404, 'not_found');
+      }
+      found.endedAt = new Date().toISOString();
+      return HttpResponse.json(found);
     }),
     http.post('/v1/auth/tenant', async ({ request }) => {
       state.switched.push(await request.json());
@@ -620,6 +665,167 @@ describe('exporting a tenant', () => {
     await confirmReauth(user);
     await screen.findByRole('link', { name: 'Download (json)' });
     expect(state.exports).toHaveLength(1);
+  });
+});
+
+describe('break-glass access', () => {
+  const REASON = 'Incident 4711: the tenant cannot sign in';
+
+  it('is not offered without the permission, and never asks', async () => {
+    let asked = 0;
+    api();
+    server.use(
+      http.get('/v1/tenants/:id/break-glass', () => {
+        asked += 1;
+        return HttpResponse.json({ items: [] });
+      }),
+    );
+    await renderApp(`/tenants/${GLOBEX}`);
+    await screen.findByRole('button', { name: 'Export tenant data' });
+    expect(screen.queryByText('Break-glass')).toBeNull();
+    expect(asked).toBe(0);
+  });
+
+  it('is not offered on the operator tenant', async () => {
+    api({ breakGlass: true });
+    await renderApp(`/tenants/${OPERATOR_ID}`);
+    await screen.findByRole('button', { name: 'Export tenant data' });
+    expect(screen.queryByText('Break-glass')).toBeNull();
+  });
+
+  it('opens a grant with a reason and the minutes, then says it is read only', async () => {
+    const state = api({ breakGlass: true });
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    expect(
+      await screen.findByText('You have not opened this tenant.'),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole('button', { name: 'Open break-glass access' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    // A short reason is refused before anything is sent.
+    await user.type(within(dialog).getByLabelText('Reason'), 'short');
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Open access' }),
+    );
+    expect(
+      await within(dialog).findByText(
+        'Give a reason of 10 to 1000 characters.',
+      ),
+    ).toBeVisible();
+    expect(state.started).toEqual([]);
+    await user.clear(within(dialog).getByLabelText('Reason'));
+    await user.type(within(dialog).getByLabelText('Reason'), REASON);
+    const minutes = within(dialog).getByLabelText('Minutes (1 to 60)');
+    await user.clear(minutes);
+    await user.type(minutes, '30');
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Open access' }),
+    );
+    await findToast('Read-only access to Globex is open.');
+    expect(state.started).toEqual([{ reason: REASON, minutes: 30 }]);
+    const notice = await screen.findByText(/^Read-only access is open until/);
+    expect(notice).toBeVisible();
+    expect(screen.getByText(/nothing can be written there/)).toBeVisible();
+    expect(
+      screen.getByText('Break-Glass: 0199a3f2-0000-7000-8000-0000000000c1'),
+    ).toBeVisible();
+    // One at a time: the API refuses a second (409 `break_glass_active`).
+    expect(
+      screen.getByRole('button', { name: 'Open break-glass access' }),
+    ).toBeDisabled();
+  });
+
+  it('lists past grants and ends an active one', async () => {
+    const state = api({ breakGlass: true });
+    state.grants = [
+      {
+        id: '0199a3f2-0000-7000-8000-0000000000c2',
+        tenantId: GLOBEX,
+        reason: 'Live grant for the outage',
+        createdAt: new Date(Date.now() - 60_000).toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        endedAt: null,
+      },
+      {
+        id: '0199a3f2-0000-7000-8000-0000000000c3',
+        tenantId: GLOBEX,
+        reason: 'Old support case',
+        createdAt: '2026-10-01T08:00:00.000Z',
+        expiresAt: '2026-10-01T09:00:00.000Z',
+        endedAt: null,
+      },
+    ];
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    expect(await screen.findByText('Old support case')).toBeVisible();
+    expect(screen.getByText('Expired')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'End access' }));
+    const confirm = await screen.findByRole('alertdialog');
+    await user.click(
+      within(confirm).getByRole('button', { name: 'End access' }),
+    );
+    await findToast('Break-glass access ended.');
+    expect(state.ended).toEqual(['0199a3f2-0000-7000-8000-0000000000c2']);
+    await waitFor(() =>
+      expect(screen.queryByText(/^Read-only access is open until/)).toBeNull(),
+    );
+    expect(screen.getByText('Ended')).toBeVisible();
+  });
+
+  it('asks for a recent sign-in, then sends the grant again', async () => {
+    const state = api({ breakGlass: true });
+    reauthenticate();
+    let first = true;
+    server.use(
+      http.post('/v1/tenants/:id/break-glass', () => {
+        if (first) {
+          first = false;
+          return problem(403, 'reauthentication_required', {
+            methods: ['password'],
+          });
+        }
+        return undefined;
+      }),
+    );
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Open break-glass access' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Reason'), REASON);
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Open access' }),
+    );
+    await confirmReauth(user);
+    await findToast('Read-only access to Globex is open.');
+    expect(state.started).toHaveLength(1);
+  });
+
+  it('shows the API refusal in the dialog', async () => {
+    api({ breakGlass: true });
+    server.use(
+      http.post('/v1/tenants/:id/break-glass', () =>
+        problem(403, 'break_glass_disabled', {
+          detail: 'This tenant opted out of break-glass.',
+        }),
+      ),
+    );
+    await renderApp(`/tenants/${GLOBEX}`);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Open break-glass access' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Reason'), REASON);
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Open access' }),
+    );
+    expect(
+      await within(dialog).findByText('This tenant opted out of break-glass.'),
+    ).toBeVisible();
   });
 });
 

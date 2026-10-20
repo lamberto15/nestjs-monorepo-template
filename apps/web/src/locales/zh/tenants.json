@@ -79,6 +79,34 @@
       "description": "Every record of this tenant as one file, made in the background. The download link works for 30 minutes. Asks for a recent sign-in.",
       "start": "Export tenant data"
     },
+    "breakGlass": {
+      "title": "紧急访问",
+      "description": "在紧急情况下无需邀请即可读取此租户。只读,最长一小时,不可延长。租户管理员会立即收到通知。需要近期登录。",
+      "open": "开启紧急访问",
+      "none": "你尚未开启过此租户。",
+      "activeTitle": "只读访问开放至 {{date}}",
+      "activeHint": "在此期间,带有此标头的 GET 请求可读取该租户,且无法写入:",
+      "status": {
+        "active": "生效中",
+        "ended": "已结束",
+        "expired": "已过期"
+      },
+      "opened": "开启于 {{date}},至 {{until}}",
+      "end": "结束访问",
+      "endTitle": "结束紧急访问?",
+      "endDescription": "通过此授权的请求将立即停止。",
+      "endConfirm": "结束访问",
+      "ended": "紧急访问已结束。",
+      "started": "对 {{name}} 的只读访问已开启。",
+      "dialogTitle": "对 {{name}} 紧急访问",
+      "dialogDescription": "你将以只读方式读取此租户。你的理由会记入双方租户的审计日志,并告知其管理员。",
+      "reason": "理由",
+      "reasonHint": "事件或工单,10 到 1000 个字符。",
+      "reasonInvalid": "请填写 10 到 1000 个字符的理由。",
+      "minutes": "分钟(1 到 {{max}})",
+      "minutesInvalid": "请输入 1 到 60 的整数分钟数。",
+      "submit": "开启访问"
+    },
     "deletion": {
       "title": "Delete tenant",
       "description": "Deactivates the tenant now and erases all of its data after a grace period. Export it first if you need a copy.",

@@ -79,6 +79,34 @@
       "description": "Every record of this tenant as one file, made in the background. The download link works for 30 minutes. Asks for a recent sign-in.",
       "start": "Export tenant data"
     },
+    "breakGlass": {
+      "title": "Break-glass",
+      "description": "Read this tenant without its invitation, for an emergency. Read only, one hour at most, never extended. The tenant's administrators are told at once. Asks for a recent sign-in.",
+      "open": "Open break-glass access",
+      "none": "You have not opened this tenant.",
+      "activeTitle": "Read-only access is open until {{date}}",
+      "activeHint": "While it lasts, GET requests sent with this header read the tenant and nothing can be written there:",
+      "status": {
+        "active": "Active",
+        "ended": "Ended",
+        "expired": "Expired"
+      },
+      "opened": "Opened {{date}}, until {{until}}",
+      "end": "End access",
+      "endTitle": "End break-glass access?",
+      "endDescription": "Requests through this grant stop at once.",
+      "endConfirm": "End access",
+      "ended": "Break-glass access ended.",
+      "started": "Read-only access to {{name}} is open.",
+      "dialogTitle": "Break glass on {{name}}",
+      "dialogDescription": "You will read this tenant, read only. Your reason is kept in both tenants' audit logs and told to its administrators.",
+      "reason": "Reason",
+      "reasonHint": "An incident or a ticket, 10 to 1000 characters.",
+      "reasonInvalid": "Give a reason of 10 to 1000 characters.",
+      "minutes": "Minutes (1 to {{max}})",
+      "minutesInvalid": "Enter a whole number of minutes, 1 to 60.",
+      "submit": "Open access"
+    },
     "deletion": {
       "title": "Delete tenant",
       "description": "Deactivates the tenant now and erases all of its data after a grace period. Export it first if you need a copy.",
