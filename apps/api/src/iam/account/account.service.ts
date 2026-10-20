@@ -222,11 +222,13 @@ export class AccountService {
         data: { via: 'reset' },
         // An invitation's first password is no news to anyone.
         onlyIfUsed: true,
+        settles: 'security.passwordBreached',
       });
     });
     if (told) {
       this.securityAlerts.deliverNow();
     }
+    await this.securityAlerts.announceSettled(userId);
   }
 
   /**
@@ -494,6 +496,7 @@ export class AccountService {
         ip,
         type: 'security.passwordChanged',
         data: { via: 'change' },
+        settles: 'security.passwordBreached',
       });
     });
     await this.sessions.revokeAll(user.id, { except: session?.id });
@@ -504,6 +507,7 @@ export class AccountService {
     if (told) {
       this.securityAlerts.deliverNow();
     }
+    await this.securityAlerts.announceSettled(user.id);
   }
 
   /**

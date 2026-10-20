@@ -53,6 +53,7 @@ export const approvalCanSchema = z
     decide: z.boolean(),
     cancel: z.boolean(),
     resubmit: z.boolean(),
+    abandon: z.boolean(),
   })
   .describe('What you may do with it now.');
 
