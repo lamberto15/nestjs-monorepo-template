@@ -151,6 +151,13 @@ web app needs the API, so `dev:web` alone suits an API already running.
   admits whoever holds any of them: the users page is for whoever manages
   users or teams or impersonates (the API's `AccessPolicy.open`), read-only
   without manageUsers; the teams page for whoever manages teams or users.
+- **Resending the verification email** (`components/auth/resend-verification.tsx`):
+  `POST /v1/auth/email/verification` needs a session, so the button is for
+  a signed-in user whose `emailVerified` is false: a banner in the signed-in
+  layout and the verify-email page. A toast on success; a 429 turns the
+  button off for the limit's 15 minutes. Nobody signed in has no session to
+  ask with (sign-in refuses an unproved password account), so the sign-up and
+  sign-in pages cannot offer it until the API has a public resend.
 - **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
   `realtime` is on, reopened when the session changes (tenant switch,
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The
