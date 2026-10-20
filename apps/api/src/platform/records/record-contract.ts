@@ -7,6 +7,7 @@ import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { ApprovalsService } from '../approvals/approvals.service.js';
+import { applyingEffect } from './record-approvals.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { RevisionsService } from '../revisions/revisions.service.js';
@@ -222,16 +223,20 @@ export class RecordLifecycle {
 
   /**
    * With approvable actions (`approvals`): the record can't change or go
-   * while one is being decided (409 `approval_pending`; the request that
-   * is being applied doesn't count), and a request sent back for changes
-   * goes with the record. Inside the write's transaction: the record's
-   * approval lock is held until it commits.
+   * while any request on it is being decided (409 `approval_pending`), and
+   * a request sent back for changes goes with the record. Inside the
+   * write's transaction: the record's approval lock is held until it
+   * commits. The writes of an approval effect (applyEffect(): one approved,
+   * or one run at once) are exempt, so a sibling action's open request
+   * doesn't stall them.
    */
   private async waiting(tx: Transaction, by: Principal | null, id: string) {
     if (Object.keys(this.declaration.approvals ?? {}).length === 0) {
       return;
     }
-    await this.approvals.assertNotPending(this.declaration.subject, id);
+    if (!applyingEffect()) {
+      await this.approvals.assertNotPending(this.declaration.subject, id);
+    }
     if (by) {
       await this.approvals.withdraw(tx, by, this.declaration.subject, id);
     }

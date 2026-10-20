@@ -153,6 +153,7 @@ describe('settings (e2e)', () => {
     'testItems.autoArchive',
     'testItems.sortBy',
     'testItems.archiveApproval',
+    'testItems.markReviewedApproval',
   ];
   const testItemKeys = (body: { items: { key: string }[] }) =>
     body.items

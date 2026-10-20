@@ -26,6 +26,7 @@ export const TEST_ITEM = defineRecord({
   // and --settings): the platform's tests cover the derived routes and keys.
   approvals: {
     archive: { label: 'Archive a test item' },
+    markReviewed: { label: 'Mark a test item reviewed' },
   },
   settings: {
     archiveAfterDays: recordSetting.int(90).min(1).max(365),

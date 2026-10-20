@@ -621,11 +621,25 @@ async function syncApprovals(api, record, check) {
     }
     if (edited !== text) {
       const remaining = approvalEntries(edited);
-      if (!wanted.length && !remaining.length && !errors.length) {
+      const bare = squash(
+        await format(file, templates.approvals({ t, approvals: [] })),
+      );
+      if (
+        !wanted.length &&
+        !remaining.length &&
+        !errors.length &&
+        squash(await format(file, edited)) === bare
+      ) {
         changes.push(`${relative(file)}: removed (no approvals left)`);
         if (!check) rmSync(file);
         text = null;
       } else {
+        if (!wanted.length && !remaining.length && !errors.length) {
+          // Entries gone, but the file holds more than the generator wrote: never lose it.
+          errors.push(
+            `${relative(file)}: no approvals are left but the file holds more than the generator wrote (imports, helpers): it stays, with no entries; delete it by hand when nothing needs it.`,
+          );
+        }
         if (!check) writeFileSync(file, await format(file, edited));
         text = edited;
       }

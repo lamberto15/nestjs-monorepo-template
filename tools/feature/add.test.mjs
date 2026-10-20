@@ -872,6 +872,35 @@ describe('feature:sync', () => {
     assert.doesNotMatch(readFileSync(modulePath, 'utf8'), /approvals/i);
   });
 
+  it('keeps an approvals file that holds more than the entries when the last approval goes', async () => {
+    const file = api('src/features/orders/order.approvals.ts');
+    const modulePath = api('src/features/orders/orders.module.ts');
+    edit(
+      '  fields: {',
+      "  approvals: {\n    pay: { label: 'Pay an order' },\n  },\n  fields: {",
+    );
+    await syncFeature(api(), 'orders');
+    // A helper of the feature's, beside the entry.
+    writeFileSync(
+      file,
+      `${readFileSync(file, 'utf8')}\nexport const PAYMENT_NOTE = 'kept';\n`,
+    );
+    edit("    pay: { label: 'Pay an order' },\n", '');
+    edit('  approvals: {\n  },\n', '');
+    const result = await syncFeature(api(), 'orders');
+    assert.match(
+      result.errors.join('\n'),
+      /holds more than the generator wrote/,
+    );
+    assert.ok(existsSync(file));
+    const kept = readFileSync(file, 'utf8');
+    assert.match(kept, /PAYMENT_NOTE/);
+    assert.doesNotMatch(kept, /\n {2}pay: \{/);
+    // The module no longer passes the (now empty) effects.
+    assert.doesNotMatch(readFileSync(modulePath, 'utf8'), /approvals/i);
+    rmSync(file);
+  });
+
   it("warns that a changed clientAccess or grants doesn't reach existing tenants' roles", async () => {
     const git = (...args) =>
       execFileSync('git', ['-C', root, ...args], { stdio: 'ignore' });

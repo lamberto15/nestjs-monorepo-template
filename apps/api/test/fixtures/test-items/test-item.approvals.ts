@@ -23,4 +23,17 @@ export const TEST_ITEM_APPROVALS = recordApprovalEffects(TEST_ITEM, {
       }
     },
   },
+  markReviewed: {
+    /** Idempotent. Writes while `archive` may be pending: effects don't wait for open requests. */
+    async apply({
+      id,
+      actor,
+      service,
+    }: RecordApprovalApplied<TestItemsService>) {
+      const row = await service.findOne(id);
+      if (row.body !== 'reviewed') {
+        await service.update(actor, row, { body: 'reviewed' });
+      }
+    },
+  },
 });

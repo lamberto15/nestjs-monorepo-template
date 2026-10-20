@@ -33,6 +33,7 @@ import { ApprovalsService } from '../approvals/approvals.service.js';
 import { recordView, type RecordDeclaration } from './record.js';
 import {
   actionClass,
+  applyEffect,
   actionPath,
   type DeclaredApproval,
   type RecordApprovalEffect,
@@ -112,7 +113,7 @@ function handlerOf(
       request,
       actor,
     }: ApprovalOutcome<RecordApprovalPayload>) {
-      await effect.apply({
+      await applyEffect(effect, {
         id: request.recordId,
         actor,
         service: this.c.service,
@@ -199,7 +200,11 @@ export function recordApprovalRoutes(
           res.status(HttpStatus.ACCEPTED);
           return { status: 'pending' as const, approvalId: result.request.id };
         }
-        await effect!.apply({ id, actor: user, service: this.c.service });
+        await applyEffect(effect!, {
+          id,
+          actor: user,
+          service: this.c.service,
+        });
         return { status: 'applied' as const, approvalId: null };
       }
     }

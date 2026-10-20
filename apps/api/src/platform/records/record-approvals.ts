@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { ApprovalPolicyInput } from '../approvals/approval-policy.js';
@@ -156,11 +157,29 @@ export interface RecordApprovalEffect<Service = any> {
   /**
    * Runs at once when the action needs no approval, and as a workflow step
    * once it is approved: at least once, so make it idempotent (do nothing
-   * when the effect is already there). A write through the service passes
-   * the record's approval lock: this action's request doesn't block it.
+   * when the effect is already there). Writes it makes through the service
+   * don't wait for the record's open requests (applyEffect()), this action's
+   * or a sibling's.
    */
   apply(applied: RecordApprovalApplied<Service>): Promise<void>;
 }
+
+const EFFECT = new AsyncLocalStorage<true>();
+
+/** Whether the code running is a record's approval effect (`applyEffect()`). */
+export const applyingEffect = () => EFFECT.getStore() === true;
+
+/**
+ * Runs an effect, at once or once approved. The writes it makes through the
+ * feature's service don't wait for the record's open requests (a sibling
+ * action's too: an approved action must not be stuck behind another's
+ * pending request); an ordinary update or delete still waits for any
+ * (RecordLifecycle).
+ */
+export const applyEffect = (
+  effect: RecordApprovalEffect,
+  applied: RecordApprovalApplied,
+) => EFFECT.run(true, () => effect.apply(applied));
 
 /** An effect for each action the record declares: a missing one fails the build. */
 export type RecordApprovalEffects<D extends RecordDeclaration> = {
