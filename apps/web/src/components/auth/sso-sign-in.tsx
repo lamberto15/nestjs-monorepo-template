@@ -48,7 +48,7 @@ export function SsoSignIn(props: { redirect?: string }) {
         }
         // A full navigation: the API redirects to the identity provider.
         window.location.assign(
-          `/v1/auth/sso/${ids[0]}/${ids[1]}/login?redirectTo=${encodeURIComponent(safeRedirect(props.redirect))}`,
+          `/v1/auth/sso/${encodeURIComponent(ids[0])}/${encodeURIComponent(ids[1])}/login?redirectTo=${encodeURIComponent(safeRedirect(props.redirect))}`,
         );
       }}
     >
