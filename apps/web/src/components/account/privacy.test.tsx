@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { act, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ACCOUNT_EXPORTS_KEY,
   exportsRefreshInterval,
@@ -229,7 +229,11 @@ async function openDeletion() {
 describe('the privacy page', () => {
   beforeEach(() => localStorage.clear());
   // The re-authenticate dialog's request is module state: never left open.
-  afterEach(() => act(() => settleReauthentication(false)));
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    return act(() => settleReauthentication(false));
+  });
 
   it('lists the exports from the API: ready, running, failed and expired', async () => {
     useAccountApi({
@@ -310,9 +314,29 @@ describe('the privacy page', () => {
   });
 
   it('marks a ready export expired when its time comes, without reloading', async () => {
+    // Only the clock is faked (msw's and the page's timers stay real): the
+    // expiry timer is caught as it is set, the clock jumps past the expiry,
+    // and the timer fires. No real waiting, so a slow CI machine cannot
+    // let the expiry pass before the link shows.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const timers: Array<{ run: () => void; ms: number }> = [];
+    const realSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      run: () => void,
+      ms?: number,
+      ...rest: unknown[]
+    ) => {
+      timers.push({ run, ms: ms ?? 0 });
+      return realSetTimeout(run, ms, ...rest);
+    }) as typeof setTimeout);
+    // An odd length, so no other timer of the page can be taken for this one
+    // (the clock is frozen, so the timer is set for exactly this long).
+    const lifetime = 7 * 60_000 + 321;
     useAccountApi({
       exports: [
-        exportItem({ expiresAt: new Date(Date.now() + 1200).toISOString() }),
+        exportItem({
+          expiresAt: new Date(Date.now() + lifetime).toISOString(),
+        }),
       ],
     });
     await renderApp('/account/privacy');
@@ -320,11 +344,15 @@ describe('the privacy page', () => {
       await screen.findByRole('link', { name: 'Download (json)' }),
     ).toBeVisible();
     expect(
-      await screen.findByText(
-        'Expired. Export again for a new file.',
-        {},
-        { timeout: 4000 },
-      ),
+      screen.queryByText('Expired. Export again for a new file.'),
+    ).toBeNull();
+
+    const expiry = timers.find((timer) => timer.ms === lifetime);
+    expect(expiry).toBeDefined();
+    vi.setSystemTime(Date.now() + lifetime + 1000);
+    act(() => expiry!.run());
+    expect(
+      await screen.findByText('Expired. Export again for a new file.'),
     ).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Download (json)' })).toBeNull();
   });
