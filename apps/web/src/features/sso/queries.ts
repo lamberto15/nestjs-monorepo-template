@@ -164,3 +164,22 @@ export function useRemoveExemption() {
     onSuccess: refresh,
   });
 }
+
+/**
+ * Exempt a member from "SSO required" (break-glass). A refusal (404 not an
+ * active member, 409 `sso_exemption_needs_mfa`) shows in the dialog.
+ */
+export function useAddExemption() {
+  const refresh = useRefresh();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (input: { userId: string; reason: string }) =>
+      unwrap(
+        api.PUT('/v1/sso/exemptions/{userId}', {
+          params: { path: { userId: input.userId } },
+          body: { reason: input.reason },
+        }),
+      ),
+    onSuccess: refresh,
+  });
+}
