@@ -35,9 +35,7 @@ describe('naming series patterns', () => {
       'INV/2026/007',
     );
     // A counter wider than its #s is printed whole.
-    expect(renderPattern(parsePattern('T-.##'), 1234, at)).toBe(
-      'T-1234',
-    );
+    expect(renderPattern(parsePattern('T-.##'), 1234, at)).toBe('T-1234');
     // The counter may sit anywhere.
     expect(renderPattern(parsePattern('.####./.YYYY.'), 5, at)).toBe(
       '0005/2026',
@@ -137,9 +135,7 @@ describe('naming series patterns', () => {
       counterKey(parts, { ...acme, fields: { customer: 'GLOBEX' } }),
     ).not.toBe(counterKey(parts, acme));
     // Unknown values print as their names, for previews.
-    expect(renderPattern(parts, 1, at)).toBe(
-      'INV-{ABBR}-{customer}-{FY}-0001',
-    );
+    expect(renderPattern(parts, 1, at)).toBe('INV-{ABBR}-{customer}-{FY}-0001');
     // Braced variables and date parts, as Frappe's format: rules write them.
     expect(
       renderPattern(parsePattern('{FY}.-.{YYYY}.-.###', names), 3, {

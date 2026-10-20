@@ -45,7 +45,7 @@ const conditions = z
   .array(namingConditionSchema)
   .max(10)
   .describe(
-    'All must hold for a record whose body names no series to take this one (Frappe\'s Document Naming Rule); the first by priority wins, else the default series.',
+    "All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series.",
   );
 
 const priority = z
@@ -57,7 +57,7 @@ const priority = z
 
 const dateField = fieldName
   .describe(
-    "A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.",
+    'A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.',
   )
   .meta({ example: 'invoiceDate' });
 

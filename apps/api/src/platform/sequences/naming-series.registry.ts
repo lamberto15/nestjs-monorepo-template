@@ -26,11 +26,7 @@ export interface NumberedSubject {
 
 /** A field as numbering reads it from a create body. */
 export type NumberingFieldKind =
-  | 'text'
-  | 'number'
-  | 'date'
-  | 'datetime'
-  | 'boolean';
+  'text' | 'number' | 'date' | 'datetime' | 'boolean';
 
 @Injectable()
 export class NamingSeriesRegistry {

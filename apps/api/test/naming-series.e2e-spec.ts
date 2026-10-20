@@ -149,7 +149,10 @@ describe('naming series (e2e)', () => {
       [{ pattern: 'A-.{code}.###' }, 'pattern'],
       [{ pattern: 'A-.###', dateField: 'title' }, 'dateField'],
       [
-        { pattern: 'A-.###', conditions: [{ field: 'price', op: 'eq', value: 'x' }] },
+        {
+          pattern: 'A-.###',
+          conditions: [{ field: 'price', op: 'eq', value: 'x' }],
+        },
         'conditions.0.field',
       ],
     ] as const) {
@@ -353,7 +356,10 @@ describe('naming series (e2e)', () => {
       .expect(400);
     expect(paths(needsValue.body)).toEqual(['values.code']);
     // The list shows the fields by name.
-    const listed = await node.admin().get(`/v1/naming-series/${id}`).expect(200);
+    const listed = await node
+      .admin()
+      .get(`/v1/naming-series/${id}`)
+      .expect(200);
     expect(listed.body.example).toBe(`TI-{code}-${YYYY.slice(-2)}-001`);
   });
 
@@ -374,9 +380,9 @@ describe('naming series (e2e)', () => {
     expect(await numberOf({ title: 'Zulu', code: 'vip2' })).toBe('VIP-0002');
     // A series the body names wins over the conditions.
     const named = await series('NAMED-.###');
-    expect(
-      await numberOf({ code: 'vip3', namingSeriesId: named.id }),
-    ).toBe('NAMED-001');
+    expect(await numberOf({ code: 'vip3', namingSeriesId: named.id })).toBe(
+      'NAMED-001',
+    );
   });
 
   it('takes its dates from a date field of the record, and prints the variables', async () => {

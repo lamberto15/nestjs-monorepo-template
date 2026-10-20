@@ -1400,6 +1400,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ai/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the AI helper about a record
+         * @description Whoever may use the helper on the record (its source decides). Answers at once with the run id; a worker sends the record's fields you may read to the provider and keeps a structured answer for an hour. Follow it at GET /v1/ai/runs/{id}; your realtime connection hears `ai.ready { id, subject, recordId, task }` or `ai.failed { id, subject, recordId, error }`. Off until the tenant sets `ai.enabled`. Audited (ai.requested, ai.completed).
+         */
+        post: operations["AiController_request_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A run you asked for: its state, then the answer
+         * @description Only the principal who asked. `completed`: `output` is the answer in the task's shape (kept an hour, then null), with the model id and prompt version that produced it and the tokens used.
+         */
+        get: operations["AiController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tags": {
         parameters: {
             query?: never;
@@ -4323,6 +4363,18 @@ export interface components {
             attachmentId: string;
         };
         RealtimeDocumentFailedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            error: string;
+        };
+        RealtimeAiReadyEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            task: string;
+        };
+        RealtimeAiFailedEvent: {
             id: string;
             subject: string;
             recordId: string;
@@ -10621,6 +10673,153 @@ export interface operations {
                         error: string | null;
                         /** Format: date-time */
                         issuedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_request_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The kind of record: a name the features register (`note`).
+                     * @example note
+                     */
+                    source: string;
+                    /** Format: uuid */
+                    recordId: string;
+                    /**
+                     * @description `summarize` or `classify`; each has its own answer shape.
+                     * @enum {string}
+                     */
+                    task: "summarize" | "classify";
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not use it on this record, or the tenant has not turned it on (ai_disabled). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such kind of record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Yours is still running for this record and task (ai_pending). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 20 a minute from one user (rate_limited), or the tenant's daily token quota is used up (ai_quota_exceeded). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The helper is not set up on this server (ai_unavailable). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_status_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        source: string;
+                        subject: string;
+                        /** Format: uuid */
+                        recordId: string;
+                        task: string;
+                        /** @example v1 */
+                        promptVersion: string;
+                        /** @description The model id that answered (null until it did). */
+                        model: string | null;
+                        /**
+                         * @description queued → running → completed, or failed (then `error`).
+                         * @enum {string}
+                         */
+                        status: "queued" | "running" | "completed" | "failed";
+                        /** @description Once completed: the task's answer, validated against its schema. Kept for an hour; null after that (ask again). */
+                        output: {
+                            [key: string]: unknown;
+                        } | null;
+                        inputTokens: number;
+                        outputTokens: number;
+                        cached: boolean;
+                        /** @description Why it failed, written for people. */
+                        error: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */

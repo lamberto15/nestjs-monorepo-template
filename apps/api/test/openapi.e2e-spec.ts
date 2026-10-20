@@ -169,6 +169,8 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/account/deletion/cancel',
         '/v1/account/export',
         '/v1/account/exports',
+        '/v1/ai/runs',
+        '/v1/ai/runs/{id}',
         '/v1/approvals',
         '/v1/approvals/delegations',
         '/v1/approvals/delegations/{id}',
