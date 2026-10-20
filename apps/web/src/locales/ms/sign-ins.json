@@ -1,0 +1,14 @@
+{
+  "nav": { "title": "Log masuk" },
+  "title": "Log masuk",
+  "columns": {
+    "at": "Bila",
+    "user": "Pengguna",
+    "result": "Keputusan",
+    "method": "Kaedah",
+    "via": "Melalui",
+    "userAgent": "Peranti",
+    "ip": "Alamat IP"
+  },
+  "result": { "success": "Berjaya", "failure": "Gagal" }
+}

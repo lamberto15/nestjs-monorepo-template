@@ -25,6 +25,7 @@ import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-supp
 import { Route as AppNamingSeriesRouteImport } from './routes/_app/naming-series'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppSignInsRouteImport } from './routes/_app/sign-ins'
 import { Route as AppSsoRouteImport } from './routes/_app/sso'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
 import { Route as AppAccessUsersRouteImport } from './routes/_app/access/users'
@@ -139,6 +140,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSignInsRoute = AppSignInsRouteImport.update({
+  id: '/sign-ins',
+  path: '/sign-ins',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSsoRoute = AppSsoRouteImport.update({
@@ -340,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
+  '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
   '/access/users': typeof AppAccessUsersRoute
@@ -392,6 +399,7 @@ export interface FileRoutesByTo {
   '/naming-series': typeof AppNamingSeriesRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
+  '/sign-ins': typeof AppSignInsRoute
   '/sso': typeof AppSsoRoute
   '/tags': typeof AppTagsRoute
   '/': typeof AppIndexRoute
@@ -447,6 +455,7 @@ export interface FileRoutesById {
   '/_app/naming-series': typeof AppNamingSeriesRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/sign-ins': typeof AppSignInsRoute
   '/_app/sso': typeof AppSsoRoute
   '/_app/tags': typeof AppTagsRoute
   '/_app/': typeof AppIndexRoute
@@ -503,6 +512,7 @@ export interface FileRouteTypes {
     | '/naming-series'
     | '/notifications'
     | '/settings'
+    | '/sign-ins'
     | '/sso'
     | '/tags'
     | '/access/users'
@@ -555,6 +565,7 @@ export interface FileRouteTypes {
     | '/naming-series'
     | '/notifications'
     | '/settings'
+    | '/sign-ins'
     | '/sso'
     | '/tags'
     | '/'
@@ -609,6 +620,7 @@ export interface FileRouteTypes {
     | '/_app/naming-series'
     | '/_app/notifications'
     | '/_app/settings'
+    | '/_app/sign-ins'
     | '/_app/sso'
     | '/_app/tags'
     | '/_app/'
@@ -772,6 +784,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sign-ins': {
+      id: '/_app/sign-ins'
+      path: '/sign-ins'
+      fullPath: '/sign-ins'
+      preLoaderRoute: typeof AppSignInsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/sso': {
@@ -1036,6 +1055,7 @@ interface AppRouteChildren {
   AppNamingSeriesRoute: typeof AppNamingSeriesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppSignInsRoute: typeof AppSignInsRoute
   AppSsoRoute: typeof AppSsoRoute
   AppTagsRoute: typeof AppTagsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1082,6 +1102,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNamingSeriesRoute: AppNamingSeriesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppSignInsRoute: AppSignInsRoute,
   AppSsoRoute: AppSsoRoute,
   AppTagsRoute: AppTagsRoute,
   AppIndexRoute: AppIndexRoute,
