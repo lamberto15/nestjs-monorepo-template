@@ -59,7 +59,8 @@
     "team": "Team",
     "user": "You",
     "rollout": "Rollout",
-    "default": "Default"
+    "default": "Default",
+    "platform": "All tenants"
   },
   "columns": {
     "setting": "Setting",
@@ -87,5 +88,21 @@
     "min": "{{min}} or more.",
     "max": "{{max}} or less.",
     "maxLength": "At most {{maxLength}} characters."
+  },
+  "platform": {
+    "title": "All tenants",
+    "description": "What the deployment's operators set for every tenant. Enforced, it beats every tenant, team and user value (a kill switch); otherwise it is the default for tenants that set nothing.",
+    "none": "Nothing is set for all tenants.",
+    "enforced": "Enforced",
+    "notEnforced": "Default for tenants",
+    "enforcedLabel": "Enforced (kill switch)",
+    "enforcedHint": "Overrides every tenant, team and user value.",
+    "save": "Save for all tenants",
+    "saved": "Saved for all tenants.",
+    "remove": "Remove",
+    "removeTitle": "Remove the value for all tenants?",
+    "removeDescription": "Each tenant's own value, or the default, applies again.",
+    "removed": "Removed for all tenants.",
+    "rolloutOf": "Rollout {{percent}}%"
   }
 }

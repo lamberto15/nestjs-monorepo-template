@@ -10968,7 +10968,7 @@
     },
     "/v1/settings": {
       "get": {
-        "description": "Your value: your own, else your team's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
+        "description": "Your value: the operators' enforced value, else your own, else your team's, else your tenant's (or a rollout), else the operators' value for every tenant, else the default. Settings not marked public show only to those who manage settings.",
         "operationId": "SettingsController_list_v1",
         "parameters": [],
         "responses": {
@@ -11024,6 +11024,7 @@
                               "team",
                               "user",
                               "rollout",
+                              "platform",
                               "default"
                             ],
                             "description": "Where your value comes from."
@@ -11084,6 +11085,37 @@
                           "canSetMine": {
                             "type": "boolean",
                             "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                          },
+                          "platform": {
+                            "nullable": true,
+                            "description": "What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set.",
+                            "type": "object",
+                            "properties": {
+                              "value": {
+                                "description": "Null: only `rollout` applies."
+                              },
+                              "enforced": {
+                                "type": "boolean",
+                                "description": "Beats every tenant's, team's and principal's value (a kill switch)."
+                              },
+                              "rollout": {
+                                "nullable": true,
+                                "description": "Flags: the percentage of each tenant's principals it is on for, when no value is set.",
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              }
+                            },
+                            "required": [
+                              "value",
+                              "enforced",
+                              "rollout"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "canEditPlatform": {
+                            "type": "boolean",
+                            "description": "You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant."
                           }
                         },
                         "required": [
@@ -11099,7 +11131,9 @@
                           "type",
                           "schema",
                           "canEdit",
-                          "canSetMine"
+                          "canSetMine",
+                          "platform",
+                          "canEditPlatform"
                         ],
                         "additionalProperties": false
                       }
@@ -11198,6 +11232,7 @@
                         "team",
                         "user",
                         "rollout",
+                        "platform",
                         "default"
                       ],
                       "description": "Where your value comes from."
@@ -11258,6 +11293,37 @@
                     "canSetMine": {
                       "type": "boolean",
                       "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                    },
+                    "platform": {
+                      "nullable": true,
+                      "description": "What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set.",
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "description": "Null: only `rollout` applies."
+                        },
+                        "enforced": {
+                          "type": "boolean",
+                          "description": "Beats every tenant's, team's and principal's value (a kill switch)."
+                        },
+                        "rollout": {
+                          "nullable": true,
+                          "description": "Flags: the percentage of each tenant's principals it is on for, when no value is set.",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "enforced",
+                        "rollout"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "canEditPlatform": {
+                      "type": "boolean",
+                      "description": "You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant."
                     }
                   },
                   "required": [
@@ -11273,7 +11339,9 @@
                     "type",
                     "schema",
                     "canEdit",
-                    "canSetMine"
+                    "canSetMine",
+                    "platform",
+                    "canEditPlatform"
                   ],
                   "additionalProperties": false
                 }
@@ -11586,6 +11654,7 @@
                         "team",
                         "user",
                         "rollout",
+                        "platform",
                         "default"
                       ],
                       "description": "Where your value comes from."
@@ -11646,6 +11715,37 @@
                     "canSetMine": {
                       "type": "boolean",
                       "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                    },
+                    "platform": {
+                      "nullable": true,
+                      "description": "What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set.",
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "description": "Null: only `rollout` applies."
+                        },
+                        "enforced": {
+                          "type": "boolean",
+                          "description": "Beats every tenant's, team's and principal's value (a kill switch)."
+                        },
+                        "rollout": {
+                          "nullable": true,
+                          "description": "Flags: the percentage of each tenant's principals it is on for, when no value is set.",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "enforced",
+                        "rollout"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "canEditPlatform": {
+                      "type": "boolean",
+                      "description": "You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant."
                     }
                   },
                   "required": [
@@ -11661,7 +11761,9 @@
                     "type",
                     "schema",
                     "canEdit",
-                    "canSetMine"
+                    "canSetMine",
+                    "platform",
+                    "canEditPlatform"
                   ],
                   "additionalProperties": false
                 }
@@ -11757,6 +11859,7 @@
                         "team",
                         "user",
                         "rollout",
+                        "platform",
                         "default"
                       ],
                       "description": "Where your value comes from."
@@ -11817,6 +11920,37 @@
                     "canSetMine": {
                       "type": "boolean",
                       "description": "You may set your own value (PUT and DELETE /v1/settings/{key}/mine): its scopes include `user`."
+                    },
+                    "platform": {
+                      "nullable": true,
+                      "description": "What the deployment's operators set for every tenant: below each tenant's own values, or above them all when enforced. Null: nothing set.",
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "description": "Null: only `rollout` applies."
+                        },
+                        "enforced": {
+                          "type": "boolean",
+                          "description": "Beats every tenant's, team's and principal's value (a kill switch)."
+                        },
+                        "rollout": {
+                          "nullable": true,
+                          "description": "Flags: the percentage of each tenant's principals it is on for, when no value is set.",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "enforced",
+                        "rollout"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "canEditPlatform": {
+                      "type": "boolean",
+                      "description": "You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant."
                     }
                   },
                   "required": [
@@ -11832,7 +11966,9 @@
                     "type",
                     "schema",
                     "canEdit",
-                    "canSetMine"
+                    "canSetMine",
+                    "platform",
+                    "canEditPlatform"
                   ],
                   "additionalProperties": false
                 }
@@ -11861,6 +11997,166 @@
           }
         ],
         "summary": "Drop your own value of a setting: back to the shared one",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/settings/{key}/platform": {
+      "put": {
+        "description": "The runtime default of every tenant, below each tenant's own values; `enforced: true` puts it above them all (a kill switch). Operators only. Applies on the next request. Audited.",
+        "operationId": "SettingsController_setPlatform_v1",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "description": "The value, checked by the setting's schema; left out with `rollout`: the flag's rollout alone applies."
+                  },
+                  "enforced": {
+                    "default": false,
+                    "description": "true: beats every tenant's, team's and principal's value (a kill switch; needs a value); false: the default for every tenant that set nothing.",
+                    "type": "boolean"
+                  },
+                  "rollout": {
+                    "description": "Flags: the percentage of principals it is on for in every tenant that set nothing (each tenant drawn apart).",
+                    "nullable": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)+$",
+                      "example": "notes.publishDelay"
+                    },
+                    "value": {},
+                    "enforced": {
+                      "type": "boolean"
+                    },
+                    "rollout": {
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "updatedBy": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "value",
+                    "enforced",
+                    "rollout",
+                    "updatedBy",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A value its schema refuses (validation_failed), or one the deployment does not allow (setting_not_allowed)."
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Set a setting for every tenant (operators)",
+        "tags": [
+          "settings"
+        ]
+      },
+      "delete": {
+        "operationId": "SettingsController_unsetPlatform_v1",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "operator_required: the caller does not act in the operator tenant."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove the value for every tenant (operators): each tenant's own, or the default, holds again",
         "tags": [
           "settings"
         ]
@@ -18319,7 +18615,7 @@
     },
     "/v1/webhooks/mail/{provider}": {
       "post": {
-        "description": "`ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.",
+        "description": "`postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.",
         "operationId": "MailEventsController_handle_v1",
         "parameters": [
           {
@@ -18382,13 +18678,13 @@
             }
           },
           "400": {
-            "description": "Not the provider’s format (sns_malformed)."
+            "description": "Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed)."
           },
           "401": {
-            "description": "The signature does not verify (sns_signature_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused)."
+            "description": "The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused)."
           },
           "403": {
-            "description": "The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed)."
+            "description": "The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured)."
           },
           "404": {
             "description": "No such provider."

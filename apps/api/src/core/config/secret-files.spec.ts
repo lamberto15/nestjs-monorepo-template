@@ -328,6 +328,7 @@ describe('the environment (env.ts)', () => {
         'MICROSOFT_CLIENT_SECRET',
         'OBSERVE_APP_KEY',
         'OBSERVE_APP_SECRET',
+        'POSTMARK_WEBHOOK_SECRET',
         'REDIS_PASSWORD',
         'REDIS_URL',
         'SMTP_URL',

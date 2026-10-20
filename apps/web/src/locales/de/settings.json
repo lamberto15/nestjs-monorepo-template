@@ -59,7 +59,8 @@
     "team": "Team",
     "user": "Sie",
     "rollout": "Einführung",
-    "default": "Standard"
+    "default": "Standard",
+    "platform": "Alle Organisationen"
   },
   "columns": {
     "setting": "Einstellung",
@@ -87,5 +88,21 @@
     "min": "{{min}} oder mehr.",
     "max": "{{max}} oder weniger.",
     "maxLength": "Höchstens {{maxLength}} Zeichen."
+  },
+  "platform": {
+    "title": "Alle Organisationen",
+    "description": "Was die Betreiber der Installation für jede Organisation festlegen. Erzwungen hat es Vorrang vor allen Werten von Organisationen, Teams und Personen (ein Notausschalter); sonst ist es der Standard für Organisationen ohne eigenen Wert.",
+    "none": "Für alle Organisationen ist nichts festgelegt.",
+    "enforced": "Erzwungen",
+    "notEnforced": "Standard für Organisationen",
+    "enforcedLabel": "Erzwungen (Notausschalter)",
+    "enforcedHint": "Überschreibt alle Werte von Organisationen, Teams und Personen.",
+    "save": "Für alle Organisationen speichern",
+    "saved": "Für alle Organisationen gespeichert.",
+    "remove": "Entfernen",
+    "removeTitle": "Wert für alle Organisationen entfernen?",
+    "removeDescription": "Der eigene Wert jeder Organisation oder der Standard gilt wieder.",
+    "removed": "Für alle Organisationen entfernt.",
+    "rolloutOf": "Einführung {{percent}} %"
   }
 }

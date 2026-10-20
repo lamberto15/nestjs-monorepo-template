@@ -1,5 +1,5 @@
 {
-  "id": "1fff88f6-ea1b-40b2-bb3d-5fdb7a406b48",
+  "id": "1e544fb8-5a39-4b54-a139-61af20b0afd5",
   "prevId": "b6ef0b98-fe76-4e43-8f61-82b6e81138ef",
   "version": "7",
   "dialect": "postgresql",
@@ -3495,6 +3495,79 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
+    "public.platform_setting_values": {
+      "name": "platform_setting_values",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enforced": {
+          "name": "enforced",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "rollout": {
+          "name": "rollout",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "platform_setting_values_key_unique": {
+          "name": "platform_setting_values_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.setting_overrides": {
       "name": "setting_overrides",
       "schema": "",
@@ -4078,26 +4151,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "date_field": {
-          "name": "date_field",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "conditions": {
-          "name": "conditions",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "priority": {
-          "name": "priority",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "created_at": {
           "name": "created_at",

@@ -59,7 +59,8 @@
     "team": "Pasukan",
     "user": "Anda",
     "rollout": "Pelancaran",
-    "default": "Lalai"
+    "default": "Lalai",
+    "platform": "Semua organisasi"
   },
   "columns": {
     "setting": "Tetapan",
@@ -87,5 +88,21 @@
     "min": "{{min}} atau lebih.",
     "max": "{{max}} atau kurang.",
     "maxLength": "Paling banyak {{maxLength}} aksara."
+  },
+  "platform": {
+    "title": "Semua organisasi",
+    "description": "Apa yang ditetapkan pengendali pemasangan untuk setiap organisasi. Jika dikuatkuasakan, ia mengatasi setiap nilai organisasi, pasukan dan pengguna (suis kecemasan); jika tidak, ia ialah nilai lalai bagi organisasi yang tidak menetapkan apa-apa.",
+    "none": "Tiada apa-apa ditetapkan untuk semua organisasi.",
+    "enforced": "Dikuatkuasakan",
+    "notEnforced": "Lalai untuk organisasi",
+    "enforcedLabel": "Dikuatkuasakan (suis kecemasan)",
+    "enforcedHint": "Mengatasi setiap nilai organisasi, pasukan dan pengguna.",
+    "save": "Simpan untuk semua organisasi",
+    "saved": "Disimpan untuk semua organisasi.",
+    "remove": "Alih keluar",
+    "removeTitle": "Alih keluar nilai untuk semua organisasi?",
+    "removeDescription": "Nilai sendiri setiap organisasi, atau nilai lalai, terpakai semula.",
+    "removed": "Dialih keluar untuk semua organisasi.",
+    "rolloutOf": "Pelancaran {{percent}}%"
   }
 }

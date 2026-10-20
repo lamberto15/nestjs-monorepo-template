@@ -113,6 +113,11 @@ export function AdminSettings() {
                     </TableCell>
                     <TableCell>
                       <SourceBadge source={setting.source} />
+                      {setting.platform?.enforced && (
+                        <Badge variant="outline" className="ms-2">
+                          {t('platform.enforced')}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {formatValue(setting.default, t('on'), t('off'))}
