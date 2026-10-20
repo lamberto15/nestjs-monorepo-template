@@ -5,7 +5,8 @@
   "tabs": {
     "connections": "الاتصالات",
     "domains": "النطاقات",
-    "scim": "SCIM"
+    "scim": "SCIM",
+    "policy": "السياسة"
   },
   "protocol": {
     "oidc": "OpenID Connect",
@@ -48,7 +49,8 @@
     "certificates": "شهادات المزوّد",
     "validUntil": "صالحة حتى {{date}}",
     "tenantId": "معرّف مساحة العمل (لصفحة تسجيل الدخول)",
-    "connectionId": "معرّف الاتصال (لصفحة تسجيل الدخول)"
+    "connectionId": "معرّف الاتصال (لصفحة تسجيل الدخول)",
+    "requireEncryptedAssertions": "التأكيدات المشفّرة مطلوبة"
   },
   "form": {
     "createTitle": "إضافة اتصال",
@@ -117,5 +119,19 @@
     "activeKeys": "{{count}} مفاتيح نشطة",
     "lastCall": "آخر استدعاء {{date}}",
     "neverCalled": "لم يُستدعَ قط"
+  },
+  "policy": {
+    "title": "اشتراط SSO",
+    "description": "عند التفعيل، يسجّل الأعضاء الدخول إلى مساحة العمل هذه عبر أحد اتصالاتها فقط.",
+    "toggle": "اشتراط SSO لمساحة العمل هذه",
+    "turnedOn": "أصبح SSO مطلوبًا.",
+    "turnedOff": "لم يعد SSO مطلوبًا.",
+    "exemptions": "الأعضاء المستثنون",
+    "noExemptions": "لا أحد مستثنى.",
+    "exemptionsHint": "يمكن للأعضاء المستثنين تسجيل الدخول بكلمة مرور أو مفتاح مرور (للطوارئ). يُدوَّن كل استخدام في سجل التدقيق.",
+    "endExemption": "إنهاء الاستثناء",
+    "endExemptionLabel": "إنهاء استثناء {{name}}",
+    "exemptionEnded": "تم إنهاء استثناء {{name}}.",
+    "exemption": "{{email}} · {{reason}}"
   }
 }

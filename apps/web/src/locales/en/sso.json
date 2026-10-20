@@ -5,7 +5,8 @@
   "tabs": {
     "connections": "Connections",
     "domains": "Domains",
-    "scim": "SCIM"
+    "scim": "SCIM",
+    "policy": "Policy"
   },
   "protocol": {
     "oidc": "OpenID Connect",
@@ -48,7 +49,8 @@
     "certificates": "Provider certificates",
     "validUntil": "valid until {{date}}",
     "tenantId": "Workspace ID (for the sign-in page)",
-    "connectionId": "Connection ID (for the sign-in page)"
+    "connectionId": "Connection ID (for the sign-in page)",
+    "requireEncryptedAssertions": "Encrypted assertions required"
   },
   "form": {
     "createTitle": "Add a connection",
@@ -117,5 +119,19 @@
     "activeKeys": "{{count}} active keys",
     "lastCall": "last call {{date}}",
     "neverCalled": "never called"
+  },
+  "policy": {
+    "title": "Require SSO",
+    "description": "When on, members sign in to this workspace only through one of its connections.",
+    "toggle": "Require SSO for this workspace",
+    "turnedOn": "SSO is now required.",
+    "turnedOff": "SSO is no longer required.",
+    "exemptions": "Exempted members",
+    "noExemptions": "Nobody is exempted.",
+    "exemptionsHint": "Exempted members can still sign in with a password or passkey (break-glass). Each use is audited.",
+    "endExemption": "End exemption",
+    "endExemptionLabel": "End the exemption of {{name}}",
+    "exemptionEnded": "Ended the exemption of {{name}}.",
+    "exemption": "{{email}} · {{reason}}"
   }
 }

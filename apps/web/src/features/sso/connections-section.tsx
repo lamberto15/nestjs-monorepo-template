@@ -134,6 +134,11 @@ function ConnectionCard(props: {
             <Badge variant="secondary">
               {t(`protocol.${connection.protocol}`)}
             </Badge>
+            {connection.saml?.requireEncryptedAssertions && (
+              <Badge variant="outline">
+                {t('details.requireEncryptedAssertions')}
+              </Badge>
+            )}
             {connection.jitProvisioning && (
               <Badge variant="outline">{t('connections.jitBadge')}</Badge>
             )}

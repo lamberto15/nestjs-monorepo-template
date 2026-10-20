@@ -251,3 +251,43 @@ describe('domains and SCIM', () => {
     ).toBeVisible();
   });
 });
+
+describe('policy', () => {
+  it('requires SSO and lists the exempted, who can be released', async () => {
+    const { calls } = useSsoApi({
+      can: ADMIN,
+      policy: {
+        requireSso: false,
+        updatedAt: null,
+        exemptions: [
+          {
+            userId: '77777777-7777-4777-8777-777777777777',
+            email: 'root@acme.com',
+            name: 'Root',
+            reason: 'Break-glass',
+            createdBy: null,
+            createdAt: '2026-10-17T09:00:00.000Z',
+          },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    await user.click(await screen.findByRole('tab', { name: 'Policy' }));
+    expect(await screen.findByText('Root')).toBeVisible();
+    await user.click(
+      screen.getByRole('switch', { name: 'Require SSO for this workspace' }),
+    );
+    await waitFor(() => expect(calls.policySet).toEqual([true]));
+    expect(await findToast('SSO is now required.')).toBeVisible();
+    await user.click(
+      screen.getByRole('button', { name: 'End the exemption of Root' }),
+    );
+    await waitFor(() =>
+      expect(calls.exemptionsEnded).toEqual([
+        '77777777-7777-4777-8777-777777777777',
+      ]),
+    );
+    expect(await screen.findByText('Nobody is exempted.')).toBeVisible();
+  });
+});

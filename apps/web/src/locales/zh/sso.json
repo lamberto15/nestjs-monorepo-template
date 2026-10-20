@@ -5,7 +5,8 @@
   "tabs": {
     "connections": "连接",
     "domains": "域名",
-    "scim": "SCIM"
+    "scim": "SCIM",
+    "policy": "策略"
   },
   "protocol": {
     "oidc": "OpenID Connect",
@@ -48,7 +49,8 @@
     "certificates": "提供商证书",
     "validUntil": "有效期至 {{date}}",
     "tenantId": "工作区 ID（用于登录页）",
-    "connectionId": "连接 ID（用于登录页）"
+    "connectionId": "连接 ID（用于登录页）",
+    "requireEncryptedAssertions": "要求加密断言"
   },
   "form": {
     "createTitle": "添加连接",
@@ -117,5 +119,19 @@
     "activeKeys": "{{count}} 个有效密钥",
     "lastCall": "最近调用 {{date}}",
     "neverCalled": "从未调用"
+  },
+  "policy": {
+    "title": "要求 SSO",
+    "description": "开启后，成员只能通过该工作区的某个连接登录。",
+    "toggle": "要求此工作区使用 SSO",
+    "turnedOn": "现已要求 SSO。",
+    "turnedOff": "不再要求 SSO。",
+    "exemptions": "豁免成员",
+    "noExemptions": "没有豁免的成员。",
+    "exemptionsHint": "豁免成员仍可使用密码或通行密钥登录（应急用）。每次使用都会记录审计。",
+    "endExemption": "结束豁免",
+    "endExemptionLabel": "结束 {{name}} 的豁免",
+    "exemptionEnded": "已结束 {{name}} 的豁免。",
+    "exemption": "{{email}} · {{reason}}"
   }
 }

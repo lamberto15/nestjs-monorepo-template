@@ -150,12 +150,11 @@
     },
     "sso": {
       "button": "Log masuk dengan SSO",
-      "description": "Masukkan ID ruang kerja dan sambungan yang diberikan oleh pentadbir anda.",
-      "tenant": "ID ruang kerja",
-      "connection": "ID sambungan",
-      "invalid": "ID tersebut tidak sah. Salin daripada halaman SSO.",
+      "description": "Masukkan e-mel kerja anda. Kami akan membawa anda ke log masuk organisasi anda.",
       "continue": "Teruskan",
-      "cancel": "Batal"
+      "cancel": "Batal",
+      "none": "Log masuk tunggal tidak tersedia untuk alamat itu. Log masuk dengan cara lain, atau tanya pentadbir anda.",
+      "failed": "Kami tidak dapat menyemak alamat itu. Cuba lagi sebentar lagi."
     }
   },
   "account": {

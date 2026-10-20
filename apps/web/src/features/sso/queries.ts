@@ -11,6 +11,7 @@ import {
 import { api } from '@/lib/api';
 
 export type Connection = GetResponse<'/v1/sso/connections'>['items'][number];
+export type Policy = GetResponse<'/v1/sso/policy'>;
 export type Domain = GetResponse<'/v1/sso/domains'>['items'][number];
 
 type JsonBody<T> = T extends {
@@ -34,6 +35,11 @@ export const ssoKey = ['sso'] as const;
 export const connectionsQuery = queryOptions({
   queryKey: [...ssoKey, 'connections'],
   queryFn: () => unwrap(api.GET('/v1/sso/connections')),
+});
+
+export const policyQuery = queryOptions({
+  queryKey: [...ssoKey, 'policy'],
+  queryFn: () => unwrap(api.GET('/v1/sso/policy')),
 });
 
 export const domainsQuery = queryOptions({
@@ -127,6 +133,34 @@ export function useRemoveDomain() {
   return useMutation({
     mutationFn: (id: string) =>
       unwrap(api.DELETE('/v1/sso/domains/{id}', { params: { path: { id } } })),
+    onSuccess: refresh,
+  });
+}
+
+/**
+ * Require SSO (or stop). A refusal (409 `sso_lockout`,
+ * `sso_connection_required`) is toasted by the caller; it needs a recent sign-in (re-authenticate dialog, lib/api.ts).
+ */
+export function useSetPolicy() {
+  const refresh = useRefresh();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (requireSso: boolean) =>
+      unwrap(api.PUT('/v1/sso/policy', { body: { requireSso } })),
+    onSuccess: refresh,
+  });
+}
+
+export function useRemoveExemption() {
+  const refresh = useRefresh();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (userId: string) =>
+      unwrap(
+        api.DELETE('/v1/sso/exemptions/{userId}', {
+          params: { path: { userId } },
+        }),
+      ),
     onSuccess: refresh,
   });
 }

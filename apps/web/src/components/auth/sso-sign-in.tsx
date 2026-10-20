@@ -1,31 +1,58 @@
+import { unwrap } from '@nestjs-monorepo-template/api-client';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
-import { FieldGroup } from '@nestjs-monorepo-template/ui/components/field';
-import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import {
   Field,
   FieldDescription,
+  FieldGroup,
   FieldLabel,
 } from '@nestjs-monorepo-template/ui/components/field';
+import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { LandmarkIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { api } from '@/lib/api';
 import { safeRedirect } from '@/lib/safe-redirect';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LOGIN_PATH = '/v1/auth/sso/';
 
 /**
- * "Sign in with SSO": the browser goes to the connection's own login route,
- * which redirects to the identity provider (docs/auth.md, "Enterprise SSO").
- * The API cannot find a connection by email domain yet, so the person gives
- * the workspace and connection ids their administrator shows them (SSO page),
- * or arrives through the link the administrator sends.
+ * Where the browser may go for an SSO sign-in: the API's own login route
+ * (`/v1/auth/sso/...`), relative or on this origin, with `redirectTo` added.
+ * Anything else the answer could hold (another origin, `//host`, `/\host`,
+ * `javascript:`) is refused, so a wrong answer is never an open redirect.
+ */
+export function ssoLoginTarget(
+  loginUrl: string,
+  redirect: string | undefined,
+  origin = window.location.origin,
+): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(loginUrl, origin);
+  } catch {
+    return undefined;
+  }
+  if (url.origin !== origin || !url.pathname.startsWith(LOGIN_PATH)) {
+    return undefined;
+  }
+  url.searchParams.set('redirectTo', safeRedirect(redirect));
+  return `${url.pathname}${url.search}`;
+}
+
+/**
+ * "Sign in with SSO": the person gives their email, the API finds the
+ * connection of its domain (POST /v1/auth/sso/discover, docs/auth.md,
+ * "Finding the connection by address") and the browser goes to its login
+ * route, which redirects to the identity provider. The answer is the same
+ * whether or not the domain has SSO, so the message for "none" doesn't say.
  */
 export function SsoSignIn(props: { redirect?: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [tenant, setTenant] = useState('');
-  const [connection, setConnection] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState<string>();
+  const [none, setNone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!open) {
     return (
@@ -39,17 +66,34 @@ export function SsoSignIn(props: { redirect?: string }) {
     <form
       noValidate
       className="flex flex-col gap-4 rounded-md border p-4"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
-        const ids = [tenant.trim(), connection.trim()];
-        if (!ids.every((id) => UUID.test(id))) {
-          setError(t('auth.sso.invalid'));
+        setError(undefined);
+        setNone(false);
+        const address = email.trim();
+        if (!/^[^\s@]+@[^\s@]+$/.test(address)) {
+          setError(t('auth.fields.emailInvalid'));
           return;
         }
-        // A full navigation: the API redirects to the identity provider.
-        window.location.assign(
-          `/v1/auth/sso/${encodeURIComponent(ids[0])}/${encodeURIComponent(ids[1])}/login?redirectTo=${encodeURIComponent(safeRedirect(props.redirect))}`,
-        );
+        setBusy(true);
+        try {
+          const { loginUrl } = await unwrap(
+            api.POST('/v1/auth/sso/discover', { body: { email: address } }),
+          );
+          const target = loginUrl
+            ? ssoLoginTarget(loginUrl, props.redirect)
+            : undefined;
+          if (!target) {
+            setNone(true);
+            return;
+          }
+          // A full navigation: the API redirects to the identity provider.
+          window.location.assign(target);
+        } catch {
+          setError(t('auth.sso.failed'));
+        } finally {
+          setBusy(false);
+        }
       }}
     >
       <FieldGroup>
@@ -57,34 +101,30 @@ export function SsoSignIn(props: { redirect?: string }) {
           {t('auth.sso.description')}
         </p>
         <Field data-invalid={Boolean(error)}>
-          <FieldLabel htmlFor="sso-tenant">{t('auth.sso.tenant')}</FieldLabel>
+          <FieldLabel htmlFor="sso-email">{t('auth.fields.email')}</FieldLabel>
           <Input
-            id="sso-tenant"
-            autoComplete="off"
-            value={tenant}
+            id="sso-email"
+            type="email"
+            autoComplete="email"
+            value={email}
             aria-invalid={Boolean(error)}
-            onChange={(event) => setTenant(event.target.value)}
-          />
-        </Field>
-        <Field data-invalid={Boolean(error)}>
-          <FieldLabel htmlFor="sso-connection">
-            {t('auth.sso.connection')}
-          </FieldLabel>
-          <Input
-            id="sso-connection"
-            autoComplete="off"
-            value={connection}
-            aria-invalid={Boolean(error)}
-            onChange={(event) => setConnection(event.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
           />
           {error && (
             <FieldDescription role="alert" className="text-destructive">
               {error}
             </FieldDescription>
           )}
+          {none && (
+            <FieldDescription role="status">
+              {t('auth.sso.none')}
+            </FieldDescription>
+          )}
         </Field>
         <div className="flex gap-2">
-          <Button type="submit">{t('auth.sso.continue')}</Button>
+          <Button type="submit" disabled={busy}>
+            {t('auth.sso.continue')}
+          </Button>
           <Button
             type="button"
             variant="outline"

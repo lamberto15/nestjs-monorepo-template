@@ -150,12 +150,11 @@
     },
     "sso": {
       "button": "使用 SSO 登录",
-      "description": "输入管理员提供的工作区 ID 和连接 ID。",
-      "tenant": "工作区 ID",
-      "connection": "连接 ID",
-      "invalid": "这些 ID 无效。请从 SSO 页面复制。",
+      "description": "输入您的工作邮箱，我们会带您前往所在组织的登录页。",
       "continue": "继续",
-      "cancel": "取消"
+      "cancel": "取消",
+      "none": "该地址无法使用单点登录。请使用其他方式登录，或咨询管理员。",
+      "failed": "无法检查该地址，请稍后重试。"
     }
   },
   "account": {
