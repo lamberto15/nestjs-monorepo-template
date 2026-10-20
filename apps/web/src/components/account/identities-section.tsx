@@ -8,6 +8,8 @@ import { unwrap } from '@nestjs-monorepo-template/api-client';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { LinkIcon } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Section } from '@/components/account/section';
@@ -37,6 +39,16 @@ export const identitiesQuery = queryOptions({
  */
 export function IdentitiesSection(props: { error?: string }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  // The message is kept here and the parameter dropped from the address: the
+  // banner doesn't outlive the visit, nor ride along when the step-up dialog
+  // builds its `redirectTo` from the location.
+  const [error] = useState(props.error);
+  useEffect(() => {
+    if (props.error) {
+      void navigate({ to: '.', search: {}, replace: true });
+    }
+  }, [props.error, navigate]);
   const queryClient = useQueryClient();
   const me = useMe();
   const list = useQuery(identitiesQuery);
@@ -54,11 +66,14 @@ export function IdentitiesSection(props: { error?: string }) {
   const connectable = (methods.data?.providers ?? []).filter(
     (provider) => !linked.some((identity) => identity.provider === provider),
   );
+  const failed = list.isError || methods.isError;
   // Not shown before it is known whether there is anything to show: nothing
-  // connected and nothing to connect is a deployment without providers.
+  // connected and nothing to connect is a deployment without providers. A
+  // failed read is not "nothing": it says so, with a retry.
   if (
-    methods.isPending ||
-    (!list.isPending && linked.length === 0 && connectable.length === 0)
+    !failed &&
+    (methods.isPending ||
+      (!list.isPending && linked.length === 0 && connectable.length === 0))
   ) {
     return null;
   }
@@ -67,14 +82,32 @@ export function IdentitiesSection(props: { error?: string }) {
       title={t('account.identities.title')}
       description={t('account.identities.description')}
     >
-      {props.error && (
+      {error && (
         <FormAlert
-          message={t(`auth.signIn.errors.${props.error}`, {
-            defaultValue: t('account.identities.failed'),
-          })}
+          message={
+            error === 'generic'
+              ? t('account.identities.failed')
+              : t(`auth.signIn.errors.${error}`)
+          }
         />
       )}
-      {list.isPending ? (
+      {failed ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <p className="flex-1 text-muted-foreground">
+            {t('account.identities.loadFailed')}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void (list.isError ? list.refetch() : undefined);
+              void (methods.isError ? methods.refetch() : undefined);
+            }}
+          >
+            {t('account.identities.retry')}
+          </Button>
+        </div>
+      ) : list.isPending ? (
         <Spinner />
       ) : linked.length > 0 ? (
         <ul className="flex flex-col divide-y rounded-md border">
@@ -102,6 +135,9 @@ export function IdentitiesSection(props: { error?: string }) {
               <ConfirmButton
                 size="sm"
                 variant="ghost"
+                label={t('account.identities.disconnectLabel', {
+                  provider: providerName(identity.provider),
+                })}
                 title={t('account.identities.disconnectTitle', {
                   provider: providerName(identity.provider),
                 })}
@@ -121,7 +157,8 @@ export function IdentitiesSection(props: { error?: string }) {
           {t('account.identities.none')}
         </p>
       )}
-      {connectable.length > 0 &&
+      {!failed &&
+        connectable.length > 0 &&
         (me?.user.emailVerified === false ? (
           <p className="text-sm text-muted-foreground">
             {t('account.identities.unverified')}
@@ -163,23 +200,25 @@ function ConnectButton(props: {
         <a
           href={href}
           onClick={async (event) => {
-            if (recent(props.recentUntil)) {
-              return;
-            }
+            // Always by the handler (not the anchor's own navigation), so a
+            // stale sign-in is stepped up first and one place navigates.
             event.preventDefault();
             try {
-              const status = await unwrap(api.GET('/v1/auth/reauthenticate'));
-              if (
-                recent(status.recentUntil) ||
-                (await requestReauthentication({
-                  status: 403,
-                  code: 'reauthentication_required',
-                  methods: status.methods,
-                  mfaRequired: status.mfaRequired,
-                }))
-              ) {
-                location.assign(href);
+              if (!recent(props.recentUntil)) {
+                const status = await unwrap(api.GET('/v1/auth/reauthenticate'));
+                if (
+                  !recent(status.recentUntil) &&
+                  !(await requestReauthentication({
+                    status: 403,
+                    code: 'reauthentication_required',
+                    methods: status.methods,
+                    mfaRequired: status.mfaRequired,
+                  }))
+                ) {
+                  return;
+                }
               }
+              location.assign(href);
             } catch (caught) {
               toast.error(errorMessage(caught));
             }

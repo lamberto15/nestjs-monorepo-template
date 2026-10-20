@@ -23,6 +23,8 @@ export function ConfirmButton(props: {
   variant?: 'outline' | 'destructive' | 'ghost';
   size?: 'default' | 'sm';
   disabled?: boolean;
+  /** The trigger's accessible name, when its text alone is ambiguous (one per row). */
+  label?: string;
   /** Called when the dialog opens: refresh what the question is about. */
   onOpen?: () => void;
 }) {
@@ -36,6 +38,7 @@ export function ConfirmButton(props: {
         variant={props.variant ?? 'outline'}
         size={props.size}
         disabled={props.disabled}
+        aria-label={props.label}
         onClick={() => {
           setOpen(true);
           props.onOpen?.();

@@ -10,12 +10,18 @@ import { Feature, useMe } from '@/lib/features';
 
 export const Route = createFileRoute('/_app/account/security')({
   validateSearch: z.object({
-    // Where connecting a provider sends a refusal back (`?error=…`).
+    // Where connecting a provider sends a refusal back (`?error=…`): the
+    // codes the API uses; anything else is shown as a generic failure.
     error: z
-      .string()
-      .regex(/^[a-z_]{1,64}$/)
+      .enum([
+        'reauthentication_required',
+        'reauthentication_failed',
+        'access_denied',
+        'email_unverified',
+        'generic',
+      ])
       .optional()
-      .catch(undefined),
+      .catch('generic'),
   }),
   component: SecurityPage,
 });

@@ -222,7 +222,10 @@
       "disconnectTitle": "Putuskan {{provider}}?",
       "disconnectDescription": "Anda tidak lagi boleh log masuk dengan {{provider}}.",
       "unverified": "Sahkan alamat e-mel anda untuk menghubungkan akaun.",
-      "failed": "Menghubungkan akaun tidak berjaya. Cuba lagi."
+      "failed": "Menghubungkan akaun tidak berjaya. Cuba lagi.",
+      "loadFailed": "Akaun yang dihubungkan tidak dapat dimuatkan.",
+      "retry": "Cuba lagi",
+      "disconnectLabel": "Putuskan {{provider}}"
     },
     "sessions": {
       "title": "Sesi",

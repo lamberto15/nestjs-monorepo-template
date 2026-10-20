@@ -226,7 +226,10 @@
       "disconnectTitle": "فصل {{provider}}؟",
       "disconnectDescription": "لن تتمكن بعد الآن من تسجيل الدخول باستخدام {{provider}}.",
       "unverified": "أكّد عنوان بريدك الإلكتروني لربط حساب.",
-      "failed": "تعذّر ربط الحساب. حاول مرة أخرى."
+      "failed": "تعذّر ربط الحساب. حاول مرة أخرى.",
+      "loadFailed": "تعذّر تحميل الحسابات المتصلة.",
+      "retry": "حاول مرة أخرى",
+      "disconnectLabel": "فصل {{provider}}"
     },
     "sessions": {
       "title": "الجلسات",

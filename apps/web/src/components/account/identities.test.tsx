@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { act, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { settleReauthentication } from '@/lib/reauth';
 import { renderApp } from '@/test/render-app';
 import { findToast } from '@/test/toast';
@@ -27,6 +27,7 @@ function useSecurityApi(
     providers?: string[];
     recentUntil?: string | null;
     emailVerified?: boolean;
+    identitiesFail?: boolean;
   } = {},
 ) {
   const state = {
@@ -36,6 +37,7 @@ function useSecurityApi(
     deleteCalls: 0,
     lastMethod: false,
     stepUpFirst: false,
+    failing: options.identitiesFail ?? false,
   };
   server.use(
     http.get('/v1/auth/me', () =>
@@ -76,6 +78,9 @@ function useSecurityApi(
     http.get('/v1/auth/sessions', () => HttpResponse.json({ items: [] })),
     http.get('/v1/auth/identities', () => {
       state.reads++;
+      if (state.failing) {
+        return problem(500, 'internal_error');
+      }
       return HttpResponse.json({ items: state.identities });
     }),
     http.delete('/v1/auth/identities/:provider', ({ params }) => {
@@ -102,6 +107,17 @@ function useSecurityApi(
   return state;
 }
 
+const googleLink =
+  '/v1/auth/oidc/google/login?link=true&redirectTo=%2Faccount%2Fsecurity';
+
+/** jsdom can't navigate: `location.assign` is a spy (with the parts of location the app reads). */
+function stubAssign() {
+  const assign = vi.fn();
+  const { origin, pathname, search } = window.location;
+  vi.stubGlobal('location', { origin, pathname, search, assign });
+  return assign;
+}
+
 async function section() {
   const heading = await screen.findByText('Connected accounts');
   return within(heading.closest('[data-slot="card"]') as HTMLElement);
@@ -109,7 +125,10 @@ async function section() {
 
 describe('the connected accounts section', () => {
   // The re-authenticate dialog's request is module state: never left open.
-  afterEach(() => act(() => settleReauthentication(false)));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    act(() => settleReauthentication(false));
+  });
 
   it('lists the connected providers and offers the others', async () => {
     useSecurityApi({ identities: [google] });
@@ -117,7 +136,9 @@ describe('the connected accounts section', () => {
     const card = await section();
     expect(await card.findByText('Google')).toBeVisible();
     expect(card.getByText(/ada@gmail\.com · connected /)).toBeVisible();
-    expect(card.getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    expect(
+      card.getByRole('button', { name: 'Disconnect Google' }),
+    ).toBeVisible();
     // Only the provider that is not connected yet, as the API's own flow.
     expect(card.queryByRole('button', { name: 'Connect Google' })).toBeNull();
     expect(
@@ -138,11 +159,18 @@ describe('the connected accounts section', () => {
   });
 
   it('is absent when nothing is connected and the deployment has no provider', async () => {
-    const api = useSecurityApi({ providers: [] });
-    await renderApp('/account/security');
+    useSecurityApi({ providers: [] });
+    const { queryClient } = await renderApp('/account/security');
     expect(await screen.findByText('Sessions')).toBeVisible();
-    await waitFor(() => expect(api.reads).toBeGreaterThan(0));
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Both of the section's reads are in (a positive wait), and it shows nothing.
+    await waitFor(() => {
+      expect(queryClient.getQueryState(['auth', 'identities'])?.status).toBe(
+        'success',
+      );
+      expect(queryClient.getQueryState(['auth', 'methods'])?.status).toBe(
+        'success',
+      );
+    });
     expect(screen.queryByText('Connected accounts')).toBeNull();
   });
 
@@ -153,7 +181,10 @@ describe('the connected accounts section', () => {
     const user = userEvent.setup();
     expect(await card.findByText('GitHub')).toBeVisible();
     const reads = api.reads;
-    await user.click(card.getAllByRole('button', { name: 'Disconnect' })[0]!);
+    expect(
+      card.getByRole('button', { name: 'Disconnect GitHub' }),
+    ).toBeVisible();
+    await user.click(card.getByRole('button', { name: 'Disconnect Google' }));
     const dialog = await screen.findByRole('alertdialog', {
       name: 'Disconnect Google?',
     });
@@ -175,7 +206,9 @@ describe('the connected accounts section', () => {
     await renderApp('/account/security');
     const card = await section();
     const user = userEvent.setup();
-    await user.click(await card.findByRole('button', { name: 'Disconnect' }));
+    await user.click(
+      await card.findByRole('button', { name: 'Disconnect Google' }),
+    );
     const dialog = await screen.findByRole('alertdialog');
     await user.click(
       within(dialog).getByRole('button', { name: 'Disconnect' }),
@@ -197,7 +230,9 @@ describe('the connected accounts section', () => {
     await renderApp('/account/security');
     const card = await section();
     const user = userEvent.setup();
-    await user.click(await card.findByRole('button', { name: 'Disconnect' }));
+    await user.click(
+      await card.findByRole('button', { name: 'Disconnect Google' }),
+    );
     const dialog = await screen.findByRole('alertdialog');
     await user.click(
       within(dialog).getByRole('button', { name: 'Disconnect' }),
@@ -212,6 +247,7 @@ describe('the connected accounts section', () => {
 
   it('asks to confirm it is you before connecting from a stale sign-in', async () => {
     useSecurityApi({ recentUntil: '2020-01-01T00:00:00.000Z' });
+    const assign = stubAssign();
     server.use(
       http.get('/v1/auth/reauthenticate', () =>
         HttpResponse.json({
@@ -229,9 +265,25 @@ describe('the connected accounts section', () => {
     await user.click(
       await card.findByRole('button', { name: 'Connect Google' }),
     );
-    expect(
-      await screen.findByRole('dialog', { name: /confirm/i }),
-    ).toBeVisible();
+    const reauth = await screen.findByRole('dialog', { name: /confirm/i });
+    expect(assign).not.toHaveBeenCalled();
+    await user.type(within(reauth).getByLabelText(/Password/), 'secret');
+    await user.click(within(reauth).getByRole('button', { name: /Confirm/ }));
+    // The step-up done, the browser goes to the provider.
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(googleLink));
+  });
+
+  it('goes to the provider at once from a recent sign-in', async () => {
+    useSecurityApi();
+    const assign = stubAssign();
+    await renderApp('/account/security');
+    const card = await section();
+    await userEvent
+      .setup()
+      .click(await card.findByRole('button', { name: 'Connect Google' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(googleLink));
+    // Nothing was asked first.
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('shows what the API sent the browser back with', async () => {
@@ -250,5 +302,48 @@ describe('the connected accounts section', () => {
       await card.findByText('Verify your email address to connect an account.'),
     ).toBeVisible();
     expect(card.queryByRole('button', { name: /Connect/ })).toBeNull();
+  });
+
+  it('says the list could not be loaded, with a retry, instead of an empty list', async () => {
+    const api = useSecurityApi({ identities: [google], identitiesFail: true });
+    await renderApp('/account/security');
+    const card = await section();
+    expect(
+      await card.findByText('The connected accounts could not be loaded.'),
+    ).toBeVisible();
+    // Not "nothing connected", and nothing to connect from a list not known.
+    expect(card.queryByText('No accounts connected yet.')).toBeNull();
+    expect(card.queryByRole('button', { name: /Connect/ })).toBeNull();
+    api.failing = false;
+    await userEvent
+      .setup()
+      .click(card.getByRole('button', { name: 'Try again' }));
+    expect(await card.findByText('Google')).toBeVisible();
+    expect(
+      card.queryByText('The connected accounts could not be loaded.'),
+    ).toBeNull();
+  });
+
+  it('shows an unknown error code as the generic failure', async () => {
+    useSecurityApi();
+    await renderApp('/account/security?error=%3Cimg%20onerror%3Dx%3E');
+    expect(
+      await screen.findByText("Connecting the account didn't work. Try again."),
+    ).toBeVisible();
+  });
+
+  it('forgets the error code in the address once it is shown', async () => {
+    useSecurityApi();
+    const { router } = await renderApp(
+      '/account/security?error=reauthentication_required',
+    );
+    expect(
+      await screen.findByText("For this, confirm it's you: sign in again."),
+    ).toBeVisible();
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    // The message stays for this visit.
+    expect(
+      screen.getByText("For this, confirm it's you: sign in again."),
+    ).toBeVisible();
   });
 });

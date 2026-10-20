@@ -222,7 +222,10 @@
       "disconnectTitle": "取消关联 {{provider}}？",
       "disconnectDescription": "你将无法再使用 {{provider}} 登录。",
       "unverified": "请先验证你的电子邮件地址，再关联账户。",
-      "failed": "关联账户失败，请重试。"
+      "failed": "关联账户失败，请重试。",
+      "loadFailed": "无法加载已关联的账户。",
+      "retry": "重试",
+      "disconnectLabel": "取消关联 {{provider}}"
     },
     "sessions": {
       "title": "会话",

@@ -222,7 +222,10 @@
       "disconnectTitle": "Disconnect {{provider}}?",
       "disconnectDescription": "You will no longer be able to sign in with {{provider}}.",
       "unverified": "Verify your email address to connect an account.",
-      "failed": "Connecting the account didn't work. Try again."
+      "failed": "Connecting the account didn't work. Try again.",
+      "loadFailed": "The connected accounts could not be loaded.",
+      "retry": "Try again",
+      "disconnectLabel": "Disconnect {{provider}}"
     },
     "sessions": {
       "title": "Sessions",
