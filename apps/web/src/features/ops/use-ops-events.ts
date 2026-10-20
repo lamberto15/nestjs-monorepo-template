@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { OpsEventData } from './types';
+import type { OpsEventData } from './queries';
 
 /** The log keeps this many events, newest first: the browser's memory is not the API's. */
 export const MAX_EVENTS = 200;
@@ -18,16 +18,6 @@ export type LogEntry = {
 
 /** A line of the log shows at most this much of an event's details. */
 const DETAIL_LIMIT = 300;
-
-function kindOf(event: OpsEventData): string {
-  for (const key of ['type', 'event', 'name', 'kind']) {
-    const value = event[key];
-    if (typeof value === 'string') {
-      return value;
-    }
-  }
-  return '';
-}
 
 function detailOf(event: OpsEventData): string {
   const { source: _source, at: _at, ...rest } = event;
@@ -71,12 +61,12 @@ export function useOpsEvents(live: boolean) {
       if (typeof event !== 'object' || event === null) {
         return;
       }
-      const data = event as OpsEventData;
+      const data = event as OpsEventData; // the stream's `data`, JSON by contract
       const entry: LogEntry = {
         id: nextId.current++,
         source: typeof data.source === 'string' ? data.source : '',
         at: typeof data.at === 'number' ? data.at : Date.now(),
-        kind: kindOf(data),
+        kind: typeof data.type === 'string' ? data.type : '',
         detail: detailOf(data),
       };
       setEntries((current) => [entry, ...current].slice(0, MAX_EVENTS));
