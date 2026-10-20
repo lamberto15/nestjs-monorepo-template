@@ -40,6 +40,14 @@ worked example (`features/notes/note-approvals.ts`).
 
 ## Declaring an action
 
+A generated feature declares its actions in its record
+(`approvals: { publish: { label: 'Publish an invoice' } }`,
+[adding-a-feature](adding-a-feature.md)): the platform derives what this
+section writes by hand (the action, its default policy, the flag, the
+handler, `POST /v1/<x>/{id}/publish`, `assertNotPending()` and
+`withdraw()` in the record's writes), and the feature writes only the
+effect, `apply()`, in `<item>.approvals.ts`. The hand-written way follows.
+
 ```ts
 // features/notes/note-approvals.ts
 export const NOTE_PUBLISH_APPROVAL = defineApproval({

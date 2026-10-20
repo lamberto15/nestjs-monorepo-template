@@ -1,5 +1,6 @@
 import { field } from '../../../src/platform/fields/field.js';
 import { defineRecord } from '../../../src/platform/records/record.js';
+import { recordSetting } from '../../../src/platform/records/record-settings.js';
 
 /**
  * Test items: their fields and capabilities, declared once. The table,
@@ -21,6 +22,16 @@ export const TEST_ITEM = defineRecord({
   grants: 'standard',
   // Its number, gapless per tenant: TI-2026-00001 (perYear: false drops the year).
   number: { prefix: 'TI', perYear: true, width: 5 },
+  // Declared as a generated feature declares them (the generator's --approvals
+  // and --settings): the platform's tests cover the derived routes and keys.
+  approvals: {
+    archive: { label: 'Archive a test item' },
+  },
+  settings: {
+    archiveAfterDays: recordSetting.int(90).min(1).max(365),
+    autoArchive: recordSetting.flag(),
+    sortBy: recordSetting.enum(['title', 'createdAt'], 'createdAt'),
+  },
   fields: {
     title: field.string().searchable(),
     body: field.text().optional().searchable(),

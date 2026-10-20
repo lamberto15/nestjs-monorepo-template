@@ -13,6 +13,7 @@
 //   pnpm feature:add payments --fields "…" --idempotency required --client-access own --grants none
 //   pnpm feature:add people --singular person --fields "name:string"
 //   pnpm feature:add invoices --fields "…" --with tags,comments,attachments,revisions,pdf,bulk,watch,search,transfer,custom
+//   pnpm feature:add invoices --fields "…" --approvals publish,markPaid --settings "paymentDays:int=30,autoSend:flag"
 //   node --test tools/feature/add.test.mjs                  # its tests
 //
 // Field types: string, text, int, decimal, money, bool, date, datetime,
@@ -25,8 +26,10 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
   CAPABILITIES,
+  parseApprovals,
   parseCapabilities,
   parseChoices,
+  parseSettings,
 } from './capabilities.mjs';
 import { format } from './format.mjs';
 import { parseFields } from './fields.mjs';
@@ -80,6 +83,8 @@ export async function addFeature(root, options) {
   }
   const fields = parseFields(options.fields);
   const capabilities = parseCapabilities(options.with, fields);
+  const approvals = parseApprovals(options.approvals);
+  const settings = parseSettings(options.settings, approvals);
   const api = path.join(root, 'apps/api');
   const dir = path.join(api, 'src/features', t.plural);
   if (existsSync(dir)) {
@@ -107,6 +112,8 @@ export async function addFeature(root, options) {
     team: options.team === true,
     ...parseChoices(options),
     capabilities,
+    approvals,
+    settings,
     description:
       options.description || `${t.nouns[0].toUpperCase()}${t.nouns.slice(1)}`,
   };
@@ -122,6 +129,10 @@ export async function addFeature(root, options) {
     [`${t.plural}.controller.ts`]: templates.controller(context),
     [`${t.plural}.module.ts`]: templates.moduleFile(context),
     [`${t.plural}.feature.ts`]: templates.feature(context),
+    // The business logic of what approval does: one entry per action.
+    ...(approvals.length && {
+      [`${t.singular}.approvals.ts`]: templates.approvals(context),
+    }),
   };
   const written = [];
   mkdirSync(dir, { recursive: true });
@@ -182,7 +193,7 @@ async function appendTables(api, t) {
   return file;
 }
 
-const USAGE = `pnpm feature:add <plural-name> --fields "name:type,…" [--with ${CAPABILITIES.join(',')}] [--singular <name>] [--team] [--no-soft-delete] [--idempotency required|optional|off] [--client-access own] [--grants none] [--description "…"]`;
+const USAGE = `pnpm feature:add <plural-name> --fields "name:type,…" [--with ${CAPABILITIES.join(',')}] [--singular <name>] [--team] [--no-soft-delete] [--idempotency required|optional|off] [--client-access own] [--grants none] [--approvals publish,…] [--settings "name:int=30,…"] [--description "…"]`;
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -198,6 +209,8 @@ async function main() {
       grants: { type: 'string' },
       description: { type: 'string' },
       with: { type: 'string' },
+      approvals: { type: 'string' },
+      settings: { type: 'string' },
       root: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -217,6 +230,8 @@ async function main() {
     grants: values.grants,
     description: values.description,
     with: values.with,
+    approvals: values.approvals,
+    settings: values.settings,
   });
   const t = result.names;
   console.log(`Added features/${t.plural}:`);

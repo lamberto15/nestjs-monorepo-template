@@ -21,9 +21,12 @@ import { addFeature, MARKERS } from './add.mjs';
 import { format } from './format.mjs';
 import { readRecord, syncFeature } from './sync.mjs';
 import {
+  approvalLabel,
   numberPrefix,
+  parseApprovals,
   parseCapabilities,
   parseChoices,
+  parseSettings,
 } from './capabilities.mjs';
 import { parseField, parseFields } from './fields.mjs';
 import { names, singularize } from './names.mjs';
@@ -115,6 +118,53 @@ describe('capabilities', () => {
     assert.throws(
       () => parseCapabilities('search', parseFields('total:money')),
       /string or text field/,
+    );
+  });
+});
+
+describe('approvals and settings', () => {
+  it('reads --approvals: camelCase actions, none the record already routes', () => {
+    assert.deepEqual(parseApprovals('publish, markPaid'), [
+      'publish',
+      'markPaid',
+    ]);
+    assert.deepEqual(parseApprovals(undefined), []);
+    assert.throws(() => parseApprovals('restore'), /not an action/);
+    assert.throws(() => parseApprovals('Mark-Paid'), /not an action/);
+    assert.throws(() => parseApprovals('pay,pay'), /twice/);
+    assert.equal(
+      approvalLabel('markPaid', names('invoices')),
+      'Mark paid an invoice',
+    );
+  });
+
+  it('reads --settings: flag, int, string and enum, each with its default', () => {
+    assert.deepEqual(
+      parseSettings(
+        'paymentDays:int=30,autoSend:flag,beta:flag=true,tone:enum(formal|casual)=casual,footer:string=Thanks,sign:enum(a|b)',
+      ),
+      [
+        { name: 'paymentDays', call: 'recordSetting.int(30)' },
+        { name: 'autoSend', call: 'recordSetting.flag()' },
+        { name: 'beta', call: 'recordSetting.flag(true)' },
+        {
+          name: 'tone',
+          call: "recordSetting.enum(['formal', 'casual'], 'casual')",
+        },
+        { name: 'footer', call: "recordSetting.string('Thanks')" },
+        { name: 'sign', call: "recordSetting.enum(['a', 'b'], 'a')" },
+      ],
+    );
+    assert.throws(() => parseSettings('days:int'), /needs a default/);
+    assert.throws(() => parseSettings('days:float=1'), /name:kind/);
+    assert.throws(
+      () => parseSettings('tone:enum(a|b)=c'),
+      /not one of its values/,
+    );
+    assert.throws(() => parseSettings('a:flag,a:flag'), /twice/);
+    assert.throws(
+      () => parseSettings('payApproval:flag', ['pay']),
+      /flag of the approval/,
     );
   });
 });
@@ -418,6 +468,51 @@ describe('addFeature', () => {
     );
   });
 
+  it('declares approvals and settings: the effects file, the module option, the route in the OpenAPI test', async () => {
+    const result = await addFeature(root, {
+      name: 'bills',
+      fields: 'title:string,total:money',
+      approvals: 'pay,markVoid',
+      settings:
+        'paymentDays:int=30,autoSend:flag,tone:enum(formal|casual)=formal',
+    });
+    const read = (file) =>
+      readFileSync(api('src/features/bills', file), 'utf8');
+    const record = read('bill.record.ts');
+    assert.match(record, /import \{ recordSetting \} from/);
+    assert.match(record, /\n {4}pay: \{ label: 'Pay a bill' \},/);
+    assert.match(record, /\n {4}markVoid: \{ label: 'Mark void a bill' \},/);
+    assert.match(record, /\n {4}paymentDays: recordSetting\.int\(30\),/);
+    assert.match(
+      record,
+      /tone: recordSetting\.enum\(\['formal', 'casual'\], 'formal'\),/,
+    );
+    const effects = read('bill.approvals.ts');
+    assert.match(effects, /recordApprovalEffects\(BILL, \{/);
+    assert.match(effects, /\n {2}pay: \{/);
+    assert.match(effects, /RecordApprovalApplied<BillsService>/);
+    const module = read('bills.module.ts');
+    assert.match(
+      module,
+      /import \{ BILL_APPROVALS \} from '\.\/bill\.approvals\.js';/,
+    );
+    assert.match(module, /\n {2}approvals: BILL_APPROVALS,\n\}\);/);
+    assert.ok(result.changed.includes('OpenAPI test: + /v1/bills/{id}/pay'));
+    assert.ok(
+      result.changed.includes('OpenAPI test: + /v1/bills/{id}/mark-void'),
+    );
+    // The sync reads them back.
+    const back = readRecord(api('src/features/bills/bill.record.ts'));
+    assert.deepEqual(back.approvals, ['pay', 'markVoid']);
+    assert.deepEqual(back.settings, ['paymentDays', 'autoSend', 'tone']);
+    // A feature without them has neither the file nor the option.
+    assert.ok(!existsSync(api('src/features/invoices/invoice.approvals.ts')));
+    assert.doesNotMatch(
+      readFileSync(api('src/features/invoices/invoices.module.ts'), 'utf8'),
+      /approvals/,
+    );
+  });
+
   it('idempotency off writes a test that does not expect a replay', async () => {
     await addFeature(root, {
       name: 'pings',
@@ -709,6 +804,72 @@ describe('feature:sync', () => {
       /orders\.controller\.ts codes the create route's Idempotency-Key[^\n]*idempotency: required/,
     );
     writeFileSync(controller, generated);
+  });
+
+  it('adds and removes approvals: the effects file, its entries (while still the stub), the module and the paths', async () => {
+    const file = api('src/features/orders/order.approvals.ts');
+    const modulePath = api('src/features/orders/orders.module.ts');
+    edit(
+      '  fields: {',
+      "  approvals: {\n    pay: { label: 'Pay an order' },\n  },\n  fields: {",
+    );
+    const added = await syncFeature(api(), 'orders');
+    assert.ok(added.changes.includes('OpenAPI test: + /v1/orders/{id}/pay'));
+    assert.ok(added.client);
+    assert.match(readFileSync(file, 'utf8'), /\n {2}pay: \{/);
+    assert.match(
+      readFileSync(modulePath, 'utf8'),
+      /approvals: ORDER_APPROVALS,/,
+    );
+    assert.deepEqual(added.errors, []);
+    assert.equal(
+      (await syncFeature(api(), 'orders', { check: true })).changes.length,
+      0,
+    );
+
+    // A second action: its stub is appended, the first entry untouched.
+    edit(
+      "    pay: { label: 'Pay an order' },\n",
+      "    pay: { label: 'Pay an order' },\n    markPaid: { label: 'Mark an order paid' },\n",
+    );
+    const second = await syncFeature(api(), 'orders');
+    assert.ok(
+      second.changes.includes('OpenAPI test: + /v1/orders/{id}/mark-paid'),
+    );
+    assert.match(readFileSync(file, 'utf8'), /\n {2}markPaid: \{/);
+    assert.equal(
+      await format(file, readFileSync(file, 'utf8')),
+      readFileSync(file, 'utf8'),
+    );
+
+    // Business logic in an entry: removing its action is refused, the entry stays.
+    const pristine = readFileSync(file, 'utf8');
+    writeFileSync(
+      file,
+      pristine.replace(
+        '// Nothing yet: the action is approved, and that is all.',
+        'await service.findOne(_applied.id);',
+      ),
+    );
+    edit("    pay: { label: 'Pay an order' },\n", '');
+    const refused = await syncFeature(api(), 'orders');
+    assert.match(
+      refused.errors.join('\n'),
+      /pay is no longer .* holds business logic/,
+    );
+    assert.ok(refused.changes.includes('OpenAPI test: - /v1/orders/{id}/pay'));
+    assert.match(readFileSync(file, 'utf8'), /\n {2}pay: \{/);
+    // The stub goes with its action.
+    edit("    markPaid: { label: 'Mark an order paid' },\n", '');
+    writeFileSync(file, pristine);
+    edit('  approvals: {\n  },\n', '');
+    const removed = await syncFeature(api(), 'orders');
+    assert.deepEqual(removed.errors, []);
+    assert.ok(
+      removed.changes.includes('OpenAPI test: - /v1/orders/{id}/mark-paid'),
+    );
+    assert.ok(!existsSync(file));
+    assert.doesNotMatch(readFileSync(modulePath, 'utf8'), /approvals/i);
   });
 
   it("warns that a changed clientAccess or grants doesn't reach existing tenants' roles", async () => {

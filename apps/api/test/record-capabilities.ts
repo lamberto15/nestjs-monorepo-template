@@ -9,6 +9,11 @@ import {
   recordKey,
 } from '../src/platform/records/record.js';
 import { recordSchemas } from '../src/platform/records/record.schemas.js';
+import {
+  actionPath,
+  approvalFlagKey,
+} from '../src/platform/records/record-approvals.js';
+import { recordSettingKey } from '../src/platform/records/record-settings.js';
 import { type TestApp, webhookReceiver } from './support.js';
 
 const lowerFirst = (text: string) =>
@@ -666,6 +671,98 @@ export function describeCapabilities(
       await create({ ...samples.body(), [unique]: body[unique] }).expect(201);
       const taken = await admin.post(`${path}/${first}/restore`).expect(409);
       expect(taken.body.code).toBe(`${lowerFirst(record.subject)}_taken`);
+    });
+  }
+
+  // Its approvable actions (`approvals`): the route asks, the record waits, the effect runs.
+  for (const [action, approval] of Object.entries(record.approvals ?? {})) {
+    const route = (id: string) => `${path}/${id}/${actionPath(action)}`;
+    const ask = (id: string) =>
+      node().admin().post(route(id)).set('Idempotency-Key', randomUUID());
+    const key = `${record.subject}.${action}`;
+
+    if (approval.flag !== false) {
+      it(`${action} runs at once while its approval is off`, async () => {
+        const id = await make();
+        const done = await ask(id).expect(200);
+        expect(done.body).toEqual({ status: 'applied', approvalId: null });
+        // Switched off for the tenant: the flag is declared, off by default.
+        const flag = await node()
+          .admin()
+          .get(`/v1/settings/${approvalFlagKey(record, action)}`)
+          .expect(200);
+        expect(flag.body).toMatchObject({ value: false });
+      });
+    }
+
+    it(`${action} asks for approval: the record waits, the effect runs once an approver says yes`, async () => {
+      const admin = node().admin();
+      if (approval.flag !== false) {
+        await admin
+          .put(`/v1/settings/${approvalFlagKey(record, action)}`)
+          .send({ value: true })
+          .expect(200);
+      }
+      // Editors decide (a stored version of the policy: the default names whoever may update).
+      await admin
+        .put(`/v1/approvals/policies/${key}`)
+        .send({
+          stages: [
+            {
+              name: 'Review',
+              approvers: [{ type: 'role', role: 'editor' }],
+              mode: { type: 'any' },
+            },
+          ],
+        })
+        .expect(200);
+      const editor = await node().user(['editor']);
+      const id = await make();
+
+      const asked = await ask(id).expect(202);
+      expect(asked.body).toMatchObject({ status: 'pending' });
+      const approvalId = asked.body.approvalId as string;
+      await node().worker.drain(); // the approval assigns the editors
+
+      // Not twice, and not changed or deleted while it is decided.
+      await ask(id).expect(409);
+      const etag = (await admin.get(`${path}/${id}`).expect(200)).headers
+        .etag as string;
+      await admin
+        .patch(`${path}/${id}`)
+        .set('If-Match', etag)
+        .send(samples.changed)
+        .expect(409);
+      await admin.delete(`${path}/${id}`).expect(409);
+
+      await editor.agent
+        .post(`/v1/approvals/${approvalId}/approve`)
+        .send({})
+        .expect(200);
+      await node().worker.drain(); // the outcome's handler applies it
+      expect(
+        (await admin.get(`/v1/approvals/${approvalId}`).expect(200)).body
+          .status,
+      ).toBe('approved');
+      // The record changes again once it is applied.
+      await admin.delete(`${path}/${id}`).expect(204);
+    });
+  }
+
+  // Its settings and flags (`settings`): declared under <path>.<name> with their defaults.
+  const settings = Object.entries(record.settings ?? {});
+  if (settings.length > 0) {
+    it('declares its settings with their defaults', async () => {
+      const admin = node().admin();
+      for (const [name, spec] of settings) {
+        const shown = await admin
+          .get(`/v1/settings/${recordSettingKey(record, name)}`)
+          .expect(200);
+        expect(shown.body).toMatchObject({
+          value: spec.initial,
+          source: 'default',
+        });
+      }
     });
   }
 }

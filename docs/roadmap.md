@@ -51,7 +51,7 @@ first project is built on the template; until then they report only.
 | CodeQL findings | **Done** (#10 here): custom-field patterns run on RE2 (linear time; lookaround and backreferences refused at save), string-only OIDC query parameters, a linear trailing-slash trim in the client. The SHA-1 (Pwned Passwords) and SHA-256 (API keys) alerts are dismissed as false positives, the demo seed's password print as intended. |
 | Auth follow-ups | **Done** (#13 here): wrong MFA codes count as sign-in failures for bot protection; Redis 7.0 or newer checked at start; a no-sign-in cancel link in the deletion mail (its own JWT key and type, single use, the nightly job claims a deletion under the account lock); OIDC step-up with `prompt=login`, `max_age=0` and `auth_time`; the exporter connects as a `pg_monitor`-only role. |
 | Teams (25) | **Done** (#23 here): org units became teams, a rename only (see item 25). |
-| 6. Feature generator | **Mostly done** (#24 to #30 here, then #38, #40, #41, #48): `pnpm feature:add`, `feature:sync`, the `<item>.record.ts` declaration, the `/add-feature` skill; see item 6 + 8 for what is open. docs/adding-a-feature.md. |
+| 6. Feature generator | **Done** (#24 to #30 here, then #38, #40, #41, #48, #230): `pnpm feature:add`, `feature:sync`, the `<item>.record.ts` declaration, the `/add-feature` skill; see item 6 + 8 for what is open. docs/adding-a-feature.md. |
 | Core without notes | **Done** (#31, #33 here): `pnpm feature:remove notes`; a test-only record (`apps/api/test/fixtures/test-items`) carries the platform's tests; CI's `template-without-notes` job (e2e in two shards, #51). |
 | `pnpm setup` and deployment switches | **Done** (#36, #43 here): the first-run wizard (`tools/setup`); `IDEMPOTENCY` (#35), `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME` (#37), `AUTH_MFA`, `API_CLIENTS`, `IMPERSONATION` (default off, #39); runtime auth policies `auth.requireMfa` and `auth.passwordMinLength` under the env's ceiling (#44). docs/configuration.md. |
 | Zero-downtime deploys | **Done** (#49 to #54 here): Caddy holds requests while replicas restart (#49); `pnpm deploy:rolling` (#53), `pnpm deploy:blue-green` (#52), `pnpm deploy:swarm` (#54); replicas exit right after their last response. docs/deployment.md, "Zero-downtime deploys: three ways". |
@@ -389,8 +389,9 @@ business logic the generator must not emit); generated texts are English in
 every locale, listed to translate. Since then (2026-10-17): custom fields (#38),
 events (webhooks for a record's changes) and numbered records (#41), `softDelete` and
 `team` declared once and changeable later (#40), `clientAccess`, `grants` and
-per-feature `idempotency` (#48). Still open: approvals and settings in the
-generator, and 8 (one event declaration).
+per-feature `idempotency` (#48), and approvals and settings (#230): `--approvals`
+and `--settings`, or `approvals` and `settings` in the declaration, with the
+effects file `feature:sync` keeps. Still open: 8 (one event declaration).
 
 Planned as:
 

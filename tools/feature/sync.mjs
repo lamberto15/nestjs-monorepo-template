@@ -10,6 +10,13 @@
 //   pnpm feature:sync --check          # CI: fail when anything is out of line
 //   node --test tools/feature/add.test.mjs
 //
+// Approvals (`approvals` in the declaration) and settings (`settings`) need
+// no migration: the platform derives the approvable actions, their routes and
+// flags, and the settings. Sync keeps what only the feature can write in line:
+// `<item>.approvals.ts` (one entry of business logic per action, added as a
+// stub and removed while still the stub) and its two lines in the module, and
+// the actions' paths in the OpenAPI test.
+//
 // The guard compares the declaration with the table in the latest drizzle
 // snapshot (apps/api/drizzle/meta): a new required field without a
 // default, an optional field made required, a field removed, or
@@ -19,13 +26,20 @@
 // the flags change in the code the platform derives (platform/records): a
 // generated file that still codes them by hand fails the sync.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { texts } from './capabilities.mjs';
 import { format } from './format.mjs';
 import { names, snake } from './names.mjs';
+import * as templates from './templates.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -203,7 +217,16 @@ function readRecordText(text, file) {
     return value;
   };
   const clientAccess = choice('clientAccess', ['false', 'own']);
+  // One entry per line, 4 spaces in (deeper lines are an entry's own options).
+  const entries = (key) => {
+    const body = new RegExp(`\\n  ${key}:\\s*\\{\\n([\\s\\S]*?)\\n  \\},`).exec(
+      text,
+    )?.[1];
+    return [...(body ?? '').matchAll(/^ {4}(\w+):/gm)].map((m) => m[1]);
+  };
   return {
+    approvals: entries('approvals'),
+    settings: entries('settings'),
     subject,
     plural,
     table,
@@ -248,8 +271,26 @@ export function permissionWarnings(file, record) {
       `grants ${before.grants} -> ${record.grants}: the seed roles are written when a tenant is made, so existing tenants keep the roles they have (their administrators change them at /v1/access/roles); only new tenants start with the new grants.`,
     );
   }
+  for (const action of before.approvals.filter(
+    (name) => !record.approvals.includes(name),
+  )) {
+    warnings.push(
+      `approval ${record.subject}.${action} removed: its route goes (and the OpenAPI document's path: pnpm client:generate), and requests still open for it can no longer be decided or applied: let them end (or cancel them at POST /v1/approvals/{id}/cancel) before you deploy. Its policy versions and settled requests stay in the database.`,
+    );
+  }
+  for (const name of before.settings.filter(
+    (setting) => !record.settings.includes(setting),
+  )) {
+    warnings.push(
+      `setting ${name} removed: values administrators stored for it stay in the database and are no longer read; the code that read it must go too.`,
+    );
+  }
   return warnings;
 }
+
+/** `markPaid` → `mark-paid`: an approvable action in its route's path (platform/records/record-approvals.ts). */
+export const actionPath = (action) =>
+  action.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
 /** The paths the feature's routes have (the OpenAPI test lists them). */
 export function recordPaths(record) {
@@ -275,6 +316,7 @@ export function recordPaths(record) {
       : []),
     ...(has('tags') ? [`${base}/{id}/tags`] : []),
     ...(has('watch') ? [`${base}/{id}/watch`] : []),
+    ...record.approvals.map((action) => `${base}/{id}/${actionPath(action)}`),
   ];
 }
 
@@ -482,6 +524,133 @@ function guard(api, record) {
   return { errors, warnings, generate };
 }
 
+const squash = (text) => text.replace(/\s+/g, ' ').trim();
+
+/** The entries of `<item>.approvals.ts` (its top-level keys, 2 spaces in), with their text. */
+function approvalEntries(text) {
+  const start = text.indexOf('recordApprovalEffects(');
+  const entries = [];
+  if (start < 0) return entries;
+  const re = /^ {2}(\w+): \{\n[\s\S]*?\n {2}\},\n/gm;
+  re.lastIndex = start;
+  for (const match of text.matchAll(re)) {
+    if (match.index >= start) {
+      entries.push({ action: match[1], text: match[0], index: match.index });
+    }
+  }
+  return entries;
+}
+
+/**
+ * The module's two lines for the approvals' effects (the import and the
+ * \`approvals:\` option of recordParts), wired or unwired as the declaration
+ * says. Returns the new text, or null when the module isn't in the shape
+ * the generator writes (the caller says what to do by hand).
+ */
+export function wireApprovals(text, t, wanted) {
+  const name = `${t.SINGULAR}_APPROVALS`;
+  const importLine = `import { ${name} } from './${t.singular}.approvals.js';`;
+  const option = `  approvals: ${name},\n`;
+  const wired = text.includes(importLine) && text.includes(option);
+  if (wanted === wired) return text;
+  if (!wanted) {
+    return text.replace(`${importLine}\n`, '').replace(option, '');
+  }
+  const lastImport = [...text.matchAll(/^import .*;$/gm)].pop();
+  const call = /(\n {2}schemas: \w+,)(\n\}\);)/.exec(text);
+  if (!lastImport || !call) return null;
+  const at = lastImport.index + lastImport[0].length;
+  return `${text.slice(0, at)}\n${importLine}${text.slice(at)}`.replace(
+    /(\n {2}schemas: \w+,)(\n\}\);)/,
+    `$1\n${option.trimEnd()}$2`,
+  );
+}
+
+/**
+ * \`<item>.approvals.ts\`: an entry of business logic for each action the
+ * declaration has, added as the stub (never touching an entry that exists)
+ * and removed only while it is still the stub; the file itself created
+ * with the first action and removed with the last. And its wiring in the
+ * module.
+ */
+async function syncApprovals(api, record, check) {
+  const { t } = record;
+  const dir = path.join(api, 'src/features', record.plural);
+  const file = path.join(dir, `${t.singular}.approvals.ts`);
+  const moduleFile = path.join(dir, `${t.plural}.module.ts`);
+  const changes = [];
+  const errors = [];
+  const relative = (full) =>
+    path.relative(path.join(api, 'src/features'), full);
+  const wanted = record.approvals;
+  let text = existsSync(file) ? readFileSync(file, 'utf8') : null;
+
+  if (wanted.length && text === null) {
+    text = await format(file, templates.approvals({ t, approvals: wanted }));
+    changes.push(`${relative(file)}: + the file, with ${wanted.join(', ')}`);
+    if (!check) writeFileSync(file, text);
+  } else if (text !== null) {
+    let edited = text;
+    const have = approvalEntries(text);
+    for (const entry of [...have].reverse()) {
+      if (wanted.includes(entry.action)) continue;
+      if (
+        squash(entry.text) === squash(templates.approvalEntry(entry.action, t))
+      ) {
+        edited =
+          edited.slice(0, entry.index) +
+          edited.slice(entry.index + entry.text.length);
+        changes.push(`${relative(file)}: - ${entry.action}`);
+      } else {
+        errors.push(
+          `${relative(file)}: ${entry.action} is no longer in ${t.singular}.record.ts's approvals but its entry holds business logic: move that first, then remove the entry by hand.`,
+        );
+      }
+    }
+    for (const action of wanted) {
+      if (have.some((entry) => entry.action === action)) continue;
+      const close = edited.lastIndexOf('\n});');
+      if (close < 0) {
+        errors.push(
+          `${relative(file)}: no \`});\` to add ${action} before; add its entry by hand.`,
+        );
+        continue;
+      }
+      edited = `${edited.slice(0, close)}\n${templates.approvalEntry(action, t)}${edited.slice(close)}`;
+      changes.push(`${relative(file)}: + ${action}`);
+    }
+    if (edited !== text) {
+      const remaining = approvalEntries(edited);
+      if (!wanted.length && !remaining.length && !errors.length) {
+        changes.push(`${relative(file)}: removed (no approvals left)`);
+        if (!check) rmSync(file);
+        text = null;
+      } else {
+        if (!check) writeFileSync(file, await format(file, edited));
+        text = edited;
+      }
+    }
+  }
+
+  // The module passes the effects to recordParts while the file stands.
+  if (existsSync(moduleFile)) {
+    const before = readFileSync(moduleFile, 'utf8');
+    const stands = text !== null && wanted.length > 0;
+    const after = wireApprovals(before, t, stands);
+    if (after === null) {
+      errors.push(
+        `${relative(moduleFile)}: add \`import { ${t.SINGULAR}_APPROVALS } from './${t.singular}.approvals.js'\` and \`approvals: ${t.SINGULAR}_APPROVALS,\` to its recordParts() options by hand (it isn't in the shape pnpm feature:add writes).`,
+      );
+    } else if (after !== before) {
+      changes.push(
+        `${relative(moduleFile)}: ${stands ? '+' : '-'} approvals: ${t.SINGULAR}_APPROVALS`,
+      );
+      if (!check) writeFileSync(moduleFile, await format(moduleFile, after));
+    }
+  }
+  return { changes, errors };
+}
+
 /** One feature: its texts and OpenAPI paths in line (unless `check`), its migration guarded. */
 export async function syncFeature(api, plural, { check = false } = {}) {
   const dir = path.join(api, 'src/features', plural);
@@ -490,13 +659,14 @@ export async function syncFeature(api, plural, { check = false } = {}) {
   const record = readRecord(path.join(dir, file));
   const texts = syncTexts(api, record, check);
   const paths = await syncPaths(api, record, check);
+  const approvals = await syncApprovals(api, record, check);
   const { errors, warnings, generate } = guard(api, record);
   warnings.push(...permissionWarnings(path.join(dir, file), record));
   return {
     plural,
-    changes: [...texts.changes, ...paths],
+    changes: [...texts.changes, ...paths, ...approvals.changes],
     translate: texts.translate,
-    errors: [...errors, ...handWritten(api, record)],
+    errors: [...errors, ...approvals.errors, ...handWritten(api, record)],
     warnings,
     generate,
     client: paths.length > 0,

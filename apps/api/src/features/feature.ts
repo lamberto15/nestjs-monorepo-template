@@ -9,6 +9,8 @@ import type { ResourceDefinition } from '../iam/resources/resource.js';
 import { commentedData } from '../platform/comments/comment-notifications.js';
 import { defineNotifications } from '../platform/notifications/notification.types.js';
 import type { PlatformOptions } from '../platform/platform.options.js';
+import { recordApprovalActions } from '../platform/records/record-approvals.js';
+import { recordSettings } from '../platform/records/record-settings.js';
 import {
   type RecordDeclaration,
   recordEventTypes,
@@ -90,6 +92,12 @@ const recordNotifications = (record: RecordDeclaration | undefined) =>
       ])
     : [];
 
+/** The settings a record declares, and the flags that switch its approvals on. */
+const recordSettingList = (record: RecordDeclaration) => [
+  ...Object.values(recordSettings(record)),
+  ...recordApprovalActions(record).flatMap((a) => (a.flag ? [a.flag] : [])),
+];
+
 /** A feature's declaration, typed (`<x>.feature.ts`). */
 export const defineFeature = (feature: FeatureDefinition) => feature;
 
@@ -118,7 +126,16 @@ export function featureDeclarations(features: readonly FeatureDefinition[]) {
       ...(feature.notifications ?? []),
       ...recordNotifications(feature.record),
     ]),
-    settings: all((feature) => feature.settings),
-    approvals: all((feature) => feature.approvals),
+    // Plus a record's `settings` and the flags of its approvals (platform/records).
+    settings: all((feature) => [
+      ...(feature.settings ?? []),
+      ...(feature.record ? recordSettingList(feature.record) : []),
+    ]),
+    approvals: all((feature) => [
+      ...(feature.approvals ?? []),
+      ...(feature.record
+        ? recordApprovalActions(feature.record).map((a) => a.declaration)
+        : []),
+    ]),
   };
 }
