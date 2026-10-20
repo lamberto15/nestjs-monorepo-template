@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { fieldsRead } from '../../core/http/list-query.js';
+import { fieldsRead, type List } from '../../core/http/list-query.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { ApprovalsRegistry } from '../approvals/approvals.registry.js';
@@ -39,6 +39,25 @@ export class ListsService {
       throw new NotFoundException(`${subject} has no list.`);
     }
     return source;
+  }
+
+  /**
+   * The subject's list with the custom fields its tenant has now: what a
+   * query of it is validated against (saved views do, as the list route does).
+   */
+  async extended(subject: string): Promise<List> {
+    const source = this.source(subject);
+    return this.customFields.subjects().includes(subject)
+      ? this.customFields.extendList(source.list, subject)
+      : source.list;
+  }
+
+  /** Whether the principal may read the subject's list: what GET /v1/lists/{subject} asks (ListPolicy). */
+  mayRead(principal: Principal, subject: string): Promise<boolean> {
+    const readable = this.registry.get(subject)?.readable;
+    return readable
+      ? readable(principal)
+      : this.access.can(principal, 'read', subject);
   }
 
   /**
