@@ -9,6 +9,8 @@
       "manageCustomFields": "Add, change, reorder and deactivate custom fields (the fields administrators add to notes and other records)",
       "manageSettings": "Set settings and feature flags for everyone, a team or a user (platform/settings)",
       "manageTags": "Create, rename, recolour and delete the tags records carry (platform/tags)",
+      "manageLegalHolds": "Place and release legal holds: records kept whatever a delete, a purge or a retention rule would do (iam/holds)",
+      "manageRetention": "Set how long the tenant keeps each kind of record before it is purged or anonymised (platform/retention)",
       "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
       "manageViews": "Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)",
       "readAudit": "Read the audit log",
@@ -179,6 +181,10 @@
     "reencryption": {
       "label": "Re-encryption",
       "description": "Rewrites encrypted values and blind indexes still under an older key with the current one, in batches, every hour."
+    },
+    "retention": {
+      "label": "Retention",
+      "description": "Purges or anonymises the records past the retention rules a tenant turned on, in batches, skipping records under a legal hold, every night."
     },
     "messaging": {
       "label": "Push and SMS delivery",

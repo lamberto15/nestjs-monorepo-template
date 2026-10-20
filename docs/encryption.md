@@ -93,10 +93,10 @@ value>`: the same value in two tenants or columns gives unrelated indexes.
 
 ## Keys
 
-| Variable | What |
-| --- | --- |
+| Variable               | What                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
 | `DATA_ENCRYPTION_KEYS` | the data keys, newest first, comma-separated (`openssl rand -base64 32` each, at least 32 characters) |
-| `BLIND_INDEX_KEYS` | the blind-index keys, the same way; none of the data keys |
+| `BLIND_INDEX_KEYS`     | the blind-index keys, the same way; none of the data keys                                             |
 
 Both are secrets (`_FILE` works; Compose mounts `data_encryption_keys` and
 `blind_index_keys`). **The app never creates them and never keeps them in the
@@ -121,13 +121,38 @@ a column has a blind index and `BLIND_INDEX_KEYS` is unset. `pnpm setup` writes 
 
 The job changes no value anyone sees: no audit entry, no revision.
 
+## Where plaintext never goes
+
+Encrypted columns are found **by property name** (like the log redaction), so a
+view, snapshot or payload built from a row is covered without its table at hand.
+
+| Where                        | What happens                                                                                                                                                                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Audit `changes` and `values` | the value is `[redacted]`, as for a `sensitive` field (`AuditService.recordChange`)                                                                                                                                                           |
+| Revisions                    | the property is left out of the snapshot and its diff (`RevisionsService.record`); a restore leaves the column as it is                                                                                                                       |
+| Exports                      | an exporter column naming an encrypted property needs a `value` that decrypts it, else boot fails (`assertNoEncryptedColumns`); the `value` runs only after the exporter's own permission check, so a reader who may not see it never gets it |
+| Webhooks                     | the generated record events drop the property (`withoutEncrypted`); a hand-written dispatch calls `withoutEncrypted(data)` itself                                                                                                             |
+| Logs                         | `[REDACTED]`, as before                                                                                                                                                                                                                       |
+
+A custom field's value is JSONB and is **not** encrypted: a value that must be
+goes in a declared column of its own, not in `custom`.
+
+## The MFA key
+
+`MFA_ENCRYPTION_KEYS` is read by `@nestjs/authentication`, which takes only a list of
+`keys` (no pluggable cipher), so its TOTP secrets can't join the registry or the
+re-encryption job. The key itself is moved out of the database: in production it
+comes from the environment or a secret file and the app **refuses to start without
+it**. A deployment that already holds it in `app_secrets` keeps working (a warning
+says to copy it to the environment and delete the row). Outside production an unset
+key is still created there, so a fresh checkout runs with no setup.
+
 ## Not covered yet (roadmap item 5)
 
 - The MFA, webhook and idempotency ciphers live inside `@nestjs/authentication`,
   `@nestjs/webhooks` and `@nestjs/idempotency`, with their own keys; they don't take
   a pluggable cipher, so their values aren't in this registry or this job.
-  `MFA_ENCRYPTION_KEYS` still auto-creates in `app_secrets` when unset.
-- Revisions, audit `changes`, exports and custom fields' JSONB don't consult the
-  registry yet; the template declares no encrypted column of its own (the tests'
-  fixture `test_encrypted_records` does).
-- Retention rules and legal holds.
+- The template declares few encrypted columns of its own (SSO client secrets, push
+  tokens, phone numbers); the tests' fixture `test_encrypted_records` is another.
+- Retention rules and legal holds are done: [retention.md](retention.md). Retention
+  does not reach revisions, audit `changes`, exports and report files already stored.

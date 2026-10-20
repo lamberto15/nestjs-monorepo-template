@@ -56,6 +56,16 @@ export const ACCESS_PERMISSIONS = definePermissions({
             'Create, rename, recolour and delete the tags records carry (platform/tags)',
           conditions: [],
         },
+        manageLegalHolds: {
+          label:
+            'Place and release legal holds: records kept whatever a delete, a purge or a retention rule would do (iam/holds)',
+          conditions: [],
+        },
+        manageRetention: {
+          label:
+            'Set how long the tenant keeps each kind of record before it is purged or anonymised (platform/retention)',
+          conditions: [],
+        },
         manageNamingSeries: {
           label:
             'Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)',

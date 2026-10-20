@@ -18,7 +18,11 @@ export interface TransferColumn {
    * in CSV and JSON.
    */
   type?: 'datetime' | 'date';
-  /** Reads the cell when it isn't `row[key]` (a custom field: `row.custom.region`). */
+  /**
+   * Reads the cell when it isn't `row[key]` (a custom field:
+   * `row.custom.region`). Required for an encrypted column (core/encryption):
+   * it decrypts the value, for an exporter whose permission lets the reader see it.
+   */
   value?: (row: Record<string, unknown>) => unknown;
 }
 

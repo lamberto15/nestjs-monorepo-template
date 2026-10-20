@@ -32,6 +32,8 @@ import { IncomingEventHandlers } from '../../platform/webhooks/incoming-event-ha
 import { RevisionsService } from '../../platform/revisions/revisions.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { TeamsService } from '../../iam/access/teams.service.js';
+import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
+import { RetentionRegistry } from '../../platform/retention/retention.registry.js';
 import { principalKey, type Principal } from '../../iam/auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
@@ -66,8 +68,21 @@ export class NotesService {
     private readonly revisions: RevisionsService,
     private readonly approvals: ApprovalsService,
     private readonly tenancy: Tenancy,
+    private readonly holds: LegalHoldsService,
     incomingEvents: IncomingEventHandlers,
+    retention: RetentionRegistry,
   ) {
+    // Notes are purged after the days a tenant sets (off until it turns the rule on).
+    retention.register({
+      name: 'note',
+      label: 'Notes',
+      subject: 'Note',
+      table: notes,
+      ageColumn: notes.createdAt,
+      action: 'purge',
+      defaultDays: 730,
+      minDays: 30,
+    });
     // Numbered NOTE-2026-00042 until the tenant defines naming series of its own.
     namingSeries.register({
       subject: 'Note',
@@ -287,6 +302,8 @@ export class NotesService {
   /** To the recycle bin (soft delete): hidden everywhere, restorable until purged. */
   async delete(by: Principal, note: Note, ip?: string) {
     await inTransaction(this.txHost, async (tx) => {
+      // Not under a legal hold (a 409 legal_hold).
+      await this.holds.assertNotHeld('Note', [note.id], tx);
       // Not while an approver decides on it; a request sent back for changes is withdrawn with the note.
       await this.approvals.assertNotPending('Note', note.id);
       await this.approvals.withdraw(tx, by, 'Note', note.id);

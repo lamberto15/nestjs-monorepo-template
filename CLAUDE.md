@@ -101,6 +101,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Record revisions: history, diff between two, restore one (retention) | [docs/revisions.md](docs/revisions.md) |
 | Approvals: declared policies, stages, approver rules, delegation, escalation, extending | [docs/approvals.md](docs/approvals.md) |
 | API clients' usage per day and route, daily quotas (429 `quota_exceeded`) | [docs/usage.md](docs/usage.md) |
+| Retention rules (purge or anonymise after N days, per tenant, on a queue) and legal holds (block deletes, purges, account deletion) | [docs/retention.md](docs/retention.md) |
 | Languages, time zones | [docs/i18n-and-time.md](docs/i18n-and-time.md) |
 | Environment variables | [docs/configuration.md](docs/configuration.md) |
 | Compose, staging, scaling, CI and its scans, published images (GHCR, `APP_IMAGE`, `CADDY_IMAGE`, rollback) | [docs/deployment.md](docs/deployment.md) |

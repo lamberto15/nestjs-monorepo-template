@@ -6,6 +6,7 @@ import { MAIL_EVENTS } from '../deliverability/mail-event.types.js';
 import { DOCUMENTS } from '../documents/documents.service.js';
 import { MESSAGING } from '../messaging/messaging.queue.js';
 import { REENCRYPTION } from '../encryption/reencryption.service.js';
+import { RETENTION } from '../retention/retention.service.js';
 
 /**
  * Every queue the platform keeps (core's mail queue aside): the one list
@@ -20,6 +21,7 @@ export const PLATFORM_QUEUES: readonly string[] = [
   AI,
   MAIL_EVENTS,
   REENCRYPTION,
+  RETENTION,
   MESSAGING,
 ];
 

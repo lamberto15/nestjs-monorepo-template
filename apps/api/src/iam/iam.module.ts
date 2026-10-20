@@ -12,13 +12,19 @@ import {
   HttpClientModule,
 } from '@nestjs/http-client';
 import { type CoreEnv, webUrl } from '../core/config/core.env.js';
-import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
+import {
+  loadMfaEncryptionKeys,
+  loadOrCreateSecret,
+  type Database,
+} from '../core/database/drizzle.js';
 import { AccessAdminService } from './access/access-admin.service.js';
 import { AccessController } from './access/access.controller.js';
 import { AccessSeeder } from './access/access.seeder.js';
 import { AccessService } from './access/access.service.js';
 import { TeamsController } from './access/teams.controller.js';
 import { TeamsService } from './access/teams.service.js';
+import { LegalHoldsController } from './holds/legal-holds.controller.js';
+import { LegalHoldsService } from './holds/legal-holds.service.js';
 import { ApiClientsService } from './access/api-clients.service.js';
 import { PrincipalsService } from './access/principals.service.js';
 import { PermissionCatalog } from './access/permission-catalog.js';
@@ -161,6 +167,8 @@ export class IamModule {
       AccessPolicy,
       UsersRepository,
       TeamsService,
+      // Legal holds: records kept whatever a delete or a retention rule would do.
+      LegalHoldsService,
       // Step-up (@RecentAuthentication()) on the routes of every group; a
       // person's own account (platform/account) checks their password again.
       ReauthenticationService,
@@ -235,13 +243,9 @@ export class IamModule {
                 // TOTP secrets encrypted at rest (AES-256-GCM), newest key first.
                 mfa: {
                   encryption: {
-                    keys: (
-                      await loadOrCreateSecret(
-                        db,
-                        'MFA_ENCRYPTION_KEYS',
-                        random256,
-                      )
-                    ).split(','),
+                    keys: (await loadMfaEncryptionKeys(db, random256)).split(
+                      ',',
+                    ),
                   },
                   issuer:
                     config.get('MFA_ISSUER', { infer: true }) ??
@@ -317,6 +321,7 @@ export class IamModule {
         WellKnownController,
         AccessController,
         TeamsController,
+        LegalHoldsController,
         TenantSwitchController,
         TenantsController,
         ...ssoControllers,
@@ -408,6 +413,7 @@ export class IamModule {
         AccessService,
         AccessAdminService,
         TeamsService,
+        LegalHoldsService,
         ApiClientsService,
         PrincipalsService,
         AccessSeeder,

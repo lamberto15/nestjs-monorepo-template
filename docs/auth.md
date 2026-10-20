@@ -242,7 +242,9 @@ placeholder address and name, no password, sign-in methods, sessions,
 tokens, memberships (with their roles and units); its notifications,
 preferences and settings go;
 its audit entries keep the actor key, labelled "Deleted user". Records
-the person created stay, owned by an account that is nobody's. A feature
+the person created stay, owned by an account that is nobody's. A legal hold on the person
+(subject `User`, [retention.md](retention.md)) in any of their tenants keeps the job from
+starting: the request stays open and cancellable. A feature
 holding personal data registers a `PersonalDataSource` (`rows()` for the
 export, `erase()` for what must go with the person; `note.transfer.ts`).
 **The cancel link** in the deletion mail (`WEB_URL/cancel-deletion?token=…`;

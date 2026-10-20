@@ -1,5 +1,5 @@
 {
-  "id": "4a1b67e0-eb72-4a61-b01b-3396ed00f9b2",
+  "id": "9368e0cd-92e1-46a1-be8f-04c56bc85888",
   "prevId": "6b2671da-143b-44cf-b8fa-6e2a2b3d8bc5",
   "version": "7",
   "dialect": "postgresql",
@@ -3661,31 +3661,6 @@
           "notNull": true,
           "default": false
         },
-        "require_encrypted_assertions": {
-          "name": "require_encrypted_assertions",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "sp_private_key": {
-          "name": "sp_private_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sp_certificate": {
-          "name": "sp_certificate",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "groups_attribute": {
-          "name": "groups_attribute",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -3791,76 +3766,6 @@
       },
       "checkConstraints": {},
       "isRLSEnabled": true
-    },
-    "public.sso_domain_routes": {
-      "name": "sso_domain_routes",
-      "schema": "",
-      "columns": {
-        "domain": {
-          "name": "domain",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "sso_domain_routes_tenant_id_idx": {
-          "name": "sso_domain_routes_tenant_id_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sso_domain_routes_tenant_id_tenants_id_fk": {
-          "name": "sso_domain_routes_tenant_id_tenants_id_fk",
-          "tableFrom": "sso_domain_routes",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "sso_domain_routes_domain_tenant_id_pk": {
-          "name": "sso_domain_routes_domain_tenant_id_pk",
-          "columns": [
-            "domain",
-            "tenant_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     },
     "public.sso_domains": {
       "name": "sso_domains",
@@ -4001,217 +3906,6 @@
             "public"
           ],
           "using": "(\"sso_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.sso_exemptions": {
-      "name": "sso_exemptions",
-      "schema": "",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sso_exemptions_tenant_id_tenants_id_fk": {
-          "name": "sso_exemptions_tenant_id_tenants_id_fk",
-          "tableFrom": "sso_exemptions",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "sso_exemptions_membership_fk": {
-          "name": "sso_exemptions_membership_fk",
-          "tableFrom": "sso_exemptions",
-          "tableTo": "memberships",
-          "columnsFrom": [
-            "tenant_id",
-            "user_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "user_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "sso_exemptions_tenant_id_user_id_pk": {
-          "name": "sso_exemptions_tenant_id_user_id_pk",
-          "columns": [
-            "tenant_id",
-            "user_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {
-        "sso_exemptions_tenant_select": {
-          "name": "sso_exemptions_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "((\"sso_exemptions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_exemptions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
-        },
-        "sso_exemptions_tenant_insert": {
-          "name": "sso_exemptions_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "sso_exemptions_tenant_update": {
-          "name": "sso_exemptions_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "sso_exemptions_tenant_delete": {
-          "name": "sso_exemptions_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.sso_policies": {
-      "name": "sso_policies",
-      "schema": "",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "require_sso": {
-          "name": "require_sso",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sso_policies_tenant_id_tenants_id_fk": {
-          "name": "sso_policies_tenant_id_tenants_id_fk",
-          "tableFrom": "sso_policies",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "sso_policies_tenant_select": {
-          "name": "sso_policies_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "((\"sso_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_policies\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
-        },
-        "sso_policies_tenant_insert": {
-          "name": "sso_policies_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "sso_policies_tenant_update": {
-          "name": "sso_policies_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "sso_policies_tenant_delete": {
-          "name": "sso_policies_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},
@@ -4435,164 +4129,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.sso_role_grants": {
-      "name": "sso_role_grants",
-      "schema": "",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role_id": {
-          "name": "role_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "connection_id": {
-          "name": "connection_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "sso_role_grants_connection_idx": {
-          "name": "sso_role_grants_connection_idx",
-          "columns": [
-            {
-              "expression": "connection_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sso_role_grants_tenant_id_tenants_id_fk": {
-          "name": "sso_role_grants_tenant_id_tenants_id_fk",
-          "tableFrom": "sso_role_grants",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "sso_role_grants_user_role_fk": {
-          "name": "sso_role_grants_user_role_fk",
-          "tableFrom": "sso_role_grants",
-          "tableTo": "user_roles",
-          "columnsFrom": [
-            "user_id",
-            "role_id"
-          ],
-          "columnsTo": [
-            "user_id",
-            "role_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "sso_role_grants_connection_fk": {
-          "name": "sso_role_grants_connection_fk",
-          "tableFrom": "sso_role_grants",
-          "tableTo": "sso_connections",
-          "columnsFrom": [
-            "tenant_id",
-            "connection_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "sso_role_grants_user_id_role_id_pk": {
-          "name": "sso_role_grants_user_id_role_id_pk",
-          "columns": [
-            "user_id",
-            "role_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {
-        "sso_role_grants_tenant_select": {
-          "name": "sso_role_grants_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "((\"sso_role_grants\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_role_grants\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
-        },
-        "sso_role_grants_tenant_insert": {
-          "name": "sso_role_grants_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "sso_role_grants_tenant_update": {
-          "name": "sso_role_grants_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "sso_role_grants_tenant_delete": {
-          "name": "sso_role_grants_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.sso_role_mappings": {
-      "name": "sso_role_mappings",
+    "public.legal_holds": {
+      "name": "legal_holds",
       "schema": "",
       "columns": {
         "id": {
@@ -4608,23 +4146,47 @@
           "primaryKey": false,
           "notNull": true
         },
-        "connection_id": {
-          "name": "connection_id",
-          "type": "uuid",
+        "subject": {
+          "name": "subject",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "group": {
-          "name": "group",
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placed_by": {
+          "name": "placed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "released_by": {
+          "name": "released_by",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "role_id": {
-          "name": "role_id",
-          "type": "uuid",
+        "release_note": {
+          "name": "release_note",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -4632,14 +4194,55 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {
-        "sso_role_mappings_role_id_idx": {
-          "name": "sso_role_mappings_role_id_idx",
+        "legal_holds_active_idx": {
+          "name": "legal_holds_active_idx",
           "columns": [
             {
-              "expression": "role_id",
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "released_at is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "legal_holds_created_at_idx": {
+          "name": "legal_holds_created_at_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4652,9 +4255,9 @@
         }
       },
       "foreignKeys": {
-        "sso_role_mappings_tenant_id_tenants_id_fk": {
-          "name": "sso_role_mappings_tenant_id_tenants_id_fk",
-          "tableFrom": "sso_role_mappings",
+        "legal_holds_tenant_id_tenants_id_fk": {
+          "name": "legal_holds_tenant_id_tenants_id_fk",
+          "tableFrom": "legal_holds",
           "tableTo": "tenants",
           "columnsFrom": [
             "tenant_id"
@@ -4664,87 +4267,47 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
-        },
-        "sso_role_mappings_connection_fk": {
-          "name": "sso_role_mappings_connection_fk",
-          "tableFrom": "sso_role_mappings",
-          "tableTo": "sso_connections",
-          "columnsFrom": [
-            "tenant_id",
-            "connection_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "sso_role_mappings_role_fk": {
-          "name": "sso_role_mappings_role_fk",
-          "tableFrom": "sso_role_mappings",
-          "tableTo": "roles",
-          "columnsFrom": [
-            "tenant_id",
-            "role_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sso_role_mappings_connection_group_role_key": {
-          "name": "sso_role_mappings_connection_group_role_key",
-          "nullsNotDistinct": true,
-          "columns": [
-            "connection_id",
-            "group",
-            "role_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {
-        "sso_role_mappings_tenant_select": {
-          "name": "sso_role_mappings_tenant_select",
+        "legal_holds_tenant_select": {
+          "name": "legal_holds_tenant_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": [
             "public"
           ],
-          "using": "((\"sso_role_mappings\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_role_mappings\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+          "using": "((\"legal_holds\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"legal_holds\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"legal_holds\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
         },
-        "sso_role_mappings_tenant_insert": {
-          "name": "sso_role_mappings_tenant_insert",
+        "legal_holds_tenant_insert": {
+          "name": "legal_holds_tenant_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
           "to": [
             "public"
           ],
-          "withCheck": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "withCheck": "(\"legal_holds\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "sso_role_mappings_tenant_update": {
-          "name": "sso_role_mappings_tenant_update",
+        "legal_holds_tenant_update": {
+          "name": "legal_holds_tenant_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
           "to": [
             "public"
           ],
-          "using": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"legal_holds\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"legal_holds\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         },
-        "sso_role_mappings_tenant_delete": {
-          "name": "sso_role_mappings_tenant_delete",
+        "legal_holds_tenant_delete": {
+          "name": "legal_holds_tenant_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
           "to": [
             "public"
           ],
-          "using": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+          "using": "(\"legal_holds\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},
@@ -8147,6 +7710,172 @@
             "public"
           ],
           "using": "(\"report_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.retention_policies": {
+      "name": "retention_policies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rule": {
+          "name": "rule",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "days": {
+          "name": "days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "last_run_at": {
+          "name": "last_run_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_count": {
+          "name": "last_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "retention_policies_rule_idx": {
+          "name": "retention_policies_rule_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "rule",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "retention_policies_enabled_idx": {
+          "name": "retention_policies_enabled_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "enabled",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "retention_policies_tenant_id_tenants_id_fk": {
+          "name": "retention_policies_tenant_id_tenants_id_fk",
+          "tableFrom": "retention_policies",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "retention_policies_tenant_select": {
+          "name": "retention_policies_tenant_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "public"
+          ],
+          "using": "((\"retention_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"retention_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"retention_policies\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+        },
+        "retention_policies_tenant_insert": {
+          "name": "retention_policies_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\"retention_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "retention_policies_tenant_update": {
+          "name": "retention_policies_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"retention_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+          "withCheck": "(\"retention_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
+        },
+        "retention_policies_tenant_delete": {
+          "name": "retention_policies_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\"retention_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},
