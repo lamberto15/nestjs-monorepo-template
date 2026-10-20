@@ -1,4 +1,5 @@
 import type { EmailVerificationService } from '@nestjs/authentication';
+import type { Redis } from 'ioredis';
 import { Logger } from '@nestjs/common';
 import type { UsersRepository } from '../auth/users.repository.js';
 import {
@@ -20,11 +21,23 @@ function setup(found: Found, sentRecently = false) {
     verificationLinkSentSince: vi.fn(async () => sentRecently),
   };
   const emailVerification = { send: vi.fn(async () => ({})) };
+  // SET … NX as Redis does it: only the first writer of a key gets 'OK'.
+  const keys = new Set<string>();
+  const redis = {
+    set: vi.fn(async (key: string) => {
+      if (keys.has(key)) {
+        return null;
+      }
+      keys.add(key);
+      return 'OK';
+    }),
+  };
   const service = new VerificationRequests(
     users as unknown as UsersRepository,
     emailVerification as unknown as EmailVerificationService,
+    redis as unknown as Redis,
   );
-  return { service, users, emailVerification };
+  return { service, users, emailVerification, redis };
 }
 
 describe('VerificationRequests', () => {
@@ -80,5 +93,29 @@ describe('VerificationRequests', () => {
       expect.stringContaining('mail down'),
     );
     error.mockRestore();
+  });
+
+  it('sends one link for concurrent requests: the cooldown is taken atomically in Redis', async () => {
+    const { service, emailVerification, redis } = setup(account(false, 'h'));
+    // All pass the links-table check (none stored yet): only one takes the key.
+    for (let i = 0; i < 5; i++) {
+      service.request('ada@example.com');
+    }
+    await service.settled();
+    expect(emailVerification.send).toHaveBeenCalledTimes(1);
+    expect(redis.set).toHaveBeenCalledWith(
+      'verify-resend:u1',
+      '1',
+      'PX',
+      VERIFICATION_RESEND_COOLDOWN_MS,
+      'NX',
+    );
+  });
+
+  it('takes no key when the links table says a link just went', async () => {
+    const { service, redis } = setup(account(false, 'h'), true);
+    service.request('ada@example.com');
+    await service.settled();
+    expect(redis.set).not.toHaveBeenCalled();
   });
 });

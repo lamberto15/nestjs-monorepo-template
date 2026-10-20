@@ -22,10 +22,18 @@ function job(candidates: Tenant[], sweep: (id: string) => Promise<boolean>) {
   );
   const internals = instance as unknown as {
     candidates: () => Promise<Tenant[]>;
-    sweep: (system: unknown, id: string) => Promise<boolean>;
+    sweep: (
+      system: unknown,
+      id: string,
+      cutoff?: Date,
+      pastMaxAge?: boolean,
+    ) => Promise<boolean>;
   };
   internals.candidates = async () => candidates;
-  const swept = vi.fn((_system: unknown, id: string) => sweep(id));
+  const swept = vi.fn(
+    (_system: unknown, id: string, _cutoff?: Date, _pastMaxAge?: boolean) =>
+      sweep(id),
+  );
   internals.sweep = swept;
   return { instance, swept };
 }
@@ -57,5 +65,19 @@ describe('SignUpTenantSweepJob', () => {
       async (id) => id === 'a',
     );
     await expect(instance.sweepAll()).resolves.toBe(1);
+  });
+
+  it('tells the sweep a tenant past the maximum age is deleted whatever its links', async () => {
+    const days = (n: number) => new Date(Date.now() - n * 86_400_000);
+    const old = { ...tenant('old'), createdAt: days(31) } as Tenant;
+    const young = { ...tenant('young'), createdAt: days(9) } as Tenant;
+    const { instance, swept } = job([old, young], async () => true);
+    await instance.sweepAll();
+    expect(
+      swept.mock.calls.map(([, id, , pastMaxAge]) => [id, pastMaxAge]),
+    ).toEqual([
+      ['old', true],
+      ['young', false],
+    ]);
   });
 });
