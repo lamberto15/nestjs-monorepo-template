@@ -11,7 +11,8 @@
     "pattern": "格式",
     "label": "标签",
     "next": "下一个编号",
-    "actions": "操作"
+    "actions": "操作",
+    "rules": "规则"
   },
   "default": "默认",
   "defaultSet": "“{{pattern}}”现在是默认系列。",
@@ -34,7 +35,7 @@
   "form": {
     "createTitle": "新建系列",
     "editTitle": "编辑系列",
-    "syntax": "用点号分隔各部分来书写格式:文本,表示日期的 YYYY、YY、MM 或 DD,以及恰好一段 # 作为计数器(补零)。例如:INV-.YYYY.-.MM.-.#####",
+    "syntax": "用点号分隔各部分来书写格式:文本,表示日期的 YYYY、YY、MM、DD、JJJ 或 WW,表示记录字段的 {字段},表示公司值的 FY 或 ABBR,以及恰好一段 # 作为计数器(补零)。例如:INV-.YYYY.-.MM.-.#####",
     "subject": "记录",
     "pattern": "格式",
     "patternRequired": "请填写系列的格式。",
@@ -49,7 +50,29 @@
     "labelTooLong": "标签最多 100 个字符。",
     "makeDefault": "设为这些记录的默认系列",
     "cancel": "取消",
-    "save": "保存"
+    "save": "保存",
+    "partsHint": "点击某一部分即可将其添加到格式中。",
+    "partsFields": "记录的字段",
+    "partsVariables": "变量",
+    "partsDates": "日期部分",
+    "insert": "将 {{part}} 添加到格式",
+    "dateField": "日期取自",
+    "dateFieldNow": "创建时",
+    "dateFieldHint": "日期部分和 FY 取自记录的这个日期;没有该值的记录使用创建时刻。",
+    "conditions": "条件",
+    "conditionsHint": "可选。当所有条件都满足时,新记录使用此系列;按优先级排在最前的生效。",
+    "conditionAdd": "添加条件",
+    "conditionRemove": "删除条件 {{n}}",
+    "conditionField": "条件 {{n}} 的字段",
+    "conditionOp": "条件 {{n}} 的运算符",
+    "conditionValue": "条件 {{n}} 的值",
+    "conditionFieldPlaceholder": "字段",
+    "conditionIncomplete": "请补全或删除每个条件。",
+    "yes": "是",
+    "no": "否",
+    "priority": "优先级",
+    "priorityHint": "在条件满足的系列中,数值高的优先。",
+    "priorityInvalid": "请输入整数。"
   },
   "counter": {
     "title": "计数器",
@@ -62,6 +85,14 @@
     "invalid": "请输入大于等于零的整数。",
     "tooLow": "计数器不能低于最后使用的值({{current}})。",
     "saved": "“{{pattern}}”的计数器已保存。",
-    "save": "设置计数器"
+    "save": "设置计数器",
+    "valueOf": "{{field}} 的值",
+    "valuesHint": "此格式按 {{fields}} 的每个值分别计数。请输入要查看其计数器的值。",
+    "valuesRequired": "请为每个字段输入值。"
+  },
+  "rules": {
+    "conditions": "条件",
+    "priority": "优先级 {{priority}}",
+    "dateFrom": "日期取自 {{field}}"
   }
 }

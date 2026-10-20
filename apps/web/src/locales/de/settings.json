@@ -69,7 +69,8 @@
   },
   "groups": {
     "auth": "Anmelderichtlinie",
-    "notes": "Notizen"
+    "notes": "Notizen",
+    "numbering": "Nummerierung"
   },
   "preferences": {
     "title": "Präferenzen",

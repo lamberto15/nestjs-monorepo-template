@@ -103,8 +103,7 @@ export function parsePattern(
   // variables and fields can end in digits, so they never touch it.
   const at = parts.indexOf(counters[0]!);
   const merges = (part: PatternPart | undefined, digit: RegExp) =>
-    part !== undefined &&
-    (part.kind !== 'text' || digit.test(part.text));
+    part !== undefined && (part.kind !== 'text' || digit.test(part.text));
   if (merges(parts[at - 1], /[0-9]$/) || merges(parts[at + 1], /^[0-9]/)) {
     throw new PatternError(
       'The counter needs a separator that is not a digit, a date part, a variable or a field on each side it has something, as in INV-.YYYY.-.#####.',
@@ -148,7 +147,10 @@ export function namesIn(parts: PatternPart[]) {
 }
 
 /** A part's text, the counter aside; an unknown field or variable prints as its braced name. */
-function printed(part: Exclude<PatternPart, { kind: 'counter' }>, values: PartValues) {
+function printed(
+  part: Exclude<PatternPart, { kind: 'counter' }>,
+  values: PartValues,
+) {
   switch (part.kind) {
     case 'text':
       return part.text;
@@ -200,7 +202,8 @@ export function printValue(value: unknown): string | undefined {
   if (value === null || value === undefined || typeof value === 'object') {
     return undefined;
   }
-  const text = String(value)
+  // A string, number, boolean or bigint: objects were left out above.
+  const text = String(value as string | number | boolean | bigint)
     .trim()
     .replaceAll(/\s+/g, '-')
     .replaceAll(/[^\p{L}\p{N}_\-/]/gu, '')

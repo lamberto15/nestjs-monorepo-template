@@ -69,7 +69,8 @@
   },
   "groups": {
     "auth": "Dasar log masuk",
-    "notes": "Nota"
+    "notes": "Nota",
+    "numbering": "Penomboran"
   },
   "preferences": {
     "title": "Keutamaan",

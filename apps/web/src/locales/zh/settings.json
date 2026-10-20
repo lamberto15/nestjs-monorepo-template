@@ -69,7 +69,8 @@
   },
   "groups": {
     "auth": "登录策略",
-    "notes": "笔记"
+    "notes": "笔记",
+    "numbering": "编号"
   },
   "preferences": {
     "title": "偏好设置",

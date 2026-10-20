@@ -11,7 +11,8 @@
     "pattern": "Pattern",
     "label": "Label",
     "next": "Next number",
-    "actions": "Actions"
+    "actions": "Actions",
+    "rules": "Rules"
   },
   "default": "Default",
   "defaultSet": "“{{pattern}}” is now the default.",
@@ -34,7 +35,7 @@
   "form": {
     "createTitle": "New series",
     "editTitle": "Edit the series",
-    "syntax": "Write the pattern in parts between dots: text, YYYY, YY, MM or DD for the date, and one run of # for the counter (zero padded). Example: INV-.YYYY.-.MM.-.#####",
+    "syntax": "Write the pattern in parts between dots: text, YYYY, YY, MM, DD, JJJ or WW for the date, {field} for a field of the record, FY or ABBR for the company's values, and one run of # for the counter (zero padded). Example: INV-.YYYY.-.MM.-.#####",
     "subject": "Records",
     "pattern": "Pattern",
     "patternRequired": "Give the series a pattern.",
@@ -49,7 +50,29 @@
     "labelTooLong": "The label is at most 100 characters.",
     "makeDefault": "Make it the default for these records",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "partsHint": "Click a part to add it to the pattern.",
+    "partsFields": "Fields of the record",
+    "partsVariables": "Variables",
+    "partsDates": "Date parts",
+    "insert": "Add {{part}} to the pattern",
+    "dateField": "Date from",
+    "dateFieldNow": "When created",
+    "dateFieldHint": "The date parts and FY come from this date of the record; a record without it uses the moment it is created.",
+    "conditions": "Conditions",
+    "conditionsHint": "Optional. A new record takes this series when all conditions hold for it; the first by priority wins.",
+    "conditionAdd": "Add condition",
+    "conditionRemove": "Remove condition {{n}}",
+    "conditionField": "Field of condition {{n}}",
+    "conditionOp": "Operator of condition {{n}}",
+    "conditionValue": "Value of condition {{n}}",
+    "conditionFieldPlaceholder": "Field",
+    "conditionIncomplete": "Complete or remove every condition.",
+    "yes": "Yes",
+    "no": "No",
+    "priority": "Priority",
+    "priorityHint": "Higher first, among the series whose conditions hold.",
+    "priorityInvalid": "Enter a whole number."
   },
   "counter": {
     "title": "Counter",
@@ -62,6 +85,14 @@
     "invalid": "Enter a whole number, zero or more.",
     "tooLow": "The counter cannot go below the last value taken ({{current}}).",
     "saved": "Counter of “{{pattern}}” saved.",
-    "save": "Set counter"
+    "save": "Set counter",
+    "valueOf": "Value of {{field}}",
+    "valuesHint": "This pattern counts per value of {{fields}}. Enter the values whose counter you want.",
+    "valuesRequired": "Enter a value for every field."
+  },
+  "rules": {
+    "conditions": "Conditions",
+    "priority": "Priority {{priority}}",
+    "dateFrom": "Date from {{field}}"
   }
 }

@@ -69,7 +69,8 @@
   },
   "groups": {
     "auth": "Sign-in policy",
-    "notes": "Notes"
+    "notes": "Notes",
+    "numbering": "Numbering"
   },
   "preferences": {
     "title": "Preferences",

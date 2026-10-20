@@ -638,7 +638,11 @@ export class NamingSeriesService {
         );
       }
       const type =
-        kind === 'number' ? 'number' : kind === 'boolean' ? 'boolean' : 'string';
+        kind === 'number'
+          ? 'number'
+          : kind === 'boolean'
+            ? 'boolean'
+            : 'string';
       if (typeof condition.value !== type) {
         throw invalid(
           `conditions.${index}.value`,
@@ -770,7 +774,8 @@ export class NamingSeriesService {
     const noonUtc = new Date(`${day}T12:00:00Z`);
     // Shift by the zone's offset at that time, so the day in the zone is `day`.
     const inZone = this.datesAt(noonUtc);
-    const shift = Date.parse(`${isoDate(inZone)}T12:00:00Z`) - noonUtc.getTime();
+    const shift =
+      Date.parse(`${isoDate(inZone)}T12:00:00Z`) - noonUtc.getTime();
     return new Date(noonUtc.getTime() - shift);
   }
 
@@ -830,7 +835,7 @@ export function holds(
       ? [Number(raw), Number(value)]
       : kind === 'boolean'
         ? [raw === true ? 1 : 0, value === true ? 1 : 0]
-        : [String(raw), String(value)];
+        : [String(raw as string | number), String(value)];
   switch (op) {
     case 'eq':
       return left === right;
