@@ -8,11 +8,27 @@ import {
   createContext,
   useContext,
   useEffect,
+  useCallback,
   useRef,
   useMemo,
+  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import { useFeature, useMe } from '@/lib/features';
+
+/** Refetched on every reconnect, besides the notifications and the panels. */
+const reconnectKeys = [
+  ['data', 'transfers'],
+  ['data', 'bulk-runs'],
+  ['approvals'],
+] as const;
+
+/** A job query (transfer, bulk run) whose data says it ended. */
+const hasEnded = (data: unknown) => {
+  const status = (data as { status?: unknown } | undefined)?.status;
+  return status === 'completed' || status === 'failed';
+};
 
 const RealtimeContext = createContext<Realtime | undefined>(undefined);
 
@@ -70,6 +86,20 @@ export function RealtimeProvider(props: { children: ReactNode }) {
         void queryClient.invalidateQueries({ queryKey: ['notifications'] });
         // components/records/panels (panelKeys): their comments and files.
         void queryClient.invalidateQueries({ queryKey: ['panels'] });
+        // Jobs and approvals that ended while offline: their events are lost
+        // (features/transfer, features/bulk, features/approvals).
+        for (const queryKey of reconnectKeys) {
+          void queryClient.invalidateQueries({ queryKey });
+        }
+        // The jobs on screen, except those already over (nothing to learn).
+        for (const queryKey of [['data', 'transfer'], ['bulk']]) {
+          void queryClient.invalidateQueries({
+            queryKey,
+            predicate: ({ queryKey: key, state }) =>
+              // ['data','transfer',id,'errors'] is a report file, not a job.
+              key[3] !== 'errors' && !hasEnded(state.data),
+          });
+        }
       }
       connectedOnce = true;
     };
@@ -116,4 +146,69 @@ export function useRealtimeEvent<E extends keyof RealtimeEvents>(
       )) as RealtimeEvents[E];
     return realtime.on(event, forward);
   }, [realtime, event]);
+}
+
+/**
+ * Whether the socket is connected right now: false while it connects, after
+ * it drops (until it is back) and when `realtime` is off. A query that
+ * polls only as a fallback asks this (`useLivePoll`).
+ */
+export function useRealtimeConnected(): boolean {
+  const realtime = useRealtime();
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      if (!realtime) {
+        return () => undefined;
+      }
+      realtime.socket.on('connect', notify);
+      realtime.socket.on('disconnect', notify);
+      return () => {
+        realtime.socket.off('connect', notify);
+        realtime.socket.off('disconnect', notify);
+      };
+    },
+    [realtime],
+  );
+  return useSyncExternalStore(subscribe, () => !!realtime?.socket.connected);
+}
+
+/** While connected, a running job's progress is read this often (ms). */
+export const RUNNING_POLL = 5000;
+/**
+ * While connected, a queued job (or one not read yet) is read this often:
+ * its start has no event, and a job that fails ends with none either (the
+ * API pushes no event for a failure or for progress: issue #293).
+ */
+export const SAFETY_POLL = 30_000;
+
+/** A job as a poll sees it: its id and the status last read (if any). */
+export interface PolledJob {
+  id: string;
+  status?: string;
+}
+
+/**
+ * The polling of queries that a realtime event settles (an export, a bulk
+ * run): `interval(jobs)` is for `refetchInterval`. `fast` ms without a
+ * connected socket (switched off, connecting, dropped). While one is up,
+ * `RUNNING_POLL` for a running job (there is no progress event) and
+ * `SAFETY_POLL` for one still queued; the events end them. After
+ * `push(id)` (the event for that job arrived) the job is polled `fast`
+ * again until it has ended, as the event is sent just before the queue
+ * marks the job done, so the refetch it causes may still see it running.
+ */
+export function useLivePoll(fast: number) {
+  const connected = useRealtimeConnected();
+  const [pushed, setPushed] = useState<ReadonlySet<string>>(new Set());
+  return {
+    interval: (jobs: readonly PolledJob[]) => {
+      if (!connected || jobs.some((job) => pushed.has(job.id))) {
+        return fast;
+      }
+      return jobs.some((job) => job.status === 'running')
+        ? RUNNING_POLL
+        : SAFETY_POLL;
+    },
+    push: (id: string) => setPushed((current) => new Set(current).add(id)),
+  };
 }

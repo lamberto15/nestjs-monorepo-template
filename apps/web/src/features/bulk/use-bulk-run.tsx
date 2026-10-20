@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlertIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLivePoll, useRealtimeEvent } from '@/lib/realtime';
 import {
   bulkJobQuery,
   runBulk,
@@ -137,10 +138,29 @@ function BulkRunDialog(props: {
   );
 }
 
+/**
+ * A queued run: its end comes as `bulk.finished` for this id (the query is
+ * refetched); the progress is polled every second when there is no
+ * connected socket, and every 5 s (30 s while queued) when there is
+ * (useLivePoll).
+ */
 function JobView(props: { id: string; onFinished: () => void }) {
+  const queryClient = useQueryClient();
+  const poll = useLivePoll(1000);
   const query = useQuery({
-    ...bulkJobQuery(props.id),
+    ...bulkJobQuery(props.id, (status) =>
+      poll.interval([{ id: props.id, status }]),
+    ),
     meta: { errorToast: false },
+  });
+  useRealtimeEvent('bulk.finished', (event) => {
+    if (event.id !== props.id) {
+      return;
+    }
+    poll.push(props.id);
+    void queryClient.invalidateQueries({
+      queryKey: bulkJobQuery(props.id).queryKey,
+    });
   });
   const { t } = useTranslation('bulk');
   if (query.isError) {
