@@ -102,6 +102,48 @@ export const platformEnv = z.object({
   /** Where the ECB's eurofxref documents are (eurofxref-daily.xml, eurofxref-hist-90d.xml): a mirror, or a stub in tests. */
   EXCHANGE_RATES_ECB_URL: baseUrl('https://www.ecb.europa.eu/stats/eurofxref'),
 
+  // Push and SMS (platform/messaging, docs/notifications.md, "Push and SMS").
+  // Both providers are off until configured: nothing leaves the deployment.
+  /** SMS provider: `off`, `twilio`, or `memory` (tests: keeps what it would send). */
+  SMS_PROVIDER: choice(['off', 'twilio', 'memory'], 'off'),
+  TWILIO_ACCOUNT_SID: optional(),
+  TWILIO_AUTH_TOKEN: secret(optional()),
+  /** The sending number (E.164) or a Messaging Service SID (`MG…`). */
+  TWILIO_FROM: optional(),
+  /** The URL Twilio posts inbound messages to, when it is not APP_URL + the route (a proxy rewrites it): it is part of what Twilio signs. */
+  TWILIO_WEBHOOK_URL: optional(),
+  /** Twilio's REST API (a stub on loopback in tests). */
+  TWILIO_API_URL: baseUrl('https://api.twilio.com'),
+  /** Push provider: `off`, `web-push` (VAPID), or `memory` (tests). */
+  PUSH_PROVIDER: choice(['off', 'web-push', 'memory'], 'off'),
+  WEB_PUSH_VAPID_PUBLIC_KEY: optional(),
+  WEB_PUSH_VAPID_PRIVATE_KEY: secret(optional()),
+  /** The VAPID contact: `mailto:ops@example.com` or an https URL. */
+  WEB_PUSH_SUBJECT: optional(),
+  /**
+   * Toll fraud: the destination country-calling-code prefixes SMS may go to
+   * (`+1,+44,+49`). Empty: none, so no SMS is sent until the deployment
+   * names the countries it serves.
+   */
+  SMS_ALLOWED_PREFIXES: list(),
+  /** SMS a tenant may send per day, whoever the recipients. */
+  SMS_DAILY_LIMIT_PER_TENANT: z.coerce.number().int().min(0).default(200),
+  /** SMS a tenant may send per day to one allowed prefix (a premium-rate pump hits one prefix). */
+  SMS_DAILY_LIMIT_PER_PREFIX: z.coerce.number().int().min(0).default(100),
+  /** SMS one user may be sent per day (codes included). */
+  SMS_DAILY_LIMIT_PER_USER: z.coerce.number().int().min(0).default(10),
+  /** The longest SMS text, in characters; a longer one is cut. */
+  SMS_MAX_LENGTH: z.coerce.number().int().min(1).max(1600).default(320),
+  /** The longest push payload, in bytes (web push allows about 4 KB); a longer body is cut. */
+  PUSH_MAX_PAYLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .min(256)
+    .max(4096)
+    .default(3500),
+  /** A person's devices that have not been seen for this many days are removed every night. */
+  DEVICES_RETENTION_DAYS: z.coerce.number().int().min(1).default(270),
+
   // Email deliverability (platform/deliverability, docs/deliverability.md).
   /**
    * The SNS topics whose notifications `POST /webhooks/mail/ses` accepts

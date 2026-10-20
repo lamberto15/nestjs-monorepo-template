@@ -10487,6 +10487,14 @@
                               "webhook": {
                                 "description": "API clients only: whether the `notification.created` webhook is sent.",
                                 "type": "boolean"
+                              },
+                              "sms": {
+                                "description": "Users with a verified phone number only, when SMS is configured: whether the notification is also texted.",
+                                "type": "boolean"
+                              },
+                              "push": {
+                                "description": "Users with a registered device only, when push is configured: whether the notification is also pushed.",
+                                "type": "boolean"
                               }
                             },
                             "additionalProperties": false,
@@ -10575,6 +10583,14 @@
                           "webhook": {
                             "description": "API clients only: whether the `notification.created` webhook is sent.",
                             "type": "boolean"
+                          },
+                          "sms": {
+                            "description": "Users with a verified phone number only, when SMS is configured: whether the notification is also texted.",
+                            "type": "boolean"
+                          },
+                          "push": {
+                            "description": "Users with a registered device only, when push is configured: whether the notification is also pushed.",
+                            "type": "boolean"
                           }
                         },
                         "additionalProperties": false
@@ -10652,6 +10668,14 @@
                     "webhook": {
                       "description": "API clients only: whether the `notification.created` webhook is sent.",
                       "type": "boolean"
+                    },
+                    "sms": {
+                      "description": "Users with a verified phone number only, when SMS is configured: whether the notification is also texted.",
+                      "type": "boolean"
+                    },
+                    "push": {
+                      "description": "Users with a registered device only, when push is configured: whether the notification is also pushed.",
+                      "type": "boolean"
                     }
                   },
                   "additionalProperties": {}
@@ -10700,6 +10724,14 @@
                           },
                           "webhook": {
                             "description": "API clients only: whether the `notification.created` webhook is sent.",
+                            "type": "boolean"
+                          },
+                          "sms": {
+                            "description": "Users with a verified phone number only, when SMS is configured: whether the notification is also texted.",
+                            "type": "boolean"
+                          },
+                          "push": {
+                            "description": "Users with a registered device only, when push is configured: whether the notification is also pushed.",
                             "type": "boolean"
                           }
                         },
@@ -10911,6 +10943,535 @@
         "summary": "Remove one of your notifications",
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/v1/devices": {
+      "put": {
+        "description": "Call it whenever the app opens: the same token again updates the name and the last-seen time. A token another person registered moves to you. A device not seen for DEVICES_RETENTION_DAYS is removed. The token is stored encrypted and never returned.",
+        "operationId": "MessagingController_registerDevice_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "ios",
+                      "android"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "example": "Pixel 9"
+                  },
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "description": "The push provider's token. Web: the browser's `PushSubscription` as JSON."
+                  }
+                },
+                "required": [
+                  "platform",
+                  "name",
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "platform": {
+                      "type": "string",
+                      "enum": [
+                        "web",
+                        "ios",
+                        "android"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "lastSeenAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "platform",
+                    "name",
+                    "lastSeenAt",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed."
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Register this device for push, or refresh it",
+        "tags": [
+          "messaging"
+        ]
+      },
+      "get": {
+        "operationId": "MessagingController_devices_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "platform": {
+                            "type": "string",
+                            "enum": [
+                              "web",
+                              "ios",
+                              "android"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "lastSeenAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "platform",
+                          "name",
+                          "lastSeenAt",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Your registered devices",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/v1/devices/{id}": {
+      "delete": {
+        "operationId": "MessagingController_removeDevice_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          },
+          "404": {
+            "description": "Not one of your devices."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Remove a device: its token is deleted",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/v1/messaging/phone": {
+      "get": {
+        "operationId": "MessagingController_phone_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "phone": {
+                      "nullable": true,
+                      "description": "Masked (`+49•••••78`); null when none is set.",
+                      "type": "string"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "optedOut": {
+                      "type": "boolean",
+                      "description": "The number replied STOP: no SMS is sent until it replies START."
+                    }
+                  },
+                  "required": [
+                    "phone",
+                    "verified",
+                    "optedOut"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Your SMS number (masked), and whether it is verified",
+        "tags": [
+          "messaging"
+        ]
+      },
+      "put": {
+        "description": "With its country code (E.164). Texts a six-digit code to confirm it (`POST /messaging/phone/verify`); the number is not used before that. Only the countries in SMS_ALLOWED_PREFIXES are accepted. A different number starts unverified.",
+        "operationId": "MessagingController_setPhone_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 25,
+                    "example": "+4915112345678",
+                    "description": "With its country code (E.164)."
+                  }
+                },
+                "required": [
+                  "phone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "phone": {
+                      "nullable": true,
+                      "description": "Masked (`+49•••••78`); null when none is set.",
+                      "type": "string"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "optedOut": {
+                      "type": "boolean",
+                      "description": "The number replied STOP: no SMS is sent until it replies START."
+                    }
+                  },
+                  "required": [
+                    "phone",
+                    "verified",
+                    "optedOut"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "phone_invalid, or phone_country_not_allowed."
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Set your SMS number",
+        "tags": [
+          "messaging"
+        ]
+      },
+      "delete": {
+        "operationId": "MessagingController_removePhone_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Remove your SMS number",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/v1/messaging/phone/verify": {
+      "post": {
+        "description": "The code lasts ten minutes and is void after five wrong guesses.",
+        "operationId": "MessagingController_verifyPhone_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "phone": {
+                      "nullable": true,
+                      "description": "Masked (`+49•••••78`); null when none is set.",
+                      "type": "string"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "optedOut": {
+                      "type": "boolean",
+                      "description": "The number replied STOP: no SMS is sent until it replies START."
+                    }
+                  },
+                  "required": [
+                    "phone",
+                    "verified",
+                    "optedOut"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "code_invalid."
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          },
+          "404": {
+            "description": "No number set."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Confirm your SMS number with the code texted to it",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/v1/webhooks/sms/{provider}": {
+      "post": {
+        "description": "`twilio`: a form-encoded inbound message, signed with `X-Twilio-Signature` (verified with TWILIO_AUTH_TOKEN and the webhook URL). STOP opts the sender out; START opts them back in.",
+        "operationId": "SmsInboundController_receive_v1",
+        "parameters": [
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "The provider's form fields, as it sends them.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Processed (or ignored)."
+          },
+          "400": {
+            "description": "An empty body."
+          },
+          "401": {
+            "description": "The signature does not verify (sms_signature_invalid)."
+          },
+          "404": {
+            "description": "That provider is not the configured one."
+          }
+        },
+        "summary": "The SMS provider reports a message sent to the number",
+        "tags": [
+          "incoming webhooks"
         ]
       }
     },

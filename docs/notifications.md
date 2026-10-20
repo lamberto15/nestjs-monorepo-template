@@ -2,7 +2,7 @@
 
 How a feature tells a person (or a system) that something happened, once,
 and the platform delivers it: stored to read later, pushed to open
-connections, mailed at once or in a digest, sent to an API client as a
+connections, mailed at once or in a digest, pushed to a phone or texted, sent to an API client as a
 webhook, as the recipient prefers. The code is in `apps/api/src/platform/notifications/`;
 notes is the example (`features/notes/note-events.ts`).
 
@@ -182,6 +182,98 @@ A deleted account watches nothing (`erase`); a record purged from its
 recycle bin is forgotten by the purge itself (`RecordPurgeRegistry`), one
 deleted outright by the feature calling `forget`.
 
+## Push and SMS
+
+Two more channels, `push` and `sms`, for users (roadmap item 11). Code:
+`apps/api/src/platform/messaging/`. **Both providers are off** (`PUSH_PROVIDER`,
+`SMS_PROVIDER`; [configuration.md](configuration.md)): while a provider is off its
+channel is not offered at all (not in `GET /notifications/types`, not a preference).
+Phone numbers and push tokens are personal data: encrypted columns with a blind
+index ([encryption.md](encryption.md)), so `DATA_ENCRYPTION_KEYS` and `BLIND_INDEX_KEYS`
+are required. Nothing here returns a token, and the number only masked.
+
+**How a message goes.** The channel (`SmsChannel`, `PushChannel`) runs in the
+delivery like the email channel and only queues a job on the `messaging` queue
+(job id from the notification, so a retried delivery queues it once; push: one job
+per device). `MessagingProcessor` sends, on a worker, as `system:messaging`, in
+the notification's tenant. A transient provider failure is retried by the queue
+(backoff); a permanent one fails the job.
+
+| Route | Does |
+| --- | --- |
+| `PUT /v1/devices { platform, name, token }` | registers a device, or refreshes it (call it when the app opens: the last-seen time moves); a token another person had moves to the caller |
+| `GET /v1/devices`, `DELETE /v1/devices/{id}` | the caller's devices; removing deletes the token |
+| `GET /v1/messaging/phone` | the number masked, `verified`, `optedOut` |
+| `PUT /v1/messaging/phone { phone }` | sets the number (E.164; only `SMS_ALLOWED_PREFIXES` countries, else 400 `phone_country_not_allowed`), texts a six-digit code; a different number starts unverified |
+| `POST /v1/messaging/phone/verify { code }` | confirms it (ten minutes, void after five wrong guesses) |
+| `DELETE /v1/messaging/phone` | removes it |
+| `POST /v1/webhooks/sms/twilio` | public; the provider's inbound messages (below) |
+
+These are a person's own: an API client gets 403, and so does an administrator
+acting as the person. Registrations and number changes are audited
+(`device.registered`, `device.removed`, `phone.set`, `phone.verified`,
+`phone.removed`, `phone.optedOut`, `phone.optedIn`).
+
+**Devices have their own lifecycle**, not the session's (a web session ends at
+12 hours): a device is deleted when the person removes it, when the provider says
+its token is dead (Web Push 404/410), after `DEVICES_RETENTION_DAYS` without being
+seen (nightly), and with the account (a `PersonalDataSource`: both devices and
+number are in the data export).
+
+**Preferences.** `sms` and `push` are booleans per type in
+`PUT /notifications/preferences`, off unless a declaration's `channels` says
+`{ sms: true }`. SMS also needs a verified number that has not opted out; push needs a
+registered device. API clients cannot set them (400 naming `<type>.sms`).
+
+**Toll-fraud caps.** Applied by the worker right before each SMS (verification codes
+included), so they hold whatever queued it:
+
+- the destination must start with a prefix of `SMS_ALLOWED_PREFIXES` (`+1,+44`);
+  empty means none, so nothing is sent until the deployment names its countries;
+  checked when the number is set and again at send time;
+- per UTC day, at most `SMS_DAILY_LIMIT_PER_TENANT` in a tenant,
+  `SMS_DAILY_LIMIT_PER_PREFIX` to one prefix in a tenant and
+  `SMS_DAILY_LIMIT_PER_USER` to one user. The counters (`messaging_usage`) are
+  incremented in one transaction with an atomic upsert, which rolls back when a cap
+  is hit, so a refused SMS uses none of the allowance and concurrent workers cannot
+  overshoot;
+- per client IP, the routes that text a code are throttled (5 per 10 minutes);
+- a refusal is counted (`blocked:<reason>`), logged as an error and shown by the
+  gauges `sms_sent_today` and `sms_blocked_today{reason}` on the workers'
+  `/metrics`; alert on a rising `sms_blocked_today` or on `sms_sent_today` beyond what
+  you expect (no rule ships yet);
+- the **kill switch** is the flag `messaging.sms` (on by default). The operators
+  switch it off for every tenant with `PUT /v1/settings/messaging.sms/platform
+  { "value": false, "enforced": true }`; a tenant's administrator can switch off
+  their own tenant. A job meeting it is skipped (`switched_off`), not retried.
+
+The caps count messages, not money: a spend ceiling would need the provider's prices.
+
+**STOP and START.** Point the provider's inbound webhook at
+`https://<APP_DOMAIN>/v1/webhooks/sms/twilio`. The adapter verifies Twilio's
+`X-Twilio-Signature` (HMAC-SHA1 of the URL and the sorted fields with the auth
+token; `TWILIO_WEBHOOK_URL` when a proxy changes the URL) on the raw bytes, so
+nothing unsigned is acted on (401 `sms_signature_invalid`). A message that is
+exactly `STOP` (or `STOPALL`, `UNSUBSCRIBE`, `CANCEL`, `END`, `QUIT`, any case) opts
+the number out for every user who has it (found by the blind index): no SMS is
+queued, a job already queued is skipped when it runs, and the verification code is
+not sent either. `START` (`YES`, `UNSTOP`) re-enables a number that opted out and
+does nothing for one that did not. Other texts are ignored. Twilio enforces STOP at
+its end as well (it refuses to send to the number, error 21610, which the adapter also
+records as an opt-out). The route answers 204 and writes in the request only the
+opt-out row and its audit entry.
+
+**Providers** are interfaces (`SmsProvider`, `PushProvider` in
+`messaging/providers/`) chosen by the environment; `memory` keeps what it would send
+(tests; never receives inbound). Twilio is written over `fetch` and `node:crypto`
+(two calls, as the SendGrid intake does for its signature), Web Push uses the pinned
+`web-push` library (VAPID, payload encryption). APNs and FCM are further adapters of
+`PushProvider` (iOS and Android devices are stored but have no provider yet); another
+SMS provider implements `SmsProvider.send` and `parseInbound`.
+
+**Limits.** An SMS is cut to `SMS_MAX_LENGTH` characters; a push payload to
+`PUSH_MAX_PAYLOAD_BYTES` (the body gives way).
+
 ## Adding a channel
 
 A provider that implements `NotificationChannel` and registers itself;
@@ -189,15 +281,15 @@ nothing in the platform changes:
 
 ```ts
 declare module '../../platform/notifications/notification.types.js' {
-  interface NotificationChannelSettings { sms: boolean }   // what declarations and preferences may set
+  interface NotificationChannelSettings { chat: boolean }   // what declarations and preferences may set
 }
 @Injectable()
-export class SmsChannel implements NotificationChannel<boolean> {
-  readonly name = 'sms';
+export class ChatChannel implements NotificationChannel<boolean> {
+  readonly name = 'chat';
   readonly settings = { schema: z.boolean(), off: false };   // leave out: always on, not a preference
-  constructor(registry: NotificationChannelRegistry, private readonly sms: SmsClient) { registry.register(this); }
+  constructor(registry: NotificationChannelRegistry, private readonly chat: ChatClient) { registry.register(this); }
   supports(recipient: Principal) { return recipient.kind === 'user'; }
-  async afterCommit({ recipient, rendered }: NotificationDelivery) { await this.sms.send(…, rendered.title); }
+  async afterCommit({ recipient, rendered }: NotificationDelivery) { await this.chat.send(…, rendered.title); }
 }
 ```
 
@@ -205,7 +297,7 @@ export class SmsChannel implements NotificationChannel<boolean> {
 delivery (a queue add with a deterministic job id, an outbox message);
 `afterCommit(delivery)` for what can't roll back. The recipient's
 preferences and `GET /notifications/types` take the new channel up by
-themselves; declarations set its default under `channels.sms`.
+themselves; declarations set its default under `channels.chat`.
 
 ## Housekeeping
 

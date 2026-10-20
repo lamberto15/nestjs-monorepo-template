@@ -236,11 +236,15 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/data/imports/{name}/template',
         '/v1/data/transfers',
         '/v1/data/transfers/{id}',
+        '/v1/devices',
+        '/v1/devices/{id}',
         '/v1/documents/{id}',
         '/v1/features',
         '/v1/lists/{subject}',
         '/v1/mail/suppressions',
         '/v1/mail/suppressions/{id}',
+        '/v1/messaging/phone',
+        '/v1/messaging/phone/verify',
         '/v1/money/convert',
         '/v1/money/rates',
         '/v1/naming-series',
@@ -298,6 +302,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/webhook-senders/{id}',
         '/v1/webhook-senders/{id}/rotate-secret',
         '/v1/webhooks/mail/{provider}',
+        '/v1/webhooks/sms/{provider}',
         '/v1/webhooks/tenants/{tenantId}/senders/{name}',
       ]);
     check({

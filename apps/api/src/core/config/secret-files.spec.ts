@@ -336,6 +336,8 @@ describe('the environment (env.ts)', () => {
         'SMTP_URL',
         'STORAGE_SIGNING_KEYS',
         'TURNSTILE_SECRET_KEY',
+        'TWILIO_AUTH_TOKEN',
+        'WEB_PUSH_VAPID_PRIVATE_KEY',
         'WEBHOOKS_ENCRYPTION_KEYS',
       ].sort(),
     );

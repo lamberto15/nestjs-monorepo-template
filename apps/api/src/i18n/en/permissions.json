@@ -167,6 +167,18 @@
       "label": "Re-encryption",
       "description": "Rewrites encrypted values and blind indexes still under an older key with the current one, in batches, every hour."
     },
+    "messaging": {
+      "label": "Push and SMS delivery",
+      "description": "Sends the SMS and push messages notifications queued, within the toll-fraud caps."
+    },
+    "messaging-inbound": {
+      "label": "Inbound SMS",
+      "description": "Records a number opting out (STOP) or back in (START) from the SMS provider webhook."
+    },
+    "messaging-retention": {
+      "label": "Messaging retention",
+      "description": "Removes devices not seen for DEVICES_RETENTION_DAYS and the toll-fraud counters of past days, every night."
+    },
     "demo-seed": {
       "label": "Demo seed",
       "description": "Creates demo users, teams and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."
