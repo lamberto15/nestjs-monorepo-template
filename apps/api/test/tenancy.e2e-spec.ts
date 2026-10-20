@@ -454,16 +454,16 @@ describe('tenancy (e2e)', () => {
         socket.once('connect_error', reject);
       });
       const heard: string[] = [];
-      socket.on('tenancy.test', (data: { tenant: string }) =>
-        heard.push(data.tenant),
+      socket.on('notification.removed', (data: { id: string }) =>
+        heard.push(data.id),
       );
       const realtime = node.app.get(Realtime);
       const principal = { kind: 'user' as const, id: both.id };
       await node.inTenant(async () => {
-        realtime.toPrincipal(principal, 'tenancy.test', { tenant: 'B' });
+        realtime.toPrincipal(principal, 'notification.removed', { id: 'B' });
       }, other.id);
       await node.inTenant(async () => {
-        realtime.toPrincipal(principal, 'tenancy.test', { tenant: 'A' });
+        realtime.toPrincipal(principal, 'notification.removed', { id: 'A' });
       });
       await new Promise((resolve) => setTimeout(resolve, 300));
       expect(heard).toEqual(['A']);

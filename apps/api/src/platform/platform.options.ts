@@ -3,6 +3,7 @@ import type { ConsentKindDeclaration } from './account/consent-kinds.js';
 import type { ApprovalDeclaration } from './approvals/approval.types.js';
 import type { CustomFieldsDeclaration } from './custom-fields/custom-field.types.js';
 import type { NotificationTypeDeclaration } from './notifications/notification.types.js';
+import type { RealtimeEventDeclaration } from './realtime/realtime-events.js';
 import type { SettingDeclaration } from './settings/setting.types.js';
 
 export const PLATFORM_OPTIONS = Symbol('PLATFORM_OPTIONS');
@@ -83,4 +84,11 @@ export interface PlatformOptions {
    * consent can be recorded.
    */
   consents?: readonly ConsentKindDeclaration[];
+  /**
+   * The realtime events the features push beyond the platform's
+   * (`defineRealtimeEvents()`): published in the OpenAPI document and the
+   * typed client, and checked against their payload schema in development
+   * and tests.
+   */
+  realtimeEvents?: Record<string, RealtimeEventDeclaration>;
 }

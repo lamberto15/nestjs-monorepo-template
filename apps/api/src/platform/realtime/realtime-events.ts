@@ -22,11 +22,29 @@ import {
  * event declaration, and @nestjs/swagger has no way to describe
  * server-pushed events (an `x-` extension is OpenAPI's way to carry it).
  */
-const event = <S extends z.ZodType>(
+export const defineRealtimeEvent = <S extends z.ZodType>(
   id: string,
   description: string,
   payload: S,
 ) => ({ description, payload: payload.meta({ id }) });
+const event = defineRealtimeEvent;
+
+/** An event as the manifest holds it: what the document shows and the payload's schema. */
+export type RealtimeEventDeclaration = ReturnType<typeof defineRealtimeEvent>;
+
+/**
+ * The events a feature pushes (`Realtime.toPrincipal(principal, 'thumbnail.ready', …)`),
+ * by name, handed to the platform in the feature's declaration
+ * (`realtimeEvents` of `defineFeature`). Each is declared with
+ * `defineRealtimeEvent(id, description, schema)`: `id` names the payload's
+ * OpenAPI component (`Realtime…Event`, unique). Names must not repeat a
+ * platform event's.
+ */
+export const defineRealtimeEvents = <
+  const T extends Record<string, RealtimeEventDeclaration>,
+>(
+  events: T,
+) => events;
 
 const exportOrImport = z.enum(['export', 'import']);
 const approvalStatus = z.enum([
@@ -218,17 +236,51 @@ export type RealtimeEventPayload<E extends RealtimeEventName> = z.infer<
   (typeof REALTIME_EVENTS)[E]['payload']
 >;
 
+/** The platform's events and a deployment's (the features'), refusing a repeated name. */
+export function allRealtimeEvents(
+  extra: Record<string, RealtimeEventDeclaration> = {},
+): Record<string, RealtimeEventDeclaration> {
+  for (const name of Object.keys(extra)) {
+    if (name in REALTIME_EVENTS) {
+      throw new Error(`Realtime event "${name}" is already a platform event.`);
+    }
+  }
+  return { ...REALTIME_EVENTS, ...extra };
+}
+
+/**
+ * Whether a payload fits the event's declaration: `true` for an event the
+ * manifest has and a payload that parses, and the reason otherwise.
+ */
+export function checkRealtimePayload(
+  events: Record<string, RealtimeEventDeclaration>,
+  event: string,
+  data: unknown,
+): string | undefined {
+  const declared = events[event];
+  if (!declared) {
+    return `Realtime event "${event}" is not declared: add it to the manifest (platform/realtime/realtime-events.ts, or \`realtimeEvents\` in the feature).`;
+  }
+  const result = declared.payload.safeParse(data);
+  return result.success
+    ? undefined
+    : `Realtime event "${event}" payload: ${z.prettifyError(result.error)}`;
+}
+
 /**
  * Publishes the manifest in the OpenAPI document: each payload as a named
  * component (`Realtime…Event`) and `x-realtime-events`, a map of event name
  * to `{ description, payload: $ref }`. Same conversion as
  * `addPanelComponents` (Standard JSON Schema, `openapi-3.0`).
  */
-export function addRealtimeEvents(document: OpenAPIObject): void {
+export function addRealtimeEvents(
+  document: OpenAPIObject,
+  extra: Record<string, RealtimeEventDeclaration> = {},
+): void {
   const schemas = (document.components ??= {}).schemas ?? {};
   document.components.schemas = schemas;
   const manifest: Record<string, { description: string; payload: object }> = {};
-  for (const [name, declared] of Object.entries(REALTIME_EVENTS)) {
+  for (const [name, declared] of Object.entries(allRealtimeEvents(extra))) {
     const converted = declared.payload['~standard'].jsonSchema.output({
       target: 'openapi-3.0',
     }) as { definitions?: Record<string, object> };

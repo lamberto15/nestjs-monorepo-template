@@ -168,7 +168,7 @@ export const iamEnv = z.object({
   CAPTCHA_MODE: z.enum(['off', 'always', 'after-failures']).default('off'),
   /**
    * Who verifies the tokens: Cloudflare `turnstile`, or the `stub` of the
-   * tests and load tests (refused in production: NODE_ENV).
+   * tests and load tests (refused in production: NODE_ENV, except APP_ENV=loadtest).
    */
   CAPTCHA_PROVIDER: z.enum(['turnstile', 'stub']).default('turnstile'),
   /** Turnstile's site key (public: the widget's, shown by GET /auth/methods). Required with the mode on. */

@@ -42,6 +42,8 @@ export interface FeatureDefinition {
   notifications?: PlatformOptions['notifications'];
   settings?: PlatformOptions['settings'];
   approvals?: PlatformOptions['approvals'];
+  /** The realtime events it pushes (`defineRealtimeEvents()`). */
+  realtimeEvents?: PlatformOptions['realtimeEvents'];
   /**
    * Its records' declaration (`<x>.record.ts`), when they are declared:
    * what their capabilities need of the platform is derived from it (the
@@ -131,6 +133,10 @@ export function featureDeclarations(features: readonly FeatureDefinition[]) {
       ...(feature.settings ?? []),
       ...(feature.record ? recordSettingList(feature.record) : []),
     ]),
+    realtimeEvents: Object.assign(
+      {},
+      ...features.map((feature) => feature.realtimeEvents ?? {}),
+    ) as NonNullable<PlatformOptions['realtimeEvents']>,
     approvals: all((feature) => [
       ...(feature.approvals ?? []),
       ...(feature.record
