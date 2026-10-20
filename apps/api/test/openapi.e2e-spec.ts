@@ -155,6 +155,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/principals',
         '/v1/access/roles',
         '/v1/access/roles/{id}',
+        '/v1/access/sign-ins',
         '/v1/access/teams',
         '/v1/access/teams/{id}',
         '/v1/access/users',

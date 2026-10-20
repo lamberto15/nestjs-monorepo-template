@@ -173,6 +173,18 @@ describe('tags (e2e)', () => {
       { id: later.id, name: 'Later', color: null },
       { id: urgent.id, name: 'Urgent', color: '#ff0000' },
     ]);
+    // usageCount: the records carrying each tag.
+    const counted = await editor.agent
+      .get('/v1/tags?subject=TestItem')
+      .expect(200);
+    const usage = Object.fromEntries(
+      counted.body.items.map((t: { id: string; usageCount: number }) => [
+        t.id,
+        t.usageCount,
+      ]),
+    );
+    expect(usage[later.id]).toBe(1);
+    expect(usage[urgent.id]).toBe(1);
     // Tags are part of the test item's representation: its ETag moves with them.
     const stale = (
       await editor.agent.get(`/v1/test-items/${second}`).expect(200)

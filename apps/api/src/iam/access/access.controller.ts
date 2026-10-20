@@ -18,6 +18,7 @@ import {
   type SessionRecord,
 } from '@nestjs/authentication';
 import type { Response } from 'express';
+import { and } from 'drizzle-orm';
 import { Can } from '@nestjs/authorization';
 import {
   ApiAcceptedResponse,
@@ -36,9 +37,16 @@ import {
 import { z } from 'zod';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { listSchema, pageSchema } from '../../core/http/pagination.js';
-import { AUDIT_LIST, PRINCIPAL_LIST, USER_LIST } from './access.lists.js';
+import {
+  AUDIT_LIST,
+  PRINCIPAL_LIST,
+  SIGN_IN_ENTRIES,
+  SIGN_IN_LIST,
+  USER_LIST,
+} from './access.lists.js';
 import {
   auditPageSchema,
+  signInPageSchema,
   catalogSchema,
   createdRoleSchema,
   principalSchema,
@@ -51,6 +59,7 @@ import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
 import { RequiresSwitch } from '../auth/deployment-switch.js';
 import { ImpersonationService } from '../account/impersonation.service.js';
+import { SIGN_IN_ACTIONS } from '../audit/sign-in-actions.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessAdminService } from './access-admin.service.js';
 import { InvitationsService } from './invitations.service.js';
@@ -648,4 +657,41 @@ export class AccessController {
       query,
     );
   }
+
+  @Get('sign-ins')
+  @Can(AccessPolicy, 'readAudit')
+  @ApiOperation({
+    summary: "The tenant's sign-ins, newest first",
+    description:
+      "The sign-ins of this tenant's members, successes and wrong passwords (a wrong password to an unknown address is nobody's), as the tenant saw them: a sign-in is entered in the tenant it lands in (a token's, else the member's last chosen), so another tenant's administrators never read it. Filter by user (`user=user:<id>`), method (`method=password`, `method.startsWith=oidc:`), result (`result=failure`), `ip` and `at`; sort by `at`. GET /v1/lists/SignIn describes it. Needs the same permission as the audit log (`Access.readAudit`).",
+  })
+  @ApiOkResponse({ standardSchema: signInPageSchema })
+  async signIns(@Query({ schema: SIGN_IN_LIST.schema }) query: ListQuery) {
+    const page = await this.audit.page(
+      query,
+      and(SIGN_IN_ENTRIES, SIGN_IN_LIST.where(query)),
+    );
+    const named = await this.audit.withActorNames(page.items);
+    return SIGN_IN_LIST.pick(
+      {
+        ...page,
+        items: named.map((entry) => ({
+          id: entry.id,
+          at: entry.at,
+          user: entry.actor,
+          userLabel: entry.actorLabel,
+          userName: entry.actorName,
+          result:
+            entry.action === SIGN_IN_ACTIONS.succeeded ? 'success' : 'failure',
+          method: stringOf(entry.details?.method),
+          via: stringOf(entry.details?.via),
+          userAgent: stringOf(entry.details?.userAgent),
+          ip: entry.ip,
+        })),
+      },
+      query,
+    );
+  }
 }
+
+const stringOf = (value: unknown) => (typeof value === 'string' ? value : null);

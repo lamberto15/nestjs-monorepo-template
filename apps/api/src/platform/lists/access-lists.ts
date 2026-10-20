@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { AUDIT_LIST, USER_LIST } from '../../iam/access/access.lists.js';
+import {
+  AUDIT_LIST,
+  SIGN_IN_LIST,
+  USER_LIST,
+} from '../../iam/access/access.lists.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
 import { ListsRegistry } from './lists.registry.js';
 
 /**
  * The access API's paged lists, described as the records' are
- * (GET /v1/lists/User, GET /v1/lists/Audit): `GET /v1/access/users`'s and
+ * (GET /v1/lists/User, /Audit, /SignIn): `GET /v1/access/users`'s and
  * `GET /v1/access/audit`'s filters, sorts and fields, from the declaration
  * each route validates with, to whoever may call that route
  * (`AccessPolicy.open`, `AccessPolicy.readAudit`). Registered here because IAM can't import
@@ -26,6 +30,12 @@ export class AccessListSources {
     registry.register({
       subject: 'Audit',
       list: AUDIT_LIST,
+      capabilities: [],
+      readable: (principal) => policy.readAudit(principal),
+    });
+    registry.register({
+      subject: 'SignIn',
+      list: SIGN_IN_LIST,
       capabilities: [],
       readable: (principal) => policy.readAudit(principal),
     });

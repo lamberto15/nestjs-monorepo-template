@@ -25,7 +25,7 @@ is a tenant. A way one customer organizes itself is a group.
 `audit_log` and `notifications` are tenant tables whose `tenant_id` may be null:
 an account's own rows, written outside any tenant (a sign-in and its new-device
 notification). Null audit rows are read only outside a tenant (no tenant's
-administrator reads another person's sign-ins); null notification rows in every
+administrator reads another person's sign-ins; a tenant's own `member.signed-in` copy is the exception, docs/auth.md "Sign-in log"); null notification rows in every
 scope, the code filtering by recipient as it always did.
 
 What a membership may do lives in tenant tables: its roles (`user_roles`) and

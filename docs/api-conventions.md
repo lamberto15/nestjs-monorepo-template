@@ -336,7 +336,8 @@ repeating the declaration:
   that route (`AccessPolicy.open`: a registration's `readable` replaces the
   subject's `read` permission, which no permission names for users), and
   `GET /v1/lists/Audit` the audit log (`GET /v1/access/audit`,
-  `AUDIT_LIST`), to whoever has `Access.readAudit`; no
+  `AUDIT_LIST`) and `GET /v1/lists/SignIn` the tenant's sign-in log
+  (`GET /v1/access/sign-ins`, `SIGN_IN_LIST`), to whoever has `Access.readAudit`; no
   capabilities, custom fields or recycle bin (`platform/lists/access-lists.ts`).
   `GET /v1/lists/WebhookDelivery` describes the webhook delivery log
   (`GET /v1/webhook-deliveries` and

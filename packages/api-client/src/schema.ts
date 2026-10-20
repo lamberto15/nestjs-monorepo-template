@@ -2954,6 +2954,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/sign-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's sign-ins, newest first
+         * @description The sign-ins of this tenant's members, successes and wrong passwords (a wrong password to an unknown address is nobody's), as the tenant saw them: a sign-in is entered in the tenant it lands in (a token's, else the member's last chosen), so another tenant's administrators never read it. Filter by user (`user=user:<id>`), method (`method=password`, `method.startsWith=oidc:`), result (`result=failure`), `ip` and `at`; sort by `at`. GET /v1/lists/SignIn describes it. Needs the same permission as the audit log (`Access.readAudit`).
+         */
+        get: operations["AccessController_signIns_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/teams": {
         parameters: {
             query?: never;
@@ -3545,6 +3565,11 @@ export interface components {
             /** @description `#rrggbb`. */
             color: string | null;
             description: string | null;
+            /**
+             * @description How many records of the subject carry the tag.
+             * @example 12
+             */
+            usageCount: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -3654,6 +3679,45 @@ export interface components {
             details: {
                 [key: string]: unknown;
             } | null;
+            ip: string | null;
+        };
+        SignInPage: {
+            items: components["schemas"]["SignInEntry"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        SignInEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            at: string;
+            /** @description The account: `user:<id>`. */
+            user: string;
+            /** @description What the entry stored of the account: its address. */
+            userLabel: string;
+            /** @description The member's name now; null for a former member. */
+            userName: string | null;
+            /** @enum {string} */
+            result: "success" | "failure";
+            /**
+             * @description `password`, `magic-link`, `passkey` or `oidc:<provider>`; a failure is a wrong password.
+             * @example password
+             */
+            method: string | null;
+            /** @description `token`: a token client (POST /auth/token), else a browser. */
+            via: string | null;
+            /** @description The device, without versions: `Chrome on macOS`. */
+            userAgent: string | null;
             ip: string | null;
         };
         TagRef: {
@@ -9937,7 +10001,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, usageCount, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -17669,6 +17733,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_signIns_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: user = */
+                user?: string;
+                /** @description Filter: user in */
+                "user.in"?: string;
+                /** @description Filter: method = */
+                method?: string;
+                /** @description Filter: method in */
+                "method.in"?: string;
+                /** @description Filter: method startsWith */
+                "method.startsWith"?: string;
+                /** @description Filter: result = */
+                result?: "success" | "failure";
+                /** @description Filter: ip = */
+                ip?: string;
+                /** @description Filter: at gt */
+                "at.gt"?: string;
+                /** @description Filter: at gte */
+                "at.gte"?: string;
+                /** @description Filter: at lt */
+                "at.lt"?: string;
+                /** @description Filter: at lte */
+                "at.lte"?: string;
+                /** @description Filter: at between */
+                "at.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"user","op":"eq","value":…},{…}]}. Fields and operators: user (eq, in); method (eq, in, startsWith); result (eq); ip (eq); at (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -at. Sortable: at. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,user. Fields: id, at, user, userLabel, userName, result, method, via, userAgent, ip. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInPage"];
                 };
             };
             /** @description No session. */

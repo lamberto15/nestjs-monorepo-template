@@ -13,6 +13,7 @@ export const tag = (over: Partial<Tag> = {}): Tag => ({
   name: 'Urgent',
   color: '#ef4444',
   description: 'Needs an answer today',
+  usageCount: 0,
   createdAt: '2026-10-17T09:00:00.000Z',
   updatedAt: '2026-10-17T09:00:00.000Z',
   ...over,
