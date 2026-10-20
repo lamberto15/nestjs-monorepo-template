@@ -7,7 +7,7 @@ import {
 import { fieldSchemas } from '../fields/fields.js';
 import { tagRefSchema } from '../tags/tag.schemas.js';
 import { numberFormat, type RecordDeclaration, takes } from './record.js';
-import { recordCanSchema } from './record-can.js';
+import { recordCanSchema, recordWatchingSchema } from './record-can.js';
 
 /** `INV-2026-00042`: what a number looks like, for the docs. */
 const numberExample = (declaration: RecordDeclaration) => {
@@ -83,6 +83,7 @@ export function recordSchemas<const D extends RecordDeclaration>(
     can: recordCanSchema(declaration.softDelete, {
       issue: takes(declaration, 'pdf'),
     }),
+    ...(takes(declaration, 'watch') && { watching: recordWatchingSchema }),
   });
   const actions = [
     'delete',

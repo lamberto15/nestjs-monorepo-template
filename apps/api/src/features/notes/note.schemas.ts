@@ -4,7 +4,10 @@ import {
   customValuesSchema,
 } from '../../platform/custom-fields/custom-field.schemas.js';
 import { bulkRequestSchema } from '../../platform/bulk/bulk.schemas.js';
-import { recordCanSchema } from '../../platform/records/record-can.js';
+import {
+  recordCanSchema,
+  recordWatchingSchema,
+} from '../../platform/records/record-can.js';
 import { tagRefSchema } from '../../platform/tags/tag.schemas.js';
 import type { notes } from './notes.tables.js';
 
@@ -72,6 +75,7 @@ export const noteSchema = z.object({
     .array(tagRefSchema)
     .describe('Its tags, by name (PUT /v1/notes/{id}/tags sets them).'),
   can: recordCanSchema(true, { issue: true }),
+  watching: recordWatchingSchema,
 });
 
 /** A note as stored (dates as Date); the API sends them as ISO strings (noteSchema). */

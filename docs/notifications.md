@@ -170,6 +170,10 @@ const to = [row.ownerId, ...(await this.subscriptions.watchers({ subject: 'Note'
 repeated changes into one notification per record. Routes:
 `POST`/`DELETE /v1/notes/{id}/watch` (the feature's), `GET /v1/subscriptions`
 (what the caller watches), `DELETE /v1/subscriptions/{subject}/{recordId}`.
+`?include=watching` on a record's detail and list routes adds `watching`
+to each record (whether the caller watches it; one query per page,
+`SubscriptionsService.watching()`, the platform's `RecordPresenter` does it
+for every feature with the `watch` capability).
 A deleted account watches nothing (`erase`); a record purged from its
 recycle bin is forgotten by the purge itself (`RecordPurgeRegistry`), one
 deleted outright by the feature calling `forget`.

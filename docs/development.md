@@ -646,6 +646,17 @@ A change that touches several areas gets each label
 becomes an issue with that area's label: the problem, the evidence
 (`file:line`, the request and response) and a proposal.
 
+Issues also carry one priority label:
+
+- `P0`: critical, a security or data-leak bug.
+- `P1`: high.
+- `P2`: medium.
+- `P3`: low.
+
+Sessions pick `P0` first, then `P1`, `P2`, `P3`. Within a priority, a `bug` comes
+before an `enhancement`, and the `backend` issue before the `frontend` issue that
+depends on it.
+
 Picking up an issue:
 
 1. Skip it if it's already labelled `in progress`.

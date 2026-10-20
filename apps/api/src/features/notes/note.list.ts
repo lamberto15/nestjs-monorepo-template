@@ -62,8 +62,10 @@ export const NOTE_LIST = listQuery(
     },
   },
   {
-    // `can` (?include=can) is no field to pick.
-    select: Object.keys(noteSchema.shape).filter((key) => key !== 'can'),
+    // `can` and `watching` (?include=) are no fields to pick.
+    select: Object.keys(noteSchema.shape).filter(
+      (key) => key !== 'can' && key !== 'watching',
+    ),
     softDelete: true,
   },
 );
