@@ -224,3 +224,146 @@ describe('the registry', () => {
     }
   });
 });
+
+describe('redactValue', () => {
+  it('masks a secret by name at any depth, in any case, and in a text', () => {
+    const password = secret();
+    const token = secret();
+    const value = logRedaction.redactValue({
+      topic: 'mail.send',
+      headers: { Authorization: `Bearer ${token}`, 'X-Request': 'r1' },
+      payload: {
+        user: { Password: password },
+        note: `Request failed: refreshToken=${token}`,
+        list: [{ apiKey: token }],
+      },
+    });
+    const text = JSON.stringify(value);
+    expect(text).not.toContain(password);
+    expect(text).not.toContain(token);
+    expect(value).toMatchObject({
+      topic: 'mail.send',
+      headers: { Authorization: REDACTED, 'X-Request': 'r1' },
+      payload: { user: { Password: REDACTED } },
+    });
+  });
+
+  it('masks a dotted path only under its parent', () => {
+    expect(
+      logRedaction.redactValue({
+        body: { code: '123456' },
+        error: { code: 'not_found' },
+      }),
+    ).toEqual({ body: { code: REDACTED }, error: { code: 'not_found' } });
+  });
+
+  it('reduces an error to its name and message, never its stack', () => {
+    const token = secret();
+    const failure = new TypeError(`bad Authorization: Bearer ${token}`);
+    const value = logRedaction.redactValue({ failure });
+    expect(value).toEqual({
+      failure: {
+        name: 'TypeError',
+        message: `bad Authorization: Bearer ${REDACTED}`,
+      },
+    });
+    expect(JSON.stringify(value)).not.toContain(' at ');
+  });
+
+  it('drops the frames of a stack trace in a text and cuts a long one', () => {
+    const text = 'Boom: it broke\n    at run (/app/dist/x.js:1:1)\n    at next';
+    expect(logRedaction.redactString(text)).toBe('Boom: it broke');
+    const long = 'x'.repeat(5000);
+    const cut = logRedaction.redactString(long, 100);
+    expect(cut).toHaveLength(101);
+    expect(cut.endsWith('…')).toBe(true);
+  });
+
+  it('masks a secret that sits at the cut', () => {
+    // 90 characters, then "Bearer " and a 40-character token: the cut (100)
+    // falls inside the token.
+    const token = randomBytes(30).toString('base64url');
+    expect(token).toHaveLength(40);
+    const text = `${'a'.repeat(89)} Bearer ${token}`;
+    const result = logRedaction.redactString(text, 100);
+    expect(result).not.toContain(token.slice(0, 4));
+    expect(result).toContain('Bearer ');
+  });
+
+  it('masks a private key the bound cut off, or that was never closed', () => {
+    const body = randomBytes(30).toString('base64');
+    const open = `before ${['-----BEGIN', 'PRIVATE KEY-----'].join(' ')}\n${body}`;
+    const result = logRedaction.redactString(open);
+    expect(result).toBe(`before ${REDACTED}`);
+  });
+
+  it('masks a name that ends with a declared one: snake_case, kebab-case, prefixed', () => {
+    const value = secret();
+    const masked = logRedaction.redactValue({
+      access_token: value,
+      refresh_token: value,
+      client_secret: value,
+      api_key: value,
+      private_key: value,
+      id_token: value,
+      'x-auth-token': value,
+      'x-amz-security-token': value,
+      'stripe-signature': value,
+      besid: 'kept',
+      hotp: 'kept',
+      fencingToken: 7,
+      topic: 'kept',
+    }) as Record<string, unknown>;
+    const { besid, hotp, fencingToken, topic, ...rest } = masked;
+    expect(Object.values(rest).every((v) => v === REDACTED)).toBe(true);
+    expect(Object.keys(rest)).toHaveLength(9);
+    // Short names (a letter or two off a common word) and numbers stay.
+    expect({ besid, hotp, fencingToken, topic }).toEqual({
+      besid: 'kept',
+      hotp: 'kept',
+      fencingToken: 7,
+      topic: 'kept',
+    });
+  });
+
+  it('shows bytes as their size, and an error name masked and cut', () => {
+    expect(
+      logRedaction.redactValue({
+        buffer: Buffer.alloc(12),
+        view: new Uint8Array(3),
+      }),
+    ).toEqual({ buffer: '[binary 12 bytes]', view: '[binary 3 bytes]' });
+    const failure = new Error('x');
+    failure.name = `Odd ${'n'.repeat(500)}`;
+    const named = logRedaction.redactValue(failure) as { name: string };
+    expect(named.name).toHaveLength(101);
+  });
+
+  it('bounds depth, width and size, and leaves the input alone', () => {
+    let deep: Record<string, unknown> = { end: true };
+    for (let i = 0; i < 20; i++) {
+      deep = { next: deep };
+    }
+    expect(JSON.stringify(logRedaction.redactValue(deep))).toContain('[…]');
+    const wide = logRedaction.redactValue(
+      Array.from({ length: 1000 }, (_, i) => i),
+    ) as unknown[];
+    expect(wide).toHaveLength(100);
+    const input = { password: 'x', nested: { a: 1 } };
+    logRedaction.redactValue(input);
+    expect(input.password).toBe('x');
+  });
+
+  it('sees a name declared later (a registry of its own)', () => {
+    const registry = new LogRedaction({ headers: [], fields: ['one'] });
+    expect(registry.redactValue({ one: 1, two: 2 })).toEqual({
+      one: REDACTED,
+      two: 2,
+    });
+    registry.declareFields('two');
+    expect(registry.redactValue({ one: 1, two: 2 })).toEqual({
+      one: REDACTED,
+      two: REDACTED,
+    });
+  });
+});

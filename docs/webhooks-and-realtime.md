@@ -22,14 +22,14 @@ its id), so a client sees and receives only its own. There are no endpoints of
 a whole tenant: what a webhook carries is what its client may read. The
 client's own routes take its API key:
 
-| Need | Route |
-| --- | --- |
-| Subscribe, list, read, change, remove | `POST/GET /v1/webhook-endpoints`, `GET/PATCH/DELETE /v1/webhook-endpoints/{id}` |
-| A new secret (the old one keeps signing for 24 hours) | `POST /v1/webhook-endpoints/{id}/rotate-secret` |
-| A test event to one endpoint | `POST /v1/webhook-endpoints/{id}/test` (202, the delivery) |
-| Deliveries (paged) | `GET /v1/webhook-deliveries`, `GET /v1/webhook-deliveries/{id}` |
-| Retry one, or every failed one since an outage | `POST /v1/webhook-deliveries/{id}/retry`, `POST /v1/webhook-deliveries/retry` |
-| What may be subscribed to, by feature | `GET /v1/webhook-event-types` (an API key or a user) |
+| Need                                                  | Route                                                                           |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Subscribe, list, read, change, remove                 | `POST/GET /v1/webhook-endpoints`, `GET/PATCH/DELETE /v1/webhook-endpoints/{id}` |
+| A new secret (the old one keeps signing for 24 hours) | `POST /v1/webhook-endpoints/{id}/rotate-secret`                                 |
+| A test event to one endpoint                          | `POST /v1/webhook-endpoints/{id}/test` (202, the delivery)                      |
+| Deliveries (paged)                                    | `GET /v1/webhook-deliveries`, `GET /v1/webhook-deliveries/{id}`                 |
+| Retry one, or every failed one since an outage        | `POST /v1/webhook-deliveries/{id}/retry`, `POST /v1/webhook-deliveries/retry`   |
+| What may be subscribed to, by feature                 | `GET /v1/webhook-event-types` (an API key or a user)                            |
 
 ### Managed by an administrator
 
@@ -104,8 +104,7 @@ change succeeded, not in one transaction with it.
   (by id), which `sort` cannot ask for by `createdAt`.
 - **Which secret signed it:** `lastRequest.signedWith` lists the secrets that
   signed the latest attempt, newest first, in the order of the `v1,…`
-  signatures in `webhook-signature`: `{ createdAt, expiresAt }` for each, ISO
-  8601. A secret has no id of its own: when it was made (the endpoint's
+  signatures in `webhook-signature`: `{ createdAt, expiresAt }` for each, ISO 8601. A secret has no id of its own: when it was made (the endpoint's
   creation, or the rotation that issued it) identifies it, and `expiresAt` is
   null for the current one and 24 hours after the rotation for the old one,
   so right after a rotation there are two. Never the secret. The package
@@ -170,7 +169,11 @@ From a feature, dispatch in the change's transaction, so the webhook goes out
 if and only if the change commits (`features/notes/note-publisher.service.ts`):
 
 ```ts
-await this.webhooks.dispatch(tx, { type: 'note.published', tenant: clientId, data });
+await this.webhooks.dispatch(tx, {
+  type: 'note.published',
+  tenant: clientId,
+  data,
+});
 ```
 
 ### A receiver on your machine (development)
@@ -227,12 +230,39 @@ a certificate the message names, at `POST /v1/webhooks/mail/ses`
 
 For users with the `Ops` permissions (a session or a user token):
 
-| Need | Route |
-| --- | --- |
-| Outbox lag and dead letters | `GET /v1/ops/outbox` |
-| Every engine's events, live (SSE) | `GET /v1/ops/events` |
-| Dead letters | `POST /v1/ops/dead-letters/requeue`, `POST /v1/ops/dead-letters/purge` |
-| Queues | `GET /v1/ops/queues`, `POST /v1/ops/queues/{name}/retry-failed` |
+| Need                              | Route                                                                  |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| Outbox lag and dead letters       | `GET /v1/ops/outbox`                                                   |
+| Every engine's events, live (SSE) | `GET /v1/ops/events`                                                   |
+| Dead letters                      | `POST /v1/ops/dead-letters/requeue`, `POST /v1/ops/dead-letters/purge` |
+| Queues                            | `GET /v1/ops/queues`, `POST /v1/ops/queues/{name}/retry-failed`        |
+
+Every answer is typed: `apps/api/src/platform/ops/ops.schemas.ts` declares it
+once, the routes send their answers through it (a `StandardSchemaSerializerInterceptor`
+on the JSON routes, `opsEvent()` on the stream), and the OpenAPI document and
+the typed client read the same schemas, so a frontend needs no hand-written
+types. `POST …/retry-failed`, `…/requeue` and `…/purge` answer `{ retried }`,
+`{ requeued }` and `{ purged }`.
+
+`GET /v1/ops/events` sends one JSON `data` per message, a union by `source`
+(`workflow`, `webhooks`, `outbox`, `idempotency`, `locks`, `mail`,
+`resilience`), then by `type`, each with `at` (epoch ms). The resilience events'
+own `source` (what a policy guards) is `origin`, so the tag stays the engine.
+An event the schema doesn't know (an engine update added one) is logged and
+left out of the stream, not sent loosely typed.
+
+**What reaches the browser is masked.** An engine holds what it was given: an
+error's message, a message's payload and headers, a job's failure reason. All
+of it goes through the log-redaction registry first
+([Log redaction](deployment.md#log-redaction)): a header or field named like a
+secret (`Authorization`, `password`, `apiKey`…) becomes `[REDACTED]` at any
+depth, the text patterns mask a credential inside a string, a text is cut at
+1000 characters, and nesting, list length and object count are bounded. An
+error is sent as `{ name, message }`: never a stack trace, and the frames of
+one inside a text are dropped. This holds for the dead letters (`payload`,
+`headers`, `lastError`, `history`), the stream and the queues' `reason`. It
+costs nothing to extend: `logRedaction.declareFields()` protects the logs and
+this API at once.
 
 ## Realtime
 
@@ -244,9 +274,15 @@ socket.io doesn't retry (`socket.active` is false; sign in, then
 
 ```ts
 // A browser
-io('https://api.example.com/realtime', { withCredentials: true, transports: ['websocket'] });
+io('https://api.example.com/realtime', {
+  withCredentials: true,
+  transports: ['websocket'],
+});
 // An API client
-io('https://api.example.com/realtime', { auth: { token: 'sk_…' }, transports: ['websocket'] });
+io('https://api.example.com/realtime', {
+  auth: { token: 'sk_…' },
+  transports: ['websocket'],
+});
 
 await socket.emitWithAck('whoami'); // { kind, id, tenantId, rooms }
 ```
@@ -278,10 +314,10 @@ working mid-connection.
 A record page reloads a panel when it hears of a change on it, instead of
 polling (`RecordActivity`, `platform/realtime/record-activity.ts`):
 
-| Event | When | Data |
-| --- | --- | --- |
-| `record.commented` | a comment added, edited or removed | `{ subject, recordId, commentId, action }` (`added`, `edited`, `removed`) |
-| `record.attachments.changed` | an attachment uploaded, removed, or a PDF issued | `{ subject, recordId, attachmentId, action }` (`added`, `removed`) |
+| Event                        | When                                             | Data                                                                      |
+| ---------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
+| `record.commented`           | a comment added, edited or removed               | `{ subject, recordId, commentId, action }` (`added`, `edited`, `removed`) |
+| `record.attachments.changed` | an attachment uploaded, removed, or a PDF issued | `{ subject, recordId, attachmentId, action }` (`added`, `removed`)        |
 
 - **To whom:** the record's watchers (`…/{id}/watch`, the creator and
   commenters watch by default) and the one who made the change (their

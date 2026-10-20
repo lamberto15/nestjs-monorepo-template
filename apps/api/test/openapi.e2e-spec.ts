@@ -84,6 +84,38 @@ describe('OpenAPI document (e2e)', () => {
     });
   });
 
+  it('types the operations routes: every answer has a schema, the stream a union by source', () => {
+    const ok = (path: string, method: string, media = 'application/json') =>
+      document.paths[path]![method].responses['200'].content?.[media]?.schema;
+    expect(ok('/v1/ops/outbox', 'get').properties).toHaveProperty(
+      'deadLetters',
+    );
+    expect(ok('/v1/ops/queues', 'get').properties).toHaveProperty('items');
+    expect(ok('/v1/ops/queues/{name}/retry-failed', 'post').required).toEqual([
+      'retried',
+    ]);
+    expect(ok('/v1/ops/dead-letters/requeue', 'post').required).toEqual([
+      'requeued',
+    ]);
+    expect(ok('/v1/ops/dead-letters/purge', 'post').required).toEqual([
+      'purged',
+    ]);
+    const stream = JSON.stringify(
+      ok('/v1/ops/events', 'get', 'text/event-stream'),
+    );
+    for (const source of [
+      'workflow',
+      'webhooks',
+      'outbox',
+      'idempotency',
+      'locks',
+      'mail',
+      'resilience',
+    ]) {
+      expect(stream).toContain(`"enum":["${source}"]`);
+    }
+  });
+
   it('serves Swagger UI', async () => {
     await node.http().get('/api').expect(200);
   });

@@ -3,7 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { getQueueToken } from '@nestjs/bullmq';
 import type { JobType, Queue } from 'bullmq';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
-import { redactText } from '../../core/logging/redaction.js';
+import { redactString } from '../../core/logging/redaction.js';
 import { MAIL_QUEUE } from '../../core/mail/mail-queue.js';
 import { platformQueues } from '../queues/queues.js';
 
@@ -78,15 +78,16 @@ export class OpsQueues {
           paused,
           counts,
           recentFailures: failed.map((job) => ({
-            id: job.id,
+            id: job.id ?? null,
             name: job.name,
             attempts: job.attemptsMade,
             // The error's message, as BullMQ kept it: a secret in it (a
-            // provider's URL, a token in an upstream reply) is masked as in the logs.
+            // provider's URL, a token in an upstream reply) is masked as in the
+            // logs, a stack trace's frames dropped, a long text cut.
             reason:
               typeof job.failedReason === 'string'
-                ? redactText(job.failedReason)
-                : job.failedReason,
+                ? redactString(job.failedReason)
+                : null,
             failedAt: job.finishedOn
               ? new Date(job.finishedOn).toISOString()
               : null,

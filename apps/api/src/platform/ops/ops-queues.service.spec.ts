@@ -28,6 +28,6 @@ describe('OpsQueues', () => {
     expect(mail.recentFailures[0].reason).toBe(
       `Request failed: Authorization: Bearer ${REDACTED}`,
     );
-    expect(mail.recentFailures[1].reason).toBeUndefined();
+    expect(mail.recentFailures[1].reason).toBeNull();
   });
 });

@@ -47,21 +47,21 @@ Filling `.env` (each step is commented in `env.example`):
   its origin in the matching directive of that one line (`script-src`, `frame-src`,
   `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no inline
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
-  build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
+build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 
-| Service | What | Scale |
-| --- | --- | --- |
-| `caddy` | HTTPS (Let's Encrypt via Cloudflare DNS), load-balances the API, serves the web app's files | 1 |
-| `api` | `node dist/main`, `APP_ROLE=api` | `API_REPLICAS` (2) |
-| `worker` | `node dist/worker`, `APP_ROLE=worker` | `WORKER_REPLICAS` (1) |
-| `migrate` | `node dist/migrate`, once per deploy, before api and worker: the migrations as the owner, then the app role | one-off |
-| `postgres` | PostgreSQL 18 | 1 |
-| `redis` | Redis 8 (append-only, `noeviction`); the app needs 7.0 or newer ([below](#redis)) | 1 |
-| `backup` | `pg_dump` and the uploaded files on a schedule, copied off the host ([below](#backups-and-restore)) | 1 |
-| `gotenberg` | HTML to PDF (Chromium) for the workers' documents, on a network of its own with no way out ([below](#gotenberg-pdf-documents)) | 1 |
+| Service     | What                                                                                                                           | Scale                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
+| `caddy`     | HTTPS (Let's Encrypt via Cloudflare DNS), load-balances the API, serves the web app's files                                    | 1                     |
+| `api`       | `node dist/main`, `APP_ROLE=api`                                                                                               | `API_REPLICAS` (2)    |
+| `worker`    | `node dist/worker`, `APP_ROLE=worker`                                                                                          | `WORKER_REPLICAS` (1) |
+| `migrate`   | `node dist/migrate`, once per deploy, before api and worker: the migrations as the owner, then the app role                    | one-off               |
+| `postgres`  | PostgreSQL 18                                                                                                                  | 1                     |
+| `redis`     | Redis 8 (append-only, `noeviction`); the app needs 7.0 or newer ([below](#redis))                                              | 1                     |
+| `backup`    | `pg_dump` and the uploaded files on a schedule, copied off the host ([below](#backups-and-restore))                            | 1                     |
+| `gotenberg` | HTML to PDF (Chromium) for the workers' documents, on a network of its own with no way out ([below](#gotenberg-pdf-documents)) | 1                     |
 
 - **Resource limits** on every service (`API_CPUS`, `API_MEMORY`,
   `WORKER_CPUS`, `WORKER_MEMORY`, `POSTGRES_*`, `REDIS_*`, `BACKUP_*`,
@@ -96,11 +96,11 @@ against the same database), graceful shutdown (in place: a replica finishes
 its requests and exits), and pinned images (`APP_IMAGE` by commit SHA, so a
 rollback is one command).
 
-| Method | Command | Rollback | Choose it when |
-| --- | --- | --- | --- |
-| Rolling (Compose) | `pnpm deploy:rolling` | deploy the previous `APP_IMAGE` | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md)) |
+| Method               | Command                  | Rollback                                                             | Choose it when                                                                                                                           |
+| -------------------- | ------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                      | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))   |
 | Blue-green (Compose) | `pnpm deploy:blue-green` | `pnpm deploy:blue-green rollback`: instant while the old colour runs | one host, an instant switch back matters, 2× the API's resources during a deploy are fine ([deploy-blue-green.md](deploy-blue-green.md)) |
-| Docker Swarm | `pnpm deploy:swarm` | automatic on a failed health check, or `pnpm deploy:swarm rollback` | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md)) |
+| Docker Swarm         | `pnpm deploy:swarm`      | automatic on a failed health check, or `pnpm deploy:swarm rollback`  | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md))                                         |
 
 A plain `docker compose up -d --build` is not one of them: it recreates the
 replicas in place (below, what Caddy does about that).
@@ -155,19 +155,20 @@ optional: an `.env` holding the values themselves keeps working. A secret
 without its `_FILE` is mounted from the empty `secret.empty`, which nothing
 reads.
 
-| `.env` | Read by | Instead of |
-| --- | --- | --- |
-| `POSTGRES_PASSWORD_FILE` | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`) | `POSTGRES_PASSWORD` |
-| `POSTGRES_MONITOR_PASSWORD_FILE` | `migrate` (creates the monitoring role with it) and the PostgreSQL exporter (`compose.monitoring.yaml`): one file | `POSTGRES_MONITOR_PASSWORD` |
-| `DATABASE_OWNER_URL_FILE` | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service | the URL Compose builds from `POSTGRES_PASSWORD` |
-| `DATABASE_URL_FILE` | the app (api, worker) and `migrate` (the app role's URL: `postgres://app_runtime:<password>@postgres:5432/app`, with `POSTGRES_APP_PASSWORD`'s value) | the URL Compose builds from `POSTGRES_APP_PASSWORD` |
-| `REDIS_PASSWORD_FILE` | Redis, its healthcheck and the Redis exporter (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file | `REDIS_PASSWORD` |
-| `CLOUDFLARE_API_TOKEN_FILE` | Caddy (`caddy/entrypoint.sh`) | `CLOUDFLARE_API_TOKEN` |
-| `BACKUP_S3_SECRET_ACCESS_KEY_FILE` | the backup | `BACKUP_S3_SECRET_ACCESS_KEY` |
-| `SMTP_URL_FILE` | the app, and Alertmanager (its default `ALERT_SMTP_URL`) | `SMTP_URL` |
-| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate) | the variable without `_FILE` |
+| `.env`                                                                                                                                                                                                                                                                                                                                                                                        | Read by                                                                                                                                               | Instead of                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `POSTGRES_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                      | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`)                                                             | `POSTGRES_PASSWORD`                                 |
+| `POSTGRES_MONITOR_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                              | `migrate` (creates the monitoring role with it) and the PostgreSQL exporter (`compose.monitoring.yaml`): one file                                     | `POSTGRES_MONITOR_PASSWORD`                         |
+| `DATABASE_OWNER_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                     | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service         | the URL Compose builds from `POSTGRES_PASSWORD`     |
+| `DATABASE_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                           | the app (api, worker) and `migrate` (the app role's URL: `postgres://app_runtime:<password>@postgres:5432/app`, with `POSTGRES_APP_PASSWORD`'s value) | the URL Compose builds from `POSTGRES_APP_PASSWORD` |
+| `REDIS_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                         | Redis, its healthcheck and the Redis exporter (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file                                            | `REDIS_PASSWORD`                                    |
+| `CLOUDFLARE_API_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                   | Caddy (`caddy/entrypoint.sh`)                                                                                                                         | `CLOUDFLARE_API_TOKEN`                              |
+| `BACKUP_S3_SECRET_ACCESS_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                            | the backup                                                                                                                                            | `BACKUP_S3_SECRET_ACCESS_KEY`                       |
+| `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
+| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate)                                                                                                                        | the variable without `_FILE`                        |
 
 Not in this list, so they stay variables in Compose:
+
 - `METRICS_TOKEN`: `compose.monitoring.yaml` gives Prometheus its secret from the variable.
 - `AWS_SESSION_TOKEN`: a temporary credential, which a file mounted at deploy time can't renew.
 - `OBSERVE_APP_KEY`.
@@ -241,15 +242,15 @@ DATABASE_OWNER_URL` the owner's) and to the other secrets.
 `POSTGRES_PASSWORD` and `POSTGRES_APP_PASSWORD`, Compose itself no longer
 stops, since each can be a file. What fails instead:
 
-| `docker compose ps` / `logs` | Cause |
-| --- | --- |
+| `docker compose ps` / `logs`                                                                               | Cause                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `migrate` exited 1: `DATABASE_OWNER_URL … and DATABASE_URL …, or their _FILE variants, are both required.` | neither `POSTGRES_PASSWORD`, `DATABASE_OWNER_URL` nor `DATABASE_OWNER_URL_FILE` in `.env`, or neither `POSTGRES_APP_PASSWORD`, `DATABASE_URL` nor `DATABASE_URL_FILE` |
-| `migrate` or the app: `DATABASE_URL and DATABASE_URL_FILE are both set` | `DATABASE_URL_FILE` while `POSTGRES_APP_PASSWORD` is still set: Compose builds `DATABASE_URL` from it. Empty `POSTGRES_APP_PASSWORD=`. |
-| `migrate`: `DATABASE_OWNER_URL and DATABASE_OWNER_URL_FILE are both set` | `DATABASE_OWNER_URL_FILE` while `POSTGRES_PASSWORD` is still set. Empty `POSTGRES_PASSWORD=` (and give PostgreSQL `POSTGRES_PASSWORD_FILE`). |
-| `postgres` restarting: `superuser password is not specified` | a new (empty) volume without either password |
-| `caddy` restarting: `Set CLOUDFLARE_API_TOKEN (or CLOUDFLARE_API_TOKEN_FILE)` | neither in `.env` |
-| `X_FILE: can't read /run/secrets/x (EACCES)` | the host file isn't readable by the container's user: `chmod 644` |
-| a warning `X_FILE is set, but X is not a secret read from a file` | a misspelt `_FILE` variable: it is ignored |
+| `migrate` or the app: `DATABASE_URL and DATABASE_URL_FILE are both set`                                    | `DATABASE_URL_FILE` while `POSTGRES_APP_PASSWORD` is still set: Compose builds `DATABASE_URL` from it. Empty `POSTGRES_APP_PASSWORD=`.                                |
+| `migrate`: `DATABASE_OWNER_URL and DATABASE_OWNER_URL_FILE are both set`                                   | `DATABASE_OWNER_URL_FILE` while `POSTGRES_PASSWORD` is still set. Empty `POSTGRES_PASSWORD=` (and give PostgreSQL `POSTGRES_PASSWORD_FILE`).                          |
+| `postgres` restarting: `superuser password is not specified`                                               | a new (empty) volume without either password                                                                                                                          |
+| `caddy` restarting: `Set CLOUDFLARE_API_TOKEN (or CLOUDFLARE_API_TOKEN_FILE)`                              | neither in `.env`                                                                                                                                                     |
+| `X_FILE: can't read /run/secrets/x (EACCES)`                                                               | the host file isn't readable by the container's user: `chmod 644`                                                                                                     |
+| a warning `X_FILE is set, but X is not a secret read from a file`                                          | a misspelt `_FILE` variable: it is ignored                                                                                                                            |
 
 **Deploying this change** recreates `postgres`, `redis` and `caddy` once,
 even with no secret moved: their environment, secrets, command or image
@@ -338,6 +339,7 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
   each, inside the package, up to 4 at once). Change one term, change the
   others: a concurrency of 3 needs `API_MEMORY=896M`, a smaller limit a
   smaller `API_HEAP_MB` or concurrency.
+
 - **Throughput**: each hash is ~0.4 s of CPU, so a replica checks about
   `API_CPUS` / 0.4 passwords per second (2.5 with one CPU) whatever the
   concurrency; more than `API_CPUS` hashes at once only share the CPU. More
@@ -378,12 +380,12 @@ Two roles share the database ([roadmap](roadmap.md), 1a), so that row-level
 security can mean something: PostgreSQL skips it for superusers and for a
 table's owner, and the postgres image's `POSTGRES_USER` is both.
 
-| Role | Who | Connects as | Gets |
-| --- | --- | --- | --- |
-| **owner** | `migrate`, `backup`; the app itself when `MIGRATE_ON_START` is on (development) | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser) | owns every schema, table and sequence; runs the migrations |
-| **app** | `api`, `worker` | `DATABASE_URL` (Compose: `POSTGRES_APP_USER`, default `app_runtime`, with `POSTGRES_APP_PASSWORD`) | `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`; a member of no other role; owns nothing; `USAGE` on the schemas, `SELECT, INSERT, UPDATE, DELETE` on every table, `USAGE` on every sequence; never `CREATE` |
-| **maintenance** | `worker` (and `migrate`, which creates it) | `DATABASE_MAINTENANCE_URL` (Compose: `POSTGRES_MAINTENANCE_USER`, default `app_maintenance`, with `POSTGRES_MAINTENANCE_PASSWORD`) | the app role's grants, and `BYPASSRLS`: the worker's sweeps across tenants and the metrics over every tenant ([tenancy](tenancy.md), "The bypass"); never on api |
-| **monitor** | the postgres-exporter (`compose.monitoring.yaml`) | `POSTGRES_MONITOR_USER` (default `app_monitor`) with `POSTGRES_MONITOR_PASSWORD`; managed PostgreSQL: `DATABASE_MONITOR_URL` | the same flags as the app role (`NOBYPASSRLS`: no tenant's rows, nor any table's); a member of `pg_monitor` and of nothing else (`pg_stat_*`, the settings, sizes); owns nothing; no privilege on any table: statistics, never rows |
+| Role            | Who                                                                             | Connects as                                                                                                                        | Gets                                                                                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **owner**       | `migrate`, `backup`; the app itself when `MIGRATE_ON_START` is on (development) | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser)                                              | owns every schema, table and sequence; runs the migrations                                                                                                                                                                          |
+| **app**         | `api`, `worker`                                                                 | `DATABASE_URL` (Compose: `POSTGRES_APP_USER`, default `app_runtime`, with `POSTGRES_APP_PASSWORD`)                                 | `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`; a member of no other role; owns nothing; `USAGE` on the schemas, `SELECT, INSERT, UPDATE, DELETE` on every table, `USAGE` on every sequence; never `CREATE`                      |
+| **maintenance** | `worker` (and `migrate`, which creates it)                                      | `DATABASE_MAINTENANCE_URL` (Compose: `POSTGRES_MAINTENANCE_USER`, default `app_maintenance`, with `POSTGRES_MAINTENANCE_PASSWORD`) | the app role's grants, and `BYPASSRLS`: the worker's sweeps across tenants and the metrics over every tenant ([tenancy](tenancy.md), "The bypass"); never on api                                                                    |
+| **monitor**     | the postgres-exporter (`compose.monitoring.yaml`)                               | `POSTGRES_MONITOR_USER` (default `app_monitor`) with `POSTGRES_MONITOR_PASSWORD`; managed PostgreSQL: `DATABASE_MONITOR_URL`       | the same flags as the app role (`NOBYPASSRLS`: no tenant's rows, nor any table's); a member of `pg_monitor` and of nothing else (`pg_stat_*`, the settings, sizes); owns nothing; no privilege on any table: statistics, never rows |
 
 `node dist/migrate` (`apps/api/src/core/database/roles.ts`) makes it so on
 every deploy, after the migrations, as the owner: it creates the app role
@@ -465,7 +467,7 @@ deployment, not to the schema.
   `migrate` then checks and grants it. Without it, the worker's sweeps across
   tenants refuse to run (and say why).
 - **Row-level security** ([tenancy](tenancy.md)): the same run sets `FORCE
-  ROW LEVEL SECURITY` on every tenant table (drizzle-kit emits only
+ROW LEVEL SECURITY` on every tenant table (drizzle-kit emits only
   `ENABLE` and the policies) and refuses to finish when a table with a
   `tenant_id` lacks RLS, FORCE or its four policies. FORCE binds a table's
   owner too, unless it is a superuser (Compose's owner is): the owner never
@@ -496,7 +498,7 @@ deployment, not to the schema.
   and creates the `drizzle` schema with it, which the app role may not, so
   it exits 1 and api and worker never start. Check out the previous
   release's Compose files with its image (`git checkout <previous SHA> --
-  compose.yaml compose.prod.yaml`, `APP_IMAGE` at that SHA), or run that one
+compose.yaml compose.prod.yaml`, `APP_IMAGE` at that SHA), or run that one
   deploy with `DATABASE_URL` set to the owner's URL in `.env`. The new role
   itself is harmless to the old release.
 
@@ -566,7 +568,8 @@ that masks:
 Where that applies: the request log (method, path, status, never headers or
 bodies), the problem-details filter's 5xx report (message and stack), every
 `Logger` call (handlers, queue processors' failures, outgoing HTTP calls'
-errors), and the failure reasons `GET /v1/ops/queues` shows. Validation
+errors), and what the operations API sends a browser: the failure reasons of `GET /v1/ops/queues`, the dead letters of `GET /v1/ops/outbox` and the events of `GET /v1/ops/events` (`logRedaction.redactValue()`, which also drops stack traces and cuts long texts;
+[webhooks-and-realtime.md](webhooks-and-realtime.md), "Ops"). Validation
 errors name the field and never echo its value, so neither the problem
 details nor the logs carry a rejected password.
 
@@ -660,37 +663,37 @@ bounded like the rest of the stack (`DOCKER_LOG_*`).
 **The alerts** (38 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
 
-| Alert | Fires when | Severity |
-| --- | --- | --- |
-| `ApiDown`, `WorkerDown` | no healthy api for 2 min; no worker for 5 min | critical |
-| `TargetDown` | one scrape target fails for 5 min (a replica, an exporter; a wrong `METRICS_TOKEN`) | warning |
-| `AppRestarting` | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit) | warning |
-| `HighErrorRate` | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s) | critical |
-| `HighLatency` | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out) | warning |
-| `DatabasePoolSaturated` | queries wait for a pool connection at every scrape for 10 min (`503 database_busy` next) | warning |
-| `PasswordHashingSaturated` | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits)) | warning |
-| `HeapNearLimit` | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min | warning |
-| `EventLoopLag` | event loop p99 above 500 ms for 10 min | warning |
-| `QueueStalled` | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused) | critical |
-| `QueueBacklogGrowing` | over 100 jobs wait and more than 30 min ago, for 30 min | warning |
-| `JobsFailing` | jobs failed after all their attempts in the last 15 min | warning |
-| `OutboxStuck` | a due outbox message has waited over 5 min, for 5 min | critical |
-| `OutboxDeadLetters` | outbox dead letters wait for someone (requeue or purge in `/v1/ops`) | warning |
-| `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing` | a due delivery waits over 10 min; deliveries failed for good in the last hour | warning |
-| `ApprovalsOverdue` | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it) | warning |
-| `ApprovalsNotApplied` | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked | warning |
-| `ExchangeRatesStale` | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md)) | warning |
-| `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp` | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too) | critical |
-| `MailBounceRateHigh`, `MailComplaints` | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md)) | warning |
-| `CaptchaProviderUnavailable` | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection") | warning |
-| `PostgresDown`, `RedisDown` | the exporter can't reach it for 1 min | critical |
-| `PostgresConnectionsHigh` | connections above 80% of `max_connections` for 5 min | warning |
-| `RedisMemoryHigh`, `RedisPersistenceFailing` | above 85% of `maxmemory` (noeviction: writes fail at 100%); the AOF or a snapshot fails | critical |
-| `HttpsProbeFailing` | Caddy hasn't answered the HTTPS probe with 200 for 3 min (Caddy down, a bad certificate, no healthy api behind it) | critical |
-| `CertificateExpiring` | the certificate expires within 14 days (warning) or 7 days (critical): Caddy's renewals fail | warning, critical |
-| `BackupFailed`, `BackupTooOld`, `BackupNeverSucceeded` | the last backup run failed; none succeeded for `BACKUP_MAX_AGE_HOURS` + 1 h; none at all for a day | warning |
-| `PrometheusRuleFailures`, `AlertmanagerNotificationsFailing` | the monitoring itself is broken (a rule, the SMTP settings, the Watchdog's URL) | warning |
-| `Watchdog` | always: the dead man's switch (below), sent to its ping URL only | none |
+| Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `ApiDown`, `WorkerDown`                                      | no healthy api for 2 min; no worker for 5 min                                                                                                                                       | critical          |
+| `TargetDown`                                                 | one scrape target fails for 5 min (a replica, an exporter; a wrong `METRICS_TOKEN`)                                                                                                 | warning           |
+| `AppRestarting`                                              | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit)                                                                                              | warning           |
+| `HighErrorRate`                                              | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s)                                                                                                                  | critical          |
+| `HighLatency`                                                | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out)                                                                                                       | warning           |
+| `DatabasePoolSaturated`                                      | queries wait for a pool connection at every scrape for 10 min (`503 database_busy` next)                                                                                            | warning           |
+| `PasswordHashingSaturated`                                   | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits))                       | warning           |
+| `HeapNearLimit`                                              | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min                                                                                                                         | warning           |
+| `EventLoopLag`                                               | event loop p99 above 500 ms for 10 min                                                                                                                                              | warning           |
+| `QueueStalled`                                               | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused)                                                                                                   | critical          |
+| `QueueBacklogGrowing`                                        | over 100 jobs wait and more than 30 min ago, for 30 min                                                                                                                             | warning           |
+| `JobsFailing`                                                | jobs failed after all their attempts in the last 15 min                                                                                                                             | warning           |
+| `OutboxStuck`                                                | a due outbox message has waited over 5 min, for 5 min                                                                                                                               | critical          |
+| `OutboxDeadLetters`                                          | outbox dead letters wait for someone (requeue or purge in `/v1/ops`)                                                                                                                | warning           |
+| `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing`       | a due delivery waits over 10 min; deliveries failed for good in the last hour                                                                                                       | warning           |
+| `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                    | warning           |
+| `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                | warning           |
+| `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                   | warning           |
+| `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp`      | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too)                                                                                    | critical          |
+| `MailBounceRateHigh`, `MailComplaints`                       | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md))                       | warning           |
+| `CaptchaProviderUnavailable`                                 | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection") | warning           |
+| `PostgresDown`, `RedisDown`                                  | the exporter can't reach it for 1 min                                                                                                                                               | critical          |
+| `PostgresConnectionsHigh`                                    | connections above 80% of `max_connections` for 5 min                                                                                                                                | warning           |
+| `RedisMemoryHigh`, `RedisPersistenceFailing`                 | above 85% of `maxmemory` (noeviction: writes fail at 100%); the AOF or a snapshot fails                                                                                             | critical          |
+| `HttpsProbeFailing`                                          | Caddy hasn't answered the HTTPS probe with 200 for 3 min (Caddy down, a bad certificate, no healthy api behind it)                                                                  | critical          |
+| `CertificateExpiring`                                        | the certificate expires within 14 days (warning) or 7 days (critical): Caddy's renewals fail                                                                                        | warning, critical |
+| `BackupFailed`, `BackupTooOld`, `BackupNeverSucceeded`       | the last backup run failed; none succeeded for `BACKUP_MAX_AGE_HOURS` + 1 h; none at all for a day                                                                                  | warning           |
+| `PrometheusRuleFailures`, `AlertmanagerNotificationsFailing` | the monitoring itself is broken (a rule, the SMTP settings, the Watchdog's URL)                                                                                                     | warning           |
+| `Watchdog`                                                   | always: the dead man's switch (below), sent to its ping URL only                                                                                                                    | none              |
 
 The rules read `monitoring/prometheus/recording.yml` (rates, p95, queue
 numbers across replicas). Prometheus can't see Docker's healthchecks, so
@@ -752,6 +755,7 @@ default: without a URL, the Watchdog goes to a receiver that sends nothing
    Or set `ALERT_WATCHDOG_URL` in `.env` instead (the secret file wins when
    both are set). Without `ALERT_WATCHDOG_URL_FILE`, Compose mounts the empty
    `monitoring/alertmanager/watchdog-url.empty`.
+
 3. The check turns green within a minute or two. To test it, stop
    Alertmanager (`docker compose stop alertmanager`): healthchecks.io alarms
    after the period plus the grace time.
@@ -908,7 +912,7 @@ copies only: a lost disk loses them too, so set it.
   the script restores with `--no-owner` (everything becomes the owner's) and
   `--no-privileges` (the grants are skipped, since a new cluster has no
   `app_runtime` yet), and the `migrate` run of the next `docker compose up
-  -d` grants the app role everything again. A restore by hand (`pg_restore`
+-d` grants the app role everything again. A restore by hand (`pg_restore`
   yourself) needs the same two flags, or the app role created first.
 - **Why pg_dump** (not pgBackRest or WAL-G): one host, one database. A dump is
   one file that restores into any PostgreSQL 18 or newer, and the server
@@ -938,9 +942,9 @@ two swapped. The current database is kept, renamed
    `COMPOSE_PROJECT_NAME`, so the same prefix), then list the off-host
    copies with `docker compose exec backup backup-fetch` and copy one (with its
    `.sha256`) into the volume with `docker compose exec backup backup-fetch
-   db-<time>.dump` (and its `files-<time>.tar.gz`). Listing and reading the
+db-<time>.dump` (and its `files-<time>.tar.gz`). Listing and reading the
    bucket may need keys with more rights than the backup's own (`-e
-   BACKUP_S3_ACCESS_KEY_ID=… -e BACKUP_S3_SECRET_ACCESS_KEY=…`).
+BACKUP_S3_ACCESS_KEY_ID=… -e BACKUP_S3_SECRET_ACCESS_KEY=…`).
 2. **Stop the app:** `docker compose stop api worker`.
 3. **The database:** `docker compose exec backup restore db-<time>.dump`.
    It checks the checksum and asks you to type the database name (`--yes`
@@ -956,6 +960,7 @@ two swapped. The current database is kept, renamed
 
    They are extracted over what the volume holds; files no row points to
    are removed later by the orphan sweep.
+
 5. **Start the app:** `docker compose up -d` (`migrate` runs first: it
    brings an older dump up to this version and grants the app role what the
    restore skipped, `--no-privileges`; until then api and worker can't read
@@ -979,25 +984,25 @@ except `openapi-diff`, which only reports until `OASDIFF_FAIL_ON` is set, and
 statements are reported only until `MIGRATION_LINT_FAIL` is set (a changed
 merged migration fails it already):
 
-| Job | What |
-| --- | --- |
-| `check` | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests; lint, build and tests are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s |
-| `e2e` | the e2e tests in 2 shards (`--shard=1/2`, `2/2`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
-| `compose-secrets` | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`) |
-| `swarm-stack` | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`) |
-| `feature-smoke` | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md)) |
-| `template-without-notes` | `pnpm feature:remove notes` (the API's and the web app's part), no `notes` left in `apps/api` or `apps/web`, then lint, build, `db:check`, `client:generate`, the build again on that client, unit and web tests, and the e2e tests in 2 shards: the core and the web app stand without the example |
-| `security` | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles |
-| `image` | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`) |
-| `backup-image` | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it |
-| `caddy-image` | builds Caddy's image (`caddy/Dockerfile`, from the repository root): the web app's production build and the xcaddy build with the Cloudflare plugin; checks the web app is in it, then the same Trivy scan. Published by `publish-caddy` |
-| `gotenberg-image` | checks that `gotenberg/Dockerfile`'s `FROM`, its `GOTENBERG_VERSION` and `compose.dev.yaml`'s image are one release, and that both Compose files give Gotenberg the same flags; builds the image (`gotenberg/`, its Debian upgrade fresh each run) and runs the same Trivy scan |
-| `openapi-diff` | pull requests only: oasdiff compares the typed client's `openapi.json` with the base branch's and lists breaking changes and the changelog in the job summary. Report-only until `OASDIFF_FAIL_ON` is set (development.md, "Typed client") |
-| `migration-lint` | pull requests only, in `migrations.yml` (a label change runs it again): squawk reads the migrations the pull request adds under `apps/api/drizzle/` and lists destructive statements (drops, renames, retypes, `SET NOT NULL`, NOT NULL without a default, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, `MERGE`'s deletes and updates) in the job summary, with file and line. Report-only until `MIGRATION_LINT_FAIL` is `on` (pitfalls.md, "Migrations: expand/contract"). Always failing: an edited or deleted merged migration or journal entry, a `squawk-ignore` comment. The `destructive-migration` label accepts both when added after the latest push |
-| `publish` | `main` and `v*` tags only, after `check`, `e2e`, `security` and `image`: pushes the app image to GHCR (below) |
-| `publish-gotenberg` | the same for Gotenberg's image, after `gotenberg-image` too: `ghcr.io/<owner>/<repo>/gotenberg`, the build `gotenberg-image` scanned in the same run, scanned again, then pushed |
-| `publish-caddy` | the same for Caddy's image, after `caddy-image`: `ghcr.io/<owner>/<repo>/caddy`, the build `caddy-image` scanned in the same run (its `scope=caddy` cache), scanned again, then pushed |
-| `release` | `v*` tags only, after the three publish jobs: the tag's GitHub release, its notes generated by `tools/release/notes.mjs` (the images by version and digest, the migrations since the previous release and the expand/contract lint's findings, rolling back; [releases](releases.md)). Its tests run in `check` |
+| Job                      | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check`                  | lint, build, `client:check`, `db:check`, migrations and the app role's bootstrap on a real PostgreSQL (twice: the second run changes nothing), unit tests; lint, build and tests are every package's (`turbo run`), the web app's included. The Caddy image, which carries the web app, is `caddy-image`'s                                                                                                                                                                                                                                                                                                                                                        |
+| `e2e`                    | the e2e tests in 2 shards (`--shard=1/2`, `2/2`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles))                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `swarm-stack`            | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `feature-smoke`          | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `template-without-notes` | `pnpm feature:remove notes` (the API's and the web app's part), no `notes` left in `apps/api` or `apps/web`, then lint, build, `db:check`, `client:generate`, the build again on that client, unit and web tests, and the e2e tests in 2 shards: the core and the web app stand without the example                                                                                                                                                                                                                                                                                                                                                               |
+| `security`               | `pnpm audit --prod --audit-level high`; Trivy: any secret in the repository, high or critical misconfigurations in the Dockerfiles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `image`                  | builds the production image; Trivy: fixable high or critical vulnerabilities in it (OS packages and `node_modules`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `backup-image`           | builds the backup image (`backup/`); the same Trivy scan. Not published: a deploy builds it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `caddy-image`            | builds Caddy's image (`caddy/Dockerfile`, from the repository root): the web app's production build and the xcaddy build with the Cloudflare plugin; checks the web app is in it, then the same Trivy scan. Published by `publish-caddy`                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `gotenberg-image`        | checks that `gotenberg/Dockerfile`'s `FROM`, its `GOTENBERG_VERSION` and `compose.dev.yaml`'s image are one release, and that both Compose files give Gotenberg the same flags; builds the image (`gotenberg/`, its Debian upgrade fresh each run) and runs the same Trivy scan                                                                                                                                                                                                                                                                                                                                                                                   |
+| `openapi-diff`           | pull requests only: oasdiff compares the typed client's `openapi.json` with the base branch's and lists breaking changes and the changelog in the job summary. Report-only until `OASDIFF_FAIL_ON` is set (development.md, "Typed client")                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `migration-lint`         | pull requests only, in `migrations.yml` (a label change runs it again): squawk reads the migrations the pull request adds under `apps/api/drizzle/` and lists destructive statements (drops, renames, retypes, `SET NOT NULL`, NOT NULL without a default, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, `MERGE`'s deletes and updates) in the job summary, with file and line. Report-only until `MIGRATION_LINT_FAIL` is `on` (pitfalls.md, "Migrations: expand/contract"). Always failing: an edited or deleted merged migration or journal entry, a `squawk-ignore` comment. The `destructive-migration` label accepts both when added after the latest push |
+| `publish`                | `main` and `v*` tags only, after `check`, `e2e`, `security` and `image`: pushes the app image to GHCR (below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `publish-gotenberg`      | the same for Gotenberg's image, after `gotenberg-image` too: `ghcr.io/<owner>/<repo>/gotenberg`, the build `gotenberg-image` scanned in the same run, scanned again, then pushed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `publish-caddy`          | the same for Caddy's image, after `caddy-image`: `ghcr.io/<owner>/<repo>/caddy`, the build `caddy-image` scanned in the same run (its `scope=caddy` cache), scanned again, then pushed                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `release`                | `v*` tags only, after the three publish jobs: the tag's GitHub release, its notes generated by `tools/release/notes.mjs` (the images by version and digest, the migrations since the previous release and the expand/contract lint's findings, rolling back; [releases](releases.md)). Its tests run in `check`                                                                                                                                                                                                                                                                                                                                                   |
 
 - **The same PostgreSQL and Redis as Compose:** CI reads their images from
   `compose.yaml` (job `compose-images`). Change them there only.
