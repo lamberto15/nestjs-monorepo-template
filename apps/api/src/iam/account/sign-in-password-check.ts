@@ -171,6 +171,8 @@ export class SignInPasswordCheck implements BeforeApplicationShutdown {
           ip,
           type: 'security.passwordBreached',
           data: { at: new Date().toISOString() },
+          // Where the mail's button and other clients lead.
+          link: '/account/security',
         }),
       ),
     );

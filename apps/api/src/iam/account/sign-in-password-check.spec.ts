@@ -109,6 +109,7 @@ describe('SignInPasswordCheck', () => {
       ip: '127.0.0.1',
       type: 'security.passwordBreached',
       data: { at: expect.any(String) },
+      link: '/account/security',
     });
     expect(alerts.deliverNow).toHaveBeenCalledOnce();
   });
