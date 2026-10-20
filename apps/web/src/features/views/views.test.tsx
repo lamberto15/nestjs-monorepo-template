@@ -1,10 +1,50 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { renderApp } from '@/test/render-app';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { ListPage, type ListPageProps } from '@/components/list-page';
+import type { ListColumn, ListPath } from '@/lib/list-query';
+import { renderComponent } from '@/test/render-component';
 import { findToast } from '@/test/toast';
-import { view } from './test/views-api';
-import { useViewsApi } from './test/views-api';
+import { TEST_ITEMS, useViewsApi, view } from './test/views-api';
+
+// ListPage on a test-only subject (as the API's tests use TestItem), not a
+// feature's page: these tests stand when `pnpm feature:remove` takes a feature.
+const TestListPage = ListPage as unknown as (
+  props: Omit<ListPageProps<ListPath>, 'path' | 'columns'> & {
+    path: string;
+    columns: ListColumn<ItemRow>[];
+  },
+) => ReactNode;
+type ItemRow = { id: string; number: string; title: string; status: string };
+
+const columns: ListColumn<ItemRow>[] = (
+  [
+    ['number', 'Number'],
+    ['title', 'Title'],
+    ['status', 'Status'],
+  ] as const
+).map(([id, header]) => ({
+  id,
+  accessorKey: id,
+  header,
+  meta: { label: header },
+}));
+
+function renderList(searchParams = '', can: readonly string[] = []) {
+  return renderComponent(
+    <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+      <TestListPage
+        subject="TestItem"
+        path={TEST_ITEMS}
+        title="Test items"
+        columns={columns}
+      />
+    </NuqsTestingAdapter>,
+    { can },
+  );
+}
 
 const open = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(
@@ -30,7 +70,7 @@ describe('choosing a view', () => {
       ],
     });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     // Read when the menu opens, not before, and for this list only.
     expect(calls.reads).toEqual([]);
     await open(user);
@@ -43,13 +83,9 @@ describe('choosing a view', () => {
     expect(
       screen.getByRole('menuitem', { name: 'Team backlog' }),
     ).toBeVisible();
-    expect(new URLSearchParams(calls.reads[0]).get('subject')).toBe('Note');
+    expect(new URLSearchParams(calls.reads[0]).get('subject')).toBe('TestItem');
   });
 
-  // The tests run nuqs on a memory history while it writes to jsdom's
-  // `window.location`, so a write (the filters', 300 ms after the others)
-  // starts from an empty address and drops the keys written before it. A
-  // browser keeps them; the two parts are therefore checked apart.
   it("applies a view's sort, search and columns to the table", async () => {
     const { calls } = useViewsApi({
       views: [
@@ -60,7 +96,7 @@ describe('choosing a view', () => {
       ],
     });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     expect(await screen.findByText('Q3 targets')).toBeVisible();
     expect(screen.getByRole('columnheader', { name: /Number/ })).toBeVisible();
 
@@ -101,7 +137,7 @@ describe('choosing a view', () => {
       ],
     });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await screen.findByText('Q3 targets');
     await open(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Drafts' }));
@@ -124,7 +160,7 @@ describe('choosing a view', () => {
   it('says a view is out of date on a 400, and leaves the table as it is', async () => {
     const { calls } = useViewsApi({ views: [{ ...view(), stale: true }] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await screen.findByText('Q3 targets');
     const before = calls.lists.length;
     await open(user);
@@ -139,7 +175,7 @@ describe('choosing a view', () => {
   it('says why on a 403 field_forbidden', async () => {
     useViewsApi({ views: [{ ...view(), forbidden: true }] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Drafts' }));
     expect(
@@ -154,7 +190,7 @@ describe('choosing a view', () => {
       views: [view({ query: { 'nope.contains': 'x' } })],
     });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Drafts' }));
     expect(
@@ -167,7 +203,7 @@ describe('saving the current view', () => {
   it('sends the filter, sort, search and columns as shown', async () => {
     const { calls } = useViewsApi({ views: [] });
     const user = userEvent.setup();
-    await renderApp('/notes?status=draft&sort=title.asc&q=hello');
+    await renderList('?status=draft&sort=title.asc&q=hello');
     await screen.findByText('Q3 targets');
     await open(user);
     expect(await screen.findByText('No saved views yet.')).toBeVisible();
@@ -185,7 +221,7 @@ describe('saving the current view', () => {
       [key: string]: unknown;
     };
     expect(body).toMatchObject({
-      subject: 'Note',
+      subject: 'TestItem',
       name: 'My drafts',
       visibility: 'private',
     });
@@ -194,9 +230,7 @@ describe('saving the current view', () => {
     });
     expect(body.query.sort).toBe('title');
     expect(body.query.q).toBe('hello');
-    expect(body.columns).toEqual(
-      expect.arrayContaining(['title', 'status', 'createdAt']),
-    );
+    expect(body.columns).toEqual(expect.arrayContaining(['title', 'status']));
     // Paging and the route's own parameters are not part of a view.
     expect(Object.keys(body.query).toSorted()).toEqual(['filter', 'q', 'sort']);
     expect(
@@ -207,7 +241,7 @@ describe('saving the current view', () => {
   it('puts a taken name on the name field, and other refusals in the dialog', async () => {
     useViewsApi({ views: [] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(
       await screen.findByRole('menuitem', { name: 'Save the current view…' }),
@@ -232,7 +266,7 @@ describe('saving the current view', () => {
   it('asks for a name before it sends anything', async () => {
     const { calls } = useViewsApi({ views: [] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(
       await screen.findByRole('menuitem', { name: 'Save the current view…' }),
@@ -244,9 +278,9 @@ describe('saving the current view', () => {
   });
 
   it('shares with a team, and with the tenant only for a view manager', async () => {
-    const { calls } = useViewsApi({ views: [], can: ['Access.manageViews'] });
+    const { calls } = useViewsApi({ views: [] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList('', ['Access.manageViews']);
     await open(user);
     await user.click(
       await screen.findByRole('menuitem', { name: 'Save the current view…' }),
@@ -277,7 +311,7 @@ describe('saving the current view', () => {
   it('offers the tenant only to a view manager', async () => {
     useViewsApi({ views: [] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(
       await screen.findByRole('menuitem', { name: 'Save the current view…' }),
@@ -297,7 +331,7 @@ describe('renaming and deleting', () => {
   it('renames and deletes the chosen view', async () => {
     const { calls } = useViewsApi({ views: [view()] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Drafts' }));
     await findToast('View “Drafts” applied.');
@@ -333,7 +367,7 @@ describe('renaming and deleting', () => {
   it('shows a taken name on a rename', async () => {
     useViewsApi({ views: [view()] });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Drafts' }));
     await findToast('View “Drafts” applied.');
@@ -363,7 +397,7 @@ describe('renaming and deleting', () => {
       ],
     });
     const user = userEvent.setup();
-    await renderApp('/notes');
+    await renderList();
     await open(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Drafts' }));
     await findToast('View “Drafts” applied.');

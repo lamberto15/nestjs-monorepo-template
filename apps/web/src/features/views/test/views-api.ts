@@ -1,17 +1,15 @@
 import { http, HttpResponse } from 'msw/http';
-import { useNotesApi, sampleNote } from '@/features/notes/test/notes-api';
-import { panelsDescription } from '@/test/panels-api';
 import { problem, server } from '@/test/server';
 import type { SavedView } from '../api';
 
-// The saved-views API in memory (msw) on the notes list: the routes
+// The saved-views API in memory (msw) on a test-only list (TestItem): the routes
 // docs/saved-views.md lists, recording what the picker sent. A view named
 // "Taken" is a 409 on save and rename, one named "Forbidden" a 403
 // `field_forbidden`; a view with `stale` fails to apply with a 400.
 
 export const view = (over: Partial<SavedView> = {}): SavedView => ({
   id: 'v1',
-  subject: 'Note',
+  subject: 'TestItem',
   name: 'Drafts',
   visibility: 'private',
   teamId: null,
@@ -25,9 +23,11 @@ export const view = (over: Partial<SavedView> = {}): SavedView => ({
   ...over,
 });
 
-/** The notes list as the API describes it: filterable status, a search, a datetime. */
+export const TEST_ITEMS = '/v1/test-items';
+
+/** The list as the API describes it: filterable status, a search, a datetime. */
 const description = {
-  subject: 'Note',
+  subject: 'TestItem',
   fields: [
     {
       name: 'title',
@@ -54,35 +54,37 @@ const description = {
   ],
   select: ['id', 'number', 'title', 'status', 'tags', 'createdAt'],
   search: true,
-  recycleBin: true,
+  recycleBin: false,
   defaultSort: '-createdAt',
   limits: { defaultLimit: 50, maxLimit: 100 },
-  ...panelsDescription({ watch: true }),
 };
 
 export function useViewsApi(options: {
-  can?: string[];
   views: (SavedView & { stale?: boolean; forbidden?: boolean })[];
 }) {
   const views = new Map(options.views.map((v) => [v.id, { ...v }]));
-  const notes = useNotesApi({
-    can: ['Note.read', ...(options.can ?? [])],
-    notes: [sampleNote()],
-  });
   const calls = {
     reads: [] as string[],
     created: [] as Record<string, unknown>[],
     patched: [] as { id: string; body: Record<string, unknown> }[],
     deleted: [] as string[],
     applied: [] as string[],
-    /** The query string of each note list read. */
-    lists: notes.calls.listQueries,
+    /** The query string of each list read. */
+    lists: [] as string[],
   };
   server.use(
-    // The breached-password banner asks for unread alerts on every page.
-    http.get('/v1/notifications', () =>
-      HttpResponse.json({ items: [], nextCursor: null }),
-    ),
+    http.get(TEST_ITEMS, ({ request }) => {
+      calls.lists.push(new URL(request.url).search);
+      return HttpResponse.json({
+        items: [
+          { id: 'i1', number: 'T-1', title: 'Q3 targets', status: 'draft' },
+        ],
+        nextCursor: null,
+        page: 1,
+        pageCount: 1,
+        total: 1,
+      });
+    }),
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
     http.get('/v1/teams', () =>
       HttpResponse.json({
