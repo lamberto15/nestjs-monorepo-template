@@ -32,7 +32,8 @@ const UNTAGGED = Symbol('keys the ETag leaves out');
 /**
  * Marks keys of `value` its ETag leaves out, though the response carries
  * them: a record's `can` (`?include=can`) is about the reader's rights, not
- * the record, so the tag of `GET /{id}?include=can` stays the one a write's
+ * the record (a record's `watching`, `?include=watching`, is about the
+ * reader too; the GET's tag carries a marker of it, `etagOfResponse()`), so the tag of `GET /{id}?include=can` stays the one a write's
  * `If-Match` compares (`assertUnchanged()` with the record as shown, no
  * `can`). At any depth: a list's items too.
  */
@@ -51,6 +52,50 @@ function tagged(this: unknown, key: string, value: unknown) {
 export const etagOf = (body: unknown) =>
   `"${createHash('sha256').update(JSON.stringify(body, tagged)).digest('base64url').slice(0, 27)}"`;
 
+/** The length of a tag's hash: a `watching` marker follows it. */
+const HASH_LENGTH = 27;
+
+/**
+ * A tag without its `watching` marker: what a write's `If-Match` compares
+ * (a page read with `?include=watching` sends the tag it was given).
+ */
+const withoutMarker = (tag: string) =>
+  tag.length > HASH_LENGTH + 2 ? `${tag.slice(0, HASH_LENGTH + 1)}"` : tag;
+
+/**
+ * The reader's `watching` flags a response carries (`?include=watching`:
+ * a record's, or its list's items'), as a short hash, or undefined when it
+ * carries none.
+ */
+function watchingMarker(body: object) {
+  const own = body as { watching?: unknown; items?: unknown };
+  const flags =
+    typeof own.watching === 'boolean'
+      ? [own.watching]
+      : Array.isArray(own.items)
+        ? (own.items as { watching?: unknown }[]).flatMap((item) =>
+            typeof item?.watching === 'boolean' ? [item.watching] : [],
+          )
+        : [];
+  return flags.length === 0
+    ? undefined
+    : createHash('sha256').update(flags.join()).digest('base64url').slice(0, 6);
+}
+
+/**
+ * The ETag a GET sends: the representation's (`etagOf`), plus a marker of
+ * the `watching` flags it carries. `watching` is the reader's, not the
+ * record's, so it is not in the hash (a write's `If-Match` ignores the
+ * marker, `assertUnchanged`), but it is in the tag, so a `304` happens only
+ * while the flags are unchanged too: watch a record, read it again with
+ * its old tag, and the answer is a 200 with `watching: true`.
+ */
+export function etagOfResponse(body: object) {
+  const etag = etagOf(body);
+  const marker = watchingMarker(body);
+  return marker ? `${etag.slice(0, -1)}${marker}"` : etag;
+}
+
 /** The tags of an `If-Match` / `If-None-Match` header (`*` as itself); weak tags as their strong form. */
 const tagsOf = (header: string | undefined) =>
   (header ?? '')
@@ -63,7 +108,7 @@ const tagsOf = (header: string | undefined) =>
  * other than `current` (the record as they would read it now): 412.
  */
 export function assertUnchanged(ifMatch: string | undefined, current: object) {
-  const given = tagsOf(ifMatch);
+  const given = tagsOf(ifMatch).map(withoutMarker);
   if (given.length === 0 || given.includes('*')) {
     return;
   }
@@ -93,7 +138,7 @@ export class EtagInterceptor implements NestInterceptor {
         ) {
           return body;
         }
-        const etag = etagOf(body);
+        const etag = etagOfResponse(body);
         response.setHeader('ETag', etag);
         // Cache, but ask again every time: a 304 is cheaper than the body.
         response.setHeader('Cache-Control', 'private, no-cache');

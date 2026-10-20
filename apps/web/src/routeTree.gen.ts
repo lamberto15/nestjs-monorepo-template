@@ -21,6 +21,7 @@ import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
+import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTagsRouteImport } from './routes/_app/tags'
@@ -115,6 +116,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
 const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
   id: '/custom-fields',
   path: '/custom-fields',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMailSuppressionsRoute = AppMailSuppressionsRouteImport.update({
+  id: '/mail-suppressions',
+  path: '/mail-suppressions',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -312,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/tags': typeof AppTagsRoute
@@ -360,6 +367,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/tags': typeof AppTagsRoute
@@ -411,6 +419,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
+  '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/tags': typeof AppTagsRoute
@@ -463,6 +472,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/audit'
     | '/custom-fields'
+    | '/mail-suppressions'
     | '/notifications'
     | '/settings'
     | '/tags'
@@ -511,6 +521,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/audit'
     | '/custom-fields'
+    | '/mail-suppressions'
     | '/notifications'
     | '/settings'
     | '/tags'
@@ -561,6 +572,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_app/audit'
     | '/_app/custom-fields'
+    | '/_app/mail-suppressions'
     | '/_app/notifications'
     | '/_app/settings'
     | '/_app/tags'
@@ -696,6 +708,13 @@ declare module '@tanstack/react-router' {
       path: '/custom-fields'
       fullPath: '/custom-fields'
       preLoaderRoute: typeof AppCustomFieldsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/mail-suppressions': {
+      id: '/_app/mail-suppressions'
+      path: '/mail-suppressions'
+      fullPath: '/mail-suppressions'
+      preLoaderRoute: typeof AppMailSuppressionsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -956,6 +975,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
+  AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTagsRoute: typeof AppTagsRoute
@@ -998,6 +1018,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
+  AppMailSuppressionsRoute: AppMailSuppressionsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTagsRoute: AppTagsRoute,

@@ -1,10 +1,18 @@
-import { Injectable, type PipeTransform, type Type } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Optional,
+  type PipeTransform,
+  type Type,
+} from '@nestjs/common';
 import type { AuthorizationService } from '@nestjs/authorization';
 import type { ApiQueryOptions } from '@nestjs/swagger';
 import { z } from 'zod';
 import { untagged } from '../../core/http/etag.js';
 import { validationException } from '../../core/http/problem-details.filter.js';
 import type { Principal } from '../../iam/auth/principal.js';
+import { RECORD_DECLARATION } from './record-declaration.token.js';
+import { type RecordDeclaration, takes } from './record.js';
 
 /**
  * What a record says the reader may do with it now (`?include=can`): its
@@ -18,11 +26,13 @@ import type { Principal } from '../../iam/auth/principal.js';
  */
 
 /** What `?include=` may ask for. */
-const INCLUDES = ['can'] as const;
+const INCLUDES = ['can', 'watching'] as const;
 
 /** What a request asked to include. */
 export interface RecordInclude {
   can: boolean;
+  /** `watching` (the `watch` capability): whether the reader watches each record. */
+  watching: boolean;
 }
 
 const includeSchema = z
@@ -37,9 +47,22 @@ const includeSchema = z
   )
   .pipe(z.array(z.enum(INCLUDES)));
 
-/** `@Query('include', IncludePipe)`: `?include=can` as `{ can: true }`; another value is a 400. */
+/**
+ * `@Query('include', IncludePipe)`: `?include=can,watching` as `{ can: true,
+ * watching: true }`; another value is a 400, and so is `watching` on a
+ * record that cannot be watched (no `watch` capability), before the route
+ * loads anything (a 400, not a 404). The record's declaration is the
+ * feature module's (record-parts.ts); a module without one (notes) is not
+ * checked here.
+ */
 @Injectable()
 export class IncludePipe implements PipeTransform<unknown, RecordInclude> {
+  constructor(
+    @Optional()
+    @Inject(RECORD_DECLARATION)
+    private readonly declaration?: RecordDeclaration,
+  ) {}
+
   transform(value: unknown): RecordInclude {
     const parsed = includeSchema.safeParse(value);
     if (!parsed.success) {
@@ -50,7 +73,12 @@ export class IncludePipe implements PipeTransform<unknown, RecordInclude> {
         })),
       );
     }
-    return { can: parsed.data.includes('can') };
+    const include = {
+      can: parsed.data.includes('can'),
+      watching: parsed.data.includes('watching'),
+    };
+    assertWatchable(this.declaration, include);
+    return include;
   }
 }
 
@@ -60,8 +88,8 @@ export const includeQuery = (): ApiQueryOptions => ({
   required: false,
   type: String,
   description:
-    '`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. Left out, the records carry no `can`.',
-  example: 'can',
+    '`can`: each record says what you may do with it now (`can.update`, `can.delete`, `can.restore`, `can.issue` where it takes PDFs), as its routes would decide: a false is the 403 (or 503) they would answer. `watching`: each record says whether you watch it (`watching: true`), where records can be watched; any other record type answers 400. Left out, the records carry neither. Combine them with a comma: `can,watching`.',
+  example: 'can,watching',
 });
 
 /** The record actions `can` reports: update and delete, restore with a recycle bin. */
@@ -102,6 +130,17 @@ export const recordCanSchema = (
     .describe(
       'What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.',
     );
+
+/**
+ * A record's `watching` in its response schema (the `watch` capability):
+ * optional, there only with `?include=watching`.
+ */
+export const recordWatchingSchema = z
+  .boolean()
+  .optional()
+  .describe(
+    'Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.',
+  );
 
 /** The fields a record's `can` is checked against: the row as stored. */
 export type CanRow = { id: string; deletedAt?: unknown } & Record<
@@ -166,13 +205,47 @@ export async function recordCan(
 }
 
 /**
- * The shown records with their `can` (by id), left out of their ETag
+ * The shown record with what `?include=` asked for: its `can` (by id) and
+ * its `watching` (the ids the reader watches). Left out of its ETag
  * (`untagged()`): the tag stays the record's, the one `If-Match` compares.
  */
-export function withCan<T extends Record<string, unknown>>(
+export function withIncluded<T extends Record<string, unknown>>(
+  shown: T,
+  included: {
+    can?: Map<string, Record<string, boolean>>;
+    watching?: Set<string>;
+  },
+): T & { can?: Record<string, boolean>; watching?: boolean } {
+  const id = shown.id as string;
+  const extra: { can?: Record<string, boolean>; watching?: boolean } = {};
+  const can = included.can?.get(id);
+  if (can) {
+    extra.can = can;
+  }
+  if (included.watching) {
+    extra.watching = included.watching.has(id);
+  }
+  const keys = Object.keys(extra);
+  return keys.length ? untagged({ ...shown, ...extra }, keys) : shown;
+}
+
+/** `withIncluded()` with only a `can`. */
+export const withCan = <T extends Record<string, unknown>>(
   shown: T,
   can: Map<string, Record<string, boolean>>,
-): T & { can?: Record<string, boolean> } {
-  const flags = can.get(shown.id as string);
-  return flags ? untagged({ ...shown, can: flags }, ['can']) : shown;
+) => withIncluded(shown, { can });
+
+/** `?include=watching` on a record that cannot be watched is a 400, as any other unknown value. */
+export function assertWatchable(
+  declaration: RecordDeclaration | undefined,
+  include: RecordInclude | undefined,
+) {
+  if (include?.watching && declaration && !takes(declaration, 'watch')) {
+    throw validationException([
+      {
+        message: `${declaration.subject} records cannot be watched: \`watching\` is not available here.`,
+        path: ['include'],
+      },
+    ]);
+  }
 }

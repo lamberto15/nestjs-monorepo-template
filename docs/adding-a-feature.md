@@ -399,7 +399,8 @@ the controller (`notes.*`); singular for what describes one record
     caching"); `?include=can` on the read and the list
     (`@Query('include', IncludePipe)`, `RecordPresenter.one(user, row,
     include)` and `.page()`; a hand-written feature calls `recordCan()` and
-    `withCan()`, as notes does). A text field's `max` stays under
+    `withIncluded()`, as notes does); with `watch`, `?include=watching`
+    adds `watching` the same way (one query per page). A text field's `max` stays under
     `MAX_TEXT_LENGTH` (the body limit); the response never carries
     `tenantId`.
    - `@Can()` on the route, or a check on the loaded record; field-level

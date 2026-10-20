@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { unwrap } from '@nestjs-monorepo-template/api-client';
+import { isApiError, unwrap } from '@nestjs-monorepo-template/api-client';
 import {
   Alert,
   AlertDescription,
@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from '@/lib/zod';
 import { useCaptcha } from '@/components/auth/captcha';
+import { ResendVerificationByEmail } from '@/components/auth/resend-verification';
 import { MfaStep } from '@/components/auth/mfa-step';
 import { api } from '@/lib/api';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
@@ -104,6 +105,9 @@ function PasswordSignIn(props: {
   const { t } = useTranslation();
   const { data: methods } = useQuery(methodsQuery);
   const [error, setError] = useState<string>();
+  // The address of a sign-in refused with 403 `email_unverified`: the account
+  // exists but has no session until it is proved, so the resend is offered.
+  const [unverified, setUnverified] = useState<string>();
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const captcha = useCaptcha('sign-in');
   const form = useAppForm({
@@ -116,6 +120,7 @@ function PasswordSignIn(props: {
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
+      setUnverified(undefined);
       try {
         const result = await unwrap(
           api.POST('/v1/auth/sign-in', {
@@ -128,6 +133,9 @@ function PasswordSignIn(props: {
       } catch (caught) {
         if (captcha.settle(caught) || applyFieldErrors(form, caught)) {
           return;
+        }
+        if (isApiError(caught) && caught.code === 'email_unverified') {
+          setUnverified(value.email);
         }
         setError(errorMessage(caught));
       }
@@ -231,6 +239,7 @@ function PasswordSignIn(props: {
           </>
         )}
         <FormAlert message={error} />
+        {unverified && <ResendVerificationByEmail email={unverified} />}
         <form.AppField name="email">
           {(field) => (
             <field.TextField
