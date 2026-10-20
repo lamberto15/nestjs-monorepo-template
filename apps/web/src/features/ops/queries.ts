@@ -3,10 +3,22 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { unwrap } from '@nestjs-monorepo-template/api-client';
+import {
+  unwrap,
+  type GetResponse,
+  type operations,
+} from '@nestjs-monorepo-template/api-client';
 import { api } from '@/lib/api';
 import type { Me } from '@/lib/session';
-import type { OpsOutbox, QueueOverview } from './types';
+
+// The API's answers, as the generated client types them (never by hand).
+export type OpsOutbox = GetResponse<'/v1/ops/outbox'>;
+export type DeadLetter = OpsOutbox['deadLetters'][number];
+export type QueueOverview = GetResponse<'/v1/ops/queues'>['items'][number];
+export type QueueCounts = QueueOverview['counts'];
+/** One message of the live log: a union by `source` (the engine), then `type`. */
+export type OpsEventData =
+  operations['OpsController_events_v1']['responses'][200]['content']['text/event-stream'];
 
 /** How often the counters are read again while the page is open. */
 const REFRESH_MS = 10_000;
@@ -22,7 +34,7 @@ export function canViewOps(me: Me | null | undefined): boolean {
 
 export const opsOutboxQuery = queryOptions({
   queryKey: ['ops', 'outbox'],
-  queryFn: () => unwrap<OpsOutbox>(api.GET('/v1/ops/outbox')),
+  queryFn: () => unwrap(api.GET('/v1/ops/outbox')),
   refetchInterval: REFRESH_MS,
   retry: false,
   // The panel shows the error itself.
@@ -31,7 +43,7 @@ export const opsOutboxQuery = queryOptions({
 
 export const opsQueuesQuery = queryOptions({
   queryKey: ['ops', 'queues'],
-  queryFn: () => unwrap<{ items: QueueOverview[] }>(api.GET('/v1/ops/queues')),
+  queryFn: () => unwrap(api.GET('/v1/ops/queues')),
   refetchInterval: REFRESH_MS,
   retry: false,
   // The panel shows the error itself.
@@ -43,7 +55,7 @@ export function useRetryFailed() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) =>
-      unwrap<{ retried: number }>(
+      unwrap(
         api.POST('/v1/ops/queues/{name}/retry-failed', {
           params: { path: { name } },
         }),
@@ -58,7 +70,7 @@ export function useRequeueDeadLetters() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (ids?: string[]) =>
-      unwrap<{ requeued: number }>(
+      unwrap(
         api.POST('/v1/ops/dead-letters/requeue', {
           body: ids ? { ids } : {},
         }),
@@ -73,7 +85,7 @@ export function usePurgeDeadLetters() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (ids?: string[]) =>
-      unwrap<{ purged: number }>(
+      unwrap(
         api.POST('/v1/ops/dead-letters/purge', { body: ids ? { ids } : {} }),
       ),
     onSettled: () =>
