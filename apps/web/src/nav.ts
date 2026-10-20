@@ -23,6 +23,13 @@ export type NavItem = {
    */
   operator?: true;
   /**
+   * Shown only to a user acting in the operator tenant (`me.tenant.operator`),
+   * in any tenancy: for the API's `@OperatorOnly()` routes that are not about
+   * tenants (the mail suppression list). Unlike `operator`, a single-tenant
+   * deployment shows it too: its one tenant is the operators'.
+   */
+  operatorTenant?: true;
+  /**
    * A hook returning a count shown next to the label (undefined or 0: none).
    * A hook, so the entry's feature owns its query; the menu calls it in a
    * component of its own per entry, so the hook's identity must be stable.
@@ -67,12 +74,15 @@ export function visibleGroups(
   features: Features | undefined,
   can: Record<string, boolean> | undefined,
   operator = false,
+  operatorTenant = false,
 ): NavGroup[] {
   return groups
     .map((group) => ({
       ...group,
       items: visible(group.items, features, can).filter(
-        (item) => !item.operator || operator,
+        (item) =>
+          (!item.operator || operator) &&
+          (!item.operatorTenant || operatorTenant),
       ),
     }))
     .filter((group) => group.items.length > 0);

@@ -25,6 +25,16 @@ export function useMe(): Me | null | undefined {
   return useQuery(meQuery).data;
 }
 
+/**
+ * Whether the user acts in the deployment's operator tenant (`GET
+ * /v1/auth/me`'s `tenant.operator`), whatever the tenancy: the tenant the
+ * operators' routes answer in (the API's `@OperatorOnly()`, 403
+ * `operator_required` elsewhere). No request of its own.
+ */
+export function useInOperatorTenant(): boolean {
+  return useMe()?.tenant?.operator === true;
+}
+
 /** Whether the user may do it (false until known). */
 export function useCan(permission: Permission): boolean {
   return useMe()?.can[permission] === true;
