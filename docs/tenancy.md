@@ -249,7 +249,9 @@ Built in the platform code, never at call sites (`tenantKey()`):
   by that user in any tenant or none. It holds the account-level rows, then
   each tenant: an active membership's tenant gives what it holds about you; a
   tenant you left (an inactive membership) only what is personal (the
-  membership, the audit entries about you), never its business records.
+  membership, the audit entries about you), never its business records;
+  a deactivated tenant nothing but the membership row itself, whatever the
+  membership says (#220).
   The deletion job erases you in each tenant; a tenant that fails leaves the
   account open for the next night, and the others still run. While an
   administrator impersonates you, account-wide data stays hidden: your
@@ -300,7 +302,11 @@ a new address chooses its password, an existing account accepts signed in
 meant everywhere, made a route: a session or token in it stops (the
 principal resolves to nobody: 401), its API keys stop, its invitations
 can't be accepted, a sign-in never starts in it (it isn't among the user's
-tenants), its jobs and cron runs are skipped (retention still sweeps it).
+tenants), its jobs and cron runs are skipped (retention still sweeps it),
+a job queued before it was deactivated is refused when it runs
+(`stillActive()`: a user's membership and an API client both need the tenant
+active), and a member's account export takes nothing from it. A deactivated
+tenant exposes nothing.
 The route also ends, after the commit, what would outlive the check: every
 session and token family in that tenant (so reactivating never revives an
 old session: its members sign in again, and meanwhile into their other

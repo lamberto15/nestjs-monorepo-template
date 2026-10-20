@@ -192,6 +192,37 @@ describe('auth policies (e2e)', () => {
       await user.agent.get('/v1/test-items').expect(200);
     });
 
+    it("the operators' value for every tenant: their true holds everyone, their false (even enforced) exempts nobody", async () => {
+      const tenant = await node.otherTenant();
+      const user = await tenant.user(['editor']);
+      // The operator holds themselves to it too: enrolled first.
+      await enroll(node.admin());
+
+      await node
+        .admin()
+        .put('/v1/settings/auth.requireMfa/platform')
+        .send({ value: true })
+        .expect(200);
+      // The tenant's administrator is held to it as well: to enrollment only.
+      await tenant.admin
+        .put('/v1/settings/auth.requireMfa')
+        .send({ value: false })
+        .expect(403);
+      await user.agent.get('/v1/test-items').expect(403);
+
+      await node
+        .admin()
+        .put('/v1/settings/auth.requireMfa/platform')
+        .send({ value: false, enforced: true })
+        .expect(200);
+      await user.agent.get('/v1/test-items').expect(200);
+      await tenant.admin
+        .put('/v1/settings/auth.requireMfa')
+        .send({ value: true })
+        .expect(200);
+      await user.agent.get('/v1/test-items').expect(403);
+    });
+
     it('AUTH_MFA=off is the ceiling: refused when set, no effect when stored', async () => {
       const member = await node.user(['editor']);
       const team = await teamWith(member.id);

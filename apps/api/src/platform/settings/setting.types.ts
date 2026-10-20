@@ -64,6 +64,19 @@ export const defineSettings = <
   settings: T,
 ) => settings;
 
+/**
+ * A value an operator set for every tenant (`PUT /settings/{key}/platform`):
+ * the runtime default, below each tenant's own values, or, `enforced`,
+ * above all of them (a kill switch). Stored in a global table.
+ */
+export interface PlatformSettingValue {
+  /** Null: only `rollout` applies (a flag). */
+  value: unknown;
+  enforced: boolean;
+  /** Flags: the percentage of each tenant's principals it is on for, when no value is set. */
+  rollout: number | null;
+}
+
 /** A stored override: one scope's value of a setting (and a flag's rollout at the tenant scope). */
 export interface SettingOverride {
   key: string;

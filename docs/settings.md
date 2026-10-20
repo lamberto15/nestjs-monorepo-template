@@ -4,7 +4,8 @@ What administrators change at runtime without a deploy, and what users
 set for themselves: typed values declared by the features, with defaults
 in code and overrides in the database, for everyone, for a team, or
 per principal. Feature flags are boolean settings that can also roll out
-to a share of principals. The code is in `apps/api/src/platform/settings/`; notes
+to a share of principals. The deployment's operators may also set a value
+for every tenant at once, as a runtime default or as a kill switch. The code is in `apps/api/src/platform/settings/`; notes
 is the example (`features/notes/note-settings.ts`).
 
 ## For features
@@ -34,21 +35,72 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
   makes it a preference users set for themselves). `public: false` hides
   it from callers who don't manage settings. A `flag()` is a boolean
   setting with every scope and a rollout.
-- Precedence for a principal: their own value → one of their teams'
-  (in the order of their units) → the tenant's value → a flag's rollout →
-  the default. `settings.resolve()` also says which.
+- Precedence for a principal: the operators' **enforced** platform value →
+  their own value → one of their teams' (in the order of their units) → the
+  tenant's value → a flag's rollout → the operators' platform value (or
+  rollout) → the default. `settings.resolve()` also says which (`source`).
 - **Every stored value is a tenant's** (`setting_overrides` under
   row-level security, [tenancy](tenancy.md)): the declaration's default is
   what holds for every tenant, and each tenant's administrators change
   their own. The current context's tenant is read (a request's, a job's);
   outside any tenant every setting is its default. There is no value one
-  tenant's administrator sets for another.
+  tenant's administrator sets for another; the operators' platform values
+  (below) are the one value that holds across tenants.
 - Values are cached per tenant and instance and refreshed through the
   tenant's version in Redis (`tenant:<id>:settings:version`) after every
   change, like custom fields: a change applies on the next request on
   every instance, and reloads that tenant's cache alone.
 - In a durable workflow, read a setting inside `ctx.step()` so a replay
   sees the value the instance started with (`note-publication.workflow.ts`).
+
+## Gating a route on a flag
+
+```ts
+@Get('beta')
+@Can.Anyone()
+@RequireFlag(NOTE_BETA)            // platform/settings/require-flag.ts
+beta() { … }
+```
+
+`@RequireFlag(FLAG)` (on a route or a controller) answers 404 while the
+flag is off for the caller, as if the route did not exist. It is a route
+guard (`Reflector.createDecorator` and `UseGuards`), so it runs after the
+authentication and permission checks: a caller without the permission
+gets their 403 first.
+
+## For the operators: every tenant at once (`/platform`)
+
+```
+PUT    /v1/settings/{key}/platform     { value?, enforced?: false, rollout? }
+DELETE /v1/settings/{key}/platform     204, no body
+```
+
+Operators only (`Access.manageSettings` in the operator tenant,
+`@OperatorOnly()`; another tenant's administrator gets 403
+`operator_required`). Any setting takes one, flag or not.
+
+- **`enforced: false`** (the default): the runtime default of every tenant,
+  below each tenant's own values and rollouts, above the code's default.
+  Turning a feature on for everyone without a deploy.
+- **`enforced: true`**: above every tenant's, team's and principal's value,
+  a kill switch. Their stored values stay and hold again once it is removed.
+- **`rollout: 20`** (flags, no value, never enforced): on for a stable 20 %
+  of the principals of every tenant that set nothing itself (no value, no
+  rollout of its own), drawn per tenant as a tenant's rollout is. A gradual
+  release across the deployment: raise it step by step, then set the value.
+- The value passes the declaration's schema and `restrict()` like any
+  other (400 `validation_failed`, `setting_not_allowed`). For a policy
+  read with `anyOn()` (`auth.requireMfa`), the platform's `true` counts as
+  the widest scope; its `false`, even enforced, exempts nobody.
+- Stored in `platform_setting_values`, a global table (no `tenant_id`),
+  cached once per instance and refreshed through
+  `settings:platform:version` in Redis, like the tenants' values. They
+  hold outside any tenant too (a job of none).
+- Audited in the operator's tenant (`setting.updated`, `setting.reset`,
+  `details.scope: platform`).
+- Every view says what is set (`platform: { value, enforced, rollout } | null`,
+  `source: platform` when it decides) and whether the caller may change it
+  (`canEditPlatform`).
 
 ## IAM's auth policies (`auth.*`)
 
@@ -142,7 +194,7 @@ each user's and API client's `key`, the `scopeId` to send.
 ## For users and clients
 
 ```
-GET    /v1/settings                 your value of each (and `source`: user, team, tenant, rollout, default)
+GET    /v1/settings                 your value of each (and `source`: user, team, tenant, rollout, platform, default)
 GET    /v1/settings/{key}
 PUT    /v1/settings/{key}/mine      { value }   settings whose scopes include user
 DELETE /v1/settings/{key}/mine

@@ -112,7 +112,11 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
    * A tenant they left (an inactive membership) gives only what is
    * personal (the membership, the audit entries about them), never
    * that tenant's business records (notes, comments, attachments,
-   * approvals…), which are no longer theirs to take. Never the row-level
+   * approvals…), which are no longer theirs to take. A deactivated
+   * tenant (`tenants.active`, PATCH /v1/tenants/{id}) exposes nothing,
+   * whatever the membership says: only the membership row itself (the
+   * account's, a global table), no read in that tenant, as everywhere
+   * else a deactivated tenant stops (docs/tenancy.md). Never the row-level
    * security bypass: each read is one tenant's.
    */
   async *batches(principal: Principal): AsyncIterable<PersonalRow[]> {
@@ -124,6 +128,7 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
         .select({
           tenantId: memberships.tenantId,
           active: memberships.active,
+          tenantActive: tenants_.active,
           createdAt: memberships.createdAt,
           slug: tenants_.slug,
           name: tenants_.name,
@@ -135,6 +140,7 @@ export class AccountTransfer implements DataExporter<PersonalRow> {
     );
     for (const membership of tenants) {
       yield [row('membership', { id: membership.tenantId, ...membership })];
+      if (!membership.tenantActive) continue;
       const member = { ...user, tenantId: membership.tenantId };
       yield* this.inScope(
         membership.tenantId,
