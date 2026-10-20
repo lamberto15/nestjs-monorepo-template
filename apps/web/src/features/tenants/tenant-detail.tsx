@@ -18,6 +18,7 @@ import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { isNotFound, isPreconditionFailed } from '@/lib/records';
 import { z } from '@/lib/zod';
+import { BreakGlassSection } from './tenant-break-glass-section';
 import { DeletionSection } from './tenant-deletion-section';
 import { ExportSection } from './tenant-export-section';
 import {
@@ -100,6 +101,7 @@ export function TenantDetail(props: { id: string }) {
             conflict={conflict}
           />
           <ExportSection tenant={loaded.tenant} />
+          <BreakGlassSection tenant={loaded.tenant} />
           {/* The operator tenant is never deleted (409 `operator_tenant`). */}
           {!loaded.tenant.operator && (
             <DeletionSection tenant={loaded.tenant} />

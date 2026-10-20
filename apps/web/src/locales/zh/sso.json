@@ -39,7 +39,8 @@
     "created": "已添加 {{name}}。开启前它处于关闭状态。",
     "updated": "已保存 {{name}}。",
     "turnedOn": "{{name}} 已开启。",
-    "turnedOff": "{{name}} 已关闭。"
+    "turnedOff": "{{name}} 已关闭。",
+    "mappings": "群组角色"
   },
   "details": {
     "redirectUri": "重定向 URI（在提供商处登记）",
@@ -132,6 +133,35 @@
     "endExemption": "结束豁免",
     "endExemptionLabel": "结束 {{name}} 的豁免",
     "exemptionEnded": "已结束 {{name}} 的豁免。",
-    "exemption": "{{email}} · {{reason}}"
+    "exemption": "{{email}} · {{reason}}",
+    "addExemption": "豁免成员"
+  },
+  "mappings": {
+    "title": "{{name}} 的群组角色",
+    "description": "根据身份提供商列出的群组授予角色。每次登录时,用户会获得其群组对应的角色,并失去由映射授予但已退出群组的角色。你自己授予的角色会保留。",
+    "attribute": "群组属性或声明",
+    "attributeHint": "提供商列出群组的位置。留空:groups。",
+    "none": "还没有映射。没有映射就不会同步角色。",
+    "row": "{{group}} → {{role}}",
+    "removeLabel": "移除 {{group}} → {{role}}",
+    "group": "群组",
+    "groupHint": "精确匹配:名称或群组 ID(Microsoft Entra ID 发送 ID)。",
+    "role": "角色",
+    "rolePlaceholder": "选择角色",
+    "add": "添加映射",
+    "incomplete": "请输入群组并选择角色。",
+    "saved": "已保存 {{name}} 的群组角色。"
+  },
+  "exemption": {
+    "title": "豁免成员",
+    "description": "被豁免的成员在要求 SSO 时仍可使用密码或通行密钥登录。开启双重验证时,只有已注册双重验证的成员可被豁免。",
+    "member": "成员",
+    "memberPlaceholder": "选择成员",
+    "memberRequired": "请选择成员。",
+    "reason": "原因",
+    "reasonHint": "原因,例如应急管理员。",
+    "reasonRequired": "请填写原因。",
+    "save": "豁免",
+    "added": "已豁免 {{name}}。"
   }
 }

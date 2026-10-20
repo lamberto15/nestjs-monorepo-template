@@ -95,6 +95,66 @@ const invalidateTenants = (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: meQuery.queryKey }),
   ]);
 
+/** One of the operator's break-glass grants to a tenant. */
+export type BreakGlassGrant =
+  GetResponse<'/v1/tenants/{id}/break-glass'>['items'][number];
+
+/** The longest a grant lasts (the API's `minutes` ceiling, also its default). */
+export const BREAK_GLASS_MAX_MINUTES = 60;
+
+/** The operator's own grants to a tenant (`GET .../break-glass`), newest first. */
+export const breakGlassQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['tenants', 'break-glass', id],
+    queryFn: () =>
+      unwrap(
+        api.GET('/v1/tenants/{id}/break-glass', { params: { path: { id } } }),
+      ),
+    retry: false,
+  });
+
+/** A grant that has neither ended nor run out. */
+export const grantActive = (grant: BreakGlassGrant, now = Date.now()) =>
+  !grant.endedAt && Date.parse(grant.expiresAt) > now;
+
+/**
+ * Opens a grant (`POST .../break-glass { reason, minutes }`). The step-up
+ * (403 `reauthentication_required`) is asked and retried in lib/api.ts; the
+ * caller shows the other refusals (409 `break_glass_active`, 403
+ * `break_glass_disabled`...).
+ */
+export function useStartBreakGlass(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (body: { reason: string; minutes: number }) =>
+      unwrap(
+        api.POST('/v1/tenants/{id}/break-glass', {
+          params: { path: { id } },
+          body,
+        }),
+      ),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: breakGlassQuery(id).queryKey }),
+  });
+}
+
+/** Ends a grant before its time (`DELETE .../break-glass/{grantId}`). */
+export function useEndBreakGlass(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (grantId: string) =>
+      unwrap(
+        api.DELETE('/v1/tenants/{id}/break-glass/{grantId}', {
+          params: { path: { id, grantId } },
+        }),
+      ),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: breakGlassQuery(id).queryKey }),
+  });
+}
+
 /** The formats of a tenant's export (`POST /v1/tenants/{id}/export`). */
 export const TENANT_EXPORT_FORMATS = ['json', 'csv', 'xlsx'] as const;
 export type TenantExportFormat = (typeof TENANT_EXPORT_FORMATS)[number];

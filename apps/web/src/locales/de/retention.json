@@ -1,0 +1,22 @@
+{
+  "nav": "Aufbewahrung",
+  "title": "Aufbewahrung",
+  "description": "Wie lange jede Art von Datensatz aufbewahrt wird. Eine Regel tut nichts, bis Sie sie einschalten; dann löscht oder anonymisiert ein nächtlicher Job die Datensätze, die älter als die eingestellten Tage sind.",
+  "holds": "Datensätze unter Legal Hold werden nie gelöscht oder anonymisiert, was die Regeln auch sagen. Setzen oder lösen Sie Holds, bevor Sie eine Regel einschalten.",
+  "none": "Es sind keine Aufbewahrungsregeln deklariert.",
+  "action": { "purge": "Löschen", "anonymise": "Anonymisieren" },
+  "actionHelp": {
+    "purge": "Ältere {{subject}}-Datensätze werden samt Verknüpfungen gelöscht.",
+    "anonymise": "Ältere {{subject}}-Datensätze bleiben erhalten, aber alles, was eine Person identifiziert, wird überschrieben."
+  },
+  "enabled": "{{name}} einschalten",
+  "on": "Ein",
+  "off": "Aus",
+  "days": "Tage, die {{name}} aufbewahrt wird",
+  "daysHelp": "Mindestens {{min}}; Standard ist {{def}}. Gilt ab dem nächsten nächtlichen Lauf.",
+  "minDays": "Datensätze mindestens {{n}} Tage aufbewahren.",
+  "lastRun": "Letzter Lauf {{at}}: {{n}} bearbeitet.",
+  "neverRun": "Noch nicht gelaufen.",
+  "save": "Speichern",
+  "saved": "Regel „{{name}}“ gespeichert."
+}

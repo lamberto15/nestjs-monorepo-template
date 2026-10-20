@@ -1,0 +1,22 @@
+{
+  "nav": "Pengekalan",
+  "title": "Pengekalan",
+  "description": "Berapa lama setiap jenis rekod disimpan. Peraturan tidak berbuat apa-apa sehingga anda menghidupkannya; kemudian tugas malam memadam atau menganonimkan rekod yang lebih lama daripada bilangan hari yang ditetapkan.",
+  "holds": "Rekod di bawah tahanan undang-undang tidak akan dipadam atau dianonimkan, apa pun peraturannya. Letak atau lepaskan tahanan sebelum menghidupkan peraturan.",
+  "none": "Tiada peraturan pengekalan diisytiharkan.",
+  "action": { "purge": "Padam", "anonymise": "Anonimkan" },
+  "actionHelp": {
+    "purge": "Rekod {{subject}} yang lebih lama dipadam bersama rekod yang merujuknya.",
+    "anonymise": "Rekod {{subject}} yang lebih lama dikekalkan, tetapi maklumat yang mengenal pasti seseorang ditimpa."
+  },
+  "enabled": "Hidupkan {{name}}",
+  "on": "Hidup",
+  "off": "Mati",
+  "days": "Hari menyimpan {{name}}",
+  "daysHelp": "Sekurang-kurangnya {{min}}; lalai ialah {{def}}. Berkuat kuasa pada larian malam seterusnya.",
+  "minDays": "Simpan rekod sekurang-kurangnya {{n}} hari.",
+  "lastRun": "Larian terakhir {{at}}: {{n}} diproses.",
+  "neverRun": "Belum dijalankan.",
+  "save": "Simpan",
+  "saved": "Peraturan “{{name}}” disimpan."
+}

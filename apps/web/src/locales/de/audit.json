@@ -10,12 +10,18 @@
     "targetType": "Gegenstand",
     "targetId": "Ziel",
     "ip": "IP-Adresse",
-    "details": "Details"
+    "details": "Details",
+    "tenant": "Mandant"
   },
   "details": {
     "open": "Details anzeigen",
     "actor": "Akteur",
     "actorId": "Akteur-ID",
     "none": "Keine Details."
+  },
+  "subtenants": {
+    "switch": "Untermandanten einbeziehen",
+    "included": "Eingeschlossen: {{names}}",
+    "none": "Unter diesem Mandanten gibt es keine Untermandanten."
   }
 }

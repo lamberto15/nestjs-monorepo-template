@@ -1,0 +1,14 @@
+{
+  "nav": { "title": "Sign-ins" },
+  "title": "Sign-ins",
+  "columns": {
+    "at": "When",
+    "user": "User",
+    "result": "Result",
+    "method": "Method",
+    "via": "Via",
+    "userAgent": "Device",
+    "ip": "IP address"
+  },
+  "result": { "success": "Success", "failure": "Failed" }
+}

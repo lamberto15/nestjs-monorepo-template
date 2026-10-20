@@ -59,5 +59,45 @@
     "banner": "Kata laluan yang anda gunakan untuk log masuk muncul dalam kebocoran data yang diketahui. Tukar sekarang kepada kata laluan yang tidak anda gunakan di tempat lain.",
     "action": "Tukar kata laluan anda",
     "settleFailed": "Kata laluan anda telah ditukar, tetapi amaran kebocoran tidak dapat ditandakan sebagai sudah dibaca."
+  },
+  "phone": {
+    "title": "Nombor SMS",
+    "description": "Ke mana mesej teks dihantar. Nombor hanya digunakan selepas anda mengesahkan kod yang dihantar kepadanya.",
+    "number": "Nombor telefon",
+    "numberHint": "Dengan kod negara, seperti +4915112345678.",
+    "invalid": "Masukkan nombor dengan kod negara, seperti +4915112345678.",
+    "add": "Tambah nombor",
+    "save": "Hantar kod",
+    "change": "Guna nombor lain",
+    "codeSent": "Kami telah menghantar kod kepada anda.",
+    "code": "Kod",
+    "codeHint": "Kod enam digit yang kami hantar. Sah selama sepuluh minit.",
+    "codeInvalid": "Masukkan enam digit.",
+    "verify": "Sahkan nombor",
+    "confirmed": "Nombor disahkan.",
+    "verified": "Disahkan",
+    "unverified": "Belum disahkan",
+    "optedOut": "Dihentikan (STOP)",
+    "optedOutHint": "Nombor ini membalas STOP, jadi tiada teks dihantar. Balas START daripadanya untuk menerima teks semula.",
+    "remove": "Buang",
+    "removed": "Nombor dibuang.",
+    "removeTitle": "Buang nombor anda?",
+    "removeDescription": "Tiada mesej teks akan dihantar kepada anda."
+  },
+  "devices": {
+    "title": "Peranti",
+    "description": "Telefon dan pelayar yang menerima pemberitahuan tolak. Aplikasi mendaftarkannya.",
+    "none": "Tiada peranti didaftarkan.",
+    "lastSeen": "Terakhir dilihat {{date}}",
+    "platforms": {
+      "web": "Web",
+      "ios": "iOS",
+      "android": "Android"
+    },
+    "remove": "Buang",
+    "removeLabel": "Buang {{name}}",
+    "removed": "Peranti dibuang.",
+    "removeTitle": "Buang peranti ini?",
+    "removeDescription": "{{name}} tidak akan menerima pemberitahuan tolak sehingga aplikasi mendaftarkannya semula."
   }
 }

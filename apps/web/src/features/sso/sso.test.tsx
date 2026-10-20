@@ -6,7 +6,7 @@ import { nav, visibleGroups } from '@/nav';
 import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
 import { findToast } from '@/test/toast';
-import { useSsoApi } from './test/sso-api';
+import { MEMBER_ID, ROLE_ID, oidc, useSsoApi } from './test/sso-api';
 
 const ADMIN = ['Access.manageSso'];
 
@@ -289,5 +289,69 @@ describe('policy', () => {
       ]),
     );
     expect(await screen.findByText('Nobody is exempted.')).toBeVisible();
+  });
+});
+
+describe('group roles', () => {
+  it('maps a group to a role and removes a mapping', async () => {
+    const { calls } = useSsoApi({
+      can: ADMIN,
+      connections: [
+        oidc({
+          roleMappings: [{ group: 'old', roleId: ROLE_ID }],
+          groupsAttribute: null,
+        }),
+      ],
+    });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    await screen.findByText('Okta');
+    await user.click(screen.getByRole('button', { name: 'Group roles' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('old → Editor')).toBeVisible();
+    await user.type(
+      within(dialog).getByLabelText('Groups attribute or claim'),
+      'roles',
+    );
+    await user.type(within(dialog).getByLabelText('Group'), 'staff');
+    await user.click(within(dialog).getByRole('combobox', { name: 'Role' }));
+    await user.click(await screen.findByRole('option', { name: 'Editor' }));
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Add mapping' }),
+    );
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Remove old → Editor' }),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.patched).toHaveLength(1));
+    expect(calls.patched[0]!.body).toEqual({
+      groupsAttribute: 'roles',
+      roleMappings: [{ group: 'staff', roleId: ROLE_ID }],
+    });
+    expect(await findToast('Saved the group roles of Okta.')).toBeVisible();
+  });
+});
+
+describe('exemptions', () => {
+  it('exempts a member with a reason', async () => {
+    const { calls } = useSsoApi({ can: ADMIN });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    await user.click(await screen.findByRole('tab', { name: 'Policy' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Exempt a member' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('combobox', { name: 'Member' }));
+    await user.click(await screen.findByRole('option', { name: /Ann/ }));
+    expect(screen.queryByRole('option', { name: /Off/ })).toBeNull();
+    await user.type(within(dialog).getByLabelText('Reason'), 'IdP outage plan');
+    await user.click(within(dialog).getByRole('button', { name: 'Exempt' }));
+    await waitFor(() =>
+      expect(calls.exemptionsAdded).toEqual([
+        { userId: MEMBER_ID, reason: 'IdP outage plan' },
+      ]),
+    );
+    expect(await findToast('Exempted Ann (ann@acme.com).')).toBeVisible();
   });
 });

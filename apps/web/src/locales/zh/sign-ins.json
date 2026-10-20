@@ -1,0 +1,14 @@
+{
+  "nav": { "title": "登录记录" },
+  "title": "登录记录",
+  "columns": {
+    "at": "时间",
+    "user": "用户",
+    "result": "结果",
+    "method": "方式",
+    "via": "途径",
+    "userAgent": "设备",
+    "ip": "IP 地址"
+  },
+  "result": { "success": "成功", "failure": "失败" }
+}
