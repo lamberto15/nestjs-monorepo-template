@@ -1,5 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { OutboxRelay } from '@nestjs/outbox';
 import request from 'supertest';
+import { SignInPasswordCheck } from '../src/iam/account/sign-in-password-check.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
 
 /**
@@ -8,7 +10,8 @@ import { bootApp, newPassword, type TestApp } from './support.js';
  * check new passwords against it (PASSWORD_BREACH_CHECK=on; off in every
  * other file, setup-env.ts). It knows one breached password, pads every
  * answer with count-0 lines as the real API does with `Add-Padding: true`,
- * and records what it was asked.
+ * and records what it was asked. `down` answers 503; `hold` keeps every
+ * answer back until `release()` (a slow API).
  */
 const pwned = await vi.hoisted(async () => {
   const { createServer } = await import('node:http');
@@ -19,12 +22,23 @@ const pwned = await vi.hoisted(async () => {
   const breached = ['pass', 'word', '1234'].join('');
   const corpus = new Map([[sha1(breached), 52_256]]);
   const requests: { url: string; padding: string | undefined }[] = [];
-  const state = { down: false };
+  const state = { down: false, hold: false };
+  const held: (() => void)[] = [];
   const server = createServer((req, res) => {
     requests.push({
       url: req.url ?? '',
       padding: req.headers['add-padding'] as string | undefined,
     });
+    if (state.hold) {
+      held.push(() => answer(req, res));
+      return;
+    }
+    answer(req, res);
+  });
+  const answer = (
+    req: import('node:http').IncomingMessage,
+    res: import('node:http').ServerResponse,
+  ) => {
     if (state.down) {
       res.writeHead(503).end();
       return;
@@ -45,7 +59,7 @@ const pwned = await vi.hoisted(async () => {
     res
       .writeHead(200, { 'content-type': 'text/plain' })
       .end(lines.join('\r\n'));
-  });
+  };
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as { port: number };
   Object.assign(process.env, {
@@ -58,6 +72,11 @@ const pwned = await vi.hoisted(async () => {
     breached,
     requests,
     state,
+    held,
+    release: () => {
+      state.hold = false;
+      held.splice(0).forEach((send) => send());
+    },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 });
@@ -67,10 +86,16 @@ describe('breached passwords (e2e)', () => {
 
   beforeEach(async () => {
     pwned.state.down = false;
+    pwned.state.hold = false;
     node = await bootApp();
+    // The administrator's sign-in (bootApp) is checked too.
+    await checked();
     pwned.requests.length = 0;
   });
   afterEach(() => node.close());
+
+  /** Once the sign-in checks still running are done (they never hold up the sign-in). */
+  const checked = () => node.app.get(SignInPasswordCheck).settled();
   afterAll(() => pwned.close());
 
   const email = () => `${randomUUID().slice(0, 8)}@example.com`;
@@ -162,8 +187,10 @@ describe('breached passwords (e2e)', () => {
       .patch(`/v1/access/users/${user.id}`)
       .send({ password: newPassword() })
       .expect(400);
-    // Checked once, when the owner chose theirs (the invitation's acceptance).
-    expect(pwned.requests).toHaveLength(1);
+    await checked();
+    // Checked when the owner chose theirs (the invitation's acceptance), and
+    // at their first sign-in (SignInPasswordCheck): never for the administrator.
+    expect(pwned.requests).toHaveLength(2);
   });
 
   it('sends only a 5-character hash prefix, with Add-Padding, never the password or its hash', async () => {
@@ -194,11 +221,148 @@ describe('breached passwords (e2e)', () => {
       .expect(201);
     expect(pwned.requests).toHaveLength(1);
 
-    // Back up: an existing password isn't checked at sign-in (docs/auth.md).
-    pwned.state.down = false;
+    // Still down: the sign-in works, nothing is flagged.
     await node.verifySignUp(address, pwned.breached);
     await node.signIn(address, pwned.breached);
+    await checked();
+    expect(pwned.requests).toHaveLength(2);
+    expect(
+      await node.auditEntries({ action: 'auth.password-breached' }),
+    ).toEqual([]);
+  });
+
+  /** An invited user whose password got past the check (the API was down), not signed in yet. */
+  async function breachedAccount() {
+    const address = email();
+    const token = await node.invite(node.admin(), { email: address });
+    pwned.state.down = true;
+    await node
+      .http()
+      .post('/v1/auth/invitations/accept')
+      .send({ token, password: pwned.breached })
+      .expect(200);
+    pwned.state.down = false;
+    pwned.requests.length = 0;
+    return address;
+  }
+
+  /** The caller's notifications of a breached password, after delivery. */
+  async function breachNotices(agent: request.Agent) {
+    await node.app.get(OutboxRelay).runOnce();
+    const response = await agent
+      .get('/v1/notifications?sort=-createdAt')
+      .expect(200);
+    return (
+      response.body.items as { type: string; title: string; data: object }[]
+    ).filter((item) => item.type === 'security.passwordBreached');
+  }
+
+  it('flags a breached password at sign-in: audited, the owner told in-app and by mail, once per password', async () => {
+    const address = await breachedAccount();
+    const agent = await node.signIn(address, pwned.breached);
+    await checked();
+    const hash = createHash('sha1')
+      .update(pwned.breached)
+      .digest('hex')
+      .toUpperCase();
+    // Only the prefix left, as for a new password.
+    expect(pwned.requests).toEqual([
+      { url: `/range/${hash.slice(0, 5)}`, padding: 'true' },
+    ]);
+
+    const id = (await agent.get('/v1/auth/me').expect(200)).body.user
+      .id as string;
+    const [entry, ...more] = await node.auditEntries({
+      action: 'auth.password-breached',
+      targetId: id,
+    });
+    expect(more).toEqual([]);
+    expect(entry).toMatchObject({ actor: `user:${id}`, targetType: 'user' });
+    expect(JSON.stringify(entry)).not.toContain(hash.slice(5));
+
+    const [notice, ...others] = await breachNotices(agent);
+    expect(others).toEqual([]);
+    expect(notice).toMatchObject({
+      title: 'Your password appeared in a data breach',
+      data: { ip: '127.0.0.1' },
+    });
+    await node.waitForMail({ to: address, subject: /data breach/ });
+
+    // Signed in again: this password was checked already (PASSWORD_BREACH_RECHECK_DAYS).
+    await node.signIn(address, pwned.breached);
+    await checked();
     expect(pwned.requests).toHaveLength(1);
+    expect(await breachNotices(agent)).toHaveLength(1);
+
+    // A new password is checked at its first sign-in.
+    const next = newPassword();
+    await agent
+      .post('/v1/auth/password/change')
+      .send({ currentPassword: pwned.breached, newPassword: next })
+      .expect(204);
+    await node.signIn(address, next);
+    await checked();
+    // The change's check, then the sign-in's: clean, nothing more flagged.
+    expect(pwned.requests).toHaveLength(3);
+    expect(
+      await node.auditEntries({
+        action: 'auth.password-breached',
+        targetId: id,
+      }),
+    ).toHaveLength(1);
+  });
+
+  it('signs in without waiting for the API: a slow answer still flags the password afterwards', async () => {
+    const address = await breachedAccount();
+    pwned.state.hold = true;
+    const started = Date.now();
+    await node.signIn(address, pwned.breached);
+    // Answered while the API still holds its answer (PASSWORD_BREACH_TIMEOUT_MS is 1 s here).
+    expect(Date.now() - started).toBeLessThan(1000);
+    await vi.waitFor(() => expect(pwned.held).toHaveLength(1));
+    expect(
+      await node.auditEntries({ action: 'auth.password-breached' }),
+    ).toEqual([]);
+
+    pwned.release();
+    await checked();
+    expect(
+      await node.auditEntries({ action: 'auth.password-breached' }),
+    ).toHaveLength(1);
+  });
+
+  it('signs in when the API fails at sign-in; the next sign-in checks again', async () => {
+    const address = await breachedAccount();
+    pwned.state.down = true;
+    await node.signIn(address, pwned.breached);
+    await checked();
+    expect(pwned.requests).toHaveLength(1);
+    expect(
+      await node.auditEntries({ action: 'auth.password-breached' }),
+    ).toEqual([]);
+
+    // Back up: not debounced by the failed check.
+    pwned.state.down = false;
+    await node.signIn(address, pwned.breached);
+    await checked();
+    expect(pwned.requests).toHaveLength(2);
+    expect(
+      await node.auditEntries({ action: 'auth.password-breached' }),
+    ).toHaveLength(1);
+  });
+
+  it("checks a token client's password sign-in too (POST /v1/auth/token)", async () => {
+    const address = await breachedAccount();
+    await node
+      .http()
+      .post('/v1/auth/token')
+      .send({ email: address, password: pwned.breached })
+      .expect(200);
+    await checked();
+    expect(pwned.requests).toHaveLength(1);
+    expect(
+      await node.auditEntries({ action: 'auth.password-breached' }),
+    ).toHaveLength(1);
   });
 
   it('accepts a long random password the corpus has never seen', async () => {

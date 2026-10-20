@@ -102,6 +102,7 @@ x-app: &app
     PASSWORD_BREACH_TIMEOUT_MS: ${PASSWORD_BREACH_TIMEOUT_MS:-2000}
     PASSWORD_BREACH_ON_ERROR: ${PASSWORD_BREACH_ON_ERROR:-allow}
     PASSWORD_BREACH_MIN_COUNT: ${PASSWORD_BREACH_MIN_COUNT:-1}
+    PASSWORD_BREACH_RECHECK_DAYS: ${PASSWORD_BREACH_RECHECK_DAYS:-30}
     # Password hashes (scrypt, 128 MiB each outside the heap) at once per
     # process, the rest queued then 503 server_busy: the memory limits below
     # hold the heap plus these (docs/deployment.md, "Resource limits").

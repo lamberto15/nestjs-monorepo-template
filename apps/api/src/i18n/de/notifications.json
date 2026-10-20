@@ -51,6 +51,11 @@
       "title": "Ihr Passwort wurde geändert",
       "body": "Das Passwort Ihres Kontos wurde geändert (von {ip}). Waren Sie das nicht, setzen Sie es sofort zurück."
     },
+    "passwordBreached": {
+      "label": "Passwort in einem Datenleck gefunden",
+      "title": "Ihr Passwort ist in einem Datenleck aufgetaucht",
+      "body": "Das Passwort, mit dem Sie sich angemeldet haben (von {ip}), ist in einem bekannten Datenleck aufgetaucht, andere könnten es also ausprobieren. Ändern Sie es jetzt in eines, das Sie nirgends sonst verwenden."
+    },
     "mfaChanged": {
       "label": "Zwei-Faktor-Anmeldung geändert",
       "title": "Zwei-Faktor-Anmeldung geändert",

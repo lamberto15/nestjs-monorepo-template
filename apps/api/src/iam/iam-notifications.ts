@@ -33,6 +33,14 @@ export const IAM_NOTIFICATIONS = [
     data: z.object({ via: z.enum(['change', 'reset']), ip: z.string() }),
   },
   {
+    // The password of a sign-in is in a known data breach (SignInPasswordCheck):
+    // once per password per PASSWORD_BREACH_RECHECK_DAYS, until it's changed.
+    type: 'security.passwordBreached',
+    channels: { email: 'immediate' },
+    mandatory: true,
+    data: z.object({ at: z.iso.datetime(), ip: z.string() }),
+  },
+  {
     // Two-factor turned on (enrollment confirmed) or off.
     type: 'security.mfaChanged',
     channels: { email: 'immediate' },

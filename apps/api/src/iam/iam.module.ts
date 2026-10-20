@@ -53,6 +53,7 @@ import {
   PWNED_PASSWORDS,
 } from './account/breached-passwords.service.js';
 import { CredentialsService } from './account/credentials.service.js';
+import { SignInPasswordCheck } from './account/sign-in-password-check.js';
 import {
   boundedPasswordHasher,
   PASSWORD_HASHER_PARAMS,
@@ -322,6 +323,8 @@ export class IamModule {
         UsersRepository,
         CredentialsService,
         BreachedPasswordsService,
+        // Sign-in passwords against the breaches, off the sign-in's path.
+        SignInPasswordCheck,
         // At most PASSWORD_HASH_CONCURRENCY password hashes at once (password-hashing.ts).
         ...passwordHashingProviders,
         // Bot protection on the public routes (@Captcha()): the verifier

@@ -51,6 +51,11 @@
       "title": "Your password was changed",
       "body": "The password of your account was changed (from {ip}). If this wasn't you, reset it right away."
     },
+    "passwordBreached": {
+      "label": "Password found in a data breach",
+      "title": "Your password appeared in a data breach",
+      "body": "The password you signed in with (from {ip}) appears in a known data breach, so others may try it. Change it now, to one you use nowhere else."
+    },
     "mfaChanged": {
       "label": "Two-factor sign-in changed",
       "title": "Two-factor sign-in changed",
