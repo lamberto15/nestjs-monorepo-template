@@ -281,7 +281,7 @@ describe('email deliverability (e2e)', () => {
       'sns_malformed',
     );
     expect((await post('').expect(400)).body.code).toBe('sns_malformed');
-    await post(snsNotification(bounce(address)), 'postmark').expect(404);
+    await post(snsNotification(bounce(address)), 'mailgun').expect(404);
 
     const forged = snsNotification(bounce(address));
     forged.Message = JSON.stringify(bounce(address, 'Transient'));
