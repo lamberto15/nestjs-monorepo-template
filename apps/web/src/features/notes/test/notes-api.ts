@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw/http';
 import { panelHandlers, panelsDescription } from '@/test/panels-api';
+import { subscriptionsHandlers } from '@/test/subscriptions';
 import { problem, server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
 
@@ -56,8 +57,8 @@ const description = {
   recycleBin: true,
   defaultSort: '-createdAt',
   limits: { defaultLimit: 50, maxLimit: 100 },
-  // Notes take every panel (note.record.ts).
-  ...panelsDescription(),
+  // Notes take every panel, and watching (note.record.ts).
+  ...panelsDescription({ watch: true }),
 };
 
 type NoteCan = { update: boolean; delete: boolean; restore: boolean };
@@ -72,6 +73,8 @@ export function useNotesApi(options: {
   can: string[];
   notes: TestNote[];
   recordCan?: (note: TestNote) => Partial<NoteCan>;
+  /** The ids of the notes the user watches. */
+  watched?: string[];
 }) {
   const notes = new Map(options.notes.map((note) => [note.id, { ...note }]));
   const held = new Set(options.can);
@@ -103,7 +106,15 @@ export function useNotesApi(options: {
   };
 
   useSignedIn(options.can);
+  const subscriptions = subscriptionsHandlers({
+    record: NOTE_RECORD,
+    watched: (options.watched ?? []).map((recordId) => ({
+      subject: 'Note',
+      recordId,
+    })),
+  });
   server.use(
+    ...subscriptions.handlers,
     // The detail page mounts the record panels: empty ones unless a test sets them.
     ...panelHandlers({ record: NOTE_RECORD }).handlers,
     http.get('/v1/lists/:subject', () => HttpResponse.json(description)),
@@ -175,5 +186,5 @@ export function useNotesApi(options: {
       return HttpResponse.json(restored);
     }),
   );
-  return { calls, changeElsewhere, notes };
+  return { calls, changeElsewhere, notes, subscriptions };
 }

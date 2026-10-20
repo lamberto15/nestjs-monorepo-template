@@ -75,6 +75,124 @@ export function parseChoices({ idempotency, clientAccess, grants }) {
   };
 }
 
+/** The words an approval's action can't be: the record's own routes (platform/records/record-approvals.ts). */
+export const RESERVED_ACTIONS = [
+  'restore',
+  'tags',
+  'comments',
+  'attachments',
+  'revisions',
+  'pdf',
+  'watch',
+  'bulk',
+];
+
+/** `--approvals publish,markPaid`: the actions that need approval, checked. */
+export function parseApprovals(list) {
+  const actions = (list ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+  for (const action of actions) {
+    if (
+      !/^[a-z][a-zA-Z0-9]*$/.test(action) ||
+      RESERVED_ACTIONS.includes(action)
+    ) {
+      throw new Error(
+        `--approvals: "${action}" is not an action; a camelCase word (publish, markPaid), none of ${RESERVED_ACTIONS.join(', ')}.`,
+      );
+    }
+  }
+  if (new Set(actions).size !== actions.length) {
+    throw new Error('--approvals: an action is named twice.');
+  }
+  return actions;
+}
+
+/** `Publish an invoice`: an approval's label in the inbox. */
+export const approvalLabel = (action, t) => {
+  const spaced = action.replace(
+    /[A-Z]/g,
+    (letter) => ` ${letter.toLowerCase()}`,
+  );
+  return `${spaced[0].toUpperCase()}${spaced.slice(1)} ${t.aNoun}`;
+};
+
+/**
+ * `--settings "paymentDays:int=30,autoSend:flag,tone:enum(formal|casual)=formal,footer:string=Thanks"`:
+ * name, kind (`flag`, `int`, `string`, `enum(a|b)`) and default (a flag's is
+ * false; an `int` needs one; a string's is empty; an enum's its first value).
+ * Returns each as the `recordSetting` call the declaration holds.
+ */
+export function parseSettings(list, approvals = []) {
+  const entries = [];
+  // Commas separate settings; an enum's values use `|`, so no comma is inside one.
+  for (const raw of (list ?? '').split(',')) {
+    const text = raw.trim();
+    if (!text) continue;
+    const match = /^(\w+):(flag|int|string|enum\(([^)]*)\))(?:=(.*))?$/.exec(
+      text,
+    );
+    if (!match) {
+      throw new Error(
+        `--settings: "${text}" is not name:kind[=default]; kinds flag, int, string, enum(a|b).`,
+      );
+    }
+    const [, name, kindText, enumValues, initial] = match;
+    if (!/^[a-z][a-zA-Z0-9]*$/.test(name)) {
+      throw new Error(`--settings: "${name}" is not a camelCase name.`);
+    }
+    if (approvals.some((action) => `${action}Approval` === name)) {
+      throw new Error(
+        `--settings: "${name}" is the flag of the approval of ${name.replace(/Approval$/, '')} (record.ts derives it).`,
+      );
+    }
+    const kind = kindText.startsWith('enum') ? 'enum' : kindText;
+    let call;
+    if (kind === 'flag') {
+      if (initial !== undefined && !['true', 'false'].includes(initial)) {
+        throw new Error(
+          `--settings ${name}: a flag's default is true or false.`,
+        );
+      }
+      call = `recordSetting.flag(${initial === 'true' ? 'true' : ''})`;
+    } else if (kind === 'int') {
+      if (initial === undefined || !/^-?\d+$/.test(initial)) {
+        throw new Error(
+          `--settings ${name}: an int needs a default (${name}:int=30).`,
+        );
+      }
+      call = `recordSetting.int(${initial})`;
+    } else if (kind === 'string') {
+      call = `recordSetting.string(${JSON.stringify(initial ?? '').replace(/^"|"$/g, "'")})`;
+      if (/['\\]/.test(initial ?? '')) {
+        throw new Error(
+          `--settings ${name}: no quotes or backslashes in a default.`,
+        );
+      }
+    } else {
+      const values = enumValues.split('|').map((v) => v.trim());
+      if (values.length < 2 || values.some((v) => !/^[\w-]+$/.test(v))) {
+        throw new Error(
+          `--settings ${name}: enum needs two or more words (enum(a|b)).`,
+        );
+      }
+      const chosen = initial ?? values[0];
+      if (!values.includes(chosen)) {
+        throw new Error(
+          `--settings ${name}: the default is not one of its values.`,
+        );
+      }
+      call = `recordSetting.enum([${values.map((v) => `'${v}'`).join(', ')}], '${chosen}')`;
+    }
+    if (entries.some((entry) => entry.name === name)) {
+      throw new Error(`--settings: "${name}" twice.`);
+    }
+    entries.push({ name, call });
+  }
+  return entries;
+}
+
 const textFields = (fields) =>
   fields.filter((f) => f.type === 'string' || f.type === 'text');
 /** The field a record is called by (comments, search, PDF): its first string, if any. */

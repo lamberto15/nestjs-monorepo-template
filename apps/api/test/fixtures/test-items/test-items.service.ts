@@ -127,8 +127,7 @@ export class TestItemsService {
     }
     // Business logic: what a change must respect, here.
     return inTransaction(this.txHost, async (tx) => {
-      // Not while an approver decides on it (409 approval_pending): sent back for changes, it may change.
-      await this.approvals.assertNotPending('TestItem', row.id);
+      // Not while an approver decides on it (409 approval_pending): RecordLifecycle.updated.
       const [updated] = await tx
         .update(testItems)
         .set(changes)
@@ -161,9 +160,7 @@ export class TestItemsService {
   async delete(by: Principal, row: TestItem, ip?: string) {
     // Business logic: what a delete must respect, here.
     await inTransaction(this.txHost, async (tx) => {
-      // Not while an approver decides on it; a request sent back for changes is withdrawn with the item.
-      await this.approvals.assertNotPending('TestItem', row.id);
-      await this.approvals.withdraw(tx, by, 'TestItem', row.id);
+      // Not while an approver decides on it, and its sent-back requests go: RecordStore.delete.
       await this.records.delete(tx, by, row);
       await this.audit.recordChange(
         by,

@@ -18,6 +18,11 @@ import {
   RecordLifecycle,
   RecordPresenter,
 } from './record-contract.js';
+import {
+  recordApprovalHandlers,
+  recordApprovalRoutes,
+} from './record-approval-routes.js';
+import type { RecordApprovalEffect } from './record-approvals.js';
 import type { RecordList } from './record-list.js';
 import { restoreRoutes } from './record-restore.routes.js';
 import { RecordStore } from './record-store.js';
@@ -75,6 +80,12 @@ export function recordParts(
     list: RecordList;
     schemas: RecordSchemas;
     override?: Partial<Record<Capability, Type>>;
+    /**
+     * What happens once each approvable action (`approvals` in the
+     * declaration) is approved: `recordApprovalEffects()`, in
+     * `<item>.approvals.ts`.
+     */
+    approvals?: Record<string, RecordApprovalEffect>;
   },
 ) {
   const has = (capability: Capability) => takes(declaration, capability);
@@ -110,6 +121,11 @@ export function recordParts(
         ]
       : []),
     ...(has('watch') ? [watchRoutes(declaration)] : []),
+    // The approvable actions' routes (declaration.approvals): POST /<path>/{id}/<action>.
+    ...recordApprovalRoutes(declaration, {
+      policy: options.policy,
+      effects: options.approvals ?? {},
+    }),
   ];
   const providers: Provider[] = [
     { provide: RECORD_DECLARATION, useValue: declaration },
@@ -131,6 +147,8 @@ export function recordParts(
       }),
       inject: [options.service, options.policy],
     },
+    // The approvable actions' handlers, registered into ApprovalsRegistry.
+    ...recordApprovalHandlers(declaration, options.approvals),
     RecordStore,
     RecordLifecycle,
     RecordPresenter,

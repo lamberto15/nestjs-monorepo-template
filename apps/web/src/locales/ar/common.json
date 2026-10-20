@@ -51,7 +51,10 @@
       "newPassword": "كلمة المرور الجديدة",
       "confirmPassword": "تأكيد كلمة المرور",
       "name": "الاسم",
-      "nameRequired": "أدخل اسمًا."
+      "nameRequired": "أدخل اسمًا.",
+      "tenantName": "Organization name",
+      "tenantNameHint": "Your new organization. You will be its administrator. Leave it empty to use your name.",
+      "tenantNameTooLong": "At most {{max}} characters."
     },
     "mfa": {
       "hint": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة.",
