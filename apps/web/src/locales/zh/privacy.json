@@ -22,8 +22,14 @@
     "outdated": "你于 {{date}} 接受了版本 {{version}}；当前版本为 {{current}}。",
     "notGiven": "未同意（版本 {{version}}）。",
     "locked": "使用本应用所必需：无法在此撤回。",
-    "noWithdraw": "目前还不能在此撤回。",
-    "given": "{{kind}}：已接受。"
+    "given": "{{kind}}：已接受。",
+    "withdrawable": "你可以随时撤回。",
+    "withdrawnAt": "已于 {{date}} 撤回。打开开关即可重新同意。",
+    "withdrawn": "{{kind}}：已撤回。",
+    "withdraw": "撤回",
+    "loadFailed": "无法加载同意项。",
+    "retry": "重试",
+    "acceptCurrent": "接受版本 {{version}}"
   },
   "deletion": {
     "title": "删除你的账户",
