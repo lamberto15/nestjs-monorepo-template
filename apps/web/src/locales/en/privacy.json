@@ -22,8 +22,14 @@
     "outdated": "You accepted version {{version}} on {{date}}; version {{current}} is current.",
     "notGiven": "Not given (version {{version}}).",
     "locked": "Required to use the app: it can't be withdrawn here.",
-    "noWithdraw": "Withdrawing isn't available here yet.",
-    "given": "{{kind}}: accepted."
+    "given": "{{kind}}: accepted.",
+    "withdrawable": "You can withdraw it at any time.",
+    "withdrawnAt": "Withdrawn {{date}}. Switch it on to give it again.",
+    "withdrawn": "{{kind}}: withdrawn.",
+    "withdraw": "Withdraw",
+    "loadFailed": "The consents could not be loaded.",
+    "retry": "Try again",
+    "acceptCurrent": "Accept version {{version}}"
   },
   "deletion": {
     "title": "Delete your account",
