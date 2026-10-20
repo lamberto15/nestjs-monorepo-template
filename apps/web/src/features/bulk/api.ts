@@ -56,14 +56,14 @@ export async function runBulk(
 
 export const bulkJobQuery = (
   id: string,
-  poll: (status: string | undefined) => number = () => 1000,
+  poll: (status: string | undefined) => number | false = () => 1000,
 ) =>
   queryOptions({
     queryKey: ['bulk', id],
     queryFn: () =>
       unwrap(api.GET('/v1/bulk/{id}', { params: { path: { id } } })),
-    // Progress is reported every 100 items. `poll`: useLivePoll slows it
-    // down while the socket is up, `bulk.finished` does the rest.
+    // `poll`: useLivePoll stops it while the socket is up: `bulk.progress`
+    // reports the progress, `bulk.finished` and `bulk.failed` the end.
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === 'completed' || status === 'failed'
