@@ -9,7 +9,8 @@
     "status": "Status",
     "active": "Active",
     "revoked": "Revoked",
-    "empty": "No API clients yet. Create one first: webhooks belong to a client."
+    "empty": "No API clients yet. Create one first: webhooks belong to a client.",
+    "senders": "Incoming senders"
   },
   "endpoints": {
     "back": "All clients",
@@ -147,5 +148,47 @@
     "confirm": "Retry failed",
     "done_one": "{{count}} delivery sent again.",
     "done_other": "{{count}} deliveries sent again."
+  },
+  "senders": {
+    "back": "All clients",
+    "title": "Incoming webhook senders",
+    "description": "Systems that may POST signed events to this tenant. Each has a name, a URL and a signing secret shown once.",
+    "create": "New sender",
+    "empty": "No senders yet.",
+    "urlCopied": "Receiver URL copied.",
+    "oldSecretUntil": "Old secret valid until {{date}}",
+    "copyUrl": "Copy the URL of {{name}}",
+    "toggle": "{{name}} may send",
+    "switchedOn": "Sender switched on.",
+    "switchedOff": "Sender switched off: its calls are refused.",
+    "editLabel": "Edit {{name}}",
+    "rotateLabel": "Rotate the secret of {{name}}",
+    "deleteLabel": "Delete {{name}}",
+    "rotateTitle": "Rotate the signing secret?",
+    "rotateDescription": "A new secret is made and shown once. The old one keeps verifying for 24 hours, so the sender can switch over.",
+    "deleteTitle": "Delete this sender?",
+    "deleteDescription": "Its calls are refused from now on. This can't be undone.",
+    "deleted": "Sender deleted.",
+    "saved": "Sender saved.",
+    "secretUsage": "The sender signs each call with it (Standard Webhooks) and POSTs to its URL. After a rotation, the old secret keeps verifying for 24 hours.",
+    "columns": {
+      "name": "Name",
+      "url": "Receiver URL",
+      "enabled": "Enabled",
+      "actions": "Actions"
+    },
+    "form": {
+      "createTitle": "New sender",
+      "createDescription": "Its signing secret is shown once, after you create it.",
+      "editTitle": "Edit sender",
+      "editDescription": "Change the description. The name is part of its URL.",
+      "name": "Name",
+      "nameHint": "Lower-case letters, digits and hyphens: the last part of its URL.",
+      "nameRequired": "Enter a name.",
+      "nameInvalid": "Use lower-case letters, digits and hyphens, at most 63 characters.",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "The billing system",
+      "create": "Create sender"
+    }
   }
 }

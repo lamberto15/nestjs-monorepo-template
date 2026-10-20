@@ -9,7 +9,8 @@
     "status": "Status",
     "active": "Aktiv",
     "revoked": "Widerrufen",
-    "empty": "Noch keine API-Clients. Legen Sie zuerst einen an: Webhooks gehören zu einem Client."
+    "empty": "Noch keine API-Clients. Legen Sie zuerst einen an: Webhooks gehören zu einem Client.",
+    "senders": "Eingehende Absender"
   },
   "endpoints": {
     "back": "Alle Clients",
@@ -147,5 +148,47 @@
     "confirm": "Fehlgeschlagene wiederholen",
     "done_one": "{{count}} Zustellung erneut gesendet.",
     "done_other": "{{count}} Zustellungen erneut gesendet."
+  },
+  "senders": {
+    "back": "Alle Clients",
+    "title": "Absender eingehender Webhooks",
+    "description": "Systeme, die signierte Ereignisse an diesen Mandanten senden dürfen. Jeder hat einen Namen, eine URL und ein Signaturgeheimnis, das nur einmal angezeigt wird.",
+    "create": "Neuer Absender",
+    "empty": "Noch keine Absender.",
+    "urlCopied": "Empfänger-URL kopiert.",
+    "oldSecretUntil": "Altes Geheimnis gültig bis {{date}}",
+    "copyUrl": "URL von {{name}} kopieren",
+    "toggle": "{{name}} darf senden",
+    "switchedOn": "Absender eingeschaltet.",
+    "switchedOff": "Absender ausgeschaltet: seine Aufrufe werden abgewiesen.",
+    "editLabel": "{{name}} bearbeiten",
+    "rotateLabel": "Geheimnis von {{name}} erneuern",
+    "deleteLabel": "{{name}} löschen",
+    "rotateTitle": "Signaturgeheimnis erneuern?",
+    "rotateDescription": "Ein neues Geheimnis wird erzeugt und einmal angezeigt. Das alte gilt noch 24 Stunden, damit der Absender umstellen kann.",
+    "deleteTitle": "Diesen Absender löschen?",
+    "deleteDescription": "Seine Aufrufe werden ab sofort abgewiesen. Das lässt sich nicht rückgängig machen.",
+    "deleted": "Absender gelöscht.",
+    "saved": "Absender gespeichert.",
+    "secretUsage": "Der Absender signiert jeden Aufruf damit (Standard Webhooks) und sendet per POST an seine URL. Nach einer Erneuerung gilt das alte Geheimnis noch 24 Stunden.",
+    "columns": {
+      "name": "Name",
+      "url": "Empfänger-URL",
+      "enabled": "Aktiv",
+      "actions": "Aktionen"
+    },
+    "form": {
+      "createTitle": "Neuer Absender",
+      "createDescription": "Sein Signaturgeheimnis wird nach dem Erstellen einmal angezeigt.",
+      "editTitle": "Absender bearbeiten",
+      "editDescription": "Beschreibung ändern. Der Name ist Teil der URL.",
+      "name": "Name",
+      "nameHint": "Kleinbuchstaben, Ziffern und Bindestriche: der letzte Teil der URL.",
+      "nameRequired": "Namen eingeben.",
+      "nameInvalid": "Kleinbuchstaben, Ziffern und Bindestriche, höchstens 63 Zeichen.",
+      "descriptionLabel": "Beschreibung (optional)",
+      "descriptionPlaceholder": "Das Abrechnungssystem",
+      "create": "Absender erstellen"
+    }
   }
 }

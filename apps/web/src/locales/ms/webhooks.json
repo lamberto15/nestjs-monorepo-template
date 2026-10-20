@@ -9,7 +9,8 @@
     "status": "Status",
     "active": "Aktif",
     "revoked": "Dibatalkan",
-    "empty": "Belum ada klien API. Cipta satu dahulu: webhook milik sesuatu klien."
+    "empty": "Belum ada klien API. Cipta satu dahulu: webhook milik sesuatu klien.",
+    "senders": "Penghantar masuk"
   },
   "endpoints": {
     "back": "Semua klien",
@@ -145,5 +146,47 @@
     "since": "Hanya yang dicipta sejak (pilihan)",
     "confirm": "Cuba semula yang gagal",
     "done_other": "{{count}} penghantaran dihantar semula."
+  },
+  "senders": {
+    "back": "Semua klien",
+    "title": "Penghantar webhook masuk",
+    "description": "Sistem yang boleh menghantar acara bertandatangan kepada penyewa ini. Setiap satu mempunyai nama, URL dan rahsia tandatangan yang dipaparkan sekali sahaja.",
+    "create": "Penghantar baharu",
+    "empty": "Belum ada penghantar.",
+    "urlCopied": "URL penerima disalin.",
+    "oldSecretUntil": "Rahsia lama sah sehingga {{date}}",
+    "copyUrl": "Salin URL {{name}}",
+    "toggle": "{{name}} boleh menghantar",
+    "switchedOn": "Penghantar dihidupkan.",
+    "switchedOff": "Penghantar dimatikan: panggilannya ditolak.",
+    "editLabel": "Sunting {{name}}",
+    "rotateLabel": "Putar rahsia {{name}}",
+    "deleteLabel": "Padam {{name}}",
+    "rotateTitle": "Putar rahsia tandatangan?",
+    "rotateDescription": "Rahsia baharu dijana dan dipaparkan sekali. Yang lama kekal sah selama 24 jam supaya penghantar boleh bertukar.",
+    "deleteTitle": "Padam penghantar ini?",
+    "deleteDescription": "Panggilannya ditolak mulai sekarang. Ini tidak boleh dibatalkan.",
+    "deleted": "Penghantar dipadam.",
+    "saved": "Penghantar disimpan.",
+    "secretUsage": "Penghantar menandatangani setiap panggilan dengannya (Standard Webhooks) dan POST ke URLnya. Selepas putaran, rahsia lama kekal sah selama 24 jam.",
+    "columns": {
+      "name": "Nama",
+      "url": "URL penerima",
+      "enabled": "Aktif",
+      "actions": "Tindakan"
+    },
+    "form": {
+      "createTitle": "Penghantar baharu",
+      "createDescription": "Rahsia tandatangannya dipaparkan sekali selepas anda mencipta.",
+      "editTitle": "Sunting penghantar",
+      "editDescription": "Tukar penerangan. Nama ialah sebahagian daripada URLnya.",
+      "name": "Nama",
+      "nameHint": "Huruf kecil, digit dan sempang: bahagian akhir URLnya.",
+      "nameRequired": "Masukkan nama.",
+      "nameInvalid": "Gunakan huruf kecil, digit dan sempang, paling banyak 63 aksara.",
+      "descriptionLabel": "Penerangan (pilihan)",
+      "descriptionPlaceholder": "Sistem pengebilan",
+      "create": "Cipta penghantar"
+    }
   }
 }

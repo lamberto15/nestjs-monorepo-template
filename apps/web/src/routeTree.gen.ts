@@ -51,6 +51,7 @@ import { Route as AppTenantsIdRouteImport } from './routes/_app/tenants/$id'
 import { Route as AppTransfersIndexRouteImport } from './routes/_app/transfers/index'
 import { Route as AppTransfersImportRouteImport } from './routes/_app/transfers/import'
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
+import { Route as AppWebhooksSendersRouteImport } from './routes/_app/webhooks/senders'
 import { Route as AppAccessRolesIndexRouteImport } from './routes/_app/access/roles/index'
 import { Route as AppAccessRolesRoleIdRouteImport } from './routes/_app/access/roles/$roleId'
 import { Route as AppAccessRolesNewRouteImport } from './routes/_app/access/roles/new'
@@ -271,6 +272,11 @@ const AppWebhooksIndexRoute = AppWebhooksIndexRouteImport.update({
   path: '/webhooks/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWebhooksSendersRoute = AppWebhooksSendersRouteImport.update({
+  id: '/webhooks/senders',
+  path: '/webhooks/senders',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccessRolesIndexRoute = AppAccessRolesIndexRouteImport.update({
   id: '/access/roles/',
   path: '/access/roles/',
@@ -350,6 +356,7 @@ export interface FileRoutesByFullPath {
   '/notes/new': typeof AppNotesNewRoute
   '/tenants/$id': typeof AppTenantsIdRoute
   '/transfers/import': typeof AppTransfersImportRoute
+  '/webhooks/senders': typeof AppWebhooksSendersRoute
   '/account/': typeof AppAccountIndexRoute
   '/api-clients/': typeof AppApiClientsIndexRoute
   '/approval-policies/': typeof AppApprovalPoliciesIndexRoute
@@ -402,6 +409,7 @@ export interface FileRoutesByTo {
   '/notes/new': typeof AppNotesNewRoute
   '/tenants/$id': typeof AppTenantsIdRoute
   '/transfers/import': typeof AppTransfersImportRoute
+  '/webhooks/senders': typeof AppWebhooksSendersRoute
   '/account': typeof AppAccountIndexRoute
   '/api-clients': typeof AppApiClientsIndexRoute
   '/approval-policies': typeof AppApprovalPoliciesIndexRoute
@@ -456,6 +464,7 @@ export interface FileRoutesById {
   '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/tenants/$id': typeof AppTenantsIdRoute
   '/_app/transfers/import': typeof AppTransfersImportRoute
+  '/_app/webhooks/senders': typeof AppWebhooksSendersRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/api-clients/': typeof AppApiClientsIndexRoute
   '/_app/approval-policies/': typeof AppApprovalPoliciesIndexRoute
@@ -510,6 +519,7 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/tenants/$id'
     | '/transfers/import'
+    | '/webhooks/senders'
     | '/account/'
     | '/api-clients/'
     | '/approval-policies/'
@@ -562,6 +572,7 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/tenants/$id'
     | '/transfers/import'
+    | '/webhooks/senders'
     | '/account'
     | '/api-clients'
     | '/approval-policies'
@@ -615,6 +626,7 @@ export interface FileRouteTypes {
     | '/_app/notes/new'
     | '/_app/tenants/$id'
     | '/_app/transfers/import'
+    | '/_app/webhooks/senders'
     | '/_app/account/'
     | '/_app/api-clients/'
     | '/_app/approval-policies/'
@@ -944,6 +956,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWebhooksIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/webhooks/senders': {
+      id: '/_app/webhooks/senders'
+      path: '/webhooks/senders'
+      fullPath: '/webhooks/senders'
+      preLoaderRoute: typeof AppWebhooksSendersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/access/roles/': {
       id: '/_app/access/roles/'
       path: '/access/roles'
@@ -1034,6 +1053,7 @@ interface AppRouteChildren {
   AppNotesNewRoute: typeof AppNotesNewRoute
   AppTenantsIdRoute: typeof AppTenantsIdRoute
   AppTransfersImportRoute: typeof AppTransfersImportRoute
+  AppWebhooksSendersRoute: typeof AppWebhooksSendersRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
   AppApprovalPoliciesIndexRoute: typeof AppApprovalPoliciesIndexRoute
@@ -1079,6 +1099,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotesNewRoute: AppNotesNewRoute,
   AppTenantsIdRoute: AppTenantsIdRoute,
   AppTransfersImportRoute: AppTransfersImportRoute,
+  AppWebhooksSendersRoute: AppWebhooksSendersRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppApiClientsIndexRoute: AppApiClientsIndexRoute,
   AppApprovalPoliciesIndexRoute: AppApprovalPoliciesIndexRoute,

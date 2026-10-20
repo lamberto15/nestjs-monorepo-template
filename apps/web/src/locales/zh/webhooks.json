@@ -7,7 +7,8 @@
     "status": "状态",
     "active": "启用",
     "revoked": "已吊销",
-    "empty": "还没有 API 客户端。请先创建一个：Webhook 属于某个客户端。"
+    "empty": "还没有 API 客户端。请先创建一个：Webhook 属于某个客户端。",
+    "senders": "传入发送方"
   },
   "endpoints": {
     "back": "所有客户端",
@@ -135,5 +136,47 @@
     "since": "仅限此时间之后创建的（可选）",
     "confirm": "重试失败项",
     "done_other": "已重新发送 {{count}} 条投递。"
+  },
+  "senders": {
+    "back": "所有客户端",
+    "title": "传入 Webhook 发送方",
+    "description": "可向此租户发送已签名事件的系统。每个发送方有名称、URL 和仅显示一次的签名密钥。",
+    "create": "新建发送方",
+    "empty": "还没有发送方。",
+    "urlCopied": "已复制接收地址。",
+    "oldSecretUntil": "旧密钥有效至 {{date}}",
+    "copyUrl": "复制 {{name}} 的地址",
+    "toggle": "允许 {{name}} 发送",
+    "switchedOn": "发送方已启用。",
+    "switchedOff": "发送方已停用：其请求会被拒绝。",
+    "editLabel": "编辑 {{name}}",
+    "rotateLabel": "轮换 {{name}} 的密钥",
+    "deleteLabel": "删除 {{name}}",
+    "rotateTitle": "轮换签名密钥？",
+    "rotateDescription": "将生成新密钥并仅显示一次。旧密钥在 24 小时内仍可验证，方便发送方切换。",
+    "deleteTitle": "删除此发送方？",
+    "deleteDescription": "其请求将被立即拒绝。此操作无法撤销。",
+    "deleted": "发送方已删除。",
+    "saved": "发送方已保存。",
+    "secretUsage": "发送方用它为每个请求签名（Standard Webhooks），并 POST 到其地址。轮换后，旧密钥在 24 小时内仍可验证。",
+    "columns": {
+      "name": "名称",
+      "url": "接收地址",
+      "enabled": "启用",
+      "actions": "操作"
+    },
+    "form": {
+      "createTitle": "新建发送方",
+      "createDescription": "创建后将显示一次其签名密钥。",
+      "editTitle": "编辑发送方",
+      "editDescription": "修改描述。名称是其地址的一部分。",
+      "name": "名称",
+      "nameHint": "小写字母、数字和连字符：地址的最后一段。",
+      "nameRequired": "请输入名称。",
+      "nameInvalid": "请使用小写字母、数字和连字符，最多 63 个字符。",
+      "descriptionLabel": "描述（可选）",
+      "descriptionPlaceholder": "计费系统",
+      "create": "创建发送方"
+    }
   }
 }
