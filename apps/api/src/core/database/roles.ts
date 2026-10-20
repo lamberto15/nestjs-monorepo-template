@@ -352,6 +352,253 @@ async function assertMonitorFit(
   }
 }
 
+/** The reporting role: its name and password (POSTGRES_REPORTING_USER, POSTGRES_REPORTING_PASSWORD). */
+export type ReportingRole = { role: string; password: string };
+
+/**
+ * The schema of the platform analytics' aggregates (platform/analytics,
+ * `analytics.platform_metrics`): the only one the reporting role reads.
+ */
+export const ANALYTICS_SCHEMA = 'analytics';
+
+/**
+ * The role platform analytics connect as (docs/tenancy.md, "Platform
+ * analytics"; roadmap 1b), as the owner: it exists with that password and
+ * can log in, with the app role's flags (no superuser, no RLS bypass,
+ * creates nothing), is a member of no role, owns nothing, and holds SELECT
+ * on the tables of the `analytics` schema (anonymized aggregates the worker
+ * stores) and no privilege on any other table: not one tenant row, not the
+ * global tables (`users`, `tenants`), not the stores'. Tables the owner adds
+ * to `analytics` later are readable through `ALTER DEFAULT PRIVILEGES`.
+ * Idempotent, like `ensureAppRole()`: attributes are checked, never changed,
+ * and a password that fails is set (how it rotates). Run after the
+ * migrations, which make the schema. Returns nothing; logs one line.
+ *
+ * The documented PostgreSQL way (GRANT, ALTER DEFAULT PRIVILEGES): a login
+ * role of its own with grants on the aggregates only, rather than views over
+ * the tenant tables (a view reads as its owner, whom FORCE ROW LEVEL
+ * SECURITY binds) or a member of the app role (every table).
+ */
+export async function ensureReportingRole(
+  urls: Pick<DatabaseUrls, 'ownerUrl'> & Partial<DatabaseUrls>,
+  reporting: ReportingRole,
+  log: (line: string) => void = () => {},
+) {
+  const ownerUrl = urls.ownerUrl;
+  const owner = credentials(ownerUrl, 'DATABASE_OWNER_URL');
+  if (!reporting.role || !reporting.password) {
+    throw new Error(
+      'POSTGRES_REPORTING_USER and POSTGRES_REPORTING_PASSWORD (or its _FILE) are both required for the reporting role.',
+    );
+  }
+  // Never a role that holds more: the owner, the app (every table), the
+  // maintenance role (BYPASSRLS, every tenant).
+  for (const [name, url] of [
+    ['DATABASE_OWNER_URL', ownerUrl],
+    ['DATABASE_URL', urls.appUrl],
+    ['DATABASE_MAINTENANCE_URL', urls.maintenanceUrl],
+  ] as const) {
+    if (url && credentials(url, name).role === reporting.role) {
+      throw new Error(
+        `POSTGRES_REPORTING_USER names the role of ${name} ("${reporting.role}"): platform analytics must connect as a role of its own, which reads the anonymized aggregates only.`,
+      );
+    }
+  }
+  const creds: Credentials = { ...reporting, database: owner.database };
+  const client = new Client({
+    connectionString: ownerUrl,
+    application_name: 'migrate:roles',
+  });
+  await client.connect();
+  let created = false;
+  try {
+    await client.query('begin');
+    await client.query(
+      `select pg_advisory_xact_lock(hashtext('nestjs-monorepo-template:reporting-role'))`,
+    );
+    const exists = await client.query(
+      `select 1 from pg_namespace where nspname = $1`,
+      [ANALYTICS_SCHEMA],
+    );
+    if (exists.rows.length === 0) {
+      throw new Error(
+        `The schema "${ANALYTICS_SCHEMA}" doesn't exist: run the migrations first (the reporting role reads it only).`,
+      );
+    }
+    created = await ensureRole(client, creds, log);
+    await grantConnect(client, creds, log);
+    const s = escapeIdentifier(ANALYTICS_SCHEMA);
+    const role = escapeIdentifier(reporting.role);
+    for (const statement of [
+      `grant usage on schema ${s} to ${role}`,
+      `revoke create on schema ${s} from ${role}`,
+      `grant select on all tables in schema ${s} to ${role}`,
+      `alter default privileges for role ${escapeIdentifier(owner.role)} in schema ${s} grant select on tables to ${role}`,
+    ]) {
+      await client.query(statement);
+    }
+    await assertReportingFit(
+      client,
+      reporting.role,
+      await applicationSchemas(client),
+    );
+    await client.query('commit');
+  } catch (error) {
+    await client.query('rollback').catch(() => undefined);
+    await client.end().catch(() => undefined);
+    throw error;
+  }
+  try {
+    const url = new URL(ownerUrl);
+    url.username = encodeURIComponent(reporting.role);
+    url.password = encodeURIComponent(reporting.password);
+    const passwordSet = await ensurePassword(
+      client,
+      creds,
+      url.toString(),
+      created,
+    );
+    log(
+      `Reporting role "${reporting.role}" ${created ? 'created' : 'checked'}${passwordSet ? ', password set' : ''}: reads the ${ANALYTICS_SCHEMA} schema's aggregates only, no tenant row, owns nothing.`,
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+
+/**
+ * The reporting role fits before anything commits: no superuser, no RLS
+ * bypass, a member of nothing (`pg_read_all_data` or the app role would hand
+ * it every row), owns nothing, creates nothing; SELECT on every table of
+ * `analytics` and nothing more there; no privilege at all on a table of any
+ * other schema the app uses. And the aggregates name nobody: a table of
+ * `analytics` with a `tenant_id` or `user_id` column is refused.
+ */
+async function assertReportingFit(
+  client: ClientBase,
+  role: string,
+  schemas: string[],
+) {
+  const problems: string[] = [];
+  const flags = await client.query<{
+    rolsuper: boolean;
+    rolbypassrls: boolean;
+  }>(`select rolsuper, rolbypassrls from pg_roles where rolname = $1`, [role]);
+  if (flags.rows[0]?.rolsuper || flags.rows[0]?.rolbypassrls) {
+    problems.push(
+      `is a superuser or bypasses row-level security: run ALTER ROLE ${escapeIdentifier(role)} NOSUPERUSER NOBYPASSRLS`,
+    );
+  }
+  const memberships = await client.query<{ rolname: string }>(
+    `select r.rolname from pg_auth_members m
+     join pg_roles r on r.oid = m.roleid
+     where m.member = $1::regrole
+     order by 1`,
+    [role],
+  );
+  if (memberships.rows.length > 0) {
+    problems.push(
+      `is a member of ${memberships.rows.map((row) => `"${row.rolname}"`).join(', ')} (their rights are its rights): run ${memberships.rows
+        .map(
+          (row) =>
+            `REVOKE ${escapeIdentifier(row.rolname)} FROM ${escapeIdentifier(role)}`,
+        )
+        .join('; ')}`,
+    );
+  }
+  const owned = await client.query<{ what: string; count: string }>(
+    `select 'relation' as what, count(*)::text from pg_class c join pg_roles r on r.oid = c.relowner where r.rolname = $1
+     union all
+     select 'schema', count(*)::text from pg_namespace n join pg_roles r on r.oid = n.nspowner where r.rolname = $1
+     union all
+     select 'database', count(*)::text from pg_database d join pg_roles r on r.oid = d.datdba where r.rolname = $1`,
+    [role],
+  );
+  for (const row of owned.rows) {
+    if (row.count !== '0') {
+      problems.push(`owns ${row.count} ${row.what}(s)`);
+    }
+  }
+  const creates = await client.query<{ nspname: string }>(
+    `select nspname from pg_namespace
+     where nspname = any($2::text[]) and has_schema_privilege($1, oid, 'CREATE')`,
+    [role, schemas],
+  );
+  for (const row of creates.rows) {
+    problems.push(`may CREATE in schema "${row.nspname}"`);
+  }
+  const database = await client.query<{ create: boolean }>(
+    `select has_database_privilege($1, current_database(), 'CREATE') as create`,
+    [role],
+  );
+  if (database.rows[0]?.create) {
+    problems.push('may CREATE (schemas) in the database');
+  }
+  // Outside `analytics`: no privilege on any relation. Inside: SELECT, and
+  // nothing that writes. One privilege per call (a list is ANY of them).
+  const outside = await client.query<{ name: string }>(
+    `select n.nspname || '.' || c.relname as name
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = any($2::text[]) and n.nspname <> $3
+       and c.relkind in ('r', 'p', 'v', 'm', 'f')
+       and (has_table_privilege($1, c.oid, 'SELECT')
+            or has_table_privilege($1, c.oid, 'INSERT')
+            or has_table_privilege($1, c.oid, 'UPDATE')
+            or has_table_privilege($1, c.oid, 'DELETE')
+            or has_table_privilege($1, c.oid, 'TRUNCATE'))
+     order by 1`,
+    [role, schemas, ANALYTICS_SCHEMA],
+  );
+  if (outside.rows.length > 0) {
+    problems.push(
+      `can read or write ${outside.rows
+        .slice(0, 5)
+        .map((row) => row.name)
+        .join(
+          ', ',
+        )}${outside.rows.length > 5 ? ', …' : ''} (it reads the ${ANALYTICS_SCHEMA} aggregates only): revoke it`,
+    );
+  }
+  const inside = await client.query<{ name: string; reads: boolean }>(
+    `select n.nspname || '.' || c.relname as name,
+            has_table_privilege($1, c.oid, 'SELECT') as reads
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = $2 and c.relkind in ('r', 'p', 'v', 'm')
+       and (not has_table_privilege($1, c.oid, 'SELECT')
+            or has_table_privilege($1, c.oid, 'INSERT')
+            or has_table_privilege($1, c.oid, 'UPDATE')
+            or has_table_privilege($1, c.oid, 'DELETE')
+            or has_table_privilege($1, c.oid, 'TRUNCATE'))
+     order by 1`,
+    [role, ANALYTICS_SCHEMA],
+  );
+  for (const row of inside.rows) {
+    problems.push(
+      row.reads ? `may write ${row.name}` : `can't read ${row.name}`,
+    );
+  }
+  const identifying = await client.query<{ name: string }>(
+    `select c.relname || '.' || a.attname as name
+     from pg_class c
+     join pg_namespace n on n.oid = c.relnamespace
+     join pg_attribute a on a.attrelid = c.oid and not a.attisdropped
+     where n.nspname = $1 and c.relkind in ('r', 'p', 'v', 'm')
+       and a.attname in ('tenant_id', 'user_id')
+     order by 1`,
+    [ANALYTICS_SCHEMA],
+  );
+  if (identifying.rows.length > 0) {
+    problems.push(
+      `would read ${identifying.rows.map((row) => row.name).join(', ')}: the ${ANALYTICS_SCHEMA} schema holds anonymized aggregates, never a tenant's or a user's id`,
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Role "${role}" is not fit for platform analytics: ${problems.join('; ')}. Nothing was changed.`,
+    );
+  }
+}
+
 /** The role, password and database of a postgres:// URL. */
 function credentials(url: string, name: string): Credentials {
   let parsed: URL;

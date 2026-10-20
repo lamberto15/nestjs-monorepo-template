@@ -12,7 +12,9 @@ import {
   type DatabaseUrls,
   ensureAppRole,
   ensureMonitorRole,
+  ensureReportingRole,
   type MonitorRole,
+  type ReportingRole,
 } from './roles.js';
 import { applyStoredRenames } from './stored-renames.js';
 
@@ -23,12 +25,13 @@ import { applyStoredRenames } from './stored-renames.js';
  * run waits and then finds nothing to do. Then the app's role (`appUrl`,
  * what api and worker connect as) is created or checked and granted what
  * the new schema needs (roles.ts), and, when `monitor` names one, the
- * exporter's role (pg_monitor only). Used by `node dist/migrate` (each
+ * exporter's role (pg_monitor only), and, when `reporting` names one, the
+ * platform analytics' role (the `analytics` aggregates only). Used by `node dist/migrate` (each
  * deploy), by the app when MIGRATE_ON_START is on, and by the tests (their
  * template database).
  */
 export async function migrateAll(
-  urls: DatabaseUrls & { monitor?: MonitorRole },
+  urls: DatabaseUrls & { monitor?: MonitorRole; reporting?: ReportingRole },
   log: (line: string) => void = () => {},
 ) {
   const url = urls.ownerUrl;
@@ -76,6 +79,9 @@ export async function migrateAll(
   await ensureAppRole(urls, log);
   if (urls.monitor) {
     await ensureMonitorRole(urls, urls.monitor, log);
+  }
+  if (urls.reporting) {
+    await ensureReportingRole(urls, urls.reporting, log);
   }
 }
 

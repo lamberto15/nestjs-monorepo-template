@@ -158,6 +158,10 @@
       "label": "Aufbewahrung der Webhook-Zustellungen",
       "description": "Löscht jede Nacht ausgehende Webhook-Zustellungen, die vor mehr als WEBHOOKS_DELIVERY_RETENTION_DAYS abgeschlossen wurden, samt Versuchsprotokoll und aufgezeichneten Anfragen (nie eine, die noch wiederholt wird)."
     },
+    "platform-analytics": {
+      "label": "Plattformanalyse",
+      "description": "Zählt jede Nacht Mandanten, Benutzer, Mitgliedschaften und API-Nutzung über alle Mandanten, unterdrückt kleine Gruppen und speichert nur die Aggregate, die die Reporting-Rolle liest."
+    },
     "demo-seed": {
       "label": "Demodaten",
       "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Teams und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."

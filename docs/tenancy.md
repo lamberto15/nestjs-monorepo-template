@@ -152,6 +152,30 @@ past a failed tenant and reports every failure at the end: `TenantRunsFailed`;
 the approvals' gauges) read as the maintenance role in read-only transactions,
 so only where it is: the workers' `/metrics`; api replicas don't register them.
 
+## Platform analytics
+
+Figures across unrelated tenants (how many tenants, users, memberships; how
+large the tenants are; API use) never go through the app role, nor through
+an operator reading tenant rows: they come from a **reporting role** that
+reads anonymized aggregates and nothing else (roadmap 1b).
+
+| | |
+| --- | --- |
+| **The aggregates** | `analytics.platform_metrics` (`platform/analytics`): a day, a `metric` (`users.active`), a `dimension` for a breakdown's cell (`tenants.by_members`: `2-10`; `users.by_locale`: `de`; `''` for a total) and a `value`, null when withheld. A schema of its own, holding no tenant, user or client id. |
+| **Who writes them** | `PlatformAnalyticsJob`, every night at 00:40 UTC on one worker: it counts under the bypass (the maintenance role, above), suppresses, and stores only the result; a second run the same day replaces that day's figures. |
+| **Small-group suppression** | A count from 1 to `ANALYTICS_MIN_GROUP_SIZE - 1` (default 10) is withheld; and when exactly one cell of a breakdown is withheld, the smallest other is too, so it can't be had by subtracting from the total (`suppressSmallGroups()`). Zero names nobody and is kept. |
+| **Who reads them** | `POSTGRES_REPORTING_USER` (default `app_reporting`), made by `migrate` when `POSTGRES_REPORTING_PASSWORD` is set (docs/deployment.md, "Database roles"): `SELECT` on the tables of `analytics` and no privilege on any other table, global or tenant, whatever `app.tenant_id` it sets; no `BYPASSRLS`, a member of nothing, owns nothing, writes nothing. Connect a BI tool as it; no route of the API serves the figures. |
+
+Why not views over the tenant tables: a view reads with its owner's
+rights, and FORCE binds the owner, so the view would answer nothing on a
+managed PostgreSQL and every row where the owner is a superuser (Compose);
+and granting the reporting role the tables themselves is what it must never
+have. `migrate` refuses a table of `analytics` with a `tenant_id` or
+`user_id` column. What suppression doesn't cover: differencing two days'
+snapshots (a total that grew by one); the daily grain and the minimum group
+size keep that coarse. A new figure goes in the job's `count()`, never as a
+grant on another table.
+
 ## Per-principal keys carry the tenant
 
 Built in the platform code, never at call sites (`tenantKey()`):
@@ -489,7 +513,11 @@ role). `account-export.e2e-spec.ts`: a person's export with no tenant and
 across two. `tenants.e2e-spec.ts`: the operators' tenant routes (the
 operator flag, the list and its description, reading and changing one,
 deactivation and what it ends, the slug conflict on its field, the first
-administrator's invitation).
+administrator's invitation). `database-roles.e2e-spec.ts`, "the reporting
+role": no privilege on a tenant table, a global table or a store, even with
+a tenant's settings; reads the aggregates; refused when it could read more.
+`platform-analytics.e2e-spec.ts`: the job's figures and their suppression,
+read as the reporting role.
 Test helpers: `node.otherTenant()` (a second tenant, its administrator signed
 in), `node.inTenant(work, tenantId?)` and `node.acrossTenants(work)` for a
 test's own queries (`database.db` is the app's pool: no tenant, no rows).

@@ -4,6 +4,7 @@ import { inject } from 'vitest';
 import {
   ensureAppRole,
   ensureMonitorRole,
+  ensureReportingRole,
 } from '../src/core/database/roles.js';
 import { databaseUrl } from './global-setup.js';
 import { testDatabase } from './support.js';
@@ -502,6 +503,261 @@ describe('the app role', () => {
         await expect(bootstrap()).rejects.toThrow(/NOBYPASSRLS/);
       } finally {
         await asAdmin(`alter role "${monitor}" nobypassrls`);
+      }
+      await bootstrap();
+      // Never the owner, the app role or the maintenance role.
+      for (const [url, variable] of [
+        [database.ownerUrl, 'DATABASE_OWNER_URL'],
+        [database.url, 'DATABASE_URL'],
+        [database.maintenanceUrl, 'DATABASE_MAINTENANCE_URL'],
+      ]) {
+        const role = decodeURIComponent(new URL(url).username);
+        await expect(bootstrap(role)).rejects.toThrow(
+          new RegExp(`names the role of ${variable}`),
+        );
+      }
+    });
+  });
+
+  /**
+   * Platform analytics' role (docs/tenancy.md, "Platform analytics"; roadmap
+   * 1b): SELECT on the `analytics` schema's anonymized aggregates and no
+   * privilege on any other table, so not one tenant row, whatever settings it
+   * sets; made by the same bootstrap, from an owner that is no superuser.
+   */
+  describe('the reporting role', () => {
+    const reporting = `reporting_${randomUUID().slice(0, 8)}`;
+    const password = randomBytes(12).toString('hex');
+    const reportingUrl = (secret = password) => {
+      const url = new URL(database.ownerUrl);
+      url.username = reporting;
+      url.password = secret;
+      return url.toString();
+    };
+    const asReporting = async <T>(fn: (client: Client) => Promise<T>) => {
+      const client = new Client({ connectionString: reportingUrl() });
+      await client.connect();
+      try {
+        return await fn(client);
+      } finally {
+        await client.end();
+      }
+    };
+    const lines: string[] = [];
+    const bootstrap = (role = reporting, secret = password) =>
+      ensureReportingRole(
+        {
+          ownerUrl: database.ownerUrl,
+          appUrl: database.url,
+          maintenanceUrl: database.maintenanceUrl,
+        },
+        { role, password: secret },
+        (line) => lines.push(line),
+      );
+    afterAll(async () => {
+      await asAdmin(
+        `drop owned by "${reporting}"; drop role if exists "${reporting}"`,
+      );
+    });
+
+    it('is created owning nothing, a member of nothing, bypassing no row-level security', async () => {
+      await bootstrap();
+      expect(lines.at(-1)).toMatch(
+        new RegExp(
+          `^Reporting role "${reporting}" created: reads the analytics schema's aggregates only`,
+        ),
+      );
+      const memberships = await database.db.execute<{ rolname: string }>(
+        `select r.rolname from pg_auth_members m join pg_roles r on r.oid = m.roleid
+         where m.member = '${reporting}'::regrole`,
+      );
+      expect(memberships.rows).toEqual([]);
+      await asReporting(async (client) => {
+        const { rows } = await client.query(
+          `select rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication, rolcanlogin
+           from pg_roles where rolname = current_user`,
+        );
+        expect(rows).toEqual([
+          {
+            rolsuper: false,
+            rolbypassrls: false,
+            rolcreatedb: false,
+            rolcreaterole: false,
+            rolreplication: false,
+            rolcanlogin: true,
+          },
+        ]);
+      });
+    });
+
+    it('cannot select from a tenant table, a global table or a store, even in a tenant’s scope', async () => {
+      const [tenant] = (
+        await database.db.execute<{ id: string }>(
+          `select id from tenants limit 1`,
+        )
+      ).rows;
+      await asReporting(async (client) => {
+        const refused = async (statement: string) => {
+          await client.query('begin');
+          try {
+            // What a request sets: a tenant's scope changes nothing here,
+            // the role holds no privilege on the table at all.
+            if (tenant) {
+              await client.query(
+                `select set_config('app.tenant_id', $1, true), set_config('app.read_tenants', $1, true)`,
+                [tenant.id],
+              );
+            }
+            await client.query(statement);
+            return 'allowed';
+          } catch (error) {
+            return (error as { code?: string }).code;
+          } finally {
+            await client.query('rollback');
+          }
+        };
+        for (const table of [
+          // Tenant tables (row-level security), with and without personal data.
+          'api_clients',
+          'api_usage',
+          'user_roles',
+          'audit_log',
+          'notifications',
+          'notes',
+          // Global tables: accounts, memberships, sessions, tenants.
+          'users',
+          'memberships',
+          'sessions',
+          'tenants',
+          // The stores' and the migrations' own.
+          'nest_outbox.migrations',
+          'drizzle.__drizzle_migrations',
+        ]) {
+          expect([table, await refused(`select 1 from ${table}`)]).toEqual([
+            table,
+            INSUFFICIENT_PRIVILEGE,
+          ]);
+        }
+        expect(await refused('create table smuggled (id int)')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await refused('create table analytics.smuggled (id int)')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(
+          await refused(
+            `insert into analytics.platform_metrics (day, metric, value) values (current_date, 'forged', 1)`,
+          ),
+        ).toBe(INSUFFICIENT_PRIVILEGE);
+        expect(await refused('delete from analytics.platform_metrics')).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await refused(`alter role current_user bypassrls`)).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        // Every table of every schema but the aggregates': no privilege of
+        // any kind (the system catalogs aside).
+        const reachable = await client.query<{ name: string }>(
+          `select n.nspname || '.' || c.relname as name
+           from pg_class c join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname not in ('pg_catalog', 'information_schema', 'analytics')
+             and n.nspname not like 'pg_toast%'
+             and c.relkind in ('r', 'p', 'v', 'm', 'f')
+             and (has_table_privilege(c.oid, 'SELECT') or has_table_privilege(c.oid, 'INSERT')
+                  or has_table_privilege(c.oid, 'UPDATE') or has_table_privilege(c.oid, 'DELETE')
+                  or has_table_privilege(c.oid, 'TRUNCATE'))`,
+        );
+        expect(reachable.rows).toEqual([]);
+      });
+    });
+
+    it('reads the aggregates, and a table the owner adds to analytics later', async () => {
+      await database.asOwner(
+        `insert into analytics.platform_metrics (day, metric, dimension, value)
+         values ('2026-01-01', 'users.active', '', 42), ('2026-01-01', 'users.by_locale', 'de', null)`,
+      );
+      await database.asOwner(
+        `create table analytics.later_figures (day date, value bigint)`,
+      );
+      try {
+        await asReporting(async (client) => {
+          const { rows } = await client.query(
+            `select metric, dimension, value::int from analytics.platform_metrics
+             where day = '2026-01-01' order by metric`,
+          );
+          expect(rows).toEqual([
+            { metric: 'users.active', dimension: '', value: 42 },
+            { metric: 'users.by_locale', dimension: 'de', value: null },
+          ]);
+          const later = await client.query(
+            `select count(*)::int as n from analytics.later_figures`,
+          );
+          expect(later.rows).toEqual([{ n: 0 }]);
+        });
+      } finally {
+        await database.asOwner(`drop table analytics.later_figures`);
+      }
+    });
+
+    it('is bootstrapped again without changes, and a rotated password is set', async () => {
+      lines.length = 0;
+      await bootstrap();
+      expect(lines.at(-1)).toMatch(/checked: reads the analytics schema/);
+      const rotated = randomBytes(12).toString('hex');
+      await bootstrap(reporting, rotated);
+      expect(lines.at(-1)).toMatch(/checked, password set: /);
+      const client = new Client({ connectionString: reportingUrl(rotated) });
+      await client.connect();
+      await client.end();
+      await bootstrap();
+    });
+
+    it('refuses a role that is a member of another, reads a table, bypasses RLS, or aggregates that name a tenant', async () => {
+      await asAdmin(`grant pg_read_all_data to "${reporting}"`);
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /is a member of "pg_read_all_data"/,
+        );
+      } finally {
+        await asAdmin(`revoke pg_read_all_data from "${reporting}"`);
+      }
+      await database.asOwner(`grant select on users to "${reporting}"`);
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /can read or write public\.users/,
+        );
+      } finally {
+        await database.asOwner(`revoke select on users from "${reporting}"`);
+      }
+      await database.asOwner(
+        `grant insert on analytics.platform_metrics to "${reporting}"`,
+      );
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /may write analytics\.platform_metrics/,
+        );
+      } finally {
+        await database.asOwner(
+          `revoke insert on analytics.platform_metrics from "${reporting}"`,
+        );
+      }
+      await database.asOwner(
+        `alter table analytics.platform_metrics add column tenant_id uuid`,
+      );
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /would read platform_metrics\.tenant_id/,
+        );
+      } finally {
+        await database.asOwner(
+          `alter table analytics.platform_metrics drop column tenant_id`,
+        );
+      }
+      await asAdmin(`alter role "${reporting}" bypassrls`);
+      try {
+        await expect(bootstrap()).rejects.toThrow(/NOBYPASSRLS/);
+      } finally {
+        await asAdmin(`alter role "${reporting}" nobypassrls`);
       }
       await bootstrap();
       // Never the owner, the app role or the maintenance role.
