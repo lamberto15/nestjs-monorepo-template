@@ -1,5 +1,13 @@
-import { unwrap } from '@nestjs-monorepo-template/api-client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  isApiError,
+  unwrap,
+  type GetResponse,
+} from '@nestjs-monorepo-template/api-client';
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
   allCustomFieldsQuery,
@@ -8,6 +16,31 @@ import {
   type CustomFieldChanges,
   type CustomFieldCreate,
 } from '@/lib/custom-fields';
+
+/** A subject that takes custom fields, named as the API names it. */
+export type CustomFieldSubject =
+  GetResponse<'/v1/custom-fields/subjects'>['items'][number];
+
+/**
+ * `GET /v1/custom-fields/subjects`: the subjects whose fields the caller may
+ * read, each with its name in the response's language (docs/custom-fields.md).
+ * The app keeps no list of its own. The language is in the key because the
+ * labels follow it (the request's Accept-Language is the UI's).
+ */
+export const customFieldSubjectsQuery = (language: string) =>
+  queryOptions({
+    queryKey: ['custom-field-subjects', language],
+    queryFn: async () => {
+      try {
+        return (await unwrap(api.GET('/v1/custom-fields/subjects'))).items;
+      } catch (error) {
+        // The API answers 403 when no subject takes fields (or none may be
+        // read): that is the empty list, not a failure.
+        if (isApiError(error) && error.status === 403) return [];
+        throw error;
+      }
+    },
+  });
 
 /**
  * A change of the definitions reaches the forms and views built from them

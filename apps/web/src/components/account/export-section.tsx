@@ -1,8 +1,17 @@
-import { Button } from '@nestjs-monorepo-template/ui/components/button';
+import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
+import {
+  Alert,
+  AlertDescription,
+} from '@nestjs-monorepo-template/ui/components/alert';
+import {
+  Button,
+  buttonVariants,
+} from '@nestjs-monorepo-template/ui/components/button';
 import {
   Field,
   FieldLabel,
 } from '@nestjs-monorepo-template/ui/components/field';
+import { Progress } from '@nestjs-monorepo-template/ui/components/progress';
 import {
   Select,
   SelectContent,
@@ -10,60 +19,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nestjs-monorepo-template/ui/components/select';
+import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
-import { useMutation } from '@tanstack/react-query';
-import { DownloadIcon } from 'lucide-react';
-import { useState } from 'react';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Section } from '@/components/account/section';
 import {
   ACCOUNT_EXPORTS_KEY,
+  accountExportsQuery,
   startAccountExport,
+  type AccountExport,
 } from '@/components/account/privacy-api';
-import {
-  readHistory,
-  remember,
-  type Started,
-} from '@/components/account/export-history';
 import type { TransferFormat } from '@/features/transfer/api';
-import { TransferStatus } from '@/features/transfer/transfer-status';
 import { useDateTimeFormat } from '@/lib/date-time';
 
 const FORMATS: TransferFormat[] = ['json', 'csv', 'xlsx'];
-/** The exports shown: the API keeps a finished one 7 days. */
-const SHOWN = 5;
 
 /**
  * A copy of everything held about you (`POST /v1/account/export`): the job
- * runs in the background, its progress is polled, then its file downloads
- * (`GET /v1/data/transfers/{id}`, a link valid 30 minutes, made anew at
- * each read). `GET /v1/data/transfers` never lists an account export, so
- * the ids this browser started are remembered here (as /transfers does).
+ * runs in the background, then the file downloads. The list is the API's
+ * (`GET /v1/account/exports`, `GET /v1/data/transfers` never lists an
+ * account export): polled while one runs, and refreshed after a request.
  */
-export function ExportSection(props: { userId: string }) {
+export function ExportSection() {
   const { t } = useTranslation('privacy');
   const { t: tt } = useTranslation('transfer');
-  const format = useDateTimeFormat();
+  const queryClient = useQueryClient();
   const [kind, setKind] = useState<TransferFormat>('json');
-  const [history, setHistory] = useState<Started[]>(() =>
-    readHistory(props.userId, ACCOUNT_EXPORTS_KEY),
-  );
+  const exports = useInfiniteQuery({
+    ...accountExportsQuery,
+    meta: { errorToast: false },
+  });
   const start = useMutation({
     mutationFn: () => startAccountExport(kind),
-    onSuccess: (started) => {
-      remember(
-        props.userId,
-        {
-          id: started.id,
-          kind: 'export',
-          name: 'account',
-          at: new Date().toISOString(),
-        },
-        ACCOUNT_EXPORTS_KEY,
-      );
-      setHistory(readHistory(props.userId, ACCOUNT_EXPORTS_KEY));
-    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ACCOUNT_EXPORTS_KEY }),
   });
+  const items = exports.data?.pages.flatMap((page) => page.items) ?? [];
   return (
     <Section title={t('export.title')} description={t('export.description')}>
       <div className="flex flex-wrap items-end gap-3">
@@ -98,19 +96,134 @@ export function ExportSection(props: { userId: string }) {
           {t('export.start')}
         </Button>
       </div>
-      {history.length > 0 && (
-        <ul className="flex flex-col divide-y rounded-md border">
-          {history.slice(0, SHOWN).map((item) => (
-            <li key={item.id} className="flex flex-col gap-2 p-3">
-              <span className="text-xs text-muted-foreground">
-                {t('export.startedAt', { date: format(item.at) })}
-              </span>
-              <TransferStatus id={item.id} />
-            </li>
+      {/* A failed refetch keeps the exports already shown. */}
+      {!exports.data ? (
+        exports.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {t('export.error')}
+          </p>
+        ) : (
+          <Skeleton className="h-16 w-full" aria-busy />
+        )
+      ) : items.length === 0 ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t('export.empty')}
+        </p>
+      ) : (
+        <ul
+          className="flex flex-col divide-y rounded-md border"
+          aria-label={t('export.listLabel')}
+        >
+          {items.map((item) => (
+            <ExportRow key={item.id} item={item} />
           ))}
         </ul>
       )}
+      {exports.hasNextPage && (
+        <Button
+          variant="outline"
+          className="self-start"
+          disabled={exports.isFetchingNextPage}
+          onClick={() => void exports.fetchNextPage()}
+        >
+          {exports.isFetchingNextPage && <Spinner />}
+          {tt('mine.more')}
+        </Button>
+      )}
       <p className="text-xs text-muted-foreground">{t('export.kept')}</p>
     </Section>
+  );
+}
+
+/** Whether `time` has come, re-evaluated when it does (and when `time` changes). */
+function useIsPast(time: string | null | undefined) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!time) return;
+    const left = new Date(time).getTime() - Date.now();
+    // setTimeout holds at most 2^31 ms; a later time is re-checked then.
+    const id = setTimeout(
+      () => setNow(Date.now()),
+      Math.min(Math.max(left, 0), 2 ** 31 - 1),
+    );
+    return () => clearTimeout(id);
+  }, [time]);
+  return !!time && new Date(time).getTime() <= now;
+}
+
+/** One export: when it started, its state, and its file when it is ready. */
+function ExportRow(props: { item: AccountExport }) {
+  const { t } = useTranslation('privacy');
+  const { t: tt } = useTranslation('transfer');
+  const format = useDateTimeFormat();
+  const { item } = props;
+  // The API stops listing an export after `expiresAt`; a page left open past
+  // it marks the row, without the link, when its time comes.
+  const expired = useIsPast(item.expiresAt);
+  return (
+    <li className="flex flex-col gap-2 p-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="outline">{tt(`formats.${item.format}`)}</Badge>
+        <span>{t('export.startedAt', { date: format(item.createdAt) })}</span>
+        {item.expiresAt && !expired && (
+          <span>{t('export.expiresAt', { date: format(item.expiresAt) })}</span>
+        )}
+      </div>
+      <ExportState item={item} expired={expired} />
+    </li>
+  );
+}
+
+function ExportState(props: { item: AccountExport; expired: boolean }) {
+  const { t } = useTranslation('privacy');
+  const { t: tt } = useTranslation('transfer');
+  const { item } = props;
+  if (item.status === 'failed') {
+    return (
+      <Alert variant="destructive" role="alert">
+        <CircleAlertIcon />
+        <AlertDescription>{item.error ?? tt('status.failed')}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (item.status !== 'completed') {
+    return (
+      <Progress
+        value={null}
+        aria-label={tt('status.progressLabel')}
+        className="flex-col"
+      >
+        <p role="status" className="text-sm text-muted-foreground">
+          {item.status === 'queued'
+            ? tt('status.queued')
+            : tt('status.running', { count: item.progress.processed ?? 0 })}
+        </p>
+      </Progress>
+    );
+  }
+  if (props.expired) {
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t('export.expired')}
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p role="status" className="text-sm">
+        {tt('export.done', { count: item.result?.rows ?? 0 })}
+      </p>
+      {item.result?.url && (
+        // A signed link (30 minutes from this answer) that names the file.
+        <a
+          href={item.result.url}
+          download
+          className={buttonVariants({ variant: 'default', size: 'sm' })}
+        >
+          <DownloadIcon />
+          {tt('export.download', { format: item.format })}
+        </a>
+      )}
+    </div>
   );
 }
