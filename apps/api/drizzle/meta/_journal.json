@@ -330,6 +330,13 @@
       "when": 1792507937203,
       "tag": "0046_sso_scim",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792510310690,
+      "tag": "0047_push_sms",
+      "breakpoints": true
     }
   ]
 }

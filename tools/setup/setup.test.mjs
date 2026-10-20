@@ -184,12 +184,16 @@ describe('defaults', () => {
     );
     // The encrypted columns' key (SSO's client secrets): generated, as in production.
     const key = env.get('DATA_ENCRYPTION_KEYS');
+    const indexKey = env.get('BLIND_INDEX_KEYS');
     assert.equal(Buffer.from(key, 'base64').length, 32);
+    assert.equal(Buffer.from(indexKey, 'base64').length, 32);
+    assert.notEqual(key, indexKey);
     assert.equal(
       read(out, 'development'),
       template
         .replace('AUTH_SIGN_UP=on', 'AUTH_SIGN_UP=off')
-        .replace('DATA_ENCRYPTION_KEYS=\n', `DATA_ENCRYPTION_KEYS=${key}\n`),
+        .replace('DATA_ENCRYPTION_KEYS=\n', `DATA_ENCRYPTION_KEYS=${key}\n`)
+        .replace('BLIND_INDEX_KEYS=\n', `BLIND_INDEX_KEYS=${indexKey}\n`),
     );
     assert.doesNotMatch(text, /Password/);
   });

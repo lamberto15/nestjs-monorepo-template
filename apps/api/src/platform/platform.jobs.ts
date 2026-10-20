@@ -152,6 +152,33 @@ export const REENCRYPTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** MessagingProcessor: the SMS and push the notification channels queued. */
+export const MESSAGING_JOB = defineSystemJob({
+  key: 'messaging',
+  label: 'Push and SMS delivery',
+  description:
+    'Sends the SMS and push messages notifications queued, within the toll-fraud caps.',
+  permissions: [],
+});
+
+/** MessagingService: STOP and START arriving from the SMS provider. */
+export const MESSAGING_INBOUND_JOB = defineSystemJob({
+  key: 'messaging-inbound',
+  label: 'Inbound SMS',
+  description:
+    'Records a number opting out (STOP) or back in (START) from the SMS provider webhook.',
+  permissions: [],
+});
+
+/** MessagingRetentionJob: stale devices and old cap counters. */
+export const MESSAGING_RETENTION_JOB = defineSystemJob({
+  key: 'messaging-retention',
+  label: 'Messaging retention',
+  description:
+    'Removes devices not seen for DEVICES_RETENTION_DAYS and the toll-fraud counters of past days, every night.',
+  permissions: [],
+});
+
 export const PLATFORM_SYSTEM_JOBS = [
   ACCOUNT_DELETION_JOB,
   USAGE_ROLLUP_JOB,
@@ -168,4 +195,7 @@ export const PLATFORM_SYSTEM_JOBS = [
   WEBHOOK_DELIVERY_RETENTION_JOB,
   PLATFORM_ANALYTICS_JOB,
   REENCRYPTION_JOB,
+  MESSAGING_JOB,
+  MESSAGING_INBOUND_JOB,
+  MESSAGING_RETENTION_JOB,
 ];

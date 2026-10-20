@@ -920,6 +920,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your registered devices */
+        get: operations["MessagingController_devices_v1"];
+        /**
+         * Register this device for push, or refresh it
+         * @description Call it whenever the app opens: the same token again updates the name and the last-seen time. A token another person registered moves to you. A device not seen for DEVICES_RETENTION_DAYS is removed. The token is stored encrypted and never returned.
+         */
+        put: operations["MessagingController_registerDevice_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a device: its token is deleted */
+        delete: operations["MessagingController_removeDevice_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your SMS number (masked), and whether it is verified */
+        get: operations["MessagingController_phone_v1"];
+        /**
+         * Set your SMS number
+         * @description With its country code (E.164). Texts a six-digit code to confirm it (`POST /messaging/phone/verify`); the number is not used before that. Only the countries in SMS_ALLOWED_PREFIXES are accepted. A different number starts unverified.
+         */
+        put: operations["MessagingController_setPhone_v1"];
+        post?: never;
+        /** Remove your SMS number */
+        delete: operations["MessagingController_removePhone_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/phone/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm your SMS number with the code texted to it
+         * @description The code lasts ten minutes and is void after five wrong guesses.
+         */
+        post: operations["MessagingController_verifyPhone_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/sms/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The SMS provider reports a message sent to the number
+         * @description `twilio`: a form-encoded inbound message, signed with `X-Twilio-Signature` (verified with TWILIO_AUTH_TOKEN and the webhook URL). STOP opts the sender out; START opts them back in.
+         */
+        post: operations["SmsInboundController_receive_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications/test": {
         parameters: {
             query?: never;
@@ -8764,6 +8864,10 @@ export interface operations {
                                 email?: ("immediate" | "hourly" | "daily") | false;
                                 /** @description API clients only: whether the `notification.created` webhook is sent. */
                                 webhook?: boolean;
+                                /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                                sms?: boolean;
+                                /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                                push?: boolean;
                             };
                         }[];
                     };
@@ -8813,6 +8917,10 @@ export interface operations {
                                 email?: ("immediate" | "hourly" | "daily") | false;
                                 /** @description API clients only: whether the `notification.created` webhook is sent. */
                                 webhook?: boolean;
+                                /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                                sms?: boolean;
+                                /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                                push?: boolean;
                             };
                         };
                     };
@@ -8849,6 +8957,10 @@ export interface operations {
                         email?: ("immediate" | "hourly" | "daily") | false;
                         /** @description API clients only: whether the `notification.created` webhook is sent. */
                         webhook?: boolean;
+                        /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                        sms?: boolean;
+                        /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                        push?: boolean;
                     } & {
                         [key: string]: unknown;
                     };
@@ -8875,6 +8987,10 @@ export interface operations {
                                 email?: ("immediate" | "hourly" | "daily") | false;
                                 /** @description API clients only: whether the `notification.created` webhook is sent. */
                                 webhook?: boolean;
+                                /** @description Users with a verified phone number only, when SMS is configured: whether the notification is also texted. */
+                                sms?: boolean;
+                                /** @description Users with a registered device only, when push is configured: whether the notification is also pushed. */
+                                push?: boolean;
                             };
                         };
                     };
@@ -9001,6 +9117,383 @@ export interface operations {
                 content?: never;
             };
             /** @description Not yours, or gone. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_devices_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @enum {string} */
+                            platform: "web" | "ios" | "android";
+                            name: string;
+                            /** Format: date-time */
+                            lastSeenAt: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_registerDevice_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    platform: "web" | "ios" | "android";
+                    /** @example Pixel 9 */
+                    name: string;
+                    /** @description The push provider's token. Web: the browser's `PushSubscription` as JSON. */
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        platform: "web" | "ios" | "android";
+                        name: string;
+                        /** Format: date-time */
+                        lastSeenAt: string;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description validation_failed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_removeDevice_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of your devices. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_phone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Masked (`+49•••••78`); null when none is set. */
+                        phone: string | null;
+                        verified: boolean;
+                        /** @description The number replied STOP: no SMS is sent until it replies START. */
+                        optedOut: boolean;
+                    };
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_setPhone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description With its country code (E.164).
+                     * @example +4915112345678
+                     */
+                    phone: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Masked (`+49•••••78`); null when none is set. */
+                        phone: string | null;
+                        verified: boolean;
+                        /** @description The number replied STOP: no SMS is sent until it replies START. */
+                        optedOut: boolean;
+                    };
+                };
+            };
+            /** @description phone_invalid, or phone_country_not_allowed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_removePhone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_verifyPhone_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Masked (`+49•••••78`); null when none is set. */
+                        phone: string | null;
+                        verified: boolean;
+                        /** @description The number replied STOP: no SMS is sent until it replies START. */
+                        optedOut: boolean;
+                    };
+                };
+            };
+            /** @description code_invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No number set. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SmsInboundController_receive_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        /** @description The provider's form fields, as it sends them. */
+        requestBody: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description Processed (or ignored). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An empty body. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signature does not verify (sms_signature_invalid). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description That provider is not the configured one. */
             404: {
                 headers: {
                     [name: string]: unknown;

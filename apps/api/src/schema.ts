@@ -10,6 +10,7 @@ export * from './iam/sso/sso.tables.js';
 export * from './platform/idempotency/idempotency.tables.js';
 export * from './platform/custom-fields/custom-fields.tables.js';
 export * from './platform/notifications/notifications.tables.js';
+export * from './platform/messaging/messaging.tables.js';
 export * from './platform/settings/settings.tables.js';
 export * from './platform/account/account.tables.js';
 export * from './platform/subscriptions/subscriptions.tables.js';

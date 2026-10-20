@@ -174,6 +174,18 @@
       "label": "重新加密",
       "description": "每小时分批用当前密钥重写仍使用旧密钥的加密值和盲索引。"
     },
+    "messaging": {
+      "label": "推送与短信发送",
+      "description": "在防盗打限额内，发送通知排入队列的短信和推送消息。"
+    },
+    "messaging-inbound": {
+      "label": "入站短信",
+      "description": "根据短信服务商的 webhook，记录号码退订（STOP）或重新订阅（START）。"
+    },
+    "messaging-retention": {
+      "label": "消息数据保留",
+      "description": "每晚移除超过 DEVICES_RETENTION_DAYS 未出现的设备，以及过往日期的防盗打计数器。"
+    },
     "demo-seed": {
       "label": "演示数据",
       "description": "在开发数据库上创建演示用户、团队和各功能的演示数据（pnpm db:seed:demo）；拒绝其他任何数据库。"

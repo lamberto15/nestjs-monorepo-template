@@ -4,6 +4,7 @@ import { BULK } from '../bulk/bulk.service.js';
 import { DATA_TRANSFERS } from '../data-transfer/data-transfer.service.js';
 import { MAIL_EVENTS } from '../deliverability/mail-event.types.js';
 import { DOCUMENTS } from '../documents/documents.service.js';
+import { MESSAGING } from '../messaging/messaging.queue.js';
 import { REENCRYPTION } from '../encryption/reencryption.service.js';
 
 /**
@@ -19,6 +20,7 @@ export const PLATFORM_QUEUES: readonly string[] = [
   AI,
   MAIL_EVENTS,
   REENCRYPTION,
+  MESSAGING,
 ];
 
 /** The platform's queues and the features' own (PlatformModule.forRoot({ queues })). */

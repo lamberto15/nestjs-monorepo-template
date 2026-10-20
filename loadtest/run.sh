@@ -77,6 +77,7 @@ if [ ! -f "$env_file" ]; then
       done
       # The encrypted columns' key (docs/encryption.md), required at boot.
       echo "DATA_ENCRYPTION_KEYS=$(openssl rand -base64 32)"
+      echo "BLIND_INDEX_KEYS=$(openssl rand -base64 32)"
     } > "$env_file"
   )
 fi

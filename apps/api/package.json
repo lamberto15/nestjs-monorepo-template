@@ -82,6 +82,7 @@
     "scim2-parse-filter": "0.3.0",
     "socket.io": "^4.8.4",
     "undici": "8.12.2",
+    "web-push": "3.6.7",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -94,6 +95,7 @@
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
+    "@types/web-push": "3.6.4",
     "@vitest/coverage-v8": "^5.0.4",
     "drizzle-kit": "^0.31.11",
     "selfsigned": "5.5.0",
