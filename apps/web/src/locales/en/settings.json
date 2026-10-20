@@ -60,7 +60,8 @@
     "user": "You",
     "rollout": "Rollout",
     "default": "Default",
-    "platform": "All tenants"
+    "platform": "All tenants",
+    "rule": "Rule"
   },
   "columns": {
     "setting": "Setting",
@@ -103,5 +104,58 @@
     "removeDescription": "Each tenant's own value, or the default, applies again.",
     "removed": "Removed for all tenants.",
     "rolloutOf": "Rollout {{percent}}%"
+  },
+  "rules": {
+    "title": "Targeting rules",
+    "description": "Switch the flag by attribute, before the values above. Rules are checked in order and the first whose conditions all hold decides; whoever matches none gets the value below. A rule that cannot be checked (an attribute the person does not have) never matches.",
+    "platformTitle": "Targeting rules for all tenants",
+    "platformDescription": "Checked before the value for all tenants, below an enforced value and each tenant's own values. Roles are each tenant's own: they are not offered here.",
+    "none": "No rules.",
+    "only": "Rules only",
+    "count": "Rules: {{count}}",
+    "ruleN": "Rule {{n}}",
+    "moveUp": "Move rule {{n}} up",
+    "moveDown": "Move rule {{n}} down",
+    "removeRule": "Remove rule {{n}}",
+    "when": "When all of these hold",
+    "conditionLabel": "Condition",
+    "addCondition": "Add a condition",
+    "removeCondition": "Remove condition {{c}} of rule {{n}}",
+    "then": "The flag is",
+    "percent": "Share for rule {{n}}",
+    "rolloutHint": "On for this percentage of the people the rule matches (the same ones every time); off for the rest of them.",
+    "add": "Add a rule",
+    "save": "Save rules",
+    "saved": "Rules saved.",
+    "invalid": {
+      "values": "Every condition needs a value.",
+      "rollout": "Enter a percentage from 0 to 100."
+    },
+    "condition": {
+      "principalKind": "Kind of principal",
+      "role": "Has the role",
+      "emailDomain": "Email domain is",
+      "locale": "Language is",
+      "tenantSlug": "Tenant is",
+      "tenantOperator": "Operator tenant"
+    },
+    "kind": {
+      "user": "A user",
+      "client": "An API client"
+    },
+    "operator": {
+      "true": "Yes",
+      "false": "No"
+    },
+    "outcome": {
+      "on": "On",
+      "off": "Off",
+      "rollout": "On for a share"
+    },
+    "placeholder": {
+      "emailDomain": "example.com",
+      "locale": "en, pt-BR",
+      "tenantSlug": "tenant slug"
+    }
   }
 }

@@ -60,7 +60,8 @@
     "user": "您",
     "rollout": "发布",
     "default": "默认",
-    "platform": "所有组织"
+    "platform": "所有组织",
+    "rule": "规则"
   },
   "columns": {
     "setting": "设置",
@@ -103,5 +104,58 @@
     "removeDescription": "将重新使用各组织自己的值或默认值。",
     "removed": "已为所有组织移除。",
     "rolloutOf": "发布 {{percent}}%"
+  },
+  "rules": {
+    "title": "定向规则",
+    "description": "按属性开关该标志，优先于上面的值。规则按顺序检查，第一条条件全部满足的规则决定结果；没有匹配的人使用下面的值。无法检查的规则（此人没有该属性）永远不会匹配。",
+    "platformTitle": "所有租户的定向规则",
+    "platformDescription": "在所有租户的值之前检查，低于强制值和各租户自己的值。角色属于各租户自己，这里不提供。",
+    "none": "没有规则。",
+    "only": "仅规则",
+    "count": "规则：{{count}}",
+    "ruleN": "规则 {{n}}",
+    "moveUp": "上移规则 {{n}}",
+    "moveDown": "下移规则 {{n}}",
+    "removeRule": "删除规则 {{n}}",
+    "when": "当以下条件全部满足",
+    "conditionLabel": "条件",
+    "addCondition": "添加条件",
+    "removeCondition": "删除规则 {{n}} 的条件 {{c}}",
+    "then": "标志为",
+    "percent": "规则 {{n}} 的比例",
+    "rolloutHint": "对规则匹配的人中的这一百分比开启（每次都是同一批人），其余关闭。",
+    "add": "添加规则",
+    "save": "保存规则",
+    "saved": "规则已保存。",
+    "invalid": {
+      "values": "每个条件都需要一个值。",
+      "rollout": "请输入 0 到 100 的百分比。"
+    },
+    "condition": {
+      "principalKind": "主体类型",
+      "role": "拥有角色",
+      "emailDomain": "邮箱域名是",
+      "locale": "语言是",
+      "tenantSlug": "租户是",
+      "tenantOperator": "运营方租户"
+    },
+    "kind": {
+      "user": "用户",
+      "client": "API 客户端"
+    },
+    "operator": {
+      "true": "是",
+      "false": "否"
+    },
+    "outcome": {
+      "on": "开启",
+      "off": "关闭",
+      "rollout": "对一部分开启"
+    },
+    "placeholder": {
+      "emailDomain": "example.com",
+      "locale": "zh, en-GB",
+      "tenantSlug": "租户标识"
+    }
   }
 }

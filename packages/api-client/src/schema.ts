@@ -8607,7 +8607,7 @@ export interface operations {
                              * @description Where your value comes from.
                              * @enum {string}
                              */
-                            source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
+                            source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
                             default: unknown;
                             /**
                              * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -8640,6 +8640,22 @@ export interface operations {
                                 enforced: boolean;
                                 /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                                 rollout: number | null;
+                                /** @description Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold. */
+                                rules: {
+                                    /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                                    conditions: {
+                                        /** @enum {string} */
+                                        key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                                        params: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    outcome: {
+                                        value: boolean;
+                                    } | {
+                                        rollout: number;
+                                    };
+                                }[];
                             } | null;
                             /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
                             canEditPlatform: boolean;
@@ -8694,7 +8710,7 @@ export interface operations {
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
+                        source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -8727,6 +8743,22 @@ export interface operations {
                             enforced: boolean;
                             /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                             rollout: number | null;
+                            /** @description Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold. */
+                            rules: {
+                                /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                                conditions: {
+                                    /** @enum {string} */
+                                    key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                                    params: {
+                                        [key: string]: unknown;
+                                    };
+                                }[];
+                                outcome: {
+                                    value: boolean;
+                                } | {
+                                    rollout: number;
+                                };
+                            }[];
                         } | null;
                         /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
                         canEditPlatform: boolean;
@@ -8778,6 +8810,22 @@ export interface operations {
                     value?: unknown;
                     /** @description Flags, tenant scope: the percentage of the tenant's principals the flag is on for. */
                     rollout?: number | null;
+                    /** @description Flags, tenant scope: targeting rules (see the stored override); left out or empty: none. Valid alone, without a value. */
+                    rules?: {
+                        /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                        conditions: {
+                            /** @enum {string} */
+                            key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                            params: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                        outcome: {
+                            value: boolean;
+                        } | {
+                            rollout: number;
+                        };
+                    }[];
                 };
             };
         };
@@ -8796,6 +8844,22 @@ export interface operations {
                         scopeId: string;
                         value: unknown;
                         rollout: number | null;
+                        /** @description Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold. */
+                        rules: {
+                            /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                            conditions: {
+                                /** @enum {string} */
+                                key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                                params: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            outcome: {
+                                value: boolean;
+                            } | {
+                                rollout: number;
+                            };
+                        }[];
                         updatedBy: string;
                         /** Format: date-time */
                         updatedAt: string;
@@ -8911,7 +8975,7 @@ export interface operations {
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
+                        source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -8944,6 +9008,22 @@ export interface operations {
                             enforced: boolean;
                             /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                             rollout: number | null;
+                            /** @description Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold. */
+                            rules: {
+                                /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                                conditions: {
+                                    /** @enum {string} */
+                                    key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                                    params: {
+                                        [key: string]: unknown;
+                                    };
+                                }[];
+                                outcome: {
+                                    value: boolean;
+                                } | {
+                                    rollout: number;
+                                };
+                            }[];
                         } | null;
                         /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
                         canEditPlatform: boolean;
@@ -9010,7 +9090,7 @@ export interface operations {
                          * @description Where your value comes from.
                          * @enum {string}
                          */
-                        source: "tenant" | "team" | "user" | "rollout" | "platform" | "default";
+                        source: "tenant" | "team" | "user" | "rule" | "rollout" | "platform" | "default";
                         default: unknown;
                         /**
                          * @description The value's kind, from the declaration's schema: the input to show. `json`: anything else (an object, a union); `schema` says what.
@@ -9043,6 +9123,22 @@ export interface operations {
                             enforced: boolean;
                             /** @description Flags: the percentage of each tenant's principals it is on for, when no value is set. */
                             rollout: number | null;
+                            /** @description Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold. */
+                            rules: {
+                                /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                                conditions: {
+                                    /** @enum {string} */
+                                    key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                                    params: {
+                                        [key: string]: unknown;
+                                    };
+                                }[];
+                                outcome: {
+                                    value: boolean;
+                                } | {
+                                    rollout: number;
+                                };
+                            }[];
                         } | null;
                         /** @description You may set and remove the platform value (PUT and DELETE /v1/settings/{key}/platform): Access.manageSettings in the operator tenant. */
                         canEditPlatform: boolean;
@@ -9092,6 +9188,22 @@ export interface operations {
                     enforced?: boolean;
                     /** @description Flags: the percentage of principals it is on for in every tenant that set nothing (each tenant drawn apart). */
                     rollout?: number | null;
+                    /** @description Flags: targeting rules across every tenant (no `role` condition: roles are a tenant's own); evaluated before the value and the rollout, below an enforced value. */
+                    rules?: {
+                        /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                        conditions: {
+                            /** @enum {string} */
+                            key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                            params: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                        outcome: {
+                            value: boolean;
+                        } | {
+                            rollout: number;
+                        };
+                    }[];
                 };
             };
         };
@@ -9107,6 +9219,22 @@ export interface operations {
                         value: unknown;
                         enforced: boolean;
                         rollout: number | null;
+                        /** @description Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold. */
+                        rules: {
+                            /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                            conditions: {
+                                /** @enum {string} */
+                                key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                                params: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            outcome: {
+                                value: boolean;
+                            } | {
+                                rollout: number;
+                            };
+                        }[];
                         updatedBy: string;
                         /** Format: date-time */
                         updatedAt: string;
@@ -9207,6 +9335,22 @@ export interface operations {
                             scopeId: string;
                             value: unknown;
                             rollout: number | null;
+                            /** @description Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold. */
+                            rules: {
+                                /** @description All must hold (and). Keys: principalKind, role, emailDomain, locale, tenantSlug, tenantOperator */
+                                conditions: {
+                                    /** @enum {string} */
+                                    key: "principalKind" | "role" | "emailDomain" | "locale" | "tenantSlug" | "tenantOperator";
+                                    params: {
+                                        [key: string]: unknown;
+                                    };
+                                }[];
+                                outcome: {
+                                    value: boolean;
+                                } | {
+                                    rollout: number;
+                                };
+                            }[];
                             updatedBy: string;
                             /** Format: date-time */
                             updatedAt: string;

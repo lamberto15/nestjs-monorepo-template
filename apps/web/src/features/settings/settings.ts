@@ -152,6 +152,8 @@ export function overrideBody(input: {
   scopeId: string;
   value?: unknown;
   rollout?: number;
+  /** Left out: the stored rules stay (the API keeps them); [] clears them. */
+  rules?: Rule[];
 }) {
   return {
     scope: input.scope,
@@ -159,5 +161,120 @@ export function overrideBody(input: {
     ...(input.rollout === undefined
       ? { value: input.value }
       : { rollout: input.rollout }),
+    ...(input.rules === undefined ? {} : { rules: input.rules }),
   };
 }
+
+/** A targeting rule as the API stores it (docs/settings.md, "Targeting rules"). */
+export type Rule = Override['rules'][number];
+export type RuleKey = Rule['conditions'][number]['key'];
+
+/** The conditions a rule may use, by scope: roles are a tenant's own. */
+export const RULE_KEYS: Record<'tenant' | 'platform', RuleKey[]> = {
+  tenant: [
+    'principalKind',
+    'role',
+    'emailDomain',
+    'locale',
+    'tenantSlug',
+    'tenantOperator',
+  ],
+  platform: [
+    'principalKind',
+    'emailDomain',
+    'locale',
+    'tenantSlug',
+    'tenantOperator',
+  ],
+};
+
+/** What the editor holds for a condition: its key and the values typed or picked (a flag: 'true'/'false'). */
+export interface ConditionDraft {
+  key: RuleKey;
+  values: string[];
+}
+export interface RuleDraft {
+  conditions: ConditionDraft[];
+  outcome: 'on' | 'off' | 'rollout';
+  percent: string;
+}
+
+const PARAM: Record<RuleKey, string> = {
+  principalKind: 'kinds',
+  role: 'roleIds',
+  emailDomain: 'domains',
+  locale: 'locales',
+  tenantSlug: 'slugs',
+  tenantOperator: 'operator',
+};
+
+export function toRuleDrafts(rules: readonly Rule[] | undefined): RuleDraft[] {
+  return (rules ?? []).map((rule) => ({
+    conditions: rule.conditions.map(({ key, params }) => {
+      const param = params[PARAM[key]];
+      return {
+        key,
+        values: Array.isArray(param)
+          ? param.map(String)
+          : param === undefined
+            ? []
+            : [String(param as boolean | string)],
+      };
+    }),
+    outcome:
+      'rollout' in rule.outcome ? 'rollout' : rule.outcome.value ? 'on' : 'off',
+    percent: String('rollout' in rule.outcome ? rule.outcome.rollout : 50),
+  }));
+}
+
+/** The rules of the drafts, or the first thing wrong with them (the API checks again). */
+export function fromRuleDrafts(
+  drafts: readonly RuleDraft[],
+): { ok: true; rules: Rule[] } | { ok: false; reason: 'values' | 'rollout' } {
+  const rules: Rule[] = [];
+  for (const draft of drafts) {
+    const percent = Number(draft.percent);
+    if (
+      draft.outcome === 'rollout' &&
+      !(draft.percent.trim() !== '' && percent >= 0 && percent <= 100)
+    ) {
+      return { ok: false, reason: 'rollout' };
+    }
+    const conditions: Rule['conditions'] = [];
+    for (const { key, values } of draft.conditions) {
+      if (values.length === 0) {
+        return { ok: false, reason: 'values' };
+      }
+      conditions.push({
+        key,
+        params: {
+          [PARAM[key]]:
+            key === 'tenantOperator' ? values[0] === 'true' : values,
+        },
+      });
+    }
+    if (conditions.length === 0) {
+      return { ok: false, reason: 'values' };
+    }
+    rules.push({
+      conditions,
+      outcome:
+        draft.outcome === 'rollout'
+          ? { rollout: percent }
+          : { value: draft.outcome === 'on' },
+    });
+  }
+  return { ok: true, rules };
+}
+
+export interface RoleRef {
+  id: string;
+  name: string;
+}
+
+/** The tenant's roles, for the `role` condition (whoever may read them; others get none). */
+export const rolesQuery = queryOptions({
+  queryKey: ['settings', 'roles'],
+  queryFn: async (): Promise<RoleRef[]> =>
+    (await unwrap(api.GET('/v1/access/roles'))).items,
+});
