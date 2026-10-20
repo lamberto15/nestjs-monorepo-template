@@ -1,0 +1,48 @@
+{
+  "button": "视图",
+  "title": "视图",
+  "loading": "正在加载视图…",
+  "failed": "无法加载视图。",
+  "none": "还没有保存的视图。",
+  "groups": {
+    "private": "我的",
+    "team": "我的团队",
+    "tenant": "所有人"
+  },
+  "current": "当前视图：{{name}}",
+  "clear": "停止使用“{{name}}”",
+  "saveCurrent": "保存当前视图…",
+  "rename": "重命名“{{name}}”…",
+  "delete": "删除“{{name}}”…",
+  "applied": "已应用视图“{{name}}”。",
+  "stale": "“{{name}}”已过期。{{detail}} 请修改或删除它。",
+  "unshowable": "“{{name}}”使用了此表格无法显示的筛选条件（{{what}}）。",
+  "forbidden": "无法应用“{{name}}”。{{detail}}",
+  "gone": "“{{name}}”已不存在。",
+  "visibility": {
+    "private": "私有（仅自己）",
+    "team": "某个团队",
+    "tenant": "组织内所有人"
+  },
+  "form": {
+    "saveTitle": "保存当前视图",
+    "saveDescription": "以一个名称保存此列表的筛选、搜索、排序和列。",
+    "renameTitle": "重命名视图“{{name}}”",
+    "name": "名称",
+    "nameRequired": "请输入名称。",
+    "nameTooLong": "名称最多 200 个字符。",
+    "nameTaken": "此处已有名为“{{name}}”的视图。",
+    "visibility": "谁可以看到",
+    "team": "团队",
+    "teamRequired": "请选择团队。",
+    "teamPlaceholder": "选择团队",
+    "save": "保存",
+    "cancel": "取消"
+  },
+  "saved": "已保存视图“{{name}}”。",
+  "renamed": "视图已重命名为“{{name}}”。",
+  "deleted": "视图已删除。",
+  "deleteTitle": "删除视图“{{name}}”？",
+  "deleteDescription": "所有能看到该视图的人都将失去它。记录不会改变。",
+  "deleteConfirm": "删除视图"
+}
