@@ -22,7 +22,7 @@ import { useMe } from '@/lib/features';
 import { tenantsQuery } from '@/lib/session';
 import { FormAlert } from '@/lib/form';
 import { CreateTenantDialog } from './create-tenant-dialog';
-import { tenantsAdminQuery, useCreateTenant } from './queries';
+import { deletionPending, tenantsAdminQuery, useCreateTenant } from './queries';
 
 /**
  * Every tenant of the deployment, for its operators, and a form to make one
@@ -95,6 +95,23 @@ export function TenantsPage() {
                     <Badge variant={tenant.active ? 'default' : 'outline'}>
                       {t(`status.${tenant.active ? 'active' : 'inactive'}`)}
                     </Badge>
+                    {deletionPending(tenant) ? (
+                      <Badge
+                        variant="destructive"
+                        className="ms-2"
+                        title={t('list.erasedOn', {
+                          date: formatDateTime(tenant.deletionScheduledFor),
+                        })}
+                      >
+                        {t('status.deletionPending')}
+                      </Badge>
+                    ) : (
+                      tenant.deletionStartedAt && (
+                        <Badge variant="destructive" className="ms-2">
+                          {t('status.erasing')}
+                        </Badge>
+                      )
+                    )}
                   </TableCell>
                   <TableCell>{formatDateTime(tenant.createdAt)}</TableCell>
                   <TableCell className="text-end">
