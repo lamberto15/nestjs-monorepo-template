@@ -1,0 +1,53 @@
+# The realtime load test (docs/development.md, "Load tests"): socket.io
+# connections to the /realtime namespace behind Caddy, through Artillery
+# because k6 doesn't speak socket.io (docs/roadmap.md, item 17).
+#
+# Each virtual user connects (websocket only, as the docs advise: no
+# long-polling, no sticky replica needed), holds the connection for
+# HOLD_ROUNDS seconds and asks `whoami` once a second, which the gateway
+# answers after authenticating the message again (docs/webhooks-and-realtime.md,
+# "Realtime"). That measures the handshake (the session lookup, the rooms
+# joined through the Redis adapter) and the round trip of a message, with
+# arrivalRate x hold connections open at once. It does not measure the
+# delivery of a pushed event: that is a follow-up.
+#
+# Run it with loadtest/run.sh realtime. The phase is replaced there
+# (--overrides): PHASE_SECONDS and REALTIME_RATE.
+#
+# `ensure` fails the run (exit code 1) on a slow answer, or on any virtual
+# user that didn't finish (a refused handshake, a missing answer).
+config:
+  # The /realtime namespace is in the target: the engine connects to
+  # target + the emit's namespace (empty here).
+  target: "{{ $processEnvironment.BASE_URL }}/realtime"
+  processor: ./realtime.processor.cjs
+  phases:
+    - name: realtime
+      duration: 60
+      arrivalRate: 10
+  socketio:
+    transports: ["websocket"]
+    # The user's token as the bearer header the providers read; the
+    # processor signs the administrator in once and shares the token.
+    extraHeaders:
+      Authorization: "Bearer {{ token }}"
+  ensure:
+    thresholds:
+      - socketio.response_time.p95: 500
+      - socketio.response_time.p99: 2000
+    conditions:
+      - expression: "vusers.completed == vusers.created"
+scenarios:
+  - name: connect, hold, ask whoami
+    engine: socketio
+    beforeScenario: signedIn
+    flow:
+      - loop:
+          - emit:
+              - whoami
+            acknowledge:
+              capture:
+                json: "$.0.id"
+                as: whoamiId
+          - think: 1
+        count: 10
