@@ -20,7 +20,7 @@
  *
  * The encrypted-column registry (roadmap item 5, core/encryption) declares
  * each encrypted column's name here (`encrypted()`); audit `changes`,
- * revisions and exports don't consult that registry yet. The permission catalog's
+ * revisions, exports and webhooks consult it too (docs/encryption.md). The permission catalog's
  * `sensitive` field flag is per subject (audit entries) and stays apart:
  * log redaction is by name wherever the name appears, so only names that
  * always hold a secret belong here.

@@ -3,6 +3,7 @@ import { AuthorizationService } from '@nestjs/authorization';
 import { Webhooks } from '@nestjs/webhooks';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
+import { withoutEncrypted } from '../../core/encryption/encrypted-columns.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
@@ -220,7 +221,8 @@ export class RecordLifecycle {
     await this.webhooks.dispatch(tx, {
       type: `${recordKey(this.declaration)}.${event}`,
       tenant: client,
-      data,
+      // Never an encrypted column's value, even as ciphertext.
+      data: withoutEncrypted(data),
     });
   }
 

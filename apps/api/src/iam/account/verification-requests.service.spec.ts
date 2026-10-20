@@ -71,12 +71,17 @@ describe('VerificationRequests', () => {
     const before = Date.now();
     service.request('ada@example.com');
     await service.onModuleDestroy();
+    const after = Date.now();
     expect(emailVerification.send).not.toHaveBeenCalled();
     const [userId, since] = users.verificationLinkSentSince.mock
       .calls[0] as unknown as [string, Date];
     expect(userId).toBe('u1');
-    expect(before - since.getTime()).toBeGreaterThanOrEqual(
-      VERIFICATION_RESEND_COOLDOWN_MS - 5,
+    // Bounded by the clock on both sides, so a slow runner can't fail it.
+    expect(since.getTime()).toBeGreaterThanOrEqual(
+      before - VERIFICATION_RESEND_COOLDOWN_MS,
+    );
+    expect(since.getTime()).toBeLessThanOrEqual(
+      after - VERIFICATION_RESEND_COOLDOWN_MS,
     );
   });
 

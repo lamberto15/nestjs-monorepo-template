@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { eq, is } from 'drizzle-orm';
 import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
 import {
@@ -120,6 +121,41 @@ export async function loadOrCreateSecret(
     .from(schema.appSecrets)
     .where(eq(schema.appSecrets.name, envName));
   return row.value;
+}
+
+/**
+ * The two-factor encryption keys (`MFA_ENCRYPTION_KEYS`): from the
+ * environment or a secret file, never created in `app_secrets` in production
+ * (a key kept next to its ciphertext protects nothing in a backup,
+ * docs/encryption.md). A deployment that already has one there keeps it
+ * working until the owner moves it to the environment (a warning says so).
+ * Outside production an unset key is still created, so a fresh checkout runs
+ * with no setup.
+ */
+export async function loadMfaEncryptionKeys(
+  db: Database,
+  generate: () => string,
+): Promise<string> {
+  const name = 'MFA_ENCRYPTION_KEYS';
+  if (process.env[name]) {
+    return process.env[name];
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    return loadOrCreateSecret(db, name, generate);
+  }
+  const [legacy] = await db
+    .select()
+    .from(schema.appSecrets)
+    .where(eq(schema.appSecrets.name, name));
+  if (!legacy) {
+    throw new Error(
+      `${name} is not set: in production the two-factor keys come from the environment (\`openssl rand -base64 32\`), never from the database (docs/encryption.md).`,
+    );
+  }
+  new Logger('Secrets').warn(
+    `${name} is read from app_secrets: set it in the environment to the same value (the database must not hold a key next to its ciphertext), then delete that row.`,
+  );
+  return legacy.value;
 }
 
 /**
