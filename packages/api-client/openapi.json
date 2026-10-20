@@ -20022,12 +20022,16 @@
                               },
                               "resubmit": {
                                 "type": "boolean"
+                              },
+                              "abandon": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
                               "decide",
                               "cancel",
-                              "resubmit"
+                              "resubmit",
+                              "abandon"
                             ],
                             "additionalProperties": false,
                             "description": "What you may do with it now."
@@ -20478,12 +20482,16 @@
                         },
                         "resubmit": {
                           "type": "boolean"
+                        },
+                        "abandon": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "decide",
                         "cancel",
-                        "resubmit"
+                        "resubmit",
+                        "abandon"
                       ],
                       "additionalProperties": false,
                       "description": "What you may do with it now."
@@ -20910,12 +20918,16 @@
                         },
                         "resubmit": {
                           "type": "boolean"
+                        },
+                        "abandon": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "decide",
                         "cancel",
-                        "resubmit"
+                        "resubmit",
+                        "abandon"
                       ],
                       "additionalProperties": false,
                       "description": "What you may do with it now."
@@ -21354,12 +21366,16 @@
                         },
                         "resubmit": {
                           "type": "boolean"
+                        },
+                        "abandon": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "decide",
                         "cancel",
-                        "resubmit"
+                        "resubmit",
+                        "abandon"
                       ],
                       "additionalProperties": false,
                       "description": "What you may do with it now."
@@ -21801,12 +21817,16 @@
                         },
                         "resubmit": {
                           "type": "boolean"
+                        },
+                        "abandon": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "decide",
                         "cancel",
-                        "resubmit"
+                        "resubmit",
+                        "abandon"
                       ],
                       "additionalProperties": false,
                       "description": "What you may do with it now."
@@ -22244,12 +22264,16 @@
                         },
                         "resubmit": {
                           "type": "boolean"
+                        },
+                        "abandon": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "decide",
                         "cancel",
-                        "resubmit"
+                        "resubmit",
+                        "abandon"
                       ],
                       "additionalProperties": false,
                       "description": "What you may do with it now."
@@ -22684,12 +22708,16 @@
                         },
                         "resubmit": {
                           "type": "boolean"
+                        },
+                        "abandon": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "decide",
                         "cancel",
-                        "resubmit"
+                        "resubmit",
+                        "abandon"
                       ],
                       "additionalProperties": false,
                       "description": "What you may do with it now."
@@ -23129,12 +23157,16 @@
                         },
                         "resubmit": {
                           "type": "boolean"
+                        },
+                        "abandon": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "decide",
                         "cancel",
-                        "resubmit"
+                        "resubmit",
+                        "abandon"
                       ],
                       "additionalProperties": false,
                       "description": "What you may do with it now."

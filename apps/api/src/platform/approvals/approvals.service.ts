@@ -792,6 +792,14 @@ export class ApprovalsService implements PersonalDataSource {
               subject: row.subject,
             }))),
         resubmit: requester && row.status === 'changes_requested',
+        // abandon() also refuses while the workflow still runs (409
+        // approval_not_stuck): that is checked at call time, not here.
+        abandon:
+          row.status === 'approved' &&
+          !row.outcomeAppliedAt &&
+          (await this.access.can(principal, 'manage', 'Approval', {
+            subject: row.subject,
+          })),
       },
     };
   }
