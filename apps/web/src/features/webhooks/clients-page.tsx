@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { buttonVariants } from '@nestjs-monorepo-template/ui/components/button';
 import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import {
@@ -22,11 +23,19 @@ export function WebhookClientsPage() {
   const list = useQuery(clientsQuery);
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-medium">{t('clients.title')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t('clients.description')}
-        </p>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex-1">
+          <h1 className="text-xl font-medium">{t('clients.title')}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t('clients.description')}
+          </p>
+        </div>
+        <Link
+          to="/webhooks/senders"
+          className={buttonVariants({ variant: 'outline' })}
+        >
+          {t('clients.senders')}
+        </Link>
       </div>
       {list.isPending ? (
         <Spinner />
