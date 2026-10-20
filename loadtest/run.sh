@@ -7,6 +7,7 @@
 #   loadtest/run.sh            up, run, down (the default)
 #   loadtest/run.sh up         start the stack (and keep it)
 #   loadtest/run.sh run        run k6 against a started stack
+#   loadtest/run.sh realtime   run the Artillery socket.io scenario against it
 #   loadtest/run.sh down       remove the stack and its volumes
 #   loadtest/run.sh config     the stack's Compose configuration (a check)
 #
@@ -14,7 +15,12 @@
 #                   `down` removes its volumes, so it can never name a deployment
 # LOADTEST_OUT      where the baseline and the stack's env file go (loadtest/results)
 # APP_IMAGE         an image already built (CI); unset, the stack builds one
-# PHASE_SECONDS, SIGN_IN_RATE, LIST_RATE, CREATE_RATE: scenarios.js' load
+# LOADTEST_REPLICAS API replicas behind Caddy, 1 to 6 (default 2: compose.prod.yaml's)
+# LOADTEST_CAPTCHA  `always` puts the bot check in place with the stub provider
+#                   (compose.loadtest.yaml); default off. k6 then sends a token
+# LOADTEST_REALTIME `off` leaves the Artillery socket.io run out of the default run
+# PHASE_SECONDS, SIGN_IN_RATE, LIST_RATE, CREATE_RATE, EXPORT_RATE: scenarios.js' load
+# REALTIME_RATE     new socket.io connections a second (realtime.yml, default 10)
 #
 # Its own env file: the repository's .env (a deployment's) is never read.
 set -euo pipefail
@@ -23,6 +29,23 @@ cd "$(dirname "$0")/.."
 
 # k6's release (github.com/grafana/k6), tag and digest: Dependabot doesn't raise it.
 export K6_IMAGE=grafana/k6:2.3.0@sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34
+
+# Artillery's release (github.com/artilleryio/artillery), tag and digest. It
+# speaks socket.io, which k6 doesn't (docs/roadmap.md, item 17).
+export ARTILLERY_IMAGE=artilleryio/artillery:2.0.34@sha256:0d927c76853314d94c6545515821ac98971443301820b93d5193fe2be85780a2
+
+replicas=${LOADTEST_REPLICAS:-2}
+# Up to 6: each replica holds DATABASE_POOL_MAX (10) connections of the
+# PostgreSQL's 100.
+if ! [[ "$replicas" =~ ^[1-6]$ ]]; then
+  echo "LOADTEST_REPLICAS=$replicas: 1 to 6 api replicas" >&2
+  exit 2
+fi
+captcha=${LOADTEST_CAPTCHA:-off}
+if [ "$captcha" != off ] && [ "$captcha" != always ]; then
+  echo "LOADTEST_CAPTCHA=$captcha: off or always" >&2
+  exit 2
+fi
 
 project=${LOADTEST_PROJECT:-loadtest-local}
 # An allowlist, not a list of known deployments: a project made from this
@@ -59,7 +82,8 @@ fi
 # The files named here, never an exported COMPOSE_FILE (it would drop the
 # overlay: Caddy publishing 80 and 443, the limits not raised).
 compose() {
-  env -u COMPOSE_FILE -u COMPOSE_PROJECT_NAME docker compose \
+  env -u COMPOSE_FILE -u COMPOSE_PROJECT_NAME \
+    API_REPLICAS="$replicas" LOADTEST_CAPTCHA="$captcha" docker compose \
     --project-name "$project" --env-file "$env_file" \
     -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml "$@"
 }
@@ -99,8 +123,34 @@ run() {
     -e BASELINE_FILE=/out/baseline.json \
     -e K6_NO_USAGE_REPORT=true \
     -e ADMIN_EMAIL -e ADMIN_PASSWORD -e GIT_SHA -e K6_IMAGE \
-    -e PHASE_SECONDS -e SIGN_IN_RATE -e LIST_RATE -e CREATE_RATE \
+    -e PHASE_SECONDS -e SIGN_IN_RATE -e LIST_RATE -e CREATE_RATE -e EXPORT_RATE \
+    -e REPLICAS="$replicas" -e CAPTCHA="$captcha" \
     "$K6_IMAGE" run --quiet /scripts/scenarios.js
+}
+
+# Realtime: socket.io through Artillery (k6 doesn't speak it), at the /realtime
+# namespace behind Caddy. Its thresholds (loadtest/realtime.yml, "ensure") fail
+# the run; the report goes to the output directory.
+realtime() {
+  local rate=${REALTIME_RATE:-10} seconds=${PHASE_SECONDS:-60}
+  [[ "$rate" =~ ^[1-9][0-9]*$ && "$seconds" =~ ^[1-9][0-9]*$ ]] || {
+    echo "REALTIME_RATE and PHASE_SECONDS are whole numbers" >&2
+    exit 2
+  }
+  ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
+    docker run --rm \
+    --network "${project}_default" \
+    --user "$(id -u):$(id -g)" \
+    -v "$PWD/loadtest:/scripts:ro" \
+    -v "$out:/out" \
+    -e HOME=/tmp \
+    -e ARTILLERY_DISABLE_TELEMETRY=true \
+    -e BASE_URL=http://caddy \
+    -e CAPTCHA="$captcha" \
+    -e ADMIN_EMAIL -e ADMIN_PASSWORD \
+    "$ARTILLERY_IMAGE" run \
+    --overrides "{\"config\":{\"phases\":[{\"duration\":$seconds,\"arrivalRate\":$rate}]}}" \
+    --output /out/realtime.json /scripts/realtime.yml
 }
 
 down() {
@@ -111,15 +161,17 @@ down() {
 case "${1:-all}" in
   up) up ;;
   run) run ;;
+  realtime) realtime ;;
   down) down ;;
   config) compose config ;;
   all)
     trap down EXIT
     up
     run
+    if [ "${LOADTEST_REALTIME:-on}" != off ]; then realtime; fi
     ;;
   *)
-    echo "usage: $0 [up|run|down|config|all]" >&2
+    echo "usage: $0 [up|run|realtime|down|config|all]" >&2
     exit 2
     ;;
 esac

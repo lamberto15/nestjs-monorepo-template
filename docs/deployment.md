@@ -1010,7 +1010,9 @@ merged migration fails it already):
   (`workflow_dispatch`, to save Actions minutes; a pull request changing the
   load test runs it report-only): the production stack and k6 on a GitHub
   runner, failing only on a 2× regression against the previous run or the
-  anchor. A schedule comes back with one line under `on:`, e.g.
+  anchor (the k6 scenarios and the Artillery socket.io run; two api
+  replicas, the bot check off: `LOADTEST_REPLICAS` and `LOADTEST_CAPTCHA`
+  are for manual runs). A schedule comes back with one line under `on:`, e.g.
   `schedule: [{ cron: '37 2 * * 1' }]` (development.md, "Load tests").
 - **Devcontainer:** `.github/workflows/devcontainer.yml` builds
   `.devcontainer/` with the pinned `@devcontainers/cli` (`devcontainer up`,

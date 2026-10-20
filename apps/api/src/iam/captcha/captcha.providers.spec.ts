@@ -41,7 +41,9 @@ describe('createCaptchaVerifier', () => {
           production({ CAPTCHA_PROVIDER: 'stub', CAPTCHA_MODE: mode }),
           http,
         ),
-      ).toThrow(/CAPTCHA_PROVIDER=stub is refused \(NODE_ENV=production\)/);
+      ).toThrow(
+        /CAPTCHA_PROVIDER=stub is refused \(NODE_ENV=production without APP_ENV=loadtest\)/,
+      );
     }
   });
 
@@ -78,6 +80,46 @@ describe('createCaptchaVerifier', () => {
     ] as const) {
       expect(() => createCaptchaVerifier(stubbed(env), http)).toThrow(reason);
     }
+  });
+
+  it('refuses the stub in production unless the stack is the load test (APP_ENV=loadtest)', () => {
+    // Anything but the exact name: unset, a look-alike, a production name.
+    for (const appEnv of [
+      undefined,
+      'staging',
+      'loadtest-eu',
+      'LOADTEST',
+      'production',
+      'prod-loadtest',
+    ]) {
+      expect(() =>
+        createCaptchaVerifier(
+          production({
+            CAPTCHA_PROVIDER: 'stub',
+            TURNSTILE_SECRET_KEY: undefined,
+            APP_ENV: appEnv,
+          }),
+          http,
+        ),
+      ).toThrow(/CAPTCHA_PROVIDER=stub is refused/);
+    }
+    // The load test's stack: the production image, the stub, no secret.
+    const verifier = createCaptchaVerifier(
+      production({
+        CAPTCHA_PROVIDER: 'stub',
+        TURNSTILE_SECRET_KEY: undefined,
+        APP_ENV: 'loadtest',
+      }),
+      http,
+    );
+    expect(verifier).toBeInstanceOf(StubCaptchaVerifier);
+    // A real secret next to the stub is refused there too.
+    expect(() =>
+      createCaptchaVerifier(
+        production({ CAPTCHA_PROVIDER: 'stub', APP_ENV: 'loadtest' }),
+        http,
+      ),
+    ).toThrow(/TURNSTILE_SECRET_KEY is set/);
   });
 
   it('wants both Turnstile keys once the mode is on, and names them', () => {

@@ -1,5 +1,6 @@
 # The load test's stack (docs/development.md, "Load tests"): the production
-# stack (compose.yaml + compose.prod.yaml: api ×API_REPLICAS, worker,
+# stack (compose.yaml + compose.prod.yaml: api ×API_REPLICAS, which
+# loadtest/run.sh sets from LOADTEST_REPLICAS, worker,
 # migrate, PostgreSQL, Redis, the same image and limits) with only what a
 # throwaway run on a GitHub runner or a laptop can't have changed here.
 # loadtest/run.sh starts it under its own project name (never the deployed
@@ -22,11 +23,15 @@ services:
       # in many times a minute: the limits are raised (×1000), never turned
       # off, so the throttler still runs (and costs) what it does in production.
       RATE_LIMIT_MULTIPLIER: ${RATE_LIMIT_MULTIPLIER:-1000}
-      # The load test measures the app, not a captcha: the bot check (roadmap
-      # item 4) stays off whatever its default becomes. Measuring its cost
-      # would take its stub provider, which production refuses: allowing it
-      # with APP_ENV=loadtest is a follow-up.
-      CAPTCHA_MODE: 'off'
+      # The bot check (roadmap item 4) is off unless LOADTEST_CAPTCHA asks for
+      # it (loadtest/run.sh): the default run measures the app, not a captcha.
+      # LOADTEST_CAPTCHA=always puts the guard in place with the stub
+      # provider, which judges by the token's text and calls nothing, so its
+      # cost is the guard's own. The app accepts the stub under
+      # NODE_ENV=production only with APP_ENV=loadtest, set above
+      # (docs/auth.md, "Bot protection"); no Turnstile key is here.
+      CAPTCHA_MODE: ${LOADTEST_CAPTCHA:-off}
+      CAPTCHA_PROVIDER: stub
   worker:
     environment:
       APP_ENV: loadtest

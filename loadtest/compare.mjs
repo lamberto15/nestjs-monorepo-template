@@ -11,10 +11,13 @@
 //     [--previous previous/baseline.json] [--anchor anchor/baseline.json] \
 //     [--summary "$GITHUB_STEP_SUMMARY"] [--report-only]
 //
-// A scenario regresses when, against a reference with the same load (rate
-// and phase length):
+// A scenario regresses when, against a reference with the same load (rate,
+// phase length, and the api replicas; a baseline without `replicas` ran two.
+// The bot check (`captcha`) is not part of the load: a run with it on,
+// compared with one off, shows its cost (run with --report-only):
 // - its median or p95 reached FACTOR times the reference's and grew by at
 //   least MIN_DELTA_MS (a 3 ms route taking 7 ms is a runner's noise);
+// - an export's time to a ready file (`readyMs`) is held to the same bar;
 // - its failed share reached FACTOR times the reference's and at least
 //   MIN_FAILED_RATE (0.5%);
 // - its dropped iterations (k6 couldn't start a request on time: the stack
@@ -42,7 +45,11 @@ export function compare(current, reference, { factor = FACTOR, minDeltaMs = MIN_
     const row = { name, now, before, regressions: [], note: '' };
     if (!before) {
       row.note = reference ? 'new scenario: recorded' : 'no reference: recorded';
-    } else if (before.rate !== now.rate || reference.phaseSeconds !== current.phaseSeconds) {
+    } else if (
+      before.rate !== now.rate ||
+      reference.phaseSeconds !== current.phaseSeconds ||
+      (reference.replicas ?? 2) !== (current.replicas ?? 2)
+    ) {
       row.note = 'load changed: not compared';
     } else {
       for (const stat of STATS) {
@@ -50,6 +57,13 @@ export function compare(current, reference, { factor = FACTOR, minDeltaMs = MIN_
         const b = now.ms[stat];
         if (typeof a === 'number' && typeof b === 'number' && a > 0 && b >= a * factor && b - a >= minDeltaMs) {
           row.regressions.push(`${stat} ${a} → ${b} ms (×${(b / a).toFixed(2)})`);
+        }
+      }
+      for (const stat of STATS) {
+        const a = before.readyMs?.[stat];
+        const b = now.readyMs?.[stat];
+        if (typeof a === 'number' && typeof b === 'number' && a > 0 && b >= a * factor && b - a >= minDeltaMs) {
+          row.regressions.push(`ready ${stat} ${a} → ${b} ms (×${(b / a).toFixed(2)})`);
         }
       }
       if (grew(before.failedRate ?? 0, now.failedRate ?? 0, factor, MIN_FAILED_RATE)) {
@@ -74,14 +88,17 @@ export function markdown(result, title, reference) {
   const lines = [
     `### ${title}`,
     '',
-    reference ? `The run of ${describe(reference)}.` : 'None: nothing compared.',
+    reference
+      ? `The run of ${describe(reference)} (${reference.replicas ?? 2} api replicas, bot check ${reference.captcha ?? 'off'}).`
+      : 'None: nothing compared.',
     '',
     '| Scenario | Rate/s | Requests | Failed | Dropped | Median ms | p95 ms | p99 ms | Verdict |',
     '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
   ];
   for (const row of result.rows) {
     const { now, before } = row;
-    const verdict = row.regressions.length ? `**regressed**: ${row.regressions.join('; ')}` : row.note || 'ok';
+    const ready = now.readyMs ? `; ready: median ${now.readyMs.med} ms, p95 ${now.readyMs.p95} ms` : '';
+    const verdict = row.regressions.length ? `**regressed**: ${row.regressions.join('; ')}` : `${row.note || 'ok'}${ready}`;
     lines.push(
       `| ${row.name} | ${now.rate} | ${now.requests} | ${pct(now.failedRate)} | ${now.droppedIterations ?? 0} | ${now.ms.med}${ratio(now.ms.med, before?.ms.med)} | ${now.ms.p95}${ratio(now.ms.p95, before?.ms.p95)} | ${now.ms.p99} | ${verdict} |`,
     );
