@@ -112,6 +112,7 @@ export class LogRedaction {
   private readonly extraPatterns: RegExp[] = [];
   private frozenBy?: string;
   private textRules?: TextRule[];
+  private lowerNames?: Set<string>;
 
   constructor({
     headers = SECRET_HEADERS,
@@ -135,6 +136,7 @@ export class LogRedaction {
       this.headers.add(name.toLowerCase());
     }
     this.textRules = undefined;
+    this.lowerNames = undefined;
     return this;
   }
 
@@ -149,6 +151,7 @@ export class LogRedaction {
       this.fields.add(name);
     }
     this.textRules = undefined;
+    this.lowerNames = undefined;
     return this;
   }
 
@@ -199,6 +202,93 @@ export class LogRedaction {
   }
 
   /**
+   * A value made safe to show: for a browser (the operations dashboard),
+   * not a log line. Walks objects and arrays and masks every property
+   * named like a declared header or field (any case, a dotted path under
+   * its parent), runs the text patterns over every string and cuts it at
+   * `maxString` characters, and turns an Error into `{ name, message }`:
+   * never its stack, which holds file paths and whatever the engine put in
+   * it. Depth, array length and key count are bounded too, so one huge
+   * payload cannot fill a stream. Returns a new value; the input is left
+   * alone.
+   */
+  redactValue(value: unknown, options: RedactValueOptions = {}): unknown {
+    const limits = { ...VALUE_LIMITS, ...options };
+    return this.redactNode(value, limits, { nodes: limits.maxNodes }, 0);
+  }
+
+  /**
+   * `redactValue()` for a text: a stack trace's frames dropped, the patterns,
+   * then the cut.
+   */
+  redactString(text: string, maxString = VALUE_LIMITS.maxString): string {
+    const frames = text.search(/\n\s+at \S/);
+    const message = frames === -1 ? text : text.slice(0, frames);
+    // Cut first, at a bound well past the final one, so a huge string costs
+    // little; the secret that straddles the cut sits beyond the final one.
+    const head = message.slice(0, maxString * 4);
+    const masked = this.redactText(head);
+    return masked.length > maxString || head.length < message.length
+      ? `${masked.slice(0, maxString)}…`
+      : masked;
+  }
+
+  private redactNode(
+    value: unknown,
+    limits: Required<RedactValueOptions>,
+    budget: { nodes: number },
+    depth: number,
+    parent?: string,
+  ): unknown {
+    if (typeof value === 'string') {
+      return this.redactString(value, limits.maxString);
+    }
+    if (value === null || typeof value !== 'object') {
+      // Numbers, booleans, undefined; a bigint or symbol has no JSON form.
+      return typeof value === 'bigint' || typeof value === 'symbol'
+        ? String(value)
+        : value;
+    }
+    if (value instanceof Error) {
+      return {
+        name: value.name,
+        message: this.redactString(value.message, limits.maxString),
+      };
+    }
+    if (depth >= limits.maxDepth || --budget.nodes < 0) {
+      return '[…]';
+    }
+    if (Array.isArray(value)) {
+      return value
+        .slice(0, limits.maxItems)
+        .map((item) =>
+          this.redactNode(item, limits, budget, depth + 1, parent),
+        );
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value).slice(0, limits.maxItems)) {
+      result[key] = this.isSecretKey(key, parent)
+        ? REDACTED
+        : this.redactNode(item, limits, budget, depth + 1, key);
+    }
+    return result;
+  }
+
+  /** Whether a property of this name (under this parent) holds a secret by name. */
+  private isSecretKey(key: string, parent: string | undefined): boolean {
+    this.lowerNames ??= new Set(this.paths().map((path) => path.toLowerCase()));
+    const name = key.toLowerCase();
+    return (
+      this.lowerNames.has(name) ||
+      (parent !== undefined &&
+        this.lowerNames.has(`${parent.toLowerCase()}.${name}`))
+    );
+  }
+
+  /**
    * Closes the registry: `createLogger()` calls it once the logger holds
    * the list, so a declaration that came too late to be in it fails loudly.
    */
@@ -236,6 +326,25 @@ export class LogRedaction {
     return [...names];
   }
 }
+
+/** What `redactValue()` keeps of a value. */
+export interface RedactValueOptions {
+  /** Longest string kept, in characters; a longer one is cut and ends with `…`. */
+  maxString?: number;
+  /** Deepest nesting kept; deeper becomes `[…]`. */
+  maxDepth?: number;
+  /** Most array items and object keys kept per level. */
+  maxItems?: number;
+  /** Most objects and arrays walked in all; the rest becomes `[…]`. */
+  maxNodes?: number;
+}
+
+const VALUE_LIMITS: Required<RedactValueOptions> = {
+  maxString: 1000,
+  maxDepth: 6,
+  maxItems: 100,
+  maxNodes: 500,
+};
 
 interface TextRule {
   pattern: RegExp;
@@ -319,6 +428,14 @@ function builtInRules(keys: string[]): TextRule[] {
 
 /** The app's registry: declared at import time, snapshotted by `createLogger()`. */
 export const logRedaction = new LogRedaction();
+
+/** `logRedaction.redactValue()`, for what a browser is shown (the operations API). */
+export const redactValue = (value: unknown, options?: RedactValueOptions) =>
+  logRedaction.redactValue(value, options);
+
+/** `logRedaction.redactString()`: a text masked and cut. */
+export const redactString = (text: string, maxString?: number) =>
+  logRedaction.redactString(text, maxString);
 
 /** `logRedaction.redactText()`, for the places that build a text from an error (a job's failure reason). */
 export const redactText = (text: string) => logRedaction.redactText(text);

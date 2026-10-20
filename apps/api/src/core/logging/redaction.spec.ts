@@ -224,3 +224,94 @@ describe('the registry', () => {
     }
   });
 });
+
+describe('redactValue', () => {
+  it('masks a secret by name at any depth, in any case, and in a text', () => {
+    const password = secret();
+    const token = secret();
+    const value = logRedaction.redactValue({
+      topic: 'mail.send',
+      headers: { Authorization: `Bearer ${token}`, 'X-Request': 'r1' },
+      payload: {
+        user: { Password: password },
+        note: `Request failed: refreshToken=${token}`,
+        list: [{ apiKey: token }],
+      },
+    });
+    const text = JSON.stringify(value);
+    expect(text).not.toContain(password);
+    expect(text).not.toContain(token);
+    expect(value).toMatchObject({
+      topic: 'mail.send',
+      headers: { Authorization: REDACTED, 'X-Request': 'r1' },
+      payload: { user: { Password: REDACTED } },
+    });
+  });
+
+  it('masks a dotted path only under its parent', () => {
+    expect(
+      logRedaction.redactValue({
+        body: { code: '123456' },
+        error: { code: 'not_found' },
+      }),
+    ).toEqual({ body: { code: REDACTED }, error: { code: 'not_found' } });
+  });
+
+  it('reduces an error to its name and message, never its stack', () => {
+    const token = secret();
+    const failure = new TypeError(`bad Authorization: Bearer ${token}`);
+    const value = logRedaction.redactValue({ failure });
+    expect(value).toEqual({
+      failure: {
+        name: 'TypeError',
+        message: `bad Authorization: Bearer ${REDACTED}`,
+      },
+    });
+    expect(JSON.stringify(value)).not.toContain(' at ');
+  });
+
+  it('drops the frames of a stack trace in a text and cuts a long one', () => {
+    const text = 'Boom: it broke\n    at run (/app/dist/x.js:1:1)\n    at next';
+    expect(logRedaction.redactString(text)).toBe('Boom: it broke');
+    const long = 'x'.repeat(5000);
+    const cut = logRedaction.redactString(long, 100);
+    expect(cut).toHaveLength(101);
+    expect(cut.endsWith('…')).toBe(true);
+  });
+
+  it('masks a secret that sits at the cut', () => {
+    const token = secret();
+    const text = `${'a'.repeat(95)} Authorization: Bearer ${token}`;
+    expect(logRedaction.redactString(text, 100)).not.toContain(
+      token.slice(0, 6),
+    );
+  });
+
+  it('bounds depth, width and size, and leaves the input alone', () => {
+    let deep: Record<string, unknown> = { end: true };
+    for (let i = 0; i < 20; i++) {
+      deep = { next: deep };
+    }
+    expect(JSON.stringify(logRedaction.redactValue(deep))).toContain('[…]');
+    const wide = logRedaction.redactValue(
+      Array.from({ length: 1000 }, (_, i) => i),
+    ) as unknown[];
+    expect(wide).toHaveLength(100);
+    const input = { password: 'x', nested: { a: 1 } };
+    logRedaction.redactValue(input);
+    expect(input.password).toBe('x');
+  });
+
+  it('sees a name declared later (a registry of its own)', () => {
+    const registry = new LogRedaction({ headers: [], fields: ['one'] });
+    expect(registry.redactValue({ one: 1, two: 2 })).toEqual({
+      one: REDACTED,
+      two: 2,
+    });
+    registry.declareFields('two');
+    expect(registry.redactValue({ one: 1, two: 2 })).toEqual({
+      one: REDACTED,
+      two: REDACTED,
+    });
+  });
+});

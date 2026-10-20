@@ -347,7 +347,7 @@ export interface paths {
         };
         /**
          * Outbox stats and the latest 50 dead letters
-         * @description lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes.
+         * @description lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes. Errors, payloads and headers are masked as in the logs and cut; no stack traces.
          */
         get: operations["OpsController_state_v1"];
         put?: never;
@@ -382,7 +382,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Background job queues: counts by state and the latest failures */
+        /**
+         * Background job queues: counts by state and the latest failures
+         * @description Failure reasons are masked as in the logs and cut; no stack traces.
+         */
         get: operations["OpsController_queueOverview_v1"];
         put?: never;
         post?: never;
@@ -5112,7 +5115,44 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        stats: {
+                            pending: number;
+                            ready: number;
+                            leased: number;
+                            deadLetters: number;
+                            oldestDueAt: number | null;
+                            lagMs: number;
+                            inFlight: number;
+                        };
+                        deadLetters: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            attempts: number;
+                            lastError: string | null;
+                            /** @enum {string} */
+                            reason: "exhausted" | "rejected";
+                            createdAt: number;
+                            failedAt: number;
+                            history: {
+                                attempt: number;
+                                at: number;
+                                error: string;
+                                transport?: string;
+                            }[];
+                            payload: unknown;
+                            headers: {
+                                [key: string]: string;
+                            };
+                        }[];
+                        notifications: {
+                            undelivered: number;
+                        };
+                        canManage: boolean;
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -5143,12 +5183,652 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A stream of `data: {source, at, …}` events. */
+            /** @description A stream of `data: {source, at, type, …}` messages, each one JSON: the schema describes that `data`. Errors, payloads and headers are masked as in the logs and cut; no stack traces. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "text/event-stream": ({
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-started";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-resumed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        run: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-suspended";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        wakeAt: number | null;
+                        waits: {
+                            signal: string;
+                            key: string | null;
+                        }[];
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-compensating";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-completed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        output: unknown;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-failed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-cancelled";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-compensation-failed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "step-completed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        step: string;
+                        attempt: number;
+                        durationMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "step-failed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        step: string;
+                        attempt: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        retryAt: number | null;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "step-compensated";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        step: string;
+                        attempt: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "child-started";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        child: string;
+                        childWorkflow: string;
+                        childVersion: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "signal-received";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        wait: string;
+                        signal: string;
+                        signalId: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "signal-timed-out";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        wait: string;
+                        signal: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "journal-large";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        entries: number;
+                        bytes: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "custom-status";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        status: unknown;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-retried";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        /** @enum {string} */
+                        from: "failed" | "compensation_failed";
+                        error: {
+                            name?: string;
+                            message: string;
+                        } | null;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-deleted";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        status: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "schedule-skipped";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        /** @enum {string} */
+                        reason: "missed" | "overlap";
+                        from: number;
+                        to: number;
+                    }) | ({
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "delivered";
+                        delivery: {
+                            id: string;
+                            messageId: string;
+                            endpointId: string;
+                            tenant: string | null;
+                            type: string;
+                            /** @enum {string} */
+                            status: "pending" | "succeeded" | "failed";
+                            attempts: number;
+                            nextAttemptAt: number | null;
+                            lastAttemptAt: number | null;
+                            lastStatusCode: number | null;
+                            lastError: string | null;
+                            /** @enum {string|null} */
+                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                            createdAt: number;
+                            completedAt: number | null;
+                        };
+                        statusCode: number;
+                        attempt: number;
+                        durationMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "retry-scheduled";
+                        delivery: {
+                            id: string;
+                            messageId: string;
+                            endpointId: string;
+                            tenant: string | null;
+                            type: string;
+                            /** @enum {string} */
+                            status: "pending" | "succeeded" | "failed";
+                            attempts: number;
+                            nextAttemptAt: number | null;
+                            lastAttemptAt: number | null;
+                            lastStatusCode: number | null;
+                            lastError: string | null;
+                            /** @enum {string|null} */
+                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                            createdAt: number;
+                            completedAt: number | null;
+                        };
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        statusCode: number | null;
+                        attempt: number;
+                        delayMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "delivery-failed";
+                        delivery: {
+                            id: string;
+                            messageId: string;
+                            endpointId: string;
+                            tenant: string | null;
+                            type: string;
+                            /** @enum {string} */
+                            status: "pending" | "succeeded" | "failed";
+                            attempts: number;
+                            nextAttemptAt: number | null;
+                            lastAttemptAt: number | null;
+                            lastStatusCode: number | null;
+                            lastError: string | null;
+                            /** @enum {string|null} */
+                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                            createdAt: number;
+                            completedAt: number | null;
+                        };
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        statusCode: number | null;
+                        attempt: number;
+                        /** @enum {string} */
+                        reason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted";
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "endpoint-disabled";
+                        endpointId: string;
+                        tenant: string | null;
+                        /** @enum {string} */
+                        reason: "failing" | "gone";
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "destination-blocked";
+                        endpointId: string;
+                        tenant: string | null;
+                        reason: string;
+                        address?: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "verification-failed";
+                        receiver: string;
+                        reason: string;
+                    }) | ({
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "published";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                        transport: string;
+                        durationMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "retry-scheduled";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                        transport?: string;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        attempt: number;
+                        delayMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "dead-lettered";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                        transport?: string;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        attempt: number;
+                        /** @enum {string} */
+                        reason: "exhausted" | "rejected";
+                    } | {
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "lease-lost";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                    }) | ({
+                        /** @enum {string} */
+                        source: "idempotency";
+                        at: number;
+                        /** @enum {string} */
+                        context: "http" | "graphql" | "rpc";
+                        handler: string;
+                        scope?: string;
+                        /** @enum {string} */
+                        type: "replayed";
+                        key: string;
+                        status: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "idempotency";
+                        at: number;
+                        /** @enum {string} */
+                        context: "http" | "graphql" | "rpc";
+                        handler: string;
+                        scope?: string;
+                        /** @enum {string} */
+                        type: "rejected";
+                        key?: string;
+                        code: string;
+                        status: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "idempotency";
+                        at: number;
+                        /** @enum {string} */
+                        context: "http" | "graphql" | "rpc";
+                        handler: string;
+                        scope?: string;
+                        /** @enum {string} */
+                        type: "lock-lost";
+                        key: string;
+                        /** @enum {string} */
+                        phase: "extend" | "complete" | "release";
+                    }) | ({
+                        /** @enum {string} */
+                        source: "locks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "lock-lost";
+                        key: string;
+                        fencingToken: number;
+                        /** @enum {string} */
+                        detectedBy: "renewal" | "deadline";
+                    } | {
+                        /** @enum {string} */
+                        source: "locks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "leadership-acquired";
+                        key: string;
+                        fencingToken: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "locks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "leadership-lost";
+                        key: string;
+                        fencingToken: number;
+                        /** @enum {string} */
+                        reason: "lost" | "released";
+                    }) | ({
+                        /** @enum {string} */
+                        source: "mail";
+                        at: number;
+                        messageId: string;
+                        mail?: string;
+                        recipients: string[];
+                        subject: string;
+                        transport: string;
+                        attempts: number;
+                        durationMs: number;
+                        /** @enum {string} */
+                        type: "sent";
+                        providerMessageId?: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "mail";
+                        at: number;
+                        messageId: string;
+                        mail?: string;
+                        recipients: string[];
+                        subject: string;
+                        transport: string;
+                        attempts: number;
+                        durationMs: number;
+                        /** @enum {string} */
+                        type: "failed";
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        permanent: boolean;
+                    }) | ({
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "retry";
+                        attempt: number;
+                        delayMs: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "timeout";
+                        timeoutMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-open";
+                        /** @enum {string} */
+                        from: "closed" | "open" | "half-open";
+                        /** @enum {string} */
+                        to: "open";
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-half-open";
+                        /** @enum {string} */
+                        from: "closed" | "open" | "half-open";
+                        /** @enum {string} */
+                        to: "half-open";
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-closed";
+                        /** @enum {string} */
+                        from: "closed" | "open" | "half-open";
+                        /** @enum {string} */
+                        to: "closed";
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-rejected";
+                        retryAfterMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "bulkhead-rejected";
+                        /** @enum {string} */
+                        reason: "full" | "queue-timeout";
+                        active: number;
+                        queued: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "rate-limited";
+                        retryAfterMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "fallback";
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    });
+                };
             };
             /** @description No session. */
             401: {
@@ -5183,7 +5863,29 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        items: {
+                            name: string;
+                            paused: boolean;
+                            counts: {
+                                waiting: number;
+                                active: number;
+                                delayed: number;
+                                completed: number;
+                                failed: number;
+                            };
+                            recentFailures: {
+                                id: (string | number) | null;
+                                name: string;
+                                attempts: number;
+                                reason: string | null;
+                                /** Format: date-time */
+                                failedAt: string | null;
+                            }[];
+                        }[];
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -5220,7 +5922,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        retried: number;
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -5261,7 +5967,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        requeued: number;
+                    };
+                };
             };
             /** @description No session. */
             401: {
@@ -5302,7 +6012,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        purged: number;
+                    };
+                };
             };
             /** @description No session. */
             401: {

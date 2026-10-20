@@ -3312,12 +3312,191 @@
     },
     "/v1/ops/outbox": {
       "get": {
-        "description": "lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes.",
+        "description": "lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes. Errors, payloads and headers are masked as in the logs and cut; no stack traces.",
         "operationId": "OpsController_state_v1",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "pending": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "ready": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "leased": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "deadLetters": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "oldestDueAt": {
+                          "nullable": true,
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "lagMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "inFlight": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "pending",
+                        "ready",
+                        "leased",
+                        "deadLetters",
+                        "oldestDueAt",
+                        "lagMs",
+                        "inFlight"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "deadLetters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "topic": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "lastError": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "exhausted",
+                              "rejected"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "failedAt": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "history": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "attempt": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "at": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "error": {
+                                  "type": "string"
+                                },
+                                "transport": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "attempt",
+                                "at",
+                                "error"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "payload": {},
+                          "headers": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "topic",
+                          "key",
+                          "attempts",
+                          "lastError",
+                          "reason",
+                          "createdAt",
+                          "failedAt",
+                          "history",
+                          "payload",
+                          "headers"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "notifications": {
+                      "type": "object",
+                      "properties": {
+                        "undelivered": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "undelivered"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "canManage": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "stats",
+                    "deadLetters",
+                    "notifications",
+                    "canManage"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -3346,7 +3525,2977 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "A stream of `data: {source, at, …}` events."
+            "description": "A stream of `data: {source, at, type, …}` messages, each one JSON: the schema describes that `data`. Errors, payloads and headers are masked as in the logs and cut; no stack traces.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-started"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-resumed"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "run": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "run"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-suspended"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "wakeAt": {
+                              "nullable": true,
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "waits": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "signal": {
+                                    "type": "string"
+                                  },
+                                  "key": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "signal",
+                                  "key"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "wakeAt",
+                            "waits"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-compensating"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-completed"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "output": {}
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "output"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-failed"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-cancelled"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-compensation-failed"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "step-completed"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "step": {
+                              "type": "string"
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "durationMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "step",
+                            "attempt",
+                            "durationMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "step-failed"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "step": {
+                              "type": "string"
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "retryAt": {
+                              "nullable": true,
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "step",
+                            "attempt",
+                            "error",
+                            "retryAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "step-compensated"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "step": {
+                              "type": "string"
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "step",
+                            "attempt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "child-started"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "child": {
+                              "type": "string"
+                            },
+                            "childWorkflow": {
+                              "type": "string"
+                            },
+                            "childVersion": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "child",
+                            "childWorkflow",
+                            "childVersion"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "signal-received"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "wait": {
+                              "type": "string"
+                            },
+                            "signal": {
+                              "type": "string"
+                            },
+                            "signalId": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "wait",
+                            "signal",
+                            "signalId"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "signal-timed-out"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "wait": {
+                              "type": "string"
+                            },
+                            "signal": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "wait",
+                            "signal"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "journal-large"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "entries": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "bytes": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "entries",
+                            "bytes"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "custom-status"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "status": {}
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "status"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-retried"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "from": {
+                              "type": "string",
+                              "enum": [
+                                "failed",
+                                "compensation_failed"
+                              ]
+                            },
+                            "error": {
+                              "nullable": true,
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "from",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "workflow-deleted"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "status": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "status"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "workflow"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "schedule-skipped"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "workflow": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "missed",
+                                "overlap"
+                              ]
+                            },
+                            "from": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "to": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "id",
+                            "workflow",
+                            "version",
+                            "reason",
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "webhooks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "delivered"
+                              ]
+                            },
+                            "delivery": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "messageId": {
+                                  "type": "string"
+                                },
+                                "endpointId": {
+                                  "type": "string"
+                                },
+                                "tenant": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pending",
+                                    "succeeded",
+                                    "failed"
+                                  ]
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "nextAttemptAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastAttemptAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastStatusCode": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastError": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "failureReason": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "enum": [
+                                    "exhausted",
+                                    "rejected",
+                                    "endpoint-disabled",
+                                    "endpoint-deleted"
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "completedAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "messageId",
+                                "endpointId",
+                                "tenant",
+                                "type",
+                                "status",
+                                "attempts",
+                                "nextAttemptAt",
+                                "lastAttemptAt",
+                                "lastStatusCode",
+                                "lastError",
+                                "failureReason",
+                                "createdAt",
+                                "completedAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "statusCode": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "durationMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "delivery",
+                            "statusCode",
+                            "attempt",
+                            "durationMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "webhooks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "retry-scheduled"
+                              ]
+                            },
+                            "delivery": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "messageId": {
+                                  "type": "string"
+                                },
+                                "endpointId": {
+                                  "type": "string"
+                                },
+                                "tenant": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pending",
+                                    "succeeded",
+                                    "failed"
+                                  ]
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "nextAttemptAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastAttemptAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastStatusCode": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastError": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "failureReason": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "enum": [
+                                    "exhausted",
+                                    "rejected",
+                                    "endpoint-disabled",
+                                    "endpoint-deleted"
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "completedAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "messageId",
+                                "endpointId",
+                                "tenant",
+                                "type",
+                                "status",
+                                "attempts",
+                                "nextAttemptAt",
+                                "lastAttemptAt",
+                                "lastStatusCode",
+                                "lastError",
+                                "failureReason",
+                                "createdAt",
+                                "completedAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "statusCode": {
+                              "nullable": true,
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "delayMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "delivery",
+                            "error",
+                            "statusCode",
+                            "attempt",
+                            "delayMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "webhooks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "delivery-failed"
+                              ]
+                            },
+                            "delivery": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "messageId": {
+                                  "type": "string"
+                                },
+                                "endpointId": {
+                                  "type": "string"
+                                },
+                                "tenant": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pending",
+                                    "succeeded",
+                                    "failed"
+                                  ]
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "nextAttemptAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastAttemptAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastStatusCode": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastError": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "failureReason": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "enum": [
+                                    "exhausted",
+                                    "rejected",
+                                    "endpoint-disabled",
+                                    "endpoint-deleted"
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "completedAt": {
+                                  "nullable": true,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "messageId",
+                                "endpointId",
+                                "tenant",
+                                "type",
+                                "status",
+                                "attempts",
+                                "nextAttemptAt",
+                                "lastAttemptAt",
+                                "lastStatusCode",
+                                "lastError",
+                                "failureReason",
+                                "createdAt",
+                                "completedAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "statusCode": {
+                              "nullable": true,
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "exhausted",
+                                "rejected",
+                                "endpoint-disabled",
+                                "endpoint-deleted"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "delivery",
+                            "error",
+                            "statusCode",
+                            "attempt",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "webhooks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "endpoint-disabled"
+                              ]
+                            },
+                            "endpointId": {
+                              "type": "string"
+                            },
+                            "tenant": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "failing",
+                                "gone"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "endpointId",
+                            "tenant",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "webhooks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "destination-blocked"
+                              ]
+                            },
+                            "endpointId": {
+                              "type": "string"
+                            },
+                            "tenant": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "address": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "endpointId",
+                            "tenant",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "webhooks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "verification-failed"
+                              ]
+                            },
+                            "receiver": {
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "receiver",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "outbox"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "published"
+                              ]
+                            },
+                            "message": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "topic": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "availableAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastError": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "headers": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "payload": {}
+                              },
+                              "required": [
+                                "id",
+                                "topic",
+                                "key",
+                                "createdAt",
+                                "availableAt",
+                                "attempts",
+                                "lastError",
+                                "headers",
+                                "payload"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "transport": {
+                              "type": "string"
+                            },
+                            "durationMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "message",
+                            "transport",
+                            "durationMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "outbox"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "retry-scheduled"
+                              ]
+                            },
+                            "message": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "topic": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "availableAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastError": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "headers": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "payload": {}
+                              },
+                              "required": [
+                                "id",
+                                "topic",
+                                "key",
+                                "createdAt",
+                                "availableAt",
+                                "attempts",
+                                "lastError",
+                                "headers",
+                                "payload"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "transport": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "delayMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "message",
+                            "error",
+                            "attempt",
+                            "delayMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "outbox"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "dead-lettered"
+                              ]
+                            },
+                            "message": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "topic": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "availableAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastError": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "headers": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "payload": {}
+                              },
+                              "required": [
+                                "id",
+                                "topic",
+                                "key",
+                                "createdAt",
+                                "availableAt",
+                                "attempts",
+                                "lastError",
+                                "headers",
+                                "payload"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "transport": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "exhausted",
+                                "rejected"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "message",
+                            "error",
+                            "attempt",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "outbox"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "lease-lost"
+                              ]
+                            },
+                            "message": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "topic": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "availableAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "lastError": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "headers": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "payload": {}
+                              },
+                              "required": [
+                                "id",
+                                "topic",
+                                "key",
+                                "createdAt",
+                                "availableAt",
+                                "attempts",
+                                "lastError",
+                                "headers",
+                                "payload"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "idempotency"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "context": {
+                              "type": "string",
+                              "enum": [
+                                "http",
+                                "graphql",
+                                "rpc"
+                              ]
+                            },
+                            "handler": {
+                              "type": "string"
+                            },
+                            "scope": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "replayed"
+                              ]
+                            },
+                            "key": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "context",
+                            "handler",
+                            "type",
+                            "key",
+                            "status"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "idempotency"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "context": {
+                              "type": "string",
+                              "enum": [
+                                "http",
+                                "graphql",
+                                "rpc"
+                              ]
+                            },
+                            "handler": {
+                              "type": "string"
+                            },
+                            "scope": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "rejected"
+                              ]
+                            },
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "context",
+                            "handler",
+                            "type",
+                            "code",
+                            "status"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "idempotency"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "context": {
+                              "type": "string",
+                              "enum": [
+                                "http",
+                                "graphql",
+                                "rpc"
+                              ]
+                            },
+                            "handler": {
+                              "type": "string"
+                            },
+                            "scope": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "lock-lost"
+                              ]
+                            },
+                            "key": {
+                              "type": "string"
+                            },
+                            "phase": {
+                              "type": "string",
+                              "enum": [
+                                "extend",
+                                "complete",
+                                "release"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "context",
+                            "handler",
+                            "type",
+                            "key",
+                            "phase"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "locks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "lock-lost"
+                              ]
+                            },
+                            "key": {
+                              "type": "string"
+                            },
+                            "fencingToken": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "detectedBy": {
+                              "type": "string",
+                              "enum": [
+                                "renewal",
+                                "deadline"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "key",
+                            "fencingToken",
+                            "detectedBy"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "locks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "leadership-acquired"
+                              ]
+                            },
+                            "key": {
+                              "type": "string"
+                            },
+                            "fencingToken": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "key",
+                            "fencingToken"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "locks"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "leadership-lost"
+                              ]
+                            },
+                            "key": {
+                              "type": "string"
+                            },
+                            "fencingToken": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "lost",
+                                "released"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "type",
+                            "key",
+                            "fencingToken",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "mail"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "messageId": {
+                              "type": "string"
+                            },
+                            "mail": {
+                              "type": "string"
+                            },
+                            "recipients": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "transport": {
+                              "type": "string"
+                            },
+                            "attempts": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "durationMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "sent"
+                              ]
+                            },
+                            "providerMessageId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "messageId",
+                            "recipients",
+                            "subject",
+                            "transport",
+                            "attempts",
+                            "durationMs",
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "mail"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "messageId": {
+                              "type": "string"
+                            },
+                            "mail": {
+                              "type": "string"
+                            },
+                            "recipients": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "subject": {
+                              "type": "string"
+                            },
+                            "transport": {
+                              "type": "string"
+                            },
+                            "attempts": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "durationMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "failed"
+                              ]
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "permanent": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "messageId",
+                            "recipients",
+                            "subject",
+                            "transport",
+                            "attempts",
+                            "durationMs",
+                            "type",
+                            "error",
+                            "permanent"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "retry"
+                              ]
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "delayMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "attempt",
+                            "delayMs",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "timeout"
+                              ]
+                            },
+                            "timeoutMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "timeoutMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "circuit-open"
+                              ]
+                            },
+                            "from": {
+                              "type": "string",
+                              "enum": [
+                                "closed",
+                                "open",
+                                "half-open"
+                              ]
+                            },
+                            "to": {
+                              "type": "string",
+                              "enum": [
+                                "open"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "circuit-half-open"
+                              ]
+                            },
+                            "from": {
+                              "type": "string",
+                              "enum": [
+                                "closed",
+                                "open",
+                                "half-open"
+                              ]
+                            },
+                            "to": {
+                              "type": "string",
+                              "enum": [
+                                "half-open"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "circuit-closed"
+                              ]
+                            },
+                            "from": {
+                              "type": "string",
+                              "enum": [
+                                "closed",
+                                "open",
+                                "half-open"
+                              ]
+                            },
+                            "to": {
+                              "type": "string",
+                              "enum": [
+                                "closed"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "circuit-rejected"
+                              ]
+                            },
+                            "retryAfterMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "retryAfterMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "bulkhead-rejected"
+                              ]
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "full",
+                                "queue-timeout"
+                              ]
+                            },
+                            "active": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "queued": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "reason",
+                            "active",
+                            "queued"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "rate-limited"
+                              ]
+                            },
+                            "retryAfterMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "retryAfterMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "resilience"
+                              ]
+                            },
+                            "at": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "policy": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "fallback"
+                              ]
+                            },
+                            "error": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "at",
+                            "policy",
+                            "type",
+                            "error"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -3371,11 +6520,129 @@
     },
     "/v1/ops/queues": {
       "get": {
+        "description": "Failure reasons are masked as in the logs and cut; no stack traces.",
         "operationId": "OpsController_queueOverview_v1",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "paused": {
+                            "type": "boolean"
+                          },
+                          "counts": {
+                            "type": "object",
+                            "properties": {
+                              "waiting": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "active": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "delayed": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "completed": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "failed": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "waiting",
+                              "active",
+                              "delayed",
+                              "completed",
+                              "failed"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "recentFailures": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "nullable": true,
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ]
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "reason": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "failedAt": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "attempts",
+                                "reason",
+                                "failedAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "paused",
+                          "counts",
+                          "recentFailures"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -3413,7 +6680,25 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "retried": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "retried"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -3461,7 +6746,25 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requeued": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "requeued"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
@@ -3509,7 +6812,25 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "purged": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "purged"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "No session."
