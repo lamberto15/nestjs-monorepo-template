@@ -95,7 +95,9 @@ the account-level entries), the account deletion (a person's data in each
 tenant they belonged to, then the account). The unverified sign-ups' tenants'
 sweep (`SignUpTenantSweepJob`) works on global tables only, outside any
 tenant, and audits each deletion there ([tenancy](tenancy.md), "Tenants made
-at sign-up"). `Tenancy.bypass(job, work)`
+at sign-up"), and so does the tenant deletion (`TenantDeletionJob`: a
+tenant's files, jobs and workflows, then its row: [tenancy](tenancy.md),
+"Deleting a tenant"). `Tenancy.bypass(job, work)`
 sweeps every tenant at once, as the maintenance role (`BYPASSRLS`,
 `DATABASE_MAINTENANCE_URL`, workers only: [tenancy](tenancy.md), "The
 bypass"), for a whole-table delete by age that records nothing per tenant;

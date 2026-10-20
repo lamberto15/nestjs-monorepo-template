@@ -48,6 +48,8 @@ export function useCustomFieldsApi(options: {
   can: string[];
   fields: CustomField[];
   subject?: string;
+  /** What `GET /v1/custom-fields/subjects` answers (TestItem unless given). */
+  subjects?: { subject: string; label: { singular: string; plural: string } }[];
 }) {
   const subject = options.subject ?? 'TestItem';
   let fields = [...options.fields];
@@ -61,6 +63,16 @@ export function useCustomFieldsApi(options: {
   const fail: { next?: Response } = {};
   useSignedIn(options.can);
   server.use(
+    http.get('/v1/custom-fields/subjects', () =>
+      HttpResponse.json({
+        items: options.subjects ?? [
+          {
+            subject: 'TestItem',
+            label: { singular: 'Test item', plural: 'Test items' },
+          },
+        ],
+      }),
+    ),
     http.get('/v1/custom-fields', ({ request }) => {
       const url = new URL(request.url);
       calls.reads.push(url.search);

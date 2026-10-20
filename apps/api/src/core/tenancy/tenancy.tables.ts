@@ -1,5 +1,5 @@
 import { boolean, pgTable, text } from 'drizzle-orm/pg-core';
-import { timestamps, uuidPk } from '../database/columns.js';
+import { at, timestamps, uuidPk } from '../database/columns.js';
 
 /**
  * The customers: each one a contract, a billing and legal boundary, and the
@@ -35,6 +35,20 @@ export const tenants = pgTable('tenants', {
    * tenants the unverified sign-ups' sweep may delete (SignUpTenantSweepJob).
    */
   createdBySignUp: boolean('created_by_sign_up').notNull().default(false),
+  /**
+   * An operator asked for its deletion (`POST /v1/tenants/{id}/deletion`):
+   * deactivated then, erased by TenantDeletionJob once
+   * `deletionScheduledFor` passed, unless cancelled before. Null: none
+   * pending.
+   */
+  deletionRequestedAt: at('deletion_requested_at'),
+  /** When the erase may run: the request plus TENANT_DELETION_GRACE_DAYS. */
+  deletionScheduledFor: at('deletion_scheduled_for'),
+  /**
+   * The job began erasing it (claimed under the row's lock): no cancel from
+   * then on, so none lands between the files' erase and the rows'.
+   */
+  deletionStartedAt: at('deletion_started_at'),
   ...timestamps(),
 });
 

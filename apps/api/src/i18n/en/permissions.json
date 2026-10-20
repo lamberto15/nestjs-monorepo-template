@@ -101,6 +101,10 @@
       "label": "Unverified sign-ups’ tenants",
       "description": "Deletes the tenants self sign-ups made (TENANT_SIGN_UP) whose accounts never proved their address, every night."
     },
+    "tenant-deletion": {
+      "label": "Tenant deletion",
+      "description": "Erases the tenants whose deletion grace period passed (their rows, files, queued jobs and workflows), every night."
+    },
     "account-deletion": {
       "label": "Account deletion",
       "description": "Anonymizes the accounts whose deletion grace period passed, and erases their personal data, every night."

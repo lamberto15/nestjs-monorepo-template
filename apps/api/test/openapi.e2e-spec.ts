@@ -240,6 +240,8 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/teams',
         '/v1/tenants',
         '/v1/tenants/{id}',
+        '/v1/tenants/{id}/deletion',
+        '/v1/tenants/{id}/export',
         '/v1/usage',
         '/v1/webhook-deliveries',
         '/v1/webhook-deliveries/retry',

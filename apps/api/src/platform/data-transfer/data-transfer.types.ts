@@ -57,6 +57,13 @@ export interface DataExporter<
    * (docs/tenancy.md). Users only. Unset: the caller's tenant's.
    */
   readonly scope?: 'account';
+  /**
+   * Started only by its own route, through `startExport(…, { internal:
+   * true })` (the operators' tenant export, with its step-up): never
+   * through `POST /data/exports` (404 there, as an unknown name), nor
+   * listed in its catalog.
+   */
+  readonly internal?: boolean;
   readonly columns: readonly TransferColumn[];
   /**
    * The columns of one export, when they change at runtime (custom fields):

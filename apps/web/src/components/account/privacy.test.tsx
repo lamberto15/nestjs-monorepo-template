@@ -2,6 +2,10 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  ACCOUNT_EXPORTS_KEY,
+  exportsRefreshInterval,
+} from '@/components/account/privacy-api';
 import { confirmsEmail } from '@/components/account/deletion-section';
 import { settleReauthentication } from '@/lib/reauth';
 import { meQuery } from '@/lib/session';
@@ -14,10 +18,26 @@ const deletion = {
   scheduledFor: '2026-11-03T09:00:00.000Z',
 };
 
+/** An account export as `GET /v1/account/exports` lists it. */
+const exportItem = (over: Record<string, unknown> = {}) => ({
+  id: 'export-0',
+  kind: 'export',
+  name: 'account',
+  format: 'json',
+  status: 'completed',
+  progress: {},
+  createdAt: '2026-10-19T09:00:00.000Z',
+  finishedAt: '2026-10-19T09:01:00.000Z',
+  expiresAt: '2099-10-26T09:01:00.000Z',
+  result: { rows: 7, url: 'https://files.example.com/export-0.json' },
+  ...over,
+});
+
 /** The API's /v1/account as the page sees it; a write changes what a read brings. */
 function useAccountApi(
   options: {
     impersonating?: boolean;
+    exports?: Record<string, unknown>[];
     consents?: {
       kind: string;
       version: string;
@@ -40,7 +60,8 @@ function useAccountApi(
     stepUpFirst: false,
     endSessionOnDeletion: false,
     cancelled: 0,
-    statusReads: 0,
+    exports: (options.exports ?? []) as Record<string, unknown>[],
+    exportReads: 0,
   };
   const user = options.impersonating
     ? {
@@ -129,24 +150,44 @@ function useAccountApi(
     }),
     http.post('/v1/account/export', async ({ request }) => {
       state.exportBodies.push(await request.json());
+      state.exports = [
+        exportItem({
+          id: 'export-1',
+          status: 'queued',
+          finishedAt: null,
+          expiresAt: null,
+          result: undefined,
+        }),
+        ...state.exports,
+      ];
       return HttpResponse.json(
         { id: 'export-1', status: 'queued' },
         { status: 202 },
       );
     }),
-    http.get('/v1/data/transfers/:id', ({ params }) => {
-      state.statusReads++;
-      const done = state.statusReads > 1;
+    // A queued export is done by the third read (the page polls).
+    http.get('/v1/account/exports', () => {
+      state.exportReads++;
+      state.exports = state.exports.map((item) =>
+        item.status === 'queued' && state.exportReads > 2
+          ? exportItem({
+              id: item.id,
+              createdAt: item.createdAt,
+              result: {
+                rows: 42,
+                url: `https://files.example.com/${String(item.id)}.json`,
+              },
+            })
+          : item,
+      );
       return HttpResponse.json({
-        id: params.id,
-        kind: 'export',
-        name: 'account',
-        format: 'json',
-        status: done ? 'completed' : 'queued',
-        progress: {},
-        ...(done && {
-          result: { rows: 42, url: 'https://files.example.com/export-1.json' },
-        }),
+        items: state.exports,
+        nextCursor: null,
+        page: 1,
+        nextPage: null,
+        pageCount: 1,
+        total: state.exports.length,
+        totalCapped: false,
       });
     }),
     http.post('/v1/account/deletion', async ({ request }) => {
@@ -190,29 +231,149 @@ describe('the privacy page', () => {
   // The re-authenticate dialog's request is module state: never left open.
   afterEach(() => act(() => settleReauthentication(false)));
 
-  it('starts an export, shows its progress, then its download', async () => {
-    const api = useAccountApi();
+  it('lists the exports from the API: ready, running, failed and expired', async () => {
+    useAccountApi({
+      exports: [
+        exportItem({ id: 'ready' }),
+        exportItem({
+          id: 'running',
+          format: 'csv',
+          status: 'running',
+          progress: { processed: 5 },
+          finishedAt: null,
+          expiresAt: null,
+          result: undefined,
+        }),
+        exportItem({
+          id: 'failed',
+          status: 'failed',
+          error: 'The worker crashed.',
+          result: undefined,
+        }),
+        exportItem({
+          id: 'expired',
+          expiresAt: '2026-10-01T09:00:00.000Z',
+          result: { rows: 3, url: 'https://files.example.com/expired.json' },
+        }),
+      ],
+    });
+    await renderApp('/account/privacy');
+    const list = await screen.findByRole('list', { name: 'Your exports' });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    // Ready: its row count, its expiry and the download link.
+    expect(within(rows[0]!).getByText('7 rows exported.')).toBeVisible();
+    expect(within(rows[0]!).getByText(/^Kept until/)).toBeVisible();
+    expect(
+      within(rows[0]!).getByRole('link', { name: 'Download (json)' }),
+    ).toHaveAttribute('href', 'https://files.example.com/export-0.json');
+    // Running: progress, no link.
+    expect(within(rows[1]!).getByText('CSV')).toBeVisible();
+    expect(within(rows[1]!).getByText('Working… 5 rows so far.')).toBeVisible();
+    expect(within(rows[1]!).queryByRole('link')).toBeNull();
+    // Failed: the reason.
+    expect(within(rows[2]!).getByRole('alert')).toHaveTextContent(
+      'The worker crashed.',
+    );
+    // Expired: said so, with no link.
+    expect(
+      within(rows[3]!).getByText('Expired. Export again for a new file.'),
+    ).toBeVisible();
+    expect(within(rows[3]!).queryByRole('link')).toBeNull();
+  });
+
+  it('says so when there is no export yet', async () => {
+    useAccountApi();
+    await renderApp('/account/privacy');
+    expect(await screen.findByText('No exports yet.')).toBeVisible();
+  });
+
+  it('says so when the exports cannot be loaded', async () => {
+    useAccountApi();
+    server.use(http.get('/v1/account/exports', () => problem(500, 'internal')));
+    await renderApp('/account/privacy');
+    expect(
+      await screen.findByText('The exports could not be loaded.'),
+    ).toBeVisible();
+  });
+
+  it('keeps the exports shown when a later refresh fails', async () => {
+    useAccountApi({ exports: [exportItem()] });
+    const { queryClient } = await renderApp('/account/privacy');
+    expect(await screen.findByText('7 rows exported.')).toBeVisible();
+    server.use(http.get('/v1/account/exports', () => problem(500, 'internal')));
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ACCOUNT_EXPORTS_KEY }),
+    );
+    expect(screen.queryByText('The exports could not be loaded.')).toBeNull();
+    expect(screen.getByText('7 rows exported.')).toBeVisible();
+  });
+
+  it('marks a ready export expired when its time comes, without reloading', async () => {
+    useAccountApi({
+      exports: [
+        exportItem({ expiresAt: new Date(Date.now() + 1200).toISOString() }),
+      ],
+    });
+    await renderApp('/account/privacy');
+    expect(
+      await screen.findByRole('link', { name: 'Download (json)' }),
+    ).toBeVisible();
+    expect(
+      await screen.findByText(
+        'Expired. Export again for a new file.',
+        {},
+        { timeout: 4000 },
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Download (json)' })).toBeNull();
+  });
+
+  it('asks again every second while one runs, and before a link lapses while one shows', () => {
+    const done = {
+      status: 'completed' as const,
+      result: { rows: 1, url: 'https://x' },
+    };
+    expect(exportsRefreshInterval([done, { status: 'running' as const }])).toBe(
+      1000,
+    );
+    expect(exportsRefreshInterval([{ status: 'queued' as const }])).toBe(1000);
+    // The link is valid 30 minutes: renewed sooner.
+    const renewal = exportsRefreshInterval([done]);
+    expect(renewal).toBeGreaterThan(0);
+    expect(renewal).toBeLessThan(30 * 60 * 1000);
+    // Nothing to renew: failed, or finished without a link.
+    expect(exportsRefreshInterval([{ status: 'failed' as const }])).toBe(false);
+    expect(exportsRefreshInterval([{ status: 'completed' as const }])).toBe(
+      false,
+    );
+    expect(exportsRefreshInterval([])).toBe(false);
+  });
+
+  it('starts an export, then lists it with its progress and download', async () => {
+    const api = useAccountApi({ exports: [exportItem()] });
     await renderApp('/account/privacy');
     const user = userEvent.setup();
+    expect(await screen.findByText('7 rows exported.')).toBeVisible();
     await user.click(
       await screen.findByRole('button', { name: 'Export my data' }),
     );
+    // The request refreshes the list: the new export waits for a worker.
     expect(await screen.findByText('Waiting for a worker…')).toBeVisible();
     expect(api.exportBodies).toEqual([{ format: 'json' }]);
-    // Polled until the worker is done (transfer/api.ts, every second).
-    const link = await screen.findByRole('link', { name: 'Download (json)' });
-    expect(link).toHaveAttribute(
-      'href',
-      'https://files.example.com/export-1.json',
-    );
-    expect(screen.getByText('42 rows exported.')).toBeVisible();
-    // Remembered in this browser apart from /transfers' list.
+    // Polled until the worker is done (every second).
+    expect(await screen.findByText('42 rows exported.')).toBeVisible();
     expect(
-      JSON.parse(localStorage.getItem('account-exports')!)[
-        signedInUser.user.id
-      ][0].id,
-    ).toBe('export-1');
-    expect(localStorage.getItem('transfers')).toBeNull();
+      screen
+        .getAllByRole('link', { name: 'Download (json)' })
+        .map((a) => a.getAttribute('href')),
+    ).toEqual([
+      'https://files.example.com/export-1.json',
+      'https://files.example.com/export-0.json',
+    ]);
+    // Nothing is kept in the browser: the API is the history.
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
   });
 
   it('lists the consents, gives one, and locks what is given', async () => {

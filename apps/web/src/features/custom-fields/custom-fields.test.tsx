@@ -1,12 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { http } from 'msw/http';
+import { describe, expect, it } from 'vitest';
 
-// The subjects features register (./subjects); a test-only one stands alone.
-vi.mock('./subjects', () => ({ CUSTOM_FIELD_SUBJECTS: ['TestItem'] }));
 import { nav, visibleGroups } from '@/nav';
 import { renderApp } from '@/test/render-app';
-import { problem } from '@/test/server';
+import { problem, server } from '@/test/server';
 import { findToast } from '@/test/toast';
 import {
   changesBody,
@@ -58,6 +57,90 @@ describe('the definitions list', () => {
     expect(within(rows[0]!).getByText('Filterable')).toBeVisible();
     expect(screen.getByText('Deactivated fields (1)')).toBeVisible();
     expect(screen.getByText('Legacy')).toBeVisible();
+  });
+});
+
+describe('the subjects', () => {
+  const NOTE = {
+    subject: 'Note',
+    label: { singular: 'Note', plural: 'Notes' },
+  };
+  const ITEM = {
+    subject: 'TestItem',
+    label: { singular: 'Test item', plural: 'Test items' },
+  };
+
+  it("offers the API's subjects under the names it sends", async () => {
+    const { calls } = useCustomFieldsApi({
+      can: ADMIN,
+      fields: [field()],
+      subjects: [ITEM, NOTE],
+    });
+    const user = userEvent.setup();
+    await renderApp('/custom-fields');
+    const select = await screen.findByRole('combobox', { name: 'Records' });
+    // The first subject is shown, by its plural name, not by its key.
+    await waitFor(() => expect(select).toHaveTextContent('Test items'));
+    expect(await screen.findByText('Region')).toBeVisible();
+    await user.click(select);
+    expect(await screen.findByRole('option', { name: 'Notes' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Test items' })).toBeVisible();
+    expect(calls.reads[0]).toContain('subject=TestItem');
+  });
+
+  it('shows a skeleton while the subjects load', async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [] });
+    server.use(
+      http.get('/v1/custom-fields/subjects', () => new Promise(() => {})),
+    );
+    await renderApp('/custom-fields');
+    expect(await screen.findByRole('generic', { busy: true })).toBeVisible();
+    expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
+  it('says so when the subjects cannot be loaded', async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [] });
+    server.use(
+      http.get('/v1/custom-fields/subjects', () => problem(500, 'internal')),
+    );
+    await renderApp('/custom-fields');
+    expect(await screen.findByRole('alert')).toHaveTextContent('internal');
+    expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
+  it('says so when no subject takes custom fields (the API answers 403)', async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [] });
+    server.use(
+      http.get('/v1/custom-fields/subjects', () => problem(403, 'forbidden')),
+    );
+    await renderApp('/custom-fields');
+    expect(
+      await screen.findByText('No records take custom fields yet.'),
+    ).toBeVisible();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('says so when the API lists no subject', async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [], subjects: [] });
+    await renderApp('/custom-fields');
+    expect(
+      await screen.findByText('No records take custom fields yet.'),
+    ).toBeVisible();
+  });
+
+  it('keeps the page when a later refresh of the subjects fails', async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [field()] });
+    const { queryClient } = await renderApp('/custom-fields');
+    expect(await screen.findByText('Region')).toBeVisible();
+    server.use(
+      http.get('/v1/custom-fields/subjects', () => problem(500, 'internal')),
+    );
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['custom-field-subjects'] }),
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Records' })).toBeVisible();
+    expect(screen.getByText('Region')).toBeVisible();
   });
 });
 

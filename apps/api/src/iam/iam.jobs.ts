@@ -44,9 +44,19 @@ export const SIGN_UP_TENANT_SWEEP_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** TenantDeletionJob: the tenants whose deletion grace period passed. */
+export const TENANT_DELETION_JOB = defineSystemJob({
+  key: 'tenant-deletion',
+  label: 'Tenant deletion',
+  description:
+    'Erases the tenants whose deletion grace period passed (their rows, files, queued jobs and workflows), every night.',
+  permissions: [],
+});
+
 export const IAM_SYSTEM_JOBS = [
   SEED_JOB,
   AUDIT_RETENTION_JOB,
   SOFT_DELETE_PURGE_JOB,
   SIGN_UP_TENANT_SWEEP_JOB,
+  TENANT_DELETION_JOB,
 ];
