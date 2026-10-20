@@ -115,7 +115,7 @@ web app needs the API, so `dev:web` alone suits an API already running.
 | Area           | Routes (`src/routes`)                                                                                                                                                                                                                                                                                                                                 | Code                                                                                                                      |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Signed out     | `/sign-in` (password, magic link, passkey, the providers, two-factor, Turnstile when on), `/sign-up`, `/forgot-password`, `/reset-password`, `/magic-link`, `/verify-email`, `/accept-invitation`, `/cancel-deletion`                                                                                                                                 | `components/auth`, `lib/sign-in.ts`, `lib/passkeys.ts`                                                                    |
-| Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion)                                                     | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings`                                |
+| Account        | `/account/profile` (name, language, time zone), `/account/security` (two-factor, password, passkeys, sessions), `/account/notifications` (notification preferences), `/account/preferences` (the settings a user sets for themself), `/account/privacy` (data export, consents, account deletion), `/account/watching` (the records watched, with a stop button)                                                     | `routes/_app/account`, `components/account`, `features/notifications`, `features/settings`, `features/watching`                                |
 | Workspace      | `/notes` (list, detail, new, edit; the example), `/notifications` (inbox; the bell, live over realtime), `/approvals` (inbox and detail, decisions, delegations), `/transfers` and `/transfers/import`, `/reports`                                                                                                                                    | `features/*`                                                                                                              |
 | Administration | `/access/users` (members, invitations, roles and grants, impersonation), `/access/roles`, `/access/teams`, `/api-clients` (keys, quotas) and `/api-clients/usage`, `/webhooks` (per API client: endpoints, deliveries), `/audit`, `/settings` (values, overrides, feature flags), `/tenants` (operators only, multi-tenant deployments: list, create), `/custom-fields` (define, order, deactivate) | `features/access`, `features/api-clients`, `features/webhooks`, `features/audit`, `features/settings`, `features/tenants`, `features/custom-fields` |
 | Everywhere     | the search palette (Cmd/Ctrl+K), the tenant switcher, the impersonation banner, the re-authenticate dialog (step-up)                                                                                                                                                                                                                                  | `features/search`, `components/`                                                                                          |
@@ -264,6 +264,20 @@ fields value onChange errors />` is a typed input per field (the drafts and
   test-only subject; a feature's test description spreads
   `panelsDescription()`.
 
+- **Watching** (`components/records/watch-button.tsx`, `features/watching`):
+  `<WatchButton subject path id />` in a record page's header is the
+  Watch / Stop watching toggle, shown only when the subject's `capabilities.watch`
+  is true and the user may read the record; it calls the record's
+  `POST`/`DELETE …/watch`. The record carries no "watching" flag, so the state
+  is `GET /v1/subscriptions?subject=&recordId=`. `/account/watching` lists
+  `GET /v1/subscriptions` (cursor pages) with `DELETE
+  /v1/subscriptions/{subject}/{recordId}`. The list knows only a subject and an
+  id: a feature with record pages registers where a record opens and how to
+  name it in `features/<feature>/record-link.ts` (default export
+  `{ subject, path(id), title(id) }`, as `nav.ts` registers the menu); without
+  it a row shows the subject and the id. Tests: `subscriptionsHandlers()`
+  (`test/subscriptions.ts`), and `panelsDescription({ watch: true })` for a
+  subject that takes it. Texts are in the `watching` namespace.
 - **Data transfer and bulk work on a list page** (`routes/_app/notes/index.tsx`
   is the example): `ListPage`'s `listActions` gets the list's `params`, for
   `<ExportButton exporter="notes" filters={exportFilters(params)} />` and
