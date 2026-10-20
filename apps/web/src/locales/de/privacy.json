@@ -12,18 +12,16 @@
   "consents": {
     "title": "Einwilligungen",
     "description": "Wozu Sie eingewilligt haben, und wann. Jede wird als Nachweis aufbewahrt.",
-    "kinds": {
-      "terms": "Nutzungsbedingungen",
-      "privacy": "Datenschutzerklärung",
-      "marketing": "Neuigkeiten und Angebote per E-Mail"
-    },
     "required": "Erforderlich",
     "acceptedAt": "Version {{version}}, akzeptiert {{date}}",
     "outdated": "Sie haben Version {{version}} am {{date}} akzeptiert; aktuell ist Version {{current}}.",
     "notGiven": "Nicht erteilt (Version {{version}}).",
     "locked": "Für die Nutzung der App erforderlich: Sie kann hier nicht widerrufen werden.",
-    "noWithdraw": "Ein Widerruf ist hier noch nicht möglich.",
-    "given": "{{kind}}: akzeptiert."
+    "given": "{{kind}}: akzeptiert.",
+    "withdrawable": "Sie können sie jederzeit widerrufen.",
+    "withdrawnAt": "Widerrufen am {{date}}. Schalten Sie sie ein, um sie erneut zu erteilen.",
+    "withdrawn": "{{kind}}: widerrufen.",
+    "withdraw": "Widerrufen"
   },
   "deletion": {
     "title": "Ihr Konto löschen",

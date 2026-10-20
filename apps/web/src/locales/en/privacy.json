@@ -12,18 +12,16 @@
   "consents": {
     "title": "Consents",
     "description": "What you agreed to, and when. Each is kept as proof.",
-    "kinds": {
-      "terms": "Terms of service",
-      "privacy": "Privacy policy",
-      "marketing": "News and offers by email"
-    },
     "required": "Required",
     "acceptedAt": "Version {{version}}, accepted {{date}}",
     "outdated": "You accepted version {{version}} on {{date}}; version {{current}} is current.",
     "notGiven": "Not given (version {{version}}).",
     "locked": "Required to use the app: it can't be withdrawn here.",
-    "noWithdraw": "Withdrawing isn't available here yet.",
-    "given": "{{kind}}: accepted."
+    "given": "{{kind}}: accepted.",
+    "withdrawable": "You can withdraw it at any time.",
+    "withdrawnAt": "Withdrawn {{date}}. Switch it on to give it again.",
+    "withdrawn": "{{kind}}: withdrawn.",
+    "withdraw": "Withdraw"
   },
   "deletion": {
     "title": "Delete your account",

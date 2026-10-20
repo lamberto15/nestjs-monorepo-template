@@ -6,6 +6,7 @@ import { confirmsEmail } from '@/components/account/deletion-section';
 import { settleReauthentication } from '@/lib/reauth';
 import { meQuery } from '@/lib/session';
 import { renderApp } from '@/test/render-app';
+import { findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 const deletion = {
@@ -17,7 +18,12 @@ const deletion = {
 function useAccountApi(
   options: {
     impersonating?: boolean;
-    consents?: { kind: string; version: string; acceptedAt: string }[];
+    consents?: {
+      kind: string;
+      version: string;
+      acceptedAt: string;
+      withdrawnAt?: string | null;
+    }[];
   } = {},
 ) {
   const state = {
@@ -26,6 +32,8 @@ function useAccountApi(
     deletion: null as typeof deletion | null,
     consents: options.consents ?? [],
     consentBodies: [] as unknown[],
+    withdrawn: [] as string[],
+    withdrawFails: false,
     exportBodies: [] as unknown[],
     deletionBodies: [] as unknown[],
     deletionCalls: 0,
@@ -65,12 +73,59 @@ function useAccountApi(
     http.post('/v1/account/consents', async ({ request }) => {
       const body = (await request.json()) as { kind: string; version: string };
       state.consentBodies.push(body);
-      const saved = { ...body, acceptedAt: '2026-10-20T10:00:00.000Z' };
+      const saved = {
+        ...body,
+        acceptedAt: '2026-10-20T10:00:00.000Z',
+        withdrawnAt: null,
+      };
       state.consents = [
         saved,
         ...state.consents.filter((c) => c.kind !== body.kind),
       ];
       return HttpResponse.json(saved, { status: 201 });
+    }),
+    http.get('/v1/account/consent-kinds', () =>
+      HttpResponse.json({
+        items: [
+          {
+            kind: 'terms',
+            version: '2026-01',
+            required: true,
+            label: 'Terms of service',
+            description: 'The rules of using the service.',
+          },
+          {
+            kind: 'privacy',
+            version: '2026-01',
+            required: true,
+            label: 'Privacy policy',
+            description: 'How we handle your data.',
+          },
+          {
+            kind: 'marketing',
+            version: '2026-01',
+            required: false,
+            label: 'News and offers by email',
+            description: 'Occasional news and offers.',
+          },
+        ],
+      }),
+    ),
+    http.delete('/v1/account/consents/:kind', ({ params }) => {
+      const kind = String(params.kind);
+      const consent = state.consents.find(
+        (c) => c.kind === kind && !c.withdrawnAt,
+      );
+      if (!consent) {
+        return problem(404, 'not_found');
+      }
+      if (state.withdrawFails) {
+        return problem(409, 'consent_required');
+      }
+      state.withdrawn.push(kind);
+      const saved = { ...consent, withdrawnAt: '2026-10-20T11:00:00.000Z' };
+      state.consents = state.consents.map((c) => (c.kind === kind ? saved : c));
+      return HttpResponse.json(saved);
     }),
     http.post('/v1/account/export', async ({ request }) => {
       state.exportBodies.push(await request.json());
@@ -209,13 +264,152 @@ describe('the privacy page', () => {
     expect(api.consentBodies).toEqual([
       { kind: 'marketing', version: '2026-01' },
     ]);
-    // No route withdraws a consent: once given, the switch is locked.
-    expect(marketing).toHaveAttribute('data-disabled');
-    expect(
-      screen.getByText("Withdrawing isn't available here yet."),
-    ).toBeVisible();
+    // Given, the optional consent can be taken back as easily.
+    expect(marketing).not.toHaveAttribute('data-disabled');
+    expect(screen.getByText('You can withdraw it at any time.')).toBeVisible();
+  });
+
+  it('withdraws an optional consent, and gives it again', async () => {
+    const api = useAccountApi({
+      consents: [
+        {
+          kind: 'marketing',
+          version: '2026-01',
+          acceptedAt: '2026-01-05T08:00:00.000Z',
+          withdrawnAt: null,
+        },
+      ],
+    });
+    await renderApp('/account/privacy');
+    const user = userEvent.setup();
+
+    const marketing = await screen.findByRole('switch', {
+      name: 'News and offers by email',
+    });
+    expect(marketing).toHaveAttribute('aria-checked', 'true');
     await user.click(marketing);
-    expect(api.consentBodies).toHaveLength(1);
+    expect(
+      await findToast('News and offers by email: withdrawn.'),
+    ).toBeVisible();
+    expect(api.withdrawn).toEqual(['marketing']);
+    await waitFor(() =>
+      expect(marketing).toHaveAttribute('aria-checked', 'false'),
+    );
+    expect(
+      screen.getByText(/^Withdrawn .*Switch it on to give it again\.$/),
+    ).toBeVisible();
+
+    await user.click(marketing);
+    await waitFor(() =>
+      expect(marketing).toHaveAttribute('aria-checked', 'true'),
+    );
+    expect(api.consentBodies).toEqual([
+      { kind: 'marketing', version: '2026-01' },
+    ]);
+  });
+
+  it('shows a consent already withdrawn as off, and keeps a required one locked', async () => {
+    const api = useAccountApi({
+      consents: [
+        {
+          kind: 'terms',
+          version: '2026-01',
+          acceptedAt: '2026-01-05T08:00:00.000Z',
+          withdrawnAt: null,
+        },
+        {
+          kind: 'marketing',
+          version: '2026-01',
+          acceptedAt: '2026-01-05T08:00:00.000Z',
+          withdrawnAt: '2026-02-01T08:00:00.000Z',
+        },
+      ],
+    });
+    await renderApp('/account/privacy');
+    const user = userEvent.setup();
+
+    const marketing = await screen.findByRole('switch', {
+      name: 'News and offers by email',
+    });
+    expect(marketing).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText(/^Withdrawn .*Switch it on/)).toBeVisible();
+
+    const terms = screen.getByRole('switch', { name: 'Terms of service' });
+    expect(terms).toHaveAttribute('data-disabled');
+    await user.click(terms);
+    expect(api.withdrawn).toEqual([]);
+  });
+
+  it('reads the kinds from the API and withdraws one it no longer asks for', async () => {
+    const api = useAccountApi({
+      consents: [
+        {
+          kind: 'newsletter',
+          version: '2025-01',
+          acceptedAt: '2025-01-05T08:00:00.000Z',
+          withdrawnAt: null,
+        },
+      ],
+    });
+    server.use(
+      http.get('/v1/account/consent-kinds', () =>
+        HttpResponse.json({
+          items: [
+            {
+              kind: 'research',
+              version: '1',
+              required: false,
+              label: 'Research studies',
+              description: 'Invitations to studies.',
+            },
+          ],
+        }),
+      ),
+    );
+    await renderApp('/account/privacy');
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByRole('switch', { name: 'Research studies' }),
+    ).toHaveAttribute('aria-checked', 'false');
+    expect(
+      screen.queryByRole('switch', { name: 'Terms of service' }),
+    ).toBeNull();
+    expect(screen.getByText('Invitations to studies.')).toBeVisible();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Withdraw: newsletter' }),
+    );
+    await waitFor(() => expect(api.withdrawn).toEqual(['newsletter']));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Withdraw: newsletter' }),
+      ).toBeNull(),
+    );
+  });
+
+  it('tells why a withdrawal failed, and leaves the consent on', async () => {
+    const api = useAccountApi({
+      consents: [
+        {
+          kind: 'marketing',
+          version: '2026-01',
+          acceptedAt: '2026-01-05T08:00:00.000Z',
+          withdrawnAt: null,
+        },
+      ],
+    });
+    api.withdrawFails = true;
+    await renderApp('/account/privacy');
+    const user = userEvent.setup();
+
+    const marketing = await screen.findByRole('switch', {
+      name: 'News and offers by email',
+    });
+    await user.click(marketing);
+    expect(await findToast('consent_required (test)')).toBeVisible();
+    expect(api.withdrawn).toEqual([]);
+    expect(marketing).toHaveAttribute('aria-checked', 'true');
   });
 
   it("won't ask for the deletion until the address is typed", async () => {
