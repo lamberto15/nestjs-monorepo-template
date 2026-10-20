@@ -5,7 +5,8 @@
   "tabs": {
     "connections": "Verbindungen",
     "domains": "Domains",
-    "scim": "SCIM"
+    "scim": "SCIM",
+    "policy": "Richtlinie"
   },
   "protocol": {
     "oidc": "OpenID Connect",
@@ -48,7 +49,8 @@
     "certificates": "Zertifikate des Anbieters",
     "validUntil": "gültig bis {{date}}",
     "tenantId": "Arbeitsbereichs-ID (für die Anmeldeseite)",
-    "connectionId": "Verbindungs-ID (für die Anmeldeseite)"
+    "connectionId": "Verbindungs-ID (für die Anmeldeseite)",
+    "requireEncryptedAssertions": "Verschlüsselte Assertions erforderlich"
   },
   "form": {
     "createTitle": "Verbindung hinzufügen",
@@ -117,5 +119,19 @@
     "activeKeys": "{{count}} aktive Schlüssel",
     "lastCall": "letzter Aufruf {{date}}",
     "neverCalled": "noch nie aufgerufen"
+  },
+  "policy": {
+    "title": "SSO verlangen",
+    "description": "Ist sie an, melden sich Mitglieder nur über eine der Verbindungen in diesem Arbeitsbereich an.",
+    "toggle": "SSO für diesen Arbeitsbereich verlangen",
+    "turnedOn": "SSO ist jetzt erforderlich.",
+    "turnedOff": "SSO ist nicht mehr erforderlich.",
+    "exemptions": "Ausgenommene Mitglieder",
+    "noExemptions": "Niemand ist ausgenommen.",
+    "exemptionsHint": "Ausgenommene Mitglieder können sich weiter mit Passwort oder Passkey anmelden (Notfallzugang). Jede Nutzung wird protokolliert.",
+    "endExemption": "Ausnahme beenden",
+    "endExemptionLabel": "Ausnahme von {{name}} beenden",
+    "exemptionEnded": "Ausnahme von {{name}} beendet.",
+    "exemption": "{{email}} · {{reason}}"
   }
 }

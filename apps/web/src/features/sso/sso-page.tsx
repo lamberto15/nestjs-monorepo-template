@@ -8,9 +8,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConnectionsSection } from './connections-section';
 import { DomainsSection } from './domains-section';
+import { PolicySection } from './policy-section';
 import { ScimSection } from './scim-section';
 
-const TABS = ['connections', 'domains', 'scim'] as const;
+const TABS = ['connections', 'domains', 'policy', 'scim'] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -40,6 +41,9 @@ export function SsoPage() {
         </TabsContent>
         <TabsContent value="domains" className="pt-4">
           {tab === 'domains' && <DomainsSection />}
+        </TabsContent>
+        <TabsContent value="policy" className="pt-4">
+          {tab === 'policy' && <PolicySection />}
         </TabsContent>
         <TabsContent value="scim" className="pt-4">
           {tab === 'scim' && <ScimSection />}

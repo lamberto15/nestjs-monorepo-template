@@ -5,7 +5,8 @@
   "tabs": {
     "connections": "Sambungan",
     "domains": "Domain",
-    "scim": "SCIM"
+    "scim": "SCIM",
+    "policy": "Dasar"
   },
   "protocol": {
     "oidc": "OpenID Connect",
@@ -48,7 +49,8 @@
     "certificates": "Sijil penyedia",
     "validUntil": "sah sehingga {{date}}",
     "tenantId": "ID ruang kerja (untuk halaman log masuk)",
-    "connectionId": "ID sambungan (untuk halaman log masuk)"
+    "connectionId": "ID sambungan (untuk halaman log masuk)",
+    "requireEncryptedAssertions": "Penegasan disulitkan diperlukan"
   },
   "form": {
     "createTitle": "Tambah sambungan",
@@ -117,5 +119,19 @@
     "activeKeys": "{{count}} kunci aktif",
     "lastCall": "panggilan terakhir {{date}}",
     "neverCalled": "tidak pernah dipanggil"
+  },
+  "policy": {
+    "title": "Wajibkan SSO",
+    "description": "Apabila dihidupkan, ahli log masuk ke ruang kerja ini hanya melalui salah satu sambungannya.",
+    "toggle": "Wajibkan SSO untuk ruang kerja ini",
+    "turnedOn": "SSO kini diwajibkan.",
+    "turnedOff": "SSO tidak lagi diwajibkan.",
+    "exemptions": "Ahli yang dikecualikan",
+    "noExemptions": "Tiada sesiapa dikecualikan.",
+    "exemptionsHint": "Ahli yang dikecualikan masih boleh log masuk dengan kata laluan atau kunci laluan (kecemasan). Setiap penggunaan diaudit.",
+    "endExemption": "Tamatkan pengecualian",
+    "endExemptionLabel": "Tamatkan pengecualian {{name}}",
+    "exemptionEnded": "Pengecualian {{name}} ditamatkan.",
+    "exemption": "{{email}} · {{reason}}"
   }
 }

@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw/http';
 import { problem, server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
-import type { Connection, Domain } from '../queries';
+import type { Connection, Domain, Policy } from '../queries';
 
 // The SSO routes in memory (msw), recording what the pages sent.
 
@@ -75,10 +75,18 @@ export function useSsoApi(options: {
   can: string[];
   connections?: Connection[];
   domains?: Domain[];
+  policy?: Policy;
 }) {
   let connections = [...(options.connections ?? [oidc(), saml()])];
   let domains = [...(options.domains ?? [domain()])];
+  let policy: Policy = options.policy ?? {
+    requireSso: false,
+    updatedAt: null,
+    exemptions: [],
+  };
   const calls = {
+    policySet: [] as boolean[],
+    exemptionsEnded: [] as string[],
     created: [] as Record<string, unknown>[],
     patched: [] as { id: string; body: Record<string, unknown> }[],
     deleted: [] as string[],
@@ -121,6 +129,21 @@ export function useSsoApi(options: {
     http.post('/v1/sso/connections/:id/refresh', ({ params }) => {
       calls.refreshed.push(params.id as string);
       return HttpResponse.json({ accepted: true }, { status: 202 });
+    }),
+    http.get('/v1/sso/policy', () => HttpResponse.json(policy)),
+    http.put('/v1/sso/policy', async ({ request }) => {
+      const body = (await request.json()) as { requireSso: boolean };
+      calls.policySet.push(body.requireSso);
+      policy = { ...policy, requireSso: body.requireSso };
+      return HttpResponse.json(policy);
+    }),
+    http.delete('/v1/sso/exemptions/:userId', ({ params }) => {
+      calls.exemptionsEnded.push(params.userId as string);
+      policy = {
+        ...policy,
+        exemptions: policy.exemptions.filter((e) => e.userId !== params.userId),
+      };
+      return new HttpResponse(null, { status: 204 });
     }),
     http.get('/v1/sso/domains', () => HttpResponse.json({ items: domains })),
     http.post('/v1/sso/domains', async ({ request }) => {

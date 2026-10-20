@@ -150,12 +150,11 @@
     },
     "sso": {
       "button": "Sign in with SSO",
-      "description": "Enter the workspace and connection IDs your administrator gave you.",
-      "tenant": "Workspace ID",
-      "connection": "Connection ID",
-      "invalid": "Those IDs aren’t valid. Copy them from the SSO page.",
+      "description": "Enter your work email. We’ll take you to your organization’s sign-in.",
       "continue": "Continue",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "none": "Single sign-on isn’t available for that address. Sign in another way, or ask your administrator.",
+      "failed": "We couldn’t check that address. Try again in a moment."
     }
   },
   "account": {

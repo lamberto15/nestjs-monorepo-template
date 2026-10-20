@@ -150,12 +150,11 @@
     },
     "sso": {
       "button": "Mit SSO anmelden",
-      "description": "Geben Sie die Arbeitsbereichs- und Verbindungs-ID ein, die Ihnen Ihre Administration gegeben hat.",
-      "tenant": "Arbeitsbereichs-ID",
-      "connection": "Verbindungs-ID",
-      "invalid": "Diese IDs sind ungültig. Kopieren Sie sie von der SSO-Seite.",
+      "description": "Geben Sie Ihre geschäftliche E-Mail-Adresse ein. Wir leiten Sie zur Anmeldung Ihrer Organisation weiter.",
       "continue": "Weiter",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "none": "Single Sign-on ist für diese Adresse nicht verfügbar. Melden Sie sich anders an oder fragen Sie Ihre Administration.",
+      "failed": "Wir konnten die Adresse nicht prüfen. Versuchen Sie es gleich noch einmal."
     }
   },
   "account": {
