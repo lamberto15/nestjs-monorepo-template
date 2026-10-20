@@ -19,6 +19,7 @@ export * from './platform/documents/documents.tables.js';
 export * from './platform/comments/comments.tables.js';
 export * from './platform/tags/tags.tables.js';
 export * from './platform/reports/reports.tables.js';
+export * from './platform/views/views.tables.js';
 export * from './platform/usage/usage.tables.js';
 export * from './platform/revisions/revisions.tables.js';
 export * from './platform/approvals/approvals.tables.js';

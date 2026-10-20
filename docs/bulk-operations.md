@@ -14,12 +14,12 @@ Idempotency-Key: 6f1c…
 { "action": "delete", "ids": ["0199…", "0199…"] }
 ```
 
-| Field | Takes |
-| --- | --- |
-| `action` | one of the feature's actions (notes: `delete`, `restore`, `update`) |
-| `ids` | 1 to 500 record ids (duplicates count once) |
+| Field    | Takes                                                                                                                                                                           |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `action` | one of the feature's actions (notes: `delete`, `restore`, `update`)                                                                                                             |
+| `ids`    | 1 to 500 record ids (duplicates count once)                                                                                                                                     |
 | `filter` | the list's filters, as on its list route: `{ "status": "draft", "title.startsWith": "Old" }` (at least one; `limit`, `sort`, `deleted`… are refused: a run acts on every match) |
-| `input` | what the action takes (notes' `update`: the PATCH body) |
+| `input`  | what the action takes (notes' `update`: the PATCH body)                                                                                                                         |
 
 Send `ids` or `filter`, one of them.
 
@@ -27,11 +27,31 @@ Send `ids` or `filter`, one of them.
   `200 { done, failed, skipped, results }`, one result per id, in the order
   sent:
   ```json
-  { "done": 2, "failed": 1, "skipped": 1, "results": [
-    { "id": "…", "status": "done" },
-    { "id": "…", "status": "failed", "error": { "code": "field_forbidden", "message": "You may not change: body.", "errors": [{ "path": "body", "message": "…" }] } },
-    { "id": "…", "status": "skipped", "error": { "code": "not_found", "message": "Not found, or not yours to delete." } }
-  ] }
+  {
+    "done": 2,
+    "failed": 1,
+    "skipped": 1,
+    "results": [
+      { "id": "…", "status": "done" },
+      {
+        "id": "…",
+        "status": "failed",
+        "error": {
+          "code": "field_forbidden",
+          "message": "You may not change: body.",
+          "errors": [{ "path": "body", "message": "…" }]
+        }
+      },
+      {
+        "id": "…",
+        "status": "skipped",
+        "error": {
+          "code": "not_found",
+          "message": "Not found, or not yours to delete."
+        }
+      }
+    ]
+  }
   ```
   `failed`: the problem the record's own route would have answered (its
   `code`, `message`, field `errors`). `skipped`: the id doesn't exist, or
@@ -57,7 +77,11 @@ Send `ids` or `filter`, one of them.
   `delete`, `restore` or `update`, the one a client calls "change"; any
   other word is a 400); a filtered page may hold fewer than `limit` items,
   even none, while `nextCursor` is set: follow it until it is null. The realtime
-  connection hears `bulk.finished { id, name, action, done, failed }`.
+  connection hears `bulk.finished { id, name, action, done, failed }`, and
+  `bulk.progress { id, name, action, processed, done, failed }` while it
+  runs (every few hundred items). A run that fails for good (its worker was
+  lost, its starter deactivated) is `bulk.failed { id, name, action, error }`,
+  sent from the worker's `failed` event; items done stay done.
 - **Idempotency-Key is required**: a retry with the same key gets the first
   answer back (`Idempotent-Replayed: true`) instead of acting twice.
 - **Errors** (problem details): `validation_failed` (both or neither of
@@ -113,7 +137,11 @@ and the route, built by the platform (`platform/bulk/bulk.routes.ts`) and
 listed among the feature module's controllers:
 
 ```ts
-bulkRoutes(NOTE_ROUTES, { name: 'notes', body: noteBulkSchema, docs: NOTE_BULK_DOCS })
+bulkRoutes(NOTE_ROUTES, {
+  name: 'notes',
+  body: noteBulkSchema,
+  docs: NOTE_BULK_DOCS,
+});
 ```
 
 It is idempotent (`Idempotency-Key` required), answers 200 with a result per

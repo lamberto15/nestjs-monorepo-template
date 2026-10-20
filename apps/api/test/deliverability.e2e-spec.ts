@@ -465,10 +465,18 @@ describe('email deliverability (e2e)', () => {
     const viewer = await person(['viewer']);
     const agent = await node.signIn(viewer.email, viewer.password);
     await agent.get('/v1/mail/suppressions').expect(403);
+    await agent.get('/v1/lists/MailSuppression').expect(403);
     await agent
       .post('/v1/mail/suppressions')
       .send({ address: 'x@example.com' })
       .expect(403);
+
+    // The list is described to the operators who may read it.
+    const described = await node
+      .admin()
+      .get('/v1/lists/MailSuppression')
+      .expect(200);
+    expect(described.body.subject).toBe('MailSuppression');
 
     const address = `Manual-${randomUUID().slice(0, 6)}@Example.com`;
     const bad = await node

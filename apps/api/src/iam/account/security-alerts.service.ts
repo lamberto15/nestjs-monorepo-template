@@ -24,6 +24,7 @@ import {
 } from '../iam-notifications.js';
 import { auditLog } from '../iam.tables.js';
 import { deviceOf, normalizeIp } from './devices.js';
+import { SignInLog } from './sign-in-log.service.js';
 
 /** A device unseen for this long is new again. */
 const KNOWN_DEVICE_DAYS = 30;
@@ -49,6 +50,10 @@ export interface CredentialChange {
   details?: Record<string, unknown>;
   /** Tell the owner only if the account was used before (an invitation's first password isn't news). */
   onlyIfUsed?: boolean;
+  /** Where the notification leads: a path of the web app. */
+  link?: string;
+  /** Notifications of this type the change settles: marked read in the same transaction. */
+  settles?: IamNotificationType;
 }
 
 /**
@@ -70,6 +75,7 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     private readonly audit: AuditService,
     private readonly users: UsersRepository,
     private readonly tenancy: Tenancy,
+    private readonly signInLog: SignInLog,
     events: AuthenticationEvents,
     @Optional()
     @Inject(IAM_NOTIFIER)
@@ -109,6 +115,8 @@ export class SecurityAlertsService implements OnApplicationShutdown {
       method: string;
       /** A token client (`POST /auth/token`) rather than a browser session. */
       via?: 'token';
+      /** The tenant the sign-in lands in, when asked for (a token's); else the last chosen. */
+      tenantId?: string | null;
       /** More for the audit entry (which passkey, whether it verified its user). */
       details?: Record<string, unknown>;
     },
@@ -168,6 +176,16 @@ export class SecurityAlertsService implements OnApplicationShutdown {
         });
       }),
     );
+    // The tenant's own entry (docs/auth.md, "Sign-in log"), apart from the account's.
+    await this.signInLog.succeeded(user, {
+      method: context.method,
+      ip: device.ip,
+      tenantId: context.tenantId,
+      details: {
+        userAgent: device.summary,
+        ...(context.via && { via: context.via }),
+      },
+    });
     if (told) {
       this.deliverNow();
     }
@@ -200,8 +218,15 @@ export class SecurityAlertsService implements OnApplicationShutdown {
       },
       tx,
     );
+    if (change.settles && this.notifier) {
+      await this.notifier.settle(tx, { type: change.settles, to });
+    }
     return (
-      used && this.alert(tx, change.type, to, { data: { ...change.data, ip } })
+      used &&
+      this.alert(tx, change.type, to, {
+        data: { ...change.data, ip },
+        ...(change.link && { link: change.link }),
+      })
     );
   }
 
@@ -224,7 +249,7 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     tx: Transaction,
     type: IamNotificationType,
     to: string,
-    input: { data: Record<string, unknown>; key?: string },
+    input: { data: Record<string, unknown>; key?: string; link?: string },
   ) {
     if (!this.notifier) {
       return false;
@@ -236,6 +261,11 @@ export class SecurityAlertsService implements OnApplicationShutdown {
   /** After the commit: the notifications go now, not at the relay's next poll. */
   deliverNow() {
     this.notifier?.deliverNow();
+  }
+
+  /** After the commit of a change that `settles` notifications: the owner's connections hear the new unread count. */
+  async announceSettled(userId: string) {
+    await this.notifier?.announceUnread({ kind: 'user', id: userId });
   }
 
   /** The bookkeeping of sign-ins heard from the package, once done (tests, shutdown). */

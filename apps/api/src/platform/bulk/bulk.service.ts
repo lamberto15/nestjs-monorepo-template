@@ -480,7 +480,7 @@ const iso = (millis: number | undefined) =>
 /** The one reason a person can act on; anything else (a database error) stays in the logs. */
 export const PRINCIPAL_GONE =
   'The account that started this bulk run is no longer active.';
-const publicReason = (reason: string | undefined) =>
+export const publicReason = (reason: string | undefined) =>
   reason === PRINCIPAL_GONE
     ? reason
     : 'The bulk run stopped. Items done stay done; ask an administrator (the run id is in the logs).';

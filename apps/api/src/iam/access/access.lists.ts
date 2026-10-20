@@ -8,6 +8,7 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
+import { SIGN_IN_ACTIONS } from '../audit/sign-in-actions.js';
 import { escapeLike, listQuery } from '../../core/http/list-query.js';
 import {
   apiClients,
@@ -179,6 +180,69 @@ export const AUDIT_LIST = listQuery(
       'targetType',
       'targetId',
       'details',
+      'ip',
+    ],
+  },
+);
+
+/** Sign-in log entries only (the tenant's own, SignInLog): what every query of SIGN_IN_LIST starts from. */
+export const SIGN_IN_ENTRIES = inArray(auditLog.action, [
+  SIGN_IN_ACTIONS.succeeded,
+  SIGN_IN_ACTIONS.failed,
+]);
+const signInMethod = sql<string>`${auditLog.details}->>'method'`;
+const signInResult = sql<string>`case when ${auditLog.action} = ${SIGN_IN_ACTIONS.succeeded} then 'success' else 'failure' end`;
+const signInResultIs = (value: unknown) =>
+  value === 'success'
+    ? eq(auditLog.action, SIGN_IN_ACTIONS.succeeded)
+    : eq(auditLog.action, SIGN_IN_ACTIONS.failed);
+
+/**
+ * What GET /access/sign-ins can be filtered, sorted and narrowed by: the
+ * sign-ins of this tenant's members (successes and wrong passwords), by
+ * user, method and result. Rows of the audit log, which row-level security
+ * keeps to the tenant; the scan is by `at` (audit_log_at_idx) under the
+ * tenant's policy.
+ */
+export const SIGN_IN_LIST = listQuery(
+  {
+    user: {
+      column: auditLog.actor,
+      type: 'string',
+      ops: ['eq', 'in'],
+      ref: 'principal',
+    },
+    method: {
+      column: signInMethod,
+      type: 'string',
+      ops: ['eq', 'in', 'startsWith'],
+    },
+    result: {
+      column: signInResult,
+      type: 'enum',
+      values: ['success', 'failure'],
+      ops: ['eq'],
+      conditions: { eq: signInResultIs },
+    },
+    ip: { column: auditLog.ip, type: 'string', ops: ['eq'] },
+    at: {
+      column: auditLog.at,
+      type: 'datetime',
+      ops: ['gt', 'gte', 'lt', 'lte', 'between'],
+      sortable: true,
+    },
+  },
+  {
+    select: [
+      'id',
+      'at',
+      'user',
+      'userLabel',
+      'userName',
+      'result',
+      'method',
+      'via',
+      'userAgent',
       'ip',
     ],
   },

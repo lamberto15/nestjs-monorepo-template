@@ -7,6 +7,7 @@ import { PasswordHasher } from '@nestjs/authentication';
 import { t } from '@nestjs/i18n';
 import { AuditService } from '../audit/audit.service.js';
 import { UsersRepository } from '../auth/users.repository.js';
+import { SignInLog } from './sign-in-log.service.js';
 import { SignInPasswordCheck } from './sign-in-password-check.js';
 
 /** Passwords: checked the same way for a session (sign-in) and for tokens (POST /auth/token). */
@@ -17,6 +18,7 @@ export class CredentialsService {
     private readonly passwordHasher: PasswordHasher,
     private readonly audit: AuditService,
     private readonly breachCheck: SignInPasswordCheck,
+    private readonly signInLog: SignInLog,
   ) {}
 
   /**
@@ -49,6 +51,10 @@ export class CredentialsService {
         action: 'auth.sign-in-failed',
         ip,
       });
+      // A real account's tenant sees the attempt too; an unknown address is nobody's.
+      if (found) {
+        this.signInLog.failed(found.user, { method: 'password', ip });
+      }
       throw new UnauthorizedException(t('auth.invalidCredentials'));
     }
     // Verify first (docs/auth.md, "Sign-up"): a password set before its
