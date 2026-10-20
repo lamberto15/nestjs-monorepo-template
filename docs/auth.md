@@ -570,6 +570,24 @@ daily, never off.
   hears its `sign-in` event instead and records it right after; its
   bookkeeping still running is awaited on shutdown (`settled()`).
 
+### Sign-in log (tenant administrators)
+
+`auth.signed-in` belongs to the person and sits in no tenant (docs/tenancy.md),
+so no tenant's administrator reads it. Each sign-in also writes a second entry
+in the tenant it lands in (a token's `tenantId`, else the member's last chosen
+tenant): `member.signed-in`, with `details.method` (and `via`, `userAgent`).
+A wrong password to a real account writes `member.sign-in-failed` the same
+way, in that account's default tenant, after the 401 is sent and not waited
+for (an unknown address has no tenant, and the two must take the same time).
+`SignInLog` writes them. Not logged: wrong passkey assertions, magic links and
+provider failures (no account is known), a wrong second factor.
+
+`GET /v1/access/sign-ins` (`Access.readAudit`, the audit log's permission)
+reads them, newest first: filter by `user` (`user:<id>`), `method`,
+`result` (`success`/`failure`), `ip` and `at`; `GET /v1/lists/SignIn`
+describes it. Row-level security keeps it to the caller's tenant. They age
+out with the audit log (its retention).
+
 ## Passkeys
 
 WebAuthn credentials (`@simplewebauthn/server`; `@nestjs/authentication`

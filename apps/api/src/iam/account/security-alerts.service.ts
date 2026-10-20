@@ -24,6 +24,7 @@ import {
 } from '../iam-notifications.js';
 import { auditLog } from '../iam.tables.js';
 import { deviceOf, normalizeIp } from './devices.js';
+import { SignInLog } from './sign-in-log.service.js';
 
 /** A device unseen for this long is new again. */
 const KNOWN_DEVICE_DAYS = 30;
@@ -70,6 +71,7 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     private readonly audit: AuditService,
     private readonly users: UsersRepository,
     private readonly tenancy: Tenancy,
+    private readonly signInLog: SignInLog,
     events: AuthenticationEvents,
     @Optional()
     @Inject(IAM_NOTIFIER)
@@ -109,6 +111,8 @@ export class SecurityAlertsService implements OnApplicationShutdown {
       method: string;
       /** A token client (`POST /auth/token`) rather than a browser session. */
       via?: 'token';
+      /** The tenant the sign-in lands in, when asked for (a token's); else the last chosen. */
+      tenantId?: string | null;
       /** More for the audit entry (which passkey, whether it verified its user). */
       details?: Record<string, unknown>;
     },
@@ -168,6 +172,16 @@ export class SecurityAlertsService implements OnApplicationShutdown {
         });
       }),
     );
+    // The tenant's own entry (docs/auth.md, "Sign-in log"), apart from the account's.
+    await this.signInLog.succeeded(user, {
+      method: context.method,
+      ip: device.ip,
+      tenantId: context.tenantId,
+      details: {
+        userAgent: device.summary,
+        ...(context.via && { via: context.via }),
+      },
+    });
     if (told) {
       this.deliverNow();
     }

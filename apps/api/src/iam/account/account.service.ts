@@ -289,6 +289,7 @@ export class AccountService {
       ...context,
       method: 'password',
       via: 'token',
+      tenantId: tenant,
     });
     return tokens;
   }

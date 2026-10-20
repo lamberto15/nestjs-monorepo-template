@@ -30623,6 +30623,275 @@
         ]
       }
     },
+    "/v1/access/sign-ins": {
+      "get": {
+        "description": "The sign-ins of this tenant's members, successes and wrong passwords (a wrong password to an unknown address is nobody's), as the tenant saw them: a sign-in is entered in the tenant it lands in (a token's, else the member's last chosen), so another tenant's administrators never read it. Filter by user (`user=user:<id>`), method (`method=password`, `method.startsWith=oidc:`), result (`result=failure`), `ip` and `at`; sort by `at`. GET /v1/lists/SignIn describes it. Needs the same permission as the audit log (`Access.readAudit`).",
+        "operationId": "AccessController_signIns_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "`nextCursor` of the previous page (the same `sort`).",
+            "schema": {
+              "description": "`nextCursor` of the previous page (the same `sort`).",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+            "schema": {
+              "description": "Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "required": false,
+            "in": "query",
+            "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+            "schema": {
+              "description": "true: add `total` (counted up to a cap; `totalCapped`).",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 35
+            }
+          },
+          {
+            "name": "user",
+            "required": false,
+            "in": "query",
+            "description": "Filter: user =",
+            "schema": {
+              "description": "Filter: user =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "user.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: user in",
+            "schema": {
+              "description": "Filter: user in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "method",
+            "required": false,
+            "in": "query",
+            "description": "Filter: method =",
+            "schema": {
+              "description": "Filter: method =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "method.in",
+            "required": false,
+            "in": "query",
+            "description": "Filter: method in",
+            "schema": {
+              "description": "Filter: method in",
+              "type": "string"
+            }
+          },
+          {
+            "name": "method.startsWith",
+            "required": false,
+            "in": "query",
+            "description": "Filter: method startsWith",
+            "schema": {
+              "description": "Filter: method startsWith",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "result",
+            "required": false,
+            "in": "query",
+            "description": "Filter: result =",
+            "schema": {
+              "description": "Filter: result =",
+              "type": "string",
+              "enum": [
+                "success",
+                "failure"
+              ]
+            }
+          },
+          {
+            "name": "ip",
+            "required": false,
+            "in": "query",
+            "description": "Filter: ip =",
+            "schema": {
+              "description": "Filter: ip =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "at.gt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at gt",
+            "schema": {
+              "description": "Filter: at gt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.gte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at gte",
+            "schema": {
+              "description": "Filter: at gte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.lt",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at lt",
+            "schema": {
+              "description": "Filter: at lt",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.lte",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at lte",
+            "schema": {
+              "description": "Filter: at lte",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "at.between",
+            "required": false,
+            "in": "query",
+            "description": "Filter: at between",
+            "schema": {
+              "description": "Filter: at between",
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"user\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: user (eq, in); method (eq, in, startsWith); result (eq); ip (eq); at (gt, gte, lt, lte, between).",
+            "schema": {
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"user\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: user (eq, in); method (eq, in, startsWith); result (eq); ip (eq); at (gt, gte, lt, lte, between).",
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -at. Sortable: at.",
+            "schema": {
+              "description": "The order: fields comma-separated, - for descending; the newest first on ties. Example: -at. Sortable: at.",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: at,user. Fields: id, at, user, userLabel, userName, result, method, via, userAgent, ip.",
+            "schema": {
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: at,user. Fields: id, at, user, userLabel, userName, result, method, via, userAgent, ip.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "The tenant's sign-ins, newest first",
+        "tags": [
+          "access"
+        ]
+      }
+    },
     "/v1/access/teams": {
       "get": {
         "operationId": "TeamsController_list_v1",
@@ -36203,6 +36472,124 @@
           "targetType",
           "targetId",
           "details",
+          "ip"
+        ],
+        "additionalProperties": false
+      },
+      "SignInPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInEntry"
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "description": "Pass it as `cursor` for the next page; null: no more (and with `page`).",
+            "type": "string"
+          },
+          "page": {
+            "description": "With `page`: this page.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextPage": {
+            "description": "With `page`: the next page; null: no more.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pageCount": {
+            "description": "With `page` and `count=true`: ceil(total / limit).",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "description": "With `count=true`: the rows matching the filters, all pages; the cap when totalCapped.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalCapped": {
+            "description": "true: there are more than `total` (show \"10,000+\").",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "SignInEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "user": {
+            "type": "string",
+            "description": "The account: `user:<id>`."
+          },
+          "userLabel": {
+            "type": "string",
+            "description": "What the entry stored of the account: its address."
+          },
+          "userName": {
+            "nullable": true,
+            "description": "The member's name now; null for a former member.",
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure"
+            ]
+          },
+          "method": {
+            "nullable": true,
+            "example": "password",
+            "description": "`password`, `magic-link`, `passkey` or `oidc:<provider>`; a failure is a wrong password.",
+            "type": "string"
+          },
+          "via": {
+            "nullable": true,
+            "description": "`token`: a token client (POST /auth/token), else a browser.",
+            "type": "string"
+          },
+          "userAgent": {
+            "nullable": true,
+            "description": "The device, without versions: `Chrome on macOS`.",
+            "type": "string"
+          },
+          "ip": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "user",
+          "userLabel",
+          "userName",
+          "result",
+          "method",
+          "via",
+          "userAgent",
           "ip"
         ],
         "additionalProperties": false
