@@ -115,7 +115,12 @@ export const INVOICE = defineRecord({
   generated service changes with neither.
 
   Texts go to every locale in English (each locale's plural forms); the
-  command lists the keys to translate.
+  command lists the keys to translate. Generated texts start in English in
+  every language, the web app's `locales/<lng>/<name>.json` included: translate
+  the `de`, `ar`, `zh` and `ms` values by hand, keeping keys, `{{placeholders}}`
+  and plural suffixes (`apps/api/src/i18n/catalogs.spec.ts` and
+  `apps/web/src/locales.test.ts` check them), and have a native speaker
+  review the result.
 
 - **Approvals (`--approvals publish,markPaid`, or `approvals` in the
   declaration)** and **settings (`--settings "paymentDays:int=30,autoSend:flag"`,

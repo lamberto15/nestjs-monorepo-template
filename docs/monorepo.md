@@ -230,8 +230,15 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
 `import.meta.glob` in `i18n.ts`). A feature's texts:
 `locales/<lng>/<feature>.json`, used with `useTranslation('<feature>')`;
 `common` is the default; `nav` holds the group titles. A key missing in a
-language falls back to `en`. `en` is complete; the others are copies of it
-until translated. `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+language falls back to `en`. `en` is complete; `de` (formal "Sie"), `ar`
+(Modern Standard Arabic), `zh` (Simplified Chinese, informal "你") and `ms`
+are translated, and a native speaker should review them. Words that are
+loanwords in a language (Status, Team, Dashboard, Tag, Edit, Import, Format),
+product terms, codes and brand names stay as in `en`. The texts of a new
+feature (`pnpm feature:add`) start as English copies in every language: translate
+them in `locales/<lng>/<feature>.json` with the other new keys, keeping the
+`{{placeholders}}` and plural suffixes (`src/locales.test.ts` checks them; `ar`
+has all six plural forms). `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
 theme (light, dark, system) is a class on `<html>`.
 
 ### Components
