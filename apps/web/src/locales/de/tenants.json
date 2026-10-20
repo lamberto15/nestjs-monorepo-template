@@ -14,11 +14,14 @@
     },
     "operator": "Betreiber",
     "current": "Aktuell",
-    "switch": "Dorthin wechseln"
+    "switch": "Dorthin wechseln",
+    "erasedOn": "Erased on {{date}}"
   },
   "status": {
     "active": "Aktiv",
-    "inactive": "Inaktiv"
+    "inactive": "Inaktiv",
+    "deletionPending": "Deletion pending",
+    "erasing": "Being erased"
   },
   "create": {
     "title": "Neuer Mandant",
@@ -67,7 +70,30 @@
       "reactivateConfirm": "Reactivate tenant",
       "deactivated": "Tenant {{name}} deactivated.",
       "reactivated": "Tenant {{name}} reactivated.",
-      "failed": "The change did not go through. Try again."
+      "failed": "The change did not go through. Try again.",
+      "deletionPending": "A deletion is pending: cancel it (under Delete tenant) before reactivating."
+    },
+    "export": {
+      "title": "Export",
+      "description": "Every record of this tenant as one file, made in the background. The download link works for 30 minutes. Asks for a recent sign-in.",
+      "start": "Export tenant data"
+    },
+    "deletion": {
+      "title": "Delete tenant",
+      "description": "Deactivates the tenant now and erases all of its data after a grace period. Export it first if you need a copy.",
+      "action": "Delete tenant",
+      "confirmTitle": "Delete {{name}}?",
+      "confirmDescription": "The tenant is deactivated now: its members are signed out and its API keys stop. After the grace period every record, file, job and workflow of it is erased for good. Until then you can cancel the deletion.",
+      "confirmSlug": "Type {{slug}} to confirm",
+      "mismatch": "That is not the tenant's slug.",
+      "submit": "Delete the tenant",
+      "requested": "Tenant {{name}} will be erased on {{date}}.",
+      "scheduled": "Erased on {{date}}",
+      "scheduledHint": "The tenant is deactivated. Cancel the deletion to keep it; it then stays deactivated until you reactivate it.",
+      "cancel": "Cancel deletion",
+      "cancelled": "Deletion of {{name}} cancelled. The tenant stays deactivated.",
+      "started": "Being erased",
+      "startedHint": "The erase has started and can no longer be cancelled."
     }
   }
 }

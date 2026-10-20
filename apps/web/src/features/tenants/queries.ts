@@ -2,6 +2,7 @@ import {
   queryOptions,
   useMutation,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query';
 import {
   etagOf,
@@ -82,14 +83,81 @@ export function useUpdateTenant(id: string) {
       ),
     // Only a change that went through is read again: after a refusal (a 412
     // above all) the page keeps what it shows, and the user's input with it.
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['tenants'] }),
-        queryClient.invalidateQueries({ queryKey: tenantsQuery.queryKey }),
-        queryClient.invalidateQueries({ queryKey: meQuery.queryKey }),
-      ]),
+    onSuccess: () => invalidateTenants(queryClient),
   });
 }
+
+/** What a rename, a (de)activation or a deletion request changes on screen. */
+const invalidateTenants = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['tenants'] }),
+    queryClient.invalidateQueries({ queryKey: tenantsQuery.queryKey }),
+    queryClient.invalidateQueries({ queryKey: meQuery.queryKey }),
+  ]);
+
+/** The formats of a tenant's export (`POST /v1/tenants/{id}/export`). */
+export const TENANT_EXPORT_FORMATS = ['json', 'csv', 'xlsx'] as const;
+export type TenantExportFormat = (typeof TENANT_EXPORT_FORMATS)[number];
+
+/**
+ * Starts the export of every record of a tenant: 202 with the transfer's id,
+ * followed with `TransferStatus`. The client sends the Idempotency-Key, and
+ * the step-up (403 `reauthentication_required`) is asked and retried in
+ * lib/api.ts.
+ */
+export function useExportTenant(id: string) {
+  return useMutation({
+    mutationFn: (format: TenantExportFormat) =>
+      unwrap(
+        api.POST('/v1/tenants/{id}/export', {
+          params: { path: { id } },
+          body: { format },
+        }),
+      ),
+  });
+}
+
+/**
+ * Asks for the tenant's deletion (`POST /v1/tenants/{id}/deletion { slug }`):
+ * it is deactivated now and erased after the grace period. The caller shows
+ * the refusals (a wrong slug on its field).
+ */
+export function useRequestTenantDeletion(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: (slug: string) =>
+      unwrap(
+        api.POST('/v1/tenants/{id}/deletion', {
+          params: { path: { id } },
+          body: { slug },
+        }),
+      ),
+    onSuccess: () => invalidateTenants(queryClient),
+  });
+}
+
+/**
+ * Keeps the tenant (`DELETE /v1/tenants/{id}/deletion`): 409
+ * `tenant_deletion_started` once the erase has begun. Read again either way:
+ * a 404 or a 409 means the page was out of date.
+ */
+export function useCancelTenantDeletion(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { errorToast: false },
+    mutationFn: () =>
+      unwrap(
+        api.DELETE('/v1/tenants/{id}/deletion', { params: { path: { id } } }),
+      ),
+    onSettled: () => invalidateTenants(queryClient),
+  });
+}
+
+/** A deletion asked for and not begun yet: it can still be cancelled. */
+export const deletionPending = (
+  tenant: Pick<TenantRow, 'deletionScheduledFor' | 'deletionStartedAt'>,
+) => Boolean(tenant.deletionScheduledFor) && !tenant.deletionStartedAt;
 
 /**
  * Whether the signed-in user acts as one of the deployment's operators:

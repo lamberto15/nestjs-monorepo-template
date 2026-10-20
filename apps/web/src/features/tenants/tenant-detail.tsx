@@ -18,7 +18,10 @@ import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { isNotFound, isPreconditionFailed } from '@/lib/records';
 import { z } from '@/lib/zod';
+import { DeletionSection } from './tenant-deletion-section';
+import { ExportSection } from './tenant-export-section';
 import {
+  deletionPending,
   slugPattern,
   tenantQuery,
   useUpdateTenant,
@@ -68,6 +71,13 @@ export function TenantDetail(props: { id: string }) {
             {loaded.tenant.operator && (
               <Badge variant="secondary">{t('list.operator')}</Badge>
             )}
+            {deletionPending(loaded.tenant) ? (
+              <Badge variant="destructive">{t('status.deletionPending')}</Badge>
+            ) : (
+              loaded.tenant.deletionStartedAt && (
+                <Badge variant="destructive">{t('status.erasing')}</Badge>
+              )
+            )}
             <span className="text-sm text-muted-foreground">
               {t('detail.created', {
                 date: formatDateTime(loaded.tenant.createdAt),
@@ -88,6 +98,11 @@ export function TenantDetail(props: { id: string }) {
             etag={loaded.etag}
             conflict={conflict}
           />
+          <ExportSection tenant={loaded.tenant} />
+          {/* The operator tenant is never deleted (409 `operator_tenant`). */}
+          {!loaded.tenant.operator && (
+            <DeletionSection tenant={loaded.tenant} />
+          )}
         </>
       ) : isNotFound(read.error) ? (
         <p className="text-sm text-muted-foreground">{t('detail.notFound')}</p>
@@ -239,6 +254,7 @@ function StateSection(props: {
   const { t } = useTranslation('tenants');
   const { tenant, conflict, etag } = props;
   const update = useUpdateTenant(tenant.id);
+  const blocked = !tenant.active && deletionPending(tenant);
   const change = async (active: boolean) => {
     if (!etag) {
       return;
@@ -292,7 +308,9 @@ function StateSection(props: {
           ) : (
             <ConfirmButton
               key="reactivate"
-              disabled={!etag}
+              // A deletion in the way: the API refuses with 409
+              // `tenant_deletion_pending` until it is cancelled.
+              disabled={!etag || blocked}
               title={t('detail.state.reactivateTitle', { name: tenant.name })}
               description={t('detail.state.reactivateDescription')}
               confirm={t('detail.state.reactivateConfirm')}
@@ -300,6 +318,14 @@ function StateSection(props: {
             >
               {t('detail.state.reactivate')}
             </ConfirmButton>
+          )}
+          {blocked && (
+            <p
+              role="status"
+              className="self-center text-sm text-muted-foreground"
+            >
+              {t('detail.state.deletionPending')}
+            </p>
           )}
         </div>
       )}
