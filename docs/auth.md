@@ -160,7 +160,8 @@ acceptance (`POST /v1/auth/invitations/accept`) and
   the account as actor and target) and its owner told,
   `security.passwordBreached` (mandatory: in-app at once, by mail
   immediately; [Security notifications](#security-notifications)), asking
-  for a change. The sign-in still goes through: a deployment that wants a
+  for a change, linking to `/account/security`. Changing the password or
+  resetting it marks the unread alert read in the same transaction. The sign-in still goes through: a deployment that wants a
   forced change must add it (nothing in `GET /v1/auth/me` says so yet).
 - **Checked once per password, then every `PASSWORD_BREACH_RECHECK_DAYS`**
   (30): a Redis key per account and stored hash

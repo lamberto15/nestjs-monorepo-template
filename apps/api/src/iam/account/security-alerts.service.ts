@@ -49,6 +49,10 @@ export interface CredentialChange {
   details?: Record<string, unknown>;
   /** Tell the owner only if the account was used before (an invitation's first password isn't news). */
   onlyIfUsed?: boolean;
+  /** Where the notification leads: a path of the web app. */
+  link?: string;
+  /** Notifications of this type the change settles: marked read in the same transaction. */
+  settles?: IamNotificationType;
 }
 
 /**
@@ -200,8 +204,15 @@ export class SecurityAlertsService implements OnApplicationShutdown {
       },
       tx,
     );
+    if (change.settles && this.notifier) {
+      await this.notifier.settle(tx, { type: change.settles, to });
+    }
     return (
-      used && this.alert(tx, change.type, to, { data: { ...change.data, ip } })
+      used &&
+      this.alert(tx, change.type, to, {
+        data: { ...change.data, ip },
+        ...(change.link && { link: change.link }),
+      })
     );
   }
 
@@ -224,7 +235,7 @@ export class SecurityAlertsService implements OnApplicationShutdown {
     tx: Transaction,
     type: IamNotificationType,
     to: string,
-    input: { data: Record<string, unknown>; key?: string },
+    input: { data: Record<string, unknown>; key?: string; link?: string },
   ) {
     if (!this.notifier) {
       return false;
@@ -236,6 +247,11 @@ export class SecurityAlertsService implements OnApplicationShutdown {
   /** After the commit: the notifications go now, not at the relay's next poll. */
   deliverNow() {
     this.notifier?.deliverNow();
+  }
+
+  /** After the commit of a change that `settles` notifications: the owner's connections hear the new unread count. */
+  async announceSettled(userId: string) {
+    await this.notifier?.announceUnread({ kind: 'user', id: userId });
   }
 
   /** The bookkeeping of sign-ins heard from the package, once done (tests, shutdown). */

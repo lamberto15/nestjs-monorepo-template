@@ -254,7 +254,13 @@ describe('breached passwords (e2e)', () => {
       .get('/v1/notifications?sort=-createdAt')
       .expect(200);
     return (
-      response.body.items as { type: string; title: string; data: object }[]
+      response.body.items as {
+        type: string;
+        title: string;
+        data: object;
+        link: string | null;
+        read: boolean;
+      }[]
     ).filter((item) => item.type === 'security.passwordBreached');
   }
 
@@ -286,6 +292,8 @@ describe('breached passwords (e2e)', () => {
     expect(notice).toMatchObject({
       title: 'Your password appeared in a data breach',
       data: { ip: '127.0.0.1' },
+      link: '/account/security',
+      read: false,
     });
     await node.waitForMail({ to: address, subject: /data breach/ });
 
@@ -301,6 +309,8 @@ describe('breached passwords (e2e)', () => {
       .post('/v1/auth/password/change')
       .send({ currentPassword: pwned.breached, newPassword: next })
       .expect(204);
+    // The change settled the alert: read, in the change's transaction.
+    expect(await breachNotices(agent)).toMatchObject([{ read: true }]);
     await node.signIn(address, next);
     await checked();
     // The change's check, then the sign-in's: clean, nothing more flagged.
