@@ -64,8 +64,15 @@ An unset or empty setting matches no row: a connection without a tenant reads
 nothing and writes nothing. `FORCE ROW LEVEL SECURITY` (which drizzle-kit
 can't emit) is set by the role bootstrap (`core/database/roles.ts`, every
 migrate), which also refuses to finish when a table with a `tenant_id` lacks
-RLS, FORCE, or exactly its four policies (by name and command) with no other
-permissive one (the two global tables excepted: `core/tenancy/global-tables.ts`).
+RLS, FORCE, or exactly its declared policies with no other permissive one (the
+two global tables excepted: `core/tenancy/global-tables.ts`). Each policy is
+compared with its declaration (`tenantTable()`; the default four for a table
+the schema doesn't declare): its command, permissive, its roles, and its `USING`
+and `WITH CHECK` expressions. The expressions are compared as PostgreSQL
+normalizes them (`pg_get_expr()`, what `pg_policies` shows): the declared
+policies are created again on empty temporary copies of the tables, in a
+savepoint rolled back afterwards, and read back. Formatting can't fail the
+check; a policy edited by hand (`ALTER POLICY … USING (true)`) or drifted can.
 
 **Outside a transaction.** A query through the pool outside a transaction that
 names a tenant table, in a tenant's scope, runs in one of its own (`begin` with
@@ -496,7 +503,10 @@ export const invoices = pgTable(
 ).enableRLS();
 ```
 
-Then `pnpm db:generate`. Inserts leave `tenantId` out: the column takes the
+Then `pnpm db:generate`. Change a policy only there (the declaration, then
+`pnpm db:generate`), never by hand: every migrate compares each policy's
+command, roles and expressions with the declaration and stops on a difference
+("The wall", above). Inserts leave `tenantId` out: the column takes the
 scope's (and refuses without one); the `WITH CHECK` policy proves it. A
 composite key added to an **existing** table needs the referenced table's
 unique `(tenant_id, id)` first: drizzle-kit writes foreign keys before unique
@@ -516,7 +526,10 @@ disconnected with a membership), operators, and a cron job purging in two
 tenants under RLS. `tenant-pool.e2e-spec.ts`: the pool on one connection
 (the wrapper and the straight path, the refusal before a checkout, the
 settings forgotten at commit and rollback, the bypass as the maintenance
-role). `account-export.e2e-spec.ts`: a person's export with no tenant and
+role). `database-roles.e2e-spec.ts`, "the tenant wall": the migrate-time check
+refusing a policy with a tampered `USING` or `WITH CHECK`, another role, made
+restrictive or for another command, and passing the same expression written
+differently. `account-export.e2e-spec.ts`: a person's export with no tenant and
 across two. `tenants.e2e-spec.ts`: the operators' tenant routes (the
 operator flag, the list and its description, reading and changing one,
 deactivation and what it ends, the slug conflict on its field, the first
