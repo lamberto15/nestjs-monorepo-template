@@ -7,7 +7,11 @@ import { methodsQuery } from '@/lib/session';
 
 /** The routes' actions (`data-action`), as the API checks them. */
 export type CaptchaAction =
-  'sign-in' | 'sign-up' | 'magic-link' | 'forgot-password';
+  | 'sign-in'
+  | 'sign-up'
+  | 'magic-link'
+  | 'forgot-password'
+  | 'resend-verification';
 
 type Challenge = { provider: string; siteKey: string | null };
 

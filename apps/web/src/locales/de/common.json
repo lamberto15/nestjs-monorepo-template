@@ -98,7 +98,9 @@
         "button": "Resend the verification email",
         "done": "Verification email sent. Check your mailbox.",
         "limited": "Too many requests. Try again in about 15 minutes.",
-        "hint": "Lost the link, or it expired?"
+        "hint": "Lost the link, or it expired?",
+        "again": "Send the link again",
+        "sent": "If this address has an account waiting for confirmation, we sent a new link."
       }
     },
     "invitation": {
