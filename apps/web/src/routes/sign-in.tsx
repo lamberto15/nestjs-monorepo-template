@@ -3,6 +3,7 @@ import { FieldDescription } from '@nestjs-monorepo-template/ui/components/field'
 import { useTranslation } from 'react-i18next';
 import { z } from '@/lib/zod';
 import { AuthLayout } from '@/components/auth/auth-layout';
+import { SsoSignIn } from '@/components/auth/sso-sign-in';
 import { LoginForm } from '@/components/login-form';
 import { FormAlert } from '@/lib/form';
 import { redirectSearchSchema, safeRedirect } from '@/lib/safe-redirect';
@@ -46,6 +47,7 @@ function SignInPage() {
           />
         )}
         <LoginForm redirect={search.redirect} />
+        <SsoSignIn redirect={search.redirect} />
       </div>
     </AuthLayout>
   );

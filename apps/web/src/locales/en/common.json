@@ -29,7 +29,9 @@
         "reauthentication_required": "For this, confirm it's you: sign in again.",
         "reauthentication_failed": "That confirmation didn't work. Try again.",
         "access_denied": "The sign-in was cancelled.",
-        "email_unverified": "Prove your address first: open the link we emailed you."
+        "email_unverified": "Prove your address first: open the link we emailed you.",
+        "sso_failed": "That SSO sign-in didn’t work. Ask your administrator, or try again.",
+        "sso_unavailable": "This SSO connection isn’t ready yet. Try again in a minute."
       }
     },
     "signOut": "Sign out",
@@ -145,6 +147,15 @@
     },
     "errors": {
       "network": "The server can't be reached. Check your connection and try again."
+    },
+    "sso": {
+      "button": "Sign in with SSO",
+      "description": "Enter the workspace and connection IDs your administrator gave you.",
+      "tenant": "Workspace ID",
+      "connection": "Connection ID",
+      "invalid": "Those IDs aren’t valid. Copy them from the SSO page.",
+      "continue": "Continue",
+      "cancel": "Cancel"
     }
   },
   "account": {
