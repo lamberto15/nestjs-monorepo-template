@@ -15,7 +15,14 @@ import { nav, visibleGroups, type NavItem } from '@/nav';
 export function NavMain() {
   const { t } = useTranslation();
   // The one place the menu is filtered (UX only: the API enforces both).
-  const groups = visibleGroups(nav, useFeatures(), useMe()?.can, useOperator());
+  const me = useMe();
+  const groups = visibleGroups(
+    nav,
+    useFeatures(),
+    me?.can,
+    useOperator(),
+    me?.tenant?.operator === true,
+  );
   return groups.map((group) => (
     <SidebarGroup key={group.id}>
       <SidebarGroupLabel>{t(group.label)}</SidebarGroupLabel>

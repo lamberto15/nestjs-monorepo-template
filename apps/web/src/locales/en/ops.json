@@ -1,0 +1,86 @@
+{
+  "nav": "Operations",
+  "title": "Operations",
+  "description": "What runs in the background, for every tenant together: the job queues, the outbox and its dead letters, and a live log of the engines.",
+  "tabs": {
+    "queues": "Queues",
+    "outbox": "Outbox",
+    "events": "Live events"
+  },
+  "queues": {
+    "empty": "No queues.",
+    "name": "Queue",
+    "actions": "Actions",
+    "paused": "Paused",
+    "states": {
+      "waiting": "Waiting",
+      "active": "Active",
+      "delayed": "Delayed",
+      "failed": "Failed",
+      "completed": "Completed"
+    },
+    "retry": "Retry failed",
+    "retryTitle": "Retry the failed jobs of {{name}}?",
+    "retryDescription": "{{count}} failed jobs go back to the queue and run again.",
+    "retried_one": "{{count}} job put back in the queue.",
+    "retried_other": "{{count}} jobs put back in the queue.",
+    "failures": "Latest failures of {{name}}",
+    "job": "Job",
+    "attempts": "Attempts",
+    "reason": "Reason",
+    "failedAt": "Failed"
+  },
+  "outbox": {
+    "stats": {
+      "pending": "Pending",
+      "ready": "Ready",
+      "leased": "Leased",
+      "inFlight": "Publishing now",
+      "deadLetters": "Dead letters",
+      "lag": "Lag",
+      "undelivered": "Undelivered notifications"
+    },
+    "deadLetters": "Dead letters",
+    "empty": "No dead letters.",
+    "latest": "The latest {{shown}} are listed; the actions for all reach every dead letter.",
+    "topic": "Topic",
+    "reason": "Reason",
+    "reasons": {
+      "exhausted": "Retries used up",
+      "rejected": "Rejected"
+    },
+    "attempts": "Attempts",
+    "lastError": "Last error",
+    "failedAt": "Failed",
+    "actions": "Actions",
+    "requeue": "Requeue",
+    "requeueAll": "Requeue all",
+    "requeueOneTitle": "Requeue this dead letter?",
+    "requeueOneDescription": "The message for {{topic}} goes back to the outbox and is tried again.",
+    "requeueAllTitle": "Requeue all dead letters?",
+    "requeueAllDescription": "All {{count}} dead letters go back to the outbox and are tried again.",
+    "requeued_one": "{{count}} dead letter requeued.",
+    "requeued_other": "{{count}} dead letters requeued.",
+    "purge": "Purge",
+    "purgeAll": "Purge all",
+    "purgeOneTitle": "Delete this dead letter?",
+    "purgeOneDescription": "The message for {{topic}} is deleted for good. It can't be requeued afterwards.",
+    "purgeAllTitle": "Delete all dead letters?",
+    "purgeAllDescription": "All {{count}} dead letters are deleted for good. They can't be requeued afterwards.",
+    "purged_one": "{{count}} dead letter deleted.",
+    "purged_other": "{{count}} dead letters deleted."
+  },
+  "events": {
+    "log": "Live events",
+    "description": "{{count}} events in the log, newest first. The log keeps the latest 200.",
+    "empty": "Nothing yet. Events appear here as the engines work.",
+    "pause": "Pause",
+    "resume": "Resume",
+    "clear": "Clear",
+    "status": {
+      "connecting": "Connecting",
+      "open": "Live",
+      "closed": "Disconnected"
+    }
+  }
+}
