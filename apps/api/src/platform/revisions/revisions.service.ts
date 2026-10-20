@@ -18,6 +18,7 @@ import {
   pageOrder,
   toPage,
 } from '../../core/http/pagination.js';
+import { withoutEncrypted } from '../../core/encryption/encrypted-columns.js';
 import { diffFields } from '../../iam/audit/audit.service.js';
 import {
   type Principal,
@@ -107,6 +108,10 @@ export class RevisionsService implements PersonalDataSource {
       restoredFrom?: number;
     },
   ): Promise<Revision | null> {
+    // Encrypted columns (core/encryption) are never kept in a revision, not
+    // even as ciphertext: a restore leaves them as they are.
+    snapshot = withoutEncrypted(snapshot);
+    before = before && withoutEncrypted(before);
     // Two changes of one record at once take their numbers in turn (until
     // the commit); the unique index is the invariant either way.
     await tx.execute(

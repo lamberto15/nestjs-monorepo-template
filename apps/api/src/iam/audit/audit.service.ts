@@ -15,6 +15,7 @@ import {
 } from '../../core/http/pagination.js';
 import { actorOf, type Principal } from '../auth/principal.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
+import { encryptedProperties } from '../../core/encryption/encrypted-columns.js';
 import { auditLog } from '../iam.tables.js';
 import { PermissionCatalog } from '../access/permission-catalog.js';
 import { ACTOR_NAMES, type ActorNames } from './actor-names.js';
@@ -84,7 +85,12 @@ export class AuditService {
     // updatedAt changes on every write (timestamps()): it says nothing a diff needs.
     const ignore = new Set(['updatedAt', ...(resource.audit.ignore ?? [])]);
     const expand = new Set(resource.audit.expand ?? []);
-    const sensitive = new Set(this.catalog.sensitiveFields(resource.subject));
+    // Encrypted columns (core/encryption) are sensitive wherever they appear:
+    // a diff must never hold the plaintext, nor the ciphertext it would reveal.
+    const sensitive = new Set([
+      ...this.catalog.sensitiveFields(resource.subject),
+      ...encryptedProperties(),
+    ]);
     const shown = (field: string, value: unknown) =>
       sensitive.has(field) ? '[redacted]' : value;
     const values = (record: Record<string, unknown>) =>

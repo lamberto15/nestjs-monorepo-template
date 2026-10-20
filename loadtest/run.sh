@@ -76,6 +76,8 @@ if [ ! -f "$env_file" ]; then
         echo "$name=$(openssl rand -hex 24)"
       done
       # The encrypted columns' key (docs/encryption.md), required at boot.
+      # The two-factor key: production never creates it in the database.
+      echo "MFA_ENCRYPTION_KEYS=$(openssl rand -base64 32)"
       echo "DATA_ENCRYPTION_KEYS=$(openssl rand -base64 32)"
       echo "BLIND_INDEX_KEYS=$(openssl rand -base64 32)"
     } > "$env_file"

@@ -22,7 +22,9 @@ Filling `.env` (each step is commented in `env.example`):
   `WEBHOOKS_ENCRYPTION_KEYS` (`openssl rand -base64 32`; unset, webhook
   endpoint secrets are stored unencrypted), and `BACKUP_S3_*` (unset, the
   backups stay on this host: [Backups and restore](#backups-and-restore)).
-- **Optional:** `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `STORAGE_SIGNING_KEYS`,
+- **Required:** `MFA_ENCRYPTION_KEYS` (the app refuses to start without it, unless an
+  older deployment still holds it in `app_secrets`: move it to the environment).
+- **Optional:** `JWT_SECRET`, `STORAGE_SIGNING_KEYS`,
   `IDEMPOTENCY_KEYS`, `CURSOR_KEYS` and `EXAMPLE_SENDER_WEBHOOK_SECRET`: unset, the app
   creates each on the first start and keeps it in the database
   ([configuration](configuration.md)). `ADMIN_PASSWORD`: unset, the first

@@ -209,7 +209,7 @@ export const iamEnv = z.object({
   CAPTCHA_DEGRADED_LIMIT: z.coerce.number().int().min(1).max(100).default(2),
   /** Signs access tokens for mobile apps and CLIs (HS256, 32+ bytes). Unset: created once. */
   JWT_SECRET: secret(optional()),
-  /** Encrypt TOTP secrets at rest: 32+ characters, newest first. Unset: created once. */
+  /** Encrypt TOTP secrets at rest: 32+ characters, newest first. Required in production (never created in the database there; an existing app_secrets row still works, with a warning); created once elsewhere. */
   MFA_ENCRYPTION_KEYS: secret(optional()),
   /** The name authenticator apps show; default SERVICE_NAME. */
   MFA_ISSUER: optional(),

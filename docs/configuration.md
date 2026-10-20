@@ -19,12 +19,14 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
   app's directory: `apps/api` in development, `/app` in the image (the
   `app_storage` volume is mounted on `/app/.data/storage`).
 - Secrets left unset are created once and kept in the database
-  (`loadOrCreateSecret`): `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`,
+  (`loadOrCreateSecret`): `JWT_SECRET`,
   `STORAGE_SIGNING_KEYS`, `IDEMPOTENCY_KEYS`, `CURSOR_KEYS`, the incoming
   webhook secrets.
   Set them in `.env` to keep them out of the database (`openssl rand -base64
   32` each); keys are comma-separated, newest first (add a new one in front
   to rotate).
+- `MFA_ENCRYPTION_KEYS` is created in the database only outside production; in
+  production it must be set (docs/encryption.md, "The MFA key").
 - `WEBHOOKS_ENCRYPTION_KEYS` is not created: unset, webhook endpoint secrets
   are stored unencrypted. Set it in production (`openssl rand -base64 32`).
 - Required in production: `APP_DOMAIN`, `ACME_EMAIL` (Compose stops
@@ -236,7 +238,7 @@ holds it too (for code that reads it directly).
 | `DATABASE_OWNER_URL` | the owner's URL, with its password (`migrate` only) | Change the owner's password (`ALTER ROLE app PASSWORD '…'` in `psql`), then the URL (and `POSTGRES_PASSWORD`, or both files), then recreate `migrate` and `backup`. `POSTGRES_PASSWORD` only sets the password when the database is created: changing it alone changes nothing. |
 | `REDIS_URL`, `REDIS_PASSWORD` | Redis' password | Change it for the server and the app together (Compose: one file, `REDIS_PASSWORD_FILE`), recreate both: clients reconnect, jobs wait, a few seconds of errors. |
 | `JWT_SECRET` | signs the access tokens (HS256, one key), and, through a key derived from it (HKDF, its own label), the account-deletion mail's cancel links | Replace it and recreate the app: access tokens (15 minutes) signed with the old one are refused, clients use their refresh tokens. Cancel links already mailed stop working too: those users sign in and cancel (`DELETE /v1/account/deletion`). |
-| `MFA_ENCRYPTION_KEYS` | encrypts TOTP secrets; a list, newest first | Add a new key in front; keep every older one, which still decrypts the secrets sealed with it. Removing one locks its users out of their authenticator until a re-encryption exists (roadmap item 5). |
+| `MFA_ENCRYPTION_KEYS` | encrypts TOTP secrets; a list, newest first | Add a new key in front; keep every older one, which still decrypts the secrets sealed with it. Removing one locks its users out of their authenticator (its package has no re-encryption). Required in production. |
 | `STORAGE_SIGNING_KEYS` | signs file URLs; a list, newest first | Add a new key in front; drop the old one once the URLs it signed have expired (report links last up to `REPORT_LINK_TTL`, at most 7 days). |
 | `IDEMPOTENCY_KEYS` | seals stored idempotent responses; a list, newest first | Add a new key in front; drop the old one once the responses it sealed have expired. |
 | `CURSOR_KEYS` | seals sorted lists' cursors (`nextCursor`: the last row's sort values, which may be fields the caller can't see; core/http/cursor-seal.ts); a list, newest first | Add a new key in front; drop the old one when cursors handed out with it may fail (a client paging at that moment gets a 400 and starts again from the first page). |
