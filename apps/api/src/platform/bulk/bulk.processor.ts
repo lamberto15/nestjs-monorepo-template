@@ -1,17 +1,22 @@
 import { Logger } from '@nestjs/common';
-import { Processor } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Job } from 'bullmq';
 import {
   database,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
-import { TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
+import { inTenantOf, TenantWorkerHost } from '../../core/tenancy/tenant-job.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';
 import { stillActive } from '../queues/still-active.js';
 import { Realtime } from '../realtime/realtime.service.js';
 import { BulkRegistry } from './bulk.registry.js';
-import { BULK, BulkService, PRINCIPAL_GONE } from './bulk.service.js';
+import {
+  BULK,
+  BulkService,
+  PRINCIPAL_GONE,
+  publicReason,
+} from './bulk.service.js';
 import {
   type BulkJob,
   type BulkResult,
@@ -74,12 +79,22 @@ export class BulkProcessor extends TenantWorkerHost<BulkJob, BulkResult> {
       job.data.ip,
       {
         cap: MAX_BULK_RESULTS,
-        progress: (tally) =>
-          job.updateProgress({
+        progress: async (tally) => {
+          await job.updateProgress({
             processed: tally.processed,
             done: tally.done,
             failed: tally.failed,
-          }),
+          });
+          // Every BULK_PROGRESS_EVERY items: coarse enough to push as it is.
+          this.realtime.toPrincipal(principal, 'bulk.progress', {
+            id: job.id,
+            name: job.data.name,
+            action: job.data.action,
+            processed: tally.processed,
+            done: tally.done,
+            failed: tally.failed,
+          });
+        },
       },
     );
     await job.updateProgress({
@@ -103,5 +118,30 @@ export class BulkProcessor extends TenantWorkerHost<BulkJob, BulkResult> {
       failed: result.failed,
     });
     return result;
+  }
+
+  /**
+   * A run that failed for good (runs get one attempt; a stalled one is
+   * failed by BullMQ without `handle()`): its starter hears it. Items done
+   * before it stay done.
+   */
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job<BulkJob> | undefined, error: Error) {
+    if (!job) {
+      return;
+    }
+    await inTenantOf(job.data, async () => {
+      this.realtime.toPrincipal(job.data.principal, 'bulk.failed', {
+        id: job.id,
+        name: job.data.name,
+        action: job.data.action,
+        error: publicReason(error.message),
+      });
+    }).catch((failure: unknown) =>
+      this.logger.error('A failed bulk run could not be announced', {
+        id: job.id,
+        error: String(failure),
+      }),
+    );
   }
 }

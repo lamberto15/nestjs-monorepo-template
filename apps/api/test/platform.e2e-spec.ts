@@ -4,6 +4,12 @@ import { getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { io, type Socket } from 'socket.io-client';
 import type request from 'supertest';
+import {
+  DataTransferProcessor,
+  STALLED_REASON,
+  TRANSFER_UNAVAILABLE,
+  TransferRefused,
+} from '../src/platform/data-transfer/data-transfer.processor.js';
 import { DATA_TRANSFERS } from '../src/platform/data-transfer/data-transfer.service.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
@@ -179,6 +185,41 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .get(`/v1/data/transfers/${csv.body.id}`)
       .set('Authorization', other.auth)
       .expect(404);
+  });
+
+  it('tells the starter over realtime when a transfer fails for good, and nobody else', async () => {
+    const owner = await node.client();
+    const other = await node.client();
+    const socket = await connect(node, owner.key);
+    const stranger = await connect(node, other.key);
+    sockets.push(socket, stranger);
+    const started = await node
+      .http()
+      .post('/v1/data/exports')
+      .set('Authorization', owner.auth)
+      .send({ name: 'test-items', format: 'csv' })
+      .expect(202);
+    await finished(owner.auth, started.body.id);
+    const job = await node.app
+      .get<Queue>(getQueueToken(DATA_TRANSFERS))
+      .getJob(started.body.id);
+    const processor = node.app.get(DataTransferProcessor);
+    const heard: unknown[] = [];
+    socket.on('data.failed', (event) => heard.push(event));
+    stranger.on('data.failed', () => heard.push('stranger'));
+
+    await processor.onFailed(job, new Error(STALLED_REASON));
+    await processor.onFailed(job, new TransferRefused('Unknown columns: x.'));
+    await processor.onFailed(job, new Error('relation "x" does not exist'));
+    // A job gone meanwhile: nobody to tell, no error.
+    await processor.onFailed(undefined, new Error(STALLED_REASON));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const base = { id: started.body.id, name: 'test-items', kind: 'export' };
+    expect(heard).toEqual([
+      { ...base, error: TRANSFER_UNAVAILABLE },
+      { ...base, error: 'Unknown columns: x.' },
+      { ...base, error: TRANSFER_UNAVAILABLE },
+    ]);
   });
 
   it('lists the caller’s transfers newest first, by kind and by cursor, as the single route tells them (#136)', async () => {

@@ -186,7 +186,7 @@ web app needs the API, so `dev:web` alone suits an API already running.
   others are left alone); `useLivePoll()` makes the poll a fallback: 1 s
   (2 s in lists) without a connected socket (`useRealtimeConnected()`),
   while one is up 5 s for a running job (no progress event yet) and 30 s
-  for a queued one (the API pushes no event when a job fails), and fast
+  for a queued one (the API now also pushes `data.progress`/`data.failed` and `bulk.progress`/`bulk.failed`: the poll can go, tracked in a frontend issue), and fast
   again for a job whose event came but which the queue still reports
   running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns

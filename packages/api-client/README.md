@@ -42,15 +42,15 @@ client"). It isn't published to npm yet.
 
 ## What the client does for you
 
-| Convention ([api-conventions](../../docs/api-conventions.md)) | The client |
-| --- | --- |
-| Credentials | `credentials: 'include'` (session cookie), `{ apiKey }` or `{ token }` (`Authorization: Bearer`; a function for a token that renews) |
-| Languages | `language` → `Accept-Language` (after the user's saved one), `lang` → `X-Lang` (before it) |
-| Idempotency | every `POST` without an `Idempotency-Key` gets a fresh `crypto.randomUUID()` (routes that don't take one ignore it); the types make the header optional. To retry an operation safely, pass the same key yourself: `params: { header: { 'Idempotency-Key': key } }` |
-| Errors (RFC 9457) | an answer that isn't 2xx or 304 is **thrown** as `ApiError { status, code, detail, errors?, requestId, problem }`; `error` of openapi-fetch's `{ data, error }` is never set. `unwrap(call)` gives the data |
-| Cursor pagination | `api.pages(path, query)` and `api.items(path, query)`: async iterators that follow `nextCursor` |
-| ETags | `etagOf(result)`; send it as `If-Match` on `PATCH`/`DELETE` (412 `precondition_failed` when it changed) or `If-None-Match` on a `GET`: `notModified(result)` is true on 304 |
-| Filters | the flat ones (`status.in`, `title.contains`…) are typed query parameters; `filterParam({ and: [...] })` makes `?filter=`, `sortParam('-createdAt')` `?sort=` |
+| Convention ([api-conventions](../../docs/api-conventions.md)) | The client                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Credentials                                                   | `credentials: 'include'` (session cookie), `{ apiKey }` or `{ token }` (`Authorization: Bearer`; a function for a token that renews)                                                                                                                                |
+| Languages                                                     | `language` → `Accept-Language` (after the user's saved one), `lang` → `X-Lang` (before it)                                                                                                                                                                          |
+| Idempotency                                                   | every `POST` without an `Idempotency-Key` gets a fresh `crypto.randomUUID()` (routes that don't take one ignore it); the types make the header optional. To retry an operation safely, pass the same key yourself: `params: { header: { 'Idempotency-Key': key } }` |
+| Errors (RFC 9457)                                             | an answer that isn't 2xx or 304 is **thrown** as `ApiError { status, code, detail, errors?, requestId, problem }`; `error` of openapi-fetch's `{ data, error }` is never set. `unwrap(call)` gives the data                                                         |
+| Cursor pagination                                             | `api.pages(path, query)` and `api.items(path, query)`: async iterators that follow `nextCursor`                                                                                                                                                                     |
+| ETags                                                         | `etagOf(result)`; send it as `If-Match` on `PATCH`/`DELETE` (412 `precondition_failed` when it changed) or `If-None-Match` on a `GET`: `notModified(result)` is true on 304                                                                                         |
+| Filters                                                       | the flat ones (`status.in`, `title.contains`…) are typed query parameters; `filterParam({ and: [...] })` makes `?filter=`, `sortParam('-createdAt')` `?sort=`                                                                                                       |
 
 Node 20+ and every current browser have `fetch` and `crypto.randomUUID`;
 React Native needs a `randomUUID` polyfill or `idempotencyKey: () => …`.
@@ -58,20 +58,27 @@ React Native needs a `randomUUID` polyfill or `idempotencyKey: () => …`.
 ## A browser app (session cookie)
 
 ```ts
-import { createApiClient, createRealtime, isApiError, unwrap } from '@nestjs-monorepo-template/api-client';
+import {
+  createApiClient,
+  createRealtime,
+  isApiError,
+  unwrap,
+} from '@nestjs-monorepo-template/api-client';
 
 const api = createApiClient({
   baseUrl: 'https://api.example.com',
-  credentials: 'include',            // its origin must be in the API's CORS_ORIGINS
+  credentials: 'include', // its origin must be in the API's CORS_ORIGINS
   language: navigator.language,
 });
 
 await api.POST('/v1/auth/sign-in', { body: { email, password } });
 try {
-  const note = await unwrap(api.POST('/v1/notes', { body: { title: 'Hello', body: '' } }));
+  const note = await unwrap(
+    api.POST('/v1/notes', { body: { title: 'Hello', body: '' } }),
+  );
 } catch (error) {
   if (isApiError(error) && error.code === 'validation_failed') {
-    showFieldErrors(error.errors);    // [{ path, message }], in the user's language
+    showFieldErrors(error.errors); // [{ path, message }], in the user's language
   }
 }
 
@@ -88,11 +95,14 @@ const realtime = createRealtime({ url: 'https://api.example.com' }); // the cook
 ## A Node script (API key)
 
 ```ts
-import { createApiClient, filterParam } from '@nestjs-monorepo-template/api-client';
+import {
+  createApiClient,
+  filterParam,
+} from '@nestjs-monorepo-template/api-client';
 
 const api = createApiClient({
   baseUrl: process.env.API_URL!,
-  credentials: { apiKey: process.env.API_KEY! },   // sk_<id>_<secret>
+  credentials: { apiKey: process.env.API_KEY! }, // sk_<id>_<secret>
 });
 
 // Everything changed since the last sync, page after page.
@@ -100,7 +110,11 @@ for await (const note of api.items('/v1/notes', {
   limit: '200',
   sort: 'updatedAt',
   'updatedAt.gte': lastSync,
-  filter: filterParam({ field: 'status', op: 'in', value: ['draft', 'published'] }),
+  filter: filterParam({
+    field: 'status',
+    op: 'in',
+    value: ['draft', 'published'],
+  }),
 })) {
   await save(note);
 }
@@ -111,12 +125,12 @@ for await (const note of api.items('/v1/notes', {
 ```ts
 const api = createApiClient({
   baseUrl: 'https://api.example.com',
-  credentials: { token: () => tokens.current() },  // asked before every request
+  credentials: { token: () => tokens.current() }, // asked before every request
   lang: user.language,
 });
 const realtime = createRealtime({
   url: 'https://api.example.com',
-  token: () => tokens.current(),                    // asked on every (re)connection
+  token: () => tokens.current(), // asked on every (re)connection
 });
 ```
 
@@ -129,20 +143,31 @@ minutes are up.
 The count from the API once, then the events keep it current: no polling.
 
 ```ts
-import { createRealtime, unwrap, watchNotifications } from '@nestjs-monorepo-template/api-client';
+import {
+  createRealtime,
+  unwrap,
+  watchNotifications,
+} from '@nestjs-monorepo-template/api-client';
 
 let unread = (await unwrap(api.GET('/v1/notifications/unread-count'))).unread;
 let loadedAt = new Date().toISOString();
-let items = (await unwrap(api.GET('/v1/notifications', { params: { query: { limit: 20 } } }))).items;
+let items = (
+  await unwrap(
+    api.GET('/v1/notifications', { params: { query: { limit: 20 } } }),
+  )
+).items;
 
 const realtime = createRealtime({ url: 'https://api.example.com' });
 const stop = watchNotifications(realtime, {
-  onUnread: (count) => (unread = count),            // after every change and delivery
+  onUnread: (count) => (unread = count), // after every change and delivery
   onItem: (item) => {
     items = [item, ...items];
     loadedAt = item.createdAt;
   },
-  onRead: ({ id, readAt }) => (items = items.map((n) => (n.id === id ? { ...n, read: true, readAt } : n))),
+  onRead: ({ id, readAt }) =>
+    (items = items.map((n) =>
+      n.id === id ? { ...n, read: true, readAt } : n,
+    )),
   onReadAll: () => (items = items.map((n) => ({ ...n, read: true }))),
   onRemoved: (id) => (items = items.filter((n) => n.id !== id)),
 });
@@ -164,20 +189,24 @@ read the count again: events sent while offline are not replayed.
 `RealtimeEvents` types each one; `realtime.on(event, handler)` returns the
 function that removes it.
 
-| Event | Payload |
-| --- | --- |
-| `notification` | a notification, as `GET /v1/notifications` lists it |
-| `notification.read` | `{ id, readAt }` |
-| `notifications.read-all` | `{ before, updated }` |
-| `notification.removed` | `{ id }` |
-| `notifications.unread-count` | `{ unread }` |
-| `data.export-ready` | `{ id, name, rows, url }` |
-| `data.import-finished` | `{ id, name, rows, imported, failed }` |
-| `bulk.finished` | `{ id, name, action, done, failed }` (results: `GET /v1/bulk/{id}`) |
-| `document.ready` | `{ id, subject, recordId, attachmentId }`: a PDF you asked for, issued (download: `GET /v1/attachments/{attachmentId}/download`) |
-| `document.failed` | `{ id, subject, recordId, error }` |
-| `approval.assigned` | `{ id, subject, recordId, action, stage }`: a request waits for you (or someone you stand in for) |
-| `approval.decided` | `{ id, status, round, stage, decision }`: a decision on a request you made or decide, or its end |
+| Event                        | Payload                                                                                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `notification`               | a notification, as `GET /v1/notifications` lists it                                                                              |
+| `notification.read`          | `{ id, readAt }`                                                                                                                 |
+| `notifications.read-all`     | `{ before, updated }`                                                                                                            |
+| `notification.removed`       | `{ id }`                                                                                                                         |
+| `notifications.unread-count` | `{ unread }`                                                                                                                     |
+| `data.export-ready`          | `{ id, name, rows, url }`                                                                                                        |
+| `data.import-finished`       | `{ id, name, rows, imported, failed }`                                                                                           |
+| `data.progress`              | `{ id, name, kind, processed }` (an import also `imported`, `failed`), throttled                                                 |
+| `data.failed`                | `{ id, name, kind, error }`: an export or import failed for good                                                                 |
+| `bulk.progress`              | `{ id, name, action, processed, done, failed }`, every few hundred items                                                         |
+| `bulk.failed`                | `{ id, name, action, error }`: a queued run failed for good (items done stay done)                                               |
+| `bulk.finished`              | `{ id, name, action, done, failed }` (results: `GET /v1/bulk/{id}`)                                                              |
+| `document.ready`             | `{ id, subject, recordId, attachmentId }`: a PDF you asked for, issued (download: `GET /v1/attachments/{attachmentId}/download`) |
+| `document.failed`            | `{ id, subject, recordId, error }`                                                                                               |
+| `approval.assigned`          | `{ id, subject, recordId, action, stage }`: a request waits for you (or someone you stand in for)                                |
+| `approval.decided`           | `{ id, status, round, stage, decision }`: a decision on a request you made or decide, or its end                                 |
 
 `await realtime.whoami()` says who the connection acts as. A feature that
 pushes a new event (`Realtime.toPrincipal()`) adds it to `RealtimeEvents`
