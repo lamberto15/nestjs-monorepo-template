@@ -1463,7 +1463,7 @@ export interface paths {
         put?: never;
         /**
          * Create a naming series
-         * @description For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. Audited (`namingSeries.created`).
+         * @description For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. With `conditions`, it numbers the records they hold for (the first by `priority`). Audited (`namingSeries.created`).
          */
         post: operations["NamingSeriesController_create_v1"];
         delete?: never;
@@ -1481,9 +1481,29 @@ export interface paths {
         };
         /**
          * The subjects whose records take a number
-         * @description Each with the format it has in code (`declaredPattern`), which numbers it while it has no series.
+         * @description Each with the format it has in code (`declaredPattern`), which numbers it while it has no series, and the fields its series may print (`{title}`), take their date from or test in conditions.
          */
         get: operations["NamingSeriesController_subjects_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/naming-series/variables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The variables patterns may print
+         * @description As Frappe's naming series variables: `FY` (the fiscal year), `ABBR` (the tenant's abbreviation), and any a feature declares. Written `.FY.` or `{FY}`.
+         */
+        get: operations["NamingSeriesController_variables_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1499,13 +1519,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Preview a pattern
-         * @description What the pattern would give now, before it is saved: its counter key, the last value taken under that key (shared with any series printing the same), the next number.
+         * @description What the pattern would give now, before it is saved, for a record with `values` (its fields left out print as `{field}`): its counter key, the last value taken under that key (shared with any series printing the same), the next number.
          */
-        get: operations["NamingSeriesController_preview_v1"];
-        put?: never;
-        post?: never;
+        post: operations["NamingSeriesController_preview_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1532,7 +1552,7 @@ export interface paths {
         head?: never;
         /**
          * Change a naming series
-         * @description Its pattern, its label, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).
+         * @description Its pattern, label, date field, conditions or priority, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).
          */
         patch: operations["NamingSeriesController_update_v1"];
         trace?: never;
@@ -1546,12 +1566,12 @@ export interface paths {
         };
         /**
          * A naming series' counter now
-         * @description This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number.
+         * @description This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number. A pattern printing fields counts per value: they show as `{field}` here; POST /v1/naming-series/preview with `values` gives one value's.
          */
         get: operations["NamingSeriesController_counter_v1"];
         /**
          * Set a naming series' counter
-         * @description Starts this period's counter at `current`: the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).
+         * @description Starts this period's counter at `current` (with fields in the pattern, the counter of `values`): the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).
          */
         put: operations["NamingSeriesController_setCounter_v1"];
         post?: never;
@@ -3736,10 +3756,14 @@ export interface components {
             pattern: string;
             /** @example Invoices */
             label: string | null;
-            /** @description What a new record takes when its body names no series. */
+            /** @description What a new record takes when its body names no series and no series' conditions hold for it. */
             isDefault: boolean;
+            /** @example invoiceDate */
+            dateField: string | null;
+            conditions: components["schemas"]["NamingCondition"][];
+            priority: number;
             /**
-             * @description The number it gives next, if taken now.
+             * @description The number it gives next, if taken now; the fields it prints show as `{field}`.
              * @example INV-2026-10-00043
              */
             example: string;
@@ -3747,6 +3771,17 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        NamingCondition: {
+            /** @example region */
+            field: string;
+            /**
+             * @description Compared as numbers for number fields, as ISO dates for date fields, else as text.
+             * @enum {string}
+             */
+            op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+            /** @example EU */
+            value: string | number | boolean;
         };
         NumberedSubjectList: {
             items: components["schemas"]["NumberedSubject"][];
@@ -3759,6 +3794,21 @@ export interface components {
              * @example NOTE-.YYYY.-.#####
              */
             declaredPattern: string;
+            /** @description The fields a pattern may print (`{title}`; not `boolean` ones), a series take its date from (`date`, `datetime`) or its conditions test. */
+            fields: {
+                /** @example title */
+                name: string;
+                /** @enum {string} */
+                kind: "text" | "number" | "date" | "datetime" | "boolean";
+            }[];
+        };
+        NamingVariableList: {
+            items: components["schemas"]["NamingVariable"][];
+        };
+        NamingVariable: {
+            /** @example FY */
+            name: string;
+            description: string;
         };
         NamingCounter: {
             /**
@@ -10874,7 +10924,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -pattern. Sortable: pattern, createdAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, dateField, conditions, priority, example, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -10923,13 +10973,22 @@ export interface operations {
                      */
                     subject: string;
                     /**
-                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.
                      * @example INV-.YYYY.-.MM.-.#####
                      */
                     pattern: string;
                     label?: string;
                     /** @description The subject's default from now on; its first series is. */
                     isDefault?: boolean;
+                    /**
+                     * @description A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.
+                     * @example invoiceDate
+                     */
+                    dateField?: string;
+                    /** @description All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series. */
+                    conditions?: components["schemas"]["NamingCondition"][];
+                    /** @description Higher first, among the series whose conditions hold. */
+                    priority?: number;
                 };
             };
         };
@@ -10942,7 +11001,7 @@ export interface operations {
                     "application/json": components["schemas"]["NamingSeries"];
                 };
             };
-            /** @description A subject that takes no number, an invalid pattern (validation_failed). */
+            /** @description A subject that takes no number, an invalid pattern, date field or condition (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11005,19 +11064,71 @@ export interface operations {
             };
         };
     };
-    NamingSeriesController_preview_v1: {
+    NamingSeriesController_variables_v1: {
         parameters: {
-            query: {
-                /** @description A subject whose records take a number (GET /v1/naming-series/subjects). */
-                subject: string;
-                /** @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`. */
-                pattern: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingVariableList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description A subject whose records take a number (GET /v1/naming-series/subjects).
+                     * @example Note
+                     */
+                    subject: string;
+                    /**
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.
+                     * @example INV-.YYYY.-.MM.-.#####
+                     */
+                    pattern: string;
+                    /**
+                     * @description A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.
+                     * @example invoiceDate
+                     */
+                    dateField?: string;
+                    /** @description A record's field values, as its create body takes them: the counter of the number such a record gets. Fields left out print as `{field}`. */
+                    values?: {
+                        [key: string]: string | number | boolean;
+                    };
+                };
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -11143,7 +11254,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /**
-                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.
                      * @example INV-.YYYY.-.MM.-.#####
                      */
                     pattern?: string;
@@ -11153,6 +11264,15 @@ export interface operations {
                      * @enum {boolean}
                      */
                     isDefault?: true;
+                    /**
+                     * @description A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.
+                     * @example invoiceDate
+                     */
+                    dateField?: string | null;
+                    /** @description All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series. */
+                    conditions?: components["schemas"]["NamingCondition"][];
+                    /** @description Higher first, among the series whose conditions hold. */
+                    priority?: number;
                 };
             };
         };
@@ -11259,6 +11379,10 @@ export interface operations {
                      * @example 1000
                      */
                     current: number;
+                    /** @description For a pattern printing fields: the field values whose counter is set (`{ customer: 'ACME' }`); each value has its own. */
+                    values?: {
+                        [key: string]: string | number | boolean;
+                    };
                 };
             };
         };

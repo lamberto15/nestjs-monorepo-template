@@ -48,6 +48,29 @@ describe('naming series on notes (e2e)', () => {
     );
   });
 
+  it('prints and tests the title, as the notes service passes it', async () => {
+    await node
+      .admin()
+      .post('/v1/naming-series')
+      .send({
+        subject: 'Note',
+        pattern: 'N-.{title}.-.##',
+        conditions: [{ field: 'title', op: 'ne', value: 'Plain' }],
+      })
+      .expect(201);
+    const note = (title: string) =>
+      node
+        .admin()
+        .post('/v1/notes')
+        .set('Idempotency-Key', randomUUID())
+        .send({ title, body: 'Text' })
+        .expect(201);
+    expect((await note('Weekly sync')).body.number).toBe('N-Weekly-sync-01');
+    expect((await note('Weekly sync')).body.number).toBe('N-Weekly-sync-02');
+    // Plain: the condition fails, the default (this series, the first) numbers it all the same.
+    expect((await note('Plain')).body.number).toBe('N-Plain-01');
+  });
+
   it("refuses another subject's series", async () => {
     const memo = await node
       .admin()

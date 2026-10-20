@@ -11,7 +11,8 @@
     "pattern": "Corak",
     "label": "Label",
     "next": "Nombor seterusnya",
-    "actions": "Tindakan"
+    "actions": "Tindakan",
+    "rules": "Peraturan"
   },
   "default": "Lalai",
   "defaultSet": "“{{pattern}}” kini ialah lalai.",
@@ -34,7 +35,7 @@
   "form": {
     "createTitle": "Siri baharu",
     "editTitle": "Edit siri",
-    "syntax": "Tulis corak dalam bahagian di antara titik: teks, YYYY, YY, MM atau DD untuk tarikh, dan satu larian # untuk kaunter (dilapik sifar). Contoh: INV-.YYYY.-.MM.-.#####",
+    "syntax": "Tulis corak dalam bahagian di antara titik: teks, YYYY, YY, MM, DD, JJJ atau WW untuk tarikh, {medan} untuk medan rekod, FY atau ABBR untuk nilai syarikat, dan satu larian # untuk kaunter (dilapik sifar). Contoh: INV-.YYYY.-.MM.-.#####",
     "subject": "Rekod",
     "pattern": "Corak",
     "patternRequired": "Berikan corak untuk siri ini.",
@@ -49,7 +50,29 @@
     "labelTooLong": "Label paling banyak 100 aksara.",
     "makeDefault": "Jadikan lalai untuk rekod ini",
     "cancel": "Batal",
-    "save": "Simpan"
+    "save": "Simpan",
+    "partsHint": "Klik satu bahagian untuk menambahnya pada corak.",
+    "partsFields": "Medan rekod",
+    "partsVariables": "Pemboleh ubah",
+    "partsDates": "Bahagian tarikh",
+    "insert": "Tambah {{part}} pada corak",
+    "dateField": "Tarikh daripada",
+    "dateFieldNow": "Semasa dicipta",
+    "dateFieldHint": "Bahagian tarikh dan FY datang daripada tarikh rekod ini; rekod tanpanya menggunakan saat ia dicipta.",
+    "conditions": "Syarat",
+    "conditionsHint": "Pilihan. Rekod baharu mengambil siri ini apabila semua syarat dipenuhi; yang pertama mengikut keutamaan menang.",
+    "conditionAdd": "Tambah syarat",
+    "conditionRemove": "Buang syarat {{n}}",
+    "conditionField": "Medan syarat {{n}}",
+    "conditionOp": "Operator syarat {{n}}",
+    "conditionValue": "Nilai syarat {{n}}",
+    "conditionFieldPlaceholder": "Medan",
+    "conditionIncomplete": "Lengkapkan atau buang setiap syarat.",
+    "yes": "Ya",
+    "no": "Tidak",
+    "priority": "Keutamaan",
+    "priorityHint": "Yang lebih tinggi dahulu, antara siri yang syaratnya dipenuhi.",
+    "priorityInvalid": "Masukkan nombor bulat."
   },
   "counter": {
     "title": "Kaunter",
@@ -62,6 +85,14 @@
     "invalid": "Masukkan nombor bulat, sifar atau lebih.",
     "tooLow": "Kaunter tidak boleh kurang daripada nilai terakhir diambil ({{current}}).",
     "saved": "Kaunter “{{pattern}}” disimpan.",
-    "save": "Tetapkan kaunter"
+    "save": "Tetapkan kaunter",
+    "valueOf": "Nilai {{field}}",
+    "valuesHint": "Corak ini mengira bagi setiap nilai {{fields}}. Masukkan nilai yang kaunternya anda mahu.",
+    "valuesRequired": "Masukkan nilai bagi setiap medan."
+  },
+  "rules": {
+    "conditions": "Syarat",
+    "priority": "Keutamaan {{priority}}",
+    "dateFrom": "Tarikh daripada {{field}}"
   }
 }
