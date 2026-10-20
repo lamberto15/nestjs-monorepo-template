@@ -10,7 +10,8 @@ import { bootApp, type TestApp } from './support.js';
 /**
  * Naming series: the number formats administrators define for numbered
  * records (platform/sequences), on test items (a generated record: the
- * numbers come through RecordLifecycle) and notes (a hand-written service).
+ * numbers come through RecordLifecycle). Notes (a hand-written service):
+ * test/features/notes/naming-series.e2e-spec.ts.
  */
 describe('naming series (e2e)', () => {
   let node: TestApp;
@@ -72,7 +73,6 @@ describe('naming series (e2e)', () => {
     expect(subjects.body.items).toEqual(
       expect.arrayContaining([
         { subject: 'TestItem', declaredPattern: 'TI-.YYYY.-.#####' },
-        { subject: 'Note', declaredPattern: 'NOTE-.YYYY.-.#####' },
       ]),
     );
 
@@ -169,17 +169,10 @@ describe('naming series (e2e)', () => {
       monthly.id,
     ]);
 
-    // A series that isn't the subject's: refused, nothing created.
-    const noteSeries = await node
-      .admin()
-      .post('/v1/naming-series')
-      .send({ subject: 'Note', pattern: 'N-.####' })
-      .expect(201);
-    for (const namingSeriesId of [randomUUID(), noteSeries.body.id]) {
-      const refused = await item({ namingSeriesId });
-      expect(refused.status).toBe(400);
-      expect(paths(refused.body)).toEqual(['namingSeriesId']);
-    }
+    // No such series: refused, nothing created (another subject's: test/features/notes).
+    const refused = await item({ namingSeriesId: randomUUID() });
+    expect(refused.status).toBe(400);
+    expect(paths(refused.body)).toEqual(['namingSeriesId']);
     // Chosen once: an update's series changes nothing.
     const created = await item();
     expect(created.body.number).toBe(`CN-${YYYY}-${MM}-003`);
@@ -300,33 +293,5 @@ describe('naming series (e2e)', () => {
     expect(created.body.number).toBe(`TI-${YYYY}-00001`);
     await series('OURS-.###', {}, other.admin);
     expect((await item({}, other.admin)).body.number).toBe('OURS-001');
-  });
-
-  it('numbers notes in the series their body names', async () => {
-    const { YYYY } = today();
-    const note = (extra: Record<string, unknown> = {}) =>
-      node
-        .admin()
-        .post('/v1/notes')
-        .set('Idempotency-Key', randomUUID())
-        .send({ title: 'Numbered', body: 'Text', ...extra })
-        .expect(201);
-    expect((await note()).body.number).toBe(`NOTE-${YYYY}-00001`);
-    const memo = await node
-      .admin()
-      .post('/v1/naming-series')
-      .send({ subject: 'Note', pattern: 'MEMO-.####', isDefault: false })
-      .expect(201);
-    // The subject's first series is its default, whatever the body says.
-    expect(memo.body.isDefault).toBe(true);
-    const kept = await node
-      .admin()
-      .post('/v1/naming-series')
-      .send({ subject: 'Note', pattern: 'NOTE-.YYYY.-.#####' })
-      .expect(201);
-    expect((await note()).body.number).toBe('MEMO-0001');
-    expect((await note({ namingSeriesId: kept.body.id })).body.number).toBe(
-      `NOTE-${YYYY}-00002`,
-    );
   });
 });
