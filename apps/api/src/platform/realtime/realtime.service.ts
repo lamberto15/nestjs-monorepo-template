@@ -16,6 +16,10 @@ import {
 import type { Namespace, Socket } from 'socket.io';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
+import type {
+  RealtimeEventName,
+  RealtimeEventPayload,
+} from './realtime-events.js';
 
 /**
  * The room of a principal in a tenant (docs/tenancy.md): every connection
@@ -129,6 +133,17 @@ export class Realtime implements OnGatewayInit, OnGatewayConnection {
    * outside any tenant, to a user's account room (an API client always has
    * a tenant: nothing to tell outside one).
    */
+  toPrincipal<E extends RealtimeEventName>(
+    principal: Pick<Principal, 'kind' | 'id'>,
+    event: E,
+    data: RealtimeEventPayload<E>,
+  ): void;
+  /** An event the manifest (realtime-events.ts) doesn't declare: untyped, and not in the typed client. */
+  toPrincipal(
+    principal: Pick<Principal, 'kind' | 'id'>,
+    event: string,
+    data: unknown,
+  ): void;
   toPrincipal(
     principal: Pick<Principal, 'kind' | 'id'>,
     event: string,

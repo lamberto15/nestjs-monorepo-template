@@ -558,8 +558,10 @@ pages, ETags. Usage, the bell-icon recipe included:
   them. A component no route uses is left out of the document: list it in
   `PANEL_COMPONENT_SCHEMAS` (`platform/records/panel-components.ts`) to have it
   always, and add it to `PANEL_COMPONENTS` in `test/openapi.e2e-spec.ts`.
-- A new realtime event (`Realtime.toPrincipal()`) goes into `RealtimeEvents`
-  (`packages/api-client/src/realtime.ts`).
+- A new realtime event (`Realtime.toPrincipal()`) is declared in the manifest
+  (`platform/realtime/realtime-events.ts`: name, description, payload schema);
+  `pnpm client:generate` then writes `src/realtime-events.ts` (generated, with
+  `schema.ts`; `client:check` fails when stale) and `RealtimeEvents` follows.
 - `pnpm --filter @nestjs-monorepo-template/api-client build` compiles it on
   its own (no NestJS in it); `pnpm build` builds it before the packages that
   depend on it. Its unit tests run with `pnpm test`.

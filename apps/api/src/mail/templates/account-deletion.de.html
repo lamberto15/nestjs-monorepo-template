@@ -1,4 +1,20 @@
 <p>Hallo {{ name }},</p>
-<p>Sie haben uns gebeten, Ihr {{ app }}-Konto zu löschen. Es wird am <strong>{{ scheduledFor }}</strong> gelöscht: Ihr Profil, Ihre Anmeldemethoden, Sitzungen und Benachrichtigungen gehen damit; von Ihnen erstellte Datensätze bleiben, ohne Ihren Namen.</p>
-{{#if cancelUrl}}<p>Haben Sie es sich anders überlegt, oder das nicht veranlasst? Brechen Sie die Löschung vorher ab, ohne Anmeldung: <a href="{{ cancelUrl }}">Mein Konto behalten</a>. Der Link funktioniert einmal.</p>{{/if}}
-{{#if url}}<p>Bis dahin können Sie auf Ihrer Kontoseite auch eine Kopie Ihrer Daten herunterladen: <a href="{{ url }}">{{ url }}</a></p>{{/if}}
+<p>
+  Sie haben uns gebeten, Ihr {{ app }}-Konto zu löschen. Es wird am
+  <strong>{{ scheduledFor }}</strong> gelöscht: Ihr Profil, Ihre
+  Anmeldemethoden, Sitzungen und Benachrichtigungen gehen damit; von Ihnen
+  erstellte Datensätze bleiben, ohne Ihren Namen.
+</p>
+{{#if cancelUrl}}
+<p>
+  Haben Sie es sich anders überlegt, oder das nicht veranlasst? Brechen Sie die
+  Löschung vorher ab, ohne Anmeldung:
+  <a href="{{ cancelUrl }}">Mein Konto behalten</a>. Der Link funktioniert
+  einmal.
+</p>
+{{/if}} {{#if url}}
+<p>
+  Bis dahin können Sie auf Ihrer Kontoseite auch eine Kopie Ihrer Daten
+  herunterladen: <a href="{{ url }}">{{ url }}</a>
+</p>
+{{/if}}

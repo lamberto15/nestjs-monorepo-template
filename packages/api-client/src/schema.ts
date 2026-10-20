@@ -3628,6 +3628,143 @@ export interface components {
             /** @description Why it failed, written for people. */
             error: string | null;
         };
+        RealtimeNotificationEvent: {
+            /** Format: uuid */
+            id: string;
+            /** @example note.published */
+            type: string;
+            title: string;
+            body: string;
+            /** @description What the texts were made from, and what a client needs to act on it. */
+            data: {
+                [key: string]: unknown;
+            };
+            /** @description A path of the web app, or null. */
+            link: string | null;
+            /** @description The collapse key, when it has one. */
+            key: string | null;
+            /** @description How many notifications this one stands for (collapsed). */
+            count: number;
+            read: boolean;
+            /** Format: date-time */
+            readAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RealtimeNotificationReadEvent: {
+            id: string;
+            readAt: string | null;
+        };
+        RealtimeNotificationsReadAllEvent: {
+            before: string | null;
+            updated: number;
+        };
+        RealtimeNotificationRemovedEvent: {
+            id: string;
+        };
+        RealtimeNotificationsUnreadCountEvent: {
+            unread: number;
+        };
+        RealtimeDataExportReadyEvent: {
+            id: string;
+            name: string;
+            rows: number;
+            url: string;
+        };
+        RealtimeDataImportFinishedEvent: {
+            id: string;
+            name: string;
+            rows: number;
+            imported: number;
+            failed: number;
+        };
+        RealtimeDataProgressEvent: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "export" | "import";
+            processed: number;
+            imported?: number;
+            failed?: number;
+        };
+        RealtimeDataFailedEvent: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "export" | "import";
+            error: string;
+        };
+        RealtimeApprovalAssignedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            action: string;
+            stage: number;
+        };
+        RealtimeApprovalDecidedEvent: {
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+            round: number;
+            stage: number;
+            /** @enum {string|null} */
+            decision: "approved" | "rejected" | "changes_requested" | null;
+        };
+        RealtimeApprovalAppliedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            outcomeAppliedAt: string;
+        };
+        RealtimeBulkFinishedEvent: {
+            id: string;
+            name: string;
+            action: string;
+            done: number;
+            failed: number;
+        };
+        RealtimeBulkProgressEvent: {
+            id: string;
+            name: string;
+            action: string;
+            processed: number;
+            done: number;
+            failed: number;
+        };
+        RealtimeBulkFailedEvent: {
+            id: string;
+            name: string;
+            action: string;
+            error: string;
+        };
+        RealtimeDocumentReadyEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            attachmentId: string;
+        };
+        RealtimeDocumentFailedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            error: string;
+        };
+        RealtimeRecordCommentedEvent: {
+            subject: string;
+            recordId: string;
+            commentId: string;
+            /** @enum {string} */
+            action: "added" | "edited" | "removed";
+        };
+        RealtimeRecordAttachmentsChangedEvent: {
+            subject: string;
+            recordId: string;
+            attachmentId: string;
+            /** @enum {string} */
+            action: "added" | "removed";
+        };
     };
     responses: never;
     parameters: never;

@@ -1,5 +1,9 @@
 <p>مرحباً {{ name }}،</p>
-<h2 style="font-size:18px;margin:16px 0 8px;">{{ title }}</h2>
+<h2 style="font-size: 18px; margin: 16px 0 8px">{{ title }}</h2>
 <p>{{ body }}</p>
-{{#if url}}<p><a href="{{ url }}">فتح في {{ app }}</a></p>{{/if}}
-<p style="color:#59636e;font-size:13px;">تصلك هذه الرسالة بسبب إعدادات الإشعارات الخاصة بك في {{ app }}.</p>
+{{#if url}}
+<p><a href="{{ url }}">فتح في {{ app }}</a></p>
+{{/if}}
+<p style="color: #59636e; font-size: 13px">
+  تصلك هذه الرسالة بسبب إعدادات الإشعارات الخاصة بك في {{ app }}.
+</p>

@@ -8,6 +8,7 @@ import {
   swaggerRequestInterceptor,
 } from './platform/idempotency/idempotency.openapi.js';
 import type { PlatformEnv } from './platform/platform.env.js';
+import { addRealtimeEvents } from './platform/realtime/realtime-events.js';
 import { addPanelComponents } from './platform/records/panel-components.js';
 
 /** Your API's name, in the document and Swagger UI's title. */
@@ -110,6 +111,8 @@ export function buildOpenApiDocument(
   const document = SwaggerModule.createDocument(app, config);
   // The record panels' shared components, even with no panel route.
   addPanelComponents(document);
+  // The realtime events: their payload components and `x-realtime-events`.
+  addRealtimeEvents(document);
   applyIdempotencyMode(document, idempotency);
   return document;
 }

@@ -1,11 +1,15 @@
 <p>{{ name }}，您好：</p>
 <p>{{ app }} 中有 {{ count }} 条新通知：</p>
 {{#each items}}
-<div style="margin:16px 0;padding:12px 16px;border-left:3px solid #d0d7de;">
-  <strong>{{ title }}</strong><br>
-  {{ body }}<br>
-  <span style="color:#59636e;font-size:13px;">{{ at }}</span>{{#if url}} · <a href="{{ url }}">打开</a>{{/if}}
+<div style="margin: 16px 0; padding: 12px 16px; border-left: 3px solid #d0d7de">
+  <strong>{{ title }}</strong><br />
+  {{ body }}<br />
+  <span style="color: #59636e; font-size: 13px">{{ at }}</span>{{#if url}} ·
+  <a href="{{ url }}">打开</a>{{/if}}
 </div>
-{{/each}}
-{{#if more}}<p>…还有 {{ more }} 条。</p>{{/if}}
-<p style="color:#59636e;font-size:13px;">您收到此摘要是因为您在 {{ app }} 中的通知设置。</p>
+{{/each}} {{#if more}}
+<p>…还有 {{ more }} 条。</p>
+{{/if}}
+<p style="color: #59636e; font-size: 13px">
+  您收到此摘要是因为您在 {{ app }} 中的通知设置。
+</p>
