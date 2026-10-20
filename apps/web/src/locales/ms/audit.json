@@ -10,12 +10,18 @@
     "targetType": "Subjek",
     "targetId": "Sasaran",
     "ip": "Alamat IP",
-    "details": "Butiran"
+    "details": "Butiran",
+    "tenant": "Penyewa"
   },
   "details": {
     "open": "Papar butiran",
     "actor": "Pelaku",
     "actorId": "ID pelaku",
     "none": "Tiada butiran."
+  },
+  "subtenants": {
+    "switch": "Termasuk sub-penyewa",
+    "included": "Termasuk: {{names}}",
+    "none": "Tiada sub-penyewa di bawah penyewa ini."
   }
 }

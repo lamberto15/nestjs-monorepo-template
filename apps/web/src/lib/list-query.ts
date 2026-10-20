@@ -457,6 +457,11 @@ export interface ListQueryOptions<TRow> {
    * list whose rows settle on their own, such as deliveries in flight.
    */
   refetchInterval?: (rows: TRow[]) => number | false;
+  /**
+   * Send no `fields`: every field the route has comes, including those the
+   * list's `select` does not name (the consolidated audit's `tenantId`).
+   */
+  allFields?: boolean;
 }
 
 /**
@@ -472,7 +477,7 @@ export function useListQuery<P extends ListPath>(
   fields?: string[],
   options: ListQueryOptions<ListRow<P>> = {},
 ) {
-  const { extra, pathParams, refetchInterval } = options;
+  const { extra, pathParams, refetchInterval, allFields } = options;
   const sortableIds = useMemo(
     () =>
       columns.flatMap((c) => (c.id && c.enableSorting !== false ? [c.id] : [])),
@@ -530,7 +535,9 @@ export function useListQuery<P extends ListPath>(
           sorting,
           filters,
           joinOperator: joinOperator === 'or' ? 'or' : 'and',
-          fields: fields?.filter((f) => selectable.has(f)),
+          fields: allFields
+            ? undefined
+            : fields?.filter((f) => selectable.has(f)),
           q: description.search ? q : '',
         },
         description.fields,
