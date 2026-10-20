@@ -3,9 +3,7 @@
   "too_small": {
     "string": { "other": "{path} mestilah sekurang-kurangnya {count} aksara" },
     "number": "{path} mestilah sekurang-kurangnya {minimum}",
-    "array": {
-      "other": "{path} mestilah mempunyai sekurang-kurangnya {count} item"
-    }
+    "array": { "other": "{path} mestilah mempunyai sekurang-kurangnya {count} item" }
   },
   "too_big": {
     "string": { "other": "{path} mestilah tidak melebihi {count} aksara" },
