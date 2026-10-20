@@ -159,6 +159,10 @@
       "label": "Webhook delivery retention",
       "description": "Deletes outgoing webhook deliveries that finished more than WEBHOOKS_DELIVERY_RETENTION_DAYS ago, with their attempt log and recorded requests (never one still being retried), every night."
     },
+    "platform-analytics": {
+      "label": "Platform analytics",
+      "description": "Counts tenants, users, memberships and API use across every tenant, withholds small groups, and stores only the aggregates the reporting role reads, every night."
+    },
     "demo-seed": {
       "label": "Demo seed",
       "description": "Creates demo users, teams and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."

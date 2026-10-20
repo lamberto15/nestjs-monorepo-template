@@ -225,12 +225,19 @@ services:
       # whole URL from DATABASE_MAINTENANCE_URL_FILE.
       DATABASE_MAINTENANCE_URL: ${DATABASE_MAINTENANCE_URL:-${POSTGRES_MAINTENANCE_PASSWORD:+postgres://${POSTGRES_MAINTENANCE_USER:-app_maintenance}:${POSTGRES_MAINTENANCE_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}}}
       DATABASE_MAINTENANCE_URL_FILE: ${DATABASE_MAINTENANCE_URL_FILE:+/run/secrets/database_maintenance_url}
+      # The reporting role (docs/tenancy.md, "Platform analytics"): made when
+      # POSTGRES_REPORTING_PASSWORD (or its file) is set; it reads the
+      # `analytics` aggregates only. Its users connect from outside the stack.
+      POSTGRES_REPORTING_USER: ${POSTGRES_REPORTING_USER:-app_reporting}
+      POSTGRES_REPORTING_PASSWORD: ${POSTGRES_REPORTING_PASSWORD:-}
+      POSTGRES_REPORTING_PASSWORD_FILE: ${POSTGRES_REPORTING_PASSWORD_FILE:+/run/secrets/postgres_reporting_password}
     # Only the URLs it reads (not x-app's list): the owner's credential is
     # mounted here and nowhere else; api and worker never see it.
     secrets:
       - database_url
       - database_owner_url
       - database_maintenance_url
+      - postgres_reporting_password
     deploy:
       resources:
         limits:
@@ -540,6 +547,9 @@ secrets:
     file: ${DATABASE_OWNER_URL_FILE:-./secret.empty}
   database_maintenance_url:
     file: ${DATABASE_MAINTENANCE_URL_FILE:-./secret.empty}
+  # The reporting role's password: mounted on `migrate` only (it sets it).
+  postgres_reporting_password:
+    file: ${POSTGRES_REPORTING_PASSWORD_FILE:-./secret.empty}
   redis_password:
     file: ${REDIS_PASSWORD_FILE:-./secret.empty}
   admin_password:

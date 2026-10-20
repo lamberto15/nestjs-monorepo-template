@@ -74,6 +74,7 @@ export function createAppModule(list: readonly FeatureDefinition[]): Type {
         settings: features.settings,
         // Actions that need approval: docs/approvals.md.
         approvals: features.approvals,
+        realtimeEvents: features.realtimeEvents,
         // What users are asked to agree to: platform/account/consent-kinds.ts (docs/auth.md).
         consents: CONSENT_KINDS,
       }),

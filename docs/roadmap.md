@@ -266,7 +266,9 @@ Split into **1a** (core) and **1b** (per-tenant product features).
   - Writes and everything else stay in one tenant.
   - Cross-tenant reads are audited.
 - Platform analytics across unrelated tenants never go through the app role. They use
-  a separate reporting role on anonymized aggregates.
+  a separate reporting role on anonymized aggregates: **done** (#235): the worker's
+  nightly `PlatformAnalyticsJob` stores suppressed counts in the `analytics` schema,
+  the only one `POSTGRES_REPORTING_USER` may read. docs/tenancy.md, "Platform analytics".
 
 ## 2. Enterprise SSO (SAML 2.0, OIDC per tenant) and SCIM 2.0
 
@@ -416,7 +418,7 @@ Planned as:
   `template-without-notes` proves the core stands with the example removed.
 - **One event declaration.** Notifications, webhooks and realtime each declare event
   types today; they become one domain-event declaration with channels, and the
-  generator emits one. **Open (#229 follow-up):** only the realtime part is unified.
+  generator emits one. **Done (#320):** `defineDomainEvents()` (`platform/events/domain-event.ts`) declares an event once with its webhook, notification and realtime channels; notes uses it, and a record's capabilities derive theirs through it, so the generator's feature file stays `record:` alone.
 - **The realtime manifest** (done, #229): `platform/realtime/realtime-events.ts` goes into
   the OpenAPI document as `x-realtime-events`, so `client:check` diffs it and oasdiff
   (21) catches breaking changes; the client's `src/realtime-events.ts` is generated.

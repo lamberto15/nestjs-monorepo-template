@@ -4,7 +4,7 @@ How a feature tells a person (or a system) that something happened, once,
 and the platform delivers it: stored to read later, pushed to open
 connections, mailed at once or in a digest, sent to an API client as a
 webhook, as the recipient prefers. The code is in `apps/api/src/platform/notifications/`;
-notes is the example (`features/notes/note-notifications.ts`).
+notes is the example (`features/notes/note-events.ts`).
 
 `REALTIME=off` ([configuration.md](configuration.md#deployment-switches))
 removes the live push only: notifications are still stored and mailed (and sent as
@@ -16,14 +16,18 @@ removes the webhook endpoint API and the delivery worker; the outbox relay stays
 1. A feature **declares its types** and hands them to the platform:
 
    ```ts
-   // features/notes/note-notifications.ts
-   export const NOTE_NOTIFICATIONS = defineNotifications([
-     { type: 'note.published', channels: { email: 'immediate', webhook: true }, data: z.object({ noteId: z.uuid(), title: z.string() }) },
-     { type: 'note.deleted', channels: { email: 'immediate', webhook: true }, mandatory: true, data: … },
+   // features/notes/note-events.ts: a domain event, declared once for its channels
+   export const NOTE_EVENTS = defineDomainEvents([
+     { type: 'note.published', webhook: true, notification: { channels: { email: 'immediate', webhook: true }, data: z.object({ noteId: z.uuid(), title: z.string() }) } },
+     { type: 'note.deleted', webhook: true, notification: { channels: { email: 'immediate', webhook: true }, mandatory: true, data: … } },
    ]);
-   // app.module.ts
-   PlatformModule.forRoot({ …, notifications: [...NOTE_NOTIFICATIONS] })
+   // notes.feature.ts: defineFeature({ …, events: NOTE_EVENTS })
    ```
+
+   The same declaration also gives the event's outgoing webhook type (`webhook`) and
+   realtime event (`realtime`): [webhooks-and-realtime.md](webhooks-and-realtime.md),
+   "Domain events". `defineNotifications()` with the feature's `notifications` list, or
+   `PlatformModule.forRoot({ notifications })`, still works for a type with no other channel.
 
    `channels` are the defaults the recipient may change (`email`: `false` |
    `immediate` | `hourly` | `daily`, for users; `webhook`: for API clients;

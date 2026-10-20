@@ -2,7 +2,10 @@ import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { APP_FEATURES } from './app.tokens.js';
-import type { FeatureDefinition } from './features/feature.js';
+import {
+  featureDeclarations,
+  type FeatureDefinition,
+} from './features/feature.js';
 import {
   applyIdempotencyMode,
   swaggerRequestInterceptor,
@@ -69,10 +72,11 @@ export function buildOpenApiDocument(
       'data',
       'Exports and imports (CSV, JSON, Excel), as background jobs',
     );
-  // Each feature's tag (its `<x>.feature.ts`), in the features' order.
-  for (const { apiTag } of app.get<FeatureDefinition[]>(APP_FEATURES, {
+  const features = app.get<FeatureDefinition[]>(APP_FEATURES, {
     strict: false,
-  })) {
+  });
+  // Each feature's tag (its `<x>.feature.ts`), in the features' order.
+  for (const { apiTag } of features) {
     builder.addTag(apiTag.name, apiTag.description);
   }
   const config = builder
@@ -112,7 +116,7 @@ export function buildOpenApiDocument(
   // The record panels' shared components, even with no panel route.
   addPanelComponents(document);
   // The realtime events: their payload components and `x-realtime-events`.
-  addRealtimeEvents(document);
+  addRealtimeEvents(document, featureDeclarations(features).realtimeEvents);
   applyIdempotencyMode(document, idempotency);
   return document;
 }

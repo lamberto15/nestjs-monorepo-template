@@ -159,6 +159,10 @@
       "label": "Penyimpanan penghantaran webhook",
       "description": "Memadam penghantaran webhook keluar yang selesai lebih lama daripada WEBHOOKS_DELIVERY_RETENTION_DAYS, bersama log percubaan dan permintaan yang direkodkan (tidak pernah yang masih dicuba semula), setiap malam."
     },
+    "platform-analytics": {
+      "label": "Analitik platform",
+      "description": "Mengira penyewa, pengguna, keahlian dan penggunaan API merentasi setiap penyewa, menahan kumpulan kecil, dan menyimpan hanya agregat yang dibaca oleh peranan pelaporan, setiap malam."
+    },
     "demo-seed": {
       "label": "Data demo",
       "description": "Mencipta pengguna demo, pasukan dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."

@@ -1,0 +1,48 @@
+{
+  "button": "Paparan",
+  "title": "Paparan",
+  "loading": "Memuatkan paparan…",
+  "failed": "Paparan tidak dapat dimuatkan.",
+  "none": "Belum ada paparan yang disimpan.",
+  "groups": {
+    "private": "Saya",
+    "team": "Pasukan saya",
+    "tenant": "Semua orang"
+  },
+  "current": "Paparan semasa: {{name}}",
+  "clear": "Berhenti menggunakan “{{name}}”",
+  "saveCurrent": "Simpan paparan semasa…",
+  "rename": "Namakan semula “{{name}}”…",
+  "delete": "Padam “{{name}}”…",
+  "applied": "Paparan “{{name}}” digunakan.",
+  "stale": "“{{name}}” sudah lapuk. {{detail}} Ubah atau padamkannya.",
+  "unshowable": "“{{name}}” menggunakan penapis yang tidak dapat dipaparkan oleh jadual ini ({{what}}).",
+  "forbidden": "“{{name}}” tidak dapat digunakan. {{detail}}",
+  "gone": "“{{name}}” sudah tiada.",
+  "visibility": {
+    "private": "Peribadi (saya sahaja)",
+    "team": "Satu pasukan",
+    "tenant": "Semua orang dalam organisasi"
+  },
+  "form": {
+    "saveTitle": "Simpan paparan semasa",
+    "saveDescription": "Menyimpan penapis, carian, susunan dan lajur senarai ini di bawah satu nama.",
+    "renameTitle": "Namakan semula paparan “{{name}}”",
+    "name": "Nama",
+    "nameRequired": "Masukkan nama.",
+    "nameTooLong": "Nama paling banyak 200 aksara.",
+    "nameTaken": "Paparan bernama “{{name}}” sudah wujud di sini.",
+    "visibility": "Siapa yang melihatnya",
+    "team": "Pasukan",
+    "teamRequired": "Pilih pasukan.",
+    "teamPlaceholder": "Pilih pasukan",
+    "save": "Simpan",
+    "cancel": "Batal"
+  },
+  "saved": "Paparan “{{name}}” disimpan.",
+  "renamed": "Paparan dinamakan semula kepada “{{name}}”.",
+  "deleted": "Paparan dipadam.",
+  "deleteTitle": "Padam paparan “{{name}}”?",
+  "deleteDescription": "Paparan hilang untuk semua yang melihatnya. Rekod tidak berubah.",
+  "deleteConfirm": "Padam paparan"
+}
