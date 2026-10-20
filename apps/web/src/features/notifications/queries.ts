@@ -50,6 +50,7 @@ export const breachedType = 'security.passwordBreached';
  */
 export const breachAlertQuery = queryOptions({
   queryKey: [...root, 'list', 'breach-alert'],
+  staleTime: 60_000,
   queryFn: () =>
     unwrap(
       api.GET('/v1/notifications', {

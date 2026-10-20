@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeRealtime, type FakeRealtime } from '@/test/fake-realtime';
 import { renderApp } from '@/test/render-app';
-import { allFeatures, server, signedInUser } from '@/test/server';
+import { allFeatures, problem, server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 
 const connections: FakeRealtime[] = [];
@@ -41,12 +41,16 @@ function api(
     items?: ReturnType<typeof breached>[];
     realtime?: boolean;
     impersonating?: boolean;
+    /** Answer every list request with all items, whatever it filters by. */
+    ignoreFilters?: boolean;
+    failRead?: boolean;
   } = {},
 ) {
   const state = {
     items: options.items ?? [breached()],
     readCalls: [] as string[],
     listQueries: [] as string[],
+    unreadCalls: 0,
     changeBody: undefined as unknown,
   };
   const user = options.impersonating
@@ -60,11 +64,12 @@ function api(
     http.get('/v1/features', () =>
       HttpResponse.json({ ...allFeatures, realtime: options.realtime ?? true }),
     ),
-    http.get('/v1/notifications/unread-count', () =>
-      HttpResponse.json({
+    http.get('/v1/notifications/unread-count', () => {
+      state.unreadCalls++;
+      return HttpResponse.json({
         unread: state.items.filter((entry) => !entry.read).length,
-      }),
-    ),
+      });
+    }),
     http.get('/v1/notifications', ({ request }) => {
       const url = new URL(request.url);
       state.listQueries.push(url.search);
@@ -72,8 +77,9 @@ function api(
       const type = url.searchParams.get('type');
       const items = state.items.filter(
         (entry) =>
-          (read === null || String(entry.read) === read) &&
-          (type === null || entry.type === type),
+          options.ignoreFilters ||
+          ((read === null || String(entry.read) === read) &&
+            (type === null || entry.type === type)),
       );
       return HttpResponse.json({ items, nextCursor: null });
     }),
@@ -92,6 +98,9 @@ function api(
     http.post('/v1/notifications/:id/read', ({ params }) => {
       const id = String(params.id);
       state.readCalls.push(id);
+      if (options.failRead) {
+        return problem(500, 'internal_error');
+      }
       state.items = state.items.map((entry) =>
         entry.id === id ? { ...entry, read: true } : entry,
       );
@@ -131,8 +140,14 @@ describe('the breached-password banner', () => {
   });
 
   it('is not shown without an alert, or once it is read', async () => {
-    api({ items: [breached({ read: true })] });
+    // The handler hands the read item back though the request filters it
+    // out: the banner must not trust the server's filter alone.
+    const state = api({
+      items: [breached({ read: true })],
+      ignoreFilters: true,
+    });
     await renderApp('/');
+    await waitFor(() => expect(state.listQueries).toHaveLength(1));
     await screen.findByText('Dashboard', { selector: 'h1' });
     expect(banner()).toBeNull();
   });
@@ -142,6 +157,7 @@ describe('the breached-password banner', () => {
     const user = userEvent.setup();
     await renderApp('/');
     await screen.findByText('Dashboard', { selector: 'h1' });
+    await waitFor(() => expect(state.listQueries).toHaveLength(1));
     expect(banner()).toBeNull();
 
     state.items = [breached()];
@@ -199,10 +215,41 @@ describe('the breached-password banner', () => {
     await waitFor(() => expect(banner()).toBeNull());
   });
 
+  it('tells the user when marking the alert read fails after a password change', async () => {
+    const state = api({ failRead: true });
+    const user = userEvent.setup();
+    await renderApp('/account/security');
+    expect(await screen.findByText(bannerText)).toBeVisible();
+
+    await user.type(
+      screen.getByLabelText('Current password'),
+      'old-password-1',
+    );
+    await user.type(
+      screen.getByLabelText('New password'),
+      'a-brand-new-passphrase',
+    );
+    await user.type(
+      screen.getByLabelText('Confirm the password'),
+      'a-brand-new-passphrase',
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Change the password' }),
+    );
+
+    expect(
+      await findToast(/breach alert could not be marked as read/),
+    ).toBeVisible();
+    expect(state.readCalls).toEqual(['breach-1']);
+    expect(banner()).not.toBeNull();
+  });
+
   it('is not shown while an administrator acts as the user', async () => {
     const state = api({ impersonating: true });
     await renderApp('/');
     await screen.findByText('Dashboard', { selector: 'h1' });
+    // The bell's count was asked for: the layout's queries have run.
+    await waitFor(() => expect(state.unreadCalls).toBeGreaterThan(0));
     expect(banner()).toBeNull();
     expect(state.listQueries.some((q) => q.includes('passwordBreached'))).toBe(
       false,
