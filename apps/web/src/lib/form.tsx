@@ -25,6 +25,7 @@ import {
 } from '@nestjs-monorepo-template/ui/components/select';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
+import { LazyMarkdownEditor } from '@/components/markdown/lazy';
 import { CircleAlertIcon } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 
@@ -139,6 +140,41 @@ function TextAreaField(props: {
         onChange={(event) => field.handleChange(event.target.value)}
         aria-invalid={invalid}
         aria-describedby={describedBy}
+      />
+      {props.description && (
+        <FieldDescription id={descriptionId}>
+          {props.description}
+        </FieldDescription>
+      )}
+      {invalid && <FieldError id={errorId} errors={field.state.meta.errors} />}
+    </Field>
+  );
+}
+
+/**
+ * Longer text as Markdown, edited in a rich text editor (Tiptap, loaded when
+ * the field first shows). The form's value stays the Markdown string.
+ */
+function MarkdownField(props: { label: ReactNode; description?: ReactNode }) {
+  const field = useFieldContext<string>();
+  const invalid = useInvalid();
+  const id = `field-${field.name}`;
+  const labelId = `${id}-label`;
+  const { descriptionId, errorId, describedBy } = useDescribedBy(
+    Boolean(props.description),
+    invalid,
+  );
+  return (
+    <Field data-invalid={invalid}>
+      <FieldLabel id={labelId}>{props.label}</FieldLabel>
+      <LazyMarkdownEditor
+        id={id}
+        value={field.state.value}
+        onChange={field.handleChange}
+        onBlur={field.handleBlur}
+        labelledBy={labelId}
+        describedBy={describedBy}
+        invalid={invalid}
       />
       {props.description && (
         <FieldDescription id={descriptionId}>
@@ -275,7 +311,13 @@ function SubmitButton(props: {
 export const { useAppForm } = createFormHook({
   fieldContext,
   formContext,
-  fieldComponents: { TextField, TextAreaField, CodeField, SelectField },
+  fieldComponents: {
+    TextField,
+    TextAreaField,
+    MarkdownField,
+    CodeField,
+    SelectField,
+  },
   formComponents: { SubmitButton },
 });
 
