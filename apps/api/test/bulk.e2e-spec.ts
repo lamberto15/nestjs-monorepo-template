@@ -3,7 +3,8 @@ import { getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import type { Socket } from 'socket.io-client';
 import type request from 'supertest';
-import { BULK } from '../src/platform/bulk/bulk.service.js';
+import { BulkProcessor } from '../src/platform/bulk/bulk.processor.js';
+import { BULK, PRINCIPAL_GONE } from '../src/platform/bulk/bulk.service.js';
 import { bootApp, connect, type TestApp } from './support.js';
 
 describe('bulk operations (e2e)', () => {
@@ -254,6 +255,43 @@ describe('bulk operations (e2e)', () => {
     }).expect(400);
     expect(typo.body.code).toBe('validation_failed');
     expect(typo.body.errors[0].path).toMatch(/^filter/);
+  });
+
+  it('tells its starter over realtime when a queued run fails for good, without internal text', async () => {
+    const owner = await node.client();
+    await write(owner.auth, 'Fail one', 'Fail two');
+    const other = await node.client();
+    const socket = await connect(node, owner.key);
+    const strangers = await connect(node, other.key);
+    sockets.push(socket, strangers);
+    const started = await bulk(owner.auth, {
+      action: 'delete',
+      filter: { 'title.startsWith': 'Fail' },
+    }).expect(202);
+    await finished(owner.auth, started.body.id);
+    const job = await node.app
+      .get<Queue>(getQueueToken(BULK))
+      .getJob(started.body.id);
+    const processor = node.app.get(BulkProcessor);
+    const heard: unknown[] = [];
+    socket.on('bulk.failed', (event) => heard.push(event));
+    strangers.on('bulk.failed', () => heard.push('stranger'));
+
+    // A failure BullMQ reports (a stalled run, a database error): a generic reason.
+    await processor.onFailed(job, new Error('connection to db-7 refused'));
+    await processor.onFailed(job, new Error(PRINCIPAL_GONE));
+    // A job gone meanwhile: nobody to tell, no error.
+    await processor.onFailed(undefined, new Error('x'));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const base = {
+      id: started.body.id,
+      name: 'test-items',
+      action: 'delete',
+    };
+    expect(heard).toEqual([
+      { ...base, error: expect.not.stringContaining('db-7') },
+      { ...base, error: PRINCIPAL_GONE },
+    ]);
   });
 
   it('dates a run (queued, started, finished) and lists runs by status and kind', async () => {
