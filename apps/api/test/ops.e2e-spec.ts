@@ -309,6 +309,6 @@ describe('operations API (e2e)', () => {
       expect(text).not.toContain(secret);
     }
     expect(text).not.toContain('pay.js');
-    expect(text).not.toMatch(/\n\s+at /);
+    expect(text).not.toMatch(/\\n\s+at /);
   });
 });

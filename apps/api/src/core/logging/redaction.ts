@@ -113,6 +113,7 @@ export class LogRedaction {
   private frozenBy?: string;
   private textRules?: TextRule[];
   private lowerNames?: Set<string>;
+  private suffixes?: string[];
 
   constructor({
     headers = SECRET_HEADERS,
@@ -137,6 +138,7 @@ export class LogRedaction {
     }
     this.textRules = undefined;
     this.lowerNames = undefined;
+    this.suffixes = undefined;
     return this;
   }
 
@@ -152,6 +154,7 @@ export class LogRedaction {
     }
     this.textRules = undefined;
     this.lowerNames = undefined;
+    this.suffixes = undefined;
     return this;
   }
 
@@ -227,7 +230,12 @@ export class LogRedaction {
     // Cut first, at a bound well past the final one, so a huge string costs
     // little; the secret that straddles the cut sits beyond the final one.
     const head = message.slice(0, maxString * 4);
-    const masked = this.redactText(head);
+    // A private key cut off by the bound (or never closed) has no END line
+    // for the pattern to find: from its BEGIN line to the end of what was read.
+    const masked = this.redactText(head).replace(
+      /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----[\s\S]*$/,
+      REDACTED,
+    );
     return masked.length > maxString || head.length < message.length
       ? `${masked.slice(0, maxString)}…`
       : masked;
@@ -249,9 +257,12 @@ export class LogRedaction {
         ? String(value)
         : value;
     }
+    if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
+      return `[binary ${value.byteLength} bytes]`;
+    }
     if (value instanceof Error) {
       return {
-        name: value.name,
+        name: this.redactString(value.name, 100),
         message: this.redactString(value.message, limits.maxString),
       };
     }
@@ -269,23 +280,57 @@ export class LogRedaction {
       return value.toISOString();
     }
     const result: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value).slice(0, limits.maxItems)) {
-      result[key] = this.isSecretKey(key, parent)
+    let keys = 0;
+    for (const key in value) {
+      if (!Object.hasOwn(value, key)) {
+        continue;
+      }
+      if (++keys > limits.maxItems) {
+        break;
+      }
+      const item = (value as Record<string, unknown>)[key];
+      result[key] = this.isSecretKey(key, parent, item)
         ? REDACTED
         : this.redactNode(item, limits, budget, depth + 1, key);
     }
     return result;
   }
 
-  /** Whether a property of this name (under this parent) holds a secret by name. */
-  private isSecretKey(key: string, parent: string | undefined): boolean {
+  /**
+   * Whether a property of this name (under this parent) holds a secret by
+   * name: a declared name or dotted path, or, for a text value, a name that
+   * ends with a declared one once case, `_` and `-` are ignored
+   * (`access_token`, `client_secret`, `x-auth-token`, `stripe-signature`).
+   * The ending is for names of four letters or more (`sid` and `otp` would
+   * match too much) and for texts only: a `fencingToken` number is no secret.
+   */
+  private isSecretKey(
+    key: string,
+    parent: string | undefined,
+    value: unknown,
+  ): boolean {
     this.lowerNames ??= new Set(this.paths().map((path) => path.toLowerCase()));
     const name = key.toLowerCase();
-    return (
+    if (
       this.lowerNames.has(name) ||
       (parent !== undefined &&
         this.lowerNames.has(`${parent.toLowerCase()}.${name}`))
-    );
+    ) {
+      return true;
+    }
+    if (typeof value !== 'string') {
+      return false;
+    }
+    this.suffixes ??= [
+      ...new Set(
+        [...this.lowerNames]
+          .filter((path) => !path.includes('.'))
+          .map((path) => path.replace(/[_-]/g, ''))
+          .filter((path) => path.length >= 4),
+      ),
+    ];
+    const plain = name.replace(/[_-]/g, '');
+    return this.suffixes.some((suffix) => plain.endsWith(suffix));
   }
 
   /**

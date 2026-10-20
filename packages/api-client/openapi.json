@@ -4008,9 +4008,8 @@
                               "maximum": 9007199254740991
                             },
                             "durationMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
@@ -4717,9 +4716,8 @@
                               "maximum": 9007199254740991
                             },
                             "durationMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
@@ -4874,9 +4872,8 @@
                               "maximum": 9007199254740991
                             },
                             "delayMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
@@ -5259,9 +5256,8 @@
                               "type": "string"
                             },
                             "durationMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
@@ -5371,9 +5367,8 @@
                               "maximum": 9007199254740991
                             },
                             "delayMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
@@ -5932,9 +5927,8 @@
                               "maximum": 9007199254740991
                             },
                             "durationMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             },
                             "type": {
                               "type": "string",
@@ -5997,9 +5991,8 @@
                               "maximum": 9007199254740991
                             },
                             "durationMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             },
                             "type": {
                               "type": "string",
@@ -6077,9 +6070,8 @@
                               "maximum": 9007199254740991
                             },
                             "delayMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             },
                             "error": {
                               "type": "object",
@@ -6135,9 +6127,8 @@
                               ]
                             },
                             "timeoutMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
@@ -6329,9 +6320,8 @@
                               ]
                             },
                             "retryAfterMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
@@ -6425,9 +6415,8 @@
                               ]
                             },
                             "retryAfterMs": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [

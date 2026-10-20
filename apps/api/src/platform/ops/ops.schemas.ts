@@ -12,6 +12,8 @@ import { z } from 'zod';
 
 const epochMs = z.number().int();
 const count = z.number().int().nonnegative();
+/** A duration: the engines compute backoffs and timings as fractions of a millisecond. */
+const ms = z.number().nonnegative();
 
 // ---- GET /v1/ops/outbox ----
 
@@ -179,7 +181,7 @@ const workflowEventSchema = z.discriminatedUnion('type', [
     ...workflowBase('step-completed'),
     step: z.string(),
     attempt: count,
-    durationMs: count,
+    durationMs: ms,
   }),
   z.object({
     ...workflowBase('step-failed'),
@@ -240,7 +242,7 @@ const webhooksEventSchema = z.discriminatedUnion('type', [
     delivery: webhookDeliverySchema,
     statusCode: z.number().int(),
     attempt: count,
-    durationMs: count,
+    durationMs: ms,
   }),
   z.object({
     ...base('webhooks'),
@@ -249,7 +251,7 @@ const webhooksEventSchema = z.discriminatedUnion('type', [
     error: errorSchema,
     statusCode: z.number().int().nullable(),
     attempt: count,
-    delayMs: count,
+    delayMs: ms,
   }),
   z.object({
     ...base('webhooks'),
@@ -296,7 +298,7 @@ const outboxEventSchema = z.discriminatedUnion('type', [
     type: z.literal('published'),
     message: outboxMessageSchema,
     transport: z.string(),
-    durationMs: count,
+    durationMs: ms,
   }),
   z.object({
     ...base('outbox'),
@@ -305,7 +307,7 @@ const outboxEventSchema = z.discriminatedUnion('type', [
     transport: z.string().optional(),
     error: errorSchema,
     attempt: count,
-    delayMs: count,
+    delayMs: ms,
   }),
   z.object({
     ...base('outbox'),
@@ -383,7 +385,7 @@ const mailBase = {
   subject: z.string(),
   transport: z.string(),
   attempts: count,
-  durationMs: count,
+  durationMs: ms,
 };
 
 const mailEventSchema = z.discriminatedUnion('type', [
@@ -414,13 +416,13 @@ const resilienceEventSchema = z.discriminatedUnion('type', [
     ...resilienceBase,
     type: z.literal('retry'),
     attempt: count,
-    delayMs: count,
+    delayMs: ms,
     error: errorSchema,
   }),
   z.object({
     ...resilienceBase,
     type: z.literal('timeout'),
-    timeoutMs: count,
+    timeoutMs: ms,
   }),
   z.object({
     ...resilienceBase,
@@ -443,7 +445,7 @@ const resilienceEventSchema = z.discriminatedUnion('type', [
   z.object({
     ...resilienceBase,
     type: z.literal('circuit-rejected'),
-    retryAfterMs: count,
+    retryAfterMs: ms,
   }),
   z.object({
     ...resilienceBase,
@@ -455,7 +457,7 @@ const resilienceEventSchema = z.discriminatedUnion('type', [
   z.object({
     ...resilienceBase,
     type: z.literal('rate-limited'),
-    retryAfterMs: count,
+    retryAfterMs: ms,
   }),
   z.object({
     ...resilienceBase,

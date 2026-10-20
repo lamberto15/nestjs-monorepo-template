@@ -280,11 +280,63 @@ describe('redactValue', () => {
   });
 
   it('masks a secret that sits at the cut', () => {
-    const token = secret();
-    const text = `${'a'.repeat(95)} Authorization: Bearer ${token}`;
-    expect(logRedaction.redactString(text, 100)).not.toContain(
-      token.slice(0, 6),
-    );
+    // 90 characters, then "Bearer " and a 40-character token: the cut (100)
+    // falls inside the token.
+    const token = randomBytes(30).toString('base64url');
+    expect(token).toHaveLength(40);
+    const text = `${'a'.repeat(89)} Bearer ${token}`;
+    const result = logRedaction.redactString(text, 100);
+    expect(result).not.toContain(token.slice(0, 4));
+    expect(result).toContain(`Bearer ${REDACTED}`);
+  });
+
+  it('masks a private key the bound cut off, or that was never closed', () => {
+    const body = randomBytes(30).toString('base64');
+    const open = `before ${['-----BEGIN', 'PRIVATE KEY-----'].join(' ')}\n${body}`;
+    const result = logRedaction.redactString(open);
+    expect(result).toBe(`before ${REDACTED}`);
+  });
+
+  it('masks a name that ends with a declared one: snake_case, kebab-case, prefixed', () => {
+    const value = secret();
+    const masked = logRedaction.redactValue({
+      access_token: value,
+      refresh_token: value,
+      client_secret: value,
+      api_key: value,
+      private_key: value,
+      id_token: value,
+      'x-auth-token': value,
+      'x-amz-security-token': value,
+      'stripe-signature': value,
+      sid: 'kept',
+      otp: 'kept',
+      fencingToken: 7,
+      topic: 'kept',
+    }) as Record<string, unknown>;
+    const { sid, otp, fencingToken, topic, ...rest } = masked;
+    expect(Object.values(rest).every((v) => v === REDACTED)).toBe(true);
+    expect(Object.keys(rest)).toHaveLength(9);
+    // Short names (a letter or two off a common word) and numbers stay.
+    expect({ sid, otp, fencingToken, topic }).toEqual({
+      sid: 'kept',
+      otp: 'kept',
+      fencingToken: 7,
+      topic: 'kept',
+    });
+  });
+
+  it('shows bytes as their size, and an error name masked and cut', () => {
+    expect(
+      logRedaction.redactValue({
+        buffer: Buffer.alloc(12),
+        view: new Uint8Array(3),
+      }),
+    ).toEqual({ buffer: '[binary 12 bytes]', view: '[binary 3 bytes]' });
+    const failure = new Error('x');
+    failure.name = `Odd ${'n'.repeat(500)}`;
+    const named = logRedaction.redactValue(failure) as { name: string };
+    expect(named.name).toHaveLength(101);
   });
 
   it('bounds depth, width and size, and leaves the input alone', () => {
