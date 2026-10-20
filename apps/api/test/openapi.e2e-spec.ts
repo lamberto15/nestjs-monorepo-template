@@ -265,6 +265,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/settings/{key}',
         '/v1/settings/{key}/mine',
         '/v1/settings/{key}/overrides',
+        '/v1/settings/{key}/platform',
         '/v1/subscriptions',
         '/v1/subscriptions/{subject}/{recordId}',
         '/v1/tags',

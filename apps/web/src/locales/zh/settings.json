@@ -59,7 +59,8 @@
     "team": "团队",
     "user": "您",
     "rollout": "发布",
-    "default": "默认"
+    "default": "默认",
+    "platform": "所有组织"
   },
   "columns": {
     "setting": "设置",
@@ -86,5 +87,21 @@
     "min": "不小于 {{min}}。",
     "max": "不大于 {{max}}。",
     "maxLength": "最多 {{maxLength}} 个字符。"
+  },
+  "platform": {
+    "title": "所有组织",
+    "description": "部署运营者为每个组织设定的值。若强制，则优先于所有组织、团队和用户的值（紧急开关）；否则作为未设置值的组织的默认值。",
+    "none": "尚未为所有组织设置任何值。",
+    "enforced": "强制",
+    "notEnforced": "组织的默认值",
+    "enforcedLabel": "强制（紧急开关）",
+    "enforcedHint": "覆盖所有组织、团队和用户的值。",
+    "save": "为所有组织保存",
+    "saved": "已为所有组织保存。",
+    "remove": "移除",
+    "removeTitle": "移除所有组织的值？",
+    "removeDescription": "将重新使用各组织自己的值或默认值。",
+    "removed": "已为所有组织移除。",
+    "rolloutOf": "发布 {{percent}}%"
   }
 }

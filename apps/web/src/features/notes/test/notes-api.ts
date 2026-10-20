@@ -161,6 +161,8 @@ export function useNotesApi(options: {
             schema: {},
             canEdit: false,
             canSetMine: false,
+            platform: null,
+            canEditPlatform: false,
           },
         ],
       }),
