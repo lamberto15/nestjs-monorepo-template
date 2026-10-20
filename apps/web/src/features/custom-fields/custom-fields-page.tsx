@@ -55,14 +55,15 @@ export function CustomFieldsPage() {
     ...customFieldSubjectsQuery(i18n.language),
     meta: { errorToast: false },
   });
-  if (subjects.isPending) {
-    return <Skeleton className="h-40 w-full max-w-4xl" aria-busy />;
-  }
-  if (subjects.isError) {
-    return (
+  // A failed refetch keeps the subjects already shown: the error is for
+  // when there is nothing to show.
+  if (!subjects.data) {
+    return subjects.isError ? (
       <p role="alert" className="text-sm text-destructive">
         {errorMessage(subjects.error)}
       </p>
+    ) : (
+      <Skeleton className="h-40 w-full max-w-4xl" aria-busy />
     );
   }
   // No feature takes custom fields: nothing to administer.

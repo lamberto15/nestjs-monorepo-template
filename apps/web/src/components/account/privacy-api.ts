@@ -37,13 +37,29 @@ export const ACCOUNT_EXPORTS_KEY = ['account', 'exports'] as const;
 
 const EXPORTS_PAGE = 5;
 
-const active = (items: { status: string }[]) =>
-  items.some((item) => item.status === 'queued' || item.status === 'running');
+/** A download link is valid 30 minutes from the answer: renewed before that. */
+const LINK_REFRESH_MS = 25 * 60 * 1000;
+
+/**
+ * When the list is asked again: every second while an export is with the
+ * worker, else about every 25 minutes while a finished one shows its link
+ * (so the link stays valid), else not at all.
+ */
+export function exportsRefreshInterval(
+  items: Pick<AccountExport, 'status' | 'result'>[],
+): number | false {
+  if (items.some((i) => i.status === 'queued' || i.status === 'running')) {
+    return 1000;
+  }
+  return items.some((i) => i.status === 'completed' && i.result?.url)
+    ? LINK_REFRESH_MS
+    : false;
+}
 
 /**
  * `GET /v1/account/exports`: the caller's account exports, newest first, by
  * cursor, each as a transfer (a finished one with its download link, valid 30
- * minutes from the answer). Polled while one is still with the worker; a
+ * minutes from the answer). Polled while one is still with the worker, and renewed while a link shows; a
  * finished one is kept 7 days (`expiresAt`), then no longer listed.
  */
 export const accountExportsQuery = infiniteQueryOptions({
@@ -62,9 +78,9 @@ export const accountExportsQuery = infiniteQueryOptions({
     ),
   getNextPageParam: (last) => last.nextCursor ?? undefined,
   refetchInterval: (query) =>
-    active(query.state.data?.pages.flatMap((page) => page.items) ?? [])
-      ? 1000
-      : false,
+    exportsRefreshInterval(
+      query.state.data?.pages.flatMap((page) => page.items) ?? [],
+    ),
 });
 
 /**

@@ -27,7 +27,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Section } from '@/components/account/section';
 import {
@@ -96,12 +96,15 @@ export function ExportSection() {
           {t('export.start')}
         </Button>
       </div>
-      {exports.isPending ? (
-        <Skeleton className="h-16 w-full" aria-busy />
-      ) : exports.isError ? (
-        <p role="alert" className="text-sm text-destructive">
-          {t('export.error')}
-        </p>
+      {/* A failed refetch keeps the exports already shown. */}
+      {!exports.data ? (
+        exports.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {t('export.error')}
+          </p>
+        ) : (
+          <Skeleton className="h-16 w-full" aria-busy />
+        )
       ) : items.length === 0 ? (
         <p role="status" className="text-sm text-muted-foreground">
           {t('export.empty')}
@@ -132,16 +135,31 @@ export function ExportSection() {
   );
 }
 
+/** Whether `time` has come, re-evaluated when it does (and when `time` changes). */
+function useIsPast(time: string | null | undefined) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!time) return;
+    const left = new Date(time).getTime() - Date.now();
+    // setTimeout holds at most 2^31 ms; a later time is re-checked then.
+    const id = setTimeout(
+      () => setNow(Date.now()),
+      Math.min(Math.max(left, 0), 2 ** 31 - 1),
+    );
+    return () => clearTimeout(id);
+  }, [time]);
+  return !!time && new Date(time).getTime() <= now;
+}
+
 /** One export: when it started, its state, and its file when it is ready. */
 function ExportRow(props: { item: AccountExport }) {
   const { t } = useTranslation('privacy');
   const { t: tt } = useTranslation('transfer');
   const format = useDateTimeFormat();
   const { item } = props;
-  // The API stops listing an export after `expiresAt`; one whose time came
-  // before this row was shown is still marked, without the link.
-  const [now] = useState(() => Date.now());
-  const expired = !!item.expiresAt && new Date(item.expiresAt).getTime() <= now;
+  // The API stops listing an export after `expiresAt`; a page left open past
+  // it marks the row, without the link, when its time comes.
+  const expired = useIsPast(item.expiresAt);
   return (
     <li className="flex flex-col gap-2 p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

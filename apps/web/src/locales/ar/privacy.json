@@ -7,12 +7,12 @@
     "description": "نسخة من كل ما هو محفوظ عنك: حسابك، ثم ما تحتفظ به عنك كل مؤسسة تنتمي إليها. يُنشأ الملف في الخلفية.",
     "start": "تصدير بياناتي",
     "startedAt": "بدأ {{date}}",
-    "kept": "Your account exports, from any device. A finished export is kept 7 days; its download link works 30 minutes, open this page again for a new one.",
-    "expiresAt": "Kept until {{date}}",
-    "expired": "Expired. Export again for a new file.",
-    "empty": "No exports yet.",
-    "error": "The exports could not be loaded.",
-    "listLabel": "Your exports"
+    "kept": "عمليات تصدير حسابك من أي جهاز. يُحفظ التصدير المكتمل 7 أيام؛ ورابط التنزيل صالح 30 دقيقة، افتح هذه الصفحة مجددًا للحصول على رابط جديد.",
+    "expiresAt": "يُحفظ حتى {{date}}",
+    "expired": "انتهت صلاحيته. صدّر مجددًا للحصول على ملف جديد.",
+    "empty": "لا توجد عمليات تصدير بعد.",
+    "error": "تعذّر تحميل عمليات التصدير.",
+    "listLabel": "عمليات التصدير الخاصة بك"
   },
   "consents": {
     "title": "الموافقات",

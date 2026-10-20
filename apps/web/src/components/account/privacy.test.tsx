@@ -2,6 +2,10 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  ACCOUNT_EXPORTS_KEY,
+  exportsRefreshInterval,
+} from '@/components/account/privacy-api';
 import { confirmsEmail } from '@/components/account/deletion-section';
 import { settleReauthentication } from '@/lib/reauth';
 import { meQuery } from '@/lib/session';
@@ -291,6 +295,59 @@ describe('the privacy page', () => {
     expect(
       await screen.findByText('The exports could not be loaded.'),
     ).toBeVisible();
+  });
+
+  it('keeps the exports shown when a later refresh fails', async () => {
+    useAccountApi({ exports: [exportItem()] });
+    const { queryClient } = await renderApp('/account/privacy');
+    expect(await screen.findByText('7 rows exported.')).toBeVisible();
+    server.use(http.get('/v1/account/exports', () => problem(500, 'internal')));
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ACCOUNT_EXPORTS_KEY }),
+    );
+    expect(screen.queryByText('The exports could not be loaded.')).toBeNull();
+    expect(screen.getByText('7 rows exported.')).toBeVisible();
+  });
+
+  it('marks a ready export expired when its time comes, without reloading', async () => {
+    useAccountApi({
+      exports: [
+        exportItem({ expiresAt: new Date(Date.now() + 1200).toISOString() }),
+      ],
+    });
+    await renderApp('/account/privacy');
+    expect(
+      await screen.findByRole('link', { name: 'Download (json)' }),
+    ).toBeVisible();
+    expect(
+      await screen.findByText(
+        'Expired. Export again for a new file.',
+        {},
+        { timeout: 4000 },
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Download (json)' })).toBeNull();
+  });
+
+  it('asks again every second while one runs, and before a link lapses while one shows', () => {
+    const done = {
+      status: 'completed' as const,
+      result: { rows: 1, url: 'https://x' },
+    };
+    expect(exportsRefreshInterval([done, { status: 'running' as const }])).toBe(
+      1000,
+    );
+    expect(exportsRefreshInterval([{ status: 'queued' as const }])).toBe(1000);
+    // The link is valid 30 minutes: renewed sooner.
+    const renewal = exportsRefreshInterval([done]);
+    expect(renewal).toBeGreaterThan(0);
+    expect(renewal).toBeLessThan(30 * 60 * 1000);
+    // Nothing to renew: failed, or finished without a link.
+    expect(exportsRefreshInterval([{ status: 'failed' as const }])).toBe(false);
+    expect(exportsRefreshInterval([{ status: 'completed' as const }])).toBe(
+      false,
+    );
+    expect(exportsRefreshInterval([])).toBe(false);
   });
 
   it('starts an export, then lists it with its progress and download', async () => {

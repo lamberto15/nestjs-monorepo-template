@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http } from 'msw/http';
 import { describe, expect, it } from 'vitest';
@@ -108,12 +108,39 @@ describe('the subjects', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  it('says so when no subject takes custom fields', async () => {
+  it('says so when no subject takes custom fields (the API answers 403)', async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [] });
+    server.use(
+      http.get('/v1/custom-fields/subjects', () => problem(403, 'forbidden')),
+    );
+    await renderApp('/custom-fields');
+    expect(
+      await screen.findByText('No records take custom fields yet.'),
+    ).toBeVisible();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('says so when the API lists no subject', async () => {
     useCustomFieldsApi({ can: ADMIN, fields: [], subjects: [] });
     await renderApp('/custom-fields');
     expect(
       await screen.findByText('No records take custom fields yet.'),
     ).toBeVisible();
+  });
+
+  it('keeps the page when a later refresh of the subjects fails', async () => {
+    useCustomFieldsApi({ can: ADMIN, fields: [field()] });
+    const { queryClient } = await renderApp('/custom-fields');
+    expect(await screen.findByText('Region')).toBeVisible();
+    server.use(
+      http.get('/v1/custom-fields/subjects', () => problem(500, 'internal')),
+    );
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['custom-field-subjects'] }),
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Records' })).toBeVisible();
+    expect(screen.getByText('Region')).toBeVisible();
   });
 });
 

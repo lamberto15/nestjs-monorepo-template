@@ -1,4 +1,8 @@
-import { unwrap, type GetResponse } from '@nestjs-monorepo-template/api-client';
+import {
+  isApiError,
+  unwrap,
+  type GetResponse,
+} from '@nestjs-monorepo-template/api-client';
 import {
   queryOptions,
   useMutation,
@@ -26,8 +30,16 @@ export type CustomFieldSubject =
 export const customFieldSubjectsQuery = (language: string) =>
   queryOptions({
     queryKey: ['custom-field-subjects', language],
-    queryFn: async () =>
-      (await unwrap(api.GET('/v1/custom-fields/subjects'))).items,
+    queryFn: async () => {
+      try {
+        return (await unwrap(api.GET('/v1/custom-fields/subjects'))).items;
+      } catch (error) {
+        // The API answers 403 when no subject takes fields (or none may be
+        // read): that is the empty list, not a failure.
+        if (isApiError(error) && error.status === 403) return [];
+        throw error;
+      }
+    },
   });
 
 /**
