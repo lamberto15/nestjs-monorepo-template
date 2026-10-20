@@ -89,7 +89,14 @@
       "title": "Verify your address",
       "description": "Enter the password you signed up with",
       "submit": "Verify",
-      "done": "{{email}} is verified. You can sign in now."
+      "done": "{{email}} is verified. You can sign in now.",
+      "banner": "Your address {{email}} is not verified yet. Open the link we emailed you.",
+      "resend": {
+        "button": "Resend the verification email",
+        "done": "Verification email sent. Check your mailbox.",
+        "limited": "Too many requests. Try again in about 15 minutes.",
+        "hint": "Lost the link, or it expired?"
+      }
     },
     "invitation": {
       "title": "Accept the invitation",
