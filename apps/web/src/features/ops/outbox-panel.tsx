@@ -79,6 +79,7 @@ export function OutboxPanel() {
         {canManage && stats.deadLetters > 0 && (
           <>
             <ConfirmButton
+              onOpen={() => void outbox.refetch()}
               title={t('outbox.requeueAllTitle')}
               description={t('outbox.requeueAllDescription', {
                 count: stats.deadLetters,
@@ -92,6 +93,7 @@ export function OutboxPanel() {
             </ConfirmButton>
             <ConfirmButton
               variant="destructive"
+              onOpen={() => void outbox.refetch()}
               title={t('outbox.purgeAllTitle')}
               description={t('outbox.purgeAllDescription', {
                 count: stats.deadLetters,

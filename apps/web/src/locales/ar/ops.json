@@ -62,14 +62,14 @@
     "requeueOneTitle": "Requeue this dead letter?",
     "requeueOneDescription": "The message for {{topic}} goes back to the outbox and is tried again.",
     "requeueAllTitle": "Requeue all dead letters?",
-    "requeueAllDescription": "All {{count}} dead letters go back to the outbox and are tried again.",
+    "requeueAllDescription": "All dead letters (currently {{count}}) go back to the outbox and are tried again.",
     "requeued_one": "{{count}} dead letter requeued.",
     "purge": "Purge",
     "purgeAll": "Purge all",
     "purgeOneTitle": "Delete this dead letter?",
     "purgeOneDescription": "The message for {{topic}} is deleted for good. It can't be requeued afterwards.",
     "purgeAllTitle": "Delete all dead letters?",
-    "purgeAllDescription": "All {{count}} dead letters are deleted for good. They can't be requeued afterwards.",
+    "purgeAllDescription": "All dead letters (currently {{count}}) are deleted for good. They can't be requeued afterwards.",
     "purged_one": "{{count}} dead letter deleted.",
     "requeued_zero": "{{count}} dead letters requeued.",
     "requeued_two": "{{count}} dead letters requeued.",
@@ -93,6 +93,7 @@
       "connecting": "Connecting",
       "open": "Live",
       "closed": "Disconnected"
-    }
+    },
+    "reconnect": "Reconnect"
   }
 }

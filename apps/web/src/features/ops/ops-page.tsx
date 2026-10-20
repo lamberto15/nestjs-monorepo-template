@@ -1,5 +1,6 @@
 import {
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
 } from '@nestjs-monorepo-template/ui/components/tabs';
@@ -35,10 +36,18 @@ export function OpsPage() {
             </TabsTrigger>
           ))}
         </TabsList>
+        {/* A panel of a tab left is unmounted (Base UI's default), so its
+            stream closes and its polling stops. */}
+        <TabsContent value="queues">
+          <QueuesPanel />
+        </TabsContent>
+        <TabsContent value="outbox">
+          <OutboxPanel />
+        </TabsContent>
+        <TabsContent value="events">
+          <EventsPanel />
+        </TabsContent>
       </Tabs>
-      {tab === 'queues' && <QueuesPanel />}
-      {tab === 'outbox' && <OutboxPanel />}
-      {tab === 'events' && <EventsPanel />}
     </div>
   );
 }

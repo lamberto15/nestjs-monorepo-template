@@ -2,34 +2,8 @@ import { Badge } from '@nestjs-monorepo-template/ui/components/badge';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useOpsEvents, type LogEntry } from './use-ops-events';
-
-/** A line of the log shows at most this much of an event's details. */
-const DETAIL_LIMIT = 300;
-
-/** What an event is about: its `type` (the outbox's, the workflow's…) when it has one. */
-function kindOf(event: LogEntry['event']): string {
-  for (const key of ['type', 'event', 'name', 'kind']) {
-    const value = event[key];
-    if (typeof value === 'string') {
-      return value;
-    }
-  }
-  return '';
-}
-
-/** The rest of the event as one line of text, cut short. */
-function detailOf(event: LogEntry['event']): string {
-  const { source: _source, at: _at, ...rest } = event;
-  const text = JSON.stringify(rest) ?? '';
-  return text.length > DETAIL_LIMIT ? `${text.slice(0, DETAIL_LIMIT)}…` : text;
-}
-
-const time = new Intl.DateTimeFormat(undefined, {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-});
+import { useDateTimeFormat } from '@/lib/date-time';
+import { useOpsEvents } from './use-ops-events';
 
 /**
  * Every engine's events as they happen. The stream is open while this
@@ -38,8 +12,11 @@ const time = new Intl.DateTimeFormat(undefined, {
  */
 export function EventsPanel() {
   const { t } = useTranslation('ops');
+  const format = useDateTimeFormat();
   const [live, setLive] = useState(true);
-  const { entries, status, clear } = useOpsEvents(live);
+  const { entries, status, clear, reconnect } = useOpsEvents(live);
+  // The browser gave up (a refusal, or the connection ended): only a new one helps.
+  const ended = live && status === 'closed';
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -52,9 +29,15 @@ export function EventsPanel() {
         <span className="flex-1 text-sm text-muted-foreground">
           {t('events.description', { count: entries.length })}
         </span>
-        <Button variant="outline" size="sm" onClick={() => setLive(!live)}>
-          {live ? t('events.pause') : t('events.resume')}
-        </Button>
+        {ended ? (
+          <Button variant="outline" size="sm" onClick={reconnect}>
+            {t('events.reconnect')}
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => setLive(!live)}>
+            {live ? t('events.pause') : t('events.resume')}
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -66,21 +49,22 @@ export function EventsPanel() {
       </div>
       {entries.length ? (
         <ol
-          className="max-h-[32rem] overflow-auto rounded-md border text-xs"
+          tabIndex={0}
+          className="max-h-[32rem] overflow-auto rounded-md border text-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           aria-label={t('events.log')}
         >
-          {entries.map(({ id, event }) => (
+          {entries.map((entry) => (
             <li
-              key={id}
+              key={entry.id}
               className="flex flex-wrap items-baseline gap-x-2 border-b px-3 py-1.5 last:border-b-0"
             >
               <time className="font-mono text-muted-foreground">
-                {time.format(event.at)}
+                {format(new Date(entry.at).toISOString(), 'time')}
               </time>
-              <Badge variant="secondary">{event.source}</Badge>
-              <span className="font-medium">{kindOf(event)}</span>
+              <Badge variant="secondary">{entry.source}</Badge>
+              <span className="font-medium">{entry.kind}</span>
               <span className="min-w-0 break-all font-mono text-muted-foreground">
-                {detailOf(event)}
+                {entry.detail}
               </span>
             </li>
           ))}

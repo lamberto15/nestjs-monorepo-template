@@ -4,7 +4,36 @@ import type { OpsEventData } from './types';
 /** The log keeps this many events, newest first: the browser's memory is not the API's. */
 export const MAX_EVENTS = 200;
 
-export type LogEntry = { id: number; event: OpsEventData };
+/** A line of the log, its texts made once when the event arrived. */
+export type LogEntry = {
+  id: number;
+  source: string;
+  /** Epoch ms. */
+  at: number;
+  /** What the event is about: its `type` (the outbox's, the workflow's…) when it has one. */
+  kind: string;
+  /** The rest of the event as one line of text, cut short. */
+  detail: string;
+};
+
+/** A line of the log shows at most this much of an event's details. */
+const DETAIL_LIMIT = 300;
+
+function kindOf(event: OpsEventData): string {
+  for (const key of ['type', 'event', 'name', 'kind']) {
+    const value = event[key];
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+  return '';
+}
+
+function detailOf(event: OpsEventData): string {
+  const { source: _source, at: _at, ...rest } = event;
+  const text = JSON.stringify(rest) ?? '';
+  return text.length > DETAIL_LIMIT ? `${text.slice(0, DETAIL_LIMIT)}…` : text;
+}
 export type StreamStatus = 'connecting' | 'open' | 'closed';
 
 /** `EventSource.CLOSED`: the browser gave up (a refusal, 401 or 403, included) and won't retry. */
@@ -23,6 +52,7 @@ const CLOSED = 2;
 export function useOpsEvents(live: boolean) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [state, setStatus] = useState<StreamStatus>('connecting');
+  const [attempt, setAttempt] = useState(0);
   const nextId = useRef(0);
 
   useEffect(() => {
@@ -41,7 +71,14 @@ export function useOpsEvents(live: boolean) {
       if (typeof event !== 'object' || event === null) {
         return;
       }
-      const entry = { id: nextId.current++, event: event as OpsEventData };
+      const data = event as OpsEventData;
+      const entry: LogEntry = {
+        id: nextId.current++,
+        source: typeof data.source === 'string' ? data.source : '',
+        at: typeof data.at === 'number' ? data.at : Date.now(),
+        kind: kindOf(data),
+        detail: detailOf(data),
+      };
       setEntries((current) => [entry, ...current].slice(0, MAX_EVENTS));
     };
     source.onerror = () =>
@@ -50,11 +87,13 @@ export function useOpsEvents(live: boolean) {
       source.close();
       setStatus('connecting'); // For the next connection.
     };
-  }, [live]);
+  }, [live, attempt]);
 
   // Not live (paused, or no EventSource in this browser): no connection.
   const status: StreamStatus =
     live && typeof EventSource !== 'undefined' ? state : 'closed';
   const clear = useCallback(() => setEntries([]), []);
-  return { entries, status, clear };
+  /** Opens the stream anew, after a refusal or a connection that ended. */
+  const reconnect = useCallback(() => setAttempt((n) => n + 1), []);
+  return { entries, status, clear, reconnect };
 }

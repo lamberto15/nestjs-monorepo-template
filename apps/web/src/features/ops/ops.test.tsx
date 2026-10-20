@@ -84,6 +84,7 @@ function api(
 ) {
   const state = {
     asked: 0,
+    outboxReads: 0,
     retried: [] as string[],
     requeued: [] as unknown[],
     purged: [] as unknown[],
@@ -118,6 +119,7 @@ function api(
     }),
     http.get('/v1/ops/outbox', () => {
       state.asked += 1;
+      state.outboxReads += 1;
       return HttpResponse.json({
         stats: {
           pending: 4,
@@ -205,6 +207,17 @@ describe('outbox', () => {
     expect(screen.getByText('mail.send')).toBeInTheDocument();
   });
 
+  it('reads the counts again when a for-all dialog opens', async () => {
+    const state = api();
+    await renderApp('/ops');
+    await openTab('Outbox');
+    await screen.findByText('orders.created');
+    const before = state.outboxReads;
+    await userEvent.click(screen.getByRole('button', { name: 'Purge all' }));
+    await screen.findByRole('alertdialog');
+    await waitFor(() => expect(state.outboxReads).toBeGreaterThan(before));
+  });
+
   it('requeues one dead letter by id', async () => {
     const state = api();
     await renderApp('/ops');
@@ -228,7 +241,9 @@ describe('outbox', () => {
     );
     let dialog = await screen.findByRole('alertdialog');
     expect(
-      within(dialog).getByText(/All 2 dead letters are deleted for good/),
+      within(dialog).getByText(
+        /All dead letters \(currently 2\) are deleted for good/,
+      ),
     ).toBeVisible();
     await userEvent.click(
       within(dialog).getByRole('button', { name: 'Cancel' }),
@@ -346,6 +361,33 @@ describe('live events', () => {
     act(() => stream.fail(2));
     expect(screen.getByTestId('stream-status')).toHaveTextContent(
       'Disconnected',
+    );
+  });
+
+  it('offers a new connection once the browser has given up', async () => {
+    const stream = await openEvents();
+    act(() => stream.open());
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+    act(() => stream.fail(2));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Reconnect' }),
+    );
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+    const next = FakeEventSource.instances[1]!;
+    expect(stream.closed).toBe(true);
+    act(() => next.open());
+    expect(screen.getByTestId('stream-status')).toHaveTextContent('Live');
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeVisible();
+  });
+
+  it('exposes the tab panel and a focusable log', async () => {
+    const stream = await openEvents();
+    act(() => stream.send({ source: 'mail', at: Date.now(), type: 'sent' }));
+    expect(screen.getByRole('tabpanel')).toBeVisible();
+    expect(screen.getByRole('list', { name: 'Live events' })).toHaveAttribute(
+      'tabindex',
+      '0',
     );
   });
 
