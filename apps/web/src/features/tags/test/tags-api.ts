@@ -35,11 +35,19 @@ export function useTagsApi(options: { can: string[]; tags?: Tag[] }) {
   useSignedIn(options.can);
   server.use(
     http.get('/v1/tags', ({ request }) => {
-      const subject = new URL(request.url).searchParams.get('subject');
+      const url = new URL(request.url);
+      const subject = url.searchParams.get('subject');
       calls.reads.push(subject);
+      // The API's cursor pages, by name; the cursor here is an offset.
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+      const start = Number(url.searchParams.get('cursor') ?? 0);
+      const rows = tags
+        .filter((t) => !subject || t.subject === subject)
+        .toSorted((x, y) => x.name.localeCompare(y.name));
+      const end = start + limit;
       return HttpResponse.json({
-        items: tags.filter((t) => !subject || t.subject === subject),
-        nextCursor: null,
+        items: rows.slice(start, end),
+        nextCursor: end < rows.length ? String(end) : null,
       });
     }),
     http.patch('/v1/tags/:id', async ({ params, request }) => {

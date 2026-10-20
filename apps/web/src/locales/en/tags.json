@@ -7,6 +7,8 @@
   "search": "Search by name",
   "none": "No tags yet. Tag a record to create the first.",
   "noMatch": "No tag matches.",
+  "truncated": "Showing the first {{n}} tags of this subject.",
+  "truncatedAll": "Showing the first {{n}} tags; filter by subject to see the rest.",
   "columns": {
     "tag": "Tag",
     "subject": "Records",

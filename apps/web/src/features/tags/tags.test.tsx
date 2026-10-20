@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { nav, visibleGroups } from '@/nav';
 import { renderApp } from '@/test/render-app';
 import { findToast } from '@/test/toast';
-import { useTagsApi } from './test/tags-api';
+import { tag, useTagsApi } from './test/tags-api';
 
 const ADMIN = ['Access.manageTags'];
 
@@ -69,6 +69,75 @@ describe('the list', () => {
     useTagsApi({ can: ADMIN, tags: [] });
     await renderApp('/tags');
     expect(await screen.findByText(/No tags yet/)).toBeVisible();
+  });
+});
+
+describe('many tags', () => {
+  const bulk = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      tag({
+        id: `a${i}`,
+        subject: 'Alpha',
+        name: `a${String(i).padStart(4, '0')}`,
+        color: null,
+        description: null,
+      }),
+    );
+  const beta = [1, 2, 3].map((n) =>
+    tag({ id: `b${n}`, subject: 'Beta', name: `0-beta-${n}` }),
+  );
+
+  it('says when all subjects are cut at 1000, and reads a chosen subject on its own', async () => {
+    const { calls } = useTagsApi({
+      can: ADMIN,
+      tags: [...bulk(1000), ...beta],
+    });
+    const user = userEvent.setup();
+    await renderApp('/tags');
+    expect(
+      await screen.findByText(
+        'Showing the first 1000 tags; filter by subject to see the rest.',
+      ),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole('combobox', { name: 'Records' }));
+    await user.click(await screen.findByRole('option', { name: 'Beta' }));
+    expect(await screen.findByText('0-beta-3')).toBeVisible();
+    // Asked of the API by subject, not cut out of the first 1000.
+    expect(calls.reads).toContain('Beta');
+    expect(screen.queryByText(/Showing the first/)).toBeNull();
+  });
+
+  it('shows no notice under 1000 tags', async () => {
+    useTagsApi({ can: ADMIN });
+    await renderApp('/tags');
+    await rowOf('Urgent');
+    expect(screen.queryByText(/Showing the first/)).toBeNull();
+  });
+});
+
+describe('the subject filter', () => {
+  it('goes back to all subjects when the chosen one has no tag left', async () => {
+    const { calls } = useTagsApi({ can: ADMIN });
+    const user = userEvent.setup();
+    await renderApp('/tags');
+    await user.click(await screen.findByRole('combobox', { name: 'Records' }));
+    await user.click(await screen.findByRole('option', { name: 'Invoice' }));
+    expect(screen.queryByText('Urgent')).toBeNull();
+    await user.click(
+      await screen.findByRole('button', { name: 'Delete Overdue' }),
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Delete tag',
+      }),
+    );
+    await waitFor(() => expect(calls.deleted).toEqual(['t3']));
+    // Not an empty "Invoice" list: the filter is all again.
+    expect(await rowOf('Urgent')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Records' })).toHaveTextContent(
+      'All records',
+    );
   });
 });
 
@@ -161,6 +230,44 @@ describe('recolouring', () => {
     fireEvent.change(within(dialog).getByLabelText('Hex color value'), {
       target: { value: '#00ff00' },
     });
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.patched).toHaveLength(1));
+    expect(calls.patched[0]).toEqual({ id: 't1', body: { color: '#00ff00' } });
+  });
+
+  it('lets the hex be typed, and keeps it while it is partial', async () => {
+    const { calls } = useTagsApi({ can: ADMIN });
+    const user = userEvent.setup();
+    await renderApp('/tags');
+    await user.click(
+      await screen.findByRole('button', { name: 'Edit Urgent' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const hex = within(dialog).getByLabelText('Hex color value');
+    await user.clear(hex);
+    await user.type(hex, '#00f');
+    // Partial: shown as typed, nothing committed yet.
+    expect(hex).toHaveValue('#00f');
+    await user.type(hex, 'f00');
+    expect(hex).toHaveValue('#00ff00');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.patched).toHaveLength(1));
+    expect(calls.patched[0]).toEqual({ id: 't1', body: { color: '#00ff00' } });
+  });
+
+  it('expands a short hex when the field is left', async () => {
+    const { calls } = useTagsApi({ can: ADMIN });
+    const user = userEvent.setup();
+    await renderApp('/tags');
+    await user.click(
+      await screen.findByRole('button', { name: 'Edit Urgent' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const hex = within(dialog).getByLabelText('Hex color value');
+    await user.clear(hex);
+    await user.type(hex, '#0f0');
+    await user.tab();
+    expect(hex).toHaveValue('#00ff00');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(calls.patched).toHaveLength(1));
     expect(calls.patched[0]).toEqual({ id: 't1', body: { color: '#00ff00' } });

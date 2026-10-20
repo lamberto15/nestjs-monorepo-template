@@ -1338,16 +1338,43 @@ function HexInput(props: FormatInputProps) {
   const hexValue = rgbToHex(color);
   const alphaValue = Math.round((color?.a ?? 1) * 100);
 
+  // What the user is typing, kept until the colour changes from outside (the
+  // area, the sliders) or the field is left: a partial "#ff" is not a colour,
+  // and showing only the committed colour made the field impossible to type
+  // in. Local change to the generated file (Dice UI controls the input).
+  const [draft, setDraft] = React.useState<{
+    text: string;
+    hex: string;
+  } | null>(null);
+  const shown = draft && draft.hex === hexValue ? draft.text : hexValue;
+
   const onHexChange = React.useCallback(
     (event: React.ChangeEvent<InputElement>) => {
       const value = event.target.value;
-      const parsedColor = parseColorString(value);
-      if (parsedColor) {
-        onColorChange({ ...parsedColor, a: color?.a ?? 1 });
+      // Only a whole #rrggbb commits while typing (the parser also takes
+      // "#fff", which would commit black half-way through "#ff0000").
+      if (/^#[a-f\d]{6}$/i.test(value.trim())) {
+        const parsedColor = parseColorString(value);
+        if (parsedColor) {
+          const next = { ...parsedColor, a: color?.a ?? 1 };
+          setDraft({ text: value, hex: rgbToHex(next) });
+          onColorChange(next);
+          return;
+        }
       }
+      setDraft({ text: value, hex: hexValue });
     },
-    [color, onColorChange],
+    [color, hexValue, onColorChange],
   );
+
+  const onHexBlur = React.useCallback(() => {
+    const short = /^#([a-f\d])([a-f\d])([a-f\d])$/i.exec(shown.trim());
+    if (short) {
+      const expanded = `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`;
+      onColorChange({ ...hexToRgb(expanded), a: color?.a ?? 1 });
+    }
+    setDraft(null);
+  }, [color, onColorChange, shown]);
 
   const onAlphaChange = React.useCallback(
     (event: React.ChangeEvent<InputElement>) => {
@@ -1367,8 +1394,9 @@ function HexInput(props: FormatInputProps) {
         {...inputProps}
         placeholder="#000000"
         className={cn("font-mono", className)}
-        value={hexValue}
+        value={shown}
         onChange={onHexChange}
+        onBlur={onHexBlur}
         disabled={context.disabled}
       />
     );
@@ -1385,8 +1413,9 @@ function HexInput(props: FormatInputProps) {
         {...inputProps}
         placeholder="#000000"
         className="flex-1 font-mono"
-        value={hexValue}
+        value={shown}
         onChange={onHexChange}
+        onBlur={onHexBlur}
         disabled={context.disabled}
       />
       <InputGroupItem

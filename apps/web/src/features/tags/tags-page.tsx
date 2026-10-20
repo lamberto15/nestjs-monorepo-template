@@ -28,7 +28,13 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { formatDateTime } from '@/lib/date-time';
 import { errorMessage } from '@/lib/errors';
-import { allTagsQuery, TagBadge, type Tag } from '@/lib/tags';
+import {
+  allTagsQuery,
+  MAX_TAGS,
+  subjectTagsQuery,
+  TagBadge,
+  type Tag,
+} from '@/lib/tags';
 import { useDeleteTag } from './api';
 import { TagDialog } from './tag-dialog';
 
@@ -43,18 +49,33 @@ const ALL = '*';
  */
 export function TagsPage() {
   const { t } = useTranslation('tags');
-  const tags = useQuery({ ...allTagsQuery, meta: { errorToast: false } });
+  // Every subject's tags give the subjects to choose from; a chosen subject is
+  // read on its own (`?subject=`), so a subject past the first MAX_TAGS tags
+  // of all is still complete.
+  const everything = useQuery({ ...allTagsQuery, meta: { errorToast: false } });
   const remove = useDeleteTag();
-  const [subject, setSubject] = useState(ALL);
+  const [chosen, setChosen] = useState(ALL);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Tag>();
   const [deleting, setDeleting] = useState<Tag>();
+  // Kept after the dialog closes, so its closing animation still has its text.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const all = tags.data ?? [];
-  const subjects = [...new Set(all.map((tag) => tag.subject))].toSorted();
+  const subjects = [
+    ...new Set((everything.data?.tags ?? []).map((tag) => tag.subject)),
+  ].toSorted();
+  // The chosen subject is gone when its last tag was deleted or renamed away:
+  // back to all, derived (no effect).
+  const subject = subjects.includes(chosen) ? chosen : ALL;
+  const ofSubject = useQuery({
+    ...subjectTagsQuery(subject),
+    enabled: subject !== ALL,
+    meta: { errorToast: false },
+  });
+  const tags = subject === ALL ? everything : ofSubject;
+  const all = tags.data?.tags ?? [];
   const needle = search.trim().toLowerCase();
   const shown = all
-    .filter((tag) => subject === ALL || tag.subject === subject)
     .filter((tag) => !needle || tag.name.toLowerCase().includes(needle))
     .toSorted(
       (a, b) =>
@@ -76,7 +97,7 @@ export function TagsPage() {
               ...subjects.map((s) => ({ value: s, label: s })),
             ]}
             value={subject}
-            onValueChange={(next) => next && setSubject(next)}
+            onValueChange={(next) => next && setChosen(next)}
           >
             <SelectTrigger id="tags-subject" className="w-full">
               <SelectValue />
@@ -106,6 +127,11 @@ export function TagsPage() {
       {tags.isError && (
         <p role="alert" className="text-sm text-destructive">
           {errorMessage(tags.error)}
+        </p>
+      )}
+      {tags.isSuccess && tags.data.truncated && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t(subject === ALL ? 'truncatedAll' : 'truncated', { n: MAX_TAGS })}
         </p>
       )}
       {tags.isSuccess &&
@@ -159,7 +185,10 @@ export function TagsPage() {
                           variant="outline"
                           size="sm"
                           aria-label={t('delete', { name: tag.name })}
-                          onClick={() => setDeleting(tag)}
+                          onClick={() => {
+                            setDeleting(tag);
+                            setConfirmingDelete(true);
+                          }}
                         >
                           <Trash2Icon />
                           {t('deleteButton')}
@@ -182,8 +211,8 @@ export function TagsPage() {
         />
       )}
       <ConfirmDialog
-        open={!!deleting}
-        onOpenChange={(open) => !open && setDeleting(undefined)}
+        open={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
         title={t('deleteTitle', { name: deleting?.name })}
         description={t('deleteDescription', {
           name: deleting?.name,
