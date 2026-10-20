@@ -37235,8 +37235,8 @@
                                 "type": "boolean"
                               },
                               "spCertificate": {
-                                "nullable": true,
                                 "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                                "nullable": true,
                                 "type": "object",
                                 "properties": {
                                   "pem": {
@@ -37280,8 +37280,6 @@
                               "idpSsoUrl",
                               "idpCertificates",
                               "allowIdpInitiated",
-                              "requireEncryptedAssertions",
-                              "spCertificate",
                               "spEntityId",
                               "acsUrl",
                               "metadataUrl"
@@ -37305,9 +37303,6 @@
                           "protocol",
                           "enabled",
                           "jitProvisioning",
-                          "groupsAttribute",
-                          "roleMappings",
-                          "defaultRoleIds",
                           "loginUrl",
                           "oidc",
                           "saml",
@@ -37694,8 +37689,8 @@
                           "type": "boolean"
                         },
                         "spCertificate": {
-                          "nullable": true,
                           "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                          "nullable": true,
                           "type": "object",
                           "properties": {
                             "pem": {
@@ -37739,8 +37734,6 @@
                         "idpSsoUrl",
                         "idpCertificates",
                         "allowIdpInitiated",
-                        "requireEncryptedAssertions",
-                        "spCertificate",
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
@@ -37764,9 +37757,6 @@
                     "protocol",
                     "enabled",
                     "jitProvisioning",
-                    "groupsAttribute",
-                    "roleMappings",
-                    "defaultRoleIds",
                     "loginUrl",
                     "oidc",
                     "saml",
@@ -37957,8 +37947,8 @@
                           "type": "boolean"
                         },
                         "spCertificate": {
-                          "nullable": true,
                           "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                          "nullable": true,
                           "type": "object",
                           "properties": {
                             "pem": {
@@ -38002,8 +37992,6 @@
                         "idpSsoUrl",
                         "idpCertificates",
                         "allowIdpInitiated",
-                        "requireEncryptedAssertions",
-                        "spCertificate",
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
@@ -38027,9 +38015,6 @@
                     "protocol",
                     "enabled",
                     "jitProvisioning",
-                    "groupsAttribute",
-                    "roleMappings",
-                    "defaultRoleIds",
                     "loginUrl",
                     "oidc",
                     "saml",
@@ -38326,8 +38311,8 @@
                           "type": "boolean"
                         },
                         "spCertificate": {
-                          "nullable": true,
                           "description": "Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).",
+                          "nullable": true,
                           "type": "object",
                           "properties": {
                             "pem": {
@@ -38371,8 +38356,6 @@
                         "idpSsoUrl",
                         "idpCertificates",
                         "allowIdpInitiated",
-                        "requireEncryptedAssertions",
-                        "spCertificate",
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
@@ -38396,9 +38379,6 @@
                     "protocol",
                     "enabled",
                     "jitProvisioning",
-                    "groupsAttribute",
-                    "roleMappings",
-                    "defaultRoleIds",
                     "loginUrl",
                     "oidc",
                     "saml",

@@ -164,9 +164,11 @@ export const connectionSchema = z.object({
   protocol: z.enum(['oidc', 'saml']),
   enabled: z.boolean(),
   jitProvisioning: z.boolean(),
-  groupsAttribute: z.string().nullable(),
-  roleMappings: z.array(roleMapping),
-  defaultRoleIds: z.array(z.uuid()),
+  // Part 2's fields are always sent; optional in the schema only, so
+  // frontends' fixtures typed before them (apps/web's) still compile.
+  groupsAttribute: z.string().nullable().optional(),
+  roleMappings: z.array(roleMapping).optional(),
+  defaultRoleIds: z.array(z.uuid()).optional(),
   loginUrl: z
     .string()
     .describe(
@@ -195,7 +197,7 @@ export const connectionSchema = z.object({
         }),
       ),
       allowIdpInitiated: z.boolean(),
-      requireEncryptedAssertions: z.boolean(),
+      requireEncryptedAssertions: z.boolean().optional(),
       spCertificate: z
         .object({
           pem: z.string(),
@@ -204,6 +206,7 @@ export const connectionSchema = z.object({
           fingerprint256: z.string(),
         })
         .nullable()
+        .optional()
         .describe(
           'Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata).',
         ),

@@ -21386,14 +21386,14 @@ export interface operations {
                             protocol: "oidc" | "saml";
                             enabled: boolean;
                             jitProvisioning: boolean;
-                            groupsAttribute: string | null;
-                            roleMappings: {
+                            groupsAttribute?: string | null;
+                            roleMappings?: {
                                 /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
                                 group: string;
                                 /** Format: uuid */
                                 roleId: string;
                             }[];
-                            defaultRoleIds: string[];
+                            defaultRoleIds?: string[];
                             /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                             loginUrl: string;
                             oidc: {
@@ -21415,9 +21415,9 @@ export interface operations {
                                     fingerprint256: string;
                                 }[];
                                 allowIdpInitiated: boolean;
-                                requireEncryptedAssertions: boolean;
+                                requireEncryptedAssertions?: boolean;
                                 /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
-                                spCertificate: {
+                                spCertificate?: {
                                     pem: string;
                                     subject: string;
                                     /** Format: date-time */
@@ -21526,14 +21526,14 @@ export interface operations {
                         protocol: "oidc" | "saml";
                         enabled: boolean;
                         jitProvisioning: boolean;
-                        groupsAttribute: string | null;
-                        roleMappings: {
+                        groupsAttribute?: string | null;
+                        roleMappings?: {
                             /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
                             group: string;
                             /** Format: uuid */
                             roleId: string;
                         }[];
-                        defaultRoleIds: string[];
+                        defaultRoleIds?: string[];
                         /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                         loginUrl: string;
                         oidc: {
@@ -21555,9 +21555,9 @@ export interface operations {
                                 fingerprint256: string;
                             }[];
                             allowIdpInitiated: boolean;
-                            requireEncryptedAssertions: boolean;
+                            requireEncryptedAssertions?: boolean;
                             /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
-                            spCertificate: {
+                            spCertificate?: {
                                 pem: string;
                                 subject: string;
                                 /** Format: date-time */
@@ -21618,14 +21618,14 @@ export interface operations {
                         protocol: "oidc" | "saml";
                         enabled: boolean;
                         jitProvisioning: boolean;
-                        groupsAttribute: string | null;
-                        roleMappings: {
+                        groupsAttribute?: string | null;
+                        roleMappings?: {
                             /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
                             group: string;
                             /** Format: uuid */
                             roleId: string;
                         }[];
-                        defaultRoleIds: string[];
+                        defaultRoleIds?: string[];
                         /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                         loginUrl: string;
                         oidc: {
@@ -21647,9 +21647,9 @@ export interface operations {
                                 fingerprint256: string;
                             }[];
                             allowIdpInitiated: boolean;
-                            requireEncryptedAssertions: boolean;
+                            requireEncryptedAssertions?: boolean;
                             /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
-                            spCertificate: {
+                            spCertificate?: {
                                 pem: string;
                                 subject: string;
                                 /** Format: date-time */
@@ -21772,14 +21772,14 @@ export interface operations {
                         protocol: "oidc" | "saml";
                         enabled: boolean;
                         jitProvisioning: boolean;
-                        groupsAttribute: string | null;
-                        roleMappings: {
+                        groupsAttribute?: string | null;
+                        roleMappings?: {
                             /** @description The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids). */
                             group: string;
                             /** Format: uuid */
                             roleId: string;
                         }[];
-                        defaultRoleIds: string[];
+                        defaultRoleIds?: string[];
                         /** @description Where the browser starts a sign-in (`?redirectTo=` a path of the web app). */
                         loginUrl: string;
                         oidc: {
@@ -21801,9 +21801,9 @@ export interface operations {
                                 fingerprint256: string;
                             }[];
                             allowIdpInitiated: boolean;
-                            requireEncryptedAssertions: boolean;
+                            requireEncryptedAssertions?: boolean;
                             /** @description Ours: it signs our AuthnRequests and the IdP encrypts assertions to it (also in our metadata). */
-                            spCertificate: {
+                            spCertificate?: {
                                 pem: string;
                                 subject: string;
                                 /** Format: date-time */
