@@ -56,8 +56,8 @@
     }
   },
   "breach": {
-    "banner": "The password you signed in with appears in a known data breach. Change it now, to one you use nowhere else.",
-    "action": "Change your password",
-    "settleFailed": "Your password was changed, but the breach alert could not be marked as read."
+    "banner": "你登录时使用的密码出现在已知的数据泄露中。请立即改成一个你没在别处使用过的密码。",
+    "action": "修改密码",
+    "settleFailed": "你的密码已修改，但无法将泄露提醒标记为已读。"
   }
 }

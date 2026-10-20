@@ -1,7 +1,7 @@
 {
   "nav": {
     "title": "الموافقات",
-    "policies": "Approval policies"
+    "policies": "سياسات الموافقة"
   },
   "inbox": {
     "title": "الموافقات",
@@ -60,28 +60,28 @@
     "commentRequiredLabel": "سبب الرفض",
     "commentRequired": "اذكر سبب الرفض.",
     "requestChanges": {
-      "title": "Request changes",
-      "button": "Request changes",
-      "submit": "Request changes",
-      "done": "Changes requested.",
-      "commentLabel": "What should change",
-      "commentRequired": "Say what should change.",
-      "hint": "The request goes back to the requester, who can change the record and resubmit it."
+      "title": "طلب تعديلات",
+      "button": "طلب تعديلات",
+      "submit": "طلب تعديلات",
+      "done": "تم طلب التعديلات.",
+      "commentLabel": "ما الذي يجب تغييره",
+      "commentRequired": "اذكر ما الذي يجب تغييره.",
+      "hint": "يعود الطلب إلى مقدّمه، الذي يمكنه تعديل السجل وإعادة تقديمه."
     },
     "resubmit": {
-      "title": "Resubmit for approval",
-      "button": "Resubmit",
-      "submit": "Resubmit",
-      "done": "Resubmitted.",
-      "hint": "A new round starts from the first stage, and the approvers are resolved again."
+      "title": "إعادة التقديم للموافقة",
+      "button": "إعادة التقديم",
+      "submit": "إعادة التقديم",
+      "done": "أُعيد التقديم.",
+      "hint": "تبدأ جولة جديدة من المرحلة الأولى، ويُحدَّد الموافقون من جديد."
     },
     "abandon": {
-      "title": "Abandon the request",
-      "button": "Abandon",
-      "submit": "Abandon",
-      "done": "Request abandoned.",
-      "commentLabel": "Reason (optional)",
-      "hint": "The request was approved but its outcome was never applied. Abandoning ends it as failed and unlocks the record. It is refused while the outcome is still being applied or retried."
+      "title": "التخلي عن الطلب",
+      "button": "التخلي",
+      "submit": "التخلي",
+      "done": "تم التخلي عن الطلب.",
+      "commentLabel": "السبب (اختياري)",
+      "hint": "وُوفق على الطلب لكن نتيجته لم تُطبَّق قط. التخلي عنه ينهيه كفاشل ويفتح قفل السجل. ويُرفض ما دامت النتيجة قيد التطبيق أو إعادة المحاولة."
     }
   },
   "conflict": {
@@ -194,134 +194,134 @@
     "details": "تفاصيل الموافقة"
   },
   "policies": {
-    "back": "Back to approval policies",
-    "title": "Approval policies",
-    "description": "The actions that can need approval, and who decides them. Changes apply to new requests; a running request keeps the policy it started with.",
-    "none": "No action needs approval.",
+    "back": "العودة إلى سياسات الموافقة",
+    "title": "سياسات الموافقة",
+    "description": "الإجراءات التي قد تحتاج إلى موافقة، ومن يبتّ فيها. تسري التغييرات على الطلبات الجديدة؛ ويحتفظ الطلب الجاري بالسياسة التي بدأ بها.",
+    "none": "لا إجراء يحتاج إلى موافقة.",
     "source": {
-      "code": "Default",
-      "override": "Customized (version {{version}})"
+      "code": "افتراضية",
+      "override": "مخصّصة (الإصدار {{version}})"
     },
-    "off": "Off",
-    "conditional": "Conditional",
-    "stagesSummary": "Stages: {{names}}",
-    "edit": "Edit",
-    "editLabel": "Edit {{label}}",
-    "setting": "Switched on per team by the setting",
-    "saved": "Policy saved.",
+    "off": "متوقفة",
+    "conditional": "مشروطة",
+    "stagesSummary": "المراحل: {{names}}",
+    "edit": "تعديل",
+    "editLabel": "تعديل {{label}}",
+    "setting": "تُفعَّل لكل فريق بواسطة الإعداد",
+    "saved": "حُفظت السياسة.",
     "notFound": {
-      "title": "Policy not found",
-      "description": "No action has this key."
+      "title": "السياسة غير موجودة",
+      "description": "لا إجراء بهذا المفتاح."
     },
     "error": {
-      "title": "Could not load the policy",
-      "generic": "Something went wrong.",
-      "retry": "Try again"
+      "title": "تعذّر تحميل السياسة",
+      "generic": "حدث خطأ ما.",
+      "retry": "حاول مرة أخرى"
     },
     "conflict": {
-      "title": "This policy changed",
-      "description": "Someone saved it since you opened it.",
-      "reload": "Reload"
+      "title": "تغيّرت هذه السياسة",
+      "description": "حفظها شخص آخر منذ أن فتحتها.",
+      "reload": "إعادة التحميل"
     },
-    "enabled": "Needs approval",
-    "enabledHint": "Off: the action needs no approval for anyone.",
-    "resubmitWithin": "Time to resubmit",
-    "resubmitWithinHint": "How long the requester has after changes were requested, before the request expires. 30m, 8h, 2d, 1w.",
-    "stages": "Stages",
-    "addStage": "Add a stage",
-    "save": "Save policy",
-    "remove": "Remove {{label}}",
-    "invalidJson": "Not valid JSON.",
+    "enabled": "تحتاج إلى موافقة",
+    "enabledHint": "متوقفة: لا يحتاج الإجراء إلى موافقة لأي أحد.",
+    "resubmitWithin": "مهلة إعادة التقديم",
+    "resubmitWithinHint": "المدة التي يملكها مقدّم الطلب بعد طلب التعديلات قبل أن ينتهي الطلب. 30m، 8h، 2d، 1w.",
+    "stages": "المراحل",
+    "addStage": "إضافة مرحلة",
+    "save": "حفظ السياسة",
+    "remove": "إزالة {{label}}",
+    "invalidJson": "JSON غير صالح.",
     "reset": {
-      "button": "Reset to default",
-      "title": "Reset {{label}} to the default?",
-      "description": "The policy goes back to the one declared in code, stored as a new version. Running requests keep their policy.",
-      "confirm": "Reset",
-      "done": "Policy reset."
+      "button": "إعادة الضبط إلى الافتراضي",
+      "title": "إعادة ضبط {{label}} إلى الافتراضي؟",
+      "description": "تعود السياسة إلى المعلنة في الشيفرة، وتُحفظ كإصدار جديد. تحتفظ الطلبات الجارية بسياستها.",
+      "confirm": "إعادة الضبط",
+      "done": "أُعيد ضبط السياسة."
     },
     "when": {
-      "title": "Condition",
-      "only": "Only when a condition holds",
-      "hint": "Otherwise every request needs approval.",
-      "fields": "Fields of the proposed change: {{fields}}.",
-      "condition": "Condition",
-      "inner": "Condition inside",
-      "item": "Condition {{n}}",
-      "add": "Add a condition"
+      "title": "الشرط",
+      "only": "فقط عند تحقق شرط",
+      "hint": "وإلا فكل طلب يحتاج إلى موافقة.",
+      "fields": "حقول التغيير المقترح: {{fields}}.",
+      "condition": "الشرط",
+      "inner": "الشرط الداخلي",
+      "item": "الشرط {{n}}",
+      "add": "إضافة شرط"
     },
     "stage": {
-      "label": "Stage {{n}}",
-      "up": "Move stage {{n}} up",
-      "down": "Move stage {{n}} down",
-      "remove": "Remove stage {{n}}",
-      "name": "Name",
-      "approvers": "Approvers",
-      "approversHint": "Everyone any of these rules names decides the stage, except the requester.",
-      "approver": "Approver",
-      "addApprover": "Add an approver rule",
-      "mode": "How the stage completes",
-      "remindAfter": "Remind after",
-      "dueAfter": "Overdue after",
-      "onOverdue": "When overdue",
+      "label": "المرحلة {{n}}",
+      "up": "نقل المرحلة {{n}} لأعلى",
+      "down": "نقل المرحلة {{n}} لأسفل",
+      "remove": "إزالة المرحلة {{n}}",
+      "name": "الاسم",
+      "approvers": "الموافقون",
+      "approversHint": "كل من تسميه إحدى هذه القواعد يبتّ في المرحلة، باستثناء مقدّم الطلب.",
+      "approver": "الموافق",
+      "addApprover": "إضافة قاعدة موافقين",
+      "mode": "كيف تكتمل المرحلة",
+      "remindAfter": "التذكير بعد",
+      "dueAfter": "التأخر بعد",
+      "onOverdue": "عند التأخر",
       "overdue": {
-        "expire": "Expire the request",
-        "escalate": "Escalate"
+        "expire": "إنهاء صلاحية الطلب",
+        "escalate": "التصعيد"
       },
-      "durationHint": "Durations: 30m, 8h, 2d, 1w. Leave empty for none.",
-      "escalateTo": "Escalate to",
-      "escalation": "Escalation approver",
-      "addEscalation": "Add an escalation rule",
-      "escalationDueAfter": "Expire after escalating, after"
+      "durationHint": "المدد: 30m، 8h، 2d، 1w. اتركه فارغًا لعدم التحديد.",
+      "escalateTo": "التصعيد إلى",
+      "escalation": "موافق التصعيد",
+      "addEscalation": "إضافة قاعدة تصعيد",
+      "escalationDueAfter": "انتهاء الصلاحية بعد التصعيد، بعد"
     },
     "params": {
-      "path": "Path",
-      "op": "Comparison",
-      "value": "Value",
-      "role": "Role",
-      "levelsUp": "Levels up",
-      "nearest": "Nearest with someone",
-      "action": "Permission",
-      "subject": "Subject",
-      "userIds": "Users (ids)",
-      "n": "Approvals needed"
+      "path": "المسار",
+      "op": "المقارنة",
+      "value": "القيمة",
+      "role": "الدور",
+      "levelsUp": "المستويات لأعلى",
+      "nearest": "الأقرب ممن فيه أحد",
+      "action": "الصلاحية",
+      "subject": "الموضوع",
+      "userIds": "المستخدمون (المعرّفات)",
+      "n": "الموافقات المطلوبة"
     },
     "paramHints": {
-      "path": "A dotted path into the proposed change: amount, lines.0.total.",
-      "value": "A number, text or true/false; a JSON list for in and notIn: [\"a\", \"b\"].",
-      "levelsUp": "0: the requester's own unit, 1: the unit above.",
-      "userIds": "Press Enter or comma after each id (GET /v1/people).",
-      "subject": "Optional: the record's own subject when empty."
+      "path": "مسار منقّط داخل التغيير المقترح: amount، lines.0.total.",
+      "value": "رقم أو نص أو true/false؛ وقائمة JSON لـ in وnotIn: [\"a\", \"b\"].",
+      "levelsUp": "0: وحدة مقدّم الطلب نفسه، 1: الوحدة التي فوقها.",
+      "userIds": "اضغط Enter أو الفاصلة بعد كل معرّف (GET /v1/people).",
+      "subject": "اختياري: موضوع السجل نفسه عند تركه فارغًا."
     },
     "enums": {
       "op": {
-        "eq": "equals",
-        "ne": "does not equal",
-        "gt": "is greater than",
-        "gte": "is at least",
-        "lt": "is less than",
-        "lte": "is at most",
-        "in": "is one of",
-        "notIn": "is none of",
-        "exists": "exists"
+        "eq": "يساوي",
+        "ne": "لا يساوي",
+        "gt": "أكبر من",
+        "gte": "لا يقل عن",
+        "lt": "أصغر من",
+        "lte": "لا يزيد على",
+        "in": "واحد من",
+        "notIn": "ليس أيًّا من",
+        "exists": "موجود"
       }
     },
     "types": {
       "rule": {
-        "role": "Users holding a role",
-        "teamRole": "Users holding a role in the requester's team, or above",
-        "permission": "Users who may do an action on the record",
-        "users": "Named users"
+        "role": "المستخدمون الذين لديهم دور",
+        "teamRole": "المستخدمون الذين لديهم دور في فريق مقدّم الطلب أو أعلى",
+        "permission": "المستخدمون المسموح لهم بإجراء على السجل",
+        "users": "مستخدمون محدّدون"
       },
       "mode": {
-        "any": "Any approver: the first decision decides",
-        "all": "All approvers",
-        "quorum": "A quorum of approvers"
+        "any": "أي موافق: القرار الأول هو الحاسم",
+        "all": "جميع الموافقين",
+        "quorum": "نصاب من الموافقين"
       },
       "condition": {
-        "all": "All of these conditions",
-        "any": "Any of these conditions",
-        "not": "Not this condition",
-        "payload": "A value of the proposed change"
+        "all": "جميع هذه الشروط",
+        "any": "أي من هذه الشروط",
+        "not": "ليس هذا الشرط",
+        "payload": "قيمة من التغيير المقترح"
       }
     }
   }

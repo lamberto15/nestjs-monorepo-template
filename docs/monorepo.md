@@ -179,7 +179,16 @@ web app needs the API, so `dev:web` alone suits an API already running.
 - **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
   `realtime` is on, reopened when the session changes (tenant switch,
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The
-  notifications are refetched on every reconnect.
+  notifications, the panels, the lists of transfers and bulk runs, the
+  approvals and the jobs still running are refetched on every reconnect.
+  Jobs follow their events (`data.export-ready`, `data.import-finished`,
+  `bulk.finished`, `approval.applied`: the query of that id is refetched,
+  others are left alone); `useLivePoll()` makes the poll a fallback: 1 s
+  (2 s in lists) without a connected socket (`useRealtimeConnected()`),
+  while one is up 5 s for a running job (no progress event yet) and 30 s
+  for a queued one (the API pushes no event when a job fails), and fast
+  again for a job whose event came but which the queue still reports
+  running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
 title …>` is a server-paginated, filterable, sortable list of any subject;
   its filters, sorts, custom-field columns and tag filter come from
@@ -230,8 +239,15 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
 `import.meta.glob` in `i18n.ts`). A feature's texts:
 `locales/<lng>/<feature>.json`, used with `useTranslation('<feature>')`;
 `common` is the default; `nav` holds the group titles. A key missing in a
-language falls back to `en`. `en` is complete; the others are copies of it
-until translated. `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
+language falls back to `en`. `en` is complete; `de` (formal "Sie"), `ar`
+(Modern Standard Arabic), `zh` (Simplified Chinese, informal "你") and `ms`
+are translated, and a native speaker should review them. Words that are
+loanwords in a language (Status, Team, Dashboard, Tag, Edit, Import, Format),
+product terms, codes and brand names stay as in `en`. The texts of a new
+feature (`pnpm feature:add`) start as English copies in every language: translate
+them in `locales/<lng>/<feature>.json` with the other new keys, keeping the
+`{{placeholders}}` and plural suffixes (`src/locales.test.ts` checks them; `ar`
+has all six plural forms). `<html lang>` and `dir` (`rtl` for `ar`) follow the language; the
 theme (light, dark, system) is a class on `<html>`.
 
 ### Components
@@ -290,9 +306,12 @@ fields value onChange errors />` is a typed input per field (the drafts and
   that changed, `null` for one emptied; the API's `custom.<key>` errors map back
   with `serverErrors`), and `<CustomFieldValues subject values />` the values as
   detail items. The notes form and page are the example. The admin page is
-  `features/custom-fields`: a feature that takes custom fields registers its
-  subject in `features/<feature>/custom-fields.ts` (default export), as the API has
-  no list of them yet.
+  `features/custom-fields`: its subject picker is
+  `GET /v1/custom-fields/subjects` (each subject named by the API in the UI's
+  language), so a feature that takes custom fields registers nothing in the
+  web app. The account data export on `/account/privacy` lists
+  `GET /v1/account/exports` (polled while one runs, refreshed after a
+  request), not a list kept in the browser.
 - **Record panels** (`components/records/panels/`): comments with
   @mentions, attachments, tags and revisions on a record's detail page. A
   feature mounts them with one element, each panel shown only when the

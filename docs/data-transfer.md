@@ -68,6 +68,12 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   docs/tenancy.md says), filed under `accounts/<user id>/transfers/`, and
   shown to that user in any tenant or none. Users only, never while
   impersonating.
+- **An internal exporter** (`internal: true`) starts only from its own
+  route, in code (`startExport(…, { internal: true })`): `POST
+  /v1/data/exports` answers 404 for it, the catalog and the scheduled
+  reports leave it out. The operators' tenant export is one
+  (`TenantTransfer`, `POST /v1/tenants/{id}/export`, which wants a recent
+  sign-in: [tenancy](tenancy.md), "Exporting a tenant").
 
 - A column marked `type: 'date'` (a day, `2026-10-15`) is a date cell in
   Excel, text in CSV and JSON; a date cell under a `date` column of the

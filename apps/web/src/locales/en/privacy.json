@@ -7,7 +7,12 @@
     "description": "A copy of everything held about you: your account, then what each organization you belong to holds about you. The file is made in the background.",
     "start": "Export my data",
     "startedAt": "Started {{date}}",
-    "kept": "The exports started in this browser. A finished export is kept 7 days; its download link works 30 minutes, open this page again for a new one."
+    "kept": "Your account exports, from any device. A finished export is kept 7 days; its download link works 30 minutes, open this page again for a new one.",
+    "expiresAt": "Kept until {{date}}",
+    "expired": "Expired. Export again for a new file.",
+    "empty": "No exports yet.",
+    "error": "The exports could not be loaded.",
+    "listLabel": "Your exports"
   },
   "consents": {
     "title": "Consents",

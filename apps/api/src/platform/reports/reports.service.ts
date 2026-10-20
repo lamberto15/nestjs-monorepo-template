@@ -477,7 +477,11 @@ export class ReportsService implements PersonalDataSource {
   /** Whether the owner may still run the report's export. */
   async mayRun(principal: RequestPrincipal, exporterName: string) {
     const exporter = this.registry.exporter(exporterName);
-    return !!exporter && (await this.transfers.mayExport(principal, exporter));
+    return (
+      !!exporter &&
+      !exporter.internal &&
+      (await this.transfers.mayExport(principal, exporter))
+    );
   }
 
   /**
@@ -491,7 +495,12 @@ export class ReportsService implements PersonalDataSource {
     filters: Record<string, string>,
   ) {
     const exporter = this.registry.exporter(exporterName);
-    if (!exporter || !(await this.transfers.mayExport(principal, exporter))) {
+    if (
+      !exporter ||
+      // Started only by its own route (the operators' tenant export).
+      exporter.internal ||
+      !(await this.transfers.mayExport(principal, exporter))
+    ) {
       throw invalid([
         {
           path: 'exporter',

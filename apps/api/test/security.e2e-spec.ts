@@ -1438,4 +1438,93 @@ describe('security (e2e)', () => {
     });
     send.mockRestore();
   });
+  describe("a tenant's export and deletion: operators only, after a step-up (#226)", () => {
+    /** Makes this browser's sign-in older than the step-up window. */
+    async function stale(agent: request.Agent) {
+      const current = (
+        (await agent.get('/v1/auth/sessions').expect(200)).body.items as {
+          id: string;
+          current: boolean;
+        }[]
+      ).find((item) => item.current)!;
+      await node.db
+        .update(sessions)
+        .set({
+          metadata: sql`${sessions.metadata} || ${JSON.stringify({
+            authenticatedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+          })}::jsonb`,
+        })
+        .where(eq(sessions.id, current.id));
+    }
+
+    it('refuses everyone but the operators, and the operators without a recent sign-in', async () => {
+      const other = await node.otherTenant();
+      const export_ = (agent: request.Agent, id = other.id) =>
+        agent
+          .post(`/v1/tenants/${id}/export`)
+          .set('Idempotency-Key', randomUUID())
+          .send({});
+      const deletion = (agent: request.Agent, id = other.id) =>
+        agent.post(`/v1/tenants/${id}/deletion`).send({ slug: other.slug });
+
+      // Another tenant's administrator, even of the tenant itself.
+      for (const send of [export_, deletion]) {
+        await send(other.admin)
+          .expect(403)
+          .expect(({ body }) => expect(body.code).toBe('operator_required'));
+      }
+      await other.admin.delete(`/v1/tenants/${other.id}/deletion`).expect(403);
+      // An operator-tenant member without manageTenants.
+      const editor = await node.user(['editor']);
+      await export_(editor.agent).expect(403);
+      await deletion(editor.agent).expect(403);
+      // An API client of the operator tenant: no sign-in to repeat, no permission.
+      const client = await node.client();
+      await node
+        .http()
+        .post(`/v1/tenants/${other.id}/deletion`)
+        .set('Authorization', client.auth)
+        .send({ slug: other.slug })
+        .expect(403);
+
+      // An operator whose sign-in is older than the window: re-authenticate first.
+      const operator = await node.user([
+        await role(['Access', 'manageTenants']),
+      ]);
+      await stale(operator.agent);
+      for (const send of [export_, deletion]) {
+        await send(operator.agent)
+          .expect(403)
+          .expect(({ body }) =>
+            expect(body.code).toBe('reauthentication_required'),
+          );
+      }
+      await operator.agent
+        .post('/v1/auth/reauthenticate')
+        .send({ password: operator.password })
+        .expect(200);
+      await export_(operator.agent).expect(202);
+      await deletion(operator.agent).expect(200);
+      // Nothing was erased in the request: the tenant is still there, deactivated.
+      const tenant = await node
+        .admin()
+        .get(`/v1/tenants/${other.id}`)
+        .expect(200);
+      expect(tenant.body).toMatchObject({ active: false });
+      expect(tenant.body.deletionScheduledFor).toEqual(expect.any(String));
+    });
+
+    it('never starts the tenant export through the generic routes', async () => {
+      const other = await node.otherTenant();
+      await node
+        .admin()
+        .post('/v1/data/exports')
+        .send({ name: 'tenant', filters: { tenantId: other.id } })
+        .expect(404);
+      const catalog = await node.admin().get('/v1/data').expect(200);
+      expect(
+        (catalog.body.exports as { name: string }[]).map((e) => e.name),
+      ).not.toContain('tenant');
+    });
+  });
 });

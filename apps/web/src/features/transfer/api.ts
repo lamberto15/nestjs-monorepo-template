@@ -25,16 +25,25 @@ export const catalogQuery = queryOptions({
   staleTime: 5 * 60 * 1000,
 });
 
-export const transferQuery = (id: string) =>
+/** Without realtime a running job is asked for this often (ms). */
+export const POLL = 1000;
+
+/** A job's poll, given the status last read (useLivePoll's `interval`). */
+export type JobPoll = (status: string | undefined) => number;
+
+export const transferQuery = (id: string, poll: JobPoll = () => POLL) =>
   queryOptions({
     queryKey: ['data', 'transfer', id],
     queryFn: () =>
       unwrap(api.GET('/v1/data/transfers/{id}', { params: { path: { id } } })),
-    // Polled while the worker has it (the realtime events are not needed for
-    // one job on screen); a finished transfer stays as it is.
+    // Polled while the worker has it (`poll`: useLivePoll slows it down
+    // while the socket is up, the events do the rest); a finished
+    // transfer stays as it is.
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === 'completed' || status === 'failed' ? false : 1000;
+      return status === 'completed' || status === 'failed'
+        ? false
+        : poll(status);
     },
   });
 
@@ -79,15 +88,23 @@ export type BulkRun = GetResponse<'/v1/bulk'>['items'][number];
 
 const PAGE = 20;
 
-const active = (items: { status: string }[]) =>
-  items.some((item) => item.status === 'queued' || item.status === 'running');
+/** The runs the worker still has. */
+const activeJobs = (items: { id: string; status: string }[]) =>
+  items.filter((item) => item.status === 'queued' || item.status === 'running');
+
+/** A list's poll: ms for the runs still with the worker (never, with none). */
+type ListPoll = (active: { id: string; status: string }[]) => number;
+const LIST_POLL: ListPoll = () => 2000;
 
 /**
  * The caller's exports and imports in this tenant, newest first, by cursor
  * (`GET /v1/data/transfers`, docs/data-transfer.md "The list"). Polled while
- * one of the shown is still with the worker.
+ * one of the shown is still with the worker (`poll`: see useLivePoll).
  */
-export const transfersListQuery = (kind?: TransferKind) =>
+export const transfersListQuery = (
+  kind?: TransferKind,
+  poll: ListPoll = LIST_POLL,
+) =>
   infiniteQueryOptions({
     queryKey: ['data', 'transfers', kind ?? 'all'],
     initialPageParam: undefined as string | undefined,
@@ -104,27 +121,32 @@ export const transfersListQuery = (kind?: TransferKind) =>
         }),
       ),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
-    refetchInterval: (query) =>
-      active(query.state.data?.pages.flatMap((page) => page.items) ?? [])
-        ? 2000
-        : false,
+    refetchInterval: (query) => {
+      const active = activeJobs(
+        query.state.data?.pages.flatMap((page) => page.items) ?? [],
+      );
+      return active.length > 0 ? poll(active) : false;
+    },
   });
 
 /** The caller's bulk runs handed to the workers (`GET /v1/bulk`), same paging. */
-export const bulkListQuery = infiniteQueryOptions({
-  queryKey: ['data', 'bulk-runs'],
-  initialPageParam: undefined as string | undefined,
-  queryFn: ({ pageParam }) =>
-    unwrap(
-      api.GET('/v1/bulk', {
-        params: {
-          query: { limit: PAGE, ...(pageParam && { cursor: pageParam }) },
-        },
-      }),
-    ),
-  getNextPageParam: (last) => last.nextCursor ?? undefined,
-  refetchInterval: (query) =>
-    active(query.state.data?.pages.flatMap((page) => page.items) ?? [])
-      ? 2000
-      : false,
-});
+export const bulkListQuery = (poll: ListPoll = LIST_POLL) =>
+  infiniteQueryOptions({
+    queryKey: ['data', 'bulk-runs'],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      unwrap(
+        api.GET('/v1/bulk', {
+          params: {
+            query: { limit: PAGE, ...(pageParam && { cursor: pageParam }) },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    refetchInterval: (query) => {
+      const active = activeJobs(
+        query.state.data?.pages.flatMap((page) => page.items) ?? [],
+      );
+      return active.length > 0 ? poll(active) : false;
+    },
+  });

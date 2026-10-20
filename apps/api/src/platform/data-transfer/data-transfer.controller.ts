@@ -201,7 +201,14 @@ export class DataTransferController {
     @CurrentUser() user: RequestPrincipal,
     @Body({ schema: exportSchema }) body: z.infer<typeof exportSchema>,
   ) {
-    return this.transfers.startExport(user, body);
+    // Field by field: nothing a client sends reaches the code-only options
+    // (`internal`, `tag`, `id`).
+    return this.transfers.startExport(user, {
+      name: body.name,
+      format: body.format,
+      filters: body.filters,
+      timezone: body.timezone,
+    });
   }
 
   @Post('imports')

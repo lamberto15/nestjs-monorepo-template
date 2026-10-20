@@ -52,9 +52,9 @@
       "confirmPassword": "Passwort bestätigen",
       "name": "Name",
       "nameRequired": "Geben Sie einen Namen ein.",
-      "tenantName": "Organization name",
-      "tenantNameHint": "Your new organization. You will be its administrator. Leave it empty to use your name.",
-      "tenantNameTooLong": "At most {{max}} characters."
+      "tenantName": "Name der Organisation",
+      "tenantNameHint": "Ihre neue Organisation. Sie werden ihr Administrator. Lassen Sie das Feld leer, um Ihren Namen zu verwenden.",
+      "tenantNameTooLong": "Höchstens {{max}} Zeichen."
     },
     "mfa": {
       "hint": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
@@ -93,14 +93,14 @@
       "description": "Geben Sie das Passwort ein, mit dem Sie sich registriert haben",
       "submit": "Bestätigen",
       "done": "{{email}} ist bestätigt. Sie können sich jetzt anmelden.",
-      "banner": "Your address {{email}} is not verified yet. Open the link we emailed you.",
+      "banner": "Ihre Adresse {{email}} ist noch nicht bestätigt. Öffnen Sie den Link, den wir Ihnen gemailt haben.",
       "resend": {
-        "button": "Resend the verification email",
-        "done": "Verification email sent. Check your mailbox.",
-        "limited": "Too many requests. Try again in about 15 minutes.",
-        "hint": "Lost the link, or it expired?",
-        "again": "Send the link again",
-        "sent": "If this address has an account waiting for confirmation, we sent a new link."
+        "button": "Bestätigungs-E-Mail erneut senden",
+        "done": "Bestätigungs-E-Mail gesendet. Prüfen Sie Ihr Postfach.",
+        "limited": "Zu viele Anfragen. Versuchen Sie es in etwa 15 Minuten erneut.",
+        "hint": "Link verloren oder abgelaufen?",
+        "again": "Link erneut senden",
+        "sent": "Wenn zu dieser Adresse ein Konto auf Bestätigung wartet, haben wir einen neuen Link gesendet."
       }
     },
     "invitation": {

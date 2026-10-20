@@ -37,37 +37,37 @@
     "done": "تم إنشاء المستأجر {{name}}. {{email}} هو مسؤوله الأول."
   },
   "detail": {
-    "back": "Back to tenants",
-    "created": "Created {{date}}",
-    "notFound": "This tenant does not exist.",
-    "saved": "Tenant {{name}} saved.",
+    "back": "العودة إلى المستأجرين",
+    "created": "أُنشئ في {{date}}",
+    "notFound": "هذا المستأجر غير موجود.",
+    "saved": "حُفظ المستأجر {{name}}.",
     "conflict": {
-      "title": "This tenant changed",
-      "description": "Another operator changed it since you opened it. Reload it to see the current values, then make your change again.",
-      "reload": "Reload"
+      "title": "تغيّر هذا المستأجر",
+      "description": "غيّره مشغّل آخر منذ أن فتحته. أعد تحميله لترى القيم الحالية، ثم أجرِ تغييرك من جديد.",
+      "reload": "إعادة التحميل"
     },
     "name": {
-      "title": "Name and slug",
-      "description": "The name is what people see. The slug is the tenant's short handle.",
-      "slugHint": "Lowercase letters, digits and single dashes. Anything that refers to the tenant by its slug must use the new one.",
-      "save": "Save"
+      "title": "الاسم والمعرّف",
+      "description": "الاسم هو ما يراه الناس. والمعرّف هو الاسم المختصر للمستأجر.",
+      "slugHint": "أحرف لاتينية صغيرة وأرقام وشرطات مفردة. كل ما يشير إلى المستأجر بمعرّفه يجب أن يستخدم الجديد.",
+      "save": "حفظ"
     },
     "state": {
-      "title": "Access",
-      "activeDescription": "The tenant is active. Deactivating ends its members' sessions and stops its API keys; nothing is deleted.",
-      "inactiveDescription": "The tenant is inactive: nobody can sign in to it and its API keys and jobs are stopped. Its data is kept.",
-      "operatorTenant": "This is the operator tenant. It is never deactivated: the operators would lock themselves out.",
-      "deactivate": "Deactivate",
-      "deactivateTitle": "Deactivate {{name}}?",
-      "deactivateDescription": "Its members are signed out of it, its API keys and invitations stop working, and its jobs are skipped. Nothing is deleted: reactivating gives everything back, but its members must sign in again.",
-      "deactivateConfirm": "Deactivate tenant",
-      "reactivate": "Reactivate",
-      "reactivateTitle": "Reactivate {{name}}?",
-      "reactivateDescription": "Its data, members and API keys are back. Its members sign in again.",
-      "reactivateConfirm": "Reactivate tenant",
-      "deactivated": "Tenant {{name}} deactivated.",
-      "reactivated": "Tenant {{name}} reactivated.",
-      "failed": "The change did not go through. Try again."
+      "title": "الوصول",
+      "activeDescription": "المستأجر نشط. التعطيل ينهي جلسات أعضائه ويوقف مفاتيح API الخاصة به؛ ولا يُحذف شيء.",
+      "inactiveDescription": "المستأجر غير نشط: لا يستطيع أحد تسجيل الدخول إليه، وتتوقف مفاتيح API والمهام الخاصة به. وتُحفظ بياناته.",
+      "operatorTenant": "هذا هو مستأجر المشغّلين. لا يُعطَّل أبدًا، وإلا حُرم المشغّلون من الدخول.",
+      "deactivate": "تعطيل",
+      "deactivateTitle": "تعطيل {{name}}؟",
+      "deactivateDescription": "يُسجَّل خروج أعضائه منه، وتتوقف مفاتيح API والدعوات الخاصة به، وتُتخطى مهامه. لا يُحذف شيء: إعادة التفعيل تعيد كل شيء، لكن على أعضائه تسجيل الدخول من جديد.",
+      "deactivateConfirm": "تعطيل المستأجر",
+      "reactivate": "إعادة التفعيل",
+      "reactivateTitle": "إعادة تفعيل {{name}}؟",
+      "reactivateDescription": "تعود بياناته وأعضاؤه ومفاتيح API الخاصة به. ويسجّل أعضاؤه الدخول من جديد.",
+      "reactivateConfirm": "إعادة تفعيل المستأجر",
+      "deactivated": "عُطِّل المستأجر {{name}}.",
+      "reactivated": "أُعيد تفعيل المستأجر {{name}}.",
+      "failed": "لم يتم التغيير. حاول مرة أخرى."
     }
   }
 }

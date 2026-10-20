@@ -9,10 +9,11 @@ import {
 } from '@nestjs-monorepo-template/ui/components/select';
 import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLivePoll, useRealtimeEvent } from '@/lib/realtime';
 import {
   bulkListQuery,
   transfersListQuery,
@@ -35,11 +36,26 @@ export function TransfersPage() {
   const showBulk = show === 'all' || show === 'bulk';
   const kind = show === 'export' || show === 'import' ? show : undefined;
 
+  // The ends come as events: the lists are refetched for the one that
+  // ended, and polled only without a connected socket (useLivePoll).
+  const queryClient = useQueryClient();
+  const poll = useLivePoll(2000);
   const transfers = useInfiniteQuery({
-    ...transfersListQuery(kind),
+    ...transfersListQuery(kind, poll.interval),
     enabled: showTransfers,
   });
-  const bulk = useInfiniteQuery({ ...bulkListQuery, enabled: showBulk });
+  const bulk = useInfiniteQuery({
+    ...bulkListQuery(poll.interval),
+    enabled: showBulk,
+  });
+  const ended = (event: { id: string }) => {
+    poll.push(event.id);
+    void queryClient.invalidateQueries({ queryKey: ['data', 'transfers'] });
+    void queryClient.invalidateQueries({ queryKey: ['data', 'bulk-runs'] });
+  };
+  useRealtimeEvent('data.export-ready', ended);
+  useRealtimeEvent('data.import-finished', ended);
+  useRealtimeEvent('bulk.finished', ended);
 
   const items = showTransfers
     ? (transfers.data?.pages.flatMap((page) => page.items) ?? [])

@@ -52,9 +52,9 @@
       "confirmPassword": "تأكيد كلمة المرور",
       "name": "الاسم",
       "nameRequired": "أدخل اسمًا.",
-      "tenantName": "Organization name",
-      "tenantNameHint": "Your new organization. You will be its administrator. Leave it empty to use your name.",
-      "tenantNameTooLong": "At most {{max}} characters."
+      "tenantName": "اسم المؤسسة",
+      "tenantNameHint": "مؤسستك الجديدة. ستكون مسؤولها. اتركه فارغًا لاستخدام اسمك.",
+      "tenantNameTooLong": "{{max}} حرفًا كحد أقصى."
     },
     "mfa": {
       "hint": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة.",
@@ -93,14 +93,14 @@
       "description": "أدخل كلمة المرور التي سجّلت بها",
       "submit": "توثيق",
       "done": "تم توثيق {{email}}. يمكنك تسجيل الدخول الآن.",
-      "banner": "Your address {{email}} is not verified yet. Open the link we emailed you.",
+      "banner": "عنوانك {{email}} لم يُؤكَّد بعد. افتح الرابط الذي أرسلناه إلى بريدك.",
       "resend": {
-        "button": "Resend the verification email",
-        "done": "Verification email sent. Check your mailbox.",
-        "limited": "Too many requests. Try again in about 15 minutes.",
-        "hint": "Lost the link, or it expired?",
-        "again": "Send the link again",
-        "sent": "If this address has an account waiting for confirmation, we sent a new link."
+        "button": "إعادة إرسال رسالة التأكيد",
+        "done": "أُرسلت رسالة التأكيد. تحقق من بريدك.",
+        "limited": "طلبات كثيرة جدًا. حاول مرة أخرى بعد نحو 15 دقيقة.",
+        "hint": "فقدت الرابط أو انتهت صلاحيته؟",
+        "again": "إرسال الرابط مرة أخرى",
+        "sent": "إذا كان لهذا العنوان حساب ينتظر التأكيد، فقد أرسلنا إليه رابطًا جديدًا."
       }
     },
     "invitation": {
