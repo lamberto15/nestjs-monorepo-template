@@ -79,6 +79,34 @@
       "description": "Every record of this tenant as one file, made in the background. The download link works for 30 minutes. Asks for a recent sign-in.",
       "start": "Export tenant data"
     },
+    "breakGlass": {
+      "title": "Break-glass",
+      "description": "Baca penyewa ini tanpa jemputannya, untuk kecemasan. Baca sahaja, selama-lamanya satu jam, tidak dilanjutkan. Pentadbir penyewa dimaklumkan serta-merta. Memerlukan log masuk terkini.",
+      "open": "Buka akses break-glass",
+      "none": "Anda belum membuka penyewa ini.",
+      "activeTitle": "Akses baca sahaja dibuka sehingga {{date}}",
+      "activeHint": "Selagi ia sah, permintaan GET dengan pengepala ini membaca penyewa dan tiada apa boleh ditulis di sana:",
+      "status": {
+        "active": "Aktif",
+        "ended": "Tamat",
+        "expired": "Luput"
+      },
+      "opened": "Dibuka {{date}}, sehingga {{until}}",
+      "end": "Tamatkan akses",
+      "endTitle": "Tamatkan akses break-glass?",
+      "endDescription": "Permintaan melalui geran ini berhenti serta-merta.",
+      "endConfirm": "Tamatkan akses",
+      "ended": "Akses break-glass telah ditamatkan.",
+      "started": "Akses baca sahaja ke {{name}} dibuka.",
+      "dialogTitle": "Break-glass untuk {{name}}",
+      "dialogDescription": "Anda akan membaca penyewa ini secara baca sahaja. Sebab anda disimpan dalam log audit kedua-dua penyewa dan dimaklumkan kepada pentadbirnya.",
+      "reason": "Sebab",
+      "reasonHint": "Insiden atau tiket, 10 hingga 1000 aksara.",
+      "reasonInvalid": "Beri sebab 10 hingga 1000 aksara.",
+      "minutes": "Minit (1 hingga {{max}})",
+      "minutesInvalid": "Masukkan bilangan minit bulat, 1 hingga 60.",
+      "submit": "Buka akses"
+    },
     "deletion": {
       "title": "Delete tenant",
       "description": "Deactivates the tenant now and erases all of its data after a grace period. Export it first if you need a copy.",
