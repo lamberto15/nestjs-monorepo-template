@@ -39,6 +39,7 @@ import {
   namingCounterSchema,
   namingSeriesPageSchema,
   namingSeriesSchema,
+  namingVariableListSchema,
   numberedSubjectListSchema,
   type PreviewNamingSeriesDto,
   previewNamingSeriesSchema,
@@ -81,19 +82,32 @@ export class NamingSeriesController {
   @ApiOperation({
     summary: 'The subjects whose records take a number',
     description:
-      'Each with the format it has in code (`declaredPattern`), which numbers it while it has no series.',
+      'Each with the format it has in code (`declaredPattern`), which numbers it while it has no series, and the fields its series may print (`{title}`), take their date from or test in conditions.',
   })
   @ApiOkResponse({ standardSchema: numberedSubjectListSchema })
   subjects() {
     return { items: this.series.subjects() };
   }
 
-  @Get('preview')
+  @Get('variables')
+  @Can.Anyone()
+  @ApiOperation({
+    summary: 'The variables patterns may print',
+    description:
+      "As Frappe's naming series variables: `FY` (the fiscal year), `ABBR` (the tenant's abbreviation), and any a feature declares. Written `.FY.` or `{FY}`.",
+  })
+  @ApiOkResponse({ standardSchema: namingVariableListSchema })
+  variables() {
+    return { items: this.series.variableList() };
+  }
+
+  @Post('preview')
+  @HttpCode(HttpStatus.OK)
   @Can(AccessPolicy, 'manageNamingSeries')
   @ApiOperation({
     summary: 'Preview a pattern',
     description:
-      'What the pattern would give now, before it is saved: its counter key, the last value taken under that key (shared with any series printing the same), the next number.',
+      'What the pattern would give now, before it is saved, for a record with `values` (its fields left out print as `{field}`): its counter key, the last value taken under that key (shared with any series printing the same), the next number.',
   })
   @ApiOkResponse({ standardSchema: namingCounterSchema })
   @ApiBadRequestResponse({
@@ -101,9 +115,9 @@ export class NamingSeriesController {
       'An invalid pattern, or a subject that takes no number (validation_failed).',
   })
   preview(
-    @Query({ schema: previewNamingSeriesSchema }) query: PreviewNamingSeriesDto,
+    @Body({ schema: previewNamingSeriesSchema }) dto: PreviewNamingSeriesDto,
   ) {
-    return this.series.preview(query.subject, query.pattern);
+    return this.series.preview(dto);
   }
 
   @Get(':id')
@@ -120,12 +134,12 @@ export class NamingSeriesController {
   @ApiOperation({
     summary: 'Create a naming series',
     description:
-      "For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. Audited (`namingSeries.created`).",
+      "For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. With `conditions`, it numbers the records they hold for (the first by `priority`). Audited (`namingSeries.created`).",
   })
   @ApiCreatedResponse({ standardSchema: namingSeriesSchema })
   @ApiBadRequestResponse({
     description:
-      'A subject that takes no number, an invalid pattern (validation_failed).',
+      'A subject that takes no number, an invalid pattern, date field or condition (validation_failed).',
   })
   @ApiConflictResponse({ description: 'The subject has this pattern.' })
   create(
@@ -141,7 +155,7 @@ export class NamingSeriesController {
   @ApiOperation({
     summary: 'Change a naming series',
     description:
-      'Its pattern, its label, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).',
+      'Its pattern, label, date field, conditions or priority, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).',
   })
   @ApiOkResponse({ standardSchema: namingSeriesSchema })
   @ApiBadRequestResponse({
@@ -181,7 +195,7 @@ export class NamingSeriesController {
   @ApiOperation({
     summary: "A naming series' counter now",
     description:
-      "This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number.",
+      "This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number. A pattern printing fields counts per value: they show as `{field}` here; POST /v1/naming-series/preview with `values` gives one value's.",
   })
   @ApiOkResponse({ standardSchema: namingCounterSchema })
   @ApiNotFoundResponse()
@@ -194,7 +208,7 @@ export class NamingSeriesController {
   @ApiOperation({
     summary: "Set a naming series' counter",
     description:
-      "Starts this period's counter at `current`: the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).",
+      "Starts this period's counter at `current` (with fields in the pattern, the counter of `values`): the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).",
   })
   @ApiOkResponse({ standardSchema: namingCounterSchema })
   @ApiBadRequestResponse({

@@ -41,6 +41,10 @@ export interface RealtimeEventPayloads {
   'document.ready': components['schemas']['RealtimeDocumentReadyEvent'];
   /** A document you asked for failed for good; `error` says why, for people. */
   'document.failed': components['schemas']['RealtimeDocumentFailedEvent'];
+  /** An AI run you asked for (`POST /v1/ai/runs`) finished: read the answer at `GET /v1/ai/runs/{id}`. */
+  'ai.ready': components['schemas']['RealtimeAiReadyEvent'];
+  /** An AI run you asked for failed for good; `error` says why, for people. */
+  'ai.failed': components['schemas']['RealtimeAiFailedEvent'];
   /** A comment on a record you watch (or one you wrote, for your other tabs) was added, edited or removed: ids only, fetch the thread. */
   'record.commented': components['schemas']['RealtimeRecordCommentedEvent'];
   /** A file on a record you watch was uploaded, removed or issued (a PDF): ids only. */

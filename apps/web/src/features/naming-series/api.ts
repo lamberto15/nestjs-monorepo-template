@@ -58,25 +58,55 @@ export function useSetCounter() {
   const refresh = useRefresh();
   return useMutation({
     meta: { errorToast: false },
-    mutationFn: (input: { id: string; current: number }) =>
+    mutationFn: (input: {
+      id: string;
+      current: number;
+      values?: Record<string, string | number | boolean>;
+    }) =>
       unwrap(
         api.PUT('/v1/naming-series/{id}/counter', {
           params: { path: { id: input.id } },
-          body: { current: input.current },
+          body: {
+            current: input.current,
+            ...(input.values && { values: input.values }),
+          },
         }),
       ),
     onSuccess: refresh,
   });
 }
 
-/** What a pattern would give next: the dialog's live preview. */
-export function previewQuery(subject: string, pattern: string) {
+/**
+ * What a pattern would give next (`POST /v1/naming-series/preview`): the
+ * dialog's live preview. `values` are a record's fields, for a pattern that
+ * prints some; those left out print as `{field}`.
+ */
+export function previewQuery(
+  subject: string,
+  pattern: string,
+  options: {
+    dateField?: string;
+    values?: Record<string, string | number | boolean>;
+  } = {},
+) {
   return {
-    queryKey: ['naming-series', 'preview', subject, pattern],
+    queryKey: [
+      'naming-series',
+      'preview',
+      subject,
+      pattern,
+      options.dateField ?? null,
+      options.values ?? null,
+    ],
     queryFn: () =>
       unwrap(
-        api.GET('/v1/naming-series/preview', {
-          params: { query: { subject, pattern } },
+        api.POST('/v1/naming-series/preview', {
+          body: {
+            subject,
+            pattern,
+            ...(options.dateField && { dateField: options.dateField }),
+            ...(options.values && { values: options.values }),
+          },
         }),
       ),
     meta: { errorToast: false },

@@ -81,6 +81,20 @@ export class AccessPolicy {
     return userOnly(user) && this.access.can(user, 'readAudit', 'Access');
   }
 
+  /**
+   * Read the tenants below the caller's in the tenant tree, read-only
+   * (TenantTree.consolidated(), docs/tenancy.md "The tenant tree"): a user,
+   * never while impersonating, nor an API client.
+   */
+  async readConsolidated(user: Principal | null) {
+    return manager(user) && this.access.can(user, 'readConsolidated', 'Access');
+  }
+
+  /** The audit log of the caller's tenant and the tenants below it. */
+  async readConsolidatedAudit(user: Principal | null) {
+    return (await this.readAudit(user)) && this.readConsolidated(user);
+  }
+
   /** Act as another user for a while (support): sessions only, never as an administrator. */
   async impersonate(user: Principal | null) {
     return (

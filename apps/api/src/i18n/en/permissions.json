@@ -12,6 +12,7 @@
       "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
       "manageViews": "Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)",
       "readAudit": "Read the audit log",
+      "readConsolidated": "Read the tenants below this one in its tenant tree, read-only (consolidated reports of a holding)",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
       "impersonate": "Act as another user (support), never as an administrator"
     }
@@ -168,6 +169,10 @@
     "platform-analytics": {
       "label": "Platform analytics",
       "description": "Counts tenants, users, memberships and API use across every tenant, withholds small groups, and stores only the aggregates the reporting role reads, every night."
+    },
+    "reencryption": {
+      "label": "Re-encryption",
+      "description": "Rewrites encrypted values and blind indexes still under an older key with the current one, in batches, every hour."
     },
     "demo-seed": {
       "label": "Demo seed",

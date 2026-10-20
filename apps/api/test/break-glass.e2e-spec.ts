@@ -64,6 +64,12 @@ describe('break-glass (e2e)', () => {
       .set('Break-Glass', grant)
       .expect(200);
     expect(me.body.tenant).toMatchObject({ id: other.id, operator: false });
+    // One tenant, never its subtree: no consolidated read through a grant.
+    await node
+      .admin()
+      .get('/v1/access/consolidated/tenants')
+      .set('Break-Glass', grant)
+      .expect(403);
     // The operators' routes stay theirs: not from inside the other tenant.
     await node.admin().get('/v1/tenants').set('Break-Glass', grant).expect(403);
 

@@ -1400,6 +1400,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ai/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the AI helper about a record
+         * @description Whoever may use the helper on the record (its source decides). Answers at once with the run id; a worker sends the record's fields you may read to the provider and keeps a structured answer for an hour. Follow it at GET /v1/ai/runs/{id}; your realtime connection hears `ai.ready { id, subject, recordId, task }` or `ai.failed { id, subject, recordId, error }`. Off until the tenant sets `ai.enabled`. Audited (ai.requested, ai.completed).
+         */
+        post: operations["AiController_request_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A run you asked for: its state, then the answer
+         * @description Only the principal who asked. `completed`: `output` is the answer in the task's shape (kept an hour, then null), with the model id and prompt version that produced it and the tokens used.
+         */
+        get: operations["AiController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tags": {
         parameters: {
             query?: never;
@@ -1463,7 +1503,7 @@ export interface paths {
         put?: never;
         /**
          * Create a naming series
-         * @description For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. Audited (`namingSeries.created`).
+         * @description For a subject whose records take a number (GET /v1/naming-series/subjects). A subject's first series becomes its default, taking over from the format in code; a pattern that prints what that format prints carries on its counter. With `conditions`, it numbers the records they hold for (the first by `priority`). Audited (`namingSeries.created`).
          */
         post: operations["NamingSeriesController_create_v1"];
         delete?: never;
@@ -1481,9 +1521,29 @@ export interface paths {
         };
         /**
          * The subjects whose records take a number
-         * @description Each with the format it has in code (`declaredPattern`), which numbers it while it has no series.
+         * @description Each with the format it has in code (`declaredPattern`), which numbers it while it has no series, and the fields its series may print (`{title}`), take their date from or test in conditions.
          */
         get: operations["NamingSeriesController_subjects_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/naming-series/variables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The variables patterns may print
+         * @description As Frappe's naming series variables: `FY` (the fiscal year), `ABBR` (the tenant's abbreviation), and any a feature declares. Written `.FY.` or `{FY}`.
+         */
+        get: operations["NamingSeriesController_variables_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1499,13 +1559,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Preview a pattern
-         * @description What the pattern would give now, before it is saved: its counter key, the last value taken under that key (shared with any series printing the same), the next number.
+         * @description What the pattern would give now, before it is saved, for a record with `values` (its fields left out print as `{field}`): its counter key, the last value taken under that key (shared with any series printing the same), the next number.
          */
-        get: operations["NamingSeriesController_preview_v1"];
-        put?: never;
-        post?: never;
+        post: operations["NamingSeriesController_preview_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1532,7 +1592,7 @@ export interface paths {
         head?: never;
         /**
          * Change a naming series
-         * @description Its pattern, its label, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).
+         * @description Its pattern, label, date field, conditions or priority, or `isDefault: true` to make it the default. Numbers already given stay as they are. Audited (`namingSeries.updated`).
          */
         patch: operations["NamingSeriesController_update_v1"];
         trace?: never;
@@ -1546,12 +1606,12 @@ export interface paths {
         };
         /**
          * A naming series' counter now
-         * @description This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number.
+         * @description This period's counter (this year's with `YYYY`, this month's with `MM`): its key, the last value taken, the next number. A pattern printing fields counts per value: they show as `{field}` here; POST /v1/naming-series/preview with `values` gives one value's.
          */
         get: operations["NamingSeriesController_counter_v1"];
         /**
          * Set a naming series' counter
-         * @description Starts this period's counter at `current`: the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).
+         * @description Starts this period's counter at `current` (with fields in the pattern, the counter of `values`): the next record gets `current + 1` (to continue numbers from another system). Never below the last value taken. Audited (`namingSeries.counterSet`, from → to).
          */
         put: operations["NamingSeriesController_setCounter_v1"];
         post?: never;
@@ -3088,6 +3148,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/consolidated/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenants below yours that a consolidated read spans
+         * @description Your tenant’s descendants in its tenant tree (docs/tenancy.md, "The tenant tree"), nearest first: the active ones with no deactivated tenant between yours and them, none whose deletion is pending. The operators place tenants in the tree (PATCH /v1/tenants/{id} `parentId`). Needs `Access.readConsolidated`; never while impersonating.
+         */
+        get: operations["AccessController_consolidatedTenants_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/consolidated/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audit log of your tenant and the tenants below it, newest first
+         * @description A consolidated read (docs/tenancy.md, "The tenant tree"): the entries of your tenant and of every tenant GET /v1/access/consolidated/tenants lists, each with its `tenantId`, read-only; filtered, sorted and paged as GET /v1/access/audit. `actorName` names your tenant’s members and clients; another tenant’s show their `actorLabel`. Audited (`tenant.consolidated-read`) in your tenant and in each tenant read. Needs `Access.readAudit` and `Access.readConsolidated`; never while impersonating.
+         */
+        get: operations["AccessController_consolidatedAuditLog_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/sign-ins": {
         parameters: {
             query?: never;
@@ -3243,7 +3343,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename a tenant, change its slug, (de)activate it (operators)
+         * Rename a tenant, change its slug, (de)activate it, move it in the tenant tree (operators)
          * @description Audited (`tenant.updated`) in your tenant and in that one. Deactivated (`active: false`): its sessions and token families end (its members sign in again, into another of their tenants), its API keys and invitations stop, a sign-in never starts in it, its realtime connections end, its jobs are skipped. Nothing else is deleted: `active: true` gives back its data, memberships and API keys. docs/tenancy.md, "Operators".
          */
         patch: operations["TenantsController_update_v1"];
@@ -3780,10 +3880,14 @@ export interface components {
             pattern: string;
             /** @example Invoices */
             label: string | null;
-            /** @description What a new record takes when its body names no series. */
+            /** @description What a new record takes when its body names no series and no series' conditions hold for it. */
             isDefault: boolean;
+            /** @example invoiceDate */
+            dateField: string | null;
+            conditions: components["schemas"]["NamingCondition"][];
+            priority: number;
             /**
-             * @description The number it gives next, if taken now.
+             * @description The number it gives next, if taken now; the fields it prints show as `{field}`.
              * @example INV-2026-10-00043
              */
             example: string;
@@ -3791,6 +3895,17 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        NamingCondition: {
+            /** @example region */
+            field: string;
+            /**
+             * @description Compared as numbers for number fields, as ISO dates for date fields, else as text.
+             * @enum {string}
+             */
+            op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+            /** @example EU */
+            value: string | number | boolean;
         };
         NumberedSubjectList: {
             items: components["schemas"]["NumberedSubject"][];
@@ -3803,6 +3918,21 @@ export interface components {
              * @example NOTE-.YYYY.-.#####
              */
             declaredPattern: string;
+            /** @description The fields a pattern may print (`{title}`; not `boolean` ones), a series take its date from (`date`, `datetime`) or its conditions test. */
+            fields: {
+                /** @example title */
+                name: string;
+                /** @enum {string} */
+                kind: "text" | "number" | "date" | "datetime" | "boolean";
+            }[];
+        };
+        NamingVariableList: {
+            items: components["schemas"]["NamingVariable"][];
+        };
+        NamingVariable: {
+            /** @example FY */
+            name: string;
+            description: string;
         };
         NamingCounter: {
             /**
@@ -3926,6 +4056,16 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             ip: string | null;
+        };
+        SubtreeTenant: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            name: string;
+            /** Format: uuid */
+            parentId: string | null;
+            /** @description How far below your tenant: 1 for a child. */
+            depth: number;
         };
         SignInPage: {
             items: components["schemas"]["SignInEntry"][];
@@ -4317,6 +4457,18 @@ export interface components {
             attachmentId: string;
         };
         RealtimeDocumentFailedEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            error: string;
+        };
+        RealtimeAiReadyEvent: {
+            id: string;
+            subject: string;
+            recordId: string;
+            task: string;
+        };
+        RealtimeAiFailedEvent: {
             id: string;
             subject: string;
             recordId: string;
@@ -10637,6 +10789,153 @@ export interface operations {
             };
         };
     };
+    AiController_request_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The kind of record: a name the features register (`note`).
+                     * @example note
+                     */
+                    source: string;
+                    /** Format: uuid */
+                    recordId: string;
+                    /**
+                     * @description `summarize` or `classify`; each has its own answer shape.
+                     * @enum {string}
+                     */
+                    task: "summarize" | "classify";
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not use it on this record, or the tenant has not turned it on (ai_disabled). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such kind of record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Yours is still running for this record and task (ai_pending). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 20 a minute from one user (rate_limited), or the tenant's daily token quota is used up (ai_quota_exceeded). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The helper is not set up on this server (ai_unavailable). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_status_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        source: string;
+                        subject: string;
+                        /** Format: uuid */
+                        recordId: string;
+                        task: string;
+                        /** @example v1 */
+                        promptVersion: string;
+                        /** @description The model id that answered (null until it did). */
+                        model: string | null;
+                        /**
+                         * @description queued → running → completed, or failed (then `error`).
+                         * @enum {string}
+                         */
+                        status: "queued" | "running" | "completed" | "failed";
+                        /** @description Once completed: the task's answer, validated against its schema. Kept for an hour; null after that (ask again). */
+                        output: {
+                            [key: string]: unknown;
+                        } | null;
+                        inputTokens: number;
+                        outputTokens: number;
+                        cached: boolean;
+                        /** @description Why it failed, written for people. */
+                        error: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TagsController_list_v1: {
         parameters: {
             query?: {
@@ -10918,7 +11217,7 @@ export interface operations {
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -pattern. Sortable: pattern, createdAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, example, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,pattern. Fields: id, subject, pattern, label, isDefault, dateField, conditions, priority, example, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -10967,13 +11266,22 @@ export interface operations {
                      */
                     subject: string;
                     /**
-                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.
                      * @example INV-.YYYY.-.MM.-.#####
                      */
                     pattern: string;
                     label?: string;
                     /** @description The subject's default from now on; its first series is. */
                     isDefault?: boolean;
+                    /**
+                     * @description A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.
+                     * @example invoiceDate
+                     */
+                    dateField?: string;
+                    /** @description All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series. */
+                    conditions?: components["schemas"]["NamingCondition"][];
+                    /** @description Higher first, among the series whose conditions hold. */
+                    priority?: number;
                 };
             };
         };
@@ -10986,7 +11294,7 @@ export interface operations {
                     "application/json": components["schemas"]["NamingSeries"];
                 };
             };
-            /** @description A subject that takes no number, an invalid pattern (validation_failed). */
+            /** @description A subject that takes no number, an invalid pattern, date field or condition (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11049,19 +11357,71 @@ export interface operations {
             };
         };
     };
-    NamingSeriesController_preview_v1: {
+    NamingSeriesController_variables_v1: {
         parameters: {
-            query: {
-                /** @description A subject whose records take a number (GET /v1/naming-series/subjects). */
-                subject: string;
-                /** @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`. */
-                pattern: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NamingVariableList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NamingSeriesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description A subject whose records take a number (GET /v1/naming-series/subjects).
+                     * @example Note
+                     */
+                    subject: string;
+                    /**
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.
+                     * @example INV-.YYYY.-.MM.-.#####
+                     */
+                    pattern: string;
+                    /**
+                     * @description A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.
+                     * @example invoiceDate
+                     */
+                    dateField?: string;
+                    /** @description A record's field values, as its create body takes them: the counter of the number such a record gets. Fields left out print as `{field}`. */
+                    values?: {
+                        [key: string]: string | number | boolean;
+                    };
+                };
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -11187,7 +11547,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /**
-                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD` (in the app time zone), and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`.
+                     * @description Parts between dots: text (`INV-`), date parts `YYYY`, `YY`, `MM`, `DD`, `JJJ` (day of the year), `WW` (ISO week), in the app time zone; variables (`FY`, `ABBR`: GET /v1/naming-series/variables); the record's own fields in braces (`{customer}`: GET /v1/naming-series/subjects); and one counter of `#` (its length the zero-padding). The counter restarts whenever what the pattern prints around it changes: each year with `YYYY`, each month with `MM`, each value of a field in it.
                      * @example INV-.YYYY.-.MM.-.#####
                      */
                     pattern?: string;
@@ -11197,6 +11557,15 @@ export interface operations {
                      * @enum {boolean}
                      */
                     isDefault?: true;
+                    /**
+                     * @description A date field of the record its date parts and FY are taken from (`invoiceDate`); the moment it is created when null, or when the record has none.
+                     * @example invoiceDate
+                     */
+                    dateField?: string | null;
+                    /** @description All must hold for a record whose body names no series to take this one (Frappe's Document Naming Rule); the first by priority wins, else the default series. */
+                    conditions?: components["schemas"]["NamingCondition"][];
+                    /** @description Higher first, among the series whose conditions hold. */
+                    priority?: number;
                 };
             };
         };
@@ -11303,6 +11672,10 @@ export interface operations {
                      * @example 1000
                      */
                     current: number;
+                    /** @description For a pattern printing fields: the field values whose counter is set (`{ customer: 'ACME' }`); each value has its own. */
+                    values?: {
+                        [key: string]: string | number | boolean;
+                    };
                 };
             };
         };
@@ -18909,6 +19282,125 @@ export interface operations {
             };
         };
     };
+    AccessController_consolidatedTenants_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SubtreeTenant"][];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_consolidatedAuditLog_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: action = */
+                action?: string;
+                /** @description Filter: action in */
+                "action.in"?: string;
+                /** @description Filter: action notIn */
+                "action.notIn"?: string;
+                /** @description Filter: action startsWith */
+                "action.startsWith"?: string;
+                /** @description Filter: actor = */
+                actor?: string;
+                /** @description Filter: actor in */
+                "actor.in"?: string;
+                /** @description Filter: actorLabel = */
+                actorLabel?: string;
+                /** @description Filter: actorLabel contains */
+                "actorLabel.contains"?: string;
+                /** @description Filter: actorLabel startsWith */
+                "actorLabel.startsWith"?: string;
+                /** @description Filter: targetType = */
+                targetType?: string;
+                /** @description Filter: targetType in */
+                "targetType.in"?: string;
+                /** @description Filter: targetType isNull */
+                "targetType.isNull"?: "true" | "false";
+                /** @description Filter: targetId = */
+                targetId?: string;
+                /** @description Filter: at gt */
+                "at.gt"?: string;
+                /** @description Filter: at gte */
+                "at.gte"?: string;
+                /** @description Filter: at lt */
+                "at.lt"?: string;
+                /** @description Filter: at lte */
+                "at.lte"?: string;
+                /** @description Filter: at between */
+                "at.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"action","op":"eq","value":…},{…}]}. Fields and operators: action (eq, in, notIn, startsWith); actor (eq, in); actorLabel (eq, contains, startsWith); targetType (eq, in, isNull); targetId (eq); at (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -action. Sortable: action, at. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,actor. Fields: id, at, actor, actorLabel, actorName, action, targetType, targetId, details, ip. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `consolidated_read_forbidden`: no `Access.readConsolidated`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccessController_signIns_v1: {
         parameters: {
             query?: {
@@ -19265,6 +19757,10 @@ export interface operations {
                 active?: "true" | "false";
                 /** @description Filter: operator = */
                 operator?: "true" | "false";
+                /** @description Filter: parentId = */
+                parentId?: string;
+                /** @description Filter: parentId isNull */
+                "parentId.isNull"?: "true" | "false";
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -19285,11 +19781,11 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"name","op":"eq","value":…},{…}]}. Fields and operators: name (eq, contains, startsWith); slug (eq, in, contains, startsWith); active (eq); operator (eq); parentId (eq, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
                 /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, slug, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: slug,name. Fields: id, slug, name, active, operator, parentId, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -19328,6 +19824,11 @@ export interface operations {
                              * @description The erase began: it can no longer be cancelled. Always sent.
                              */
                             deletionStartedAt?: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                             */
+                            parentId?: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -19375,6 +19876,11 @@ export interface operations {
                      * @description Its first administrator: an account at this address (made, and invited to choose a password, when there is none).
                      */
                     administratorEmail: string;
+                    /**
+                     * Format: uuid
+                     * @description Its parent in a holding’s tenant tree (never the operator tenant): members of the parent with `Access.readConsolidated` read it, read-only.
+                     */
+                    parentId?: string;
                 };
             };
         };
@@ -19408,6 +19914,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19436,7 +19947,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single). */
+            /** @description `parentId`: no such tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `single_tenant`: the deployment has its one tenant (TENANCY=single); `operator_tenant`: a `parentId` that is the operator tenant; `tenant_deletion_pending`: a `parentId` whose deletion is pending. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19488,6 +20006,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19530,6 +20053,11 @@ export interface operations {
                     slug?: string;
                     /** @description false: nobody acts in it (its sessions end, API keys stop, connections end, jobs are skipped); true: its data, members and API keys are back. Never for the operator tenant. */
                     active?: boolean;
+                    /**
+                     * Format: uuid
+                     * @description Places it under that tenant in the tenant tree (with everything below it); null makes it a root. Members of the parent with `Access.readConsolidated` then read it, read-only. Never the operator tenant, on either side; never under itself or one of its descendants (409 `tenant_tree_cycle`).
+                     */
+                    parentId?: string | null;
                 };
             };
         };
@@ -19563,6 +20091,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19583,7 +20116,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first). */
+            /** @description `tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated, nor in a tenant tree; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first), or a `parentId` whose deletion is pending; `tenant_tree_cycle`: a `parentId` that is this tenant or below it. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19646,6 +20179,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -19673,7 +20211,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `operator_tenant`: the operator tenant is never deleted. */
+            /** @description `operator_tenant`: the operator tenant is never deleted; `tenant_has_children`: it has children in the tenant tree (move them first). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19722,6 +20260,11 @@ export interface operations {
                          * @description The erase began: it can no longer be cancelled. Always sent.
                          */
                         deletionStartedAt?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description Its parent in a holding’s tenant tree (docs/tenancy.md, "The tenant tree"); null: a root. Always sent.
+                         */
+                        parentId?: string | null;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */

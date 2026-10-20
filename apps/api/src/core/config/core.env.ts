@@ -216,6 +216,20 @@ export const coreEnv = z.object({
    */
   CURSOR_KEYS: secret(optional()),
   /**
+   * Personal data at rest (docs/encryption.md): the keys of the encrypted
+   * columns, newest first, comma-separated (each `openssl rand -base64 32`).
+   * Never created by the app and never kept in the database: a key next to
+   * its ciphertext protects nothing in a backup. Required at boot once a
+   * column is declared encrypted.
+   */
+  DATA_ENCRYPTION_KEYS: secret(list()),
+  /**
+   * The keys of the encrypted columns' blind indexes (HMAC-SHA-256), newest
+   * first; none of DATA_ENCRYPTION_KEYS. Required at boot once a column
+   * declares a blind index.
+   */
+  BLIND_INDEX_KEYS: secret(list()),
+  /**
    * Prometheus' bearer token for GET /metrics (at least 16 characters);
    * unset, /metrics answers 404.
    */

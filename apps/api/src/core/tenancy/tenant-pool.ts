@@ -158,18 +158,10 @@ export class TenantPool extends pg.Pool {
       ) as never;
     }
     const text = textOf(config);
-    if (scope?.readOnly && scopeOpensTenants(scope)) {
-      // A read-only tenant scope (break-glass): every query in a READ ONLY
-      // transaction, a global table's too, so nothing the request runs
-      // writes anywhere (the `begin` below carries `set transaction read only`).
-      return inTransaction(
-        () => super.connect() as Promise<pg.PoolClient>,
-        config,
-        values,
-      ) as never;
-    }
-    if (tenantTablesIn(text, 'any').length === 0) {
-      // Global tables only: no settings to give, nothing to refuse.
+    if (tenantTablesIn(text, 'any').length === 0 && !scope?.readOnly) {
+      // Global tables only: no settings to give, nothing to refuse. A
+      // read-only scope (a consolidated read) takes the transaction below
+      // even so: `READ ONLY` holds for the global tables too.
       return (super.query as (...a: unknown[]) => never)(config, values);
     }
     if (!scopeOpensTenants(scope)) {

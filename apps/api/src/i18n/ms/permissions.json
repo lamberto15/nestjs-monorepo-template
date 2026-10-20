@@ -12,6 +12,7 @@
       "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
       "readAudit": "Baca log audit",
+      "readConsolidated": "Baca penyewa di bawah penyewa ini dalam pepohon penyewanya, baca sahaja (laporan disatukan sebuah syarikat induk)",
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
       "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir"
     }
@@ -168,6 +169,10 @@
     "platform-analytics": {
       "label": "Analitik platform",
       "description": "Mengira penyewa, pengguna, keahlian dan penggunaan API merentasi setiap penyewa, menahan kumpulan kecil, dan menyimpan hanya agregat yang dibaca oleh peranan pelaporan, setiap malam."
+    },
+    "reencryption": {
+      "label": "Penyulitan semula",
+      "description": "Menulis semula nilai tersulit dan indeks buta yang masih di bawah kunci lama dengan kunci semasa, secara berkelompok, setiap jam."
     },
     "demo-seed": {
       "label": "Data demo",

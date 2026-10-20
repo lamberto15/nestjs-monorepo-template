@@ -693,7 +693,9 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       'data-transfers',
       'bulk',
       'documents',
+      'ai',
       'mail-events',
+      'reencryption',
     ]);
   });
 });

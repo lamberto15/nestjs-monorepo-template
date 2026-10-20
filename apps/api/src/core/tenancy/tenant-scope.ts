@@ -8,7 +8,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { ClsServiceManager } from 'nestjs-cls';
-import { tenants } from './tenancy.tables.js';
+import { tenantClosure, tenants } from './tenancy.tables.js';
 
 /**
  * The tenant the current work runs for (docs/tenancy.md): what the pool
@@ -49,13 +49,37 @@ export const tenantScope = (tenantId: string): TenantScope =>
   });
 
 /**
+ * A consolidated read (docs/tenancy.md, "The tenant tree"): reads see
+ * `tenantId` and the descendants given, writes nothing (every transaction
+ * `READ ONLY`; the write policies take `tenantId` alone anyway). The
+ * descendants come from the tree (TenantTree.consolidated(), after its
+ * permission check); the read policies check them against the tree again.
+ */
+export const consolidatedScope = (
+  tenantId: string,
+  descendants: readonly string[],
+): TenantScope =>
+  Object.freeze({
+    tenantId: assertUuid(tenantId),
+    readTenants: Object.freeze([
+      tenantId,
+      ...descendants.filter((id) => assertUuid(id) !== tenantId),
+    ]),
+    bypass: false,
+    readOnly: true,
+  });
+
+/**
  * One tenant, read only: an operator's break-glass request
- * (docs/tenancy.md, "Break-glass"). Every transaction of it is `READ
- * ONLY`, the global tables' too (TenantPool): PostgreSQL refuses any
- * write (25006), whatever a route would do.
+ * (docs/tenancy.md, "Break-glass"). A consolidated read of that tenant
+ * alone (no descendants), so the one read-only mechanism applies:
+ * `app.tenant_id` and `app.read_tenants` are that tenant (the read
+ * policies' tree check passes on the tenant itself), and every
+ * transaction is `READ ONLY`, the global tables' too (TenantPool):
+ * PostgreSQL refuses any write (25006), whatever a route would do.
  */
 export const readOnlyTenantScope = (tenantId: string): TenantScope =>
-  Object.freeze({ ...tenantScope(tenantId), readOnly: true });
+  consolidatedScope(tenantId, []);
 
 /** No tenant: global tables only; a query on a tenant table is refused (TenantScopeMissingError). */
 export const NO_TENANT: TenantScope = Object.freeze({
@@ -207,6 +231,12 @@ const writeTenant = sql`(select nullif(current_setting('app.tenant_id', true), '
  * …))` alone would compare with each of its rows.
  */
 const readTenants = sql`(select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]`;
+/**
+ * The descendants of `app.tenant_id` in the tenant tree (`tenant_closure`),
+ * `{}` for a tenant with none (every tenant outside a holding): uncorrelated,
+ * so read once per statement (an InitPlan), as the settings are.
+ */
+const subtree = sql`array(select ${tenantClosure.descendantId} from ${tenantClosure} where ${tenantClosure.ancestorId} = ${writeTenant})`;
 
 /**
  * Who sees the rows without a tenant of a table whose `tenant_id` may be
@@ -224,7 +254,9 @@ export type NullRows = 'outside' | 'everywhere';
  * with a `tenant_id` has all of it, are the role bootstrap's
  * (core/database/roles.ts), as drizzle-kit emits no FORCE.
  *
- * Reads see the rows of `app.read_tenants`; writes go to `app.tenant_id`
+ * Reads see the rows of `app.read_tenants` that are `app.tenant_id`'s own
+ * or its descendants' in the tenant tree (`tenant_closure`: a consolidated
+ * read, roadmap 1b); writes go to `app.tenant_id`
  * alone (an update may not move a row to another tenant: its `WITH CHECK`
  * reads the same setting); a delete takes `app.tenant_id`'s rows. There
  * is no bypass clause: the worker's sweeps across tenants run as the
@@ -247,7 +279,12 @@ export function tenantPolicies(
       : nullable === 'outside'
         ? sql`(${column} is null and ${writeTenant} is null)`
         : undefined;
-  const read = sql`(${column} = any(${readTenants})${readNull ? sql` or ${readNull}` : sql``})`;
+  // A read tenant counts only when it is `app.tenant_id` or one of its
+  // descendants: a consolidated read (`app.read_tenants` widened to the
+  // subtree) never reaches a parent or a sibling, even when the setting
+  // names one (a bug, a forged value): the tree is the database's.
+  const own = sql`(${column} = ${writeTenant} or ${column} = any(${subtree}))`;
+  const read = sql`((${column} = any(${readTenants}) and ${own})${readNull ? sql` or ${readNull}` : sql``})`;
   const write = sql`(${column} = ${writeTenant})`;
   // Rows of no tenant are written where they are read: outside a tenant
   // (the audit log's), or anywhere (a person's own notifications, marked
@@ -257,16 +294,16 @@ export function tenantPolicies(
       ? sql`${column} is null`
       : sql`(${column} is null and ${writeTenant} is null)`;
   const nullableWrite = sql`(${column} = ${writeTenant} or ${writeNull})`;
-  const own = nullable ? nullableWrite : write;
+  const writes = nullable ? nullableWrite : write;
   return [
     pgPolicy(`${table}_tenant_select`, { for: 'select', using: read }),
-    pgPolicy(`${table}_tenant_insert`, { for: 'insert', withCheck: own }),
+    pgPolicy(`${table}_tenant_insert`, { for: 'insert', withCheck: writes }),
     pgPolicy(`${table}_tenant_update`, {
       for: 'update',
-      using: own,
-      withCheck: own,
+      using: writes,
+      withCheck: writes,
     }),
-    pgPolicy(`${table}_tenant_delete`, { for: 'delete', using: own }),
+    pgPolicy(`${table}_tenant_delete`, { for: 'delete', using: writes }),
   ];
 }
 

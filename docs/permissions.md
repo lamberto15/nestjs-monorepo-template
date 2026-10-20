@@ -186,6 +186,9 @@ session acts in. `Access.manageTenants` (the tenants: list, create, read,
 rename, deactivate) answers only in the operator tenant (`GET /v1/auth/me`'s
 `tenant.operator`), and so does `Platform.breakGlass` (reading another
 tenant read only, without its invitation: [tenancy](tenancy.md#break-glass)).
+`Access.readConsolidated` reads the tenants below the session's in its tenant
+tree, read-only (consolidated reports of a holding: [tenancy](tenancy.md),
+"The tenant tree"); users only, never while impersonating.
 
 - **Reading** the access API (`GET` of the catalog, roles, users, teams,
   API clients, principals; one role, user or client by id) takes any
