@@ -21,6 +21,7 @@ import { holds, useMe, type Permission } from '@/lib/features';
 import { FormAlert, useAppForm } from '@/lib/form';
 import { teamRefsQuery } from '@/lib/list-refs';
 import { usePeopleNames, useTeamNames } from '@/lib/people';
+import { PlatformEditor } from './platform-editor';
 import {
   fromDraft,
   overrideBody,
@@ -210,6 +211,7 @@ export function OverrideEditor({ setting }: { setting: Setting }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <PlatformEditor setting={setting} />
       <section aria-label={t('overrides')} className="flex flex-col gap-2">
         <h3 className="text-sm font-medium">{t('overrides')}</h3>
         {overrides.data?.length === 0 && (

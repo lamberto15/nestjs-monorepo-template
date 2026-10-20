@@ -64,8 +64,15 @@ An unset or empty setting matches no row: a connection without a tenant reads
 nothing and writes nothing. `FORCE ROW LEVEL SECURITY` (which drizzle-kit
 can't emit) is set by the role bootstrap (`core/database/roles.ts`, every
 migrate), which also refuses to finish when a table with a `tenant_id` lacks
-RLS, FORCE, or exactly its four policies (by name and command) with no other
-permissive one (the two global tables excepted: `core/tenancy/global-tables.ts`).
+RLS, FORCE, or exactly its declared policies with no other permissive one (the
+two global tables excepted: `core/tenancy/global-tables.ts`). Each policy is
+compared with its declaration (`tenantTable()`; the default four for a table
+the schema doesn't declare): its command, permissive, its roles, and its `USING`
+and `WITH CHECK` expressions. The expressions are compared as PostgreSQL
+normalizes them (`pg_get_expr()`, what `pg_policies` shows): the declared
+policies are created again on empty temporary copies of the tables, in a
+savepoint rolled back afterwards, and read back. Formatting can't fail the
+check; a policy edited by hand (`ALTER POLICY … USING (true)`) or drifted can.
 
 **Outside a transaction.** A query through the pool outside a transaction that
 names a tenant table, in a tenant's scope, runs in one of its own (`begin` with
@@ -242,7 +249,9 @@ Built in the platform code, never at call sites (`tenantKey()`):
   by that user in any tenant or none. It holds the account-level rows, then
   each tenant: an active membership's tenant gives what it holds about you; a
   tenant you left (an inactive membership) only what is personal (the
-  membership, the audit entries about you), never its business records.
+  membership, the audit entries about you), never its business records;
+  a deactivated tenant nothing but the membership row itself, whatever the
+  membership says (#220).
   The deletion job erases you in each tenant; a tenant that fails leaves the
   account open for the next night, and the others still run. While an
   administrator impersonates you, account-wide data stays hidden: your
@@ -293,7 +302,11 @@ a new address chooses its password, an existing account accepts signed in
 meant everywhere, made a route: a session or token in it stops (the
 principal resolves to nobody: 401), its API keys stop, its invitations
 can't be accepted, a sign-in never starts in it (it isn't among the user's
-tenants), its jobs and cron runs are skipped (retention still sweeps it).
+tenants), its jobs and cron runs are skipped (retention still sweeps it),
+a job queued before it was deactivated is refused when it runs
+(`stillActive()`: a user's membership and an API client both need the tenant
+active), and a member's account export takes nothing from it. A deactivated
+tenant exposes nothing.
 The route also ends, after the commit, what would outlive the check: every
 session and token family in that tenant (so reactivating never revives an
 old session: its members sign in again, and meanwhile into their other
@@ -509,7 +522,10 @@ export const invoices = pgTable(
 ).enableRLS();
 ```
 
-Then `pnpm db:generate`. Inserts leave `tenantId` out: the column takes the
+Then `pnpm db:generate`. Change a policy only there (the declaration, then
+`pnpm db:generate`), never by hand: every migrate compares each policy's
+command, roles and expressions with the declaration and stops on a difference
+("The wall", above). Inserts leave `tenantId` out: the column takes the
 scope's (and refuses without one); the `WITH CHECK` policy proves it. A
 composite key added to an **existing** table needs the referenced table's
 unique `(tenant_id, id)` first: drizzle-kit writes foreign keys before unique
@@ -529,7 +545,10 @@ disconnected with a membership), operators, and a cron job purging in two
 tenants under RLS. `tenant-pool.e2e-spec.ts`: the pool on one connection
 (the wrapper and the straight path, the refusal before a checkout, the
 settings forgotten at commit and rollback, the bypass as the maintenance
-role). `account-export.e2e-spec.ts`: a person's export with no tenant and
+role). `database-roles.e2e-spec.ts`, "the tenant wall": the migrate-time check
+refusing a policy with a tampered `USING` or `WITH CHECK`, another role, made
+restrictive or for another command, and passing the same expression written
+differently. `account-export.e2e-spec.ts`: a person's export with no tenant and
 across two. `tenants.e2e-spec.ts`: the operators' tenant routes (the
 operator flag, the list and its description, reading and changing one,
 deactivation and what it ends, the slug conflict on its field, the first

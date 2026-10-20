@@ -9,10 +9,12 @@ import {
   userPrincipal,
 } from '@/test/principals';
 import { peopleHandler, teamsHandler } from '@/test/people';
+import { renderComponent } from '@/test/render-component';
 import { renderApp } from '@/test/render-app';
 import { server, signedInUser } from '@/test/server';
 import { findToast } from '@/test/toast';
 import { fromDraft, groupOf, overrideBody, toDraft } from './settings';
+import { useFlag } from './use-flag';
 
 const admin = {
   ...signedInUser,
@@ -35,6 +37,8 @@ const setting = (extra: object) => ({
   schema: {},
   canEdit: true,
   canSetMine: false,
+  platform: null,
+  canEditPlatform: false,
   ...extra,
 });
 
@@ -252,16 +256,14 @@ describe('my preferences', () => {
   });
 });
 
-describe('admin settings', () => {
-  async function open(name: string) {
-    const user = userEvent.setup();
-    await renderApp('/settings');
-    await user.click(
-      await screen.findByRole('button', { name: `Edit ${name}` }),
-    );
-    return { user, dialog: await screen.findByRole('dialog') };
-  }
+async function open(name: string) {
+  const user = userEvent.setup();
+  await renderApp('/settings');
+  await user.click(await screen.findByRole('button', { name: `Edit ${name}` }));
+  return { user, dialog: await screen.findByRole('dialog') };
+}
 
+describe('admin settings', () => {
   it('groups by prefix, searches, and offers editing only where canEdit', async () => {
     api(admin);
     const user = userEvent.setup();
@@ -435,7 +437,9 @@ describe('admin settings', () => {
       within(dialog).getByRole('combobox', { name: 'Applies as' }),
     );
     await user.click(
-      await screen.findByRole('option', { name: 'A gradual rollout' }),
+      await screen.findByRole('option', {
+        name: 'A gradual rollout (a share of users)',
+      }),
     );
     const percent = within(dialog).getByRole('spinbutton');
     await user.clear(percent);
@@ -560,5 +564,214 @@ describe('admin settings', () => {
     const { dialog } = await open('Rich text editor');
     expect(await within(dialog).findByText(/User: Grace Hopper/)).toBeVisible();
     expect(await within(dialog).findByText(/Team: Night shift/)).toBeVisible();
+  });
+});
+
+function Flag({ name }: { name: string }) {
+  const { enabled, pending } = useFlag(name);
+  return <p>{pending ? 'pending' : enabled ? 'enabled' : 'disabled'}</p>;
+}
+
+describe('useFlag', () => {
+  it('is pending, then says whether the flag is on', async () => {
+    api(admin, [setting({ key: 'f.on', type: 'boolean', value: true })]);
+    await renderComponent(<Flag name="f.on" />);
+    expect(screen.getByText('pending')).toBeVisible();
+    expect(await screen.findByText('enabled')).toBeVisible();
+  });
+
+  it('is off for a flag that is off, one that is unknown, and a failing read', async () => {
+    api(admin, [setting({ key: 'f.off', type: 'boolean', value: false })]);
+    const off = await renderComponent(<Flag name="f.off" />);
+    expect(await screen.findByText('disabled')).toBeVisible();
+    off.unmount();
+    const unknown = await renderComponent(<Flag name="f.none" />);
+    expect(await screen.findByText('disabled')).toBeVisible();
+    unknown.unmount();
+    server.use(
+      http.get('/v1/settings', () =>
+        HttpResponse.json({ status: 500 }, { status: 500 }),
+      ),
+    );
+    await renderComponent(<Flag name="f.on" />);
+    expect(await screen.findByText('disabled')).toBeVisible();
+  });
+});
+
+describe('platform values', () => {
+  const platformFlag = (extra: object) =>
+    setting({
+      key: 'ui.platform',
+      label: 'Platform flag',
+      flag: true,
+      type: 'boolean',
+      value: false,
+      default: false,
+      ...extra,
+    });
+
+  it('names the platform source and marks an enforced value', async () => {
+    api(admin, [
+      platformFlag({
+        source: 'platform',
+        value: true,
+        platform: { value: true, enforced: true, rollout: null },
+      }),
+    ]);
+    await renderApp('/settings');
+    expect(await screen.findByText('All tenants')).toBeVisible();
+    expect(screen.getByText('Enforced')).toBeVisible();
+  });
+
+  it('lets an operator set a platform value as a kill switch', async () => {
+    api(admin, [platformFlag({ canEditPlatform: true })]);
+    let body: unknown;
+    server.use(
+      http.put('/v1/settings/:key/platform', async ({ request, params }) => {
+        body = { key: params.key, body: await request.json() };
+        return HttpResponse.json({});
+      }),
+    );
+    const { user, dialog } = await open('Platform flag');
+    const section = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    expect(section.getByText('Nothing is set for all tenants.')).toBeVisible();
+    await user.click(section.getByRole('switch', { name: /Value/ }));
+    await user.click(
+      section.getByRole('switch', { name: 'Enforced (kill switch)' }),
+    );
+    await user.click(
+      section.getByRole('button', { name: 'Save for all tenants' }),
+    );
+    await waitFor(() =>
+      expect(body).toEqual({
+        key: 'ui.platform',
+        body: { value: true, enforced: true },
+      }),
+    );
+    await findToast('Saved for all tenants.');
+  });
+
+  it('lets an operator roll a flag out to a share of principals', async () => {
+    api(admin, [platformFlag({ canEditPlatform: true })]);
+    let body: unknown;
+    server.use(
+      http.put('/v1/settings/:key/platform', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
+    );
+    const { user, dialog } = await open('Platform flag');
+    const section = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    await user.click(section.getByRole('combobox', { name: 'Applies as' }));
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'A gradual rollout (a share of users)',
+      }),
+    );
+    const input = section.getByLabelText('Share of principals', {
+      selector: 'input',
+    });
+    await user.clear(input);
+    await user.type(input, '25');
+    await user.click(
+      section.getByRole('button', { name: 'Save for all tenants' }),
+    );
+    await waitFor(() => expect(body).toEqual({ rollout: 25 }));
+  });
+
+  it('shows a stored platform rollout', async () => {
+    api(admin, [
+      platformFlag({
+        platform: { value: null, enforced: false, rollout: 40 },
+      }),
+    ]);
+    const { dialog } = await open('Platform flag');
+    expect(within(dialog).getByText('Rollout 40%')).toBeVisible();
+  });
+
+  it('lets an operator remove it', async () => {
+    api(admin, [
+      platformFlag({
+        canEditPlatform: true,
+        platform: { value: true, enforced: false, rollout: null },
+      }),
+    ]);
+    let removed = '';
+    server.use(
+      http.delete('/v1/settings/:key/platform', ({ params }) => {
+        removed = String(params.key);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { user, dialog } = await open('Platform flag');
+    const section = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    expect(section.getByText('Default for tenants')).toBeVisible();
+    await user.click(section.getByRole('button', { name: 'Remove' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Remove',
+      }),
+    );
+    await waitFor(() => expect(removed).toBe('ui.platform'));
+    await findToast('Removed for all tenants.');
+  });
+
+  it('shows a non-operator the value, without the controls', async () => {
+    api(admin, [
+      platformFlag({
+        platform: { value: true, enforced: false, rollout: null },
+      }),
+    ]);
+    const { dialog } = await open('Platform flag');
+    const section = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    expect(section.getByText('Default for tenants')).toBeVisible();
+    expect(
+      section.queryByRole('button', { name: 'Save for all tenants' }),
+    ).not.toBeInTheDocument();
+    expect(
+      section.queryByRole('button', { name: 'Remove' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("tells a non-operator who sets a flag for all tenants; a setting's section stays away", async () => {
+    api(admin, [platformFlag({})]);
+    const { dialog } = await open('Platform flag');
+    const section = within(
+      within(dialog).getByRole('region', { name: 'All tenants' }),
+    );
+    expect(section.getByText(/Only the deployment's operators/)).toBeVisible();
+    expect(section.getByText('Nothing is set for all tenants.')).toBeVisible();
+    expect(
+      section.queryByRole('button', { name: 'Save for all tenants' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows no platform section on a setting when none is set and none may be', async () => {
+    api(admin);
+    const { dialog } = await open('Publication delay');
+    expect(
+      within(dialog).queryByRole('region', { name: 'All tenants' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('lists the feature flags alone in their tab', async () => {
+    api(admin);
+    const user = userEvent.setup();
+    await renderApp('/settings');
+    expect(await screen.findByText('Publication delay')).toBeVisible();
+    await user.click(screen.getByRole('tab', { name: 'Feature flags' }));
+    expect(screen.getByText('Rich text editor')).toBeVisible();
+    expect(screen.queryByText('Publication delay')).not.toBeInTheDocument();
+    expect(screen.getByText(/roll it out gradually/)).toBeVisible();
+    await user.click(screen.getByRole('tab', { name: 'All settings' }));
+    expect(screen.getByText('Publication delay')).toBeVisible();
   });
 });

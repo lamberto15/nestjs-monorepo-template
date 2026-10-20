@@ -490,4 +490,161 @@ describe('settings (e2e)', () => {
     expect(removed.text).toBe('');
     expect(removed.headers['content-type']).toBeUndefined();
   });
+
+  describe('platform values (operators, every tenant)', () => {
+    it('sets a default for every tenant that set nothing, below their own values', async () => {
+      const other = await node.otherTenant();
+      const member = await other.user(['editor']);
+
+      // Another tenant's administrator manages settings, but isn't an operator.
+      await other.admin
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({ value: true })
+        .expect(403);
+      expect(
+        (await other.admin.get(`/v1/settings/${FLAG}`).expect(200)).body,
+      ).toMatchObject({
+        platform: null,
+        canEdit: true,
+        canEditPlatform: false,
+      });
+
+      // Checked like any value.
+      const bad = await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({ value: 'yes' })
+        .expect(400);
+      expect(paths(bad.body)).toEqual(['value']);
+      await node
+        .admin()
+        .put('/v1/settings/testItems.nope/platform')
+        .send({ value: true })
+        .expect(404);
+
+      const set = await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({ value: true })
+        .expect(200);
+      expect(set.body).toMatchObject({
+        key: FLAG,
+        value: true,
+        enforced: false,
+      });
+
+      // Every tenant gets it, the operators' own too.
+      for (const agent of [member.agent, node.admin()]) {
+        expect(
+          (await agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+        ).toMatchObject({
+          value: true,
+          source: 'platform',
+          platform: { value: true, enforced: false },
+        });
+      }
+      expect(
+        (await node.admin().get(`/v1/settings/${FLAG}`).expect(200)).body
+          .canEditPlatform,
+      ).toBe(true);
+
+      // A tenant's own value beats it.
+      await other.admin
+        .put(`/v1/settings/${FLAG}`)
+        .send({ value: false })
+        .expect(200);
+      expect(
+        (await member.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+      ).toMatchObject({ value: false, source: 'tenant' });
+
+      // Removed: each tenant's own, or the default, again. Audited.
+      await node.admin().delete(`/v1/settings/${FLAG}/platform`).expect(204);
+      expect(
+        (await node.admin().get(`/v1/settings/${FLAG}`).expect(200)).body,
+      ).toMatchObject({ value: false, source: 'default', platform: null });
+      const audit = await node
+        .admin()
+        .get('/v1/access/audit?action=setting.reset')
+        .expect(200);
+      expect(
+        audit.body.items.some(
+          (entry: { targetId: string; details: { scope: string } }) =>
+            entry.targetId === FLAG && entry.details.scope === 'platform',
+        ),
+      ).toBe(true);
+    });
+
+    it('rolls a flag out in every tenant at once; a rollout is for flags and is never enforced', async () => {
+      const other = await node.otherTenant();
+      const member = await other.user(['editor']);
+
+      const notFlag = await node
+        .admin()
+        .put(`/v1/settings/${VIEW}/platform`)
+        .send({ rollout: 50 })
+        .expect(400);
+      expect(paths(notFlag.body)).toEqual(['rollout']);
+      const enforced = await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({ rollout: 50, enforced: true })
+        .expect(400);
+      expect(paths(enforced.body)).toEqual(['enforced']);
+
+      const set = await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({ rollout: 100 })
+        .expect(200);
+      expect(set.body).toMatchObject({ value: null, rollout: 100 });
+      expect(
+        (await member.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+      ).toMatchObject({
+        value: true,
+        source: 'platform',
+        platform: { value: null, enforced: false, rollout: 100 },
+      });
+      await member.agent.get('/v1/test-items/rich-preview').expect(200);
+
+      // A tenant's own rollout comes first.
+      await other.admin
+        .put(`/v1/settings/${FLAG}`)
+        .send({ rollout: 0 })
+        .expect(200);
+      expect(
+        (await member.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+      ).toMatchObject({ value: false, source: 'rollout' });
+    });
+
+    it('beats every value when enforced (a kill switch), and gates a flagged route', async () => {
+      const other = await node.otherTenant();
+      const member = await other.user(['editor']);
+
+      // Off by default: the flagged route doesn't exist.
+      await member.agent.get('/v1/test-items/rich-preview').expect(404);
+      await member.agent
+        .put(`/v1/settings/${FLAG}/mine`)
+        .send({ value: true })
+        .expect(200);
+      expect(
+        (await member.agent.get('/v1/test-items/rich-preview').expect(200))
+          .body,
+      ).toEqual({ richPreview: true });
+
+      // The kill switch: off for everyone, whatever they set.
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({ value: false, enforced: true })
+        .expect(200);
+      expect(
+        (await member.agent.get(`/v1/settings/${FLAG}`).expect(200)).body,
+      ).toMatchObject({ value: false, source: 'platform' });
+      await member.agent.get('/v1/test-items/rich-preview').expect(404);
+
+      // Released: the member's own value holds again.
+      await node.admin().delete(`/v1/settings/${FLAG}/platform`).expect(204);
+      await member.agent.get('/v1/test-items/rich-preview').expect(200);
+    });
+  });
 });

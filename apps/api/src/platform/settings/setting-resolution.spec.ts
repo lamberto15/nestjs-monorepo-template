@@ -185,3 +185,77 @@ describe('rollouts per tenant', () => {
     });
   });
 });
+
+describe('platform values (set by the operators for every tenant)', () => {
+  const tenantOn = [override('notes.richText', 'tenant', '', true)];
+  const mine = [override('notes.richText', 'user', 'user:0000-u1', true)];
+
+  it('is the default of every tenant that set nothing, before the code default', () => {
+    expect(
+      resolveSetting(richText, [], user, [], TENANT, {
+        value: true,
+        enforced: false,
+        rollout: null,
+      }),
+    ).toEqual({ value: true, source: 'platform' });
+  });
+
+  it("gives way to a tenant's, a team's or a principal's own value, and a tenant's rollout", () => {
+    const platform = { value: false, enforced: false, rollout: null };
+    expect(
+      resolveSetting(richText, tenantOn, user, [], TENANT, platform),
+    ).toEqual({ value: true, source: 'tenant' });
+    expect(resolveSetting(richText, mine, user, [], TENANT, platform)).toEqual({
+      value: true,
+      source: 'user',
+    });
+    const all = [override('notes.richText', 'tenant', '', null, 100)];
+    expect(resolveSetting(richText, all, user, [], TENANT, platform)).toEqual({
+      value: true,
+      source: 'rollout',
+    });
+  });
+
+  it('beats every value when enforced (a kill switch)', () => {
+    const killed = { value: false, enforced: true, rollout: null };
+    for (const overrides of [tenantOn, mine]) {
+      expect(
+        resolveSetting(richText, overrides, user, [], TENANT, killed),
+      ).toEqual({ value: false, source: 'platform' });
+    }
+  });
+
+  it("rolls a flag out in every tenant that set nothing, each tenant drawn apart, below the tenant's own", () => {
+    const half = { value: null, enforced: false, rollout: 50 };
+    const principals = Array.from({ length: 200 }, (_, i) => ({
+      kind: 'user' as const,
+      id: `u${i}`,
+    }));
+    const drawn = (tenant: string) =>
+      principals.map(
+        (principal) =>
+          resolveSetting(richText, [], principal, [], tenant, half).value,
+      );
+    const inA = drawn('tenant-a');
+    expect(inA.filter(Boolean).length).toBeGreaterThan(60);
+    expect(inA.filter(Boolean).length).toBeLessThan(140);
+    expect(inA.some((on, i) => on !== drawn('tenant-b')[i])).toBe(true);
+    expect(resolveSetting(richText, [], user, [], TENANT, half).source).toBe(
+      'platform',
+    );
+    expect(resolveSetting(richText, tenantOn, user, [], TENANT, half)).toEqual({
+      value: true,
+      source: 'tenant',
+    });
+  });
+
+  it('holds outside any tenant too', () => {
+    expect(
+      resolveSetting(limit, [], null, [], null, {
+        value: 42,
+        enforced: false,
+        rollout: null,
+      }),
+    ).toEqual({ value: 42, source: 'platform' });
+  });
+});

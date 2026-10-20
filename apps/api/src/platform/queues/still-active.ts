@@ -3,6 +3,7 @@ import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import type { UsersRepository } from '../../iam/auth/users.repository.js';
+import { tenants } from '../../core/tenancy/tenancy.tables.js';
 import { apiClients } from '../../iam/iam.tables.js';
 
 /**
@@ -48,10 +49,15 @@ export async function stillActive(
   if (principal.kind !== 'client') {
     return null; // a payload is data: never the system principal (docs/permissions.md)
   }
-  const [client] = await db
-    .select()
+  // Its tenant too: a deactivated tenant's clients stop (docs/tenancy.md),
+  // as its keys do at the door (api-key-auth.provider.ts) and its users do
+  // above (inTenant: the membership and the tenant active).
+  const [found] = await db
+    .select({ client: apiClients, tenantActive: tenants.active })
     .from(apiClients)
+    .innerJoin(tenants, eq(tenants.id, apiClients.tenantId))
     .where(eq(apiClients.id, principal.id));
+  const client = found?.tenantActive ? found.client : undefined;
   return client?.active && client.tenantId === tenantId
     ? {
         ...principal,

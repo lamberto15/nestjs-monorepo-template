@@ -15,6 +15,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
+import { RequireFlag } from '../../../src/platform/settings/require-flag.js';
+import { TEST_ITEM_RICH_PREVIEW } from './test-item-settings.js';
 import { AuthorizationService, Can } from '@nestjs/authorization';
 import { Idempotent } from '@nestjs/idempotency';
 import {
@@ -90,6 +92,15 @@ export class TestItemsController {
     private readonly authorization: AuthorizationService,
     private readonly presenter: RecordPresenter,
   ) {}
+
+  /** A route that exists only while the rich preview flag is on for the caller (RequireFlag). */
+  @Get('rich-preview')
+  @Can.Anyone()
+  @RequireFlag(TEST_ITEM_RICH_PREVIEW)
+  @ApiOperation({ summary: 'Whether the rich preview is on (a flagged route)' })
+  richPreview() {
+    return { richPreview: true };
+  }
 
   @Post()
   // The ETag GET /{id} would send: If-Match on the next write needs no read first.
