@@ -59,6 +59,43 @@ export class SignInLog implements OnApplicationShutdown {
     this.inFlight.add(work);
   }
 
+  /**
+   * A token sign-in whose credentials held but that named a tenant the user
+   * isn't a member of (`tenantId` of POST /auth/token or /auth/passkeys/token).
+   * The client gets the same 401 as for wrong credentials; this writes the
+   * account-level `auth.sign-in-failed` (`reason: tenant`, the tenant asked
+   * for) and `member.sign-in-failed` in the user's own default tenant, never
+   * in the tenant named: its administrators are told nothing of a person who
+   * isn't theirs.
+   */
+  async tenantRefused(
+    user: UserPrincipal,
+    entry: {
+      method: string;
+      ip: string;
+      tenantId: string;
+      details?: Record<string, unknown>;
+    },
+  ) {
+    await this.audit.recordAnonymous(user.email, {
+      action: 'auth.sign-in-failed',
+      ip: entry.ip || undefined,
+      targetType: 'user',
+      targetId: user.id,
+      details: {
+        ...entry.details,
+        method: entry.method,
+        reason: 'tenant',
+        tenantId: entry.tenantId,
+      },
+    });
+    this.failed(user, {
+      method: entry.method,
+      ip: entry.ip,
+      details: { ...entry.details, reason: 'tenant' },
+    });
+  }
+
   /** The writes of failed sign-ins, once done (tests, shutdown). */
   async settled() {
     await Promise.allSettled(this.inFlight);

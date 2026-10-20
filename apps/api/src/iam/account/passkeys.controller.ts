@@ -204,7 +204,7 @@ export class PasskeysController {
   @ApiCreatedResponse({ standardSchema: passkeySchema })
   @ApiBadRequestResponse({
     description:
-      '`passkey_invalid` with `reason`: the challenge is unknown, used or expired (`challenge`), was made for another session or origin, the response is not for this site, or the authenticator did not verify its user (`user-verification`).',
+      '`passkey_invalid` with `reason`: the challenge is unknown, used or expired (`challenge`), was made for another session or origin, the response is not for this site or ran in a frame of another origin (`cross-origin`), or the authenticator did not verify its user (`user-verification`).',
   })
   @ApiConflictResponse({
     description: '`passkey_registered`: this credential is registered already.',
@@ -227,8 +227,11 @@ export class PasskeysController {
     );
   }
 
+  // A credential's name is what its owner reads in alerts and lists: a
+  // stolen session must not relabel the passkey it added (or the owner's).
   @UserOnly()
   @Can.Anyone()
+  @RecentAuthentication()
   @Patch(':id')
   @ApiTags('account')
   @ApiCookieAuth('user-session')

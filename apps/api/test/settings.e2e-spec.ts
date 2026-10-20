@@ -647,4 +647,270 @@ describe('settings (e2e)', () => {
       await member.agent.get('/v1/test-items/rich-preview').expect(200);
     });
   });
+
+  describe('targeting rules', () => {
+    const domain = (domains: string[], outcome: object = { value: true }) => ({
+      conditions: [{ key: 'emailDomain', params: { domains } }],
+      outcome,
+    });
+    const kind = (kinds: string[], outcome: object = { value: true }) => ({
+      conditions: [{ key: 'principalKind', params: { kinds } }],
+      outcome,
+    });
+    const mine = async (agent: { get: (url: string) => any }) =>
+      (await agent.get(`/v1/settings/${FLAG}`).expect(200)).body;
+
+    it('targets by email domain and kind, first match wins, before the tenant value; stored, audited, cleared', async () => {
+      const editor = await node.user(['editor']);
+      const client = await node.client();
+      const clientView = async () =>
+        (
+          await node
+            .http()
+            .get(`/v1/settings/${FLAG}`)
+            .set('Authorization', client.auth)
+            .expect(200)
+        ).body;
+
+      const set = await node
+        .admin()
+        .put(`/v1/settings/${FLAG}`)
+        .send({
+          value: false,
+          rules: [
+            domain(['EXAMPLE.com'], { value: false }),
+            kind(['user']),
+            kind(['client']),
+          ],
+        })
+        .expect(200);
+      expect(set.body.rules).toHaveLength(3);
+      expect(set.body.rules[0].conditions[0].params.domains).toEqual([
+        'example.com',
+      ]);
+      // The first rule matches the user: off, though a later rule would turn it on.
+      expect(await mine(editor.agent)).toMatchObject({
+        value: false,
+        source: 'rule',
+      });
+      // The client has no email: that rule cannot hold, the third decides.
+      expect(await clientView()).toMatchObject({ value: true, source: 'rule' });
+
+      const stored = await node
+        .admin()
+        .get(`/v1/settings/${FLAG}/overrides`)
+        .expect(200);
+      expect(stored.body.items[0].rules).toHaveLength(3);
+      const audit = await node
+        .admin()
+        .get('/v1/access/audit?action=setting.updated')
+        .expect(200);
+      expect(
+        audit.body.items.some(
+          (entry: {
+            targetId: string;
+            details: { to: { rules: unknown[] } };
+          }) => entry.targetId === FLAG && entry.details.to.rules.length === 3,
+        ),
+      ).toBe(true);
+
+      // A value alone keeps the rules; an empty list clears them, and the tenant value holds.
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}`)
+        .send({ value: false })
+        .expect(200);
+      expect(await mine(editor.agent)).toMatchObject({ source: 'rule' });
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}`)
+        .send({ value: true, rules: [] })
+        .expect(200);
+      expect(await mine(editor.agent)).toMatchObject({
+        value: true,
+        source: 'tenant',
+      });
+    });
+
+    it("is valid without a value, falls through when nothing matches, and the user's own value beats it", async () => {
+      const editor = await node.user(['editor']);
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}`)
+        .send({ rules: [domain(['other.org'])] })
+        .expect(200);
+      expect(await mine(editor.agent)).toMatchObject({
+        value: false,
+        source: 'default',
+      });
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}`)
+        .send({ rules: [domain(['example.com'])] })
+        .expect(200);
+      expect(await mine(editor.agent)).toMatchObject({
+        value: true,
+        source: 'rule',
+      });
+      await editor.agent
+        .put(`/v1/settings/${FLAG}/mine`)
+        .send({ value: false })
+        .expect(200);
+      expect(await mine(editor.agent)).toMatchObject({
+        value: false,
+        source: 'user',
+      });
+      await editor.agent.get('/v1/test-items/rich-preview').expect(404);
+    });
+
+    it('rolls out inside the matched group by a stable share', async () => {
+      const editor = await node.user(['editor']);
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}`)
+        .send({ rules: [kind(['user'], { rollout: 50 })] })
+        .expect(200);
+      expect(await mine(editor.agent)).toMatchObject({
+        value: rolloutBucket(FLAG, node.tenantId, `user:${editor.id}`) < 50,
+        source: 'rule',
+      });
+    });
+
+    it("targets by role (the tenant's own, unexpired grants)", async () => {
+      const roleId = await role(['Access', 'manageSettings']);
+      const holder = await node.user([roleId]);
+      const other = await node.user(['editor']);
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}`)
+        .send({
+          rules: [
+            {
+              conditions: [{ key: 'role', params: { roleIds: [roleId] } }],
+              outcome: { value: true },
+            },
+          ],
+        })
+        .expect(200);
+      expect((await mine(holder.agent)).value).toBe(true);
+      expect(await mine(other.agent)).toMatchObject({
+        value: false,
+        source: 'default',
+      });
+    });
+
+    it('refuses what it cannot evaluate: unknown conditions, bad params, a missing role, rules on a value setting, role at the platform scope', async () => {
+      const put = (body: object, key = FLAG) =>
+        node.admin().put(`/v1/settings/${key}`).send(body).expect(400);
+      const unknown = await put({
+        rules: [
+          {
+            conditions: [{ key: 'plan', params: {} }],
+            outcome: { value: true },
+          },
+        ],
+      });
+      expect(paths(unknown.body)).toEqual(['rules.0.conditions.0.key']);
+      const params = await put({ rules: [domain(['not a domain'])] });
+      expect(paths(params.body)).toEqual([
+        'rules.0.conditions.0.params.domains.0',
+      ]);
+      const noConditions = await put({
+        rules: [{ conditions: [], outcome: { value: true } }],
+      });
+      expect(paths(noConditions.body)).toEqual(['rules.0.conditions']);
+      const missingRole = await put({
+        rules: [
+          {
+            conditions: [{ key: 'role', params: { roleIds: [randomUUID()] } }],
+            outcome: { value: true },
+          },
+        ],
+      });
+      expect(paths(missingRole.body)).toEqual(['rules']);
+      const notFlag = await put({ rules: [kind(['user'])] }, VIEW);
+      expect(paths(notFlag.body)).toEqual(['rules']);
+      const editor = await node.user(['editor']);
+      const team = await put({
+        scope: 'user',
+        scopeId: `user:${editor.id}`,
+        rules: [kind(['user'])],
+      });
+      expect(paths(team.body)).toEqual(['rules']);
+      const platformRole = await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({
+          rules: [
+            {
+              conditions: [
+                { key: 'role', params: { roleIds: [randomUUID()] } },
+              ],
+              outcome: { value: true },
+            },
+          ],
+        })
+        .expect(400);
+      expect(paths(platformRole.body)).toEqual(['rules.0.conditions.0.key']);
+    });
+
+    it('is for managers; others cannot set rules', async () => {
+      const editor = await node.user(['editor']);
+      await editor.agent
+        .put(`/v1/settings/${FLAG}`)
+        .send({ rules: [kind(['user'])] })
+        .expect(403);
+    });
+
+    it("targets across every tenant at the platform scope, below a tenant's own value and an enforced one", async () => {
+      const other = await node.otherTenant();
+      const member = await other.user(['editor']);
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({
+          rules: [
+            {
+              conditions: [
+                { key: 'tenantSlug', params: { slugs: [other.slug] } },
+              ],
+              outcome: { value: true },
+            },
+          ],
+        })
+        .expect(200);
+      expect(await mine(member.agent)).toMatchObject({
+        value: true,
+        source: 'rule',
+      });
+      const view = await mine(member.agent);
+      expect(view.platform.rules).toHaveLength(1);
+      // The seeded tenant is not matched.
+      const local = await node.user(['editor']);
+      expect(await mine(local.agent)).toMatchObject({
+        value: false,
+        source: 'default',
+      });
+      // The tenant's own value is above.
+      await other.admin
+        .put(`/v1/settings/${FLAG}`)
+        .send({ value: false })
+        .expect(200);
+      expect(await mine(member.agent)).toMatchObject({
+        value: false,
+        source: 'tenant',
+      });
+      // A kill switch is above all.
+      await other.admin.delete(`/v1/settings/${FLAG}?scope=tenant`).expect(204);
+      await node
+        .admin()
+        .put(`/v1/settings/${FLAG}/platform`)
+        .send({ value: false, enforced: true, rules: [] })
+        .expect(200);
+      expect(await mine(member.agent)).toMatchObject({
+        value: false,
+        source: 'platform',
+      });
+    });
+  });
 });

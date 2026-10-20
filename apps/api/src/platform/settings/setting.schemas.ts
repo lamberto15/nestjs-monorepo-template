@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { flagRuleSchema, MAX_RULES } from './setting-rules.js';
 import { SETTING_VALUE_TYPES } from './setting-value-schema.js';
 import { SETTING_SCOPES } from './setting.types.js';
 
@@ -11,6 +12,14 @@ export const settingKey = z
   )
   .max(100)
   .meta({ example: 'notes.publishDelay' });
+
+/** Targeting rules of a flag (setting-rules.ts): first match wins, before the plain value. */
+const rulesField = z
+  .array(flagRuleSchema)
+  .max(MAX_RULES)
+  .describe(
+    'Flags: targeting rules, in order; the first whose conditions all hold decides (on, off or a rollout inside the group), before the value and the rollout. Conditions (`key` + `params`): principalKind {kinds}, role {roleIds} (tenant scope), emailDomain {domains} (verified emails), locale {locales}, tenantSlug {slugs}, tenantOperator {operator}. A condition that cannot be evaluated does not hold.',
+  );
 
 /** A setting as a caller sees it: its effective value for them, and where it came from. */
 export const settingViewSchema = z.object({
@@ -28,7 +37,7 @@ export const settingViewSchema = z.object({
   public: z.boolean(),
   value: z.unknown(),
   source: z
-    .enum([...SETTING_SCOPES, 'rollout', 'platform', 'default'])
+    .enum([...SETTING_SCOPES, 'rule', 'rollout', 'platform', 'default'])
     .describe('Where your value comes from.'),
   default: z.unknown(),
   type: z
@@ -78,6 +87,7 @@ export const settingViewSchema = z.object({
         .describe(
           "Flags: the percentage of each tenant's principals it is on for, when no value is set.",
         ),
+      rules: rulesField,
     })
     .nullable()
     .describe(
@@ -101,6 +111,7 @@ export const settingOverrideSchema = z.object({
     ),
   value: z.unknown(),
   rollout: z.int().min(0).max(100).nullable(),
+  rules: rulesField,
   updatedBy: z.string(),
   updatedAt: z.iso.datetime(),
 });
@@ -129,6 +140,11 @@ export const setSettingSchema = z
       .optional()
       .describe(
         "Flags, tenant scope: the percentage of the tenant's principals the flag is on for.",
+      ),
+    rules: rulesField
+      .optional()
+      .describe(
+        'Flags, tenant scope: targeting rules (see the stored override); left out or empty: none. Valid alone, without a value.',
       ),
   })
   .strict();
@@ -167,6 +183,11 @@ export const setPlatformSettingSchema = z
       .describe(
         'Flags: the percentage of principals it is on for in every tenant that set nothing (each tenant drawn apart).',
       ),
+    rules: rulesField
+      .optional()
+      .describe(
+        "Flags: targeting rules across every tenant (no `role` condition: roles are a tenant's own); evaluated before the value and the rollout, below an enforced value.",
+      ),
   })
   .strict();
 export type SetPlatformSettingDto = z.infer<typeof setPlatformSettingSchema>;
@@ -176,6 +197,7 @@ export const platformSettingSchema = z.object({
   value: z.unknown(),
   enforced: z.boolean(),
   rollout: z.int().min(0).max(100).nullable(),
+  rules: rulesField,
   updatedBy: z.string(),
   updatedAt: z.iso.datetime(),
 });

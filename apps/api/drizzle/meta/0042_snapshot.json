@@ -1,5 +1,5 @@
 {
-  "id": "dee29649-d19c-4b64-a320-dc320728357e",
+  "id": "a4b1b30a-be7b-420e-9650-dc7ca995df81",
   "prevId": "1e544fb8-5a39-4b54-a139-61af20b0afd5",
   "version": "7",
   "dialect": "postgresql",
@@ -3531,6 +3531,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rules": {
+          "name": "rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "updated_by": {
           "name": "updated_by",
           "type": "text",
@@ -3615,6 +3622,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "rules": {
+          "name": "rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "updated_by": {
           "name": "updated_by",
@@ -4151,26 +4165,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "date_field": {
-          "name": "date_field",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "conditions": {
-          "name": "conditions",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "priority": {
-          "name": "priority",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "created_at": {
           "name": "created_at",

@@ -66,15 +66,14 @@ first project is built on the template; until then they report only.
 
 - **Tenancy (1b):** sign-ins visible to tenant administrators (**done** (#228): `GET /v1/access/sign-ins`, docs/auth.md, "Sign-in log"); the platform super
   tenant; a membership still active in a deactivated tenant exporting that tenant's
-  records (**done** (#220): docs/tenancy.md, "Operators"); the migrate-time wall check compares policy names and commands, not their
-  expressions; whether operators may act in any tenant without its invitation (a
+  records (**done** (#220): docs/tenancy.md, "Operators"); the migrate-time wall check
+  compares the policies' expressions, roles and kind too (**done** (#221): docs/tenancy.md,
+  "The wall"); whether operators may act in any tenant without its invitation (a
   break-glass support route: the owner's decision, docs/tenancy.md, "Operators").
   Tenant export and deletion are done (#226; get, rename and deactivation, #195);
   per-tenant senders for incoming webhooks are done (#234: docs/webhooks-and-realtime.md,
   "Incoming webhooks of a tenant").
-- **Passkeys:** renaming needs no recent sign-in; a token sign-in naming a tenant the
-  user isn't in writes no failure entry; `crossOrigin`/`topOrigin` aren't checked.
-  Token clients with two-factor still send a code with a passkey until
+- **Passkeys:** token clients with two-factor still send a code with a passkey until
   @nestjs/authentication can take a verified external factor (ask upstream).
 - **Load-test anchor:** `main` has none yet; run the Load test workflow on `main` once
   to set it.

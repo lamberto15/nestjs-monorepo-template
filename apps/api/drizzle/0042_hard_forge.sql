@@ -1,0 +1,2 @@
+ALTER TABLE "platform_setting_values" ADD COLUMN "rules" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "setting_overrides" ADD COLUMN "rules" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -1,7 +1,16 @@
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
-import { is } from 'drizzle-orm';
-import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
+import { is, type SQL } from 'drizzle-orm';
+import {
+  getTableConfig,
+  PgDialect,
+  type PgPolicy,
+  PgRole,
+  PgTable,
+  pgTable,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { GLOBAL_TABLES_WITH_TENANT } from '../tenancy/global-tables.js';
+import { tenantPolicies } from '../tenancy/tenant-scope.js';
 import { Client, type ClientBase, escapeIdentifier, escapeLiteral } from 'pg';
 import * as schema from '../../schema.js';
 
@@ -112,7 +121,7 @@ export async function ensureAppRole(
     if (maintenance) {
       await assertFit(client, maintenance.role, schemas);
     }
-    await assertTenantWall(client);
+    await assertTenantWall(client, extraTables);
     await client.query('commit');
   } catch (error) {
     await client.query('rollback').catch(() => undefined);
@@ -1011,74 +1020,214 @@ async function forceRowLevelSecurity(
 
 /**
  * The tenant wall holds before anything commits: every table with a
- * `tenant_id` column has row-level security enabled and forced, its four
- * policies by name and command and no other permissive one (docs/tenancy.md), except the few global tables that only
- * record which tenant a row belongs to (GLOBAL_TABLES_WITH_TENANT:
- * memberships, API keys). A table someone added without `tenantTable()`
- * and `.enableRLS()` stops the deploy here.
+ * `tenant_id` column has row-level security enabled and forced, and exactly
+ * the policies its declaration makes (`tenantTable()`, or the default four
+ * for a table that declares none), each one as declared: its command,
+ * permissive, its roles, and its `USING` and `WITH CHECK` expressions; with
+ * no other permissive policy (docs/tenancy.md). Except the few global
+ * tables that only record which tenant a row belongs to
+ * (GLOBAL_TABLES_WITH_TENANT: memberships, API keys). A table someone added
+ * without `tenantTable()` and `.enableRLS()`, or a policy edited by hand
+ * (`ALTER POLICY … USING (true)`), stops the deploy here.
+ *
+ * The expressions are compared in PostgreSQL's own normalized form, not as
+ * source text: the declared policies are created again, as drizzle-kit
+ * renders them, on empty temporary copies of the tables (same names, so
+ * the column references deparse the same), inside a savepoint that is
+ * rolled back; then `pg_get_expr()` of each declared policy is compared
+ * with the live one's. Spacing, parentheses and casts the server adds
+ * can't fail the check; a different expression can. Custom: drizzle-kit
+ * diffs policies against its snapshot, not against the database.
  */
-async function assertTenantWall(client: ClientBase) {
+async function assertTenantWall(
+  client: ClientBase,
+  extraTables: Record<string, unknown>,
+) {
   const { rows } = await client.query<{
     name: string;
     enabled: boolean;
     forced: boolean;
-    policies: { name: string; command: string; permissive: boolean }[] | null;
   }>(
-    `select c.relname as name, c.relrowsecurity as enabled, c.relforcerowsecurity as forced,
-            (select json_agg(json_build_object('name', p.polname, 'command', p.polcmd, 'permissive', p.polpermissive))
-             from pg_policy p where p.polrelid = c.oid) as policies
+    `select c.relname as name, c.relrowsecurity as enabled, c.relforcerowsecurity as forced
      from pg_class c
      join pg_namespace n on n.oid = c.relnamespace
      join pg_attribute a on a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped
      where n.nspname = 'public' and c.relkind in ('r', 'p')
      order by 1`,
   );
-  const problems = rows
-    .filter((row) => !GLOBAL_TABLES_WITH_TENANT.includes(row.name))
-    .flatMap((row) => {
-      const found = row.policies ?? [];
-      // Exactly the four of tenantPolicies(), one per command (pg_policy's
-      // polcmd: r select, a insert, w update, d delete), and nothing else
-      // permissive: another permissive policy would OR its rows in.
-      const expected = TENANT_POLICY_COMMANDS.map(
-        ([suffix, command]) =>
-          [`${row.name}_tenant_${suffix}`, command] as const,
-      );
-      const wrong = [
-        !row.enabled && 'row-level security off',
-        !row.forced && 'not forced',
-        ...expected
-          .filter(
-            ([name, command]) =>
-              !found.some(
-                (policy) =>
-                  policy.name === name &&
-                  policy.command === command &&
-                  policy.permissive,
-              ),
-          )
-          .map(([name]) => `missing policy ${name}`),
-        ...found
-          .filter(
-            (policy) =>
-              policy.permissive &&
-              !expected.some(([name]) => name === policy.name),
-          )
-          .map((policy) => `unexpected permissive policy ${policy.name}`),
-      ].filter(Boolean);
-      return wrong.length ? [`${row.name} (${wrong.join(', ')})`] : [];
-    });
+  const walled = rows.filter(
+    (row) => !GLOBAL_TABLES_WITH_TENANT.includes(row.name),
+  );
+  const declared = declaredPolicies(extraTables);
+  // A table that declares no policy (no `tenantTable()`) is held to the
+  // default four: what it should have carried.
+  const expected = new Map(
+    walled.map((row) => {
+      const own = declared.get(row.name);
+      return [
+        row.name,
+        own?.length ? own : defaultTenantPolicies(row.name),
+      ] as const;
+    }),
+  );
+  const live = await policiesIn(client, `'public'::regnamespace`);
+  const wanted = await probePolicies(client, expected);
+  const problems = walled.flatMap((row) => {
+    const found = live.get(row.name) ?? new Map<string, LivePolicy>();
+    const want = wanted.get(row.name) ?? new Map<string, LivePolicy>();
+    const wrong = [
+      !row.enabled && 'row-level security off',
+      !row.forced && 'not forced',
+      ...[...want.values()].flatMap((policy) => {
+        const actual = found.get(policy.name);
+        if (!actual) {
+          return [`missing policy ${policy.name}`];
+        }
+        const differs = POLICY_PARTS.filter(
+          (part) =>
+            JSON.stringify(actual[part]) !== JSON.stringify(policy[part]),
+        );
+        return differs.length
+          ? [
+              `policy ${policy.name} differs from its declaration (${differs.join(', ')})`,
+            ]
+          : [];
+      }),
+      ...[...found.values()]
+        .filter((policy) => policy.permissive && !want.has(policy.name))
+        .map((policy) => `unexpected permissive policy ${policy.name}`),
+    ].filter(Boolean);
+    return wrong.length ? [`${row.name} (${wrong.join(', ')})`] : [];
+  });
   if (problems.length > 0) {
     throw new Error(
-      `Tenant tables without their wall: ${problems.join('; ')}. Declare them with tenantTable() and .enableRLS() (docs/tenancy.md).`,
+      `Tenant tables without their wall: ${problems.join('; ')}. Declare them with tenantTable() and .enableRLS(), and change a policy only there (pnpm db:generate), never by hand (docs/tenancy.md).`,
     );
   }
 }
 
-/** The four policies of a tenant table: name suffix and pg_policy.polcmd. */
-const TENANT_POLICY_COMMANDS = [
-  ['select', 'r'],
-  ['insert', 'a'],
-  ['update', 'w'],
-  ['delete', 'd'],
+/** A policy as PostgreSQL holds it (pg_policy), expressions deparsed. */
+type LivePolicy = {
+  name: string;
+  /** pg_policy.polcmd: r select, a insert, w update, d delete, * all. */
+  command: string;
+  permissive: boolean;
+  /** Role names, sorted; `public` for PUBLIC. */
+  roles: string[];
+  using: string | null;
+  withCheck: string | null;
+};
+
+/** What must match between a live policy and its declaration, as the error names it. */
+const POLICY_PARTS = [
+  'command',
+  'permissive',
+  'roles',
+  'using',
+  'withCheck',
 ] as const;
+
+/** Every policy of the tables in `namespace` (an SQL expression), by table, then by name. */
+async function policiesIn(client: ClientBase, namespace: string) {
+  const { rows } = await client.query<LivePolicy & { table: string }>(
+    `select c.relname as table, p.polname as name, p.polcmd as command, p.polpermissive as permissive,
+            array(select case when r = 0 then 'public' else pg_get_userbyid(r)::text end
+                  from unnest(p.polroles) r order by 1) as roles,
+            pg_get_expr(p.polqual, p.polrelid) as using,
+            pg_get_expr(p.polwithcheck, p.polrelid) as "withCheck"
+     from pg_policy p join pg_class c on c.oid = p.polrelid
+     where c.relnamespace = ${namespace}`,
+  );
+  const byTable = new Map<string, Map<string, LivePolicy>>();
+  for (const { table, ...policy } of rows) {
+    const policies = byTable.get(table) ?? new Map<string, LivePolicy>();
+    policies.set(policy.name, policy);
+    byTable.set(table, policies);
+  }
+  return byTable;
+}
+
+/**
+ * The declared policies as PostgreSQL normalizes them: created on empty
+ * temporary copies of the tables (`pg_temp.<name>`, so `"<name>"."tenant_id"`
+ * resolves and deparses as on the real table), read back, and rolled back.
+ * Temporary tables take no lock on the real ones.
+ */
+async function probePolicies(
+  client: ClientBase,
+  expected: Map<string, readonly PgPolicy[]>,
+) {
+  const dialect = new PgDialect();
+  const render = (policy: PgPolicy, expression: SQL | undefined) => {
+    if (!expression) {
+      return undefined;
+    }
+    const query = dialect.sqlToQuery(expression);
+    if (query.params.length > 0) {
+      throw new Error(
+        `Policy ${policy.name} has bound parameters: a policy's expression is literal SQL.`,
+      );
+    }
+    return query.sql;
+  };
+  await client.query('savepoint tenant_wall_probe');
+  try {
+    for (const [table, policies] of expected) {
+      const name = escapeIdentifier(table);
+      await client.query(
+        `create temporary table pg_temp.${name} (like public.${name})`,
+      );
+      for (const policy of policies) {
+        const using = render(policy, policy.using);
+        const withCheck = render(policy, policy.withCheck);
+        await client.query(
+          `create policy ${escapeIdentifier(policy.name)} on pg_temp.${name}
+             as ${policy.as ?? 'permissive'} for ${policy.for ?? 'all'} to ${policyRoles(policy.to)}
+             ${using === undefined ? '' : `using (${using})`}
+             ${withCheck === undefined ? '' : `with check (${withCheck})`}`,
+        );
+      }
+    }
+    return await policiesIn(client, 'pg_my_temp_schema()');
+  } finally {
+    await client.query('rollback to savepoint tenant_wall_probe');
+  }
+}
+
+/** A policy's `TO`, as drizzle-kit writes it (PUBLIC when none). */
+function policyRoles(to: PgPolicy['to']): string {
+  const keywords = ['public', 'current_role', 'current_user', 'session_user'];
+  const names = (Array.isArray(to) ? to : to === undefined ? [] : [to]).map(
+    (role) => (is(role, PgRole) ? role.name : (role as string)),
+  );
+  return names.length === 0
+    ? 'public'
+    : names
+        .map((role) =>
+          keywords.includes(role) ? role : escapeIdentifier(role),
+        )
+        .join(', ');
+}
+
+/** The policies each table of the schema (and `extraTables`) declares, by table name. */
+function declaredPolicies(extraTables: Record<string, unknown>) {
+  return new Map(
+    [...Object.values(schema), ...Object.values(extraTables)]
+      .filter((value) => is(value, PgTable))
+      .map((table) => getTableConfig(table))
+      .filter((config) => (config.schema ?? 'public') === 'public')
+      .map((config) => [config.name, config.policies] as const),
+  );
+}
+
+/**
+ * The four policies `tenantTable()` declares by default, for a table with a
+ * `tenant_id` the schema doesn't declare: what it should have carried.
+ */
+function defaultTenantPolicies(table: string) {
+  return getTableConfig(
+    pgTable(table, { tenantId: uuid('tenant_id') }, (t) =>
+      tenantPolicies(table, t.tenantId),
+    ),
+  ).policies;
+}

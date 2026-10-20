@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt, isNull, or } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import {
   database,
@@ -25,13 +25,22 @@ import {
   tenantKey,
 } from '../../core/tenancy/tenant-scope.js';
 import {
+  apiClientRoles,
   apiClients,
   memberships,
+  roles,
   teams,
+  userRoles,
   userTeams,
 } from '../../iam/iam.tables.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { resolveSetting, type SettingSource } from './setting-resolution.js';
+import {
+  type FlagRule,
+  parseRules,
+  type RuleAttributes,
+  rulesNeed,
+} from './setting-rules.js';
 import type {
   SetPlatformSettingDto,
   SetSettingDto,
@@ -273,14 +282,97 @@ export class SettingsService {
       overrides.some((override) => override.scope === 'team')
         ? await this.teamsOf(principal.id)
         : [];
+    const platform = await this.platformValue(declaration.key);
     return resolveSetting(
       declaration,
       overrides,
       principal,
       teams,
       currentTenantId(),
-      await this.platformValue(declaration.key),
+      platform,
+      declaration.flag
+        ? await this.ruleAttributes(principal, [
+            overrides.find((o) => o.scope === 'tenant')?.rules ?? [],
+            platform?.rules ?? [],
+          ])
+        : null,
     );
+  }
+
+  /**
+   * What the targeting rules are evaluated against: the principal's kind,
+   * verified email, language, the roles it holds and its tenant. Each part
+   * is read only when a rule names it. None for the system principal (a
+   * job), a guest, and a forged `kind`: no rule matches them (fail closed).
+   */
+  private async ruleAttributes(
+    principal: Principal | null,
+    ruleSets: readonly (readonly FlagRule[])[],
+  ): Promise<RuleAttributes | null> {
+    const rules = ruleSets.flat();
+    if (!rules.length || !principal || principal.kind === 'system') {
+      return null;
+    }
+    const attributes: RuleAttributes = {
+      kind: principal.kind,
+      email:
+        principal.kind === 'user' && principal.emailVerified
+          ? principal.email
+          : null,
+      locale: principal.kind === 'user' ? principal.locale : null,
+      tenant: null,
+    };
+    const tenantId = currentTenantId();
+    if (!tenantId) {
+      return attributes;
+    }
+    if (rulesNeed(rules, ['tenantSlug', 'tenantOperator'])) {
+      const tenant = await this.tenancy.find(tenantId);
+      attributes.tenant = tenant
+        ? { slug: tenant.slug, operator: tenant.operator }
+        : null;
+    }
+    if (rulesNeed(rules, ['role'])) {
+      const grants = principal.kind === 'user' ? userRoles : apiClientRoles;
+      const holder =
+        principal.kind === 'user' ? userRoles.userId : apiClientRoles.clientId;
+      const rows = await this.db
+        .select({ roleId: grants.roleId })
+        .from(grants)
+        .where(
+          and(
+            eq(holder, principal.id),
+            or(isNull(grants.expiresAt), gt(grants.expiresAt, new Date())),
+          ),
+        );
+      attributes.roleIds = new Set(rows.map((row) => row.roleId));
+    }
+    return attributes;
+  }
+
+  /** A 400 when a rule names a role that is not one of the tenant's. */
+  private async assertRolesExist(rules: readonly FlagRule[]) {
+    const wanted = new Set(
+      rules.flatMap((rule) =>
+        rule.conditions
+          .filter((condition) => condition.key === 'role')
+          .flatMap((condition) => condition.params.roleIds as string[]),
+      ),
+    );
+    if (!wanted.size) return;
+    const found = new Set(
+      (await this.db.select({ id: roles.id }).from(roles)).map((r) => r.id),
+    );
+    const missing = [...wanted].filter((id) => !found.has(id));
+    if (missing.length) {
+      throw new BadRequestException({
+        code: 'validation_failed',
+        message: 'The setting is invalid.',
+        errors: [
+          { path: 'rules', message: `No such role: ${missing.join(', ')}.` },
+        ],
+      });
+    }
   }
 
   /** Every setting the caller may see, with their value for them. */
@@ -364,7 +456,8 @@ export class SettingsService {
     const scope = dto.scope;
     const scopeId = await this.scopeId(declaration, scope, dto.scopeId);
     const issues: { path: string; message: string }[] = [];
-    if (dto.value === undefined && dto.rollout == null) {
+    const hasRules = (dto.rules?.length ?? 0) > 0;
+    if (dto.value === undefined && dto.rollout == null && !hasRules) {
       issues.push({ path: 'value', message: 'A value is required.' });
     }
     if (dto.rollout != null && !(declaration.flag && scope === 'tenant')) {
@@ -372,6 +465,20 @@ export class SettingsService {
         path: 'rollout',
         message: 'Only a flag rolls out, at the tenant scope.',
       });
+    }
+    // Left out: the scope's rules stay (a client that only knows values keeps them); [] clears.
+    let rules: FlagRule[] | undefined;
+    if (dto.rules !== undefined) {
+      if (dto.rules.length && !(declaration.flag && scope === 'tenant')) {
+        issues.push({
+          path: 'rules',
+          message: 'Only a flag has rules, at the tenant scope.',
+        });
+      } else {
+        const parsed = parseRules(dto.rules, 'tenant');
+        if (parsed.ok) rules = parsed.rules;
+        else issues.push(...parsed.issues);
+      }
     }
     let value: unknown = null;
     if (dto.value !== undefined) {
@@ -397,6 +504,7 @@ export class SettingsService {
     if (dto.value !== undefined) {
       this.assertAllowed(key, value);
     }
+    await this.assertRolesExist(rules ?? []);
     return this.write(
       actor,
       key,
@@ -405,6 +513,7 @@ export class SettingsService {
       value,
       dto.rollout ?? null,
       ip,
+      rules,
     );
   }
 
@@ -443,8 +552,24 @@ export class SettingsService {
     const rollout = dto.rollout ?? null;
     const enforced = dto.enforced ?? false;
     const issues: { path: string; message: string }[] = [];
-    if (dto.value === undefined && rollout === null) {
+    if (
+      dto.value === undefined &&
+      rollout === null &&
+      !(dto.rules?.length ?? 0)
+    ) {
       issues.push({ path: 'value', message: 'A value is required.' });
+    }
+    let rules: FlagRule[] | undefined;
+    if (dto.rules?.length === 0) {
+      rules = [];
+    } else if (dto.rules) {
+      if (!declaration.flag) {
+        issues.push({ path: 'rules', message: 'Only a flag has rules.' });
+      } else {
+        const parsed = parseRules(dto.rules, 'platform');
+        if (parsed.ok) rules = parsed.rules;
+        else issues.push(...parsed.issues);
+      }
     }
     if (rollout !== null && !declaration.flag) {
       issues.push({ path: 'rollout', message: 'Only a flag rolls out.' });
@@ -484,6 +609,7 @@ export class SettingsService {
         .select()
         .from(platformSettingValues)
         .where(eq(platformSettingValues.key, key));
+      const kept = rules ?? before?.rules ?? [];
       const [after] = await tx
         .insert(platformSettingValues)
         .values({
@@ -491,11 +617,18 @@ export class SettingsService {
           value,
           enforced,
           rollout,
+          rules: kept,
           updatedBy: principalKey(actor),
         })
         .onConflictDoUpdate({
           target: platformSettingValues.key,
-          set: { value, enforced, rollout, updatedBy: principalKey(actor) },
+          set: {
+            value,
+            enforced,
+            rollout,
+            rules: kept,
+            updatedBy: principalKey(actor),
+          },
         })
         .returning();
       await this.audit.record(
@@ -512,9 +645,10 @@ export class SettingsService {
                   value: before.value,
                   enforced: before.enforced,
                   rollout: before.rollout,
+                  rules: before.rules,
                 }
               : null,
-            to: { value, enforced, rollout },
+            to: { value, enforced, rollout, rules: kept },
           },
           ip,
         },
@@ -548,6 +682,7 @@ export class SettingsService {
                 value: before.value,
                 enforced: before.enforced,
                 rollout: before.rollout,
+                rules: before.rules,
               },
             },
             ip,
@@ -672,6 +807,7 @@ export class SettingsService {
     value: unknown,
     rollout: number | null,
     ip?: string,
+    rules?: FlagRule[],
   ) {
     const row = await inTransaction(this.txHost, async (tx) => {
       const [before] = await tx
@@ -684,6 +820,7 @@ export class SettingsService {
             eq(settingOverrides.scopeId, scopeId),
           ),
         );
+      const kept = rules ?? before?.rules ?? [];
       const [after] = await tx
         .insert(settingOverrides)
         .values({
@@ -692,6 +829,7 @@ export class SettingsService {
           scopeId,
           value,
           rollout,
+          rules: kept,
           updatedBy: principalKey(actor),
         })
         .onConflictDoUpdate({
@@ -701,7 +839,7 @@ export class SettingsService {
             settingOverrides.scope,
             settingOverrides.scopeId,
           ],
-          set: { value, rollout, updatedBy: principalKey(actor) },
+          set: { value, rollout, rules: kept, updatedBy: principalKey(actor) },
         })
         .returning();
       await this.audit.record(
@@ -714,9 +852,13 @@ export class SettingsService {
             scope,
             scopeId,
             from: before
-              ? { value: before.value, rollout: before.rollout }
+              ? {
+                  value: before.value,
+                  rollout: before.rollout,
+                  rules: before.rules,
+                }
               : null,
-            to: { value, rollout },
+            to: { value, rollout, rules: kept },
           },
           ip,
         },
@@ -756,7 +898,11 @@ export class SettingsService {
             details: {
               scope,
               scopeId,
-              from: { value: before.value, rollout: before.rollout },
+              from: {
+                value: before.value,
+                rollout: before.rollout,
+                rules: before.rules,
+              },
             },
             ip,
           },
@@ -809,7 +955,12 @@ export class SettingsService {
   ): Promise<PlatformSettingValue | undefined> {
     const row = (await this.loadPlatform()).byKey.get(key);
     return row
-      ? { value: row.value, enforced: row.enforced, rollout: row.rollout }
+      ? {
+          value: row.value,
+          enforced: row.enforced,
+          rollout: row.rollout,
+          rules: row.rules,
+        }
       : undefined;
   }
 
