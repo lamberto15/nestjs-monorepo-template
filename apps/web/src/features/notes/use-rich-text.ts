@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { settingsQuery } from '@/features/settings/settings';
+import { useFlag } from '@/features/settings/use-flag';
 
 /** The flag in `notes.richText` (note-settings.ts, docs/settings.md). */
 export const RICH_TEXT_KEY = 'notes.richText';
@@ -8,20 +7,13 @@ export const RICH_TEXT_KEY = 'notes.richText';
 /**
  * Whether bodies are Markdown for this user: the `notes.richText` flag, as
  * `GET /v1/settings` resolves it (their value, their team's, the tenant's, the
- * rollout, the default). Off while it loads and when it can't be read (no
- * retries: a failing settings call leaves the plain text it always was);
- * `pending` says it is still loading. A setting changes rarely, so it is kept
- * five minutes before it is read again.
+ * rollout, the platform value, the default; see `useFlag`). Off while it loads
+ * and when it can't be read: a failing settings call leaves the plain text it
+ * always was; `pending` says it is still loading.
  */
 export function useRichText() {
-  const { data, isPending } = useQuery({
-    ...settingsQuery,
-    staleTime: 5 * 60_000,
-    retry: false,
-    meta: { errorToast: false },
-  });
-  const flag = data?.find((setting) => setting.key === RICH_TEXT_KEY);
-  return { richText: flag?.value === true, pending: isPending };
+  const { enabled, pending } = useFlag(RICH_TEXT_KEY);
+  return { richText: enabled, pending };
 }
 
 /**

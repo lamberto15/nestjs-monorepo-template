@@ -29,8 +29,12 @@ import type { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
+import { OperatorOnly } from '../../iam/auth/operator-only.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
+  platformSettingSchema,
+  type SetPlatformSettingDto,
+  setPlatformSettingSchema,
   type SetSettingDto,
   setMineSchema,
   setSettingSchema,
@@ -64,7 +68,7 @@ export class SettingsController {
   @ApiOperation({
     summary: 'Every setting and flag, with your value of each',
     description:
-      "Your value: your own, else your team's, else your tenant's (or a rollout), else the default. Settings not marked public show only to those who manage settings.",
+      "Your value: the operators' enforced value, else your own, else your team's, else your tenant's (or a rollout), else the operators' value for every tenant, else the default. Settings not marked public show only to those who manage settings.",
   })
   @ApiOkResponse({ standardSchema: listSchema(settingViewSchema) })
   async list(@CurrentUser() user: Principal) {
@@ -121,6 +125,47 @@ export class SettingsController {
     @Ip() ip: string,
   ) {
     return this.settings.unsetMine(user, key, ip);
+  }
+
+  @Put(':key/platform')
+  @Can(AccessPolicy, 'manageSettings')
+  @OperatorOnly()
+  @ApiOperation({
+    summary: 'Set a setting for every tenant (operators)',
+    description:
+      "The runtime default of every tenant, below each tenant's own values; `enforced: true` puts it above them all (a kill switch). Operators only. Applies on the next request. Audited.",
+  })
+  @ApiOkResponse({ standardSchema: platformSettingSchema })
+  @ApiBadRequestResponse({
+    description:
+      'A value its schema refuses (validation_failed), or one the deployment does not allow (setting_not_allowed).',
+  })
+  @ApiNotFoundResponse()
+  setPlatform(
+    @CurrentUser() user: Principal,
+    @Param('key') key: string,
+    @Body({ schema: setPlatformSettingSchema }) body: SetPlatformSettingDto,
+    @Ip() ip: string,
+  ) {
+    return this.settings.setPlatform(user, key, body, ip);
+  }
+
+  @Delete(':key/platform')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Can(AccessPolicy, 'manageSettings')
+  @OperatorOnly()
+  @ApiOperation({
+    summary:
+      "Remove the value for every tenant (operators): each tenant's own, or the default, holds again",
+  })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse()
+  async unsetPlatform(
+    @CurrentUser() user: Principal,
+    @Param('key') key: string,
+    @Ip() ip: string,
+  ) {
+    await this.settings.unsetPlatform(user, key, ip);
   }
 
   @Get(':key/overrides')

@@ -59,6 +59,8 @@ import {
   MailEventsService,
 } from './deliverability/mail-events.service.js';
 import { SesIntake } from './deliverability/sns/ses-intake.js';
+import { PostmarkIntake } from './deliverability/postmark/postmark-intake.js';
+import { SendGridIntake } from './deliverability/sendgrid/sendgrid-intake.js';
 import {
   HttpSnsGateway,
   SNS_HTTP,
@@ -593,6 +595,8 @@ export class PlatformModule {
         MailEventsRetentionJob,
         { provide: SnsGateway, useClass: HttpSnsGateway },
         SesIntake,
+        PostmarkIntake,
+        SendGridIntake,
         SuppressionsService,
         { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
         MailSuppressionPolicy,
