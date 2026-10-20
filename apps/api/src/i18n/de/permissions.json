@@ -164,6 +164,10 @@
       "label": "Plattformanalyse",
       "description": "Zählt jede Nacht Mandanten, Benutzer, Mitgliedschaften und API-Nutzung über alle Mandanten, unterdrückt kleine Gruppen und speichert nur die Aggregate, die die Reporting-Rolle liest."
     },
+    "reencryption": {
+      "label": "Neuverschlüsselung",
+      "description": "Schreibt verschlüsselte Werte und Blind-Indizes, die noch unter einem älteren Schlüssel stehen, stündlich in Stapeln mit dem aktuellen Schlüssel neu."
+    },
     "demo-seed": {
       "label": "Demodaten",
       "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Teams und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."

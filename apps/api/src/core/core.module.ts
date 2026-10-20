@@ -52,6 +52,7 @@ import { REDIS } from './redis/redis.js';
 import { RedisModule } from './redis/redis.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
 import { Tenancy } from './tenancy/tenancy.service.js';
+import { EncryptionService } from './encryption/encryption.service.js';
 import {
   NO_TENANT,
   TENANT_SCOPE,
@@ -157,9 +158,11 @@ const CURSOR_KEYS = Symbol('CURSOR_KEYS');
     ),
   ],
   controllers: [HealthController],
-  exports: [MailQueue, BullModule, Tenancy],
+  exports: [MailQueue, BullModule, Tenancy, EncryptionService],
   providers: [
     Tenancy,
+    // Personal data at rest: the encrypted columns' keys (docs/encryption.md).
+    EncryptionService,
     // The keys sorted lists' cursors are sealed with (CURSOR_KEYS, else the
     // one created in app_secrets): every api and worker instance shares them.
     {

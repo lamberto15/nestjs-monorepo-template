@@ -97,6 +97,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Tags (labels) on records: managing them, filtering lists by them | [docs/tags.md](docs/tags.md) |
 | Scheduled reports (an export run on a schedule, mailed with a link) | [docs/reports.md](docs/reports.md) |
 | Email deliverability (SPF, DKIM, DMARC for SES; bounces and complaints through SNS; the suppression list the sender respects) | [docs/deliverability.md](docs/deliverability.md) |
+| Encrypted columns (personal data at rest): `encrypted()`, `EncryptionService`, blind indexes, key rotation and the re-encryption job, `DATA_ENCRYPTION_KEYS` | [docs/encryption.md](docs/encryption.md) |
 | Record revisions: history, diff between two, restore one (retention) | [docs/revisions.md](docs/revisions.md) |
 | Approvals: declared policies, stages, approver rules, delegation, escalation, extending | [docs/approvals.md](docs/approvals.md) |
 | API clients' usage per day and route, daily quotas (429 `quota_exceeded`) | [docs/usage.md](docs/usage.md) |

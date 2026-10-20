@@ -164,6 +164,10 @@
       "label": "平台分析",
       "description": "每晚统计所有租户的租户、用户、成员资格和 API 使用量，隐去小群体，只存储报表角色可读取的聚合数据。"
     },
+    "reencryption": {
+      "label": "重新加密",
+      "description": "每小时分批用当前密钥重写仍使用旧密钥的加密值和盲索引。"
+    },
     "demo-seed": {
       "label": "演示数据",
       "description": "在开发数据库上创建演示用户、团队和各功能的演示数据（pnpm db:seed:demo）；拒绝其他任何数据库。"
