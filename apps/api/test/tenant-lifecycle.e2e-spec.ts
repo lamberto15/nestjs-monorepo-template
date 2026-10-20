@@ -73,14 +73,15 @@ describe('tenant export and deletion (e2e)', () => {
   }
 
   it("exports every record of one tenant and none of another's, behind a link that expires", async () => {
-    const mine = await node
-      .writeItem(other.admin, { title: 'Theirs', body: 'x' })
-      .expect(201);
+    // The records of src/schema.ts (the platform's, the features'): its
+    // roles and API clients here; test/fixtures' tables are not in it.
     const client = await other.client();
+    const roles = (await other.admin.get('/v1/access/roles').expect(200)).body
+      .items as { id: string; key: string | null }[];
     const third = await node.otherTenant();
-    const foreign = await node
-      .writeItem(third.admin, { title: 'Not theirs', body: 'y' })
-      .expect(201);
+    const foreign = await third.client();
+    const foreignRoles = (await third.admin.get('/v1/access/roles').expect(200))
+      .body.items as { id: string }[];
 
     const { id, status, file } = await exportOf(other.id);
     // The operators' file, under their tenant (it outlives the exported one).
@@ -91,10 +92,11 @@ describe('tenant export and deletion (e2e)', () => {
     expect(file.find((row) => row.kind === 'member')?.data.email).toBe(
       other.email,
     );
+    const administrator = roles.find((role) => role.key === 'administrator')!;
     expect(
-      file.find((row) => row.kind === 'test_items' && row.id === mine.body.id)
-        ?.data.title,
-    ).toBe('Theirs');
+      file.find((row) => row.kind === 'roles' && row.id === administrator.id)
+        ?.data.key,
+    ).toBe('administrator');
     // Its client and its key, without the key's hash.
     expect(
       file.some((row) => row.kind === 'api_clients' && row.id === client.id),
@@ -103,7 +105,11 @@ describe('tenant export and deletion (e2e)', () => {
     expect(key).toBeDefined();
     expect(key!.data).not.toHaveProperty('keyHash');
     // Nothing of another tenant, nor of none.
-    expect(file.some((row) => row.id === foreign.body.id)).toBe(false);
+    const ids = new Set(file.map((row) => row.id));
+    expect(ids.has(foreign.id)).toBe(false);
+    for (const role of foreignRoles) {
+      expect(ids.has(role.id)).toBe(false);
+    }
     for (const row of file) {
       if ('tenantId' in row.data) {
         expect(row.data.tenantId, row.kind).toBe(other.id);
