@@ -18,8 +18,10 @@ import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
-import { acceptedSchema, token } from './account.schemas.js';
+import { Captcha } from '../captcha/captcha.guard.js';
+import { acceptedSchema, email, token } from './account.schemas.js';
 import { AccountService } from './account.service.js';
+import { VerificationRequests } from './verification-requests.service.js';
 
 const verifySchema = z.object({
   token,
@@ -32,6 +34,7 @@ const verifySchema = z.object({
       "The account's password, when it was chosen before the address was proved (a sign-up): required then.",
     ),
 });
+const resendSchema = z.object({ email });
 const verifiedSchema = z.object({
   email: z.string(),
   emailVerified: z.literal(true),
@@ -48,6 +51,7 @@ export class EmailController {
   constructor(
     private readonly emailVerification: EmailVerificationService,
     private readonly account: AccountService,
+    private readonly verificationRequests: VerificationRequests,
   ) {}
 
   @Public()
@@ -80,6 +84,25 @@ export class EmailController {
     if (!user.emailVerified) {
       await this.emailVerification.send(user);
     }
+    return { accepted: true as const };
+  }
+
+  // Five per email and IP every 15 minutes, as forgot password; a challenge when CAPTCHA_MODE asks.
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: minutes(15) } })
+  @Captcha({ action: 'resend-verification', count: 'requests' })
+  @Post('verification/resend')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Send the verification link again, without a session',
+    description:
+      'For a sign-up whose address is not proved yet (it has no session: sign-in answers 403 `email_unverified`). Always 202, at once, whether the address has an account, a verified one or none: the answer reveals nothing. An unproved account with a password gets a new link (WEB_URL/verify-email?token=…), at most one a minute. Signed in, use POST /auth/email/verification.',
+  })
+  @ApiAcceptedResponse({ standardSchema: acceptedSchema })
+  resendByEmail(
+    @Body({ schema: resendSchema }) body: z.infer<typeof resendSchema>,
+  ) {
+    this.verificationRequests.request(body.email);
     return { accepted: true as const };
   }
 }

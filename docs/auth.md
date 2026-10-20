@@ -16,7 +16,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Which switches are on (a signed-in client) | `GET /v1/features`: [configuration](configuration.md#which-switches-are-on-get-v1features) |
 | Forgot / reset password | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset` |
 | Change password | `POST /v1/auth/password/change` (others signed out; [step-up](#step-up-recent-authentication)) |
-| Verify email | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` |
+| Verify email | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` (signed in), `POST /v1/auth/email/verification/resend { email }` (no session) |
 | Sessions (each with how it was signed in, and its device) | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `POST /v1/auth/sign-out-everywhere` |
 | Re-authenticate for a sensitive action | `GET /v1/auth/reauthenticate` (how, until when), `POST /v1/auth/reauthenticate`: see [Step-up](#step-up-recent-authentication) |
 | Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
@@ -68,7 +68,18 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
   up someone else's address can't have its owner verify it for them and
   sign in as the owner. The owner of such an address uses
   "forgot password" instead: the reset link proves the address and replaces
-  the password. The account joins no tenant (a tenant invites it); with
+  the password. **A lost link** is sent again without a session:
+  `POST /v1/auth/email/verification/resend { email }` (the sign-up's "check
+  your mailbox" screen, the sign-in page's `email_unverified`). Shaped like
+  forgot password: always 202 `{ accepted: true }`, at once, whether the
+  address has an unproved account, a proved one or none; the account is
+  looked up after the answer (`VerificationRequests`,
+  `iam/account/verification-requests.service.ts`), and only an active
+  account with a password whose address is unproved gets a new link, at
+  most one a minute (the sign-up's own counts), through the mail queue.
+  Limited to 5 per email and IP in 15 minutes, with the bot check (action
+  `resend-verification`). Signed in, `POST /v1/auth/email/verification`
+  (no body) does the same for the user's own address. The account joins no tenant (a tenant invites it); with
   `TENANCY=single` it joins the one tenant, and with `TENANT_SIGN_UP=on` it
   makes its own (`tenantName`) and administers it
   ([tenancy](tenancy.md), "Tenants made at sign-up"). A provider sign-in that asserts the address is verified
@@ -667,7 +678,7 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 ## Bot protection
 
 The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, the second step `/mfa/verify`, `/sign-up`,
-`/magic-link`, `/password/forgot`, and the passkey sign-ins `/passkeys/sign-in`
+`/magic-link`, `/password/forgot`, `/email/verification/resend`, and the passkey sign-ins `/passkeys/sign-in`
 and `/passkeys/token`, which count their failures per address) can ask for a challenge token, verified
 server-side with Cloudflare Turnstile. **Off by default**: without
 `CAPTCHA_MODE` and the keys, nothing changes for an existing deployment.
@@ -678,7 +689,7 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   frontend reads `GET /v1/auth/methods` → `captcha` (`provider`, `siteKey`,
   `mode`; `null`: off), renders the widget with the site key and the route's
   action (`data-action`: `sign-in`, `sign-up`, `magic-link`,
-  `forgot-password`), and sends the token with the request. A token is good
+  `forgot-password`, `resend-verification`), and sends the token with the request. A token is good
   **once**, for one route.
 - **Modes** (`CAPTCHA_MODE`): `always`; `after-failures`: a token once
   `CAPTCHA_FAILURES` (3) attempts in `CAPTCHA_FAILURES_WINDOW_MINUTES` (15)
@@ -697,7 +708,7 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   factor) stays counted, like a wrong one: the challenge comes at the same
   attempt, with the same problem, whether the address is unproved, has an
   account, or none. Sign-up, the magic-link
-  request and forgot password count every request, since their answers
+  request, forgot password and the verification resend count every request, since their answers
   reveal nothing. The counts live in Redis, keyed by a hash of the address
   or of `email|address` (**the same keys on every guarded route**: a bot
   alternating `/sign-in` and `/token` from one address trips the challenge

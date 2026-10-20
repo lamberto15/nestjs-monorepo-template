@@ -2015,6 +2015,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/email/verification/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the verification link again, without a session
+         * @description For a sign-up whose address is not proved yet (it has no session: sign-in answers 403 `email_unverified`). Always 202, at once, whether the address has an account, a verified one or none: the answer reveals nothing. An unproved account with a password gets a new link (WEB_URL/verify-email?token=…), at most one a minute. Signed in, use POST /auth/email/verification.
+         */
+        post: operations["EmailController_resendByEmail_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/sessions": {
         parameters: {
             query?: never;
@@ -12492,7 +12512,7 @@ export interface operations {
                         passkeys: boolean;
                         /** @description Start with GET /auth/oidc/{provider}/login. */
                         providers: string[];
-                        /** @description Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off. */
+                        /** @description Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request, forgot password and the verification resend: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off. */
                         captcha: {
                             /** @description `turnstile`; `stub` outside production. */
                             provider: string;
@@ -13047,6 +13067,45 @@ export interface operations {
                         accepted: true;
                     };
                 };
+            };
+        };
+    };
+    EmailController_resendByEmail_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The challenge token (Cloudflare Turnstile, widget action `resend-verification`), when GET /auth/methods lists a captcha: always, or once a 403 `captcha_required` asked for one. */
+                "X-Captcha-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example ada@example.com */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            /** @description `captcha_required`: solve the challenge (the problem names `provider`, `siteKey` and `action`) and send its token in `X-Captcha-Token`. `captcha_invalid`: the token was refused (`reason`: `invalid`, `duplicate`, `hostname`, `action`); render the widget again. Provider down: 503 `captcha_unavailable` (fail-closed), or 429 `rate_limited` past the fail-open allowance. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

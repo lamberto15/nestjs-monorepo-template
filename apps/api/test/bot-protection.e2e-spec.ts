@@ -180,7 +180,7 @@ describe('bot protection, always (e2e)', () => {
     expect(siteverify.requests).toHaveLength(1);
   });
 
-  it('guards sign-up, the magic-link request and forgot password too, each with its action', async () => {
+  it('guards sign-up, the magic-link request, forgot password and the verification resend too, each with its action', async () => {
     const routes: [string, string, Record<string, unknown>][] = [
       [
         '/v1/auth/sign-up',
@@ -189,6 +189,11 @@ describe('bot protection, always (e2e)', () => {
       ],
       ['/v1/auth/magic-link', 'magic-link', { email: email() }],
       ['/v1/auth/password/forgot', 'forgot-password', { email: email() }],
+      [
+        '/v1/auth/email/verification/resend',
+        'resend-verification',
+        { email: email() },
+      ],
     ];
     for (const [path, action, body] of routes) {
       const refused = await node

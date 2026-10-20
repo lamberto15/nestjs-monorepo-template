@@ -321,7 +321,11 @@ operators' route does). Off, only operators make tenants.
   ones made more than 7 days ago (`UNVERIFIED_SIGN_UP_GRACE_DAYS`) whose
   members never proved their address and whose verification links (24
   hours each; a resend makes a new one) all expired more than 7 days ago,
-  up to 500 a night. Each deletion runs in its own transaction, under its
+  up to 500 a night. **A hard limit:** one made more than 30 days ago
+  (`UNVERIFIED_SIGN_UP_MAX_AGE_DAYS`, `tenants.created_at`) whose members
+  never proved their address goes whatever its newest link, since anyone
+  can ask for a new link for an unproved address
+  (`POST /v1/auth/email/verification/resend`, docs/auth.md). Each deletion runs in its own transaction, under its
   members' account locks, checked again there (an address proved meanwhile
   keeps its tenant). The tenant's row goes (`TenantsService.deleteRow()`,
   the database cascading to its rows and memberships; tenant deletion,
