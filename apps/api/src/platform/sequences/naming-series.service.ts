@@ -385,7 +385,16 @@ export class NamingSeriesService {
   private async views(rows: Series[]): Promise<NamingSeriesView[]> {
     const at = new Date();
     const counters = rows.map((row) =>
-      this.counter(this.numbered(row.subject), row.pattern, at),
+      this.counter(
+        // A series left by a feature since removed still lists.
+        this.registry.find(row.subject) ?? {
+          subject: row.subject,
+          sequence: row.subject.charAt(0).toLowerCase() + row.subject.slice(1),
+          declared: {},
+        },
+        row.pattern,
+        at,
+      ),
     );
     const values = await this.sequences.peekMany(counters);
     return rows.map((row, index) => ({

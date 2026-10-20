@@ -360,7 +360,7 @@ describe('addFeature', () => {
       api('src/features/quotes/quotes.service.ts'),
       'utf8',
     );
-    assert.match(service, /lifecycle\.creating\(tx\)/);
+    assert.match(service, /lifecycle\.creating\(tx, dto\)/);
     assert.match(service, /records\.delete\(tx/);
   });
 
