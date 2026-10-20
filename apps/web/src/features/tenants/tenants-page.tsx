@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,10 +26,9 @@ import { tenantsAdminQuery, useCreateTenant } from './queries';
 
 /**
  * Every tenant of the deployment, for its operators, and a form to make one
- * with its first administrator. The API has no more for a tenant yet
- * (docs/tenancy.md: deactivating, renaming, deleting are roadmap 1b), so
- * there is no detail page. A tenant the user is a member of can be switched
- * to from here.
+ * with its first administrator. A name opens the tenant (rename, slug,
+ * deactivate: `tenant-detail.tsx`). A tenant the user is a member of can be
+ * switched to from here.
  */
 export function TenantsPage() {
   const { t } = useTranslation('tenants');
@@ -75,7 +75,13 @@ export function TenantsPage() {
               {list.data.items.map((tenant) => (
                 <TableRow key={tenant.id}>
                   <TableCell className="font-medium">
-                    {tenant.name}
+                    <Link
+                      to="/tenants/$id"
+                      params={{ id: tenant.id }}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {tenant.name}
+                    </Link>
                     {tenant.operator && (
                       <Badge variant="secondary" className="ms-2">
                         {t('list.operator')}
