@@ -23,6 +23,12 @@ export type NavItem = {
    */
   operator?: true;
   /**
+   * Shown only to users acting in the operator tenant (`me.tenant.operator`),
+   * in either tenancy: the operations API answers them alone (403
+   * `operator_required`), a single-tenant deployment's one tenant included.
+   */
+  operatorTenant?: true;
+  /**
    * A hook returning a count shown next to the label (undefined or 0: none).
    * A hook, so the entry's feature owns its query; the menu calls it in a
    * component of its own per entry, so the hook's identity must be stable.
@@ -67,12 +73,15 @@ export function visibleGroups(
   features: Features | undefined,
   can: Record<string, boolean> | undefined,
   operator = false,
+  operatorTenant = false,
 ): NavGroup[] {
   return groups
     .map((group) => ({
       ...group,
       items: visible(group.items, features, can).filter(
-        (item) => !item.operator || operator,
+        (item) =>
+          (!item.operator || operator) &&
+          (!item.operatorTenant || operatorTenant),
       ),
     }))
     .filter((group) => group.items.length > 0);
