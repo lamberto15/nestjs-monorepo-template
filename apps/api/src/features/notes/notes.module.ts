@@ -41,7 +41,7 @@ import { NOTE_LIST } from './note.list.js';
  * workflow, outgoing webhooks through the outbox, a verified incoming webhook,
  * the audit log, exports and imports (note.transfer.ts), bulk actions
  * (note.bulk.ts), a PDF of a note (note-documents.ts), and
- * notifications to the owner (note-notifications.ts). Its permissions, event types and incoming sender are
+ * notifications to the owner (note-events.ts). Its permissions, event types and incoming sender are
  * handed to IamModule and PlatformModule in AppModule.
  *
  * To start a project: copy this folder as a model, then delete it (and its

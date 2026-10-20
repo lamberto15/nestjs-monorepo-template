@@ -378,6 +378,32 @@ the generated client and the check below. In development and tests
 `Realtime.toPrincipal()` throws for an event no manifest declares and for a payload that
 doesn't parse against its schema; production sends what it is given.
 
+### Domain events
+
+A domain event is declared once, for the channels that carry it
+(`platform/events/domain-event.ts`, `defineDomainEvents()`), in the feature's
+`events` (`defineFeature`):
+
+```ts
+export const NOTE_EVENTS = defineDomainEvents([
+  {
+    type: 'note.published',
+    webhook: { description: 'A note was published.' }, // or `true`: an outgoing webhook type
+    notification: { channels: { email: 'immediate', webhook: true }, data: z.object({ … }) }, // a notification type
+    realtime: { id: 'RealtimeNotePublishedEvent', description: '…', payload: z.object({ … }) }, // a realtime event of the same name
+  },
+]);
+```
+
+`featureDeclarations` splits them into the platform's own options (`eventTypes`,
+`notifications`, `realtimeEvents`), so nothing downstream changed: the separate lists on
+`defineFeature` and `PlatformModule.forRoot` still work. A notification's `type` must be a
+key of `i18n/en/notifications.json` (a compile error otherwise). A record's capabilities
+declare theirs the same way: `events` brings `<item>.created`, `.updated`, `.deleted`
+(`.restored`) as webhook types and comments bring the `<item>.commented` notification, so
+`pnpm feature:add` and `pnpm feature:sync` (whose feature file declares only `record`) need
+no event lines of their own.
+
 ### Record events
 
 A record page reloads a panel when it hears of a change on it, instead of

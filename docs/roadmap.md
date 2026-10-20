@@ -416,7 +416,7 @@ Planned as:
   `template-without-notes` proves the core stands with the example removed.
 - **One event declaration.** Notifications, webhooks and realtime each declare event
   types today; they become one domain-event declaration with channels, and the
-  generator emits one. **Open (#320, second PR):** only the realtime part is unified: features register their own realtime events (`realtimeEvents`), and `toPrincipal` checks declared names and payloads in dev/test; the one declaration with channels (notifications, webhooks, realtime) and the generator are left.
+  generator emits one. **Done (#320):** `defineDomainEvents()` (`platform/events/domain-event.ts`) declares an event once with its webhook, notification and realtime channels; notes uses it, and a record's capabilities derive theirs through it, so the generator's feature file stays `record:` alone.
 - **The realtime manifest** (done, #229): `platform/realtime/realtime-events.ts` goes into
   the OpenAPI document as `x-realtime-events`, so `client:check` diffs it and oasdiff
   (21) catches breaking changes; the client's `src/realtime-events.ts` is generated.
