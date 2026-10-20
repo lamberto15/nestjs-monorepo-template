@@ -94,6 +94,17 @@ function api(
           (row) => (row.suppressedAt === null) === (watching === 'true'),
         );
       }
+      const sort = query.get('sort');
+      if (sort === 'address') {
+        rows = rows.toSorted((a, b) => a.address.localeCompare(b.address));
+      } else if (sort === '-lastSeenAt') {
+        rows = rows.toSorted((a, b) =>
+          b.lastSeenAt.localeCompare(a.lastSeenAt),
+        );
+      }
+      if (query.get('page') && Number(query.get('page')) < 1) {
+        return problem(400, 'validation_failed');
+      }
       const pageCount = Math.max(1, Math.ceil(rows.length / limit));
       return HttpResponse.json({
         items: rows.slice((page - 1) * limit, page * limit),
@@ -256,6 +267,58 @@ describe('mail suppressions: filters and paging', () => {
     await waitFor(() =>
       expect(state.queries.at(-1)?.get('sort')).toBe('-lastSeenAt'),
     );
+    // The sorts offered are the ones the API orders as they read.
+    await user.click(screen.getByRole('combobox', { name: 'Sort by' }));
+    expect(
+      (await screen.findAllByRole('option')).map((o) => o.textContent),
+    ).toEqual(['Newest added', 'Last seen', 'Address']);
+    await user.click(screen.getByRole('option', { name: 'Address' }));
+    await waitFor(() =>
+      expect(state.queries.at(-1)?.get('sort')).toBe('address'),
+    );
+  });
+
+  it('shows ?q in the search box', async () => {
+    api();
+    await renderApp('/mail-suppressions?q=person2');
+    expect(await screen.findByLabelText('Address contains')).toHaveValue(
+      'person2',
+    );
+    expect(await screen.findByText('person2@example.com')).toBeInTheDocument();
+  });
+
+  it('asks for the first page when the URL says page 0', async () => {
+    const state = api();
+    await renderApp('/mail-suppressions?page=0');
+    expect(await screen.findByText('person1@example.com')).toBeInTheDocument();
+    expect(state.queries.every((q) => q.get('page') === '1')).toBe(true);
+  });
+
+  it('goes to the last page there is when the page is past the end', async () => {
+    api();
+    await renderApp('/mail-suppressions?page=9');
+    expect(await screen.findByText('person1@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
+  });
+
+  it('goes back a page after the last row of the last page is removed', async () => {
+    const many = Array.from({ length: 21 }, (_, i) => entry(i + 1));
+    api({ entries: many });
+    await renderApp('/mail-suppressions?page=2');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Remove person21@example.com',
+      }),
+    );
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Remove from the list',
+      }),
+    );
+    await findToast('person21@example.com is off the list.');
+    expect(await screen.findByText('person1@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
   });
 
   it('reads the filters from the URL', async () => {

@@ -33,12 +33,15 @@ export const reasons = [
 export const statuses = ['suppressed', 'watching'] as const;
 export type SuppressionStatus = (typeof statuses)[number];
 
-/** The sorts the list offers (the API sorts by address and by the dates). */
-export const sorts = ['lastSeen', 'suppressed', 'address'] as const;
+/**
+ * The sorts the list offers. Not `suppressedAt`: the API puts the empty
+ * values (the entries only watched) first when descending, so "newest
+ * suppressed" would open with the watched ones.
+ */
+export const sorts = ['lastSeen', 'address'] as const;
 export type SuppressionSort = (typeof sorts)[number];
 const sortParam: Record<SuppressionSort, string> = {
   lastSeen: '-lastSeenAt',
-  suppressed: '-suppressedAt',
   address: 'address',
 };
 

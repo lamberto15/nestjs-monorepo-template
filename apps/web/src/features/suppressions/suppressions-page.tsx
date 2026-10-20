@@ -29,7 +29,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from 'nuqs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -94,8 +94,9 @@ export function SuppressionsPage() {
   const format = useDateTimeFormat();
   const canManage = useCan('MailSuppression.manage');
   const [filters, setFilters] = useQueryStates(urlState);
-  const { q, reason, status, sort, page } = filters;
-  const [search, setSearch] = useState(q ?? '');
+  const { q, reason, status, sort } = filters;
+  // ?page=0 or below would be a 400.
+  const page = Math.max(1, filters.page);
   const [adding, setAdding] = useState(false);
   const [shown, setShown] = useState<string>();
   const [removing, setRemoving] = useState<Suppression>();
@@ -112,6 +113,19 @@ export function SuppressionsPage() {
     meta: { errorToast: false },
   });
   const pageCount = list.data?.pageCount ?? 1;
+  // A page with nothing on it (the last row of the last page was removed, a
+  // stale ?page=): go to the last page there is, so the pager stays reachable.
+  const stranded =
+    page > 1 &&
+    !list.isPlaceholderData &&
+    list.data !== undefined &&
+    list.data.items.length === 0;
+  useEffect(() => {
+    if (stranded) {
+      const last = Math.min(page - 1, Math.max(1, pageCount));
+      void setFilters({ page: last <= 1 ? null : last });
+    }
+  }, [stranded, page, pageCount, setFilters]);
   // A change of filter starts again at the first page.
   const filter = (change: Partial<Record<keyof typeof urlState, unknown>>) =>
     void setFilters({ ...change, page: null } as never);
@@ -130,11 +144,16 @@ export function SuppressionsPage() {
         </Can>
       </div>
       <form
+        // Remounted when ?q changes (back, a link), so the box shows it.
+        key={q ?? ''}
         className="flex flex-wrap items-end gap-3"
         role="search"
         onSubmit={(event) => {
           event.preventDefault();
-          filter({ q: search.trim() || null });
+          const typed = new FormData(event.currentTarget).get('q');
+          filter({
+            q: typeof typed === 'string' ? typed.trim() || null : null,
+          });
         }}
       >
         <Field className="w-64">
@@ -143,10 +162,10 @@ export function SuppressionsPage() {
           </FieldLabel>
           <Input
             id="suppression-search"
+            name="q"
             type="search"
-            value={search}
+            defaultValue={q ?? ''}
             placeholder={t('filters.addressPlaceholder')}
-            onChange={(event) => setSearch(event.target.value)}
           />
         </Field>
         <Button type="submit" variant="outline">

@@ -20,7 +20,6 @@
   "sort": {
     "newest": "Newest added",
     "lastSeen": "Last seen",
-    "suppressed": "Suppressed",
     "address": "Address"
   },
   "filters": {
