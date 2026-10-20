@@ -221,6 +221,56 @@ machine) works without the flag.
 A redelivered event id is answered 200 by the package before the handler
 runs. Model: `features/notes/example-sender-webhook.controller.ts`.
 
+### Incoming webhooks of a tenant
+
+The senders above are deployment-wide: one secret, no tenant. A **tenant
+registers its own senders** (a CRM, a payment provider), each with its own
+secret, so the receiver knows the tenant of the work
+(`platform/webhooks/incoming-senders.*`, `tenant-webhook-receiver.controller.ts`).
+
+| Need | Route |
+| --- | --- |
+| Register, list, read, describe or disable, remove | `POST/GET /v1/webhook-senders`, `GET/PATCH/DELETE /v1/webhook-senders/{id}` |
+| A new secret (the old one keeps verifying for `graceSeconds`, default 24 hours) | `POST /v1/webhook-senders/{id}/rotate-secret` |
+| The sender's calls | `POST /v1/webhooks/tenants/{tenantId}/senders/{name}` (public, signed) |
+
+- **Who manages:** a user (a session or a user token; an API key is a 401) with
+  `Access.manageClients`, in the tenant they act in (a sender is a system, as an API
+  client is). Registering and rotating return the `whsec_…` secret, this once, and
+  want a recent sign-in (403 `reauthentication_required`). Every change is audited
+  (`webhookSender.created`, `.updated`, `.secret-rotated`, `.deleted`); an entry
+  never carries a secret. `name` is lower-case letters, digits and hyphens, unique
+  per tenant; the answer's `path` is the sender's URL.
+- **The tenant is in the URL, the wall finds the sender.** The sender is looked up
+  inside the tenant the URL names (`incoming_webhook_senders` is a tenant table,
+  [tenancy](tenancy.md)), so a sender of another tenant is invisible there even with
+  the same name. `TenantSenderGuard` resolves it before the signature check and sets
+  the request's tenant: the handler, its transactions and the inbox run in that
+  tenant. An unknown or deactivated tenant, an unknown or disabled sender, another
+  tenant's secret and a bad, tampered or stale signature (5 minutes) are all the same
+  401, so nothing says which exists.
+- **Signatures:** Standard Webhooks (`webhook-id`, `webhook-timestamp`,
+  `webhook-signature`) with the sender's secret, or its previous one while the grace
+  period of a rotation lasts. `TenantSenderScheme` plugs into the package's receiver
+  (`tenant-senders`), so the tolerance, the deduplication of a redelivered `webhook-id`
+  (200, the handler not run again) and `processInTransaction()` are the package's; the
+  signatures compare in constant time. The deduplication key is `<sender id>:<webhook-id>`
+  (the `id` a handler sees), so two tenants' senders never share an id.
+- **Secrets at rest:** sealed as the outgoing endpoints' are: `WEBHOOKS_ENCRYPTION_KEYS`,
+  AES-256-GCM with the sender's id as additional data (a sealed secret copied to another
+  row fails to open), the same `sealed.v1.…` format and keys (unset: stored as they are).
+  Never in a list or a get, the audit log or a tenant export (`secret`, `previousSecret`
+  are hidden from it). The package's `SecretCipher` isn't exported, so
+  `incoming-sender-secrets.ts` implements the same format.
+- **The body** is `{ "type": "…", "data": … }`. The `type` picks the handler a feature
+  registered in its constructor with `IncomingEventHandlers.register(type, handler)`
+  (the notes' `note.publish-requested` is the model; the handler gets
+  `{ tenantId, sender, webhook }` and runs in the tenant). The answer is
+  `{ received, duplicate, handled }`: a type nobody handles is acknowledged
+  (`handled: false`) so the sender doesn't retry; a body that is not an event is a 400.
+- **Not behind `WEBHOOKS=off`** (that switch is for the outgoing webhooks), like the
+  deployment-wide senders.
+
 A sender that doesn't sign with an HMAC scheme keeps a route of its own:
 SES's bounces and complaints arrive as SNS notifications, RSA-signed with
 a certificate the message names, at `POST /v1/webhooks/mail/ses`
