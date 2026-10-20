@@ -55,6 +55,7 @@ import { verifiedEmailOnly } from './account.schemas.js';
 import type { PasskeyView } from './passkey.schemas.js';
 import { type PasskeySettings, passkeySettingsOf } from './passkeys.config.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
+import { SignInLog } from './sign-in-log.service.js';
 import { assertNotLastSignInMethod } from './sign-in-methods.js';
 
 /** How many passkeys one account may hold (each one is listed in every ceremony). */
@@ -91,11 +92,35 @@ export type PasskeyRefusal =
   | 'session'
   | 'user'
   | 'origin'
+  | 'cross-origin'
   | 'unknown'
   | 'inactive'
   | 'counter'
   | 'user-verification'
   | 'invalid';
+
+/**
+ * Whether the browser ran the ceremony inside a frame of another origin
+ * (`clientDataJSON.crossOrigin`) or names a top-level origin (`topOrigin`,
+ * which only a cross-origin frame has). This app never embeds its
+ * ceremonies, so either is refused, for registration and assertions alike.
+ *
+ * Custom, on purpose: @simplewebauthn/server 14 checks `topOrigin` only in
+ * `verifyAuthenticationResponse()` (refused unless `expectedTopOrigin` is
+ * given, which we never give), accepts `crossOrigin: true` without a
+ * `topOrigin` (Safari sends none), and checks neither when registering.
+ */
+export function isCrossOriginCeremony(clientData: {
+  crossOrigin?: unknown;
+  topOrigin?: unknown;
+}): boolean {
+  // Anything but `false` or absent (a malformed value too) is refused.
+  return (
+    (clientData.crossOrigin !== undefined &&
+      clientData.crossOrigin !== false) ||
+    clientData.topOrigin !== undefined
+  );
+}
 
 /** An assertion that doesn't hold: the caller decides what the client learns (401 at sign-in, 403 at re-authentication). */
 export class PasskeyAssertionError extends Error {
@@ -198,6 +223,7 @@ export class PasskeysService {
     private readonly users: UsersRepository,
     private readonly audit: AuditService,
     private readonly securityAlerts: SecurityAlertsService,
+    private readonly signInLog: SignInLog,
     private readonly signInService: SignInService,
     private readonly sessions: SessionService,
     private readonly tokens: TokenService,
@@ -604,6 +630,12 @@ export class PasskeysService {
           ? tenantId
           : null;
     if (tenantId !== undefined && !tenant) {
+      await this.signInLog.tenantRefused(user, {
+        method: 'passkey',
+        ip: context.ip,
+        tenantId,
+        details: { passkey: passkey.id },
+      });
       throw new UnauthorizedException(t('auth.passkeyInvalid'));
     }
     const tokens = await this.tokens.issue(user.id, {
@@ -868,8 +900,11 @@ export class PasskeysService {
     binding: CeremonyBinding,
   ): Promise<{ challenge: string; stored: StoredChallenge }> {
     let challenge: unknown;
+    let crossOrigin: boolean;
     try {
-      ({ challenge } = decodeClientDataJSON(clientDataJSON));
+      const clientData = decodeClientDataJSON(clientDataJSON);
+      challenge = clientData.challenge;
+      crossOrigin = isCrossOriginCeremony(clientData);
     } catch (error) {
       throw new PasskeyAssertionError('client-data', error);
     }
@@ -895,6 +930,10 @@ export class PasskeysService {
     }
     if (stored.origin !== null && binding.origin !== stored.origin) {
       throw new PasskeyAssertionError('origin');
+    }
+    // After the GETDEL: a ceremony run in a foreign frame spends its challenge.
+    if (crossOrigin) {
+      throw new PasskeyAssertionError('cross-origin');
     }
     return { challenge, stored };
   }

@@ -16665,7 +16665,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `passkey_invalid` with `reason`: the challenge is unknown, used or expired (`challenge`), was made for another session or origin, the response is not for this site, or the authenticator did not verify its user (`user-verification`). */
+            /** @description `passkey_invalid` with `reason`: the challenge is unknown, used or expired (`challenge`), was made for another session or origin, the response is not for this site or ran in a frame of another origin (`cross-origin`), or the authenticator did not verify its user (`user-verification`). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16836,6 +16836,13 @@ export interface operations {
                         updatedAt: string;
                     };
                 };
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             404: {
                 headers: {
