@@ -51,7 +51,10 @@
       "newPassword": "Neues Passwort",
       "confirmPassword": "Passwort bestätigen",
       "name": "Name",
-      "nameRequired": "Geben Sie einen Namen ein."
+      "nameRequired": "Geben Sie einen Namen ein.",
+      "tenantName": "Organization name",
+      "tenantNameHint": "Your new organization. You will be its administrator. Leave it empty to use your name.",
+      "tenantNameTooLong": "At most {{max}} characters."
     },
     "mfa": {
       "hint": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",

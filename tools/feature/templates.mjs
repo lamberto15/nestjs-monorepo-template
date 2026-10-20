@@ -8,7 +8,7 @@
 // flips: only record() reads those. Each function takes the context (`t` the
 // names, `fields`, `softDelete`, `team`, `capabilities`, `description`) and
 // returns a file's text; Prettier formats it after.
-import { lowerFirst, numberPrefix } from './capabilities.mjs';
+import { approvalLabel, lowerFirst, numberPrefix } from './capabilities.mjs';
 import { builderOf, camelOf, pascalOf } from './fields.mjs';
 
 const GENERATED = (what) =>
@@ -23,12 +23,19 @@ export function record({
   grants = 'standard',
   idempotency,
   capabilities,
+  approvals = [],
+  settings = [],
 }) {
   const refs = [...new Set(fields.filter((f) => f.ref).map((f) => f.ref))];
   const searchable = capabilities.has('search');
   return [
     `import { field } from '../../platform/fields/field.js';`,
     `import { defineRecord } from '../../platform/records/record.js';`,
+    ...(settings.length
+      ? [
+          `import { recordSetting } from '../../platform/records/record-settings.js';`,
+        ]
+      : []),
     ...refs.map(
       (ref) => `import { ${camelOf(ref)} } from '../${ref}/${ref}.tables.js';`,
     ),
@@ -36,8 +43,8 @@ export function record({
     `/**`,
     ` * ${pascalOf(t.nouns)}: their fields and capabilities, declared once. The table,`,
     ` * schemas, list, permissions, capability routes and targets are derived from it`,
-    ` * (platform/records). Add a field or a capability, or flip softDelete, team, clientAccess,`,
-    ` * grants or idempotency,`,
+    ` * (platform/records). Add a field, a capability, an approval or a setting, or flip softDelete,`,
+    ` * team, clientAccess, grants or idempotency,`,
     ` * here, then \`pnpm feature:sync\` and \`pnpm db:generate\` (docs/adding-a-feature.md).`,
     ` */`,
     `export const ${t.SINGULAR} = defineRecord({`,
@@ -57,6 +64,26 @@ export function record({
       ? [
           `  // Its number, gapless per tenant: ${numberPrefix(t.Singular)}-2026-00001 (perYear: false drops the year).`,
           `  number: { prefix: '${numberPrefix(t.Singular)}', perYear: true, width: 5 },`,
+        ]
+      : []),
+    // One entry per line (4 spaces in), as sync reads them. Policy, description
+    // and \`flag: false\` (always needs approval) are options of an entry:
+    // platform/records/record-approvals.ts.
+    ...(approvals.length
+      ? [
+          `  approvals: {`,
+          ...approvals.map(
+            (action) =>
+              `    ${action}: { label: '${approvalLabel(action, t)}' },`,
+          ),
+          `  },`,
+        ]
+      : []),
+    ...(settings.length
+      ? [
+          `  settings: {`,
+          ...settings.map(({ name, call }) => `    ${name}: ${call},`),
+          `  },`,
         ]
       : []),
     `  fields: {`,
@@ -435,10 +462,15 @@ export function controller({ t, fields }) {
   ].join('\n');
 }
 
-export function moduleFile({ t }) {
+export function moduleFile({ t, approvals = [] }) {
   return [
     `import { Module } from '@nestjs/common';`,
     `import { recordParts } from '../../platform/records/record-parts.js';`,
+    ...(approvals.length
+      ? [
+          `import { ${t.SINGULAR}_APPROVALS } from './${t.singular}.approvals.js';`,
+        ]
+      : []),
     `import { ${t.SINGULAR}_LIST } from './${t.singular}.list.js';`,
     `import { ${t.Singular}Policy } from './${t.singular}.policy.js';`,
     `import { ${t.SINGULAR} } from './${t.singular}.record.js';`,
@@ -454,6 +486,7 @@ export function moduleFile({ t }) {
     `  table: ${t.pluralCamel},`,
     `  list: ${t.SINGULAR}_LIST,`,
     `  schemas: ${t.SINGULAR}_SCHEMAS,`,
+    ...(approvals.length ? [`  approvals: ${t.SINGULAR}_APPROVALS,`] : []),
     `});`,
     '',
     `/** ${pascalOf(t.nouns)}. */`,
@@ -576,6 +609,44 @@ export function e2e({ t, idempotency, grants = 'standard' }) {
     '',
     `  // Each capability ${t.singular}.record.ts declares, its recycle bin and teams (record-capabilities.ts).`,
     `  describeCapabilities(() => node, ${t.SINGULAR});`,
+    `});`,
+  ].join('\n');
+}
+
+/** One approvable action's entry in `<item>.approvals.ts`: sync adds and removes these, whole. */
+export function approvalEntry(action, t) {
+  return [
+    `  ${action}: {`,
+    `    /**`,
+    `     * Business logic: what "${approvalLabel(action, t)}" does. It runs at once when`,
+    `     * no approval is needed, and as a workflow step once it is approved: at least`,
+    `     * once, so make it idempotent. \`service\` is the ${t.plural} service.`,
+    `     */`,
+    `    async apply(_applied: RecordApprovalApplied<${t.Plural}Service>) {`,
+    `      // Nothing yet: the action is approved, and that is all.`,
+    `    },`,
+    `  },`,
+  ].join('\n');
+}
+
+/** The first part of `<item>.approvals.ts`, before its entries: sync appends them before \`});\`. */
+export function approvals({ t, approvals: actions }) {
+  return [
+    `import {`,
+    `  type RecordApprovalApplied,`,
+    `  recordApprovalEffects,`,
+    `} from '../../platform/records/record-approvals.js';`,
+    `import { ${t.SINGULAR} } from './${t.singular}.record.js';`,
+    `import type { ${t.Plural}Service } from './${t.plural}.service.js';`,
+    '',
+    `/**`,
+    ` * What approval does to ${t.nouns}: one entry for each action \`${t.singular}.record.ts\``,
+    ` * declares under \`approvals\` (a missing one fails the build). The policy, the flag, the`,
+    ` * route and the handler are the platform's; this is the business logic.`,
+    ` * ${GENERATED('\`pnpm feature:sync\` adds an entry for an action added to the declaration.')}`,
+    ` */`,
+    `export const ${t.SINGULAR}_APPROVALS = recordApprovalEffects(${t.SINGULAR}, {`,
+    ...actions.map((action) => approvalEntry(action, t)),
     `});`,
   ].join('\n');
 }
