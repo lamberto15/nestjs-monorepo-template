@@ -3581,6 +3581,10 @@
                       "type": "boolean",
                       "description": "Self sign-up (`POST /v1/auth/sign-up`)."
                     },
+                    "tenantSignUp": {
+                      "type": "boolean",
+                      "description": "A self sign-up makes its own tenant, the new account its administrator (`TENANT_SIGN_UP`, with `AUTH_SIGN_UP` and `TENANCY=multi`)."
+                    },
                     "magicLink": {
                       "type": "boolean",
                       "description": "Sign-in by email link (`POST /v1/auth/magic-link`)."
@@ -3615,6 +3619,7 @@
                     "apiClients",
                     "passkeys",
                     "signUp",
+                    "tenantSignUp",
                     "magicLink",
                     "documents",
                     "tenancy",
@@ -20113,6 +20118,10 @@
                     "signUp": {
                       "type": "boolean"
                     },
+                    "tenantSignUp": {
+                      "type": "boolean",
+                      "description": "A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`)."
+                    },
                     "magicLink": {
                       "type": "boolean"
                     },
@@ -20160,6 +20169,7 @@
                   "required": [
                     "password",
                     "signUp",
+                    "tenantSignUp",
                     "magicLink",
                     "passkeys",
                     "providers",
@@ -20263,7 +20273,7 @@
     },
     "/v1/auth/sign-up": {
       "post": {
-        "description": "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.",
+        "description": "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant (a tenant invites it); with TENANCY=single it joins the one tenant; with TENANT_SIGN_UP (`GET /auth/methods`' `tenantSignUp`) it makes a new tenant (`tenantName`) and is its administrator.",
         "operationId": "AuthController_signUp_v1",
         "parameters": [
           {
@@ -20307,6 +20317,12 @@
                     "type": "string",
                     "maxLength": 64,
                     "example": "Europe/Berlin"
+                  },
+                  "tenantName": {
+                    "description": "When `GET /auth/methods` says `tenantSignUp`: the name of the tenant the sign-up makes (default: the person's name). Ignored otherwise.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
                   }
                 },
                 "required": [

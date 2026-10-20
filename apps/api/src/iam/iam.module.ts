@@ -28,6 +28,7 @@ import {
   TenantsController,
   TenantSwitchController,
 } from './access/tenants.controller.js';
+import { SignUpTenant } from './access/sign-up-tenant.js';
 import { SingleTenant } from './access/single-tenant.js';
 import { TenantsService } from './access/tenants.service.js';
 import { TenantSwitchService } from './access/tenant-switch.service.js';
@@ -138,6 +139,8 @@ export class IamModule {
       AccessService,
       // The demo seed (src/demo) creates its users through it.
       AccessAdminService,
+      // GET /v1/features says whether a sign-up makes a tenant.
+      SignUpTenant,
       AuditService,
       PermissionCatalog,
       SessionAuth,
@@ -381,6 +384,7 @@ export class IamModule {
         AccessSeeder,
         TenantsService,
         SingleTenant,
+        SignUpTenant,
         TenantSwitchService,
         InvitationsService,
         OperatorGuard,

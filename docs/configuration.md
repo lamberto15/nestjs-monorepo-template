@@ -62,7 +62,7 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Revisions | `REVISIONS_RETENTION_DAYS` (365: record revisions; each record's latest stays, [revisions.md](revisions.md)) |
 | Money | `EXCHANGE_RATES_FETCH` (`on`: the ECB's reference rates every working day), `EXCHANGE_RATES_ECB_URL` (`https://www.ecb.europa.eu/stats/eurofxref`, or a mirror); [money.md](money.md) |
 | Scheduled reports | `REPORT_LINK_TTL` (`24h`: how long a report mail's download link works, at most `7d`; [reports.md](reports.md)) |
-| Accounts | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_TENANT_NAME` (the first tenant, the operators': docs/tenancy.md), `TENANCY` (`multi`; `single`: the first tenant is the only one), `SIGN_UP_ROLES` (`single`: the roles a sign-up gets, seed role keys; none by default), `INVITATION_TTL_HOURS` (168: how long an invitation to a tenant works), `SESSION_COOKIE_SECURE`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`, `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `MFA_ISSUER`, `IMPERSONATION` (off: a privileged support tool, opt in), `IMPERSONATION_TTL_MINUTES`, `AUTH_MFA` (on; off: no new enrollments, enrolled users still asked), `API_CLIENTS` (on; off: no client routes, no keys accepted), `REAUTHENTICATION_MAX_AGE_MINUTES` (10: how long a sign-in counts for the sensitive routes), `AUDIT_RETENTION_DAYS`, `SOFT_DELETE_RETENTION_DAYS` (30: the recycle bins) |
+| Accounts | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_TENANT_NAME` (the first tenant, the operators': docs/tenancy.md), `TENANCY` (`multi`; `single`: the first tenant is the only one), `SIGN_UP_ROLES` (`single`: the roles a sign-up gets, seed role keys; none by default), `INVITATION_TTL_HOURS` (168: how long an invitation to a tenant works), `SESSION_COOKIE_SECURE`, `AUTH_SIGN_UP`, `TENANT_SIGN_UP` (off; on, with `multi` and `AUTH_SIGN_UP`: a sign-up makes its own tenant and administers it, docs/tenancy.md, "Tenants made at sign-up"), `AUTH_MAGIC_LINK`, `JWT_SECRET`, `MFA_ENCRYPTION_KEYS`, `MFA_ISSUER`, `IMPERSONATION` (off: a privileged support tool, opt in), `IMPERSONATION_TTL_MINUTES`, `AUTH_MFA` (on; off: no new enrollments, enrolled users still asked), `API_CLIENTS` (on; off: no client routes, no keys accepted), `REAUTHENTICATION_MAX_AGE_MINUTES` (10: how long a sign-in counts for the sensitive routes), `AUDIT_RETENTION_DAYS`, `SOFT_DELETE_RETENTION_DAYS` (30: the recycle bins) |
 | Passkeys | `PASSKEYS` (`on`), `PASSKEY_RP_ID` (the relying party: default `WEB_URL`'s host, else `APP_URL`'s; never change it once passkeys exist), `PASSKEY_RP_NAME` (default `SERVICE_NAME`), `PASSKEY_ORIGINS` (more origins under the RP ID), `PASSKEY_CHALLENGE_TTL_SECONDS` (120), `PASSKEY_ANDROID_APPS` (`package:SHA256-fingerprint`), `PASSKEY_APPLE_APPS` (`TEAMID.bundle.id`). Refused at boot: an origin outside the RP ID; in production also `localhost`, an IP address or plain http (or `PASSKEYS=off`); [auth.md](auth.md#passkeys) |
 | Bot protection | `CAPTCHA_MODE` (`off`; `always`, `after-failures`), `CAPTCHA_PROVIDER` (`turnstile`; `stub` for tests and load tests, refused in production), `TURNSTILE_SITE_KEY` (public), `TURNSTILE_SECRET_KEY`, `CAPTCHA_VERIFY_URL` (Cloudflare's siteverify), `CAPTCHA_HOSTNAMES` (the widget's hosts; default: `WEB_URL`'s), `CAPTCHA_TIMEOUT_MS` (2000), `CAPTCHA_ON_ERROR` (`allow`: fail-open under `CAPTCHA_DEGRADED_LIMIT` (2) per address in the window; `reject`: 503), `CAPTCHA_FAILURES` (3), `CAPTCHA_FAILURES_WINDOW_MINUTES` (15); [auth.md](auth.md#bot-protection) |
 | Sign in with | `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_TENANT_ID/CLIENT_ID/CLIENT_SECRET`, `GITHUB_CLIENT_ID/SECRET` (redirect URI: `<APP_URL>/v1/auth/oidc/<provider>/callback`) |
@@ -89,7 +89,8 @@ template's text, keeping its comments, order and unknown keys).
 - **The deployment shape is chosen here, once:** `TENANCY` (one organization
   or many; [tenancy.md](tenancy.md), "Single-tenant deployments"), and with
   `single` and sign-up on, `SIGN_UP_ROLES`. Then self sign-up
-  (`AUTH_SIGN_UP`), mail (`MAIL_TRANSPORT` and its address or key), storage
+  (`AUTH_SIGN_UP`; with `multi`, whether a sign-up makes its own tenant:
+  `TENANT_SIGN_UP`), mail (`MAIL_TRANSPORT` and its address or key), storage
   (`STORAGE_DRIVER`, S3), bot protection (`CAPTCHA_MODE` and the Turnstile keys,
   only when chosen), passkeys (`PASSKEYS`; the relying party id defaults to
   the web app's host and can never change), social sign-in, exchange rates,
@@ -172,6 +173,7 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
   "apiClients": true,
   "passkeys": true,
   "signUp": false,
+  "tenantSignUp": false,
   "magicLink": true,
   "documents": false,
   "tenancy": "multi",
@@ -184,6 +186,7 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
 | `realtime`, `webhooks`, `reports`, `usage` | `REALTIME`, `WEBHOOKS`, `REPORTS`, `USAGE` ([above](#deployment-switches)) | the module's routes are absent (404)                                                                   |
 | `impersonation`, `mfa`, `apiClients`       | `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`                                 | their routes answer 404 `feature_off`                                                                  |
 | `passkeys`, `signUp`, `magicLink`          | `PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`                              | as in `GET /v1/auth/methods` (which also lists the providers and bot protection, and needs no sign-in) |
+| `tenantSignUp`                             | `TENANT_SIGN_UP` (with `AUTH_SIGN_UP` and `TENANCY=multi`)                 | a sign-up makes no tenant (as in `GET /v1/auth/methods`)                                               |
 | `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
 | `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
 | `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |

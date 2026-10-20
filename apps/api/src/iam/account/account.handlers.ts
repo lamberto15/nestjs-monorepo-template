@@ -25,7 +25,7 @@ import { AuditService } from '../audit/audit.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { authTimeOf, SignInContext } from '../auth/sign-in-context.js';
 import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
-import { SingleTenant } from '../access/single-tenant.js';
+import { SignUpTenant } from '../access/sign-up-tenant.js';
 import type { IamEnv } from '../iam.env.js';
 import { userIdentities, users } from '../iam.tables.js';
 import { oidcProviders } from './oidc.providers.js';
@@ -230,7 +230,7 @@ export class OidcAccounts extends OidcAccountResolver {
     private readonly audit: AuditService,
     private readonly config: ConfigService<IamEnv, true>,
     private readonly signInContext: SignInContext,
-    private readonly singleTenant: SingleTenant,
+    private readonly signUpTenant: SignUpTenant,
     registry: AuthenticationRegistry,
   ) {
     super();
@@ -286,26 +286,31 @@ export class OidcAccounts extends OidcAccountResolver {
     if (!this.config.get('AUTH_SIGN_UP', { infer: true })) {
       return null;
     }
-    // TENANCY=single: the account joins the tenant in the same transaction.
-    const created = await this.singleTenant.newAccount(async (tx) => {
-      const account = await this.accounts.create(tx, {
-        email: profile.email!,
-        name: profile.name ?? profile.email!,
-        passwordHash: null,
-        emailVerified: true,
-      });
-      await this.audit.record(
-        account,
-        {
-          action: 'user.signed-up',
-          targetType: 'user',
-          targetId: account.id,
-          details: { provider: profile.provider },
-        },
-        tx,
-      );
-      return account;
-    });
+    // In the same transaction: TENANCY=single, the account joins the tenant;
+    // TENANT_SIGN_UP, it makes its own (named after the person) and administers it.
+    const name = profile.name ?? profile.email!;
+    const created = await this.signUpTenant.newAccount(
+      async (tx) => {
+        const account = await this.accounts.create(tx, {
+          email: profile.email!,
+          name,
+          passwordHash: null,
+          emailVerified: true,
+        });
+        await this.audit.record(
+          account,
+          {
+            action: 'user.signed-up',
+            targetType: 'user',
+            targetId: account.id,
+            details: { provider: profile.provider },
+          },
+          tx,
+        );
+        return account;
+      },
+      { tenantName: name },
+    );
     this.logger.log('Account created from a provider', {
       userId: created.id,
       provider: profile.provider,

@@ -238,7 +238,8 @@ suppression list (every address), and `/v1/tenants` (below). `GET
 there, false elsewhere; `tenant` is null without one): the web shows the
 operators' screens when it is true and `can['Access.manageTenants']` too.
 Roadmap 1b replaces this with the platform's super tenant, and adds tenant
-settings, export and deletion.
+settings, export and deletion. With `TENANT_SIGN_UP` a sign-up makes a
+tenant too ("Tenants made at sign-up").
 
 **The tenants** (all `Access.manageTenants`, in the operator tenant only;
 another tenant's administrator gets 403 `operator_required`, and nobody
@@ -286,6 +287,44 @@ themselves can't add themselves to a tenant: the tenant consents. A
 "break-glass" route for operators to act in any tenant without its consent
 is not built: it needs the owner's decision (who may, for how long, how the
 tenant is told), and belongs with the platform super tenant (roadmap 1b).
+
+## Tenants made at sign-up
+
+`TENANT_SIGN_UP=on` (off by default), with `TENANCY=multi` and
+`AUTH_SIGN_UP=on`, lets people make their own tenant: a self sign-up
+(`POST /v1/auth/sign-up`, or a first sign-in with a provider) makes a new
+tenant, its roles, and the new account as its first administrator, in one
+transaction in the new tenant's scope (`SignUpTenant`,
+`iam/access/sign-up-tenant.ts`, through `TenantsService.create()` as the
+operators' route does). Off, only operators make tenants.
+
+- **The name** is the sign-up's `tenantName` (1 to 120 characters), the
+  person's name without one (a provider sign-up: the provider's name, else
+  the address). `GET /v1/auth/methods` and `GET /v1/features` say
+  `tenantSignUp: true`, so the sign-up page asks for it.
+- **The slug is drawn, never chosen:** the name's slug and six random
+  characters (`acme-corp-k3x9q2`; drawn again on the rare collision). A
+  sign-up gets no `tenant_slug_taken`, so it can't probe which handles
+  exist, nor squat one; the operators rename it (`PATCH /v1/tenants/{id}`).
+- **Behind the same wall** as every tenant: its rows under RLS, never an
+  operator (`operator: false`, so 403 `operator_required` on the
+  operators' routes).
+- **Audited** in the new tenant: `user.signed-up` and `tenant.created`
+  (`details.via: 'sign-up'`, the slug).
+- **Verify first still holds:** the account signs in, and so reaches its
+  tenant, only once its address is proved (docs/auth.md, "Sign-up"). An
+  account refused (its address taken: 409) leaves no tenant behind.
+- **Abuse.** One tenant per new account: a second tenant needs another
+  address (an existing one gets 409), and a sign-up is limited to five per
+  address and 15 minutes, with bot protection when `CAPTCHA_MODE` is on (a
+  warning at start when it is off). Inviting, accepting and switching work
+  as for any tenant; making a second tenant from a signed-in account isn't
+  offered.
+- **Ignored, with a warning at start,** with `TENANCY=single` (sign-ups join
+  the one tenant: below) or `AUTH_SIGN_UP=off` (nobody signs up).
+
+`test/tenant-sign-up.e2e-spec.ts` runs it on; `sign-up.e2e-spec.ts` checks
+that off makes no tenant, `single-tenant.e2e-spec.ts` that `single` ignores it.
 
 ## Single-tenant deployments
 

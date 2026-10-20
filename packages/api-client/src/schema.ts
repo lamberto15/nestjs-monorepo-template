@@ -1840,7 +1840,7 @@ export interface paths {
         put?: never;
         /**
          * Create an account (when AUTH_SIGN_UP=on); it signs in once its address is verified
-         * @description Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.
+         * @description Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant (a tenant invites it); with TENANCY=single it joins the one tenant; with TENANT_SIGN_UP (`GET /auth/methods`' `tenantSignUp`) it makes a new tenant (`tenantName`) and is its administrator.
          */
         post: operations["AuthController_signUp_v1"];
         delete?: never;
@@ -5293,6 +5293,8 @@ export interface operations {
                         passkeys: boolean;
                         /** @description Self sign-up (`POST /v1/auth/sign-up`). */
                         signUp: boolean;
+                        /** @description A self sign-up makes its own tenant, the new account its administrator (`TENANT_SIGN_UP`, with `AUTH_SIGN_UP` and `TENANCY=multi`). */
+                        tenantSignUp: boolean;
                         /** @description Sign-in by email link (`POST /v1/auth/magic-link`). */
                         magicLink: boolean;
                         /** @description PDF documents of records. Off: they answer 503 `documents_unavailable` (no Gotenberg is configured). */
@@ -12485,6 +12487,8 @@ export interface operations {
                         /** @enum {boolean} */
                         password: true;
                         signUp: boolean;
+                        /** @description A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`). */
+                        tenantSignUp: boolean;
                         magicLink: boolean;
                         /** @description Sign in with a passkey: POST /auth/passkeys/sign-in/options, then /auth/passkeys/sign-in. */
                         passkeys: boolean;
@@ -12581,6 +12585,8 @@ export interface operations {
                     locale?: string;
                     /** @example Europe/Berlin */
                     timezone?: string;
+                    /** @description When `GET /auth/methods` says `tenantSignUp`: the name of the tenant the sign-up makes (default: the person's name). Ignored otherwise. */
+                    tenantName?: string;
                 };
             };
         };

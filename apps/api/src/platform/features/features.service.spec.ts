@@ -1,4 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
+import type { SignUpTenant } from '../../iam/access/sign-up-tenant.js';
 import type { PdfRenderer } from '../documents/pdf-renderer.js';
 import { FeaturesService } from './features.service.js';
 
@@ -20,9 +21,15 @@ function service(env: Record<string, unknown> = {}, documents = false) {
   const config = {
     get: (key: string) => values[key],
   } as unknown as ConfigService<never, true>;
-  return new FeaturesService(config, {
-    enabled: documents,
-  } as unknown as PdfRenderer);
+  const tenantSignUp =
+    values.TENANT_SIGN_UP === true &&
+    values.AUTH_SIGN_UP === true &&
+    values.TENANCY === 'multi';
+  return new FeaturesService(
+    config,
+    { enabled: documents } as unknown as PdfRenderer,
+    { enabled: tenantSignUp } as unknown as SignUpTenant,
+  );
 }
 
 describe('FeaturesService', () => {
@@ -51,6 +58,7 @@ describe('FeaturesService', () => {
       apiClients: true,
       passkeys: true,
       signUp: false,
+      tenantSignUp: false,
       magicLink: true,
       documents: false,
       tenancy: 'multi',
@@ -80,6 +88,7 @@ describe('FeaturesService', () => {
         API_CLIENTS: false,
         PASSKEYS: false,
         AUTH_SIGN_UP: true,
+        TENANT_SIGN_UP: true,
         AUTH_MAGIC_LINK: false,
         TENANCY: 'single',
         LOCALES: ['ar'],
@@ -90,6 +99,7 @@ describe('FeaturesService', () => {
       apiClients: false,
       passkeys: false,
       signUp: true,
+      tenantSignUp: false,
       magicLink: false,
       tenancy: 'single',
       locales: ['ar'],

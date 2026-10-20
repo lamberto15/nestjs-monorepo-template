@@ -82,8 +82,8 @@ export const slugTaken = (slug: string) =>
  * scope and in one transaction with it, its roles (Administrator and every
  * declaration's `seedRoles`) and its first administrator's membership. The
  * first start makes the operator tenant through it (AccessSeeder); the
- * operators make the others (`POST /v1/tenants`). Who else may make one
- * (a self-service sign-up) is the owner's decision: roadmap 1b.
+ * operators make the others (`POST /v1/tenants`), and so does a self
+ * sign-up with TENANT_SIGN_UP (SignUpTenant).
  */
 @Injectable()
 export class TenantsService {
