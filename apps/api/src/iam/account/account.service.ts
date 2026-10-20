@@ -40,7 +40,7 @@ import { SignInContext } from '../auth/sign-in-context.js';
 import { BreachedPasswordsService } from './breached-passwords.service.js';
 import { AuthPolicyService } from '../auth/auth-policy.service.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
-import { SingleTenant } from '../access/single-tenant.js';
+import { SignUpTenant } from '../access/sign-up-tenant.js';
 import { CredentialsService } from './credentials.service.js';
 import {
   ProviderReauthentications,
@@ -94,7 +94,7 @@ export class AccountService {
     private readonly emailVerification: EmailVerificationService,
     private readonly providerReauthentications: ProviderReauthentications,
     private readonly tenancy: Tenancy,
-    private readonly singleTenant: SingleTenant,
+    private readonly signUpTenant: SignUpTenant,
     private readonly authPolicy: AuthPolicyService,
   ) {}
 
@@ -106,31 +106,37 @@ export class AccountService {
       password: string;
       locale: string | null;
       timezone: string | null;
+      /** TENANT_SIGN_UP: the new tenant's name. */
+      tenantName: string;
     },
     ip: string,
   ) {
-    const { password, ...fields } = input;
+    const { password, tenantName, ...fields } = input;
     // TENANCY=single: the tenant's minimum length (auth.passwordMinLength).
     await this.authPolicy.assertPasswordLength(password, 'password', {
       signUp: true,
     });
     await this.breachedPasswords.assertNotBreached(password, 'password');
     const passwordHash = await this.passwordHasher.hash(password);
-    // TENANCY=single: the account joins the tenant in the same transaction.
-    return this.singleTenant.newAccount(async (tx) => {
-      const user = await this.users.create(tx, { ...fields, passwordHash });
-      await this.audit.record(
-        user,
-        {
-          action: 'user.signed-up',
-          targetType: 'user',
-          targetId: user.id,
-          ip,
-        },
-        tx,
-      );
-      return user;
-    }, ip);
+    // In the same transaction: TENANCY=single, the account joins the tenant;
+    // TENANT_SIGN_UP, it makes its own and administers it.
+    return this.signUpTenant.newAccount(
+      async (tx) => {
+        const user = await this.users.create(tx, { ...fields, passwordHash });
+        await this.audit.record(
+          user,
+          {
+            action: 'user.signed-up',
+            targetType: 'user',
+            targetId: user.id,
+            ip,
+          },
+          tx,
+        );
+        return user;
+      },
+      { tenantName, ip },
+    );
   }
 
   updateProfile(userId: string, changes: ProfileChanges) {

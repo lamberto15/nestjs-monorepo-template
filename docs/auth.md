@@ -68,7 +68,10 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
   up someone else's address can't have its owner verify it for them and
   sign in as the owner. The owner of such an address uses
   "forgot password" instead: the reset link proves the address and replaces
-  the password. A provider sign-in that asserts the address is verified
+  the password. The account joins no tenant (a tenant invites it); with
+  `TENANCY=single` it joins the one tenant, and with `TENANT_SIGN_UP=on` it
+  makes its own (`tenantName`) and administers it
+  ([tenancy](tenancy.md), "Tenants made at sign-up"). A provider sign-in that asserts the address is verified
   already; invitations prove it with their link.
 - **Account linking** by verified email only, or from a signed-in session
   (`?link=true`): never by an unverified address.

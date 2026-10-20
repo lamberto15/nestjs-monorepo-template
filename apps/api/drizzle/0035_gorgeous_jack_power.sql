@@ -1,0 +1,1 @@
+ALTER TABLE "tenants" ADD COLUMN "created_by_sign_up" boolean DEFAULT false NOT NULL;

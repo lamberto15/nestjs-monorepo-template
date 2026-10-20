@@ -61,8 +61,7 @@ first project is built on the template; until then they report only.
 
 ### Open follow-ups
 
-- **Tenancy (1b):** per-tenant senders for incoming webhooks; `TENANT_SIGN_UP`
-  (decision below); sign-ins visible to tenant administrators; the platform super
+- **Tenancy (1b):** per-tenant senders for incoming webhooks; sign-ins visible to tenant administrators; the platform super
   tenant; a membership still active in a deactivated tenant exports that tenant's
   records; the migrate-time wall check compares policy names and commands, not their
   expressions; whether operators may act in any tenant without its invitation (a
@@ -88,6 +87,7 @@ first project is built on the template; until then they report only.
 - An account's export includes only personal data (membership, audit about them)
   from tenants the person has left.
 - Who creates tenants: a `TENANT_SIGN_UP` switch in 1b; operators only until then.
+  Built (#225): docs/tenancy.md, "Tenants made at sign-up".
 - One tenant only: `TENANCY=single` (owner, 2026-10-17): no second tenant, and
   self sign-ups join the one with `SIGN_UP_ROLES`. docs/tenancy.md.
 - Token clients with two-factor keep sending a code with a passkey; ask

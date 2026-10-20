@@ -42,6 +42,7 @@ import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
 import { Route as AppOpsIndexRouteImport } from './routes/_app/ops/index'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppTenantsIndexRouteImport } from './routes/_app/tenants/index'
+import { Route as AppTenantsIdRouteImport } from './routes/_app/tenants/$id'
 import { Route as AppTransfersIndexRouteImport } from './routes/_app/transfers/index'
 import { Route as AppTransfersImportRouteImport } from './routes/_app/transfers/import'
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
@@ -220,6 +221,11 @@ const AppTenantsIndexRoute = AppTenantsIndexRouteImport.update({
   path: '/tenants/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTenantsIdRoute = AppTenantsIdRouteImport.update({
+  id: '/tenants/$id',
+  path: '/tenants/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTransfersIndexRoute = AppTransfersIndexRouteImport.update({
   id: '/transfers/',
   path: '/transfers/',
@@ -307,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
   '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
+  '/tenants/$id': typeof AppTenantsIdRoute
   '/transfers/import': typeof AppTransfersImportRoute
   '/account/': typeof AppAccountIndexRoute
   '/api-clients/': typeof AppApiClientsIndexRoute
@@ -353,6 +360,7 @@ export interface FileRoutesByTo {
   '/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
   '/approvals/$id': typeof AppApprovalsIdRoute
   '/notes/new': typeof AppNotesNewRoute
+  '/tenants/$id': typeof AppTenantsIdRoute
   '/transfers/import': typeof AppTransfersImportRoute
   '/account': typeof AppAccountIndexRoute
   '/api-clients': typeof AppApiClientsIndexRoute
@@ -401,6 +409,7 @@ export interface FileRoutesById {
   '/_app/approval-policies/$key': typeof AppApprovalPoliciesKeyRoute
   '/_app/approvals/$id': typeof AppApprovalsIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
+  '/_app/tenants/$id': typeof AppTenantsIdRoute
   '/_app/transfers/import': typeof AppTransfersImportRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/api-clients/': typeof AppApiClientsIndexRoute
@@ -449,6 +458,7 @@ export interface FileRouteTypes {
     | '/approval-policies/$key'
     | '/approvals/$id'
     | '/notes/new'
+    | '/tenants/$id'
     | '/transfers/import'
     | '/account/'
     | '/api-clients/'
@@ -495,6 +505,7 @@ export interface FileRouteTypes {
     | '/approval-policies/$key'
     | '/approvals/$id'
     | '/notes/new'
+    | '/tenants/$id'
     | '/transfers/import'
     | '/account'
     | '/api-clients'
@@ -542,6 +553,7 @@ export interface FileRouteTypes {
     | '/_app/approval-policies/$key'
     | '/_app/approvals/$id'
     | '/_app/notes/new'
+    | '/_app/tenants/$id'
     | '/_app/transfers/import'
     | '/_app/account/'
     | '/_app/api-clients/'
@@ -809,6 +821,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTenantsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tenants/$id': {
+      id: '/_app/tenants/$id'
+      path: '/tenants/$id'
+      fullPath: '/tenants/$id'
+      preLoaderRoute: typeof AppTenantsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/transfers/': {
       id: '/_app/transfers/'
       path: '/transfers'
@@ -913,6 +932,7 @@ interface AppRouteChildren {
   AppApprovalPoliciesKeyRoute: typeof AppApprovalPoliciesKeyRoute
   AppApprovalsIdRoute: typeof AppApprovalsIdRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
+  AppTenantsIdRoute: typeof AppTenantsIdRoute
   AppTransfersImportRoute: typeof AppTransfersImportRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppApiClientsIndexRoute: typeof AppApiClientsIndexRoute
@@ -952,6 +972,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApprovalPoliciesKeyRoute: AppApprovalPoliciesKeyRoute,
   AppApprovalsIdRoute: AppApprovalsIdRoute,
   AppNotesNewRoute: AppNotesNewRoute,
+  AppTenantsIdRoute: AppTenantsIdRoute,
   AppTransfersImportRoute: AppTransfersImportRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppApiClientsIndexRoute: AppApiClientsIndexRoute,
