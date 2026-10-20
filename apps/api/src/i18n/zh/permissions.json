@@ -9,6 +9,8 @@
       "manageCustomFields": "添加、更改、重新排序和停用自定义字段（管理员为笔记和其他记录添加的字段）",
       "manageSettings": "为所有人、某个团队或某个用户设置设置项和功能开关（platform/settings）",
       "manageTags": "创建、重命名、更改颜色和删除记录所带的标签（platform/tags）",
+      "manageLegalHolds": "设置和解除法律保全：无论删除、清除或保留规则如何，相关记录都会保留（iam/holds）",
+      "manageRetention": "设置租户将每种记录保留多久，之后清除或匿名化（platform/retention）",
       "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
       "readAudit": "查看审计日志",
@@ -179,6 +181,10 @@
     "reencryption": {
       "label": "重新加密",
       "description": "每小时分批用当前密钥重写仍使用旧密钥的加密值和盲索引。"
+    },
+    "retention": {
+      "label": "保留",
+      "description": "每晚分批清除或匿名化超过租户启用的保留规则的记录，跳过处于法律保全下的记录。"
     },
     "messaging": {
       "label": "推送与短信发送",

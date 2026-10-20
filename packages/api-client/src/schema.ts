@@ -1790,6 +1790,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/retention/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The retention rules and the tenant’s choice for each
+         * @description A declared rule does nothing until the tenant turns it on. `days` is the age after which a record is purged or anonymised (`action`); records under a legal hold are always kept.
+         */
+        get: operations["RetentionController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retention/rules/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Turn a retention rule on or off, and set its days
+         * @description Takes effect at the next nightly run (04:10 in APP_TIMEZONE). Not below the rule’s `minDays`. Audited (`retention.policy-changed`).
+         */
+        put: operations["RetentionController_set_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/reports": {
         parameters: {
             query?: never;
@@ -3344,6 +3384,67 @@ export interface paths {
         patch: operations["TeamsController_update_v1"];
         trace?: never;
     };
+    "/v1/legal-holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The legal holds, newest first
+         * @description Active and released; `?active=true`, `?subject=Note`, `?recordId=`. Cursor pages.
+         */
+        get: operations["LegalHoldsController_list_v1"];
+        put?: never;
+        /**
+         * Place a legal hold
+         * @description On one record (`recordId`), or on every record of the subject. While it is active the record cannot be deleted (409 `legal_hold`), is skipped by the recycle bin purge and the retention rules, and a `User` hold stops the account deletion. Audited (`legal-hold.placed`).
+         */
+        post: operations["LegalHoldsController_place_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/legal-holds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One legal hold */
+        get: operations["LegalHoldsController_get_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/legal-holds/{id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release a legal hold
+         * @description The hold stays in the list as released. Audited (`legal-hold.released`).
+         */
+        post: operations["LegalHoldsController_release_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/tenants": {
         parameters: {
             query?: never;
@@ -4430,6 +4531,29 @@ export interface components {
             /** @description Columns of the view your field permissions hide: left out, not an error. */
             hiddenColumns: string[];
         };
+        RetentionRuleList: {
+            items: components["schemas"]["RetentionRule"][];
+        };
+        RetentionRule: {
+            /** @example note */
+            name: string;
+            /** @example Notes */
+            label: string;
+            /** @example Note */
+            subject: string;
+            /** @enum {string} */
+            action: "purge" | "anonymise";
+            defaultDays: number;
+            minDays: number;
+            /** @description False until the tenant turns the rule on. */
+            enabled: boolean;
+            /** @description The days in force: the tenant’s, else the default. */
+            days: number;
+            /** Format: date-time */
+            lastRunAt: string | null;
+            /** @description Records the last run purged or anonymised. */
+            lastCount: number | null;
+        };
         Money: {
             /** @description The amount in major units, with exactly the currency’s decimals: "12.30", "1200" (JPY), "1.250" (KWD). */
             amount: string;
@@ -4524,6 +4648,41 @@ export interface components {
             /** @description The device, without versions: `Chrome on macOS`. */
             userAgent: string | null;
             ip: string | null;
+        };
+        LegalHoldPage: {
+            items: components["schemas"]["LegalHold"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        LegalHold: {
+            id: string;
+            /**
+             * @description What is held: a permission subject, `Note`.
+             * @example Note
+             */
+            subject: string;
+            /** @description The held record; null holds every record of the subject. */
+            recordId: string | null;
+            /** @example Dispute with Acme, case 2026-114 */
+            reason: string;
+            active: boolean;
+            placedBy: string;
+            /** Format: date-time */
+            placedAt: string;
+            /** Format: date-time */
+            releasedAt: string | null;
+            releasedBy: string | null;
+            releaseNote: string | null;
         };
         TagRef: {
             id: string;
@@ -12898,6 +13057,96 @@ export interface operations {
             };
         };
     };
+    RetentionController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionRuleList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetentionController_set_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                    /** @description Left out: the days already in force. */
+                    days?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionRule"];
+                };
+            };
+            /** @description An invalid body, or days below the minimum (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No rule of this name is declared. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ReportsController_list_v1: {
         parameters: {
             query?: {
@@ -20432,6 +20681,223 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LegalHoldsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: subject = */
+                subject?: string;
+                /** @description Filter: subject in */
+                "subject.in"?: string;
+                /** @description Filter: recordId = */
+                recordId?: string;
+                /** @description Filter: active = */
+                active?: "true" | "false";
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); recordId (eq); active (eq); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, reason, active, placedBy, placedAt, releasedAt, releasedBy, releaseNote. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalHoldPage"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LegalHoldsController_place_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description A permission subject: `Note`, or `User` for a person.
+                     * @example Note
+                     */
+                    subject: string;
+                    /**
+                     * Format: uuid
+                     * @description One record; leave out to hold every record of the subject.
+                     */
+                    recordId?: string;
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalHold"];
+                };
+            };
+            /** @description An invalid body (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LegalHoldsController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalHold"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LegalHoldsController_release_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalHold"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Released already. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

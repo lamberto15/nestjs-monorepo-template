@@ -154,4 +154,5 @@ key is still created there, so a fresh checkout runs with no setup.
   a pluggable cipher, so their values aren't in this registry or this job.
 - The template declares few encrypted columns of its own (SSO client secrets, push
   tokens, phone numbers); the tests' fixture `test_encrypted_records` is another.
-- Retention rules and legal holds.
+- Retention rules and legal holds are done: [retention.md](retention.md). Retention
+  does not reach revisions, audit `changes`, exports and report files already stored.

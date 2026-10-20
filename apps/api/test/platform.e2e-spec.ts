@@ -697,6 +697,7 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       'ai',
       'mail-events',
       'reencryption',
+      'retention',
       'messaging',
     ]);
   });

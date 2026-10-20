@@ -15,6 +15,7 @@ import {
   type PageQuery,
   toPage,
 } from '../../core/http/pagination.js';
+import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
 import { TeamsService } from '../../iam/access/teams.service.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import type { RecordDeclaration } from './record.js';
@@ -44,6 +45,7 @@ export class RecordStore {
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly teams: TeamsService,
     private readonly lifecycle: RecordLifecycle,
+    private readonly holds: LegalHoldsService,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -130,6 +132,8 @@ export class RecordStore {
   /** Deletes one: to the recycle bin (restorable until purged) when it has one, else for good; its `events` follow. */
   async delete(tx: Transaction, by: Principal, row: RecordRow) {
     const table = this.table;
+    // A 409 `legal_hold`, bin or not (docs/retention.md).
+    await this.holds.assertNotHeld(this.declaration.subject, [row.id], tx);
     await this.lifecycle.deleting(tx, { row, by });
     if (this.declaration.softDelete) {
       const [deleted] = await tx

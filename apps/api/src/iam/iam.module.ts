@@ -23,6 +23,8 @@ import { AccessSeeder } from './access/access.seeder.js';
 import { AccessService } from './access/access.service.js';
 import { TeamsController } from './access/teams.controller.js';
 import { TeamsService } from './access/teams.service.js';
+import { LegalHoldsController } from './holds/legal-holds.controller.js';
+import { LegalHoldsService } from './holds/legal-holds.service.js';
 import { ApiClientsService } from './access/api-clients.service.js';
 import { PrincipalsService } from './access/principals.service.js';
 import { PermissionCatalog } from './access/permission-catalog.js';
@@ -164,6 +166,8 @@ export class IamModule {
       AccessPolicy,
       UsersRepository,
       TeamsService,
+      // Legal holds: records kept whatever a delete or a retention rule would do.
+      LegalHoldsService,
       // Step-up (@RecentAuthentication()) on the routes of every group; a
       // person's own account (platform/account) checks their password again.
       ReauthenticationService,
@@ -316,6 +320,7 @@ export class IamModule {
         WellKnownController,
         AccessController,
         TeamsController,
+        LegalHoldsController,
         TenantSwitchController,
         TenantsController,
         ...ssoControllers,
@@ -404,6 +409,7 @@ export class IamModule {
         AccessService,
         AccessAdminService,
         TeamsService,
+        LegalHoldsService,
         ApiClientsService,
         PrincipalsService,
         AccessSeeder,
