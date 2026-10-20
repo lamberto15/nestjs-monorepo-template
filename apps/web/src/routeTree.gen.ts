@@ -41,6 +41,7 @@ import { Route as AppApprovalsIndexRouteImport } from './routes/_app/approvals/i
 import { Route as AppApprovalsIdRouteImport } from './routes/_app/approvals/$id'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
+import { Route as AppOpsIndexRouteImport } from './routes/_app/ops/index'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppTenantsIndexRouteImport } from './routes/_app/tenants/index'
 import { Route as AppTenantsIdRouteImport } from './routes/_app/tenants/$id'
@@ -217,6 +218,11 @@ const AppNotesNewRoute = AppNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOpsIndexRoute = AppOpsIndexRouteImport.update({
+  id: '/ops/',
+  path: '/ops/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
@@ -328,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/approval-policies/': typeof AppApprovalPoliciesIndexRoute
   '/approvals/': typeof AppApprovalsIndexRoute
   '/notes/': typeof AppNotesIndexRoute
+  '/ops/': typeof AppOpsIndexRoute
   '/reports/': typeof AppReportsIndexRoute
   '/tenants/': typeof AppTenantsIndexRoute
   '/transfers/': typeof AppTransfersIndexRoute
@@ -376,6 +383,7 @@ export interface FileRoutesByTo {
   '/approval-policies': typeof AppApprovalPoliciesIndexRoute
   '/approvals': typeof AppApprovalsIndexRoute
   '/notes': typeof AppNotesIndexRoute
+  '/ops': typeof AppOpsIndexRoute
   '/reports': typeof AppReportsIndexRoute
   '/tenants': typeof AppTenantsIndexRoute
   '/transfers': typeof AppTransfersIndexRoute
@@ -426,6 +434,7 @@ export interface FileRoutesById {
   '/_app/approval-policies/': typeof AppApprovalPoliciesIndexRoute
   '/_app/approvals/': typeof AppApprovalsIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
+  '/_app/ops/': typeof AppOpsIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/tenants/': typeof AppTenantsIndexRoute
   '/_app/transfers/': typeof AppTransfersIndexRoute
@@ -476,6 +485,7 @@ export interface FileRouteTypes {
     | '/approval-policies/'
     | '/approvals/'
     | '/notes/'
+    | '/ops/'
     | '/reports/'
     | '/tenants/'
     | '/transfers/'
@@ -524,6 +534,7 @@ export interface FileRouteTypes {
     | '/approval-policies'
     | '/approvals'
     | '/notes'
+    | '/ops'
     | '/reports'
     | '/tenants'
     | '/transfers'
@@ -573,6 +584,7 @@ export interface FileRouteTypes {
     | '/_app/approval-policies/'
     | '/_app/approvals/'
     | '/_app/notes/'
+    | '/_app/ops/'
     | '/_app/reports/'
     | '/_app/tenants/'
     | '/_app/transfers/'
@@ -826,6 +838,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/ops/': {
+      id: '/_app/ops/'
+      path: '/ops'
+      fullPath: '/ops/'
+      preLoaderRoute: typeof AppOpsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reports/': {
       id: '/_app/reports/'
       path: '/reports'
@@ -960,6 +979,7 @@ interface AppRouteChildren {
   AppApprovalPoliciesIndexRoute: typeof AppApprovalPoliciesIndexRoute
   AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
+  AppOpsIndexRoute: typeof AppOpsIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppTenantsIndexRoute: typeof AppTenantsIndexRoute
   AppTransfersIndexRoute: typeof AppTransfersIndexRoute
@@ -1001,6 +1021,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApprovalPoliciesIndexRoute: AppApprovalPoliciesIndexRoute,
   AppApprovalsIndexRoute: AppApprovalsIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
+  AppOpsIndexRoute: AppOpsIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
   AppTenantsIndexRoute: AppTenantsIndexRoute,
   AppTransfersIndexRoute: AppTransfersIndexRoute,

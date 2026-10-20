@@ -288,5 +288,22 @@ describe('TENANT_SIGN_UP=on (e2e)', () => {
       // Nothing left to do: a second run deletes nothing.
       expect(await node.app.get(SignUpTenantSweepJob).run()).toBe(0);
     });
+
+    it('deletes one past the maximum age even with a fresh link (a resend keeps none forever)', async () => {
+      const kept = await unverified(`Kept ${randomUUID()}`);
+      await age(kept.tenantId, 31);
+      // A link sent just now (the public resend): still valid.
+      await node.db
+        .update(emailTokens)
+        .set({ expiresAt: sql`now() + interval '1 day'` as never })
+        .where(eq(emailTokens.userId, kept.userId));
+      // Within the maximum age, the same fresh link keeps its tenant.
+      const younger = await unverified(`Younger ${randomUUID()}`);
+      await age(younger.tenantId, 29);
+
+      await node.app.get(SignUpTenantSweepJob).run();
+      expect(await exists(kept.tenantId)).toBe(false);
+      expect(await exists(younger.tenantId)).toBe(true);
+    });
   });
 });

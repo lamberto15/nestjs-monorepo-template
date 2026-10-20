@@ -23,10 +23,9 @@ export type NavItem = {
    */
   operator?: true;
   /**
-   * Shown only to a user acting in the operator tenant (`me.tenant.operator`),
-   * in any tenancy: for the API's `@OperatorOnly()` routes that are not about
-   * tenants (the mail suppression list). Unlike `operator`, a single-tenant
-   * deployment shows it too: its one tenant is the operators'.
+   * Shown only to users acting in the operator tenant (`me.tenant.operator`),
+   * in either tenancy: the operations API answers them alone (403
+   * `operator_required`), a single-tenant deployment's one tenant included.
    */
   operatorTenant?: true;
   /**

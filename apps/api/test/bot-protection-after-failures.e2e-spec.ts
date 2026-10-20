@@ -225,6 +225,37 @@ describe('bot protection, after failures (e2e)', () => {
     await forgot(siteverify.token('forgot-password')).expect(202);
   });
 
+  it('counts every request on the verification resend too, whether or not the address has an account', async () => {
+    const address = ip();
+    const resend = (target: string, token?: string) => {
+      const req = node
+        .http()
+        .post('/v1/auth/email/verification/resend')
+        .set('X-Forwarded-For', address);
+      if (token) {
+        req.set('X-Captcha-Token', token);
+      }
+      return req.send({ email: target });
+    };
+    // An unproved sign-up, then an unknown address: counted alike.
+    const unproved = email();
+    await node
+      .http()
+      .post('/v1/auth/sign-up')
+      .set('X-Forwarded-For', ip())
+      .send({ email: unproved, name: 'Ada', password: newPassword() })
+      .expect(201);
+    await resend(unproved).expect(202);
+    await resend(email()).expect(202);
+    const refused = await resend(unproved).expect(403);
+    expect(refused.body).toMatchObject({
+      code: 'captcha_required',
+      action: 'resend-verification',
+    });
+    await resend(email()).expect(403);
+    await resend(unproved, siteverify.token('resend-verification')).expect(202);
+  });
+
   it('keeps a refused token counted as an attempt', async () => {
     const address = ip();
     const target = email();

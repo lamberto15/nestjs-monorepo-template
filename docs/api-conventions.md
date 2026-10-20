@@ -473,14 +473,14 @@ headers (`Access-Control-Expose-Headers`, `CORS_EXPOSED_HEADERS` in
 
 | Limit | Routes |
 | --- | --- |
-| 5 | sign-in, sign-up, forgot password, change password, `POST /v1/auth/token`, magic link, re-authenticate |
+| 5 | sign-in, sign-up, forgot password, change password, `POST /v1/auth/token`, magic link, re-authenticate, resend verification without a session |
 | 10 | reset password, magic-link verify, MFA verify, email verify |
-| 3 | resend verification |
+| 3 | resend verification (signed in) |
 
 Token refresh: 60 a minute. When the body has an `email`, the key is the
 email and the IP; otherwise the IP alone. Over the limit: 429 `rate_limited`.
 
-Sign-in, sign-up, the magic-link request and forgot password may also want
+Sign-in, sign-up, the magic-link request, forgot password and the verification resend may also want
 a challenge token in `X-Captcha-Token` (403 `captcha_required`), always or
 after a few failed attempts: [auth.md](auth.md#bot-protection). While the
 provider is down and the policy is fail-open, those routes allow

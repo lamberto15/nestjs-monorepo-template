@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, exists, gt, inArray, lt, not, sql } from 'drizzle-orm';
+import { and, eq, exists, gt, inArray, lt, not, or, sql } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
@@ -23,6 +23,13 @@ import { TenantsService } from './tenants.service.js';
  * accounts never proved their address is kept.
  */
 export const UNVERIFIED_SIGN_UP_GRACE_DAYS = 7;
+/**
+ * The hard limit: a sign-up's tenant no member verified is deleted once it
+ * is this old, whatever its newest verification link. The public resend
+ * (POST /auth/email/verification/resend) lets anyone make a new link for an
+ * unproved address, so the links alone could keep such a tenant forever.
+ */
+export const UNVERIFIED_SIGN_UP_MAX_AGE_DAYS = 30;
 /** Tenants deleted per run at most: a backlog goes over the next nights. */
 const BATCH = 500;
 
@@ -30,7 +37,9 @@ const BATCH = 500;
  * Deletes the tenants a self sign-up made (TENANT_SIGN_UP,
  * `tenants.created_by_sign_up`) whose accounts never proved their address:
  * made more than UNVERIFIED_SIGN_UP_GRACE_DAYS ago, no member verified, no
- * member's verification link still valid within the grace. A sign-up makes
+ * member's verification link still valid within the grace; and, whatever
+ * its links, every such tenant made more than UNVERIFIED_SIGN_UP_MAX_AGE_DAYS
+ * ago (a resend must not keep one forever). A sign-up makes
  * its tenant before the address is proved (docs/tenancy.md, "Tenants made at
  * sign-up"), so without this, sign-ups nobody finishes (bots past the rate
  * limit, typos) would pile tenants up. Every night at 04:15 in APP_TIMEZONE,
@@ -72,6 +81,10 @@ export class SignUpTenantSweepJob {
     const cutoff = new Date(
       Date.now() - UNVERIFIED_SIGN_UP_GRACE_DAYS * 86_400_000,
     );
+    // Made before this: deleted whatever its links (UNVERIFIED_SIGN_UP_MAX_AGE_DAYS).
+    const maxAgeCutoff = new Date(
+      Date.now() - UNVERIFIED_SIGN_UP_MAX_AGE_DAYS * 86_400_000,
+    );
     const { deleted, failures } = await this.system.run(
       SIGN_UP_TENANT_SWEEP_JOB,
       async (system) => {
@@ -79,9 +92,10 @@ export class SignUpTenantSweepJob {
         const failed: { tenant: Tenant; error: unknown }[] = [];
         // One tenant's failure doesn't stop the others (as forEachTenant()):
         // logged with the tenant, reported together at the end.
-        for (const tenant of await this.candidates(cutoff)) {
+        for (const tenant of await this.candidates(cutoff, maxAgeCutoff)) {
           try {
-            if (await this.sweep(system, tenant.id, cutoff)) {
+            const pastMaxAge = tenant.createdAt < maxAgeCutoff;
+            if (await this.sweep(system, tenant.id, cutoff, pastMaxAge)) {
               count++;
             }
           } catch (error) {
@@ -112,8 +126,11 @@ export class SignUpTenantSweepJob {
     return deleted;
   }
 
-  /** The sign-up tenants past the grace whose members are all unverified, with no link left. */
-  private candidates(cutoff: Date) {
+  /**
+   * The sign-up tenants past the grace whose members are all unverified,
+   * with no link left; or past the maximum age, links or not.
+   */
+  private candidates(cutoff: Date, maxAgeCutoff: Date) {
     const db = database(this.txHost);
     return db
       .select()
@@ -137,22 +154,25 @@ export class SignUpTenantSweepJob {
                 ),
             ),
           ),
-          not(
-            exists(
-              db
-                .select({ one: sql`1` })
-                .from(memberships)
-                .innerJoin(
-                  emailTokens,
-                  eq(emailTokens.userId, sql`${memberships.userId}::text`),
-                )
-                .where(
-                  and(
-                    eq(memberships.tenantId, tenants.id),
-                    eq(emailTokens.purpose, 'email-verification'),
-                    gt(emailTokens.expiresAt, cutoff),
+          or(
+            lt(tenants.createdAt, maxAgeCutoff),
+            not(
+              exists(
+                db
+                  .select({ one: sql`1` })
+                  .from(memberships)
+                  .innerJoin(
+                    emailTokens,
+                    eq(emailTokens.userId, sql`${memberships.userId}::text`),
+                  )
+                  .where(
+                    and(
+                      eq(memberships.tenantId, tenants.id),
+                      eq(emailTokens.purpose, 'email-verification'),
+                      gt(emailTokens.expiresAt, cutoff),
+                    ),
                   ),
-                ),
+              ),
             ),
           ),
         ),
@@ -165,9 +185,16 @@ export class SignUpTenantSweepJob {
    * One tenant, in one transaction: its members' accounts locked, checked
    * again (one verified since the listing keeps it), the row deleted
    * (TenantsService.deleteRow(): the database cascades to its rows and
-   * memberships), and the entry outside any tenant.
+   * memberships), and the entry outside any tenant. `pastMaxAge`: the
+   * tenant is older than UNVERIFIED_SIGN_UP_MAX_AGE_DAYS, so a valid link no
+   * longer keeps it (a verified member still does).
    */
-  private sweep(system: SystemPrincipal, tenantId: string, cutoff: Date) {
+  private sweep(
+    system: SystemPrincipal,
+    tenantId: string,
+    cutoff: Date,
+    pastMaxAge = false,
+  ) {
     return inTransaction(this.txHost, async (tx) => {
       const members = await tx
         .select({ id: users.id, verified: users.emailVerified })
@@ -178,7 +205,7 @@ export class SignUpTenantSweepJob {
       if (members.some(({ verified }) => verified)) {
         return false;
       }
-      if (members.length > 0) {
+      if (members.length > 0 && !pastMaxAge) {
         const [pending] = await tx
           .select({ id: emailTokens.id })
           .from(emailTokens)

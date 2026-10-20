@@ -448,6 +448,25 @@ export class UsersRepository {
     return row?.userId;
   }
 
+  /**
+   * Whether the user was sent a verification link after `since` (a sign-up,
+   * a resend): the public resend sends at most one per account in a while.
+   */
+  async verificationLinkSentSince(userId: string, since: Date) {
+    const [row] = await this.db
+      .select({ id: emailTokens.id })
+      .from(emailTokens)
+      .where(
+        and(
+          eq(emailTokens.userId, userId),
+          eq(emailTokens.purpose, 'email-verification'),
+          gt(emailTokens.createdAt, since),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
+  }
+
   /** Only while `email` is still the user's address: a link sent to an old one verifies nothing. */
   async markEmailVerified(
     id: string,

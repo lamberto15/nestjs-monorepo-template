@@ -78,6 +78,7 @@ import { TenantLifecycleRegistry } from './access/tenant-lifecycle.registry.js';
 import { SignInContext, signInMetadata } from './auth/sign-in-context.js';
 import { ProviderReauthentications } from './account/oidc-reauthentication.js';
 import { AccountService } from './account/account.service.js';
+import { VerificationRequests } from './account/verification-requests.service.js';
 import { ImpersonationService } from './account/impersonation.service.js';
 import { SecurityAlertsService } from './account/security-alerts.service.js';
 import { MagicLinkController } from './account/magic-link.controller.js';
@@ -363,6 +364,8 @@ export class IamModule {
         MagicLinkMail,
         ImpersonationService,
         AccountService,
+        // The verification link again, by address, for a sign-up with no session yet.
+        VerificationRequests,
         // How each session was created, and step-up.
         SignInContext,
         // Step-ups through a provider under way (prompt=login, auth_time).

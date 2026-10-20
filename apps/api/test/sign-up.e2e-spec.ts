@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { EmailVerificationService } from '@nestjs/authentication';
+import { and, eq } from 'drizzle-orm';
+import { VerificationRequests } from '../src/iam/account/verification-requests.service.js';
+import { emailTokens, users } from '../src/iam/iam.tables.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
 
 // Read when AppModule loads: anyone may sign up in this file.
@@ -152,5 +156,127 @@ describe('sign-up, verify first (e2e)', () => {
     const mine = await agent.get('/v1/auth/tenants').expect(200);
     expect(mine.body.items).toEqual([]);
     expect(await count()).toBe(before);
+  });
+
+  describe('resending the link without a session (#260)', () => {
+    const resend = (address: string, from = '127.0.0.1') =>
+      node
+        .http()
+        .post('/v1/auth/email/verification/resend')
+        .set('X-Forwarded-For', from)
+        .send({ email: address });
+    /** The account's links as if sent a while ago: past the resend's cooldown. */
+    const ageLinks = async (address: string) => {
+      const [user] = await node.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, address));
+      await node.db
+        .update(emailTokens)
+        .set({ createdAt: new Date(Date.now() - 10 * 60_000) })
+        .where(
+          and(
+            eq(emailTokens.userId, user!.id),
+            eq(emailTokens.purpose, 'email-verification'),
+          ),
+        );
+      return user!.id;
+    };
+    const sendSpy = () =>
+      vi.spyOn(node.app.get(EmailVerificationService), 'send');
+    const settled = () => node.app.get(VerificationRequests).settled();
+
+    it('answers 202 for an unknown, a verified and an unverified address alike, and mails only the unverified one', async () => {
+      const unverified = email();
+      const password = newPassword();
+      await signUp(unverified, password);
+      const userId = await ageLinks(unverified);
+      const unknown = email();
+      const verified = process.env.ADMIN_EMAIL!;
+      const send = sendSpy();
+
+      const answers = [];
+      for (const address of [unknown, verified, unverified]) {
+        answers.push(await resend(address).expect(202));
+      }
+      for (const answer of answers) {
+        expect(answer.body).toEqual({ accepted: true });
+        expect(answer.headers['content-length']).toBe(
+          answers[0]!.headers['content-length'],
+        );
+      }
+      await settled();
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send.mock.calls[0]![0]).toMatchObject({ id: userId });
+
+      // The new link proves the address, with the sign-up's password.
+      const mails = () =>
+        node.mailbox.filter({
+          to: unverified,
+          subject: 'Confirm your email address',
+        });
+      for (let tries = 0; mails().length < 2 && tries < 100; tries++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const latest = mails().at(-1)!;
+      await node
+        .http()
+        .post('/v1/auth/email/verify')
+        .send({
+          token: latest.link('/verify-email').searchParams.get('token'),
+          password,
+        })
+        .expect(200);
+      await signIn(unverified, password).expect(200);
+      expect(node.mailbox.filter({ to: unknown })).toHaveLength(0);
+      expect(
+        node.mailbox.filter({
+          to: verified,
+          subject: 'Confirm your email address',
+        }),
+      ).toHaveLength(0);
+      send.mockRestore();
+    });
+
+    it('sends at most one link a minute per account, the sign-up’s own counting', async () => {
+      const address = email();
+      await signUp(address, newPassword());
+      const send = sendSpy();
+      // Right after the sign-up's link: the same 202, no second link.
+      await resend(address, '10.0.0.1').expect(202);
+      await settled();
+      expect(send).not.toHaveBeenCalled();
+      await ageLinks(address);
+      await resend(address, '10.0.0.2').expect(202);
+      await resend(address, '10.0.0.3').expect(202);
+      await settled();
+      expect(send).toHaveBeenCalledTimes(1);
+      send.mockRestore();
+    });
+
+    it('limits it to 5 requests per email and IP every 15 minutes', async () => {
+      const address = email();
+      for (let i = 0; i < 5; i++) {
+        await resend(address, '10.0.1.1').expect(202);
+      }
+      const refused = await resend(address, '10.0.1.1').expect(429);
+      expect(refused.body.code).toBe('rate_limited');
+      // Another address from the same IP isn't refused.
+      await resend(email(), '10.0.1.1').expect(202);
+      await settled();
+    });
+
+    it('refuses a body without a valid email', async () => {
+      await node
+        .http()
+        .post('/v1/auth/email/verification/resend')
+        .send({ email: 'not-an-email' })
+        .expect(400);
+      await node
+        .http()
+        .post('/v1/auth/email/verification/resend')
+        .send({})
+        .expect(400);
+    });
   });
 });

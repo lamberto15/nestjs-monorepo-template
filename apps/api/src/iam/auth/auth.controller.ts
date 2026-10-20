@@ -199,7 +199,7 @@ const methodsSchema = z.object({
     })
     .nullable()
     .describe(
-      "Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request and forgot password: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
+      "Bot protection on sign-in (and its two-factor step), sign-up, the magic-link request, forgot password and the verification resend: send the widget's token in `X-Captcha-Token`, always, or when a 403 `captcha_required` asks for one. null: off.",
     ),
 });
 

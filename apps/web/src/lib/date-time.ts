@@ -22,12 +22,13 @@ export function useDateTimeFormat() {
   const timeZone = useMe()?.user.timezone ?? undefined;
   const format = (
     value: string | null | undefined,
-    style: 'date' | 'dateTime' = 'dateTime',
+    style: 'date' | 'dateTime' | 'time' = 'dateTime',
   ) =>
     value
       ? new Intl.DateTimeFormat(current.language, {
-          dateStyle: 'medium',
+          ...(style !== 'time' && { dateStyle: 'medium' }),
           ...(style === 'dateTime' && { timeStyle: 'short' }),
+          ...(style === 'time' && { timeStyle: 'medium' }),
           ...(timeZone && { timeZone }),
         }).format(new Date(value))
       : '';

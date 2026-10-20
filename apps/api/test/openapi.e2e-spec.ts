@@ -152,6 +152,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/attachments/{id}',
         '/v1/attachments/{id}/download',
         '/v1/auth/email/verification',
+        '/v1/auth/email/verification/resend',
         '/v1/auth/email/verify',
         '/v1/auth/identities',
         '/v1/auth/identities/{provider}',
