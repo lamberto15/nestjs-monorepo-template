@@ -28017,6 +28017,10 @@
                           "operator": {
                             "type": "boolean"
                           },
+                          "createdBySignUp": {
+                            "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -28156,6 +28160,10 @@
                     "operator": {
                       "type": "boolean"
                     },
+                    "createdBySignUp": {
+                      "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
+                      "type": "boolean"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -28271,6 +28279,10 @@
                     "operator": {
                       "type": "boolean"
                     },
+                    "createdBySignUp": {
+                      "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
+                      "type": "boolean"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -28381,6 +28393,10 @@
                       "type": "boolean"
                     },
                     "operator": {
+                      "type": "boolean"
+                    },
+                    "createdBySignUp": {
+                      "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
                       "type": "boolean"
                     },
                     "createdAt": {

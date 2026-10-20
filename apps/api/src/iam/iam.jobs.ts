@@ -35,8 +35,18 @@ export const SOFT_DELETE_PURGE_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** SignUpTenantSweepJob: the tenants of sign-ups that never proved their address. */
+export const SIGN_UP_TENANT_SWEEP_JOB = defineSystemJob({
+  key: 'sign-up-tenant-sweep',
+  label: 'Unverified sign-ups’ tenants',
+  description:
+    'Deletes the tenants self sign-ups made (TENANT_SIGN_UP) whose accounts never proved their address, every night.',
+  permissions: [],
+});
+
 export const IAM_SYSTEM_JOBS = [
   SEED_JOB,
   AUDIT_RETENTION_JOB,
   SOFT_DELETE_PURGE_JOB,
+  SIGN_UP_TENANT_SWEEP_JOB,
 ];

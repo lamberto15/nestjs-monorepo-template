@@ -314,6 +314,21 @@ operators' route does). Off, only operators make tenants.
 - **Verify first still holds:** the account signs in, and so reaches its
   tenant, only once its address is proved (docs/auth.md, "Sign-up"). An
   account refused (its address taken: 409) leaves no tenant behind.
+- **Unverified sign-ups' tenants are swept.** Such a tenant is marked
+  (`tenants.created_by_sign_up`, `createdBySignUp` in the operators'
+  routes). Every night at 04:15 a cron job on the workers
+  (`SignUpTenantSweepJob`, as `system:sign-up-tenant-sweep`) deletes the
+  ones made more than 7 days ago (`UNVERIFIED_SIGN_UP_GRACE_DAYS`) whose
+  members never proved their address and whose verification links (24
+  hours each; a resend makes a new one) all expired more than 7 days ago,
+  up to 500 a night. Each deletion runs in its own transaction, under its
+  members' account locks, checked again there (an address proved meanwhile
+  keeps its tenant). The tenant's row goes (`TenantsService.deleteRow()`,
+  the database cascading to its rows and memberships; tenant deletion,
+  roadmap 1b, adds files and jobs around it), audited outside any tenant
+  (`tenant.purged`, `details.reason: 'sign-up-unverified'`, the members'
+  ids), since the tenant's own log goes with it. The accounts stay:
+  unverified, in no tenant. Operators' tenants are never swept.
 - **Abuse.** One tenant per new account: a second tenant needs another
   address (an existing one gets 409), and a sign-up is limited to five per
   address and 15 minutes, with bot protection when `CAPTCHA_MODE` is on (a
@@ -323,7 +338,7 @@ operators' route does). Off, only operators make tenants.
 - **Ignored, with a warning at start,** with `TENANCY=single` (sign-ups join
   the one tenant: below) or `AUTH_SIGN_UP=off` (nobody signs up).
 
-`test/tenant-sign-up.e2e-spec.ts` runs it on; `sign-up.e2e-spec.ts` checks
+`test/tenant-sign-up.e2e-spec.ts` runs it on (and the sweep); `sign-up.e2e-spec.ts` checks
 that off makes no tenant, `single-tenant.e2e-spec.ts` that `single` ignores it.
 
 ## Single-tenant deployments

@@ -29,6 +29,7 @@ import {
   TenantSwitchController,
 } from './access/tenants.controller.js';
 import { SignUpTenant } from './access/sign-up-tenant.js';
+import { SignUpTenantSweepJob } from './access/sign-up-tenant-sweep.job.js';
 import { SingleTenant } from './access/single-tenant.js';
 import { TenantsService } from './access/tenants.service.js';
 import { TenantSwitchService } from './access/tenant-switch.service.js';
@@ -390,6 +391,7 @@ export class IamModule {
         SystemContext,
         AuditRetentionJob,
         SoftDeletePurgeJob,
+        SignUpTenantSweepJob,
         RecordPurgeRegistry,
         UserLifecycleRegistry,
         ApiClientLifecycleRegistry,

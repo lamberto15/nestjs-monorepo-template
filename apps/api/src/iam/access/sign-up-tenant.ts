@@ -99,7 +99,11 @@ export class SignUpTenant implements OnApplicationBootstrap {
     for (let attempt = 1; ; attempt++) {
       try {
         const { result } = await this.tenants.create(
-          { name: tenantName, slug: drawSlug(tenantName) },
+          {
+            name: tenantName,
+            slug: drawSlug(tenantName),
+            createdBySignUp: true,
+          },
           null,
           async (tx, tenant) => {
             const account = await create(tx);

@@ -92,7 +92,10 @@ still go), so what it records lands in that
 tenant's audit log: the recycle bin purge (`records.purged`), the audit
 retention (`audit.pruned` per tenant, then a pass outside any tenant for
 the account-level entries), the account deletion (a person's data in each
-tenant they belonged to, then the account). `Tenancy.bypass(job, work)`
+tenant they belonged to, then the account). The unverified sign-ups' tenants'
+sweep (`SignUpTenantSweepJob`) works on global tables only, outside any
+tenant, and audits each deletion there ([tenancy](tenancy.md), "Tenants made
+at sign-up"). `Tenancy.bypass(job, work)`
 sweeps every tenant at once, as the maintenance role (`BYPASSRLS`,
 `DATABASE_MAINTENANCE_URL`, workers only: [tenancy](tenancy.md), "The
 bypass"), for a whole-table delete by age that records nothing per tenant;

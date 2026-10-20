@@ -57,6 +57,8 @@ export interface NewTenant {
   slug: string;
   /** The deployment's operators (the first start's tenant only). */
   operator?: boolean;
+  /** Made by a self sign-up (TENANT_SIGN_UP): the unverified sign-ups' sweep may delete it. */
+  createdBySignUp?: boolean;
 }
 
 /** What an operator may change of a tenant (`PATCH /v1/tenants/{id}`). */
@@ -252,6 +254,7 @@ export class TenantsService {
             name: input.name,
             slug: input.slug,
             operator: input.operator ?? false,
+            createdBySignUp: input.createdBySignUp ?? false,
           })
           .returning()
           .catch((error: unknown) => {
@@ -354,6 +357,23 @@ export class TenantsService {
         expiresAt: result!.invitation.expiresAt,
       },
     };
+  }
+
+  /**
+   * Deletes a tenant's row, in the caller's transaction: the database
+   * cascades to its tenant rows and its memberships (every `tenant_id` key
+   * is `on delete cascade`; referential actions run past row-level
+   * security). Nothing outside the database (stored files, queued jobs,
+   * workflows): the unverified sign-ups' sweep calls it for tenants that
+   * never had any; tenant deletion (roadmap 1b, #226) adds the rest around
+   * it. Never the operator tenant.
+   */
+  async deleteRow(tx: Transaction, id: string): Promise<Tenant | undefined> {
+    const [deleted] = await tx
+      .delete(tenants)
+      .where(and(eq(tenants.id, id), eq(tenants.operator, false)))
+      .returning();
+    return deleted;
   }
 
   /** The tenant's roles: the built-in Administrator and the declarations' `seedRoles`. */

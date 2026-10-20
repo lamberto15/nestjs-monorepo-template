@@ -16213,6 +16213,8 @@ export interface operations {
                             name: string;
                             active: boolean;
                             operator: boolean;
+                            /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
+                            createdBySignUp?: boolean;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -16276,6 +16278,8 @@ export interface operations {
                         name: string;
                         active: boolean;
                         operator: boolean;
+                        /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
+                        createdBySignUp?: boolean;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -16339,6 +16343,8 @@ export interface operations {
                         name: string;
                         active: boolean;
                         operator: boolean;
+                        /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
+                        createdBySignUp?: boolean;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -16397,6 +16403,8 @@ export interface operations {
                         name: string;
                         active: boolean;
                         operator: boolean;
+                        /** @description Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent. */
+                        createdBySignUp?: boolean;
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */

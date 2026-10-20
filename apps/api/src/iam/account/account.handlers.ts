@@ -1,5 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
+import type { Request } from 'express';
+import { CLS_REQ, ClsService } from 'nestjs-cls';
 import {
   database,
   type DrizzleTransactions,
@@ -231,6 +233,7 @@ export class OidcAccounts extends OidcAccountResolver {
     private readonly config: ConfigService<IamEnv, true>,
     private readonly signInContext: SignInContext,
     private readonly signUpTenant: SignUpTenant,
+    private readonly cls: ClsService,
     registry: AuthenticationRegistry,
   ) {
     super();
@@ -289,6 +292,7 @@ export class OidcAccounts extends OidcAccountResolver {
     // In the same transaction: TENANCY=single, the account joins the tenant;
     // TENANT_SIGN_UP, it makes its own (named after the person) and administers it.
     const name = profile.name ?? profile.email!;
+    const ip = this.requestIp();
     const created = await this.signUpTenant.newAccount(
       async (tx) => {
         const account = await this.accounts.create(tx, {
@@ -304,18 +308,32 @@ export class OidcAccounts extends OidcAccountResolver {
             targetType: 'user',
             targetId: account.id,
             details: { provider: profile.provider },
+            ip,
           },
           tx,
         );
         return account;
       },
-      { tenantName: name },
+      { tenantName: name, ip },
     );
     this.logger.log('Account created from a provider', {
       userId: created.id,
       provider: profile.provider,
     });
     return this.link(created.id, profile);
+  }
+
+  /**
+   * The callback request's address (what `@Ip()` gives a route: Express's
+   * `req.ip`, behind TRUST_PROXY), for the sign-up's audit entries. The
+   * package's callback calls this resolver without the request; nestjs-cls's
+   * middleware keeps it in the context (CLS_REQ, `saveReq` on by default).
+   */
+  private requestIp(): string | undefined {
+    if (!this.cls.isActive()) {
+      return undefined;
+    }
+    return this.cls.get<Request | undefined>(CLS_REQ)?.ip;
   }
 
   /**

@@ -1,4 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { eq, sql } from 'drizzle-orm';
+import { CLS_REQ, ClsService } from 'nestjs-cls';
+import { tenants } from '../src/core/tenancy/tenancy.tables.js';
+import { SignUpTenantSweepJob } from '../src/iam/access/sign-up-tenant-sweep.job.js';
+import { OidcAccounts } from '../src/iam/account/account.handlers.js';
+import { emailTokens, roles, users } from '../src/iam/iam.tables.js';
 import { bootApp, newPassword, type TestApp } from './support.js';
 
 // Read when AppModule loads: a multi-tenant deployment whose sign-ups make tenants.
@@ -150,5 +156,137 @@ describe('TENANT_SIGN_UP=on (e2e)', () => {
       .send({ email: address, password })
       .expect(403);
     expect(refused.body.code).toBe('email_unverified');
+  });
+
+  it('audits a provider sign-up’s tenant with the callback request’s address', async () => {
+    const address = email();
+    const cls = node.app.get(ClsService);
+    const created = await cls.run(async () => {
+      cls.set(CLS_REQ, { ip: '203.0.113.7' });
+      return node.app.get(OidcAccounts).resolveUser(
+        {
+          provider: 'google',
+          subject: randomUUID(),
+          email: address,
+          emailVerified: true,
+          name: 'Grace Hopper',
+        } as never,
+        {} as never,
+        {} as never,
+      );
+    });
+    expect(created).toMatchObject({ id: expect.any(String) });
+    const [entry] = await node.auditEntries({
+      action: 'tenant.created',
+      actor: `user:${created!.id}`,
+    });
+    expect(entry).toMatchObject({
+      ip: '203.0.113.7',
+      details: { via: 'sign-up' },
+    });
+    const [signedUp] = await node.auditEntries({
+      action: 'user.signed-up',
+      targetId: created!.id,
+    });
+    expect(signedUp).toMatchObject({ ip: '203.0.113.7' });
+  });
+
+  describe('the sweep of unverified sign-ups’ tenants', () => {
+    /** Signs up without proving the address: the tenant's id and the account's. */
+    const unverified = async (tenantName: string) => {
+      const address = email();
+      await node
+        .http()
+        .post('/v1/auth/sign-up')
+        .send({
+          email: address,
+          name: 'Bot',
+          password: newPassword(),
+          tenantName,
+        })
+        .expect(201);
+      const [tenant] = await node.db
+        .select({ id: tenants.id })
+        .from(tenants)
+        .where(eq(tenants.name, tenantName));
+      const [user] = await node.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, address));
+      return { tenantId: tenant!.id, userId: user!.id, address };
+    };
+    /** Makes a tenant, and its accounts' links, look `days` old. */
+    const age = async (tenantId: string, days: number, userId?: string) => {
+      const then = sql`now() - make_interval(days => ${days})`;
+      await node.db
+        .update(tenants)
+        .set({ createdAt: then as never })
+        .where(eq(tenants.id, tenantId));
+      if (userId) {
+        await node.db
+          .update(emailTokens)
+          .set({
+            expiresAt: sql`now() - make_interval(days => ${days - 1})` as never,
+          })
+          .where(eq(emailTokens.userId, userId));
+      }
+    };
+    const exists = async (tenantId: string) =>
+      (
+        await node.db
+          .select({ id: tenants.id })
+          .from(tenants)
+          .where(eq(tenants.id, tenantId))
+      ).length === 1;
+
+    it('deletes a sign-up’s tenant nobody verified past the grace, audited outside any tenant, and keeps the rest', async () => {
+      const stale = await unverified(`Stale ${randomUUID()}`);
+      await age(stale.tenantId, 9, stale.userId);
+      // Unverified, but a link resent lately still works.
+      const resent = await unverified(`Resent ${randomUUID()}`);
+      await age(resent.tenantId, 9);
+      // Unverified, and recent.
+      const recent = await unverified(`Recent ${randomUUID()}`);
+      // Verified: its owner uses it.
+      const owner = await signUp({ tenantName: `Used ${randomUUID()}` });
+      const used = (await owner.get('/v1/auth/me').expect(200)).body.tenant
+        .id as string;
+      await age(used, 9);
+      // Made by the operators, its administrator still invited: never a sign-up's.
+      const other = await node.otherTenant();
+      await age(other.id, 9);
+
+      const deleted = await node.app.get(SignUpTenantSweepJob).run();
+      expect(deleted).toBe(1);
+
+      expect(await exists(stale.tenantId)).toBe(false);
+      for (const id of [resent.tenantId, recent.tenantId, used, other.id]) {
+        expect(await exists(id)).toBe(true);
+      }
+      // Its rows went with it (the database's cascade), past row-level security.
+      const left = await node.db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.tenantId, stale.tenantId));
+      expect(left).toEqual([]);
+      // The account stays, unverified, in no tenant.
+      const [account] = await node.db
+        .select({ verified: users.emailVerified })
+        .from(users)
+        .where(eq(users.id, stale.userId));
+      expect(account).toEqual({ verified: false });
+
+      const [entry] = await node.auditEntries({
+        action: 'tenant.purged',
+        targetId: stale.tenantId,
+      });
+      expect(entry).toMatchObject({
+        tenantId: null,
+        actor: 'system:sign-up-tenant-sweep',
+        details: { reason: 'sign-up-unverified', members: [stale.userId] },
+      });
+      // Nothing left to do: a second run deletes nothing.
+      expect(await node.app.get(SignUpTenantSweepJob).run()).toBe(0);
+    });
   });
 });
