@@ -1,4 +1,5 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { unwrap } from '@nestjs-monorepo-template/api-client';
 import {
   Field,
@@ -40,8 +41,12 @@ function SignUpPage() {
   const [error, setError] = useState<string>();
   const [done, setDone] = useState(false);
   const captcha = useCaptcha('sign-up');
+  // TENANT_SIGN_UP: the sign-up makes a tenant, so it asks for the name
+  // (beforeLoad already fetched the methods; absent means false).
+  const { data: methods } = useQuery(methodsQuery);
+  const tenantSignUp = methods?.tenantSignUp === true;
   const form = useAppForm({
-    defaultValues: { name: '', email: '', password: '' },
+    defaultValues: { name: '', email: '', password: '', tenantName: '' },
     validators: {
       onSubmit: z.object({
         name: z.string().trim().min(1, t('auth.fields.nameRequired')).max(120),
@@ -50,18 +55,26 @@ function SignUpPage() {
           .string()
           .min(12, t('auth.fields.passwordTooShort', { min: 12 }))
           .max(128),
+        tenantName: z
+          .string()
+          .trim()
+          .max(120, t('auth.fields.tenantNameTooLong', { max: 120 })),
       }),
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
       const timezone = browserTimeZone();
+      const { tenantName, ...account } = value;
+      const tenant = tenantName.trim();
       try {
         await unwrap(
           api.POST('/v1/auth/sign-up', {
             params: { header: captcha.header() },
             body: {
-              ...value,
+              ...account,
               name: value.name.trim(),
+              // Optional: empty, the API names the tenant after the person.
+              ...(tenantSignUp && tenant && { tenantName: tenant }),
               locale: i18n.language,
               ...(timezone && { timezone }),
             },
@@ -122,6 +135,17 @@ function SignUpPage() {
                 />
               )}
             </form.AppField>
+            {tenantSignUp && (
+              <form.AppField name="tenantName">
+                {(field) => (
+                  <field.TextField
+                    label={t('auth.fields.tenantName')}
+                    autoComplete="organization"
+                    description={t('auth.fields.tenantNameHint')}
+                  />
+                )}
+              </form.AppField>
+            )}
             {captcha.element}
             <Field>
               <form.AppForm>
