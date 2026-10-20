@@ -61,7 +61,7 @@ export const INVOICE = defineRecord({
 
 - **Field types:** `string`, `text`, `int`, `decimal`, `money` (minor units and
   currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
-  `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, a key
+  `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, named `<x>Id`, a key
   within the tenant; its list filter is `ref: '<Subject>'` in the list metadata). `?` makes a field optional, `!unique` (string, int)
   unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
@@ -101,7 +101,7 @@ export const INVOICE = defineRecord({
   | `transfer` | exports (CSV, JSON, Excel), imports (when no required money or JSON field), the owner's data export |
   | `custom` | administrators' runtime fields ([custom fields](custom-fields.md)): `custom` in bodies and responses, `custom.<key>` in lists, exports and imports, snapshots and the audit; the `custom` column and its GIN index (run `pnpm db:generate`), the field-level `custom` permission |
   | `events` | webhooks `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle bin), declared as event types and sent in the write's transaction through the outbox |
-  | `numbered` | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only |
+  | `numbered` | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only; administrators' naming series replace the declared format ([sequences](sequences.md), "Naming series") |
 
   `events`: the data of each webhook is the record as the API shows it
   (less the fields its receiver may not read), sent to the API client that
@@ -238,6 +238,8 @@ features/notes/
   notes.service.ts                      writes and reads
   notes.controller.ts                   /v1/notes
   note-events.ts                        domain events (webhook, notification, realtime), the workflow signal
+  note-settings.ts                      settings and flags
+  note-ai.ts                            the AI helper's source
   note-publication.workflow.ts          the workflow
   note-publisher.service.ts             the workflow's steps (webhooks, realtime)
   note-approvals.ts                     publishing needs approval (the declaration, its handler)
@@ -250,7 +252,7 @@ the controller (`notes.*`); singular for what describes one record
 
 ## The standard, step by step
 
-1. **Table** (`<x>.tables.ts`; a number people quote: `sequences.next()` on
+1. **Table** (`<x>.tables.ts`; a number people quote: `NamingSeriesService.next()` on
    create, [sequences.md](sequences.md)), with the column helpers of
    `core/database/columns.ts`:
    ```ts
@@ -436,9 +438,11 @@ the controller (`notes.*`); singular for what describes one record
    - Watching its records: a `SubscriptionTarget` (`<item>-subscriptions.ts`,
      who may watch: whoever may read) registered into `SubscriptionsRegistry`,
      and `watchRoutes()`.
-10. **Notifications** (optional): declare the types the feature sends
-    (`<x>-notifications.ts`, `defineNotifications()`, passed to
-    `PlatformModule.forRoot({ notifications })`), their texts in
+10. **Notifications** (optional): declare the types the feature sends, with
+    the webhook and realtime events they go with, once
+    (`<item>-events.ts`, `defineDomainEvents()`, passed as `defineFeature({ events })`;
+    for a type with no other channel, `<x>-notifications.ts`,
+    `defineNotifications()`, passed to `PlatformModule.forRoot({ notifications })`), their texts in
     `apps/api/src/i18n/<locale>/notifications.json`, and call
     `notifications.notify(tx, …)` in the write's transaction
     ([notifications.md](notifications.md)).
@@ -464,6 +468,9 @@ the controller (`notes.*`); singular for what describes one record
     `ApprovalsRegistry`, the declaration in `PlatformModule.forRoot({ approvals })`,
     `approvals.request()` where the action is asked for and
     `assertNotPending()` in the writes that must wait ([approvals.md](approvals.md)).
+    The AI helper on its records: an `AiSource` (`<item>-ai.ts`) registered into
+    `AiRegistry` ([ai.md](ai.md)). Rules that purge or anonymise old rows: a
+    declaration registered into `RetentionRegistry` ([retention.md](retention.md)).
 11. **Settings and flags** (optional): what administrators change at
     runtime (`<x>-settings.ts`, `defineSettings()` with `setting()` and
     `flag()`, passed to `PlatformModule.forRoot({ settings })`); read with

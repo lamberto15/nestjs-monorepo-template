@@ -90,6 +90,9 @@ Send `ids` or `filter`, one of them.
   `bulk_too_many` (more than 500 ids: use a filter), `forbidden` (you may
   not do this action at all), `field_forbidden` (a filter on a field your
   permissions hide: docs/permissions.md), the idempotency codes.
+- **Legal holds** ([retention.md](retention.md)): a `delete` of a record under
+  an active hold fails that item alone with `legal_hold` (409), as the route
+  would; the rest of the run goes on.
 - A job is never retried, not even when its worker is lost mid-way (a
   redeploy): it fails with "Items done stay done"; the audit log says
   which, and a new run with the same selection does the rest (ids already

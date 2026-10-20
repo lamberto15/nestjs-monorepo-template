@@ -128,6 +128,10 @@ files.
 Migrations run before the new code does, with the old code still serving: keep
 them expand/contract ([deployment.md](deployment.md), "Migrations").
 
+Options: `--stack <name>` (`SWARM_STACK`, default `app`), `--env-file <path>`,
+`--timeout <seconds>` (600), `--prune` (remove services the stack file no
+longer has) and `--skip-migrate`.
+
 ### Rolling updates and rollback
 
 `api` and `worker`: `update_config` is one task at a time, `start-first` (the

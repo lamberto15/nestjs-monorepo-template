@@ -36,7 +36,7 @@ const rich = await this.settings.enabled(NOTE_RICH_TEXT, user);     // for this 
   it from callers who don't manage settings. A `flag()` is a boolean
   setting with every scope and a rollout.
 - Precedence for a principal: the operators' **enforced** platform value →
-  their own value → one of their teams' (in the order of their units) → the
+  their own value → one of their teams' (in the order of their teams) → the
   tenant's targeting rules → the tenant's value → a flag's rollout → the
   operators' platform rules → their platform value (or rollout) → the
   default. `settings.resolve()` also says which (`source`).
@@ -68,6 +68,10 @@ flag is off for the caller, as if the route did not exist. It is a route
 guard (`Reflector.createDecorator` and `UseGuards`), so it runs after the
 authentication and permission checks: a caller without the permission
 gets their 403 first.
+
+In the web app, `useFlag(key)` (`apps/web/src/features/settings/use-flag.ts`) reads
+the flag the caller resolves from `GET /v1/settings`: off while it loads or when
+it can't be read.
 
 ## For the operators: every tenant at once (`/platform`)
 
@@ -272,7 +276,7 @@ each user's and API client's `key`, the `scopeId` to send.
 ## For users and clients
 
 ```
-GET    /v1/settings                 your value of each (and `source`: user, team, tenant, rollout, platform, default)
+GET    /v1/settings                 your value of each (and `source`: user, team, tenant, rule, rollout, platform, default)
 GET    /v1/settings/{key}
 PUT    /v1/settings/{key}/mine      { value }   settings whose scopes include user
 DELETE /v1/settings/{key}/mine

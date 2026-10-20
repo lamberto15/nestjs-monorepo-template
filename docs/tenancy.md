@@ -73,7 +73,8 @@ nothing and writes nothing. `FORCE ROW LEVEL SECURITY` (which drizzle-kit
 can't emit) is set by the role bootstrap (`core/database/roles.ts`, every
 migrate), which also refuses to finish when a table with a `tenant_id` lacks
 RLS, FORCE, or exactly its declared policies with no other permissive one (the
-two global tables excepted: `core/tenancy/global-tables.ts`). Each policy is
+three global tables with a `tenant_id` excepted: `memberships`, `api_keys`, `sso_domain_routes`;
+`core/tenancy/global-tables.ts`). Each policy is
 compared with its declaration (`tenantTable()`; the default four for a table
 the schema doesn't declare): its command, permissive, its roles, and its `USING`
 and `WITH CHECK` expressions. The expressions are compared as PostgreSQL
@@ -469,7 +470,7 @@ case the tenant can't open the door for). The owner's decision is pending
 | | |
 | --- | --- |
 | **Who** | A member of the operator tenant holding `Platform.breakGlass` (its Administrator role does), acting as themselves (not while impersonating), with a recent sign-in. `@OperatorOnly()` and the permission are checked when the grant opens and again on every request through it. |
-| **Opening** | `POST /v1/tenants/{id}/break-glass { reason, minutes? }` (201): a grant (`break_glass_grants`, a row of the operators' tenant) with its `id`, `reason` (10 to 1000 characters, required) and `expiresAt`. 409 `break_glass_active` while you hold an open one to that tenant, `break_glass_own_tenant` for the operator tenant, `tenant_inactive`; 403 `break_glass_disabled` when the tenant opted out. `GET /v1/tenants/{id}/break-glass` lists your grants to it. |
+| **Opening** | `POST /v1/tenants/{id}/break-glass { reason, minutes? }` (201): a grant (`break_glass_grants`, a row of the operators' tenant) with its `id`, `reason` (10 to 1000 characters, required) and `expiresAt`. 409 `break_glass_active` while you hold an open one to that tenant, `break_glass_own_tenant` for the operator tenant, `tenant_inactive`; 403 `break_glass_disabled` when the tenant opted out, `break_glass_not_allowed` while impersonating or acting through a grant. `GET /v1/tenants/{id}/break-glass` lists your grants to it. |
 | **Using** | GET requests with the header `Break-Glass: <grant id>`: the request acts in that tenant (`GET /v1/auth/me` says so), with every read action of the catalog (`read`, `readAudit`), unconditional, and nothing else. A request that isn't a read answers 403 `break_glass_read_only`; a grant that ended, isn't yours, or whose permission you lost, 403 `break_glass_invalid`; one past its time, 403 `break_glass_expired`. HTTP only: a socket never breaks glass. |
 | **Read only, in the database** | `BreakGlassGuard` (after the authentication and two-factor guards, before authorization's) sets the request's scope to `readOnlyTenantScope()`: the consolidated read's scope ("The tenant tree") with no descendants, so `app.tenant_id` and `app.read_tenants` are that tenant alone (the read policies' tree check passes on the tenant itself) and `TenantPool`'s one read-only path applies: every query in a transaction begun with `set transaction read only`, a global table's too, so PostgreSQL refuses any write (SQLSTATE 25006) whatever a route would do. The method check is the clear answer; the database is the wall. A grant never reads the tenant's subtree (`Access.readConsolidated` is not among its permissions). |
 | **How long** | At most 60 minutes (`minutes`, default 60), never extended: another grant to the same tenant needs the first ended (`DELETE /v1/tenants/{id}/break-glass/{grantId}`, which stops it at once) or expired, and a new reason. |

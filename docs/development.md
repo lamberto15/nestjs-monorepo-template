@@ -3,7 +3,7 @@
 ```bash
 pnpm install
 pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
-pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
+pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci, Gotenberg (project <name>-dev)
 pnpm dev                  # the API and its workers (http://localhost:3000/api) and the web app (http://localhost:5173), with reload
 pnpm db:seed:demo         # optional, from a second terminal: demo users, teams and each feature's demo data (passwords printed once)
 ```
@@ -613,7 +613,7 @@ pages, ETags. Usage, the bell-icon recipe included:
   depend on it. Its unit tests run with `pnpm test`.
 - The API's e2e tests use it as a workspace dependency
   (`"@nestjs-monorepo-template/api-client": "workspace:*"`), as a frontend
-  does: [monorepo](monorepo.md), "Adding a frontend app".
+  does: [monorepo](monorepo.md), "Adding another frontend app".
 
 ## Database
 

@@ -9,7 +9,8 @@ declaration; notes is the example. The code is in `apps/api/src/platform/custom-
 ## How it's stored
 
 - **Definitions**: `custom_field_definitions`, one row per field of a
-  subject (`Note`): `key` (a slug, unique per subject, never changed),
+  subject (`Note`) in a tenant: each tenant defines its own
+  ([tenancy](tenancy.md)). `key` (a slug, unique per tenant and subject, never changed),
   `label`, `description`, `type`, `options`, `required`, `default`,
   `validation`, `position`, `filterable`, `sortable`, `active`.
 - **Values**: on the feature's own table, in one JSONB column
@@ -185,14 +186,18 @@ GET /v1/notes?sort=-custom.amount,title&fields=title,custom.region
 
 ## Caching across instances
 
-Definitions are cached per subject with the Zod schemas built from them.
-Each change increments `custom-fields:version` in Redis after its commit;
+Definitions are cached per tenant and subject with the Zod schemas built from
+them. Each change increments the tenant's `tenant:<id>:custom-fields:version`
+in Redis after its commit;
 every read compares that version with the cached one (one GET), so a
 change applies on the next request on every instance. If Redis can't be
 reached, cached definitions are used for 5 seconds at most.
 
 ## Limits
 
+- A custom value is JSONB and is **not** encrypted
+  ([encryption.md](encryption.md)): a value that must be goes in a declared
+  encrypted column of its own.
 - One permission for all of a record's custom values (`custom`); one per
   field would need each key declared as a field of the subject at runtime.
 - Sorting or range filters on a field read `custom->>'key'` per row (the

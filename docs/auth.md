@@ -24,6 +24,7 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 | Passkeys | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
 | Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
 | Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh`, `/token/revoke` |
+| A tenant's own identity provider (SAML, OpenID Connect) | `POST /v1/auth/sso/discover { email }` → `loginUrl`, `GET /v1/auth/sso/{tenantId}/{connectionId}/login`; set up with `/v1/sso/…`, SCIM at `/v1/scim`: see [Enterprise SSO](#enterprise-sso) |
 | Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
 
 - **Email links** open pages of the web app (`WEB_URL/reset-password`,
@@ -411,6 +412,9 @@ with the password (and with a token client's passkey).
 | `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
 | `POST /v1/tenants/{id}/export`, `POST /v1/tenants/{id}/deletion` | the operators' copy of every record of a tenant; a tenant erased after its grace period ([tenancy](tenancy.md)) |
+| `POST /v1/tenants/{id}/break-glass` | an operator reading a tenant that never invited them ([tenancy](tenancy.md#break-glass)) |
+| `POST /v1/sso/connections`, `PATCH`/`DELETE /v1/sso/connections/{id}`, `POST /v1/sso/domains`, `DELETE /v1/sso/domains/{id}`, `PUT /v1/sso/policy`, `PUT`/`DELETE /v1/sso/exemptions/{userId}` | who may sign in to the tenant, and how ([Enterprise SSO](#enterprise-sso)) |
+| `POST /v1/access/clients/{clientId}/webhook-endpoints`, `…/{id}/rotate-secret`; `POST /v1/webhook-senders`, `…/{id}/rotate-secret` | where a client's events go, and who may write into the tenant's webhooks: a new destination or secret ([webhooks-and-realtime](webhooks-and-realtime.md)) |
 
 Not protected, on purpose: signing out (sessions, everywhere), data export
 (a user can read their data anyway), consents, the profile, role
@@ -522,9 +526,10 @@ linking; with `link=true` too: 400):
   login URL needs no discovery; the callback's `finish()` replaced by one
   running the real resolver), `oidc-reauthentication.spec.ts`.
 
-**SSO (item 2)** re-authenticates by signing in again
-(`sso:<connection>` in `methods`); "SSO required" revokes the sessions
-whose `metadata->>'method'` is not `sso`.
+**SSO** re-authenticates by signing in again
+(`sso:<connection>` in `methods`); "SSO required" refuses (403
+`sso_required`) the sessions whose method is not `sso`, on every request
+([SSO required](#sso-required)).
 
 ## Security notifications
 
@@ -539,7 +544,7 @@ daily, never off.
 
 | Type | When | `data` |
 | --- | --- | --- |
-| `security.newSignIn` | a sign-in from a new device, by any method: password (a browser or a token client), email link, passkey, Google / Microsoft / GitHub (even with two-factor still to do) | `device` ("Chrome on macOS"), `ip`, `at` |
+| `security.newSignIn` | a sign-in from a new device, by any method: password (a browser or a token client), email link, passkey, Google / Microsoft / GitHub, a tenant's SSO (even with two-factor still to do) | `device` ("Chrome on macOS"), `ip`, `at` |
 | `security.passwordChanged` | `POST /auth/password/change`, or a reset link when the account was used before (any audit entry as its actor: not an invitation's first password) | `via` (`change` \| `reset`), `ip` |
 | `security.passwordBreached` | a password sign-in (browser or token) whose password is in the breach corpus, once per password per `PASSWORD_BREACH_RECHECK_DAYS` ([Passwords](#passwords)) | `at`, `ip` (the sign-in's) |
 | `security.mfaChanged` | two-factor confirmed on, or turned off | `enabled`, `ip` |
@@ -568,7 +573,7 @@ daily, never off.
   tokens are revoked after the commit.
 - Every sign-in writes one `auth.signed-in` entry (`details.method`:
   `password`, `magic-link`, `passkey` (with `passkey`, its id, and
-  `userVerified`), `oidc:google`; `via: token` for a token client), from
+  `userVerified`), `oidc:google`, `sso:<connection id>`; `via: token` for a token client), from
   the service that signs in (`signInWithPassword`, `issueTokens`,
   `signInWithMagicLink`, `PasskeysService`). The OIDC callback is signed in
   inside the package (`OidcService.finish`), so `SecurityAlertsService`
@@ -723,8 +728,8 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 - **Native apps** use the passkeys of the RP ID when the operating system
   finds the app listed on the RP ID's host: `GET /.well-known/assetlinks.json`
   (Android Digital Asset Links, from `PASSKEY_ANDROID_APPS`:
-  `package.name:SHA256:FINGERPRINT`, the signing certificate's as
-  `keytool` or the Play Console print it) and
+  `package.name:AA:BB:…`, the signing certificate's SHA-256 fingerprint as
+  `keytool` or the Play Console print it, 32 colon-separated hex pairs) and
   `GET /.well-known/apple-app-site-association` (`webcredentials`, from
   `PASSKEY_APPLE_APPS`: `TEAMID.bundle.id`). JSON, not in OpenAPI, 404 when
   none is configured. With one origin (Caddy in front of the API), they are
@@ -783,8 +788,8 @@ them), and it acts in the connection's tenant.
 
 ### Roles from the IdP
 
-A connection may give roles (all optional, set on `POST`/`PATCH
-/v1/sso/connections`):
+A connection may give roles (all optional, set on `POST /v1/sso/connections`
+and `PATCH /v1/sso/connections/{id}`):
 
 - `defaultRoleIds`: the roles a member it provisions just in time gets at
   their first sign-in, once. Theirs to keep, as an invitation's roles.
@@ -1128,6 +1133,7 @@ never loosen it. Unset, every policy is today's behaviour.
 | Setting | Scopes | Does | Ceiling |
 | --- | --- | --- | --- |
 | `auth.requireMfa` | tenant, team | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
+| `auth.allowBreakGlass` | tenant | whether the deployment's operators may open the tenant with break-glass (default `true`; `false`: new grants are refused, running ones stop: [tenancy](tenancy.md#break-glass)) | none |
 | `auth.passwordMinLength` | tenant | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum |
 
 - **Two-factor required.** The first factor signs in as usual (no code
