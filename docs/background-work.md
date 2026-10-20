@@ -22,13 +22,20 @@ when the client should wait for a result), a **worker** does the work
 ```ts
 // Declare it: PlatformModule.forRoot({ queues: ['thumbnails'] })
 constructor(@InjectQueue('thumbnails') private readonly queue: Queue) {}
-await this.queue.add('make', { fileKey }, { jobId: randomUUID() });
+await this.queue.add('make', withTenant({ fileKey }), { jobId: randomUUID() });
 
 @Processor('thumbnails', { concurrency: 4 })
-export class ThumbnailProcessor extends WorkerHost {
-  async process(job: Job<{ fileKey: string }>) { … }
+export class ThumbnailProcessor extends TenantWorkerHost<{ fileKey: string }> {
+  async handle(job: Job<{ fileKey: string } & TenantEnvelope>) { … }
 }
 ```
+
+A job carries its tenant (`TenantEnvelope`, `core/tenancy/tenant-job.ts`):
+`withTenant(data)` fills it from the scope, and `TenantWorkerHost` restores it
+before `handle()`. A payload without it is refused. A job that acts for a
+queued principal calls `stillActive()` first (`platform/queues/still-active.ts`):
+a user must still be an active member of the job's tenant, an API client's
+tenant must still be active ([tenancy](tenancy.md), "Async carries the tenant by type").
 
 Producers work in every process; processors only run on workers (BullMQ's
 manual registration). Defaults: 3 attempts with exponential backoff; finished

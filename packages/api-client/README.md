@@ -15,7 +15,7 @@ needed only for `createRealtime()`.
 
 An app of this repository uses it through the workspace, unpublished:
 `"@nestjs-monorepo-template/api-client": "workspace:*"` in its package.json
-([adding a frontend app](../../docs/monorepo.md#adding-a-frontend-app)).
+([adding a frontend app](../../docs/monorepo.md#adding-another-frontend-app)).
 The API's own e2e tests do the same.
 
 ## Keeping it current
@@ -207,7 +207,15 @@ function that removes it.
 | `document.failed`            | `{ id, subject, recordId, error }`                                                                                               |
 | `approval.assigned`          | `{ id, subject, recordId, action, stage }`: a request waits for you (or someone you stand in for)                                |
 | `approval.decided`           | `{ id, status, round, stage, decision }`: a decision on a request you made or decide, or its end                                 |
+| `approval.applied`           | `{ id, subject, recordId, outcomeAppliedAt }`: an approved request's outcome was applied                                         |
+| `ai.ready`                   | `{ id, subject, recordId, task }`: an AI run you asked for finished (`GET /v1/ai/runs/{id}`)                                     |
+| `ai.failed`                  | `{ id, subject, recordId, error }`                                                                                               |
+| `record.commented`           | `{ subject, recordId, commentId, action }`: a comment on a record you watch was added, edited or removed                         |
+| `record.attachments.changed` | `{ subject, recordId, attachmentId, action }`: a file on a record you watch was added or removed                                 |
 
 `await realtime.whoami()` says who the connection acts as. A feature that
-pushes a new event (`Realtime.toPrincipal()`) adds it to `RealtimeEvents`
-in `src/realtime.ts`.
+pushes a new event (`Realtime.toPrincipal()`) declares it in the API's
+manifest (`apps/api/src/platform/realtime/realtime-events.ts`, or the
+feature's `realtimeEvents`); `pnpm client:generate` writes
+`src/realtime-events.ts`, and `RealtimeEvents` in `src/realtime.ts` follows
+it.

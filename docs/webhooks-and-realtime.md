@@ -163,7 +163,9 @@ delivery worker ([configuration](configuration.md#deployment-switches)).
 A record that takes the `events` capability ([adding a feature](adding-a-feature.md))
 declares and dispatches `<item>.created`, `.updated`, `.deleted` (and
 `.restored`) itself, through `RecordLifecycle`, to the client that owns the
-record; `data` is the record as `GET /<x>/{id}` shows it to that client.
+record; `data` is the record as `GET /<x>/{id}` shows it to that client,
+without any encrypted column ([encryption.md](encryption.md)); a hand-written
+`dispatch()` of a row calls `withoutEncrypted(data)` itself.
 
 From a feature, dispatch in the change's transaction, so the webhook goes out
 if and only if the change commits (`features/notes/note-publisher.service.ts`):

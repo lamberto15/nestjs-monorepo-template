@@ -131,6 +131,7 @@ the smoke check passed. A failed new colour stays up for you to read its logs
 | `--smoke-path <path>` | `/health` | Checked (2xx) in every replica; repeat it for more paths |
 | `--settle <seconds>` | 7 | Between the new colour taking `api` and the old one leaving it |
 | `--timeout <seconds>` | 180 | Waiting for the idle colour's replicas to be healthy |
+| `--to blue\|green` | the other colour | `switch` only: the colour to make live |
 | `-p`, `-f`, `--env-file` | | As `docker compose` |
 
 ```bash

@@ -190,6 +190,20 @@ tenant read only, without its invitation: [tenancy](tenancy.md#break-glass)).
 tree, read-only (consolidated reports of a holding: [tenancy](tenancy.md),
 "The tenant tree"); users only, never while impersonating.
 
+The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
+`iam/access/permission-catalog.ts`; none takes conditions) and the one `Platform` permission:
+
+| Permission | What it opens |
+| --- | --- |
+| `Access.manageRoles`, `manageUsers`, `manageClients`, `manageTeams` | roles; invitations, memberships, roles and teams of users; API clients and their keys; the team tree |
+| `Access.readAudit` | the audit log and the sign-in log |
+| `Access.impersonate` | acting as another user (support), never as an administrator |
+| `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views shared with the tenant |
+| `Access.manageRetention`, `manageLegalHolds` | retention rules; legal holds ([retention](retention.md)) |
+| `Access.manageSso` | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO") |
+| `Access.provisionScim` | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO") |
+| `Access.manageTenants`, `readConsolidated`; `Platform.breakGlass` | as above |
+
 - **Reading** the access API (`GET` of the catalog, roles, users, teams,
   API clients, principals; one role, user or client by id) takes any
   permission of access administration (`AccessPolicy.open`: `Access.manageRoles`,
@@ -335,8 +349,8 @@ Other trees (categories, folders): `closureTable()` and `Tree` in
 Work that runs without a user acts as **the system principal**, never as
 "anonymous" or a made-up actor: the first-boot seed, every cron job, the
 outbox relay's notification delivery, workflow steps (approvals, the
-notes' publication), and later SCIM (2), AI calls (15) and the demo
-seed (10). It is a third principal kind next to `user` and `client`:
+notes' publication) and the demo seed. SCIM is an API client's
+work (`Access.provisionScim`) and an AI run acts as the principal who asked. It is a third principal kind next to `user` and `client`:
 
 | | user | client | system |
 | --- | --- | --- | --- |
@@ -364,11 +378,12 @@ subject, action or condition, or a key twice. `permissions: []` is for a
 job that checks none (a retention job keeping its own tables): any
 service it calls that does check refuses it. `GET /v1/access/catalog`
 lists every job (`systemJobs`: key, actor, label, permissions). The
-template's: `seed`, `audit-retention`, `soft-delete-purge` (IAM,
+template's: `seed`, `audit-retention`, `soft-delete-purge`, `sign-up-tenant-sweep`, `tenant-deletion`, `sso` (IAM,
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
 `attachment-sweep`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
-`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention` (platform,
+`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `platform-analytics`,
+`reencryption`, `retention`, `messaging`, `messaging-inbound`, `messaging-retention` (platform,
 `platform/platform.jobs.ts`); `note-publication` (notes); `demo-seed` (the
 demo seed, `src/demo/demo.jobs.ts`, [development](development.md), "Demo data").
 
@@ -408,6 +423,8 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
 | Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |
 | Demo seed (`pnpm db:seed:demo`, development databases only) | `system:demo-seed` | the demo tenant it creates | everything it writes (`team.created`, `user.seeded`, `tag.created`, `note.created` on its users' behalf, `tags.changed`, `comment.added`, `attachment.added`), then `demo.seeded` |
+| Tenant deletion, unverified sign-ups' sweep | `system:tenant-deletion`, `system:sign-up-tenant-sweep` | each due tenant | `tenant.purged` outside any tenant (`details.reason`) |
+| Retention rules | `system:retention` | each tenant in turn | `retention.purged` or `retention.anonymised` per batch (the ids) |
 | Mail intake, mail events retention, exchange rates | `system:<job>` | none (global tables) | the intake's suppressions (`mailSuppression.*`, no tenant) |
 | Notification delivery (outbox), usage roll-up, revision and notification retention, digests | `system:<job>` | the event's, or each tenant | none (no change a person would audit) |
 

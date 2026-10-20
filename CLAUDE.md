@@ -72,14 +72,14 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Where things are, the processes, how features plug in | [docs/architecture.md](docs/architecture.md) |
 | The monorepo: root scripts (`pnpm dev`: API and web; `dev:api`, `dev:web`), Turborepo, adding a frontend app | [docs/monorepo.md](docs/monorepo.md) |
 | The web app (apps/web, packages/ui): running it and signing in locally, its pages, nav, i18n, components (shadcn + Dice UI), record pages, tests (`renderApp`, msw, `findToast`), adding a page | [docs/monorepo.md](docs/monorepo.md), "The web app" |
-| Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer (API and web), the git workflow, git hooks and commit-message checks | [docs/development.md](docs/development.md) |
+| Setup (`pnpm setup`, the first-run wizard), commands, tests, migrations, the demo seed (`pnpm db:seed:demo`), the devcontainer (API and web), the git workflow, git hooks and commit-message checks, browser tests (`apps/web-e2e`) | [docs/development.md](docs/development.md) |
 | A new feature: `pnpm feature:add` (`tools/feature`, the `/add-feature` skill); changing one: edit its `<item>.record.ts` (fields, capabilities), then `pnpm feature:sync` (`platform/fields`, `platform/records`) | [docs/adding-a-feature.md](docs/adding-a-feature.md), "Changing a feature" |
 | Load tests: k6 on the production stack, the baseline (manual runs), a 2× regression, accepting a change (`loadtest/run.sh`) | [docs/development.md](docs/development.md), "Load tests" |
 | Outgoing and incoming webhooks, the ops API, realtime (socket.io), health | [docs/webhooks-and-realtime.md](docs/webhooks-and-realtime.md) |
 | Routes' rules: versions, errors, pagination, filters, credentials | [docs/api-conventions.md](docs/api-conventions.md) |
 | The typed client for frontends (`packages/api-client`, `pnpm client:generate` after route changes) | [docs/development.md](docs/development.md), "Typed client" |
 | Tenants: the RLS wall, the tenant of the work (requests, jobs, workflows, cron), global tables, operators, break-glass (an operator reading a tenant read only), single-tenant deployments (`TENANCY=single`), adding a tenant table | [docs/tenancy.md](docs/tenancy.md) |
-| Sign-in, accounts, tokens, passkeys (WebAuthn), API clients, impersonation, bot protection (Turnstile); data export, account deletion, consents | [docs/auth.md](docs/auth.md) |
+| Sign-in, accounts, tokens, passkeys (WebAuthn), enterprise SSO (SAML 2.0, OIDC) and SCIM, API clients, impersonation, bot protection (Turnstile); data export, account deletion, consents | [docs/auth.md](docs/auth.md) |
 | Roles, conditions, field-level, grants, teams, audit | [docs/permissions.md](docs/permissions.md) |
 | Queues, mail, outbox, workflows, cron, realtime | [docs/background-work.md](docs/background-work.md) |
 | Exports and imports | [docs/data-transfer.md](docs/data-transfer.md) |
@@ -96,7 +96,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Saved views of lists (a list's filters, sort and columns by name; private, team, tenant) | [docs/saved-views.md](docs/saved-views.md) |
 | Tags (labels) on records: managing them, filtering lists by them | [docs/tags.md](docs/tags.md) |
 | Scheduled reports (an export run on a schedule, mailed with a link) | [docs/reports.md](docs/reports.md) |
-| Email deliverability (SPF, DKIM, DMARC for SES; bounces and complaints through SNS; the suppression list the sender respects) | [docs/deliverability.md](docs/deliverability.md) |
+| Email deliverability (SPF, DKIM, DMARC for SES; bounces and complaints through SNS, Postmark and SendGrid; the suppression list the sender respects) | [docs/deliverability.md](docs/deliverability.md) |
 | Encrypted columns (personal data at rest): `encrypted()`, `EncryptionService`, blind indexes, key rotation and the re-encryption job, `DATA_ENCRYPTION_KEYS` | [docs/encryption.md](docs/encryption.md) |
 | Record revisions: history, diff between two, restore one (retention) | [docs/revisions.md](docs/revisions.md) |
 | Approvals: declared policies, stages, approver rules, delegation, escalation, extending | [docs/approvals.md](docs/approvals.md) |
@@ -123,6 +123,7 @@ Details live in `docs/`: read the file a task needs, not all of them.
 ```bash
 pnpm build && pnpm lint && pnpm test && pnpm test:e2e   # e2e starts redis-server and PostgreSQL (Docker)
 pnpm db:check                                           # after table changes
+pnpm test:e2e:web                                       # after web changes: Playwright on the built API and web app (CI's e2e-web)
 pnpm client:check                                       # after route changes (pnpm client:generate fixes it)
 ```
 

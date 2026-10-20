@@ -52,8 +52,12 @@ await this.revisions.record(tx, 'Note', note.id, { snapshot: noteSnapshot(row), 
   when), with `changes` empty when only that field changed.
 - **Retention**: `REVISIONS_RETENTION_DAYS` (365); `revisions-retention`
   runs every night at 03:25 in APP_TIMEZONE on one instance and deletes
-  the older revisions, but always keeps each record's latest (the next
+  the older revisions of every tenant (under the worker's row-level security
+  bypass), but always keeps each record's latest (the next
   change is diffed against it). `run()` returns the count.
+- **Encrypted columns** ([encryption.md](encryption.md)) are never kept in a
+  snapshot or a diff, not even as ciphertext (`RevisionsService.record`); a
+  restore leaves them as they are.
 - **Personal data**: none of the person's own (a revisions source exports
   nothing); an account's deletion sets `changedBy` to `anonymized`.
 - **Who, by name**: each revision carries `changedByName` beside

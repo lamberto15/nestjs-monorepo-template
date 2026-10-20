@@ -28,6 +28,9 @@ packages/
   ui/                  shared components, shadcn/ui and Dice UI as source (@nestjs-monorepo-template/ui)
 caddy/  dev/           the HTTPS proxy's image (it serves the web app too); the development services' files
 gotenberg/             the PDF renderer's image (Gotenberg, thin on the official one)
+backup/                the backup image: pg_dump and the uploaded files on a schedule
+monitoring/            Prometheus rules and their tests, Alertmanager, the blackbox probe
+loadtest/              the k6 and realtime load tests (run.sh, scenarios)
 compose*.yaml          Docker Compose: shared, development, production, blue-green, Swarm, monitoring, load test
 env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
@@ -68,9 +71,9 @@ src/
 
 | Group | Holds |
 | --- | --- |
-| `core/` | config (Zod), database (Drizzle on PostgreSQL 18), tenancy (the tenant scope, row-level security, the pool that sets it: [tenancy](tenancy.md)), Redis, HTTP (security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
-| `iam/` | sessions, tokens, API clients and keys, accounts (passwords, two-factor, OAuth, magic links, invitations, impersonation), roles and permissions (CASL, field-level, expiring grants), teams, resource declarations, the audit log, the system principal (`SystemContext.run()`: work without a user) |
-| `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, tags, comments, attachments, list descriptions (`GET /v1/lists/{subject}`), saved views (`/v1/views`), the people directory and teams lookup (`GET /v1/people`, `GET /v1/teams`), notifications, record subscriptions, global search, sequences, scheduled reports, record revisions, settings and feature flags, API clients' usage and quotas, email deliverability, approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API, the switches report (`GET /v1/features`) |
+| `core/` | config (Zod), database (Drizzle on PostgreSQL 18), encryption (`EncryptionService`, encrypted columns and blind indexes: [encryption](encryption.md)), tenancy (the tenant scope, row-level security, the pool that sets it: [tenancy](tenancy.md)), Redis, HTTP (security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
+| `iam/` | sessions, tokens, API clients and keys, accounts (passwords, two-factor, passkeys, OAuth, magic links, invitations, impersonation), enterprise SSO (SAML, OIDC) and SCIM provisioning (`sso/`), bot protection (`captcha/`), roles and permissions (CASL, field-level, expiring grants), teams, tenants (the tenant tree, break-glass), legal holds (`holds/`), resource declarations, the audit log, the system principal (`SystemContext.run()`: work without a user) |
+| `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, tags, comments, attachments, list descriptions (`GET /v1/lists/{subject}`), saved views (`/v1/views`), the people directory and teams lookup (`GET /v1/people`, `GET /v1/teams`), notifications, record subscriptions, global search, sequences and naming series, scheduled reports, record revisions, settings and feature flags, API clients' usage and quotas, email deliverability, retention rules (`retention/`), the AI helper (`ai/`), push and SMS channels (`messaging/`), the encrypted columns' re-encryption job (`encryption/`), platform analytics (`analytics/`), domain events (`events/`), approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API, the switches report (`GET /v1/features`) |
 | `features/` | one folder and module per feature |
 
 ## Rules
@@ -88,6 +91,9 @@ src/
   - custom fields (`defineCustomFields()`) → `PlatformModule.forRoot({ customFields })`;
   - notification types (`defineNotifications()`) → `PlatformModule.forRoot({ notifications })`;
   - settings and flags (`defineSettings()`) → `PlatformModule.forRoot({ settings })`;
+  - domain events (`defineDomainEvents()`): one declaration for an event's webhook,
+    notification and realtime channels → `defineFeature({ events })`
+    ([webhooks and realtime](webhooks-and-realtime.md), "Domain events");
   - actions that need approval (`defineApproval()`) → `PlatformModule.forRoot({ approvals })`,
     their handlers, approver rules, modes and listeners register into `ApprovalsRegistry`;
   - tables → `features/tables.ts`; environment → `features/env.ts`;
@@ -96,6 +102,9 @@ src/
     services register into `RecordPurgeRegistry` (iam), and
     SoftDeletePurgeJob calls them in the purge's transaction;
   - bulk operations register themselves (`BulkRegistry`);
+  - retention rules (`RetentionRegistry`), AI sources (`AiRegistry`), PDF
+    documents (`DocumentSource`) and naming-series subjects
+    (`NamingSeriesService.register()`) register from a constructor;
   - lists register their declaration (`ListsRegistry`, `GET /v1/lists/{subject}`):
     `recordParts()` does it for a generated record, `listSource()` by hand;
   - record-level routes (tags, comments, attachments, revisions, PDF, watch,

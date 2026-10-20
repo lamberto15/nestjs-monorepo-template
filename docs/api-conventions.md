@@ -345,6 +345,11 @@ repeating the declaration:
   to an API client or a user with `Access.manageClients`, with `WEBHOOKS` on;
   it describes the list, and the client stays in the path
   (`platform/webhooks/webhook-lists.ts`, [webhooks](webhooks-and-realtime.md)).
+  `GET /v1/lists/Tenant` describes the operators' tenants list (`GET /v1/tenants`,
+  `TENANT_LIST`) and `GET /v1/lists/MailSuppression` the mail suppression list
+  (`GET /v1/mail/suppressions`), each to an operator-tenant principal who may call
+  that route (`platform/lists/tenant-lists.ts`,
+  `platform/deliverability/suppression.list-source.ts`).
   Roles and teams have none: their routes answer every item at once,
   with nothing to filter, sort or page.
 - **Capabilities:** `capabilities` says which record panels and routes
@@ -359,6 +364,9 @@ repeating the declaration:
 - **Attachment limits:** `attachmentLimits` is `{ maxBytes, maxMb, types }`
   (`ATTACHMENT_MAX_MB`, `ATTACHMENT_ALLOWED_TYPES`, as the upload route
   enforces them) when the subject takes attachments, else null.
+- **Document templates:** `documentTemplates` lists the templates a record's
+  PDF is issued from, one item per template and language (`?lang=` of
+  `POST …/{id}/pdf`), for a picker; null when `capabilities.pdf` is false.
 
 ## Using it from a data table
 

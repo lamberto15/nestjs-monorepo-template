@@ -68,6 +68,7 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   docs/tenancy.md says), filed under `accounts/<user id>/transfers/`, and
   shown to that user in any tenant or none. Users only, never while
   impersonating.
+  A deactivated tenant gives only the membership row, none of its records.
 - **An internal exporter** (`internal: true`) starts only from its own
   route, in code (`startExport(…, { internal: true })`): `POST
 /v1/data/exports` answers 404 for it, the catalog and the scheduled
@@ -93,6 +94,10 @@ export class NoteTransfer implements DataExporter<Note>, DataImporter<NoteRow> {
   tag names joined by `, ` (`Urgent, Q3`), loaded one query per batch. An
   import ignores a `tags` column (the schema doesn't name it; tags are set
   with `PUT /{path}/{id}/tags`), as for notes.
+- An exporter never writes an **encrypted column** ([encryption.md](encryption.md))
+  as it is stored: a column naming an encrypted property needs a `value` that
+  decrypts it, else boot fails (`assertNoEncryptedColumns`). The `value` runs
+  only after the exporter's own permission check.
 - Exports apply **field-level permissions** (a user without `Note.body`
   gets no text, and filters on it are a 403 `field_forbidden`) and the
   caller's read filter.

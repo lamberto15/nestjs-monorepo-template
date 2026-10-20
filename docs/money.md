@@ -145,7 +145,9 @@ around 16:00 CET each TARGET working day: about 30 currencies against the
 euro (USD, JPY, GBP, CHF, CNY, SGD, MYR…; not AED, KWD, SAR: converting
 those is a `rate_unavailable`). Stored in `exchange_rates`: source (`ecb`),
 day, base (`EUR`), currency, rate (`numeric`: units per euro). A
-correction the ECB publishes for a day replaces the stored rate.
+correction the ECB publishes for a day replaces the stored rate. The table is
+global (no `tenant_id`, no row-level security): the rates are public and every
+tenant reads the same ones, and the job runs in no tenant.
 
 **The job** (`ExchangeRatesJob`, cron `7 * * * *` UTC on one instance, a
 worker, as `system:exchange-rates`):
@@ -216,4 +218,6 @@ floats.
 - History before the last 90 days: load `eurofxref-hist.xml` (the whole
   series since 1999) once with `ExchangeRatesService.store(parseEcbRates(…))`
   if a feature needs it.
-- Per-tenant currencies and rounding settings arrive with tenancy (1a).
+- Per-tenant currencies and rounding settings: tenancy (1a) is done
+  ([tenancy.md](tenancy.md)), but nothing sets a currency or a rounding per
+  tenant yet; the currency comes from the record.

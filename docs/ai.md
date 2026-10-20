@@ -79,8 +79,9 @@ only, and is removed with the tenant's jobs (the `ai` queue is in
 `PLATFORM_QUEUES`). The cache holds the output for `AI_CACHE_TTL_SECONDS`.
 Account deletion anonymizes `requested_by` and the data export lists the
 user's runs (`PersonalDataSource`). `prompt`, `systemPrompt` and
-`completion` are declared to log redaction; roadmap 5's column registry
-(PR #337) is not merged yet, so they join it once it is.
+`completion` are declared to log redaction. The encrypted-column registry
+([encryption.md](encryption.md)) is not used here: nothing of the prompt or
+output is stored in a column.
 
 The prompt is sent to Anthropic: say so in your privacy notice, and keep the
 opt-in (`ai.enabled`) off until a tenant has agreed.

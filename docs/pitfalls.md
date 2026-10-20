@@ -83,7 +83,7 @@
 - **Turborepo hides undeclared variables** (strict mode): a `turbo run` task
   sees the system's variables and the ones `turbo.json` names, nothing else.
   A variable a task needs goes into its `env` (part of the cache key) or
-  `passThroughEnv` (`test:e2e`: `REDIS_URL`, `TEST_DATABASE_URL`, `TEST_LOGS`).
+  `passThroughEnv` (`test:e2e`: `REDIS_URL`, `TEST_DATABASE_URL`, `PGPASSWORD`, `TEST_LOGS`).
 
 - **Settings read from `process.env` before the app boots** (NestJS Observe's
   `instrument` in main.ts, packages such as @nestjs/storage and @nestjs/mail
