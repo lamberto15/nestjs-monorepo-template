@@ -537,17 +537,24 @@ describe('comments and mentions on test items (e2e)', () => {
     );
     try {
       // The owner watches their item (its creator): told of the viewer's comments.
+      // The service pushes without awaiting (permission checks run after the
+      // answer), so the events can lag the response and reorder if actions
+      // overlap: wait for each one before the next action, never a fixed delay.
+      const heardCount = (count: number) =>
+        vi.waitFor(() => expect(heard[0]).toHaveLength(count), {
+          timeout: 5000,
+        });
       const added = await comment(viewer.agent, itemId, 'A thought');
+      await heardCount(1);
       await viewer.agent
         .patch(`/v1/test-items/${itemId}/comments/${added.id}`)
         .send({ body: 'A better thought' })
         .expect(200);
+      await heardCount(2);
       await viewer.agent
         .delete(`/v1/test-items/${itemId}/comments/${added.id}`)
         .expect(204);
-      await vi.waitFor(() => expect(heard[0]).toHaveLength(3), {
-        timeout: 5000,
-      });
+      await heardCount(3);
       expect(heard[0]).toEqual(
         ['added', 'edited', 'removed'].map((action) => ({
           subject: 'TestItem',
