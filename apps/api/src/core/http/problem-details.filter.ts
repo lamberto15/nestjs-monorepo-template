@@ -95,13 +95,21 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     );
   }
 
+  /**
+   * What `exception` answers over HTTP: itself, a mapped error, or
+   * undefined for a 500. Also for the filters of protocols with their own
+   * error body (SCIM's, iam/sso/scim).
+   */
+  static toHttp(exception: unknown): HttpException | undefined {
+    return exception instanceof HttpException
+      ? exception
+      : (ProblemDetailsFilter.mappers
+          .map((mapper) => mapper(exception))
+          .find(Boolean) ?? clientError(exception));
+  }
+
   catch(exception: unknown, host: ArgumentsHost) {
-    const http =
-      exception instanceof HttpException
-        ? exception
-        : (ProblemDetailsFilter.mappers
-            .map((mapper) => mapper(exception))
-            .find(Boolean) ?? clientError(exception));
+    const http = ProblemDetailsFilter.toHttp(exception);
 
     if (host.getType() === 'ws') {
       // socket.io clients get the same body on their `exception` event.

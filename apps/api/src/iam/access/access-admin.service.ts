@@ -702,7 +702,8 @@ export class AccessAdminService {
     await this.checkGrant(actor, await this.rolePermissionsOf(roleIds));
   }
 
-  private async assertAnAdministratorRemains(tx: Transaction) {
+  /** Also SCIM's (iam/sso/scim): a deprovisioning never leaves the tenant without one. */
+  async assertAnAdministratorRemains(tx: Transaction) {
     // One at a time: two admins demoting each other at once can't both see "one left".
     await tx.execute(sql`select pg_advisory_xact_lock(${ADMINS_LOCK})`);
     // In this tenant (row-level security on the roles): its active members.

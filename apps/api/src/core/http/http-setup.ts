@@ -39,7 +39,18 @@ export function setupHttp(app: NestExpressApplication) {
   // JSON bodies: up to JSON_BODY_LIMIT (body-limit.ts), then 413
   // payload_too_large. Registered here, Nest's own JSON parser is skipped;
   // rawBody (main.ts) is kept for the incoming webhooks' signatures.
-  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
+  // SCIM's media type (iam/sso/scim) is JSON too.
+  app.useBodyParser('json', {
+    type: ['application/json', 'application/*+json'],
+    limit: JSON_BODY_LIMIT,
+  });
+  // HTML form posts: only SAML's HTTP-POST binding sends them (the
+  // assertion consumer service, iam/sso), a signed assertion of a few KB.
+  app.useBodyParser('urlencoded', {
+    extended: false,
+    limit: '512kb',
+    parameterLimit: 10,
+  });
 
   // HSTS, nosniff, frame-ancestors 'none', a strict CSP (Swagger UI's assets
   // are served from this origin, so it works with the default policy)...
@@ -69,9 +80,20 @@ export function setupHttp(app: NestExpressApplication) {
   // including the public sign-in. curl, API clients' systems and webhooks send
   // no Origin or Sec-Fetch-Site and are unaffected. CORS_ORIGINS may write.
   // Signed uploads (PUT /files) carry their credential in the URL, not a cookie.
+  // A SAML IdP's page posts its response to the assertion consumer service
+  // from its own origin, by design: the browser's binding cookie and the
+  // response's InResponseTo replace the check there, and that route signs
+  // nobody in (its GET follow-up does, same-site).
   app.enableCsrfProtection({
     trustedOrigins: origins,
-    exclude: [{ path: 'files', method: RequestMethod.PUT }],
+    exclude: [
+      { path: 'files', method: RequestMethod.PUT },
+      {
+        path: 'auth/sso/:tenantId/:connectionId/saml/acs',
+        method: RequestMethod.POST,
+        version: '1',
+      },
+    ],
   });
 
   // /v1/notes: a breaking change ships as /v2 next to it (`@Version('2')`
