@@ -138,10 +138,10 @@ function ExportRow(props: { item: AccountExport }) {
   const { t: tt } = useTranslation('transfer');
   const format = useDateTimeFormat();
   const { item } = props;
-  // The API stops listing an export after `expiresAt`; a list kept open past
-  // it still shows the row, without the link.
-  const expired =
-    !!item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now();
+  // The API stops listing an export after `expiresAt`; one whose time came
+  // before this row was shown is still marked, without the link.
+  const [now] = useState(() => Date.now());
+  const expired = !!item.expiresAt && new Date(item.expiresAt).getTime() <= now;
   return (
     <li className="flex flex-col gap-2 p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
