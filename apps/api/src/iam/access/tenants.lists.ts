@@ -22,6 +22,11 @@ export const TENANT_LIST = listQuery(
     },
     active: { column: tenants.active, type: 'boolean', ops: ['eq'] },
     operator: { column: tenants.operator, type: 'boolean', ops: ['eq'] },
+    parentId: {
+      column: tenants.parentId,
+      type: 'uuid',
+      ops: ['eq', 'isNull'],
+    },
     createdAt: {
       column: tenants.createdAt,
       type: 'datetime',
@@ -42,6 +47,7 @@ export const TENANT_LIST = listQuery(
       'name',
       'active',
       'operator',
+      'parentId',
       'createdAt',
       'updatedAt',
     ],

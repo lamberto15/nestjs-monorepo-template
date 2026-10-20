@@ -60,7 +60,8 @@
     "user": "Anda",
     "rollout": "Pelancaran",
     "default": "Lalai",
-    "platform": "Semua organisasi"
+    "platform": "Semua organisasi",
+    "rule": "Peraturan"
   },
   "columns": {
     "setting": "Tetapan",
@@ -70,7 +71,8 @@
   },
   "groups": {
     "auth": "Dasar log masuk",
-    "notes": "Nota"
+    "notes": "Nota",
+    "numbering": "Penomboran"
   },
   "preferences": {
     "title": "Keutamaan",
@@ -102,6 +104,66 @@
     "removeTitle": "Alih keluar nilai untuk semua organisasi?",
     "removeDescription": "Nilai sendiri setiap organisasi, atau nilai lalai, terpakai semula.",
     "removed": "Dialih keluar untuk semua organisasi.",
-    "rolloutOf": "Pelancaran {{percent}}%"
+    "rolloutOf": "Pelancaran {{percent}}%",
+    "operatorsOnly": "Hanya pengendali penempatan (log masuk ke penyewa pengendali) boleh menetapkan ini untuk semua penyewa."
+  },
+  "show": {
+    "label": "Tunjuk",
+    "all": "Semua tetapan",
+    "flags": "Bendera ciri",
+    "flagsHint": "Hidupkan bendera untuk seluruh penyewa, satu pasukan atau seorang, atau lancarkan secara beransur-ansur: Sunting, kemudian “Digunakan sebagai: pelancaran beransur-ansur”."
+  },
+  "rules": {
+    "title": "Peraturan sasaran",
+    "description": "Hidupkan atau matikan bendera mengikut atribut, sebelum nilai di atas. Peraturan disemak mengikut urutan dan yang pertama semua syaratnya dipenuhi akan menentukan; yang tidak sepadan dengan mana-mana mendapat nilai di bawah. Peraturan yang tidak dapat disemak (atribut yang tidak dimiliki orang itu) tidak pernah sepadan.",
+    "platformTitle": "Peraturan sasaran untuk semua penyewa",
+    "platformDescription": "Disemak sebelum nilai untuk semua penyewa, di bawah nilai yang dikuatkuasakan dan nilai sendiri setiap penyewa. Peranan milik setiap penyewa: tidak ditawarkan di sini.",
+    "none": "Tiada peraturan.",
+    "only": "Peraturan sahaja",
+    "count": "Peraturan: {{count}}",
+    "ruleN": "Peraturan {{n}}",
+    "moveUp": "Naikkan peraturan {{n}}",
+    "moveDown": "Turunkan peraturan {{n}}",
+    "removeRule": "Buang peraturan {{n}}",
+    "when": "Apabila semua ini dipenuhi",
+    "conditionLabel": "Syarat",
+    "addCondition": "Tambah syarat",
+    "removeCondition": "Buang syarat {{c}} peraturan {{n}}",
+    "then": "Bendera ialah",
+    "percent": "Peratusan untuk peraturan {{n}}",
+    "rolloutHint": "Hidup untuk peratusan ini bagi orang yang sepadan dengan peraturan (orang yang sama setiap kali); mati untuk yang lain.",
+    "add": "Tambah peraturan",
+    "save": "Simpan peraturan",
+    "saved": "Peraturan disimpan.",
+    "invalid": {
+      "values": "Setiap syarat memerlukan nilai.",
+      "rollout": "Masukkan peratusan dari 0 hingga 100."
+    },
+    "condition": {
+      "principalKind": "Jenis prinsipal",
+      "role": "Mempunyai peranan",
+      "emailDomain": "Domain e-mel ialah",
+      "locale": "Bahasa ialah",
+      "tenantSlug": "Penyewa ialah",
+      "tenantOperator": "Penyewa pengendali"
+    },
+    "kind": {
+      "user": "Pengguna",
+      "client": "Klien API"
+    },
+    "operator": {
+      "true": "Ya",
+      "false": "Tidak"
+    },
+    "outcome": {
+      "on": "Hidup",
+      "off": "Mati",
+      "rollout": "Hidup untuk sebahagian"
+    },
+    "placeholder": {
+      "emailDomain": "example.com",
+      "locale": "ms, en-GB",
+      "tenantSlug": "slug penyewa"
+    }
   }
 }

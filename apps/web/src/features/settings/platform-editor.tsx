@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ConfirmButton } from '@/components/confirm-button';
+import { RulesEditor } from './rules-editor';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { FormAlert } from '@/lib/form';
@@ -29,6 +30,7 @@ import {
   settingsQuery,
   toDraft,
   type Draft,
+  type Rule,
   type Setting,
 } from './settings';
 import {
@@ -68,6 +70,7 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
       value?: unknown;
       enforced?: boolean;
       rollout?: number;
+      rules?: Rule[];
     }) =>
       unwrap(
         api.PUT('/v1/settings/{key}/platform', {
@@ -95,9 +98,31 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
     },
   });
 
-  if (!stored && !setting.canEditPlatform) {
+  // A flag always shows the section, so whoever can't set it learns who can.
+  if (!stored && !setting.canEditPlatform && !setting.flag) {
     return null;
   }
+  /**
+   * Saves the targeting rules beside the value or rollout already set (the
+   * PUT replaces them); with neither and no rules left, the platform value
+   * goes.
+   */
+  const saveRules = async (rules: Rule[]) => {
+    const own = stored && (stored.rollout != null || stored.value != null);
+    if (!rules.length && !own) {
+      if (stored) await remove.mutateAsync();
+    } else {
+      await save.mutateAsync({
+        rules,
+        ...(stored?.value != null
+          ? { value: stored.value, enforced: stored.enforced }
+          : stored?.rollout != null
+            ? { rollout: stored.rollout }
+            : {}),
+      });
+    }
+    toast.success(t('rules.saved'));
+  };
   const submit = async () => {
     setError(undefined);
     const percent = Number(rollout);
@@ -130,13 +155,23 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
           {t('platform.description')}
         </p>
       )}
+      {!setting.canEditPlatform && (
+        <p className="text-xs text-muted-foreground">
+          {t('platform.operatorsOnly')}
+        </p>
+      )}
       {stored ? (
         <p className="flex items-center gap-2 text-sm">
           <strong>
             {stored.value == null && stored.rollout != null
               ? t('platform.rolloutOf', { percent: stored.rollout })
-              : formatValue(stored.value, t('on'), t('off'))}
+              : stored.value == null && stored.rules.length
+                ? t('rules.only')
+                : formatValue(stored.value, t('on'), t('off'))}
           </strong>
+          {stored.rules.length > 0 && (
+            <span>{t('rules.count', { count: stored.rules.length })}</span>
+          )}
           <Badge variant={stored.enforced ? 'default' : 'outline'}>
             {stored.enforced
               ? t('platform.enforced')
@@ -258,6 +293,23 @@ export function PlatformEditor({ setting }: { setting: Setting }) {
             )}
           </div>
         </form>
+      )}
+      {setting.flag && setting.canEditPlatform && (
+        <section
+          aria-label={t('rules.platformTitle')}
+          className="mt-2 flex flex-col gap-2"
+        >
+          <h4 className="text-sm font-medium">{t('rules.platformTitle')}</h4>
+          <p className="text-xs text-muted-foreground">
+            {t('rules.platformDescription')}
+          </p>
+          <RulesEditor
+            key={JSON.stringify(stored?.rules ?? [])}
+            scope="platform"
+            rules={stored?.rules}
+            onSave={saveRules}
+          />
+        </section>
       )}
     </section>
   );

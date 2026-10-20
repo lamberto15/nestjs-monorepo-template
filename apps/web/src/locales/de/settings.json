@@ -60,7 +60,8 @@
     "user": "Sie",
     "rollout": "Einführung",
     "default": "Standard",
-    "platform": "Alle Organisationen"
+    "platform": "Alle Organisationen",
+    "rule": "Regel"
   },
   "columns": {
     "setting": "Einstellung",
@@ -70,7 +71,8 @@
   },
   "groups": {
     "auth": "Anmelderichtlinie",
-    "notes": "Notizen"
+    "notes": "Notizen",
+    "numbering": "Nummerierung"
   },
   "preferences": {
     "title": "Präferenzen",
@@ -102,6 +104,66 @@
     "removeTitle": "Wert für alle Organisationen entfernen?",
     "removeDescription": "Der eigene Wert jeder Organisation oder der Standard gilt wieder.",
     "removed": "Für alle Organisationen entfernt.",
-    "rolloutOf": "Einführung {{percent}} %"
+    "rolloutOf": "Einführung {{percent}} %",
+    "operatorsOnly": "Nur die Betreiber der Installation (im Betreiber-Mandanten angemeldet) können dies für alle Mandanten festlegen."
+  },
+  "show": {
+    "label": "Anzeigen",
+    "all": "Alle Einstellungen",
+    "flags": "Feature-Flags",
+    "flagsHint": "Schalten Sie ein Flag für den ganzen Mandanten, ein Team oder eine Person ein, oder rollen Sie es schrittweise aus: Bearbeiten, dann „Gilt als: schrittweiser Rollout“."
+  },
+  "rules": {
+    "title": "Zielgruppenregeln",
+    "description": "Schaltet das Flag nach Merkmalen, vor den obigen Werten. Die Regeln werden der Reihe nach geprüft, die erste mit erfüllten Bedingungen entscheidet; wer keine trifft, erhält den Wert darunter. Eine Regel, die sich nicht prüfen lässt (ein Merkmal, das die Person nicht hat), trifft nie zu.",
+    "platformTitle": "Zielgruppenregeln für alle Mandanten",
+    "platformDescription": "Vor dem Wert für alle Mandanten geprüft, unter einem erzwungenen Wert und den eigenen Werten jedes Mandanten. Rollen gehören jedem Mandanten selbst: sie werden hier nicht angeboten.",
+    "none": "Keine Regeln.",
+    "only": "Nur Regeln",
+    "count": "Regeln: {{count}}",
+    "ruleN": "Regel {{n}}",
+    "moveUp": "Regel {{n}} nach oben",
+    "moveDown": "Regel {{n}} nach unten",
+    "removeRule": "Regel {{n}} entfernen",
+    "when": "Wenn alle diese Bedingungen gelten",
+    "conditionLabel": "Bedingung",
+    "addCondition": "Bedingung hinzufügen",
+    "removeCondition": "Bedingung {{c}} von Regel {{n}} entfernen",
+    "then": "Das Flag ist",
+    "percent": "Anteil für Regel {{n}}",
+    "rolloutHint": "Eingeschaltet für diesen Prozentsatz der Personen, auf die die Regel zutrifft (immer dieselben); für den Rest ausgeschaltet.",
+    "add": "Regel hinzufügen",
+    "save": "Regeln speichern",
+    "saved": "Regeln gespeichert.",
+    "invalid": {
+      "values": "Jede Bedingung braucht einen Wert.",
+      "rollout": "Gib einen Prozentsatz von 0 bis 100 ein."
+    },
+    "condition": {
+      "principalKind": "Art des Prinzipals",
+      "role": "Hat die Rolle",
+      "emailDomain": "E-Mail-Domain ist",
+      "locale": "Sprache ist",
+      "tenantSlug": "Mandant ist",
+      "tenantOperator": "Betreiber-Mandant"
+    },
+    "kind": {
+      "user": "Ein Benutzer",
+      "client": "Ein API-Client"
+    },
+    "operator": {
+      "true": "Ja",
+      "false": "Nein"
+    },
+    "outcome": {
+      "on": "An",
+      "off": "Aus",
+      "rollout": "An für einen Anteil"
+    },
+    "placeholder": {
+      "emailDomain": "example.com",
+      "locale": "de, pt-BR",
+      "tenantSlug": "Mandanten-Slug"
+    }
   }
 }

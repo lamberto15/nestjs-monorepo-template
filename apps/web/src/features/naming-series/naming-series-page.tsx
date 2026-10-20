@@ -45,6 +45,49 @@ import { SeriesDialog } from './series-dialog';
 /** The filter's "every subject" (a subject's name is a Pascal-case word). */
 const ALL = '*';
 
+const OPERATOR_SYMBOL = {
+  eq: '=',
+  ne: '≠',
+  gt: '>',
+  gte: '≥',
+  lt: '<',
+  lte: '≤',
+} as const;
+
+/** What picks a series for a record, briefly: conditions, priority, date. */
+function Rules(props: { series: NamingSeries }) {
+  const { t } = useTranslation('naming-series');
+  const { conditions, priority, dateField } = props.series;
+  if (conditions.length === 0 && priority === 0 && !dateField) {
+    return <span className="text-muted-foreground">–</span>;
+  }
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {conditions.length > 0 && (
+        <ul aria-label={t('rules.conditions')} className="flex flex-wrap gap-1">
+          {conditions.map((c, i) => (
+            <li key={i}>
+              <Badge variant="outline" className="font-mono">
+                {`${c.field} ${OPERATOR_SYMBOL[c.op]} ${String(c.value)}`}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+      {(conditions.length > 0 || priority !== 0) && (
+        <span className="text-xs text-muted-foreground">
+          {t('rules.priority', { priority })}
+        </span>
+      )}
+      {dateField && (
+        <span className="text-xs text-muted-foreground">
+          {t('rules.dateFrom', { field: dateField })}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /**
  * The record number formats (docs/sequences.md): the series of every subject
  * that numbers its records, with the number each gives next. Create and edit a
@@ -157,6 +200,7 @@ export function NamingSeriesPage() {
                   <TableHead>{t('columns.subject')}</TableHead>
                   <TableHead>{t('columns.pattern')}</TableHead>
                   <TableHead>{t('columns.label')}</TableHead>
+                  <TableHead>{t('columns.rules')}</TableHead>
                   <TableHead>{t('columns.next')}</TableHead>
                   <TableHead>
                     <span className="sr-only">{t('columns.actions')}</span>
@@ -175,6 +219,9 @@ export function NamingSeriesPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {row.label}
+                    </TableCell>
+                    <TableCell>
+                      <Rules series={row} />
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {row.example}

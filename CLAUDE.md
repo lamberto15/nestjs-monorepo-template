@@ -87,10 +87,11 @@ Details live in `docs/`: read the file a task needs, not all of them.
 | Custom fields (runtime fields, JSONB values) | [docs/custom-fields.md](docs/custom-fields.md) |
 | Notifications (in-app, realtime, mail, webhook; preferences, digests) | [docs/notifications.md](docs/notifications.md) |
 | Settings and feature flags (runtime values, scopes, rollouts) | [docs/settings.md](docs/settings.md) |
-| Human-readable numbers (gapless sequences); naming series: the number formats administrators define (`INV-.YYYY.-.MM.-.
+| Human-readable numbers (gapless sequences); naming series: the number formats administrators define (`INV-.YYYY.-.{region}.-.#####`: dates, the record's fields, variables like `FY`, `ABBR`; rules with conditions and priority) | [docs/sequences.md](docs/sequences.md) |
 | Money: minor-unit amounts, rounding, allocation, formatting; ECB exchange rates and conversion | [docs/money.md](docs/money.md) |
 | Comments and @mentions on records | [docs/comments.md](docs/comments.md) |
 | Files attached to records (uploads, downloads, the orphan sweep) | [docs/attachments.md](docs/attachments.md) |
+| AI helper: summarize or classify a record on a queue worker (`POST /v1/ai/runs`), sources, provider, quota, cache, prompt injection | [docs/ai.md](docs/ai.md) |
 | PDF documents of records (templates, RTL, Gotenberg, the queue job, issued attachments) | [docs/documents.md](docs/documents.md) |
 | Saved views of lists (a list's filters, sort and columns by name; private, team, tenant) | [docs/saved-views.md](docs/saved-views.md) |
 | Tags (labels) on records: managing them, filtering lists by them | [docs/tags.md](docs/tags.md) |

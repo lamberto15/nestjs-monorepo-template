@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { Principal } from '../../iam/auth/principal.js';
 import { principalKey } from '../../iam/auth/principal.js';
+import {
+  type FlagRule,
+  ruleMatches,
+  type RuleAttributes,
+} from './setting-rules.js';
 import type {
   PlatformSettingValue,
   SettingDeclaration,
@@ -15,7 +20,9 @@ import type {
  * An operator's enforced platform value → principal's own → one of their
  * teams' → the tenant's (or its rollout) → the operator's platform value
  * (or its rollout, drawn the same way in each tenant) → default. A
- * flag's tenant row may carry no value but a rollout percentage: then it
+ * flag's rows may carry targeting rules (setting-rules.ts), evaluated
+ * before the scope's plain value: the first rule whose conditions hold
+ * decides (`source: 'rule'`). A flag's tenant row may carry no value but a rollout percentage: then it
  * is on for a stable share of the tenant's principals (the same principal
  * always gets the same answer in a tenant, and a higher percentage never
  * switches anyone off). The share is drawn with the tenant in the hash, so
@@ -23,7 +30,8 @@ import type {
  * tenants is drawn in each apart.
  */
 
-export type SettingSource = SettingScope | 'rollout' | 'platform' | 'default';
+export type SettingSource =
+  SettingScope | 'rule' | 'rollout' | 'platform' | 'default';
 
 /** A principal's share, 0–99, stable per setting, tenant and principal. */
 export function rolloutBucket(
@@ -35,6 +43,31 @@ export function rolloutBucket(
     .update(`${key}:${tenantId}:${principal}`)
     .digest();
   return digest.readUInt32BE(0) % 100;
+}
+
+/**
+ * The outcome of the first rule that matches, or undefined. A rollout
+ * outcome draws inside the matched group, stably per principal. Without
+ * attributes (no principal) no rule matches: fail closed.
+ */
+function applyRules(
+  declaration: SettingDeclaration<any>,
+  rules: readonly FlagRule[] | undefined,
+  attributes: RuleAttributes | null | undefined,
+  principal: Pick<Principal, 'kind' | 'id'> | null,
+  tenantId: string | null,
+): boolean | undefined {
+  if (!declaration.flag || !rules?.length || !attributes || !principal) {
+    return undefined;
+  }
+  const rule = rules.find((candidate) => ruleMatches(candidate, attributes));
+  if (!rule) {
+    return undefined;
+  }
+  return 'value' in rule.outcome
+    ? rule.outcome.value
+    : rolloutBucket(declaration.key, tenantId ?? '', principalKey(principal)) <
+        rule.outcome.rollout;
 }
 
 /**
@@ -51,6 +84,7 @@ export function resolveSetting<T>(
   teamIds: readonly string[],
   tenantId: string | null,
   platform?: PlatformSettingValue,
+  attributes?: RuleAttributes | null,
 ): { value: T; source: SettingSource } {
   if (platform?.enforced && platform.value !== null) {
     return { value: platform.value as T, source: 'platform' };
@@ -75,6 +109,16 @@ export function resolveSetting<T>(
     }
   }
   const tenant = find('tenant', '');
+  const byTenantRule = applyRules(
+    declaration,
+    tenant?.rules,
+    attributes,
+    principal,
+    tenantId,
+  );
+  if (byTenantRule !== undefined) {
+    return { value: byTenantRule as T, source: 'rule' };
+  }
   if (tenant && tenant.value !== null) {
     return { value: tenant.value as T, source: 'tenant' };
   }
@@ -87,6 +131,16 @@ export function resolveSetting<T>(
       ) < tenant.rollout) as T,
       source: 'rollout',
     };
+  }
+  const byPlatformRule = applyRules(
+    declaration,
+    platform?.rules,
+    attributes,
+    principal,
+    tenantId,
+  );
+  if (byPlatformRule !== undefined) {
+    return { value: byPlatformRule as T, source: 'rule' };
   }
   if (platform && platform.value !== null) {
     return { value: platform.value as T, source: 'platform' };

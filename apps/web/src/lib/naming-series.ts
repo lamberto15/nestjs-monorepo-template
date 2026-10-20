@@ -14,6 +14,10 @@ import { api } from '@/lib/api';
 export type NamingSeries = GetResponse<'/v1/naming-series'>['items'][number];
 export type NumberedSubject =
   GetResponse<'/v1/naming-series/subjects'>['items'][number];
+export type NamingVariable =
+  GetResponse<'/v1/naming-series/variables'>['items'][number];
+export type NamingCondition = NamingSeries['conditions'][number];
+export type NamingField = NumberedSubject['fields'][number];
 export type NamingCounter = GetResponse<'/v1/naming-series/{id}/counter'>;
 export type NamingSeriesCreate = NonNullable<
   paths['/v1/naming-series']['post']['requestBody']
@@ -56,6 +60,32 @@ export const numberedSubjectsQuery = queryOptions({
   queryFn: async () =>
     (await unwrap(api.GET('/v1/naming-series/subjects'))).items,
 });
+
+/** The variables a pattern may print (`FY`, `ABBR`…), from the API. */
+export const namingVariablesQuery = queryOptions({
+  queryKey: ['naming-series', 'variables'],
+  queryFn: async () =>
+    (await unwrap(api.GET('/v1/naming-series/variables'))).items,
+  staleTime: 5 * 60 * 1000,
+});
+
+/** The date parts of a pattern (docs/sequences.md), in the app time zone. */
+export const DATE_PARTS = ['YYYY', 'YY', 'MM', 'DD', 'JJJ', 'WW'] as const;
+
+/**
+ * The record fields a pattern prints: its `{name}` parts that are fields of
+ * the subject (variables and date parts in braces are not). In order, once.
+ */
+export function patternFields(
+  pattern: string,
+  fields: NamingField[],
+): NamingField[] {
+  const printed = new Set<string>();
+  for (const match of pattern.matchAll(/\{([^{}]+)\}/g)) {
+    printed.add(match[1]!);
+  }
+  return fields.filter((f) => f.kind !== 'boolean' && printed.has(f.name));
+}
 
 /**
  * One subject's series, for a create form's picker. Reading them needs no

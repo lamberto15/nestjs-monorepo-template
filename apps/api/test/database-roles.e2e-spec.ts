@@ -340,6 +340,129 @@ describe('the app role', () => {
     }
   });
 
+  describe('the tenant wall (every migrate checks the policies as declared)', () => {
+    /** A live policy's expressions, as the server deparses them. */
+    async function policy(table: string, name: string) {
+      const { rows } = await database.db.execute<{
+        using: string | null;
+        withCheck: string | null;
+      }>(
+        `select pg_get_expr(p.polqual, p.polrelid) as using, pg_get_expr(p.polwithcheck, p.polrelid) as "withCheck"
+         from pg_policy p join pg_class c on c.oid = p.polrelid
+         where c.relnamespace = 'public'::regnamespace and c.relname = '${table}' and p.polname = '${name}'`,
+      );
+      return rows[0]!;
+    }
+
+    it('refuses a policy whose USING was opened by hand, then passes once it is restored', async () => {
+      const before = await policy('audit_log', 'audit_log_tenant_select');
+      await database.asOwner(
+        'alter policy audit_log_tenant_select on audit_log using (true)',
+      );
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /audit_log \(policy audit_log_tenant_select differs from its declaration \(using\)\)/,
+        );
+      } finally {
+        await database.asOwner(
+          `alter policy audit_log_tenant_select on audit_log using (${before.using})`,
+        );
+      }
+      await bootstrap();
+    });
+
+    it('refuses a WITH CHECK that lets rows into any tenant, and a policy moved to another role', async () => {
+      const before = await policy('audit_log', 'audit_log_tenant_insert');
+      await database.asOwner(
+        'alter policy audit_log_tenant_insert on audit_log with check (tenant_id is not null)',
+      );
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /policy audit_log_tenant_insert differs from its declaration \(withCheck\)/,
+        );
+      } finally {
+        await database.asOwner(
+          `alter policy audit_log_tenant_insert on audit_log with check (${before.withCheck})`,
+        );
+      }
+      await database.asOwner(
+        `alter policy audit_log_tenant_delete on audit_log to "${appRole()}"`,
+      );
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /policy audit_log_tenant_delete differs from its declaration \(roles\)/,
+        );
+      } finally {
+        await database.asOwner(
+          'alter policy audit_log_tenant_delete on audit_log to public',
+        );
+      }
+      await bootstrap();
+    });
+
+    it('refuses a policy made restrictive, or for another command, under the declared name', async () => {
+      const before = await policy('audit_log', 'audit_log_tenant_delete');
+      const recreate = (as: string, command: string) =>
+        database.asOwner(
+          `drop policy audit_log_tenant_delete on audit_log;
+           create policy audit_log_tenant_delete on audit_log as ${as} for ${command} to public using (${before.using})`,
+        );
+      try {
+        await recreate('restrictive', 'delete');
+        await expect(bootstrap()).rejects.toThrow(
+          /policy audit_log_tenant_delete differs from its declaration \(permissive\)/,
+        );
+        await recreate('permissive', 'all');
+        await expect(bootstrap()).rejects.toThrow(
+          /policy audit_log_tenant_delete differs from its declaration \(command\)/,
+        );
+      } finally {
+        await recreate('permissive', 'delete');
+      }
+      await bootstrap();
+    });
+
+    it('compares the normalized expressions: the same policy written differently passes', async () => {
+      const before = await policy('audit_log', 'audit_log_tenant_select');
+      // Other spacing, case and parentheses, and an unqualified column: the
+      // text differs from drizzle-kit's, the expression doesn't.
+      await database.asOwner(
+        `alter policy audit_log_tenant_select on audit_log using (
+           ((tenant_id   =   ANY ((SELECT String_To_Array(COALESCE(current_setting('app.read_tenants', TRUE), ''), ',')::uuid[])::uuid[]))
+             AND (tenant_id = (SELECT nullif(current_setting('app.tenant_id', true), '')::uuid)
+                  OR tenant_id = ANY (ARRAY(SELECT descendant_id FROM tenant_closure
+                                            WHERE ancestor_id = (SELECT NULLIF(current_setting('app.tenant_id', TRUE), '')::uuid)))))
+           OR ((tenant_id IS NULL) AND ((SELECT nullif(current_setting('app.tenant_id', true), '')::uuid) IS NULL))
+         )`,
+      );
+      try {
+        await bootstrap();
+      } finally {
+        await database.asOwner(
+          `alter policy audit_log_tenant_select on audit_log using (${before.using})`,
+        );
+      }
+    });
+
+    it('holds a table the schema does not declare to the default four policies', async () => {
+      // test_items is a fixture: this bootstrap is given no extra tables.
+      const before = await policy('test_items', 'test_items_tenant_update');
+      await database.asOwner(
+        'alter policy test_items_tenant_update on test_items using (tenant_id is not null)',
+      );
+      try {
+        await expect(bootstrap()).rejects.toThrow(
+          /policy test_items_tenant_update differs from its declaration \(using\)/,
+        );
+      } finally {
+        await database.asOwner(
+          `alter policy test_items_tenant_update on test_items using (${before.using})`,
+        );
+      }
+      await bootstrap();
+    });
+  });
+
   /**
    * The PostgreSQL exporter's role (compose.monitoring.yaml): pg_monitor and
    * nothing else, made by the same bootstrap as the app role, from an owner
