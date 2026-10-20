@@ -149,6 +149,8 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/access/clients/{id}/keys/{keyId}',
         '/v1/access/clients/{id}/rotate',
         '/v1/access/clients/{id}/usage',
+        '/v1/access/consolidated/audit',
+        '/v1/access/consolidated/tenants',
         '/v1/access/invitations',
         '/v1/access/invitations/{id}',
         '/v1/access/invitations/{id}/resend',
