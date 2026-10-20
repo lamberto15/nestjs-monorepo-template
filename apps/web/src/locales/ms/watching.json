@@ -1,19 +1,19 @@
 {
-  "title": "Watching",
-  "description": "The records you are told about when they change. Stop watching one to stop those notifications.",
-  "empty": "You are not watching any record.",
-  "error": "The list could not be loaded.",
-  "retry": "Try again",
-  "loadMore": "Load more",
-  "since": "since {{date}}",
+  "title": "Dipantau",
+  "description": "Rekod yang anda dimaklumkan apabila ia berubah. Berhenti memantau satu rekod untuk berhenti menerima pemberitahuan itu.",
+  "empty": "Anda tidak memantau sebarang rekod.",
+  "error": "Senarai tidak dapat dimuatkan.",
+  "retry": "Cuba lagi",
+  "loadMore": "Muat lagi",
+  "since": "sejak {{date}}",
   "subjects": {
-    "Note": "Note"
+    "Note": "Nota"
   },
-  "watch": "Watch",
-  "stop": "Stop watching",
-  "stopNamed": "Stop watching {{name}}",
-  "hintOff": "Be told when this record changes",
-  "hintOn": "You are told when this record changes",
-  "watching": "You are watching this record.",
-  "stopped": "You stopped watching."
+  "watch": "Pantau",
+  "stop": "Berhenti memantau",
+  "stopNamed": "Berhenti memantau {{name}}",
+  "hintOff": "Dimaklumkan apabila rekod ini berubah",
+  "hintOn": "Anda dimaklumkan apabila rekod ini berubah",
+  "watching": "Anda memantau rekod ini.",
+  "stopped": "Anda berhenti memantau."
 }

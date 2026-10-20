@@ -52,9 +52,9 @@
       "confirmPassword": "Sahkan kata laluan",
       "name": "Nama",
       "nameRequired": "Masukkan nama.",
-      "tenantName": "Organization name",
-      "tenantNameHint": "Your new organization. You will be its administrator. Leave it empty to use your name.",
-      "tenantNameTooLong": "At most {{max}} characters."
+      "tenantName": "Nama organisasi",
+      "tenantNameHint": "Organisasi baharu anda. Anda akan menjadi pentadbirnya. Biarkan kosong untuk menggunakan nama anda.",
+      "tenantNameTooLong": "Paling banyak {{max}} aksara."
     },
     "mfa": {
       "hint": "Masukkan kod 6 digit daripada aplikasi pengesah anda.",
@@ -93,14 +93,14 @@
       "description": "Masukkan kata laluan yang anda gunakan semasa mendaftar",
       "submit": "Sahkan",
       "done": "{{email}} telah disahkan. Anda boleh log masuk sekarang.",
-      "banner": "Your address {{email}} is not verified yet. Open the link we emailed you.",
+      "banner": "Alamat anda {{email}} belum disahkan. Buka pautan yang kami e-melkan kepada anda.",
       "resend": {
-        "button": "Resend the verification email",
-        "done": "Verification email sent. Check your mailbox.",
-        "limited": "Too many requests. Try again in about 15 minutes.",
-        "hint": "Lost the link, or it expired?",
-        "again": "Send the link again",
-        "sent": "If this address has an account waiting for confirmation, we sent a new link."
+        "button": "Hantar semula e-mel pengesahan",
+        "done": "E-mel pengesahan dihantar. Semak peti mel anda.",
+        "limited": "Terlalu banyak permintaan. Cuba lagi dalam kira-kira 15 minit.",
+        "hint": "Pautan hilang, atau sudah tamat tempoh?",
+        "again": "Hantar pautan sekali lagi",
+        "sent": "Jika alamat ini mempunyai akaun yang menunggu pengesahan, kami telah menghantar pautan baharu."
       }
     },
     "invitation": {
