@@ -4,3 +4,4 @@
  * (global-setup.ts), never to an app's.
  */
 export * from './test-items/test-items.tables.js';
+export * from './encrypted/encrypted-fixture.tables.js';

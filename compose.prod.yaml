@@ -150,6 +150,9 @@ x-app: &app
     IDEMPOTENCY_KEYS: ${IDEMPOTENCY_KEYS:-}
     CURSOR_KEYS: ${CURSOR_KEYS:-}
     WEBHOOKS_ENCRYPTION_KEYS: ${WEBHOOKS_ENCRYPTION_KEYS:-}
+    # Encrypted columns and their blind indexes (docs/encryption.md)
+    DATA_ENCRYPTION_KEYS: ${DATA_ENCRYPTION_KEYS:-}
+    BLIND_INDEX_KEYS: ${BLIND_INDEX_KEYS:-}
     # PDF documents (docs/documents.md): the gotenberg service below. Empty: documents off.
     GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
     GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}
@@ -181,6 +184,8 @@ x-app: &app
     IDEMPOTENCY_KEYS_FILE: ${IDEMPOTENCY_KEYS_FILE:+/run/secrets/idempotency_keys}
     CURSOR_KEYS_FILE: ${CURSOR_KEYS_FILE:+/run/secrets/cursor_keys}
     WEBHOOKS_ENCRYPTION_KEYS_FILE: ${WEBHOOKS_ENCRYPTION_KEYS_FILE:+/run/secrets/webhooks_encryption_keys}
+    DATA_ENCRYPTION_KEYS_FILE: ${DATA_ENCRYPTION_KEYS_FILE:+/run/secrets/data_encryption_keys}
+    BLIND_INDEX_KEYS_FILE: ${BLIND_INDEX_KEYS_FILE:+/run/secrets/blind_index_keys}
     OBSERVE_APP_SECRET_FILE: ${OBSERVE_APP_SECRET_FILE:+/run/secrets/observe_app_secret}
     EXAMPLE_SENDER_WEBHOOK_SECRET_FILE: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:+/run/secrets/example_sender_webhook_secret}
   # Every secret is mounted; those without X_FILE in .env are the empty secret.empty.
@@ -201,6 +206,8 @@ x-app: &app
     - idempotency_keys
     - cursor_keys
     - webhooks_encryption_keys
+    - data_encryption_keys
+    - blind_index_keys
     - observe_app_secret
     - example_sender_webhook_secret
   logging: *logging
@@ -325,6 +332,8 @@ services:
       - idempotency_keys
       - cursor_keys
       - webhooks_encryption_keys
+      - data_encryption_keys
+      - blind_index_keys
       - observe_app_secret
       - example_sender_webhook_secret
       - database_maintenance_url
@@ -580,6 +589,10 @@ secrets:
     file: ${CURSOR_KEYS_FILE:-./secret.empty}
   webhooks_encryption_keys:
     file: ${WEBHOOKS_ENCRYPTION_KEYS_FILE:-./secret.empty}
+  data_encryption_keys:
+    file: ${DATA_ENCRYPTION_KEYS_FILE:-./secret.empty}
+  blind_index_keys:
+    file: ${BLIND_INDEX_KEYS_FILE:-./secret.empty}
   observe_app_secret:
     file: ${OBSERVE_APP_SECRET_FILE:-./secret.empty}
   example_sender_webhook_secret:

@@ -18,10 +18,9 @@
  * variable, `iam/auth/api-keys.ts` the API keys' shape. A declaration after
  * the logger was built throws, so it cannot silently protect nothing.
  *
- * Extension point for roadmap item 5 (the encrypted-column registry): its
- * column helper calls `logRedaction.declareFields(column)` when a column is
- * declared encrypted or sensitive, and audit `changes`, revisions and
- * exports consult the same registry. Until then, the permission catalog's
+ * The encrypted-column registry (roadmap item 5, core/encryption) declares
+ * each encrypted column's name here (`encrypted()`); audit `changes`,
+ * revisions and exports don't consult that registry yet. The permission catalog's
  * `sensitive` field flag is per subject (audit entries) and stays apart:
  * log redaction is by name wherever the name appears, so only names that
  * always hold a secret belong here.
