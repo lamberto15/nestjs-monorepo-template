@@ -206,6 +206,8 @@ title …>` is a server-paginated, filterable, sortable list of any subject;
   placeholders, `query` adds fixed parameters, `headingLevel={2}` and
   `subtitle` fit it under a page's own `h1`, and `refetchInterval(rows)`
   asks again while rows are still settling.
+  Its toolbar has the saved-views picker (`features/views`,
+  [saved-views](saved-views.md), "In the web app").
 
 - **Webhooks** (`features/webhooks`): managed per API client, as the API's
   `/v1/access/clients/{clientId}/webhook-endpoints` and `…/webhook-deliveries`

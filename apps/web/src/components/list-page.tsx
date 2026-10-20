@@ -18,6 +18,7 @@ import { DataTableFilterMenu } from '@/components/data-table/data-table-filter-m
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableSortMenu } from '@/components/data-table/data-table-sort-menu';
 import { ListBulkBar } from '@/components/list-bulk-bar';
+import { ViewsPicker } from '@/features/views/views-picker';
 import type { BulkContext } from '@/features/bulk/types';
 import { useDataTable } from '@/hooks/use-data-table';
 import { customFieldColumns, refColumns } from '@/lib/list-columns';
@@ -165,6 +166,8 @@ function ListTable<P extends ListPath>({
       ),
     };
   }, [columns, description, refs, t, i18n.language, rowActions, checkable]);
+  // Applying a saved view sets the search: its box starts again from `q`.
+  const [searchKey, setSearchKey] = useState(0);
   const [fields, setFields] = useState(() =>
     cols.flatMap((c) => (c.id && !(c.id in hidden) ? [c.id] : [])),
   );
@@ -200,8 +203,18 @@ function ListTable<P extends ListPath>({
       <FieldsSync table={table} onChange={setFields} />
       <DataTableAdvancedToolbar table={table}>
         {description.search && (
-          <SearchBox value={query.q} onSearch={query.search} />
+          <SearchBox key={searchKey} value={query.q} onSearch={query.search} />
         )}
+        <ViewsPicker
+          subject={subject}
+          description={description}
+          table={table}
+          params={query.params}
+          onSearch={(q) => {
+            query.search(q);
+            setSearchKey((key) => key + 1);
+          }}
+        />
         <DataTableFilterMenu table={table} />
         <DataTableSortMenu table={table} />
         {listActions?.({ params: query.params })}
