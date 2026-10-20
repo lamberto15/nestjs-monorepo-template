@@ -78,9 +78,67 @@ describe('watching a note', () => {
     await waitFor(() => expect(calls.patched).toHaveLength(1));
     expect(calls.patched[0]).toMatchObject({
       id: NOTE_ID,
-      ifMatch: `"${NOTE_ID}-1-Q3 targets"`,
+      // The tag of a read with watching carries its marker; the API ignores it.
+      ifMatch: `"${NOTE_ID}-1-Q3 targets.w1"`,
     });
     expect(calls.readQueries[0]).toContain('watching');
+  });
+
+  it('saves an edit after watching the note, with no 412', async () => {
+    const { calls } = useNotesApi({
+      can: ['Note.read', 'Note.update'],
+      notes: [sampleNote()],
+    });
+    await renderApp(`/notes/${NOTE_ID}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Watch' }));
+    await findToast('You are watching this record.');
+    await user.click(
+      screen.getByRole('button', { name: 'Actions for this note' }),
+    );
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Edit note' }),
+    );
+    await user.type(await screen.findByLabelText('Title'), '!');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    // The note was read before and after the toggle: markers .w0 and .w1.
+    await waitFor(() => expect(calls.patched).toHaveLength(1));
+    expect(calls.patched[0]!.ifMatch).toMatch(/\.w[01]"$/);
+    expect(
+      await screen.findByRole('heading', { name: 'Q3 targets!' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps what is typed in the edit form when the note is read again with a new ETag', async () => {
+    const { calls, subscriptions } = useNotesApi({
+      can: ['Note.read', 'Note.update'],
+      notes: [sampleNote()],
+    });
+    const { queryClient } = await renderApp(`/notes/${NOTE_ID}/edit`);
+    const user = userEvent.setup();
+    const title = await screen.findByLabelText('Title');
+    await user.type(title, '!');
+
+    // Watched from elsewhere: the next read carries another marker, so
+    // another ETag, though the note itself has not changed.
+    subscriptions.watched.push({
+      subject: 'Note',
+      recordId: NOTE_ID,
+      createdAt: '2026-10-18T09:00:00.000Z',
+    });
+    await queryClient.invalidateQueries({
+      queryKey: recordKeys.details(NOTES_PATH),
+    });
+    expect(calls.reads).toEqual([NOTE_ID, NOTE_ID]);
+    expect(screen.getByLabelText('Title')).toBe(title);
+    expect(title).toHaveValue('Q3 targets!');
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(calls.patched).toHaveLength(1));
+    expect(calls.patched[0]).toMatchObject({
+      ifMatch: `"${NOTE_ID}-1-Q3 targets.w1"`,
+    });
   });
 
   it('lists a watched note by its title, linked to its page', async () => {

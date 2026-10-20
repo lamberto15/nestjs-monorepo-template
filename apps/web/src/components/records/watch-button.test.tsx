@@ -89,7 +89,8 @@ describe('the watch toggle', () => {
     expect(api.calls.listed).toEqual([]);
   });
 
-  it('shows nothing while the record does not say', async () => {
+  // (That a page's record query drives the button is notes-watch.test.tsx.)
+  it('shows nothing while the record carries no `watching`', async () => {
     const api = await mount({ watching: undefined });
     await waitFor(() =>
       expect(

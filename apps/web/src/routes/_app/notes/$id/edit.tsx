@@ -53,8 +53,11 @@ function EditNote() {
           // The permission alone let the user in (beforeLoad); the note's own
           // `can` says whether its conditions allow it now (a published note).
           canOf(note).update ? (
-            // Keyed by the ETag: a reload gives the form the new version.
-            <NoteForm key={etag ?? note.updatedAt} note={note} etag={etag} />
+            // Keyed by what was last saved, not by the ETag: that carries a
+            // marker of `watching`, so a toggle changes it, and the form
+            // would remount under the user's typing. A change by someone else
+            // (the reload after a 412) moves `updatedAt`, so it still remounts.
+            <NoteForm key={note.updatedAt} note={note} etag={etag} />
           ) : (
             <Alert role="alert">
               <LockIcon />

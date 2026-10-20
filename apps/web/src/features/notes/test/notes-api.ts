@@ -99,6 +99,15 @@ export function useNotesApi(options: {
   };
   let version = 1;
   const etagOf = (note: TestNote) => `"${note.id}-${version}-${note.title}"`;
+  // As the API does (etagOfResponse): a GET with `watching` adds a marker of
+  // the flag to the tag; a write's If-Match ignores it (assertUnchanged).
+  const markerOf = (note: TestNote, url: string) => {
+    const read = withIncluded(note, url);
+    return 'watching' in read ? `.w${read.watching ? 1 : 0}` : '';
+  };
+  const readEtag = (note: TestNote, url: string) =>
+    etagOf(note).slice(0, -1) + markerOf(note, url) + '"';
+  const withoutMarker = (tag: string) => tag.replace(/\.w[01]"$/, '"');
   const calls = {
     created: [] as { body: unknown; key: string | null }[],
     patched: [] as { id: string; body: unknown; ifMatch: string | null }[],
@@ -110,10 +119,14 @@ export function useNotesApi(options: {
     /** The query string of each `GET /v1/notes/{id}`. */
     readQueries: [] as string[],
   };
-  /** Another user's write: the note changes, its ETag with it. */
+  /** Another user's write: the note changes, its ETag and `updatedAt` with it. */
   const changeElsewhere = (id: string, changes: Partial<TestNote>) => {
     version += 1;
-    notes.set(id, { ...notes.get(id)!, ...changes });
+    notes.set(id, {
+      ...notes.get(id)!,
+      updatedAt: `2026-10-17T10:00:0${version}.000Z`,
+      ...changes,
+    });
   };
 
   useSignedIn(options.can);
@@ -161,9 +174,9 @@ export function useNotesApi(options: {
       calls.readQueries.push(new URL(request.url).search);
       const note = notes.get(params.id as string);
       if (!note || note.deletedAt) return problem(404, 'not_found');
-      // `can` and `watching` are not part of the ETag.
+      // `can` is not part of the ETag; `watching` only as a marker.
       return HttpResponse.json(withIncluded(note, request.url), {
-        headers: { etag: etagOf(note) },
+        headers: { etag: readEtag(note, request.url) },
       });
     }),
     http.patch('/v1/notes/:id', async ({ params, request }) => {
@@ -173,7 +186,7 @@ export function useNotesApi(options: {
       const ifMatch = request.headers.get('if-match');
       const body = (await request.json()) as Partial<TestNote>;
       calls.patched.push({ id, body, ifMatch });
-      if (ifMatch && ifMatch !== etagOf(note)) {
+      if (ifMatch && withoutMarker(ifMatch) !== etagOf(note)) {
         return problem(412, 'precondition_failed', { etag: etagOf(note) });
       }
       version += 1;
