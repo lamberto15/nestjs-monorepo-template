@@ -67,6 +67,7 @@ import type { UserPrincipal } from './principal.js';
 import { SessionOnly, UserOnly } from './user-only.decorator.js';
 import { DuringMfaEnrollment } from './mfa-enrollment.guard.js';
 import { AuthPolicyService } from './auth-policy.service.js';
+import { SignUpTenant } from '../access/sign-up-tenant.js';
 import { UsersRepository } from './users.repository.js';
 
 const signInSchema = z.object({
@@ -80,6 +81,15 @@ const signUpSchema = z.object({
   password: newPassword,
   locale: locale.optional(),
   timezone: timezone.optional(),
+  tenantName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .optional()
+    .describe(
+      "When `GET /auth/methods` says `tenantSignUp`: the name of the tenant the sign-up makes (default: the person's name). Ignored otherwise.",
+    ),
 });
 
 const mfaVerifySchema = z
@@ -161,6 +171,14 @@ const meSchema = z.object({
 const methodsSchema = z.object({
   password: z.literal(true),
   signUp: z.boolean(),
+  // Optional in the document though always sent: a field the typed client
+  // requires would break every client's fixtures of this answer.
+  tenantSignUp: z
+    .boolean()
+    .optional()
+    .describe(
+      'A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`). Always sent; absent means false.',
+    ),
   magicLink: z.boolean(),
   passkeys: z
     .boolean()
@@ -210,6 +228,7 @@ export class AuthController {
     private readonly captcha: CaptchaService,
     private readonly tenancy: Tenancy,
     private readonly authPolicy: AuthPolicyService,
+    private readonly signUpTenant: SignUpTenant,
   ) {}
 
   @Public()
@@ -220,6 +239,7 @@ export class AuthController {
     return {
       password: true as const,
       signUp: this.config.get('AUTH_SIGN_UP', { infer: true }),
+      tenantSignUp: this.signUpTenant.enabled,
       magicLink: this.config.get('AUTH_MAGIC_LINK', { infer: true }),
       passkeys: this.config.get('PASSKEYS', { infer: true }),
       providers: Object.keys(oidcProviders(this.config)),
@@ -264,7 +284,7 @@ export class AuthController {
     summary:
       'Create an account (when AUTH_SIGN_UP=on); it signs in once its address is verified',
     description:
-      "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.",
+      "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant (a tenant invites it); with TENANCY=single it joins the one tenant; with TENANT_SIGN_UP (`GET /auth/methods`' `tenantSignUp`) it makes a new tenant (`tenantName`) and is its administrator.",
   })
   @ApiCreatedResponse({ standardSchema: userSchema })
   @ApiBadRequestResponse({
@@ -288,6 +308,7 @@ export class AuthController {
         password: body.password,
         locale: this.supportedLocale(body.locale),
         timezone: body.timezone ?? null,
+        tenantName: body.tenantName ?? body.name,
       },
       ip,
     );

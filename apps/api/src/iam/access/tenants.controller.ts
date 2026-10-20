@@ -83,6 +83,14 @@ const tenantSchema = z.object({
   name: z.string(),
   active: z.boolean(),
   operator: z.boolean(),
+  // Optional in the document though always sent: a field the typed client
+  // requires would break every client's fixtures of a tenant.
+  createdBySignUp: z
+    .boolean()
+    .optional()
+    .describe(
+      'Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.',
+    ),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

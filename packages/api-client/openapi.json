@@ -20113,6 +20113,10 @@
                     "signUp": {
                       "type": "boolean"
                     },
+                    "tenantSignUp": {
+                      "description": "A sign-up makes its own tenant, the new account its administrator (TENANT_SIGN_UP): the sign-up page asks for its name (`tenantName`). Always sent; absent means false.",
+                      "type": "boolean"
+                    },
                     "magicLink": {
                       "type": "boolean"
                     },
@@ -20263,7 +20267,7 @@
     },
     "/v1/auth/sign-up": {
       "post": {
-        "description": "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant: a tenant invites it.",
+        "description": "Verify first: no session is made, and the password signs in (or gets tokens) only after the user opened the link sent to the address and confirmed it with the same password (POST /auth/email/verify { token, password }). So nobody can sign up someone else's address and sign in as them once its owner clicks. The account has no tenant (a tenant invites it); with TENANCY=single it joins the one tenant; with TENANT_SIGN_UP (`GET /auth/methods`' `tenantSignUp`) it makes a new tenant (`tenantName`) and is its administrator.",
         "operationId": "AuthController_signUp_v1",
         "parameters": [
           {
@@ -20307,6 +20311,12 @@
                     "type": "string",
                     "maxLength": 64,
                     "example": "Europe/Berlin"
+                  },
+                  "tenantName": {
+                    "description": "When `GET /auth/methods` says `tenantSignUp`: the name of the tenant the sign-up makes (default: the person's name). Ignored otherwise.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
                   }
                 },
                 "required": [
@@ -28007,6 +28017,10 @@
                           "operator": {
                             "type": "boolean"
                           },
+                          "createdBySignUp": {
+                            "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -28146,6 +28160,10 @@
                     "operator": {
                       "type": "boolean"
                     },
+                    "createdBySignUp": {
+                      "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
+                      "type": "boolean"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -28261,6 +28279,10 @@
                     "operator": {
                       "type": "boolean"
                     },
+                    "createdBySignUp": {
+                      "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
+                      "type": "boolean"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -28371,6 +28393,10 @@
                       "type": "boolean"
                     },
                     "operator": {
+                      "type": "boolean"
+                    },
+                    "createdBySignUp": {
+                      "description": "Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.",
                       "type": "boolean"
                     },
                     "createdAt": {

@@ -4,7 +4,7 @@ import { featuresQuery, meQuery } from '@/lib/session';
 import { isOperator } from './queries';
 
 /**
- * The tenants page is the operators' and exists in multi-tenant
+ * The tenants pages are the operators' and exists in multi-tenant
  * deployments only: no such page otherwise (the API refuses the same, 403
  * `operator_required`, 409 `single_tenant`). Decided from `/me`, so a tenant
  * administrator never asks the list only to be refused.

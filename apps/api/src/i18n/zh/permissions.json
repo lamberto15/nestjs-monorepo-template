@@ -97,6 +97,10 @@
       "label": "清空回收站",
       "description": "每晚永久删除删除时间超过其保留期的记录。"
     },
+    "sign-up-tenant-sweep": {
+      "label": "未验证注册的租户",
+      "description": "每晚删除由自助注册（TENANT_SIGN_UP）创建、其账户从未验证邮箱地址的租户。"
+    },
     "account-deletion": {
       "label": "账户删除",
       "description": "每晚将删除宽限期已过的账户匿名化，并清除其个人数据。"

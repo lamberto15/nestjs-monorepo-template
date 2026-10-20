@@ -246,6 +246,13 @@
       "when": 1792437077138,
       "tag": "0034_yummy_hawkeye",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792463371538,
+      "tag": "0035_gorgeous_jack_power",
+      "breakpoints": true
     }
   ]
 }
