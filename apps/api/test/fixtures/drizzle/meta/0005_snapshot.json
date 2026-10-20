@@ -1,5 +1,5 @@
 {
-  "id": "19eec773-ddba-4443-9e87-395af4f242e1",
+  "id": "51b85b71-e583-4fd3-8820-ec6286d8ad51",
   "prevId": "9916d24b-2b72-4f6f-b4b7-6e7322c0eca7",
   "version": "7",
   "dialect": "postgresql",
@@ -261,7 +261,7 @@
           "to": [
             "public"
           ],
-          "using": "(\"test_items\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
+          "using": "((\"test_items\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"test_items\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
         },
         "test_items_tenant_insert": {
           "name": "test_items_tenant_insert",
@@ -290,110 +290,6 @@
             "public"
           ],
           "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.test_encrypted_records": {
-      "name": "test_encrypted_records",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tax_number": {
-          "name": "tax_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_number_index": {
-          "name": "tax_number_index",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "test_encrypted_records_tenant_id_tenants_id_fk": {
-          "name": "test_encrypted_records_tenant_id_tenants_id_fk",
-          "tableFrom": "test_encrypted_records",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "test_encrypted_records_tenant_select": {
-          "name": "test_encrypted_records_tenant_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ],
-          "using": "(\"test_encrypted_records\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))"
-        },
-        "test_encrypted_records_tenant_insert": {
-          "name": "test_encrypted_records_tenant_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ],
-          "withCheck": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "test_encrypted_records_tenant_update": {
-          "name": "test_encrypted_records_tenant_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
-          "withCheck": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
-        },
-        "test_encrypted_records_tenant_delete": {
-          "name": "test_encrypted_records_tenant_delete",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ],
-          "using": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))"
         }
       },
       "checkConstraints": {},

@@ -12,6 +12,7 @@
       "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
       "readAudit": "查看审计日志",
+      "readConsolidated": "读取租户树中位于此租户之下的租户，只读（控股集团的合并报表）",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
       "manageSso": "设置租户的单点登录：SAML 和 OpenID Connect 连接、已验证的电子邮件域",

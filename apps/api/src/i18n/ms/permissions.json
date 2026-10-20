@@ -12,6 +12,7 @@
       "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
       "readAudit": "Baca log audit",
+      "readConsolidated": "Baca penyewa di bawah penyewa ini dalam pepohon penyewanya, baca sahaja (laporan disatukan sebuah syarikat induk)",
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
       "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir",
       "manageSso": "Sediakan log masuk tunggal penyewa: sambungan SAML dan OpenID Connect, domain e-mel yang disahkan",

@@ -262,11 +262,14 @@ Split into **1a** (core) and **1b** (per-tenant product features).
   transfer, step-up) and deletion (deactivated, a grace period, then a worker erases
   rows, files, queued jobs, workflows and outbox messages). docs/tenancy.md.
 - The platform "super tenant" for operators.
-- **The tenant tree** for holding groups: a `parent_id` on `tenants` (closure table).
-  - A user granted "consolidated reader" on a parent gets `app.read_tenants` set to the
-    parent's subtree, for reports and exports only.
+- **The tenant tree** for holding groups: **done** (#233): `parent_id` on `tenants`
+  and the `tenant_closure` table, placed by the operators (a cycle refused); a user
+  with `Access.readConsolidated` reads the parent's active subtree, read-only, audited
+  in every tenant read (`TenantTree.consolidated()`, the consolidated audit log); the
+  read policies check the tree too, so a child never reads its parent or a sibling.
+  docs/tenancy.md, "The tenant tree". Open: consolidated exports and the features'
+  own consolidated reports (each calls `TenantTree.consolidated()`).
   - Writes and everything else stay in one tenant.
-  - Cross-tenant reads are audited.
 - Platform analytics across unrelated tenants never go through the app role. They use
   a separate reporting role on anonymized aggregates: **done** (#235): the worker's
   nightly `PlatformAnalyticsJob` stores suppressed counts in the `analytics` schema,

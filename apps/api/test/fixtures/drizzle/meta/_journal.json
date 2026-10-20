@@ -40,8 +40,15 @@
     {
       "idx": 5,
       "version": "7",
-      "when": 1792495759641,
-      "tag": "0005_icy_lucky_pierre",
+      "when": 1792502754807,
+      "tag": "0005_tenant_tree",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792507938798,
+      "tag": "0006_encrypted_records",
       "breakpoints": true
     }
   ]

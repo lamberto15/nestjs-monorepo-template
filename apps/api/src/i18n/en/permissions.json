@@ -12,6 +12,7 @@
       "manageNamingSeries": "Create, change and delete the number formats of numbered records, and set their counters (platform/sequences)",
       "manageViews": "Share saved views of lists with the whole tenant, and change or delete shared views (platform/views)",
       "readAudit": "Read the audit log",
+      "readConsolidated": "Read the tenants below this one in its tenant tree, read-only (consolidated reports of a holding)",
       "manageTenants": "Create tenants (the deployment's operators: only in the operator tenant)",
       "impersonate": "Act as another user (support), never as an administrator",
       "manageSso": "Set up the tenant's single sign-on: SAML and OpenID Connect connections, verified email domains",

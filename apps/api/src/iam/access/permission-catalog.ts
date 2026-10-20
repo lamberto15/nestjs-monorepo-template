@@ -67,6 +67,11 @@ export const ACCESS_PERMISSIONS = definePermissions({
           conditions: [],
         },
         readAudit: { label: 'Read the audit log', conditions: [] },
+        readConsolidated: {
+          label:
+            'Read the tenants below this one in its tenant tree, read-only (consolidated reports of a holding)',
+          conditions: [],
+        },
         manageTenants: {
           label:
             "Create tenants (the deployment's operators: only in the operator tenant)",
