@@ -93,18 +93,13 @@
   "deliveries": {
     "title": "Deliveries",
     "description": "What was sent to this endpoint, newest first. Open one to see the request and the response.",
-    "filter": "Status",
-    "all": "All",
-    "empty": "Nothing sent yet. Send a test event to try it.",
-    "page": "Page {{page}} of {{count}}",
-    "previous": "Previous",
-    "next": "Next",
     "columns": {
       "type": "Event",
       "status": "Status",
       "attempts": "Attempts",
       "response": "Last response",
-      "created": "Created"
+      "created": "Created",
+      "error": "Last error"
     }
   },
   "delivery": {

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
 import { renderComponent } from '@/test/render-component';
 import { problem, server } from '@/test/server';
@@ -53,6 +53,13 @@ function useTransferApi(
     /** The caller's bulk runs, newest first (`GET /v1/bulk`). */
     bulk?: Record<string, unknown>[];
     pageSize?: number;
+    /** The caller's account exports (`GET /v1/account/exports`). */
+    account?: Transfer[];
+    /**
+     * A filtered first page that comes back empty with a next cursor (the
+     * API reads a bounded number of entries per page).
+     */
+    sparse?: boolean;
   } = {},
 ) {
   const calls = {
@@ -60,6 +67,10 @@ function useTransferApi(
     imports: [] as Record<string, string>[],
     /** The query string of each list request. */
     lists: [] as string[],
+    /** The query string of each bulk list request. */
+    bulks: [] as string[],
+    /** The query string of each account exports request. */
+    accounts: [] as string[],
   };
   /** Cursor paging as the API does it: the cursor is the offset. */
   const pageOf = (all: unknown[], url: URL) => {
@@ -100,14 +111,33 @@ function useTransferApi(
       const url = new URL(request.url);
       calls.lists.push(url.search);
       const kind = url.searchParams.get('kind');
+      const status = url.searchParams.get('status');
+      if (options.sparse && status && !url.searchParams.get('cursor')) {
+        return HttpResponse.json({ items: [], nextCursor: '0' });
+      }
       return pageOf(
-        (options.list ?? []).filter((item) => !kind || item.kind === kind),
+        (options.list ?? []).filter(
+          (item) =>
+            (!kind || item.kind === kind) &&
+            (!status || item.status === status),
+        ),
         url,
       );
     }),
-    http.get('/v1/bulk', ({ request }) =>
-      pageOf(options.bulk ?? [], new URL(request.url)),
-    ),
+    http.get('/v1/bulk', ({ request }) => {
+      const url = new URL(request.url);
+      calls.bulks.push(url.search);
+      const status = url.searchParams.get('status');
+      return pageOf(
+        (options.bulk ?? []).filter((run) => !status || run.status === status),
+        url,
+      );
+    }),
+    http.get('/v1/account/exports', ({ request }) => {
+      const url = new URL(request.url);
+      calls.accounts.push(url.search);
+      return pageOf(options.account ?? [], url);
+    }),
     http.get('/v1/data/transfers/:id', ({ params }) => {
       const found = options.transfers?.[params.id as string];
       if (!found) return problem(404, 'not_found');
@@ -116,10 +146,6 @@ function useTransferApi(
   );
   return calls;
 }
-
-beforeEach(() => {
-  localStorage.clear();
-});
 
 describe('exporting from a list', () => {
   it('exports what the list shows, then offers the file', async () => {
@@ -353,12 +379,15 @@ describe('your exports and imports', () => {
     format: 'csv',
     status: 'completed',
     progress: { processed: 3 },
+    createdAt: '2026-10-18T09:00:00.000Z',
+    finishedAt: '2026-10-18T09:01:00.000Z',
+    expiresAt: new Date(Date.now() + 6 * 86_400_000).toISOString(),
     result: { rows: 3, url: `https://files.test/${id}.csv` },
   });
 
   it("lists the API's transfers and bulk runs, not this browser's", async () => {
     useSignedIn(ALL);
-    // Nothing in localStorage: another device started these.
+    // Nothing is kept in this browser: another device started these.
     const running = {
       id: 'running',
       kind: 'import',
@@ -422,6 +451,154 @@ describe('your exports and imports', () => {
     await waitFor(() => expect(calls.lists.at(-1)).toContain('kind=import'));
     await waitFor(() => expect(screen.queryByText('first-export')).toBeNull());
     expect(await screen.findByText('an-import')).toBeVisible();
+  });
+
+  it('shows when each started, ended and stops being kept', async () => {
+    useSignedIn(ALL);
+    useTransferApi({ list: [exported('done', 'test-items')] });
+    await renderApp('/transfers');
+    const list = await screen.findByRole('list', {
+      name: 'Exports and imports',
+    });
+    expect(
+      await within(list).findByText(/^Started Oct 18, 2026/),
+    ).toBeVisible();
+    expect(within(list).getByText(/^Finished Oct 18, 2026/)).toBeVisible();
+    expect(within(list).getByText(/^Kept until /)).toBeVisible();
+  });
+
+  it('filters by status on the server, bulk runs too', async () => {
+    useSignedIn(ALL);
+    const failed = {
+      ...exported('bad', 'failed-export'),
+      status: 'failed',
+      error: 'The storage is unavailable.',
+    };
+    const calls = useTransferApi({
+      list: [exported('ok', 'good-export'), failed],
+      bulk: [
+        {
+          id: 'b1',
+          name: 'test-items',
+          action: 'delete',
+          status: 'completed',
+          progress: { processed: 5 },
+          result: { done: 5, failed: 0, skipped: 0 },
+        },
+      ],
+    });
+    await renderApp('/transfers');
+    const user = userEvent.setup();
+    expect(await screen.findByText('good-export')).toBeVisible();
+    expect(
+      await screen.findByText('5 done, 0 failed, 0 skipped.'),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole('combobox', { name: 'Status' }));
+    await user.click(await screen.findByRole('option', { name: 'Failed' }));
+    expect(await screen.findByText('failed-export')).toBeVisible();
+    expect(
+      await screen.findByText('The storage is unavailable.'),
+    ).toBeVisible();
+    await waitFor(() => expect(screen.queryByText('good-export')).toBeNull());
+    expect(calls.lists.at(-1)).toContain('status=failed');
+    expect(calls.bulks.at(-1)).toContain('status=failed');
+    // The bulk run was not failed: the server left it out.
+    expect(screen.queryByText('5 done, 0 failed, 0 skipped.')).toBeNull();
+  });
+
+  it('offers "Show more" when a filtered page is empty but not the last', async () => {
+    useSignedIn(ALL);
+    const calls = useTransferApi({
+      list: [exported('ok', 'good-export')],
+      sparse: true,
+    });
+    await renderApp('/transfers');
+    const user = userEvent.setup();
+    expect(await screen.findByText('good-export')).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: 'Status' }));
+    await user.click(await screen.findByRole('option', { name: 'Done' }));
+    // Not "nothing yet": the API says there is more to read.
+    await user.click(await screen.findByRole('button', { name: 'Show more' }));
+    expect(await screen.findByText('good-export')).toBeVisible();
+    expect(calls.lists.at(-1)).toContain('cursor=0');
+  });
+
+  it('says so when nothing has the status', async () => {
+    useSignedIn(ALL);
+    useTransferApi({ list: [exported('ok', 'good-export')] });
+    await renderApp('/transfers');
+    const user = userEvent.setup();
+    expect(await screen.findByText('good-export')).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: 'Status' }));
+    await user.click(await screen.findByRole('option', { name: 'Running' }));
+    expect(await screen.findByText('Nothing with this status.')).toBeVisible();
+  });
+
+  it('does not offer the link of a transfer the API no longer keeps', async () => {
+    useSignedIn(ALL);
+    useTransferApi({
+      list: [
+        {
+          ...exported('old', 'old-export'),
+          expiresAt: '2020-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    await renderApp('/transfers');
+    expect(
+      await screen.findByText(
+        'This transfer is no longer kept. Start it again for a new file.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Download (csv)' })).toBeNull();
+  });
+
+  it("shows the account exports, across tenants, from the API's own list", async () => {
+    useSignedIn(ALL);
+    const account = {
+      ...exported('acc', 'account-export'),
+      format: 'json',
+      result: { rows: 9, url: 'https://files.test/acc.json' },
+    };
+    const calls = useTransferApi({
+      list: [exported('ok', 'good-export')],
+      account: [account],
+    });
+    await renderApp('/transfers');
+    const user = userEvent.setup();
+    const accounts = await screen.findByRole('list', {
+      name: 'Account exports',
+    });
+    expect(
+      await within(accounts).findByRole('link', { name: 'Download (json)' }),
+    ).toHaveAttribute('href', 'https://files.test/acc.json');
+    expect(within(accounts).getByText('Account export')).toBeVisible();
+    expect(screen.getByText('good-export')).toBeVisible();
+
+    // Its own filter: the tenant's transfers are not asked for.
+    const before = calls.lists.length;
+    await user.click(screen.getByRole('combobox', { name: 'Show' }));
+    await user.click(
+      await screen.findByRole('option', { name: 'Account exports' }),
+    );
+    await waitFor(() => expect(screen.queryByText('good-export')).toBeNull());
+    expect(screen.getByText('account-export')).toBeVisible();
+    expect(calls.lists).toHaveLength(before);
+  });
+
+  it('keeps nothing of the list in this browser', async () => {
+    useSignedIn(ALL);
+    useTransferApi({ list: [exported('ok', 'good-export')] });
+    await renderApp('/transfers');
+    expect(await screen.findByText('good-export')).toBeVisible();
+    for (const store of [localStorage, sessionStorage]) {
+      const kept = Array.from({ length: store.length }, (_, index) => {
+        const key = store.key(index) ?? '';
+        return `${key}=${store.getItem(key) ?? ''}`;
+      });
+      expect(kept.join('\n')).not.toMatch(/transfer|export|import/i);
+    }
   });
 
   it('says when the list cannot be loaded', async () => {

@@ -430,13 +430,33 @@ export function useListDescription(subject: string, enabled = true) {
 async function fetchPage<P extends ListPath>(
   path: P,
   query: Record<string, string>,
+  pathParams?: Record<string, string>,
 ): Promise<ListPageData<ListRow<P>>> {
   // openapi-fetch types its query per path; this one is generic over paths.
   const get = api.GET as unknown as (
     path: string,
-    init: { params: { query: Record<string, string> } },
+    init: {
+      params: { query: Record<string, string>; path?: Record<string, string> };
+    },
   ) => Promise<{ data?: ListPageData<ListRow<P>>; response: Response }>;
-  return unwrap(get(path, { params: { query } }));
+  return unwrap(
+    get(path, {
+      params: { query, ...(pathParams && { path: pathParams }) },
+    }),
+  );
+}
+
+/** What a list route may ask besides the table's state. */
+export interface ListQueryOptions<TRow> {
+  /** More parameters of the route, such as `deleted=true` (the recycle bin). */
+  extra?: Record<string, string>;
+  /** The values of the route's `{placeholders}` (`{ clientId }`). */
+  pathParams?: Record<string, string>;
+  /**
+   * Ask again after this many ms (false: never), given the rows shown: for a
+   * list whose rows settle on their own, such as deliveries in flight.
+   */
+  refetchInterval?: (rows: TRow[]) => number | false;
 }
 
 /**
@@ -450,9 +470,9 @@ export function useListQuery<P extends ListPath>(
   description: ListDescription,
   columns: ListColumn<ListRow<P>>[],
   fields?: string[],
-  /** More parameters of the route, such as `deleted=true` (the recycle bin). */
-  extra?: Record<string, string>,
+  options: ListQueryOptions<ListRow<P>> = {},
 ) {
+  const { extra, pathParams, refetchInterval } = options;
   const sortableIds = useMemo(
     () =>
       columns.flatMap((c) => (c.id && c.enableSorting !== false ? [c.id] : [])),
@@ -532,9 +552,14 @@ export function useListQuery<P extends ListPath>(
   );
 
   const result: UseQueryResult<ListPageData<ListRow<P>>> = useQuery({
-    queryKey: ['list', path, params],
-    queryFn: () => fetchPage(path, params),
+    queryKey: pathParams
+      ? ['list', path, params, pathParams]
+      : ['list', path, params],
+    queryFn: () => fetchPage(path, params, pathParams),
     placeholderData: keepPreviousData,
+    refetchInterval: refetchInterval
+      ? (query) => refetchInterval(query.state.data?.items ?? [])
+      : false,
   });
 
   const search = useCallback(

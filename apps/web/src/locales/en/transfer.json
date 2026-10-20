@@ -3,7 +3,8 @@
   "kind": {
     "export": "Export",
     "import": "Import",
-    "bulk": "Bulk run"
+    "bulk": "Bulk run",
+    "account": "Account export"
   },
   "formats": {
     "csv": "CSV",
@@ -35,7 +36,21 @@
       "all": "All",
       "export": "Exports",
       "import": "Imports",
+      "account": "Account exports",
       "bulk": "Bulk runs"
+    },
+    "accountTitle": "Account exports",
+    "emptyFiltered": "Nothing with this status.",
+    "started": "Started {{date}}",
+    "finished": "Finished {{date}}",
+    "keptUntil": "Kept until {{date}}",
+    "state": {
+      "label": "Status",
+      "all": "Any status",
+      "queued": "Waiting",
+      "running": "Running",
+      "completed": "Done",
+      "failed": "Failed"
     }
   },
   "import": {
@@ -82,7 +97,8 @@
     "progressLabel": "Progress",
     "failed": "It failed. Try again.",
     "notFound": "This transfer is no longer available.",
-    "error": "Its status could not be loaded."
+    "error": "Its status could not be loaded.",
+    "expired": "This transfer is no longer kept. Start it again for a new file."
   },
   "bulk": {
     "queued": "Waiting for a worker…",

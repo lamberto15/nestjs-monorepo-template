@@ -92,7 +92,11 @@ const columns: ListColumn<Row>[] = [
   },
 ];
 
-async function renderList(searchParams = '', lng: 'en' | 'de' = 'en') {
+async function renderList(
+  searchParams = '',
+  lng: 'en' | 'de' = 'en',
+  props: Partial<Parameters<typeof TestListPage>[0]> = {},
+) {
   const i18n = i18next.createInstance();
   await i18n.use(initReactI18next).init({
     lng,
@@ -111,6 +115,7 @@ async function renderList(searchParams = '', lng: 'en' | 'de' = 'en') {
             path={PATH}
             title="Test items"
             columns={columns}
+            {...props}
           />
         </NuqsTestingAdapter>
       </QueryClientProvider>
@@ -146,6 +151,68 @@ describe('ListPage', () => {
     expect(list?.searchParams.get('count')).toBe('true');
     expect(list?.searchParams.get('sort')).toBe('-createdAt');
     expect(list?.searchParams.get('fields')).toBe('title,status');
+  });
+
+  it("fills the route's placeholders, and heads and describes the list as asked", async () => {
+    mocks.fetch.mockImplementation(async (request?: Request) =>
+      request?.url.includes('/v1/lists/')
+        ? json(description)
+        : json({
+            items: [{ id: '1', title: 'First item', status: 'draft' }],
+            nextCursor: null,
+            page: 1,
+            nextPage: null,
+            pageCount: 1,
+            total: 1,
+          }),
+    );
+    await renderList('', 'en', {
+      path: '/v1/parents/{parentId}/items',
+      pathParams: { parentId: 'p-1' },
+      query: { fixed: 'yes' },
+      subtitle: 'What the parent holds.',
+      headingLevel: 2,
+    });
+
+    expect(await screen.findByText('First item')).toBeInTheDocument();
+    const list = urls().find((url) => url.pathname === '/v1/parents/p-1/items');
+    expect(list?.searchParams.get('fixed')).toBe('yes');
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Test items' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.getByText('What the parent holds.')).toBeInTheDocument();
+  });
+
+  it('asks again while its rows say they are not settled', async () => {
+    let calls = 0;
+    mocks.fetch.mockImplementation(async (request?: Request) => {
+      if (request?.url.includes('/v1/lists/')) return json(description);
+      calls++;
+      return json({
+        items: [
+          {
+            id: '1',
+            title: 'First item',
+            status: calls < 2 ? 'draft' : 'published',
+          },
+        ],
+        nextCursor: null,
+        page: 1,
+        nextPage: null,
+        pageCount: 1,
+        total: 1,
+      });
+    });
+    await renderList('', 'en', {
+      refetchInterval: (rows: unknown[]) =>
+        (rows as Row[]).some((row) => row.status === 'draft') ? 50 : false,
+    });
+
+    expect(await screen.findByText('published')).toBeInTheDocument();
+    const settled = calls;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(calls).toBe(settled);
   });
 
   it("sends the URL's filter as the API's JSON", async () => {

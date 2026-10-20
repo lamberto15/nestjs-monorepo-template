@@ -3,7 +3,8 @@
   "kind": {
     "export": "Export",
     "import": "Import",
-    "bulk": "Massenlauf"
+    "bulk": "Massenlauf",
+    "account": "Account export"
   },
   "formats": {
     "csv": "CSV",
@@ -35,7 +36,21 @@
       "all": "Alle",
       "export": "Exporte",
       "import": "Importe",
+      "account": "Account exports",
       "bulk": "Massenläufe"
+    },
+    "accountTitle": "Account exports",
+    "emptyFiltered": "Nothing with this status.",
+    "started": "Started {{date}}",
+    "finished": "Finished {{date}}",
+    "keptUntil": "Kept until {{date}}",
+    "state": {
+      "label": "Status",
+      "all": "Any status",
+      "queued": "Waiting",
+      "running": "Running",
+      "completed": "Done",
+      "failed": "Failed"
     }
   },
   "import": {
@@ -82,7 +97,8 @@
     "progressLabel": "Fortschritt",
     "failed": "Fehlgeschlagen. Versuchen Sie es erneut.",
     "notFound": "Diese Übertragung ist nicht mehr verfügbar.",
-    "error": "Ihr Status konnte nicht geladen werden."
+    "error": "Ihr Status konnte nicht geladen werden.",
+    "expired": "This transfer is no longer kept. Start it again for a new file."
   },
   "bulk": {
     "queued": "Wartet auf einen Worker…",

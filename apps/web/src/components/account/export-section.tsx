@@ -27,7 +27,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Section } from '@/components/account/section';
 import {
@@ -38,6 +38,7 @@ import {
 } from '@/components/account/privacy-api';
 import type { TransferFormat } from '@/features/transfer/api';
 import { useDateTimeFormat } from '@/lib/date-time';
+import { useIsPast } from '@/lib/use-is-past';
 
 const FORMATS: TransferFormat[] = ['json', 'csv', 'xlsx'];
 
@@ -133,22 +134,6 @@ export function ExportSection() {
       <p className="text-xs text-muted-foreground">{t('export.kept')}</p>
     </Section>
   );
-}
-
-/** Whether `time` has come, re-evaluated when it does (and when `time` changes). */
-function useIsPast(time: string | null | undefined) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!time) return;
-    const left = new Date(time).getTime() - Date.now();
-    // setTimeout holds at most 2^31 ms; a later time is re-checked then.
-    const id = setTimeout(
-      () => setNow(Date.now()),
-      Math.min(Math.max(left, 0), 2 ** 31 - 1),
-    );
-    return () => clearTimeout(id);
-  }, [time]);
-  return !!time && new Date(time).getTime() <= now;
 }
 
 /** One export: when it started, its state, and its file when it is ready. */

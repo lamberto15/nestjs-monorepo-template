@@ -289,6 +289,9 @@ describe('the list of transfers and bulk runs', () => {
       http.get('/v1/data/transfers', () =>
         HttpResponse.json({ items: [], nextCursor: null }),
       ),
+      http.get('/v1/account/exports', () =>
+        HttpResponse.json({ items: [], nextCursor: null }),
+      ),
       http.get('/v1/bulk', () => {
         calls.bulk++;
         return HttpResponse.json({ items: [state.bulk], nextCursor: null });

@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLivePoll, useRealtimeEvent } from '@/lib/realtime';
+import { useIsPast } from '@/lib/use-is-past';
 import { parseRowErrors } from './csv';
 import { POLL, transferQuery, type Transfer } from './api';
 
@@ -65,7 +66,22 @@ export function TransferStatus(props: { id: string }) {
       </p>
     );
   }
-  const transfer = query.data;
+  return <TransferView transfer={query.data} />;
+}
+
+/**
+ * A transfer as the API tells it, with no request of its own: the progress,
+ * then the file to download (an export) or the counts and the refused rows
+ * (an import). A list's item is one (it carries the same fields), and so is
+ * the answer of the single route. Once `expiresAt` has passed the links are
+ * not offered: the API no longer gives them.
+ */
+export function TransferView(props: { transfer: Transfer }) {
+  const { t } = useTranslation('transfer');
+  const { transfer } = props;
+  // The API stops giving the links after `expiresAt`; a page left open past
+  // it drops them when its time comes.
+  const expired = useIsPast(transfer.expiresAt);
 
   if (transfer.status === 'failed') {
     return (
@@ -91,6 +107,13 @@ export function TransferStatus(props: { id: string }) {
             : t('status.running', { count: processed })}
         </p>
       </Progress>
+    );
+  }
+  if (expired) {
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t('status.expired')}
+      </p>
     );
   }
   return transfer.kind === 'export' ? (
