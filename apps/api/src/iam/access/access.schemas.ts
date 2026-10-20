@@ -166,6 +166,44 @@ export const auditPageSchema = pageSchema(auditEntrySchema).meta({
   id: 'AuditPage',
 });
 
+/** A sign-in of a member of the tenant (GET /v1/access/sign-ins). */
+export const signInEntrySchema = z
+  .object({
+    id: z.uuid(),
+    at: z.iso.datetime(),
+    user: z.string().describe('The account: `user:<id>`.'),
+    userLabel: z
+      .string()
+      .describe('What the entry stored of the account: its address.'),
+    userName: z
+      .string()
+      .nullable()
+      .describe("The member's name now; null for a former member."),
+    result: z.enum(['success', 'failure']),
+    method: z
+      .string()
+      .nullable()
+      .meta({ example: 'password' })
+      .describe(
+        '`password`, `magic-link`, `passkey` or `oidc:<provider>`; a failure is a wrong password.',
+      ),
+    via: z
+      .string()
+      .nullable()
+      .describe('`token`: a token client (POST /auth/token), else a browser.'),
+    userAgent: z
+      .string()
+      .nullable()
+      .describe('The device, without versions: `Chrome on macOS`.'),
+    ip: z.string().nullable(),
+  })
+  .meta({ id: 'SignInEntry' });
+
+/** A page of the sign-in log (GET /v1/access/sign-ins). */
+export const signInPageSchema = pageSchema(signInEntrySchema).meta({
+  id: 'SignInPage',
+});
+
 /** A user or an API client of the tenant, as a picker shows it (GET /access/principals). */
 export const principalSchema = z.object({
   id: z.uuid(),

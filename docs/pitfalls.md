@@ -213,7 +213,8 @@
   Use `node.db` (the maintenance role, BYPASSRLS, for fixtures),
   `node.inTenant()`, or, with no app, `testTenant()` / `bypassingTenants()`
   (test/support.ts). Account-level audit entries (sign-ins) are in no
-  tenant's `GET /v1/access/audit`: read them with `node.auditEntries()`.
+  tenant's `GET /v1/access/audit`: read them with `node.auditEntries()`. (A tenant's own
+  copy, `member.signed-in`, is in its `GET /v1/access/sign-ins`.)
 
 - **Don't run Prettier on `docs/*.md`:** the docs aren't Prettier-formatted;
   `prettier --write` on one reflows its whole tables and makes every

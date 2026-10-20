@@ -1341,6 +1341,75 @@ export interface paths {
         patch: operations["TagsController_update_v1"];
         trace?: never;
     };
+    "/v1/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The saved views you see
+         * @description Yours, those shared with your teams and the tenant-wide ones, of the lists you may read. `?subject=Note`, `?visibility=team`, `?name.contains=`, `?sort=name`; newest first; cursor pages.
+         */
+        get: operations["ViewsController_list_v1"];
+        put?: never;
+        /**
+         * Save a view of a list
+         * @description The list's filters, sort and search as its route takes them (`query`) and the item fields to show (`columns`), validated against the list as it is now (custom fields included). `visibility`: `private` (default), `team` (with `teamId`: a team you belong to) or `tenant` (`Access.manageViews`). The name is unique per list and place, whatever its case. Audited (`view.created`).
+         */
+        post: operations["ViewsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/views/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One saved view you see */
+        get: operations["ViewsController_get_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved view
+         * @description Its owner; a shared view, a view manager too. Audited (`view.deleted`).
+         */
+        delete: operations["ViewsController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a saved view
+         * @description Only what is sent changes (never the list). Its owner changes it; a shared view, a view manager too (`Access.manageViews`). Audited (`view.updated`).
+         */
+        patch: operations["ViewsController_update_v1"];
+        trace?: never;
+    };
+    "/v1/views/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A saved view, ready to use
+         * @description The view checked again against the list as it is now and your permissions: `params` is the query to send to the subject's list route (its filters and sort, and `fields=` for the columns), `columns` the ones you may see, `hiddenColumns` those left out.
+         */
+        get: operations["ViewsController_apply_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/reports": {
         parameters: {
             query?: never;
@@ -2799,6 +2868,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/sign-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's sign-ins, newest first
+         * @description The sign-ins of this tenant's members, successes and wrong passwords (a wrong password to an unknown address is nobody's), as the tenant saw them: a sign-in is entered in the tenant it lands in (a token's, else the member's last chosen), so another tenant's administrators never read it. Filter by user (`user=user:<id>`), method (`method=password`, `method.startsWith=oidc:`), result (`result=failure`), `ip` and `at`; sort by `at`. GET /v1/lists/SignIn describes it. Needs the same permission as the audit log (`Access.readAudit`).
+         */
+        get: operations["AccessController_signIns_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/teams": {
         parameters: {
             query?: never;
@@ -3349,6 +3438,66 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        SavedViewPage: {
+            items: components["schemas"]["SavedView"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        SavedView: {
+            id: string;
+            /** @example Note */
+            subject: string;
+            /** @example My drafts */
+            name: string;
+            /** @enum {string} */
+            visibility: "private" | "team" | "tenant";
+            /** @description Set for a `team` view. */
+            teamId: string | null;
+            /** @description `user:<id>` or `client:<id>`; `anonymous` once its owner’s account is gone. */
+            owner: string;
+            /** @description You own it. */
+            mine: boolean;
+            /** @description You may change and delete it (its owner, or a view manager). */
+            editable: boolean;
+            /**
+             * @description The list's query parameters as its route takes them: flat filters (`status`, `title.contains`), `filter` (the JSON tree as a string), `sort`, `q`. Never paging (`limit`, `cursor`, `page`, `count`), `fields`, `deleted` or `lang`.
+             * @example {
+             *       "status": "draft",
+             *       "sort": "-createdAt"
+             *     }
+             */
+            query: {
+                [key: string]: string;
+            };
+            /** @description The item fields to show, in order: the list's `select` (`GET /v1/lists/{subject}`). Null: the list's own. */
+            columns: string[] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SavedViewApplied: {
+            /** @description The view, its columns as you may see them. */
+            view: components["schemas"]["SavedView"];
+            /** @description Send these as the query of the subject's list route: the view's query, and `fields=` for its columns. */
+            params: {
+                [key: string]: string;
+            };
+            /** @description The columns you may see, in the view’s order. */
+            columns: string[] | null;
+            /** @description Columns of the view your field permissions hide: left out, not an error. */
+            hiddenColumns: string[];
+        };
         Money: {
             /** @description The amount in major units, with exactly the currency’s decimals: "12.30", "1200" (JPY), "1.250" (KWD). */
             amount: string;
@@ -3393,6 +3542,45 @@ export interface components {
             details: {
                 [key: string]: unknown;
             } | null;
+            ip: string | null;
+        };
+        SignInPage: {
+            items: components["schemas"]["SignInEntry"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        SignInEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            at: string;
+            /** @description The account: `user:<id>`. */
+            user: string;
+            /** @description What the entry stored of the account: its address. */
+            userLabel: string;
+            /** @description The member's name now; null for a former member. */
+            userName: string | null;
+            /** @enum {string} */
+            result: "success" | "failure";
+            /**
+             * @description `password`, `magic-link`, `passkey` or `oidc:<provider>`; a failure is a wrong password.
+             * @example password
+             */
+            method: string | null;
+            /** @description `token`: a token client (POST /auth/token), else a browser. */
+            via: string | null;
+            /** @description The device, without versions: `Chrome on macOS`. */
+            userAgent: string | null;
             ip: string | null;
         };
         TagRef: {
@@ -9698,6 +9886,368 @@ export interface operations {
             };
             /** @description The subject has a tag of this name. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ViewsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: subject = */
+                subject?: string;
+                /** @description Filter: subject in */
+                "subject.in"?: string;
+                /** @description Filter: visibility = */
+                visibility?: "private" | "team" | "tenant";
+                /** @description Filter: visibility in */
+                "visibility.in"?: string;
+                /** @description Filter: teamId = */
+                teamId?: string;
+                /** @description Filter: name = */
+                name?: string;
+                /** @description Filter: name contains */
+                "name.contains"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Filter: updatedAt gt */
+                "updatedAt.gt"?: string;
+                /** @description Filter: updatedAt gte */
+                "updatedAt.gte"?: string;
+                /** @description Filter: updatedAt lt */
+                "updatedAt.lt"?: string;
+                /** @description Filter: updatedAt lte */
+                "updatedAt.lte"?: string;
+                /** @description Filter: updatedAt between */
+                "updatedAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); visibility (eq, in); teamId (eq); name (eq, contains); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, visibility, teamId, owner, mine, editable, query, columns, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedViewPage"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ViewsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The list: a subject `GET /v1/lists/{subject}` describes.
+                     * @example Note
+                     */
+                    subject: string;
+                    /** @example My drafts */
+                    name: string;
+                    /**
+                     * @default private
+                     * @enum {string}
+                     */
+                    visibility?: "private" | "team" | "tenant";
+                    /**
+                     * Format: uuid
+                     * @description For `visibility: "team"`: a team you belong to.
+                     */
+                    teamId?: string;
+                    /**
+                     * @description The list's query parameters as its route takes them: flat filters (`status`, `title.contains`), `filter` (the JSON tree as a string), `sort`, `q`. Never paging (`limit`, `cursor`, `page`, `count`), `fields`, `deleted` or `lang`.
+                     * @default {}
+                     * @example {
+                     *       "status": "draft",
+                     *       "sort": "-createdAt"
+                     *     }
+                     */
+                    query?: {
+                        [key: string]: string;
+                    };
+                    /**
+                     * @description The item fields to show, in order: the list's `select` (`GET /v1/lists/{subject}`). Null: the list's own.
+                     * @default null
+                     */
+                    columns?: string[] | null;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedView"];
+                };
+            };
+            /** @description An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a team that does not exist, more than 100 views (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not read the list; not allowed to share it so; Its query filters, searches or sorts by a field your permissions hide (field_forbidden, naming it). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is taken (conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ViewsController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedView"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ViewsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not yours to delete. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ViewsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example My drafts */
+                    name?: string;
+                    /** @enum {string} */
+                    visibility?: "private" | "team" | "tenant";
+                    /**
+                     * Format: uuid
+                     * @description For `visibility: "team"`: a team you belong to.
+                     */
+                    teamId?: string | null;
+                    /**
+                     * @description The list's query parameters as its route takes them: flat filters (`status`, `title.contains`), `filter` (the JSON tree as a string), `sort`, `q`. Never paging (`limit`, `cursor`, `page`, `count`), `fields`, `deleted` or `lang`.
+                     * @example {
+                     *       "status": "draft",
+                     *       "sort": "-createdAt"
+                     *     }
+                     */
+                    query?: {
+                        [key: string]: string;
+                    };
+                    /** @description The item fields to show, in order: the list's `select` (`GET /v1/lists/{subject}`). Null: the list's own. */
+                    columns?: string[] | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedView"];
+                };
+            };
+            /** @description An unknown list (`subject`), a query the list refuses (`query.<parameter>`: paging, `fields`, `deleted` and `lang` are not filters), a column not in its `select` (`columns`), a team that does not exist, more than 100 views (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not yours to change or to share so; Its query filters, searches or sorts by a field your permissions hide (field_forbidden, naming it). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is taken (conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ViewsController_apply_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedViewApplied"];
+                };
+            };
+            /** @description The list changed since the view was saved and refuses its query (validation_failed, `query.<parameter>`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Its query filters, searches or sorts by a field your permissions hide (field_forbidden, naming it). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16876,6 +17426,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccessController_signIns_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: user = */
+                user?: string;
+                /** @description Filter: user in */
+                "user.in"?: string;
+                /** @description Filter: method = */
+                method?: string;
+                /** @description Filter: method in */
+                "method.in"?: string;
+                /** @description Filter: method startsWith */
+                "method.startsWith"?: string;
+                /** @description Filter: result = */
+                result?: "success" | "failure";
+                /** @description Filter: ip = */
+                ip?: string;
+                /** @description Filter: at gt */
+                "at.gt"?: string;
+                /** @description Filter: at gte */
+                "at.gte"?: string;
+                /** @description Filter: at lt */
+                "at.lt"?: string;
+                /** @description Filter: at lte */
+                "at.lte"?: string;
+                /** @description Filter: at between */
+                "at.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"user","op":"eq","value":…},{…}]}. Fields and operators: user (eq, in); method (eq, in, startsWith); result (eq); ip (eq); at (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -at. Sortable: at. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: at,user. Fields: id, at, user, userLabel, userName, result, method, via, userAgent, ip. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInPage"];
                 };
             };
             /** @description No session. */
