@@ -1750,7 +1750,7 @@ export interface paths {
         put?: never;
         /**
          * A mail provider reports bounces and complaints
-         * @description `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.
+         * @description `postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.
          */
         post: operations["MailEventsController_handle_v1"];
         delete?: never;
@@ -12316,21 +12316,21 @@ export interface operations {
                     };
                 };
             };
-            /** @description Not the provider’s format (sns_malformed). */
+            /** @description Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed). */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The signature does not verify (sns_signature_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused). */
+            /** @description The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused). */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed). */
+            /** @description The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured). */
             403: {
                 headers: {
                     [name: string]: unknown;

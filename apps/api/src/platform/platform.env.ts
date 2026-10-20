@@ -110,6 +110,18 @@ export const platformEnv = z.object({
    * until the topic is configured.
    */
   SES_SNS_TOPIC_ARNS: list(),
+  /**
+   * Postmark's webhooks (`POST /webhooks/mail/postmark`): the shared secret,
+   * sent as the Basic Auth password of the webhook URL or in the
+   * `X-Postmark-Webhook-Secret` header (Postmark does not sign). Unset: refused (403).
+   */
+  POSTMARK_WEBHOOK_SECRET: secret(optional()),
+  /**
+   * SendGrid's signed Event Webhook (`POST /webhooks/mail/sendgrid`): the
+   * verification key the console shows (base64 SPKI). Public, not a secret.
+   * Unset: refused (403).
+   */
+  SENDGRID_WEBHOOK_PUBLIC_KEY: optional(),
   /** Transient (soft) bounces within MAIL_SOFT_BOUNCE_WINDOW_HOURS before an address is suppressed. */
   MAIL_SOFT_BOUNCE_THRESHOLD: z.coerce.number().int().min(1).max(50).default(3),
   /** Soft bounces count when the previous one is at most this many hours old; older, the count starts over. */
