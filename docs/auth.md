@@ -406,6 +406,7 @@ with the password (and with a token client's passkey).
 | `POST /v1/access/invitations/{id}/resend` | a new link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks) |
 | `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
+| `POST /v1/tenants/{id}/export`, `POST /v1/tenants/{id}/deletion` | the operators' copy of every record of a tenant; a tenant erased after its grace period ([tenancy](tenancy.md)) |
 
 Not protected, on purpose: signing out (sessions, everywhere), data export
 (a user can read their data anyway), consents, the profile, role

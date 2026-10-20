@@ -171,7 +171,7 @@ export class DataTransferService {
   async catalog(principal: Principal) {
     const exports = [];
     for (const exporter of this.registry.allExporters()) {
-      if (await this.mayExport(principal, exporter)) {
+      if (!exporter.internal && (await this.mayExport(principal, exporter))) {
         exports.push({
           name: exporter.name,
           columns: (exporter.columnsFor
@@ -215,10 +215,12 @@ export class DataTransferService {
       id?: string;
       /** Added to the `data.export-started` audit entry (`{ report, trigger: 'schedule' }`). */
       details?: Record<string, unknown>;
+      /** Its own route starts it: an `internal` exporter may run (DataExporter.internal). */
+      internal?: boolean;
     },
   ) {
     const exporter = this.registry.exporter(input.name);
-    if (!exporter) {
+    if (!exporter || (exporter.internal && !input.internal)) {
       throw new NotFoundException(`Nothing to export named "${input.name}".`);
     }
     if (!(await this.mayExport(principal, exporter))) {

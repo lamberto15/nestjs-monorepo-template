@@ -101,6 +101,10 @@
       "label": "Mandanten unbestätigter Registrierungen",
       "description": "Löscht jede Nacht die Mandanten aus Selbstregistrierungen (TENANT_SIGN_UP), deren Konten ihre Adresse nie bestätigt haben."
     },
+    "tenant-deletion": {
+      "label": "Mandantenlöschung",
+      "description": "Löscht jede Nacht die Mandanten, deren Löschfrist abgelaufen ist (ihre Datensätze, Dateien, wartenden Aufträge und Workflows)."
+    },
     "account-deletion": {
       "label": "Kontolöschung",
       "description": "Anonymisiert jede Nacht die Konten, deren Löschfrist abgelaufen ist, und löscht ihre personenbezogenen Daten."

@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { and, eq, type SQL, sql } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
@@ -25,6 +27,7 @@ import { type Tenant, tenants } from '../../core/tenancy/tenancy.tables.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
+import type { IamEnv } from '../iam.env.js';
 import {
   apiClients,
   memberships,
@@ -98,6 +101,7 @@ export class TenantsService {
     private readonly invitations: InvitationsService,
     private readonly singleTenant: SingleTenant,
     private readonly lifecycle: TenantLifecycleRegistry,
+    private readonly config: ConfigService<IamEnv, true>,
   ) {}
 
   /**
@@ -168,11 +172,10 @@ export class TenantsService {
       }
       check?.(current);
       if (current.operator && changes.active === false) {
-        throw new ConflictException({
-          code: 'operator_tenant',
-          message:
-            'The operator tenant can’t be deactivated: its members run the deployment.',
-        });
+        throw operatorTenant('deactivated');
+      }
+      if (current.deletionScheduledFor && changes.active === true) {
+        throw deletionPending();
       }
       const [updated] = await tx
         .update(tenants)
@@ -209,8 +212,158 @@ export class TenantsService {
     return after;
   }
 
-  /** Ends what lives outside the database (realtime connections): every member's and API client's in the tenant. */
-  private async afterDeactivation(tenantId: string) {
+  /**
+   * Asks for a tenant's deletion (docs/tenancy.md, "Deleting a tenant"):
+   * `slug` must be the tenant's (the operator typed what they meant to
+   * delete). Under the row's lock, in one transaction with the operator's
+   * audit entry: the tenant is deactivated (as `update({ active: false })`
+   * does, its sessions, tokens and connections ending after the commit)
+   * and its erase scheduled TENANT_DELETION_GRACE_DAYS from now, which
+   * TenantDeletionJob carries out in a worker; `cancelDeletion()` stops it
+   * until then. Asked again while one is pending: that one, unchanged
+   * (nothing scheduled twice). The operator tenant is never deleted (409
+   * `operator_tenant`). Audited `tenant.deletion-requested` in the
+   * operator's tenant and in that one (its administrators see it coming).
+   */
+  async requestDeletion(
+    operator: Principal,
+    id: string,
+    slug: string,
+    ip?: string,
+  ): Promise<Tenant> {
+    const days = this.config.get('TENANT_DELETION_GRACE_DAYS', {
+      infer: true,
+    });
+    const outcome = await inTransaction(this.txHost, async (tx) => {
+      const current = await this.lockRow(tx, id);
+      if (current.operator) {
+        throw operatorTenant('deleted');
+      }
+      if (current.deletionScheduledFor) {
+        return { before: current, after: current, requested: false };
+      }
+      if (slug !== current.slug) {
+        throw new BadRequestException({
+          code: 'validation_failed',
+          message: 'Type the tenant’s slug to confirm its deletion.',
+          errors: [
+            {
+              path: 'slug',
+              message: `Not this tenant’s slug ("${current.slug}").`,
+            },
+          ],
+        });
+      }
+      const now = new Date();
+      const scheduledFor = new Date(now.getTime() + days * 86_400_000);
+      const [updated] = await tx
+        .update(tenants)
+        .set({
+          active: false,
+          deletionRequestedAt: now,
+          deletionScheduledFor: scheduledFor,
+        })
+        .where(eq(tenants.id, id))
+        .returning();
+      await this.audit.record(
+        operator,
+        deletionEntry('tenant.deletion-requested', updated!, current, ip),
+        tx,
+      );
+      return { before: current, after: updated!, requested: true };
+    });
+    if (!outcome.requested) {
+      return outcome.after;
+    }
+    if (id !== this.tenancy.current()?.tenantId) {
+      await this.tenancy.run(id, () =>
+        this.audit.record(
+          operator,
+          deletionEntry(
+            'tenant.deletion-requested',
+            outcome.after,
+            outcome.before,
+            ip,
+          ),
+        ),
+      );
+    }
+    if (outcome.before.active) {
+      await this.accounts.endAllTenantSessions(id);
+      await this.afterDeactivation(id);
+    }
+    return outcome.after;
+  }
+
+  /**
+   * Cancels a tenant's pending deletion, under the row's lock, until the
+   * job starts erasing it (409 `tenant_deletion_started` from then on); a
+   * 404 when none is pending. The tenant stays deactivated: an operator
+   * reactivates it (`PATCH { active: true }`) when it should come back.
+   * Audited `tenant.deletion-cancelled` in both tenants.
+   */
+  async cancelDeletion(
+    operator: Principal,
+    id: string,
+    ip?: string,
+  ): Promise<Tenant> {
+    const tenant = await inTransaction(this.txHost, async (tx) => {
+      const current = await this.lockRow(tx, id);
+      if (!current.deletionScheduledFor) {
+        throw new NotFoundException('No deletion is pending for this tenant.');
+      }
+      if (current.deletionStartedAt) {
+        throw new ConflictException({
+          code: 'tenant_deletion_started',
+          message: 'The tenant is being erased: it can’t be cancelled now.',
+        });
+      }
+      const [updated] = await tx
+        .update(tenants)
+        .set({
+          deletionRequestedAt: null,
+          deletionScheduledFor: null,
+        })
+        .where(eq(tenants.id, id))
+        .returning();
+      await this.audit.record(
+        operator,
+        deletionEntry('tenant.deletion-cancelled', current, current, ip),
+        tx,
+      );
+      return { before: current, after: updated! };
+    });
+    if (id !== this.tenancy.current()?.tenantId) {
+      await this.tenancy.run(id, () =>
+        this.audit.record(
+          operator,
+          deletionEntry(
+            'tenant.deletion-cancelled',
+            tenant.before,
+            tenant.before,
+            ip,
+          ),
+        ),
+      );
+    }
+    return tenant.after;
+  }
+
+  /** The tenant's row, locked for the transaction; a 404 when there is none. */
+  private async lockRow(tx: Transaction, id: string): Promise<Tenant> {
+    const [current] = await tx
+      .select()
+      .from(tenants)
+      .where(eq(tenants.id, id))
+      .for('update');
+    if (!current) {
+      throw new NotFoundException(`Tenant ${id} not found.`);
+    }
+    return current;
+  }
+
+  /** Every member and API client of a tenant, active or not (the lifecycle listeners'). */
+  async principalsOf(tenantId: string) {
     const members = await database(this.txHost)
       .select({ id: memberships.userId })
       .from(memberships)
@@ -218,12 +371,17 @@ export class TenantsService {
     const clients = await this.tenancy.run(tenantId, async () =>
       database(this.txHost).select({ id: apiClients.id }).from(apiClients),
     );
-    const principals = [
+    return [
       ...members.map(({ id }) => ({ kind: 'user' as const, id })),
       ...clients.map(({ id }) => ({ kind: 'client' as const, id })),
     ];
+  }
+
+  /** Ends what lives outside the database (realtime connections): every member's and API client's in the tenant. */
+  private async afterDeactivation(tenantId: string) {
+    const principals = await this.principalsOf(tenantId);
     for (const listener of this.lifecycle.all()) {
-      await listener.afterDeactivation(tenantId, principals);
+      await listener.afterDeactivation?.(tenantId, principals);
     }
   }
 
@@ -364,9 +522,10 @@ export class TenantsService {
    * cascades to its tenant rows and its memberships (every `tenant_id` key
    * is `on delete cascade`; referential actions run past row-level
    * security). Nothing outside the database (stored files, queued jobs,
-   * workflows): the unverified sign-ups' sweep calls it for tenants that
-   * never had any; tenant deletion (roadmap 1b, #226) adds the rest around
-   * it. Never the operator tenant.
+   * workflows): TenantDeletionJob removes those first (the lifecycle
+   * listeners' `beforeErase`); the unverified sign-ups' sweep calls it
+   * alone, for tenants whose members never signed in, so never had any.
+   * Never the operator tenant.
    */
   async deleteRow(tx: Transaction, id: string): Promise<Tenant | undefined> {
     const [deleted] = await tx
@@ -406,6 +565,45 @@ export class TenantsService {
     );
     return (result as unknown as { rows: { id: string }[] }).rows[0]!.id;
   }
+}
+
+/** 409 `tenant_deletion_pending`: reactivating a tenant whose erase is scheduled. */
+const deletionPending = () =>
+  new ConflictException({
+    code: 'tenant_deletion_pending',
+    message:
+      'The tenant’s deletion is pending: cancel it (DELETE /v1/tenants/{id}/deletion) before reactivating it.',
+  });
+
+/** 409 `operator_tenant`: the operators' own tenant is never deactivated nor deleted. */
+const operatorTenant = (what: 'deactivated' | 'deleted') =>
+  new ConflictException({
+    code: 'operator_tenant',
+    message: `The operator tenant can’t be ${what}: its members run the deployment.`,
+  });
+
+/** The audit entry of a deletion's request or cancel. */
+function deletionEntry(
+  action: string,
+  tenant: Tenant,
+  before: Tenant,
+  ip?: string,
+) {
+  return {
+    action,
+    targetType: 'tenant',
+    targetId: tenant.id,
+    details: {
+      slug: tenant.slug,
+      ...(tenant.deletionScheduledFor && {
+        scheduledFor: tenant.deletionScheduledFor.toISOString(),
+      }),
+      ...(action === 'tenant.deletion-requested' && {
+        deactivated: before.active,
+      }),
+    },
+    ip,
+  };
 }
 
 /** The audit entry of a tenant's change: what changed, from → to. */

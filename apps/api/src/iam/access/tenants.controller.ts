@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
@@ -46,6 +47,7 @@ import { newPassword } from '../account/account.schemas.js';
 import { DuringMfaEnrollment } from '../auth/mfa-enrollment.guard.js';
 import { OperatorOnly } from '../auth/operator-only.js';
 import type { UserPrincipal } from '../auth/principal.js';
+import { RecentAuthentication } from '../auth/recent-authentication.js';
 import { SessionOnly, UserOnly } from '../auth/user-only.decorator.js';
 import { InvitationsService } from './invitations.service.js';
 import { AccessPolicy } from './policies.js';
@@ -91,8 +93,36 @@ const tenantSchema = z.object({
     .describe(
       'Made by a self sign-up (TENANT_SIGN_UP), not by the operators. Always sent.',
     ),
+  // Optional in the document, as createdBySignUp: always sent.
+  deletionRequestedAt: z.iso
+    .datetime()
+    .nullable()
+    .optional()
+    .describe(
+      'An operator asked for its deletion (POST /v1/tenants/{id}/deletion); null: none pending. Always sent.',
+    ),
+  deletionScheduledFor: z.iso
+    .datetime()
+    .nullable()
+    .optional()
+    .describe(
+      'When it is erased (TENANT_DELETION_GRACE_DAYS after the request), unless cancelled before; null: none pending. Always sent.',
+    ),
+  deletionStartedAt: z.iso
+    .datetime()
+    .nullable()
+    .optional()
+    .describe('The erase began: it can no longer be cancelled. Always sent.'),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+});
+
+const requestDeletionSchema = z.object({
+  slug: z
+    .string()
+    .min(1)
+    .max(48)
+    .describe('The tenant’s slug, typed again: what you mean to delete.'),
 });
 
 const tenantName = z.string().trim().min(1).max(120);
@@ -239,8 +269,9 @@ export class TenantSwitchController {
 /**
  * The deployment's tenants, for its operators (`@OperatorOnly()`: the
  * operator tenant's members with `Access.manageTenants`): list, make, read
- * and change one (rename, its slug, deactivate). Roadmap 1b adds exporting
- * and deleting a tenant.
+ * and change one (rename, its slug, deactivate), and delete one after a
+ * grace period (`/{id}/deletion`). The export is the platform's
+ * (TenantExportController: a data transfer).
  */
 @ApiTags('tenants')
 @Controller('tenants')
@@ -287,7 +318,7 @@ export class TenantsController {
   @ApiNotFoundResponse()
   @ApiConflictResponse({
     description:
-      '`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated.',
+      '`tenant_slug_taken` (on `errors[].path` `slug`); `operator_tenant`: the operator tenant is never deactivated; `tenant_deletion_pending`: `active: true` while its deletion is pending (cancel it first).',
   })
   @ApiPreconditionFailedResponse({
     description: 'It changed since you read it (precondition_failed).',
@@ -329,5 +360,51 @@ export class TenantsController {
     @Ip() ip: string,
   ) {
     return this.tenants.createWithAdministrator(user, body, ip);
+  }
+  @Post(':id/deletion')
+  @Can(AccessPolicy, 'manageTenants')
+  @RecentAuthentication()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Delete a tenant, after a grace period (operators)',
+    description:
+      'Send its `slug` to confirm. The tenant is deactivated now (as `PATCH { active: false }`: its sessions, tokens, API keys and connections end) and erased TENANT_DELETION_GRACE_DAYS later by a worker: every row of it, its stored files, its queued jobs and workflows. Until the erase starts, DELETE /v1/tenants/{id}/deletion cancels it. Asked again while one is pending: that one, unchanged. Wants a recent sign-in (`reauthentication_required`: POST /v1/auth/reauthenticate). Audited (`tenant.deletion-requested`) in your tenant and in that one; the erase as `tenant.purged`, outside any tenant. docs/tenancy.md, "Deleting a tenant".',
+  })
+  @ApiOkResponse({ standardSchema: tenantSchema })
+  @ApiBadRequestResponse({
+    description: '`validation_failed` on `slug`: not this tenant’s.',
+  })
+  @ApiNotFoundResponse()
+  @ApiConflictResponse({
+    description: '`operator_tenant`: the operator tenant is never deleted.',
+  })
+  requestDeletion(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body({ schema: requestDeletionSchema })
+    body: z.infer<typeof requestDeletionSchema>,
+    @Ip() ip: string,
+  ) {
+    return this.tenants.requestDeletion(user, id, body.slug, ip);
+  }
+
+  @Delete(':id/deletion')
+  @Can(AccessPolicy, 'manageTenants')
+  @ApiOperation({
+    summary: 'Keep a tenant: cancel its pending deletion (operators)',
+    description:
+      'Until the erase starts. The tenant stays deactivated: `PATCH { active: true }` brings it back. Audited (`tenant.deletion-cancelled`) in your tenant and in that one.',
+  })
+  @ApiOkResponse({ standardSchema: tenantSchema })
+  @ApiNotFoundResponse({ description: 'No deletion is pending.' })
+  @ApiConflictResponse({
+    description: '`tenant_deletion_started`: the erase is running.',
+  })
+  cancelDeletion(
+    @CurrentUser() user: UserPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Ip() ip: string,
+  ) {
+    return this.tenants.cancelDeletion(user, id, ip);
   }
 }

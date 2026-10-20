@@ -1,12 +1,11 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { getQueueToken } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
+import type { JobType, Queue } from 'bullmq';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { redactText } from '../../core/logging/redaction.js';
 import { MAIL_QUEUE } from '../../core/mail/mail-queue.js';
-import { DATA_TRANSFERS } from '../data-transfer/data-transfer.service.js';
-import { BULK } from '../bulk/bulk.service.js';
+import { platformQueues } from '../queues/queues.js';
 
 /** The states the metrics count jobs in. */
 export const QUEUE_GAUGE_STATES = [
@@ -15,6 +14,18 @@ export const QUEUE_GAUGE_STATES = [
   'delayed',
   'failed',
 ] as const;
+
+/** A tenant's jobs that can go: every state but `active` (BullMQ refuses to remove a locked job). */
+const REMOVABLE_STATES: JobType[] = [
+  'waiting',
+  'delayed',
+  'prioritized',
+  'waiting-children',
+  'completed',
+  'failed',
+];
+/** Jobs read per page while looking for a tenant's. */
+const JOBS_PAGE = 500;
 
 /** The queues the features declared, for the operations API. */
 @Injectable()
@@ -26,7 +37,7 @@ export class OpsQueues {
 
   /** The queues the platform and core keep, and the features' own. */
   private get names() {
-    return [MAIL_QUEUE, DATA_TRANSFERS, BULK, ...(this.options.queues ?? [])];
+    return [MAIL_QUEUE, ...platformQueues(this.options.queues)];
   }
 
   private queue(name: string): Queue {
@@ -83,6 +94,52 @@ export class OpsQueues {
         };
       }),
     );
+  }
+
+  /**
+   * Removes every job a tenant queued (its envelope's `tenantId`) from
+   * every queue, in any state but running: waiting, delayed, finished
+   * (their data is the tenant's too). A tenant's erase calls it
+   * (TenantCleanup). One still running is refused with an error: the
+   * erase waits for the next night rather than delete what it may still
+   * write. BullMQ lists jobs by state, not by their data: each kept job is
+   * read, the tenant's collected, then removed. Returns how many.
+   */
+  async removeTenantJobs(tenantId: string) {
+    let removed = 0;
+    for (const name of this.names) {
+      const queue = this.queue(name);
+      const ofTenant = (job: { data?: unknown } | undefined) =>
+        !!job &&
+        (job.data as { tenantId?: unknown } | null)?.tenantId === tenantId;
+      const running = (await queue.getJobs(['active'])).filter(ofTenant);
+      if (running.length > 0) {
+        throw new Error(
+          `${running.length} job(s) of tenant ${tenantId} still running in "${name}": erased on a later run.`,
+        );
+      }
+      const found = [];
+      // One state at a time: getJobs() pages each state's list by itself.
+      for (const state of REMOVABLE_STATES) {
+        for (let start = 0; ; start += JOBS_PAGE) {
+          const page = await queue.getJobs(
+            [state],
+            start,
+            start + JOBS_PAGE - 1,
+            true,
+          );
+          found.push(...page.filter(ofTenant));
+          if (page.length < JOBS_PAGE) {
+            break;
+          }
+        }
+      }
+      for (const job of found) {
+        await job.remove();
+        removed++;
+      }
+    }
+    return removed;
   }
 
   /** Puts the queue's failed jobs back to run again; returns how many. */
