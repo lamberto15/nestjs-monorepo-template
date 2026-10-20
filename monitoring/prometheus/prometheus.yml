@@ -1,6 +1,6 @@
 # Prometheus for the Compose stack (compose.monitoring.yaml). It scrapes
-# every api and worker replica through Docker's DNS, the PostgreSQL and Redis
-# exporters, the HTTPS probe (blackbox exporter), itself and Alertmanager,
+# every api and worker replica through Docker's DNS, the PostgreSQL, Redis and
+# host (node-exporter) exporters, the HTTPS probe (blackbox exporter), itself and Alertmanager,
 # evaluates the rules next to this file,
 # and sends what fires to Alertmanager. Docs: docs/deployment.md, "Alerting".
 #
@@ -58,6 +58,11 @@ scrape_configs:
   - job_name: redis
     static_configs:
       - targets: [redis-exporter:9121]
+  # The host's disk, memory and CPU (node-exporter, read only on /host). A
+  # Mac's own numbers need a Homebrew node_exporter: docs/deployment.md.
+  - job_name: node
+    static_configs:
+      - targets: [node-exporter:9100]
   # The backup service's markers, as metrics (monitoring/backup-metrics).
   - job_name: backup
     metrics_path: /metrics.txt
