@@ -179,7 +179,15 @@ web app needs the API, so `dev:web` alone suits an API already running.
 - **Realtime** (`lib/realtime.tsx`): one socket per signed-in session when
   `realtime` is on, reopened when the session changes (tenant switch,
   re-authentication, impersonation); `useRealtimeEvent()` reads it. The
-  notifications are refetched on every reconnect.
+  notifications, the panels, the transfers, the bulk runs and the approvals are
+  refetched on every reconnect. Jobs follow their events (`data.export-ready`,
+  `data.import-finished`, `bulk.finished`, `approval.applied`: the query of
+  that id is refetched, others are left alone); `useLivePoll()` makes the
+  poll a fallback: 1 s (2 s in lists) without a connected socket
+  (`useRealtimeConnected()`), a 30 s safety net while one is up (the API
+  pushes no event when a job fails), and fast again for a job whose event
+  came but which the queue still reports running. Tests play it with
+  `fake.emit('connect')` / `emit('disconnect')`.
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
 title …>` is a server-paginated, filterable, sortable list of any subject;
   its filters, sorts, custom-field columns and tag filter come from

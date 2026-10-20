@@ -14,25 +14,42 @@ import {
   TableHeader,
   TableRow,
 } from '@nestjs-monorepo-template/ui/components/table';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlertIcon, DownloadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useLivePoll, useRealtimeEvent } from '@/lib/realtime';
 import { parseRowErrors } from './csv';
-import { transferQuery, type Transfer } from './api';
+import { POLL, transferQuery, type Transfer } from './api';
 
 /** The report shows this many refused rows; the CSV has all of them. */
 const SHOWN_ERRORS = 100;
 
 /**
- * One transfer on screen: the worker's progress (polled), then the file to
- * download (an export) or the counts and the refused rows (an import).
+ * One transfer on screen: the worker's progress, then the file to download
+ * (an export) or the counts and the refused rows (an import). Its end comes
+ * as a realtime event (`data.export-ready`, `data.import-finished`) for this
+ * id; the progress is polled when there is no connected socket, and slowly
+ * as a safety net when there is (useLivePoll).
  */
 export function TransferStatus(props: { id: string }) {
   const { t } = useTranslation('transfer');
+  const queryClient = useQueryClient();
+  const poll = useLivePoll(POLL);
   const query = useQuery({
-    ...transferQuery(props.id),
+    ...transferQuery(props.id, poll.interval([props.id])),
     meta: { errorToast: false },
   });
+  const ended = (event: { id: string }) => {
+    if (event.id !== props.id) {
+      return;
+    }
+    poll.push(props.id);
+    void queryClient.invalidateQueries({
+      queryKey: transferQuery(props.id).queryKey,
+    });
+  };
+  useRealtimeEvent('data.export-ready', ended);
+  useRealtimeEvent('data.import-finished', ended);
 
   if (query.isPending) {
     return <Skeleton className="h-10 w-full" aria-busy />;

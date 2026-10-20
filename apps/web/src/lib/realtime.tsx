@@ -8,11 +8,23 @@ import {
   createContext,
   useContext,
   useEffect,
+  useCallback,
   useRef,
   useMemo,
+  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import { useFeature, useMe } from '@/lib/features';
+
+/** Refetched on every reconnect, besides the notifications and the panels. */
+const reconnectKeys = [
+  ['data', 'transfer'],
+  ['data', 'transfers'],
+  ['data', 'bulk-runs'],
+  ['bulk'],
+  ['approvals'],
+] as const;
 
 const RealtimeContext = createContext<Realtime | undefined>(undefined);
 
@@ -70,6 +82,11 @@ export function RealtimeProvider(props: { children: ReactNode }) {
         void queryClient.invalidateQueries({ queryKey: ['notifications'] });
         // components/records/panels (panelKeys): their comments and files.
         void queryClient.invalidateQueries({ queryKey: ['panels'] });
+        // Jobs and approvals that ended while offline: their events are lost
+        // (features/transfer, features/bulk, features/approvals).
+        for (const queryKey of reconnectKeys) {
+          void queryClient.invalidateQueries({ queryKey });
+        }
       }
       connectedOnce = true;
     };
@@ -116,4 +133,54 @@ export function useRealtimeEvent<E extends keyof RealtimeEvents>(
       )) as RealtimeEvents[E];
     return realtime.on(event, forward);
   }, [realtime, event]);
+}
+
+/**
+ * Whether the socket is connected right now: false while it connects, after
+ * it drops (until it is back) and when `realtime` is off. A query that
+ * polls only as a fallback asks this (`useLivePoll`).
+ */
+export function useRealtimeConnected(): boolean {
+  const realtime = useRealtime();
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      if (!realtime) {
+        return () => undefined;
+      }
+      realtime.socket.on('connect', notify);
+      realtime.socket.on('disconnect', notify);
+      return () => {
+        realtime.socket.off('connect', notify);
+        realtime.socket.off('disconnect', notify);
+      };
+    },
+    [realtime],
+  );
+  return useSyncExternalStore(subscribe, () => !!realtime?.socket.connected);
+}
+
+/**
+ * While a socket is connected, a job that ends in the background is not
+ * polled for (an event says so) but for this safety net: the API pushes
+ * no event when a job fails (issue #293), so a failed one would never show.
+ */
+export const SAFETY_POLL = 30_000;
+
+/**
+ * The polling of queries that a realtime event settles (an export, a bulk
+ * run): `interval(ids)` is for `refetchInterval`: `fast` ms without a
+ * connected socket (switched off, connecting, dropped) and the slow safety
+ * net while one is up. After `push(id)` (the event for that job arrived)
+ * the job is polled `fast` again until it has ended, as the event is sent
+ * just before the queue marks the job done, so the refetch it causes may
+ * still see it running.
+ */
+export function useLivePoll(fast: number) {
+  const connected = useRealtimeConnected();
+  const [pushed, setPushed] = useState<ReadonlySet<string>>(new Set());
+  return {
+    interval: (ids: readonly string[]) =>
+      connected && !ids.some((id) => pushed.has(id)) ? SAFETY_POLL : fast,
+    push: (id: string) => setPushed((current) => new Set(current).add(id)),
+  };
 }
