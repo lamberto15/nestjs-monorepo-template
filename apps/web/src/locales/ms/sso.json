@@ -1,7 +1,7 @@
 {
   "nav": "Log masuk tunggal",
   "title": "Log masuk tunggal",
-  "description": "Benarkan pengguna anda log masuk melalui penyedia identiti anda (SAML 2.0 atau OpenID Connect) dan selaraskan mereka melalui SCIM.",
+  "description": "Benarkan pengguna anda log masuk melalui pembekal identiti anda (SAML 2.0, OpenID Connect atau pembekal OAuth 2.0 tersuai) dan segerakkan mereka melalui SCIM.",
   "tabs": {
     "connections": "Sambungan",
     "domains": "Domain",
@@ -10,7 +10,8 @@
   },
   "protocol": {
     "oidc": "OpenID Connect",
-    "saml": "SAML 2.0"
+    "saml": "SAML 2.0",
+    "oauth2": "OAuth 2.0 (tersuai)"
   },
   "copy": "Salin {{label}}",
   "copied": "Disalin.",
@@ -40,7 +41,9 @@
     "updated": "{{name}} disimpan.",
     "turnedOn": "{{name}} dihidupkan.",
     "turnedOff": "{{name}} dimatikan.",
-    "mappings": "Peranan kumpulan"
+    "mappings": "Peranan kumpulan",
+    "oauth2Ready": "Sedia: sambungan OAuth 2.0 tiada metadata pembekal untuk diambil.",
+    "oauth2Off": "Hidupkannya supaya orang boleh log masuk: sambungan OAuth 2.0 tiada metadata pembekal untuk diambil."
   },
   "details": {
     "redirectUri": "URI ubah hala (daftarkan pada penyedia)",
@@ -88,7 +91,43 @@
     "enabled": "Hidup",
     "enabledHint": "Apabila mati, sambungan tidak melog masuk sesiapa.",
     "cancel": "Batal",
-    "save": "Simpan"
+    "save": "Simpan",
+    "preset": "Pratetap pembekal",
+    "presetHint": "Mengisi titik akhir dan pemetaan respons. Anda masih boleh menyuntingnya.",
+    "redirectHint": "Selepas disimpan, sambungan menunjukkan URI ubah hala untuk didaftarkan pada pembekal.",
+    "redirectHintEdit": "Daftarkan URI ubah hala ini pada pembekal.",
+    "authorizationEndpoint": "URL kebenaran",
+    "authorizationEndpointHint": "Tempat pelayar dihantar untuk log masuk.",
+    "tokenEndpoint": "URL token",
+    "tokenEndpointHint": "Tempat kod ditukar dengan token akses (PKCE sentiasa hidup).",
+    "userinfoEndpoint": "URL maklumat pengguna",
+    "userinfoEndpointHint": "Dibaca sekali setiap log masuk dengan token akses.",
+    "authMethod": "Pengesahan klien",
+    "authMethodHint": "Cara klien mengesahkan dirinya pada URL token.",
+    "publicClient": "Klien awam tidak menghantar rahsia.",
+    "scopes": "Skop",
+    "scopesPlaceholder": "Tambah skop",
+    "scopesHint": "Tekan Enter atau koma selepas setiap skop. Tiada yang diminta secara lalai.",
+    "mappingTitle": "Pemetaan respons",
+    "mappingHint": "Tempat jawapan maklumat pengguna menyimpan orang itu. Laluan ialah nama yang disambung dengan titik, seperti data.open_id.",
+    "mappingRoot": "Laluan objek pengguna",
+    "mappingRootHint": "Tempat orang itu dalam jawapan. Kosong: seluruh jawapan.",
+    "mappingSubject": "Laluan subjek",
+    "mappingSubjectHint": "ID stabil orang itu pada pembekal, bukan alamat.",
+    "mappingEmail": "Laluan e-mel",
+    "mappingEmailHint": "Alamat dalam objek pengguna.",
+    "mappingName": "Laluan nama",
+    "mappingNameHint": "Nama orang itu.",
+    "mappingPicture": "Laluan gambar",
+    "mappingPictureHint": "Dibaca tetapi tidak disimpan: akaun tiada gambar.",
+    "mappingGroups": "Laluan kumpulan",
+    "mappingGroupsHint": "Tatasusunan nama kumpulan, dibaca untuk peranan kumpulan.",
+    "mappingErrorCode": "Laluan kod ralat",
+    "mappingErrorCodeHint": "Medan seluruh jawapan yang menandakan kegagalan (Lark menjawab 200 dengan code bukan 0).",
+    "emailTrust": "Kepercayaan e-mel",
+    "emailTrustHint": "Sama ada pembekal menjamin alamat itu.",
+    "emailVerifiedPath": "Laluan medan disahkan",
+    "emailVerifiedPathHint": "Medan objek pengguna yang mesti true."
   },
   "domains": {
     "title": "Domain e-mel",
@@ -154,7 +193,8 @@
     "rolePlaceholder": "Pilih peranan",
     "add": "Tambah pemetaan",
     "incomplete": "Masukkan kumpulan dan pilih peranan.",
-    "saved": "Peranan kumpulan {{name}} disimpan."
+    "saved": "Peranan kumpulan {{name}} disimpan.",
+    "oauth2Groups": "Sambungan ini membaca kumpulan daripada “Laluan kumpulan” pemetaan responsnya. Sunting sambungan untuk mengubahnya."
   },
   "exemption": {
     "title": "Kecualikan ahli",
@@ -167,5 +207,23 @@
     "reasonRequired": "Nyatakan sebab.",
     "save": "Kecualikan",
     "added": "{{name}} dikecualikan."
+  },
+  "preset": {
+    "custom": "Tersuai",
+    "lark": "Lark",
+    "feishu": "Feishu"
+  },
+  "authMethod": {
+    "client_secret_basic": "Rahsia klien, HTTP Basic (lalai)",
+    "client_secret_post": "Rahsia klien, dalam badan permintaan",
+    "none": "Tiada (klien awam)"
+  },
+  "emailTrust": {
+    "never": "Jangan percayai",
+    "neverExplain": "Alamat pembekal tidak pernah dianggap disahkan: log masuk pertama ditolak.",
+    "field": "Satu medan menyatakan ia disahkan",
+    "fieldExplain": "Alamat dianggap disahkan apabila medan di bawah tepat true.",
+    "verified-domains": "Percayai alamat dalam domain kami yang disahkan",
+    "verified-domainsExplain": "Alamat dianggap disahkan apabila domainnya ialah domain yang anda sahkan di sini."
   }
 }

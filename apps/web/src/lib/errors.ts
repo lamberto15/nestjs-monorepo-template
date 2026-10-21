@@ -144,21 +144,28 @@ function watchSession(
 /**
  * A `validation_failed` (or any problem with `errors`) shown on the form's
  * fields: each `errors[].path` that names a field gets its message, as a
- * submit error (TanStack Form clears it when the field changes). Returns
+ * submit error (TanStack Form clears it when the field changes; `aliases`
+ * maps a path to a field of another name). Returns
  * whether any field took one; the rest is the caller's (a form-level alert).
  */
-export function applyFieldErrors(form: AnyFormApi, error: unknown): boolean {
+export function applyFieldErrors(
+  form: AnyFormApi,
+  error: unknown,
+  /** Form fields named otherwise than the API's paths: path → field. */
+  aliases: Record<string, string> = {},
+): boolean {
   if (!isApiError(error) || !error.errors?.length) {
     return false;
   }
   const fields = new Set(Object.keys(form.state.values as object));
   let applied = false;
   for (const fieldError of error.errors) {
-    if (!fields.has(fieldError.path)) {
+    const name = aliases[fieldError.path] ?? fieldError.path;
+    if (!fields.has(name)) {
       continue;
     }
     applied = true;
-    form.setFieldMeta(fieldError.path, (meta) => ({
+    form.setFieldMeta(name, (meta) => ({
       ...meta,
       isTouched: true,
       errorMap: {

@@ -82,7 +82,11 @@ export function RoleMappingsDialog(props: {
       await update.mutateAsync({
         id: connection.id,
         changes: {
-          groupsAttribute: attribute.trim() || null,
+          // An OAuth 2.0 connection's groups are its mapping's `groups`: the
+          // API refuses a groupsAttribute for it.
+          ...(connection.protocol === 'oauth2'
+            ? {}
+            : { groupsAttribute: attribute.trim() || null }),
           roleMappings: mappings,
         },
       });
@@ -106,19 +110,25 @@ export function RoleMappingsDialog(props: {
           <FormAlert
             message={roles.isError ? errorMessage(roles.error) : error}
           />
-          <Field>
-            <FieldLabel htmlFor="mappings-attribute">
-              {t('mappings.attribute')}
-            </FieldLabel>
-            <Input
-              id="mappings-attribute"
-              value={attribute}
-              placeholder="groups"
-              maxLength={256}
-              onChange={(event) => setAttribute(event.target.value)}
-            />
-            <FieldDescription>{t('mappings.attributeHint')}</FieldDescription>
-          </Field>
+          {connection.protocol === 'oauth2' ? (
+            <p className="text-sm text-muted-foreground">
+              {t('mappings.oauth2Groups')}
+            </p>
+          ) : (
+            <Field>
+              <FieldLabel htmlFor="mappings-attribute">
+                {t('mappings.attribute')}
+              </FieldLabel>
+              <Input
+                id="mappings-attribute"
+                value={attribute}
+                placeholder="groups"
+                maxLength={256}
+                onChange={(event) => setAttribute(event.target.value)}
+              />
+              <FieldDescription>{t('mappings.attributeHint')}</FieldDescription>
+            </Field>
+          )}
           <div className="flex flex-col gap-2">
             {mappings.length === 0 && (
               <p role="status" className="text-sm text-muted-foreground">

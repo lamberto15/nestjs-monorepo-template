@@ -205,6 +205,15 @@ function ConnectionCard(props: {
                 : t('connections.discoveryPending')}
           </p>
         )}
+        {connection.oauth2 && (
+          // No discovery document: the endpoints are the connection's own
+          // fields, so it is ready as soon as it is on.
+          <p className="text-sm" role="status">
+            {connection.enabled
+              ? t('connections.oauth2Ready')
+              : t('connections.oauth2Off')}
+          </p>
+        )}
         <dl className="grid gap-3 md:grid-cols-2">
           {connection.oidc && (
             <>
@@ -215,6 +224,18 @@ function ConnectionCard(props: {
               <CopyValue
                 label={t('form.issuer')}
                 value={connection.oidc.issuer}
+              />
+            </>
+          )}
+          {connection.oauth2 && (
+            <>
+              <CopyValue
+                label={t('details.redirectUri')}
+                value={connection.oauth2.redirectUri}
+              />
+              <CopyValue
+                label={t('form.authorizationEndpoint')}
+                value={connection.oauth2.authorizationEndpoint}
               />
             </>
           )}

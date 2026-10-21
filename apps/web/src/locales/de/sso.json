@@ -1,7 +1,7 @@
 {
   "nav": "Single Sign-on",
   "title": "Single Sign-on",
-  "description": "Ihre Mitarbeitenden melden sich über Ihren Identitätsanbieter an (SAML 2.0 oder OpenID Connect) und werden über SCIM abgeglichen.",
+  "description": "Ihre Mitarbeitenden melden sich über Ihren Identitätsanbieter an (SAML 2.0, OpenID Connect oder ein eigener OAuth-2.0-Anbieter) und werden über SCIM abgeglichen.",
   "tabs": {
     "connections": "Verbindungen",
     "domains": "Domains",
@@ -10,7 +10,8 @@
   },
   "protocol": {
     "oidc": "OpenID Connect",
-    "saml": "SAML 2.0"
+    "saml": "SAML 2.0",
+    "oauth2": "OAuth 2.0 (benutzerdefiniert)"
   },
   "copy": "{{label}} kopieren",
   "copied": "Kopiert.",
@@ -40,7 +41,9 @@
     "updated": "{{name}} gespeichert.",
     "turnedOn": "{{name}} ist an.",
     "turnedOff": "{{name}} ist aus.",
-    "mappings": "Gruppenrollen"
+    "mappings": "Gruppenrollen",
+    "oauth2Ready": "Bereit: Eine OAuth-2.0-Verbindung hat keine Anbieter-Metadaten abzurufen.",
+    "oauth2Off": "Schalten Sie sie ein, damit sich Personen anmelden können: Eine OAuth-2.0-Verbindung hat keine Anbieter-Metadaten abzurufen."
   },
   "details": {
     "redirectUri": "Redirect-URI (beim Anbieter eintragen)",
@@ -88,7 +91,43 @@
     "enabled": "An",
     "enabledHint": "Ausgeschaltet meldet die Verbindung niemanden an.",
     "cancel": "Abbrechen",
-    "save": "Speichern"
+    "save": "Speichern",
+    "preset": "Anbieter-Vorlage",
+    "presetHint": "Füllt die Endpunkte und die Antwortzuordnung aus. Sie können sie weiter bearbeiten.",
+    "redirectHint": "Nach dem Speichern zeigt die Verbindung die Weiterleitungs-URI, die beim Anbieter zu registrieren ist.",
+    "redirectHintEdit": "Registrieren Sie diese Weiterleitungs-URI beim Anbieter.",
+    "authorizationEndpoint": "Autorisierungs-URL",
+    "authorizationEndpointHint": "Wohin der Browser zur Anmeldung geschickt wird.",
+    "tokenEndpoint": "Token-URL",
+    "tokenEndpointHint": "Wo der Code gegen ein Zugriffstoken getauscht wird (PKCE ist immer aktiv).",
+    "userinfoEndpoint": "Userinfo-URL",
+    "userinfoEndpointHint": "Wird bei jeder Anmeldung einmal mit dem Zugriffstoken gelesen.",
+    "authMethod": "Client-Authentifizierung",
+    "authMethodHint": "Wie sich der Client an der Token-URL ausweist.",
+    "publicClient": "Ein öffentlicher Client sendet kein Secret.",
+    "scopes": "Scopes",
+    "scopesPlaceholder": "Scope hinzufügen",
+    "scopesHint": "Drücken Sie nach jedem Scope Enter oder ein Komma. Standardmäßig werden keine angefordert.",
+    "mappingTitle": "Antwortzuordnung",
+    "mappingHint": "Wo die Userinfo-Antwort die Person enthält. Pfade sind durch Punkte verbundene Namen, etwa data.open_id.",
+    "mappingRoot": "Pfad des Benutzerobjekts",
+    "mappingRootHint": "Wo die Person in der Antwort steht. Leer: die ganze Antwort.",
+    "mappingSubject": "Pfad der Subject-ID",
+    "mappingSubjectHint": "Die stabile ID der Person beim Anbieter, nie eine Adresse.",
+    "mappingEmail": "Pfad der E-Mail",
+    "mappingEmailHint": "Die Adresse im Benutzerobjekt.",
+    "mappingName": "Pfad des Namens",
+    "mappingNameHint": "Der Name der Person.",
+    "mappingPicture": "Pfad des Bildes",
+    "mappingPictureHint": "Wird gelesen, aber nicht gespeichert: Konten haben kein Bild.",
+    "mappingGroups": "Pfad der Gruppen",
+    "mappingGroupsHint": "Ein Array von Gruppennamen, gelesen für die Gruppenrollen.",
+    "mappingErrorCode": "Pfad des Fehlercodes",
+    "mappingErrorCodeHint": "Ein Feld der gesamten Antwort, das einen Fehler anzeigt (Lark antwortet 200 mit code ungleich 0).",
+    "emailTrust": "E-Mail-Vertrauen",
+    "emailTrustHint": "Ob der Anbieter für die Adresse bürgt.",
+    "emailVerifiedPath": "Pfad des Verifiziert-Felds",
+    "emailVerifiedPathHint": "Ein Feld des Benutzerobjekts, das true sein muss."
   },
   "domains": {
     "title": "E-Mail-Domains",
@@ -154,7 +193,8 @@
     "rolePlaceholder": "Rolle wählen",
     "add": "Zuordnung hinzufügen",
     "incomplete": "Gib eine Gruppe ein und wähle eine Rolle.",
-    "saved": "Gruppenrollen von {{name}} gespeichert."
+    "saved": "Gruppenrollen von {{name}} gespeichert.",
+    "oauth2Groups": "Diese Verbindung liest die Gruppen aus dem „Gruppenpfad“ ihrer Antwortzuordnung. Bearbeiten Sie die Verbindung, um ihn zu ändern."
   },
   "exemption": {
     "title": "Mitglied ausnehmen",
@@ -167,5 +207,23 @@
     "reasonRequired": "Gib einen Grund an.",
     "save": "Ausnehmen",
     "added": "{{name}} ausgenommen."
+  },
+  "preset": {
+    "custom": "Benutzerdefiniert",
+    "lark": "Lark",
+    "feishu": "Feishu"
+  },
+  "authMethod": {
+    "client_secret_basic": "Client-Secret, HTTP Basic (Standard)",
+    "client_secret_post": "Client-Secret im Anfragekörper",
+    "none": "Keine (öffentlicher Client)"
+  },
+  "emailTrust": {
+    "never": "Nie vertrauen",
+    "neverExplain": "Die Adresse des Anbieters gilt nie als verifiziert: Eine erste Anmeldung wird abgelehnt.",
+    "field": "Ein Feld sagt, dass sie verifiziert ist",
+    "fieldExplain": "Die Adresse gilt als verifiziert, wenn das Feld unten genau true ist.",
+    "verified-domains": "Adressen unserer verifizierten Domains vertrauen",
+    "verified-domainsExplain": "Die Adresse gilt als verifiziert, wenn ihre Domain eine hier verifizierte ist."
   }
 }
