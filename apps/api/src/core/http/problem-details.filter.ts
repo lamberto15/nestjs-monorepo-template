@@ -7,9 +7,11 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { ErrorTracker } from '../observability/error-tracker.js';
 
 /** One field that failed validation. */
 export interface ProblemFieldError {
@@ -83,7 +85,11 @@ export class ProblemDetailsFilter implements ExceptionFilter {
   private static readonly mappers: ErrorMapper[] = [];
   private readonly logger = new Logger('Errors');
 
-  constructor(private readonly adapterHost: HttpAdapterHost) {}
+  constructor(
+    private readonly adapterHost: HttpAdapterHost,
+    // Absent where the filter is built by hand (tests).
+    @Optional() private readonly errorTracker?: ErrorTracker,
+  ) {}
 
   /** How errors of `type` become HTTP errors (return undefined to leave one as a 500). */
   static map<E>(
@@ -226,6 +232,11 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       return;
     }
     if (problem.status >= 500) {
+      this.errorTracker?.capture(exception, {
+        requestId: problem.requestId,
+        code: problem.code,
+        status: problem.status,
+      });
       this.logger.error(
         `${problem.instance ?? 'ws'} failed: ${(exception as Error)?.message ?? exception}`,
         (exception as Error)?.stack,

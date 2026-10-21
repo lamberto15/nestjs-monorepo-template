@@ -52,7 +52,10 @@
         "REDIS_URL",
         "TEST_DATABASE_URL",
         "PGPASSWORD",
-        "TEST_LOGS"
+        "TEST_LOGS",
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "OTEL_BSP_SCHEDULE_DELAY",
+        "SENTRY_DSN"
       ]
     },
     "test:cov": {

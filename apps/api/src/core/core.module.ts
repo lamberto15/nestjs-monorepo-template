@@ -47,6 +47,7 @@ import { mail } from './mail/mail.js';
 import { MAIL_QUEUE, MailProcessor, MailQueue } from './mail/mail-queue.js';
 import { QueueWorkers, queueRoot } from './queues/queues.js';
 import { BullModule } from '@nestjs/bullmq';
+import { ErrorTracker, errorTracker } from './observability/error-tracker.js';
 import { observability } from './observability/observe.js';
 import { REDIS } from './redis/redis.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -201,6 +202,8 @@ const CURSOR_KEYS = Symbol('CURSOR_KEYS');
     },
     // Every error as RFC 9457 problem details (application/problem+json).
     { provide: APP_FILTER, useClass: ProblemDetailsFilter },
+    // Unexpected errors go to Sentry when SENTRY_DSN is set (observability/error-tracker.ts).
+    { provide: ErrorTracker, useFactory: () => errorTracker() },
   ],
 })
 export class CoreModule implements NestModule {
