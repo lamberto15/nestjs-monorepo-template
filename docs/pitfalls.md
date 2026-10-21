@@ -155,6 +155,16 @@
   1000 connections, CI's service the default 100. Each e2e file running at
   once (`maxWorkers` in apps/api/vitest.config.e2e.ts) holds a pool of 10 per app it
   boots. Raise CI's `max_connections` before raising either.
+  A GitHub Actions service container takes `image`, `env`, `ports`, `volumes`
+  and `options` only, no `command`, so `-c max_connections=...` can't be
+  passed to it; raising the limit needs another way (a restart step, or a
+  PostgreSQL started by a step), decided in #388.
+
+- **The API's unit tests need `isolate: true` (Vitest's default).** Vitest
+  reports most of their time as imports and suggests `isolate: false`, but
+  module state leaks between files: `LogRedaction` freezes at the first
+  `createLogger()`, and later files' `logRedaction.declare*()` calls throw
+  ("declared after createLogger()"), failing 1 to 11 files per run.
 
 - **`POSTGRES_PASSWORD` applies only to a new volume.** A `postgres_data`
   volume left by another stack under the same project name keeps its old
