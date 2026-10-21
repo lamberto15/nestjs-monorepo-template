@@ -1,5 +1,5 @@
 {
-  "id": "bc65cc77-915b-4bf3-bade-5126692ae4c9",
+  "id": "80def971-e4bf-437d-b6e6-92ce1462d01d",
   "prevId": "d6b1cde2-e07d-4202-b0a4-3b51591232ac",
   "version": "7",
   "dialect": "postgresql",
@@ -469,6 +469,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "allowed_cidrs": {
+          "name": "allowed_cidrs",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
         },
         "created_at": {
           "name": "created_at",
@@ -5294,12 +5301,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
-        },
-        "quiet_hours": {
-          "name": "quiet_hours",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",

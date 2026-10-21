@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Entry script (brotli)",
+    "path": "dist/assets/index-*.js",
+    "limit": "72 kB"
+  },
+  {
+    "name": "Entry styles (brotli)",
+    "path": "dist/assets/index-*.css",
+    "limit": "22 kB"
+  },
+  {
+    "name": "All scripts (brotli)",
+    "path": "dist/assets/*.js",
+    "limit": "1.1 MB"
+  }
+]

@@ -943,6 +943,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless signing (cosign, attestations)
+      attestations: write
     # For the release job: the version tag (1.2.3 for v1.2.3) and the digest.
     outputs:
       version: ${{ steps.meta.outputs.version }}
@@ -1007,6 +1009,11 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: GIT_SHA=${{ github.sha }}
           cache-from: type=gha
+      - name: Sign the image, attest its provenance and SBOM
+        uses: ./.github/actions/sign-image
+        with:
+          image: ghcr.io/${{ github.repository }}
+          digest: ${{ steps.push.outputs.digest }}
 
   # Gotenberg's image, as publish does the app's: on main and v* tags, once
   # the checks and gotenberg-image passed, built again (from the cache
@@ -1023,6 +1030,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless signing (cosign, attestations)
+      attestations: write
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     steps:
@@ -1083,6 +1092,11 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: APT_REFRESH=${{ github.run_id }}
           cache-from: type=gha,scope=gotenberg
+      - name: Sign the image, attest its provenance and SBOM
+        uses: ./.github/actions/sign-image
+        with:
+          image: ghcr.io/${{ github.repository }}/gotenberg
+          digest: ${{ steps.push.outputs.digest }}
 
   # Caddy's image (with the web app), as publish-gotenberg does Gotenberg's:
   # on main and v* tags, once the checks and caddy-image passed, built again
@@ -1101,6 +1115,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless signing (cosign, attestations)
+      attestations: write
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     steps:
@@ -1163,6 +1179,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha,scope=caddy
+      - name: Sign the image, attest its provenance and SBOM
+        uses: ./.github/actions/sign-image
+        with:
+          image: ghcr.io/${{ github.repository }}/caddy
+          digest: ${{ steps.push.outputs.digest }}
 
   # v* tags, once the images are published: the tag's GitHub release
   # (docs/releases.md). Its notes come from tools/release/notes.mjs: breaking
