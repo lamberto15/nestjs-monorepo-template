@@ -39006,6 +39006,85 @@
         ]
       }
     },
+    "/v1/sso/saml/metadata": {
+      "post": {
+        "description": "Fetches the https URL (private and metadata addresses refused, no redirects, 10 s, 512 KiB) and answers the entity id, the HTTP-Redirect sign-on URL and the signing certificates, to create or change a SAML connection with. The metadata's own signature is not checked: its trust is the URL. 422 `saml_metadata_url_refused`, `saml_metadata_unreachable`, `saml_metadata_too_large`, `saml_metadata_invalid`.",
+        "operationId": "SsoController_importSamlMetadata_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri",
+                    "description": "The IdP's SAML metadata URL."
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "idpEntityId": {
+                      "type": "string"
+                    },
+                    "idpSsoUrl": {
+                      "type": "string"
+                    },
+                    "idpCertificates": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "PEM, the signing certificates (one or two)."
+                    }
+                  },
+                  "required": [
+                    "idpEntityId",
+                    "idpSsoUrl",
+                    "idpCertificates"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "422": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Read a SAML IdP's metadata from its URL (nothing is stored)",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
     "/v1/sso/connections/{id}/refresh": {
       "post": {
         "operationId": "SsoController_refreshConnection_v1",

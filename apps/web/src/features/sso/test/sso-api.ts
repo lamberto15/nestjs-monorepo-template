@@ -97,6 +97,7 @@ export function useSsoApi(options: {
     refreshed: [] as string[],
     domainsAdded: [] as string[],
     verified: [] as string[],
+    metadataImports: [] as string[],
     reads: 0,
   };
   useSignedIn(options.can);
@@ -133,6 +134,15 @@ export function useSsoApi(options: {
     http.post('/v1/sso/connections/:id/refresh', ({ params }) => {
       calls.refreshed.push(params.id as string);
       return HttpResponse.json({ accepted: true }, { status: 202 });
+    }),
+    http.post('/v1/sso/saml/metadata', async ({ request }) => {
+      const body = (await request.json()) as { url: string };
+      calls.metadataImports.push(body.url);
+      return HttpResponse.json({
+        idpEntityId: 'https://meta.example.com/idp',
+        idpSsoUrl: 'https://meta.example.com/sso',
+        idpCertificates: ['PEM-A', 'PEM-B'],
+      });
     }),
     http.get('/v1/sso/policy', () => HttpResponse.json(policy)),
     http.put('/v1/sso/policy', async ({ request }) => {

@@ -306,6 +306,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/sso/domains/{id}/verify',
         '/v1/sso/exemptions/{userId}',
         '/v1/sso/policy',
+        '/v1/sso/saml/metadata',
         '/v1/subscriptions',
         '/v1/subscriptions/{subject}/{recordId}',
         '/v1/tags',

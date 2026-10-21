@@ -786,6 +786,34 @@ The session records `method: sso`, `provider: <connection id>` and the
 IdP's `auth_time` or `AuthnInstant` as `authenticatedAt` (step-up reads
 them), and it acts in the connection's tenant.
 
+### Importing an IdP's metadata
+
+`POST /v1/sso/saml/metadata { "url" }` (`Access.manageSso`, recent sign-in,
+10 a minute) fetches a SAML IdP's metadata and answers `idpEntityId`,
+`idpSsoUrl` (the HTTP-Redirect `SingleSignOnService`) and `idpCertificates`
+(PEM, the `signing` keys, expired ones skipped), the fields of `POST
+/v1/sso/connections` for a SAML connection: the web form fills them in.
+**Nothing is stored**; the administrator reviews and creates the connection.
+
+- **SSRF.** Through `core/http/safe-fetch.ts`, as the OIDC issuer (see "What
+  is checked"): https only (`SSO_ALLOW_LOOPBACK=on`, development and tests,
+  allows http on loopback), every resolved address checked in the socket's
+  lookup, no credentials in the URL, no redirects, 10 s, 512 KiB. 422
+  `saml_metadata_url_refused`, `saml_metadata_unreachable` (also a non-200
+  or a redirect), `saml_metadata_too_large`, `saml_metadata_invalid`
+  (`message` says why: no HTTP-Redirect service, no signing certificate,
+  more than two, `validUntil` passed, several IdPs in one document, a
+  DOCTYPE). The answer never carries what the destination returned.
+- **Parsing.** `iam/sso/saml-metadata.ts`, with the strict namespace-aware
+  xmldom parser of `saml-algorithms.ts`: @node-saml/node-saml only generates
+  SP metadata, it has no IdP metadata parser.
+- **Trust.** The metadata's own signature is not checked; its trust is the
+  https origin the administrator named, as for certificates pasted by hand.
+  Assertions are still verified against the certificates (see above).
+- It runs in the request (the administrator waits for the fields, the fetch is
+  bounded and rate limited) rather than on the queue.
+- **Proof:** `iam/sso/saml-metadata.spec.ts`, `test/sso.e2e-spec.ts`.
+
 ### Roles from the IdP
 
 A connection may give roles (all optional, set on `POST /v1/sso/connections`
@@ -949,9 +977,9 @@ details.
 Every change is audited with the API client as actor (`scim.user-*`,
 `scim.group-*`).
 
-Not built yet (roadmap item 2): SAML metadata import by URL, and
-deactivating an account when its last membership ends (an account is the
-person's own, in every tenant: an owner's decision first).
+Not built yet (roadmap item 2): deactivating an account when its last
+membership ends (an account is the person's own, in every tenant: an
+owner's decision first).
 
 ## Bot protection
 
