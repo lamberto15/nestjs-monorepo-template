@@ -105,6 +105,13 @@ export const users = pgTable('users', {
   /** The user's IANA time zone (`Europe/Berlin`); null: APP_TIMEZONE. */
   timezone: text('timezone'),
   active: boolean('active').notNull().default(true),
+  /**
+   * When an identity provider's deprovisioning (SCIM) ended the account's
+   * last active membership and so deactivated it; null otherwise. Only an
+   * account deactivated this way comes back when a membership does
+   * (docs/auth.md, "SCIM provisioning"): never a deleted one.
+   */
+  deprovisionedAt: at('deprovisioned_at'),
   ...timestamps(),
 });
 

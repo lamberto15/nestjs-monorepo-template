@@ -5,7 +5,7 @@ import {
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
 import { createHash } from 'node:crypto';
-import { and, asc, eq, gt, type SQL, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNotNull, type SQL, sql } from 'drizzle-orm';
 import {
   afterCursor,
   countMatching,
@@ -170,6 +170,8 @@ export class UsersRepository {
         locale: null,
         timezone: null,
         active: false,
+        // Deleted, not deprovisioned: nothing brings it back.
+        deprovisionedAt: null,
       })
       .where(eq(users.id, id));
     await tx.delete(userIdentities).where(eq(userIdentities.userId, id));
@@ -277,6 +279,67 @@ export class UsersRepository {
           sql`${refreshTokens.claims}->>'tid' = ${tenantId}`,
         ),
       );
+  }
+
+  /**
+   * After an identity provider's deprovisioning (SCIM) ended a membership:
+   * deactivates the account when no active membership remains, in any
+   * tenant (the owner's decision: deactivated, never deleted; its data,
+   * audit history, holds and records stay). Every session and token family
+   * of the account ends with it. Whether it was deactivated now.
+   *
+   * The caller holds the account's lock (`lockAccount`) and has written the
+   * membership in `tx`: the memberships are read `for update`, so a
+   * membership being turned on in another transaction (an administrator's,
+   * another tenant's IdP) is waited for and counted, never missed.
+   */
+  async deactivateIfNoMembership(tx: Transaction, userId: string) {
+    const rows = await tx
+      .select({ active: memberships.active })
+      .from(memberships)
+      .where(eq(memberships.userId, userId))
+      .for('update');
+    if (rows.some((row) => row.active)) {
+      return false;
+    }
+    const changed = await tx
+      .update(users)
+      .set({ active: false, deprovisionedAt: new Date() })
+      .where(and(eq(users.id, userId), eq(users.active, true)))
+      .returning({ id: users.id });
+    if (!changed.length) {
+      return false;
+    }
+    await tx.delete(sessions).where(eq(sessions.userId, userId));
+    await tx
+      .update(refreshTokens)
+      .set({ revoked: true })
+      .where(eq(refreshTokens.userId, userId));
+    return true;
+  }
+
+  /**
+   * Reactivates an account `deactivateIfNoMembership` deactivated, now that
+   * a membership is active again: the same account, with its data. Any
+   * other inactive account (a deleted one) stays as it is. Whether it was
+   * reactivated now.
+   */
+  async reactivateDeprovisioned(tx: Transaction, userId: string) {
+    const changed = await tx
+      .update(users)
+      .set({ active: true, deprovisionedAt: null })
+      .where(and(eq(users.id, userId), isNotNull(users.deprovisionedAt)))
+      .returning({ id: users.id });
+    return changed.length > 0;
+  }
+
+  /** Whether the account is inactive because deprovisioning ended its last membership. */
+  async isDeprovisioned(db: Db, userId: string) {
+    const [row] = await db
+      .select({ at: users.deprovisionedAt })
+      .from(users)
+      .where(eq(users.id, userId));
+    return !!row?.at;
   }
 
   /**

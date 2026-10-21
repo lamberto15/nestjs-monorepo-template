@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { and, eq } from 'drizzle-orm';
 import type request from 'supertest';
+import { memberships, userRoles, users } from '../src/iam/iam.tables.js';
 import { SSO_TXT_RESOLVER } from '../src/iam/sso/sso.queue.js';
 import { fakeDns, verifyDomain } from './sso-support.js';
+import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
 const DOMAIN = 'acme.test';
@@ -258,8 +261,247 @@ describe('SCIM provisioning (e2e)', () => {
         active: false,
       })
       .expect(200);
-    const me = await agent.get('/v1/auth/me');
-    expect(me.status === 401 || me.body.user.tenantId === null).toBe(true);
+    // Their only membership: the account is deactivated with it.
+    await agent.get('/v1/auth/me').expect(401);
+  });
+
+  describe('deprovisioning the last membership (deactivated, never deleted)', () => {
+    /**
+     * A member of the seeded tenant only, an editor who signed in (a
+     * session and a token family) and wrote a record, then linked by the
+     * IdP: what its deprovisioning must end, and must keep.
+     */
+    const member = async () => {
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const token = await node.invite(node.admin(), {
+        email,
+        name: 'Grace Hopper',
+        roleIds: await node.roleIds('editor'),
+      });
+      const password = await node.acceptAsNew(token);
+      const agent = await node.signIn(email, password);
+      const me = await agent.get('/v1/auth/me').expect(200);
+      const issued = await node
+        .http()
+        .post('/v1/auth/token')
+        .send({ email, password })
+        .expect(200);
+      const item = await node
+        .writeItem(agent, { title: 'Theirs', body: '' })
+        .expect(201);
+      const user = JSON.parse(
+        (
+          await as(scim)
+            .post(
+              '/Users',
+              newUser({
+                userName: email,
+                emails: [{ value: email, primary: true }],
+              }),
+            )
+            .expect(201)
+        ).text,
+      );
+      expect(user.id).toBe(me.body.user.id);
+      return {
+        id: user.id as string,
+        email,
+        password,
+        agent,
+        bearer: `Bearer ${issued.body.accessToken}`,
+        refreshToken: issued.body.refreshToken as string,
+        itemId: item.body.id as string,
+      };
+    };
+
+    const signInStatus = (email: string, password: string) =>
+      node
+        .http()
+        .post('/v1/auth/sign-in')
+        .send({ email, password })
+        .then((res) => res.status);
+
+    const account = async (id: string) =>
+      (await node.db.select().from(users).where(eq(users.id, id)))[0];
+
+    it('DELETE ends every session and token, refuses sign-in, keeps the data; POST brings the same account back', async () => {
+      const person = await member();
+      const before = await account(person.id);
+      expect(before?.deprovisionedAt).toBeNull();
+
+      // RFC 7644 §3.6: 204, then 404 for the deleted resource.
+      await as(scim).delete(`/Users/${person.id}`).expect(204);
+      await as(scim).get(`/Users/${person.id}`).expect(404);
+
+      // The existing session, the access token and its refresh token: all ended.
+      await person.agent.get('/v1/auth/me').expect(401);
+      await node
+        .http()
+        .get('/v1/auth/me')
+        .set('Authorization', person.bearer)
+        .expect(401);
+      await node
+        .http()
+        .post('/v1/auth/token/refresh')
+        .send({ refreshToken: person.refreshToken })
+        .expect(401);
+      // No new sign-in, by password or for a token.
+      expect(await signInStatus(person.email, person.password)).toBe(401);
+      await node
+        .http()
+        .post('/v1/auth/token')
+        .send({ email: person.email, password: person.password })
+        .expect(401);
+
+      // Deactivated, not deleted: the account, its membership and roles,
+      // its record and its audit history are all still there.
+      const after = await account(person.id);
+      expect(after).toMatchObject({
+        email: person.email,
+        name: 'Grace Hopper',
+        active: false,
+      });
+      expect(after?.deprovisionedAt).toBeInstanceOf(Date);
+      expect(after?.passwordHash).toBe(before?.passwordHash);
+      const [membership] = await node.db
+        .select()
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.userId, person.id),
+            eq(memberships.tenantId, node.tenantId),
+          ),
+        );
+      expect(membership?.active).toBe(false);
+      expect(
+        await node.db
+          .select()
+          .from(userRoles)
+          .where(eq(userRoles.userId, person.id)),
+      ).toHaveLength(1);
+      const [item] = await node.db
+        .select()
+        .from(testItems)
+        .where(eq(testItems.id, person.itemId));
+      expect(item?.ownerId).toBe(`user:${person.id}`);
+      const deactivated = await node.auditEntries({
+        action: 'scim.account-deactivated',
+        targetId: person.id,
+      });
+      expect(deactivated).toHaveLength(1);
+      expect(deactivated[0]?.details).toMatchObject({
+        reason: 'no-active-membership',
+      });
+      expect(
+        await node.auditEntries({
+          action: 'scim.user-provisioned',
+          targetId: person.id,
+        }),
+      ).toHaveLength(1);
+
+      // Provisioned again: the same account, its password, roles and record.
+      const again = JSON.parse(
+        (
+          await as(scim)
+            .post(
+              '/Users',
+              newUser({
+                userName: person.email,
+                emails: [{ value: person.email, primary: true }],
+              }),
+            )
+            .expect(201)
+        ).text,
+      );
+      expect(again).toMatchObject({ id: person.id, active: true });
+      expect(await account(person.id)).toMatchObject({
+        active: true,
+        deprovisionedAt: null,
+      });
+      const back = await node.signIn(person.email, person.password);
+      const me = await back.get('/v1/auth/me').expect(200);
+      expect(me.body.user).toMatchObject({
+        id: person.id,
+        tenantId: node.tenantId,
+      });
+      await back.get(`/v1/test-items/${person.itemId}`).expect(200);
+      expect(
+        await node.auditEntries({
+          action: 'scim.account-reactivated',
+          targetId: person.id,
+        }),
+      ).toHaveLength(1);
+    });
+
+    it('active false (PATCH) deactivates the account, active true (PUT) reactivates it', async () => {
+      const person = await member();
+      await as(scim)
+        .patch(`/Users/${person.id}`, {
+          schemas: [PATCH],
+          Operations: [{ op: 'replace', path: 'active', value: false }],
+        })
+        .expect(200);
+      // Still the SCIM client's: answered, inactive (not a 404).
+      const off = JSON.parse(
+        (await as(scim).get(`/Users/${person.id}`).expect(200)).text,
+      );
+      expect(off.active).toBe(false);
+      await person.agent.get('/v1/auth/me').expect(401);
+      expect(await signInStatus(person.email, person.password)).toBe(401);
+      expect((await account(person.id))?.active).toBe(false);
+
+      await as(scim)
+        .put(`/Users/${person.id}`, {
+          schemas: [USER],
+          userName: person.email,
+          active: true,
+        })
+        .expect(200);
+      expect(await signInStatus(person.email, person.password)).toBe(200);
+      expect((await account(person.id))?.active).toBe(true);
+    });
+
+    it('keeps the account active while another tenant’s membership is', async () => {
+      const person = await member();
+      const other = await node.otherTenant();
+      await node.db
+        .insert(memberships)
+        .values({ tenantId: other.id, userId: person.id });
+
+      await as(scim).delete(`/Users/${person.id}`).expect(204);
+      expect(await account(person.id)).toMatchObject({
+        active: true,
+        deprovisionedAt: null,
+      });
+      expect(
+        await node.auditEntries({
+          action: 'scim.account-deactivated',
+          targetId: person.id,
+        }),
+      ).toHaveLength(0);
+      // A new sign-in starts in the tenant they still belong to.
+      const agent = await node.signIn(person.email, person.password);
+      const me = await agent.get('/v1/auth/me').expect(200);
+      expect(me.body.user.tenantId).toBe(other.id);
+    });
+
+    it('an administrator turning a membership back on reactivates the account', async () => {
+      const person = await member();
+      await as(scim).delete(`/Users/${person.id}`).expect(204);
+      expect(await signInStatus(person.email, person.password)).toBe(401);
+      await node
+        .admin()
+        .patch(`/v1/access/users/${person.id}`)
+        .send({ active: true })
+        .expect(204);
+      expect(await signInStatus(person.email, person.password)).toBe(200);
+      expect(
+        await node.auditEntries({
+          action: 'user.account-reactivated',
+          targetId: person.id,
+        }),
+      ).toHaveLength(1);
+    });
   });
 
   it('manages groups as teams, with provisioned users only', async () => {
