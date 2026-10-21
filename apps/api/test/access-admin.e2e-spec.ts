@@ -68,6 +68,28 @@ describe('access administration (e2e)', () => {
       await teams.agent.get('/v1/access/roles').expect(200);
       await teams.agent.get('/v1/access/catalog').expect(200);
 
+      // An SSO-only administrator reads the two lists the SSO page's pickers
+      // use, nothing else, and changes nothing (#370).
+      const sso = await node.user([await role(['Access', 'manageSso'])]);
+      await sso.agent.get('/v1/access/users').expect(200);
+      await sso.agent.get('/v1/access/roles').expect(200);
+      for (const path of [
+        '/v1/access/catalog',
+        '/v1/access/teams',
+        '/v1/access/clients',
+        '/v1/access/principals',
+      ]) {
+        await sso.agent.get(path).expect(403);
+      }
+      await sso.agent
+        .post('/v1/access/roles')
+        .send({ name: 'Nope', permissions: [] })
+        .expect(403);
+      await sso.agent
+        .post('/v1/access/teams')
+        .send({ name: 'Nope' })
+        .expect(403);
+
       const support = await node.user([await role(['Access', 'impersonate'])]);
       const users = await support.agent.get('/v1/access/users').expect(200);
       expect(users.body.items.length).toBeGreaterThan(0);
