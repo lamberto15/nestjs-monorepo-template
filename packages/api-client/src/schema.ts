@@ -1950,7 +1950,7 @@ export interface paths {
         put?: never;
         /**
          * A mail provider reports bounces and complaints
-         * @description `postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.
+         * @description `postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `resend`: a Svix-signed webhook (`email.bounced`, `email.complained`, `email.delivered`), verified with RESEND_WEBHOOK_SECRET. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.
          */
         post: operations["MailEventsController_handle_v1"];
         delete?: never;
@@ -3230,7 +3230,7 @@ export interface paths {
         delete: operations["AccessController_deleteClient_v1"];
         options?: never;
         head?: never;
-        /** Revoke (active: false) or reactivate a client; change its roles or daily quota */
+        /** Revoke (active: false) or reactivate a client; change its roles, daily quota or IP allowlist */
         patch: operations["AccessController_updateClient_v1"];
         trace?: never;
     };
@@ -14055,21 +14055,21 @@ export interface operations {
                     };
                 };
             };
-            /** @description Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed). */
+            /** @description Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed, resend_malformed, resend_stale). */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused). */
+            /** @description The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, resend_signature_invalid, resend_signature_missing, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused). */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured). */
+            /** @description The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured, resend_not_configured). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -19862,6 +19862,8 @@ export interface operations {
                             active: boolean;
                             /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                             dailyQuota: number | null;
+                            /** @description CIDRs its keys may be used from; empty: any address. */
+                            allowedCidrs: string[];
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -19932,6 +19934,8 @@ export interface operations {
                     name: string;
                     /** @description Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota. */
                     dailyQuota?: number | null;
+                    /** @description IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr. */
+                    allowedCidrs?: string[];
                     /**
                      * @description Roles on top of what every client may do (clientPermissions).
                      * @default []
@@ -19962,6 +19966,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -20050,6 +20056,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -20162,6 +20170,8 @@ export interface operations {
                     active?: boolean;
                     /** @description Requests a UTC day; past it, 429 quota_exceeded until midnight UTC. null: no quota. */
                     dailyQuota?: number | null;
+                    /** @description IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr. */
+                    allowedCidrs?: string[];
                     roleIds?: string[];
                     /** @description When each grant ends, by role id (temporary access); the others never do. */
                     roleExpiresAt?: {
@@ -20183,6 +20193,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */
@@ -20277,6 +20289,8 @@ export interface operations {
                         active: boolean;
                         /** @description Requests a UTC day (GET /v1/access/clients/{id}/usage); null: none. */
                         dailyQuota: number | null;
+                        /** @description CIDRs its keys may be used from; empty: any address. */
+                        allowedCidrs: string[];
                         /** Format: date-time */
                         createdAt: string;
                         /** Format: date-time */

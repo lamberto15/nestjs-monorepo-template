@@ -334,6 +334,7 @@ describe('the environment (env.ts)', () => {
         'OTEL_EXPORTER_OTLP_HEADERS',
         'POSTMARK_WEBHOOK_SECRET',
         'REDIS_PASSWORD',
+        'RESEND_WEBHOOK_SECRET',
         'REDIS_URL',
         'SENTRY_DSN',
         'SMTP_URL',

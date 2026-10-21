@@ -52,6 +52,13 @@ export async function startSentry(env: NodeJS.ProcessEnv = process.env) {
       httpBodies: [],
       urlQueryParams: false,
     },
+    // Without the SDK's "Nest" integration: it wraps every provider method
+    // and controller handler (as NestJS Observe's proxies did, issue #392),
+    // which hides @OnOneInstance()/@WithoutOverlapping() jobs from
+    // @nestjs/locks ("LocksModule doesn't know this instance"). Unexpected
+    // errors reach Sentry through ErrorTracker (error-tracker.ts) instead.
+    integrations: (defaults) =>
+      defaults.filter((integration) => integration.name !== 'Nest'),
     tracesSampleRate: tracesSampleRate(env),
     beforeSend: (event) => scrub(event),
     beforeSendSpan: (span) => scrub(span),

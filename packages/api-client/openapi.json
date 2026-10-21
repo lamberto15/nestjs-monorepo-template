@@ -20254,7 +20254,7 @@
     },
     "/v1/webhooks/mail/{provider}": {
       "post": {
-        "description": "`postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.",
+        "description": "`postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `resend`: a Svix-signed webhook (`email.bounced`, `email.complained`, `email.delivered`), verified with RESEND_WEBHOOK_SECRET. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.",
         "operationId": "MailEventsController_handle_v1",
         "parameters": [
           {
@@ -20317,13 +20317,13 @@
             }
           },
           "400": {
-            "description": "Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed)."
+            "description": "Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed, resend_malformed, resend_stale)."
           },
           "401": {
-            "description": "The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused)."
+            "description": "The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, resend_signature_invalid, resend_signature_missing, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused)."
           },
           "403": {
-            "description": "The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured)."
+            "description": "The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured, resend_not_configured)."
           },
           "404": {
             "description": "No such provider."
@@ -33227,6 +33227,13 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
                           },
+                          "allowedCidrs": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "CIDRs its keys may be used from; empty: any address."
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -33324,6 +33331,7 @@
                           "name",
                           "active",
                           "dailyQuota",
+                          "allowedCidrs",
                           "createdAt",
                           "updatedAt",
                           "keys",
@@ -33387,6 +33395,16 @@
                     "minimum": 1,
                     "maximum": 9007199254740991
                   },
+                  "allowedCidrs": {
+                    "description": "IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
                   "roleIds": {
                     "default": [],
                     "description": "Roles on top of what every client may do (clientPermissions).",
@@ -33445,6 +33463,13 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
                     },
                     "createdAt": {
                       "type": "string",
@@ -33547,6 +33572,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",
@@ -33624,6 +33650,13 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
                     },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -33721,6 +33754,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",
@@ -33784,6 +33818,16 @@
                     "minimum": 1,
                     "maximum": 9007199254740991
                   },
+                  "allowedCidrs": {
+                    "description": "IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
                   "roleIds": {
                     "type": "array",
                     "items": {
@@ -33831,6 +33875,13 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
                     },
                     "createdAt": {
                       "type": "string",
@@ -33929,6 +33980,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",
@@ -33957,7 +34009,7 @@
             "user-session": []
           }
         ],
-        "summary": "Revoke (active: false) or reactivate a client; change its roles or daily quota",
+        "summary": "Revoke (active: false) or reactivate a client; change its roles, daily quota or IP allowlist",
         "tags": [
           "access"
         ]
@@ -34067,6 +34119,13 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
                     },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -34168,6 +34227,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",
