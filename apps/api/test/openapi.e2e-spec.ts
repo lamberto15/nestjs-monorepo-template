@@ -225,6 +225,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/auth/sign-up',
         '/v1/auth/sso/discover',
         '/v1/auth/sso/{tenantId}/{connectionId}/login',
+        '/v1/auth/sso/{tenantId}/{connectionId}/oauth2/callback',
         '/v1/auth/sso/{tenantId}/{connectionId}/oidc/callback',
         '/v1/auth/sso/{tenantId}/{connectionId}/saml/acs',
         '/v1/auth/sso/{tenantId}/{connectionId}/saml/complete',
