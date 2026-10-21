@@ -222,28 +222,28 @@ the mails sent in an hour bounced hard, at least 20 sent, for 15 min)
 and `MailComplaints` (any complaint in the last hour: each one is worth a
 look).
 
-## Postmark and SendGrid
+## Postmark, Resend and SendGrid
 
-The sending side needs no code: `MAIL_TRANSPORT=postmark` or `sendgrid` with
+The sending side needs no code: `MAIL_TRANSPORT=postmark`, `resend` or `sendgrid` with
 `MAIL_API_KEY` ([background-work.md](background-work.md)). Their feedback
 arrives the same way as SES's, through an intake each, with the same queue,
-list and sender behind it. Both routes refuse everything (403) until their
+list and sender behind it. All three routes refuse everything (403) until their
 variable is set.
 
-| | Postmark | SendGrid |
-| --- | --- | --- |
-| Route | `POST /v1/webhooks/mail/postmark` | `POST /v1/webhooks/mail/sendgrid` |
-| Console | Server → Webhooks: URL `https://user:<POSTMARK_WEBHOOK_SECRET>@<APP_DOMAIN>/v1/webhooks/mail/postmark` (Basic Auth; any user name), or a custom header `X-Postmark-Webhook-Secret`; tick Delivery, Bounce, Spam complaint | Settings → Mail Settings → Event Webhook: URL, tick Bounced, Blocked, Spam Reports, Delivered; enable *Signature Verification* and copy the verification key into `SENDGRID_WEBHOOK_PUBLIC_KEY` |
-| Authenticity | the shared secret (Postmark does not sign; compared in constant time): 401 `postmark_secret_invalid`, 403 `postmark_not_configured` | ECDSA/SHA-256 over `timestamp + body` (`X-Twilio-Email-Event-Webhook-Signature`, `-Timestamp`): 401 `sendgrid_signature_missing`/`sendgrid_signature_invalid`, 400 `sendgrid_stale` (timestamp over an hour old), 403 `sendgrid_not_configured` |
-| Hard bounce | `HardBounce`, `BadEmailAddress`, `ManuallyDeactivated` | `bounce` |
-| Soft bounce | `SoftBounce`, `Transient`, `DnsError`, `Unknown`, `Blocked`, `DMARCPolicy` | `blocked` |
-| Complaint | `SpamComplaint` record, `SpamNotification` bounce | `spamreport` |
-| Delivery | `Delivery` record | `delivered` |
-| Ignored | other bounce types (unsubscribe, auto-responder…), Open, Click… | `dropped`, `deferred`, opens, clicks… |
+| | Postmark | Resend | SendGrid |
+| --- | --- | --- | --- |
+| Route | `POST /v1/webhooks/mail/postmark` | `POST /v1/webhooks/mail/resend` | `POST /v1/webhooks/mail/sendgrid` |
+| Console | Server → Webhooks: URL `https://user:<POSTMARK_WEBHOOK_SECRET>@<APP_DOMAIN>/v1/webhooks/mail/postmark` (Basic Auth; any user name), or a custom header `X-Postmark-Webhook-Secret`; tick Delivery, Bounce, Spam complaint | Webhooks → Add endpoint: URL, tick email.delivered, email.bounced, email.complained; copy the *Signing Secret* (`whsec_…`) into `RESEND_WEBHOOK_SECRET` | Settings → Mail Settings → Event Webhook: URL, tick Bounced, Blocked, Spam Reports, Delivered; enable *Signature Verification* and copy the verification key into `SENDGRID_WEBHOOK_PUBLIC_KEY` |
+| Authenticity | the shared secret (Postmark does not sign; compared in constant time): 401 `postmark_secret_invalid`, 403 `postmark_not_configured` | Svix signature: HMAC-SHA256 of `svix-id.svix-timestamp.body` keyed with the secret's base64 (headers `svix-id`, `svix-timestamp`, `svix-signature`; several `v1,` entries while the secret rotates): 401 `resend_signature_missing`/`resend_signature_invalid`, 400 `resend_stale` (timestamp over five minutes off), 403 `resend_not_configured` | ECDSA/SHA-256 over `timestamp + body` (`X-Twilio-Email-Event-Webhook-Signature`, `-Timestamp`): 401 `sendgrid_signature_missing`/`sendgrid_signature_invalid`, 400 `sendgrid_stale` (timestamp over an hour old), 403 `sendgrid_not_configured` |
+| Hard bounce | `HardBounce`, `BadEmailAddress`, `ManuallyDeactivated` | `email.bounced` with bounce type `Permanent` | `bounce` |
+| Soft bounce | `SoftBounce`, `Transient`, `DnsError`, `Unknown`, `Blocked`, `DMARCPolicy` | `email.bounced` with `Transient` or `Undetermined` | `blocked` |
+| Complaint | `SpamComplaint` record, `SpamNotification` bounce | `email.complained` | `spamreport` |
+| Delivery | `Delivery` record | `email.delivered` | `delivered` |
+| Ignored | other bounce types (unsubscribe, auto-responder…), Open, Click… | sent, delivery_delayed, failed, suppressed, opened, clicked… | `dropped`, `deferred`, opens, clicks… |
 
 A body that is not the provider's format is 400 `postmark_malformed` or
-`sendgrid_malformed`. Postmark's ids (`bounce-<ID>`, `complaint-<ID>`,
-`delivery-<MessageID>`) and the hash of SendGrid's request bytes are the
+`sendgrid_malformed` or `resend_malformed`. Postmark's ids (`bounce-<ID>`, `complaint-<ID>`,
+`delivery-<MessageID>`), Resend's `svix-id` and the hash of SendGrid's request bytes are the
 replay keys.
 
 ## Other providers
@@ -252,9 +252,9 @@ The intake is an interface (`MailEventIntake`, `mail-event.types.ts`):
 `receive(request)` authenticates the provider's call and turns it into
 `MailEvent`s (`hard_bounce`, `soft_bounce`, `complaint`, `delivery`, with
 the address, the time and the provider's detail); the queue, the list and
-the sender know no provider. Resend or Mailgun would be a class each
-(their webhooks are HMAC-signed JSON, so `@VerifyWebhook()` with a custom
-scheme can do the verification), registered into `MailEventIntakeRegistry`
+the sender know no provider. Mailgun would be a class each
+(its webhooks are HMAC-signed JSON, verified with node:crypto as the
+SendGrid and Resend intakes do), registered into `MailEventIntakeRegistry`
 from its constructor, reached at `POST /v1/webhooks/mail/<name>`. Keep the
 order of checks the SES intake has: format, then source, then signature,
 and never fetch a URL the message names without checking its host first.

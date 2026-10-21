@@ -36,7 +36,7 @@ const receiptSchema = z.object({
 /**
  * Where mail providers report bounces and complaints
  * (docs/deliverability.md): `POST /v1/webhooks/mail/ses` for Amazon SES
- * through SNS, `/postmark`, `/sendgrid`. Public: the provider signs the message and the intake
+ * through SNS, `/postmark`, `/sendgrid`, `/resend`. Public: the provider signs the message and the intake
  * verifies it on the bytes as received (SNS posts JSON as text/plain, so
  * the body is read raw, never through the JSON parser).
  *
@@ -58,7 +58,7 @@ export class MailEventsController {
   @ApiOperation({
     summary: 'A mail provider reports bounces and complaints',
     description:
-      '`postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.',
+      '`postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `resend`: a Svix-signed webhook (`email.bounced`, `email.complained`, `email.delivered`), verified with RESEND_WEBHOOK_SECRET. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.',
   })
   @ApiParam({ name: 'provider', example: 'ses' })
   @ApiBody({
@@ -68,15 +68,15 @@ export class MailEventsController {
   @ApiOkResponse({ standardSchema: receiptSchema })
   @ApiBadRequestResponse({
     description:
-      'Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed).',
+      'Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed, resend_malformed, resend_stale).',
   })
   @ApiUnauthorizedResponse({
     description:
-      'The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused).',
+      'The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, resend_signature_invalid, resend_signature_missing, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused).',
   })
   @ApiForbiddenResponse({
     description:
-      'The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured).',
+      'The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured, resend_not_configured).',
   })
   @ApiNotFoundResponse({ description: 'No such provider.' })
   @ApiServiceUnavailableResponse({
