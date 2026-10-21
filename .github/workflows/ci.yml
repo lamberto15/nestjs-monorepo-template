@@ -156,26 +156,56 @@ jobs:
       - name: Every service is hardened
         # docs/deployment.md, "Container hardening": every service of the
         # rendered config is checked, so a new one without these keys fails
-        # here. Only compose.yaml + compose.prod.yaml are rendered: the job's
-        # COMPOSE_FILE adds the monitoring stack, which is not hardened.
-        env:
-          COMPOSE_FILE: compose.yaml:compose.prod.yaml
+        # here. Rendered: compose.yaml + compose.prod.yaml, then each optional
+        # overlay on top of them (all profiles on), so the job's COMPOSE_FILE
+        # (which adds the monitoring stack) is set per render. Not rendered:
+        # compose.pgbouncer.yaml and compose.pitr.yaml (their services aren't
+        # hardened yet), the Swarm overlay (docs/deploy-swarm.md renders the
+        # same files), and compose.dev.yaml and compose.loadtest.yaml
+        # (development and the load test, which patch the stack).
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
-          docker compose --profile '*' config --format json > hardened.json
-          test "$(jq '.services | length' hardened.json)" -gt 0
-          problems=$(jq -r '
-            .services | to_entries[] | .key as $service | .value |
-            (if .read_only != true then "\($service) is not read_only" else empty end),
-            (if ((.cap_drop // []) | index("ALL")) == null then "\($service) does not drop ALL capabilities" else empty end),
-            (if ((.security_opt // []) | index("no-new-privileges:true")) == null then "\($service) lacks no-new-privileges" else empty end),
-            (if ((.tmpfs // []) | map(select(startswith("/tmp"))) | length) != 1 then "\($service) has no /tmp tmpfs" else empty end)
-          ' hardened.json)
-          if [ -n "$problems" ]; then
-            while IFS= read -r problem; do echo "::error::$problem"; done <<< "$problems"
-            exit 1
-          fi
+          # The documented exceptions: a service and the keys it may lack
+          # (read_only, cap_drop, no-new-privileges, tmpfs). Each is explained
+          # where the service is (a comment in its Compose file) and in
+          # docs/deployment.md, "Container hardening"; one that is no longer
+          # needed fails too, so the list can't outlive its reason.
+          #   prometheus: Compose refuses to create a secret that comes from a
+          #   variable (METRICS_TOKEN) in a read-only service.
+          exceptions='{"prometheus": ["read_only"]}'
+          # The overlay's file (empty: the base stack alone) and a service it
+          # adds, which the render must have: an overlay that stopped merging
+          # would otherwise pass unchecked.
+          check() {
+            overlay=$1
+            added=$2
+            COMPOSE_FILE="compose.yaml:compose.prod.yaml${overlay:+:compose.$overlay.yaml}" docker compose --profile '*' config --format json > hardened.json
+            test "$(jq '.services | length' hardened.json)" -gt 0
+            test -z "$added" || test "$(jq --arg s "$added" '.services | has($s)' hardened.json)" = true || { echo "::error::${overlay:-the base stack}: no service $added in the render"; exit 1; }
+            problems=$(jq -r --argjson exceptions "$exceptions" '
+              .services | to_entries[] | .key as $service | .value as $config |
+              ($exceptions[$service] // []) as $allowed |
+              [
+                {key: "read_only", lacks: ($config.read_only != true), message: "is not read_only"},
+                {key: "cap_drop", lacks: ((($config.cap_drop // []) | index("ALL")) == null), message: "does not drop ALL capabilities"},
+                {key: "no-new-privileges", lacks: ((($config.security_opt // []) | index("no-new-privileges:true")) == null), message: "lacks no-new-privileges"},
+                {key: "tmpfs", lacks: ((($config.tmpfs // []) | map(select(startswith("/tmp"))) | length) != 1), message: "has no /tmp tmpfs"}
+              ][] | .key as $key | ($allowed | index($key) != null) as $excepted |
+              if .lacks and ($excepted | not) then "\($service) \(.message)"
+              elif ($excepted and (.lacks | not)) then "\($service) has \($key), drop its exception from this step"
+              else empty end
+            ' hardened.json)
+            if [ -n "$problems" ]; then
+              while IFS= read -r problem; do echo "::error::${overlay:-base}: $problem"; done <<< "$problems"
+              exit 1
+            fi
+          }
+          check '' ''
+          check clamav clamav
+          # grafana has a profile: found only with every profile on.
+          check monitoring grafana
+          check blue-green api-blue
       # The containers get the variables compose.prod.yaml lists (no env_file):
       # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
       - name: APP_MODE reaches the api and the worker
