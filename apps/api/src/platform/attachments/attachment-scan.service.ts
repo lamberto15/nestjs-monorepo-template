@@ -13,6 +13,7 @@ import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ATTACHMENT_SCAN_JOB } from '../platform.jobs.js';
+import { AttachmentImagesQueue } from './attachment-images.queue.js';
 import {
   type AttachmentScanJob,
   AttachmentScanQueue,
@@ -66,6 +67,7 @@ export class AttachmentScanService {
     private readonly notifications: NotificationsService,
     private readonly attachments: AttachmentsService,
     private readonly queue: AttachmentScanQueue,
+    private readonly images: AttachmentImagesQueue,
     metrics: MetricsService,
   ) {
     this.scanned = new Counter({
@@ -119,6 +121,10 @@ export class AttachmentScanService {
           if (clean) {
             this.scanned.inc({ result: 'clean' });
             this.attachments.changed(system, row, row.id, 'scanned');
+            // An image is processed only once it may be served.
+            if (row.renditionStatus === 'pending') {
+              await this.images.enqueue(row.id);
+            }
           }
           return 'clean';
         }
@@ -211,6 +217,9 @@ export class AttachmentScanService {
       });
       for (const row of rows) {
         this.attachments.changed(system, row, row.id, 'scanned');
+        if (row.renditionStatus === 'pending') {
+          await this.images.enqueue(row.id);
+        }
       }
       released += rows.length;
       if (rows.length < BATCH) {

@@ -47,6 +47,6 @@ export interface RealtimeEventPayloads {
   'ai.failed': components['schemas']['RealtimeAiFailedEvent'];
   /** A comment on a record you watch (or one you wrote, for your other tabs) was added, edited or removed: ids only, fetch the thread. */
   'record.commented': components['schemas']['RealtimeRecordCommentedEvent'];
-  /** A file on a record you watch was uploaded, removed, issued (a PDF) or scanned clean (it can be downloaded now; MALWARE_SCANNER): ids only. */
+  /** A file on a record you watch was uploaded, removed, issued (a PDF), scanned clean (it can be downloaded now; MALWARE_SCANNER) or processed (an image's thumbnail and preview are made, or it could not be; IMAGE_PROCESSING): ids only. */
   'record.attachments.changed': components['schemas']['RealtimeRecordAttachmentsChangedEvent'];
 }

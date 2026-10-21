@@ -172,6 +172,13 @@ x-app: &app
     CLAMAV_PORT: ${CLAMAV_PORT:-3310}
     CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-60000}
     MALWARE_SCAN_ATTEMPTS: ${MALWARE_SCAN_ATTEMPTS:-5}
+    # Renditions and metadata stripping of uploaded images (docs/attachments.md,
+    # "Image renditions"): api stores an upload `pending` and queues the job,
+    # the worker runs it, so both read these.
+    IMAGE_PROCESSING: ${IMAGE_PROCESSING:-on}
+    IMAGE_MAX_PIXELS: ${IMAGE_MAX_PIXELS:-50000000}
+    IMAGE_TIMEOUT_MS: ${IMAGE_TIMEOUT_MS:-30000}
+    IMAGE_STRIP_ORIGINALS: ${IMAGE_STRIP_ORIGINALS:-on}
     # PDF documents (docs/documents.md): the gotenberg service below. Empty: documents off.
     GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
     GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}

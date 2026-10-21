@@ -138,6 +138,10 @@
       "label": "Malware-Scan von Anhängen",
       "description": "Prüft hochgeladene Dateien auf Schadsoftware und entfernt infizierte."
     },
+    "attachment-images": {
+      "label": "Bildverarbeitung von Anhängen",
+      "description": "Erstellt Vorschaubilder und Vorschauen hochgeladener Bilder und entfernt die Metadaten (EXIF, GPS) der Originale."
+    },
     "revisions-retention": {
       "label": "Aufbewahrung der Revisionen",
       "description": "Löscht jede Nacht Revisionen von Datensätzen, die älter als REVISIONS_RETENTION_DAYS sind (nie die neueste eines Datensatzes)."

@@ -179,6 +179,10 @@ import { NamingSeriesService } from './sequences/naming-series.service.js';
 import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
+import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
+import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
+import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
+import { AttachmentImagesService } from './attachments/attachment-images.service.js';
 import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
 import { AttachmentScanRetryJob } from './attachments/attachment-scan-retry.job.js';
 import {
@@ -188,6 +192,8 @@ import {
 import { AttachmentScanService } from './attachments/attachment-scan.service.js';
 import { MalwareScanner } from './attachments/malware-scanner.js';
 import { malwareScanner } from './attachments/malware-scanner.factory.js';
+import { ImageProcessor } from './images/image-processor.js';
+import { imageProcessor } from './images/image-processor.factory.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
 import { AttachmentsRegistry } from './attachments/attachments.registry.js';
 import { AttachmentsService } from './attachments/attachments.service.js';
@@ -648,6 +654,16 @@ export class PlatformModule {
         AttachmentScanService,
         AttachmentScanProcessor,
         AttachmentScanRetryJob,
+        // Thumbnails, previews and stripped metadata of uploaded images (IMAGE_PROCESSING, on by default): a queue job per image, once it is clean.
+        {
+          provide: ImageProcessor,
+          inject: [ConfigService],
+          useFactory: imageProcessor,
+        },
+        AttachmentImagesQueue,
+        AttachmentImagesService,
+        AttachmentImagesProcessor,
+        AttachmentImagesRetryJob,
         AttachmentsService,
         AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().

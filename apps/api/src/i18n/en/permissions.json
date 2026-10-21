@@ -138,6 +138,10 @@
       "label": "Attachment malware scan",
       "description": "Scans uploaded files for malware (MALWARE_SCANNER) and removes the infected ones."
     },
+    "attachment-images": {
+      "label": "Attachment image processing",
+      "description": "Makes thumbnails and previews of uploaded images and removes the metadata (EXIF, GPS) of the originals."
+    },
     "revisions-retention": {
       "label": "Revision retention",
       "description": "Deletes record revisions older than REVISIONS_RETENTION_DAYS (never a record's latest), every night."

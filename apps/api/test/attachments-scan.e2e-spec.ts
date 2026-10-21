@@ -2,8 +2,10 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { StorageDisk } from '@nestjs/storage';
 import type { Queue } from 'bullmq';
 import { eq } from 'drizzle-orm';
+import sharp from 'sharp';
 import type { Database } from '../src/core/database/drizzle.js';
 import { auditLog } from '../src/iam/iam.tables.js';
+import { ATTACHMENT_IMAGES } from '../src/platform/attachments/attachment-images.queue.js';
 import { ATTACHMENT_SCAN } from '../src/platform/attachments/attachment-scan.queue.js';
 import { AttachmentScanRetryJob } from '../src/platform/attachments/attachment-scan-retry.job.js';
 import {
@@ -60,10 +62,11 @@ describe('attachment malware scanning (e2e, MALWARE_SCANNER=memory)', () => {
     noteId: string,
     file: Buffer,
     filename: string,
+    contentType = 'text/plain',
   ) =>
     editor.agent
       .post(`/v1/test-items/${noteId}/attachments`)
-      .attach('file', file, { filename, contentType: 'text/plain' });
+      .attach('file', file, { filename, contentType });
 
   const metric = async (result: string) => {
     const { body } = await node.app.get(MetricsService).scrape();
@@ -257,6 +260,119 @@ describe('attachment malware scanning (e2e, MALWARE_SCANNER=memory)', () => {
     );
     expect(released?.actor).toBe('system:attachment-scan');
     expect(released?.details).toMatchObject({ reason: 'scanner_off' });
+  });
+
+  describe('uploaded images (IMAGE_PROCESSING)', () => {
+    /** A real picture with a camera's EXIF, which the image job strips. */
+    const photo = () =>
+      sharp({
+        create: {
+          width: 120,
+          height: 80,
+          channels: 3,
+          background: { r: 20, g: 90, b: 200 },
+        },
+      })
+        .withExif({ IFD0: { Make: 'ACME' } })
+        .jpeg()
+        .toBuffer();
+
+    const imageJob = (id: string) =>
+      node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES)).getJob(id);
+
+    const renditionStatusOf = async (id: string) => {
+      const [row] = await db
+        .select({ status: attachments.renditionStatus })
+        .from(attachments)
+        .where(eq(attachments.id, id));
+      return row?.status;
+    };
+
+    it('processes an image only once its scan found it clean', async () => {
+      const { editor, note } = await noteOfEditor();
+      scanner.down = true; // the scan fails and is tried again, so the state can be seen
+      const added = await upload(
+        editor,
+        note.id,
+        await photo(),
+        'held.jpg',
+        'image/jpeg',
+      ).expect(201);
+      expect(added.body).toMatchObject({
+        scanStatus: 'pending',
+        renditionStatus: 'pending',
+      });
+      // Held back: no job, and the retry job leaves it to the scan.
+      expect(await imageJob(added.body.id)).toBeUndefined();
+      await editor.agent
+        .get(`/v1/attachments/${added.body.id}/download?rendition=thumb`)
+        .expect(409);
+
+      scanner.down = false;
+      await vi.waitFor(
+        async () => {
+          expect(await renditionStatusOf(added.body.id)).toBe('ready');
+        },
+        { timeout: 30_000, interval: 250 },
+      );
+      expect(await statusOf(added.body.id)).toBe('clean');
+      await editor.agent
+        .get(`/v1/attachments/${added.body.id}/download?rendition=thumb`)
+        .expect(302);
+    });
+
+    it('never processes an infected image: it is deleted at once', async () => {
+      const { editor, note } = await noteOfEditor();
+      // A JPEG with the test signature after its data: still a JPEG, and infected.
+      const infected = Buffer.concat([
+        await photo(),
+        Buffer.from(`\n${EICAR}\n`),
+      ]);
+      const added = await upload(
+        editor,
+        note.id,
+        infected,
+        'eicar.jpg',
+        'image/jpeg',
+      ).expect(201);
+      await vi.waitFor(
+        async () => {
+          expect(
+            await db
+              .select()
+              .from(attachments)
+              .where(eq(attachments.id, added.body.id)),
+          ).toHaveLength(0);
+        },
+        { timeout: 15_000, interval: 250 },
+      );
+      expect(await imageJob(added.body.id)).toBeUndefined();
+    });
+
+    it('processes the images that are released when scanning is switched back off', async () => {
+      const { editor, note } = await noteOfEditor();
+      scanner.down = true;
+      const added = await upload(
+        editor,
+        note.id,
+        await photo(),
+        'released.jpg',
+        'image/jpeg',
+      ).expect(201);
+      expect(added.body.renditionStatus).toBe('pending');
+
+      scanner.enabled = false; // MALWARE_SCANNER=off, restarted
+      expect(
+        await node.app.get(AttachmentScanRetryJob).run(),
+      ).toBeGreaterThanOrEqual(1);
+      expect(await statusOf(added.body.id)).toBe('clean');
+      await vi.waitFor(
+        async () => {
+          expect(await renditionStatusOf(added.body.id)).toBe('ready');
+        },
+        { timeout: 20_000, interval: 250 },
+      );
+    });
   });
 
   async function statusOf(id: string) {

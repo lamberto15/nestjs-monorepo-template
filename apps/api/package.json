@@ -90,6 +90,7 @@
     "scim-patch": "0.9.3",
     "scim2-parse-filter": "0.3.0",
     "selfsigned": "5.5.0",
+    "sharp": "0.35.5",
     "socket.io": "^4.8.4",
     "undici": "8.12.2",
     "web-push": "3.6.7",

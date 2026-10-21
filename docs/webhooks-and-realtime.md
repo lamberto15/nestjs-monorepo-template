@@ -414,7 +414,7 @@ polling (`RecordActivity`, `platform/realtime/record-activity.ts`):
 | Event                        | When                                             | Data                                                                      |
 | ---------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
 | `record.commented`           | a comment added, edited or removed               | `{ subject, recordId, commentId, action }` (`added`, `edited`, `removed`) |
-| `record.attachments.changed` | an attachment uploaded, removed, scanned clean, or a PDF issued | `{ subject, recordId, attachmentId, action }` (`added`, `removed`, `scanned`) |
+| `record.attachments.changed` | an attachment uploaded, removed, scanned clean, processed (an image's renditions are made, or it could not be), or a PDF issued | `{ subject, recordId, attachmentId, action }` (`added`, `removed`, `scanned`, `processed`) |
 
 - **To whom:** the record's watchers (`…/{id}/watch`, the creator and
   commenters watch by default) and the one who made the change (their

@@ -384,7 +384,7 @@ service it calls that does check refuses it. `GET /v1/access/catalog`
 lists every job (`systemJobs`: key, actor, label, permissions). The
 template's: `seed`, `audit-retention`, `soft-delete-purge`, `sign-up-tenant-sweep`, `tenant-deletion`, `sso` (IAM,
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
-`attachment-sweep`, `attachment-scan`, `revisions-retention`, `notification-retention`,
+`attachment-sweep`, `attachment-scan`, `attachment-images`, `revisions-retention`, `notification-retention`,
 `notification-digests`, `notification-delivery`, `report-runner`,
 `approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `platform-analytics`,
 `reencryption`, `retention`, `messaging`, `messaging-inbound`, `messaging-retention` (platform,
@@ -424,6 +424,7 @@ transaction of the job carries `app.tenant_id` ([tenancy](tenancy.md)).
 | Account deletion | `system:account-deletion` | each tenant the person belonged to (their data there), then none (the account) | `account.deleted` (no tenant), with the anonymization |
 | Attachment sweep | `system:attachment-sweep` | each tenant in turn | `attachments.swept` per round (the ids), with the rows |
 | Attachment malware scan (and its retry job, every five minutes) | `system:attachment-scan` | the upload's (the job's tenant); the retry job: each tenant in turn | `attachment.rejected` (signature) when the file is infected, with the deletion; `attachments.released` (the ids) when scanning is switched off and pending files are released |
+| Attachment image processing (and its retry job, every five minutes) | `system:attachment-images` | the upload's (the job's tenant); the retry job: each tenant in turn | `attachment.processed` (renditions, metadata removed, size before and after) with the new rows |
 | Scheduled reports | `system:report-runner` | each tenant in turn | `report.skipped`, `report.deactivated`, `report.finished`; the export itself runs, and is audited, as the report's owner |
 | Approvals workflow | `system:approvals` | the request's (the workflow's input) | the workflow's own (`approval.escalated`, `.expired`, `.failed`…); its outcome handlers get it as `outcome.actor` |
 | Note publication workflow | `system:note-publication` | the note's (the workflow's input) | `note.updated` (draft → published); an approval it asks for is on the owner's behalf |

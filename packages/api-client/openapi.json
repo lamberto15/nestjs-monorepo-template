@@ -17054,7 +17054,7 @@
     },
     "/v1/attachments/{id}/download": {
       "get": {
-        "description": "Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download.",
+        "description": "Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download. `?rendition=thumb` or `preview` links to an image's smaller WebP copy instead, inline.",
         "operationId": "AttachmentsController_download_v1",
         "parameters": [
           {
@@ -17079,6 +17079,20 @@
                 "false"
               ]
             }
+          },
+          {
+            "name": "rendition",
+            "required": false,
+            "in": "query",
+            "description": "An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed.",
+            "schema": {
+              "description": "An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed.",
+              "type": "string",
+              "enum": [
+                "thumb",
+                "preview"
+              ]
+            }
           }
         ],
         "responses": {
@@ -17089,7 +17103,7 @@
             "description": "No valid API key or session."
           },
           "404": {
-            "description": ""
+            "description": "No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found)."
           },
           "409": {
             "description": "The malware scan has not finished (attachment_scan_pending): try again shortly."
@@ -46322,9 +46336,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, renditionStatus, renditions, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -49124,6 +49138,37 @@
             ],
             "description": "`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified."
           },
+          "renditionStatus": {
+            "nullable": true,
+            "description": "Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.",
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed"
+            ]
+          },
+          "renditions": {
+            "type": "object",
+            "properties": {
+              "thumb": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AttachmentRendition"
+                  }
+                ]
+              },
+              "preview": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AttachmentRendition"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "description": "Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -49145,8 +49190,44 @@
           "uploadedBy",
           "locked",
           "scanStatus",
+          "renditionStatus",
+          "renditions",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "AttachmentRendition": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Pixels, upright."
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Pixels, upright."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Bytes."
+          },
+          "contentType": {
+            "type": "string",
+            "example": "image/webp"
+          }
+        },
+        "required": [
+          "width",
+          "height",
+          "size",
+          "contentType"
         ],
         "additionalProperties": false
       },
@@ -50145,7 +50226,8 @@
             "enum": [
               "added",
               "removed",
-              "scanned"
+              "scanned",
+              "processed"
             ]
           }
         },
@@ -50281,7 +50363,7 @@
       }
     },
     "record.attachments.changed": {
-      "description": "A file on a record you watch was uploaded, removed, issued (a PDF) or scanned clean (it can be downloaded now; MALWARE_SCANNER): ids only.",
+      "description": "A file on a record you watch was uploaded, removed, issued (a PDF), scanned clean (it can be downloaded now; MALWARE_SCANNER) or processed (an image's thumbnail and preview are made, or it could not be; IMAGE_PROCESSING): ids only.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeRecordAttachmentsChangedEvent"
       }

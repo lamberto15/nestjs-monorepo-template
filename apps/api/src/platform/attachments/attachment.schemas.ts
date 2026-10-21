@@ -1,6 +1,16 @@
 import { pageSchema } from '../../core/http/pagination.js';
 import { z } from 'zod';
 
+/** A derived file of an image attachment: how big it is, not where it is stored. */
+export const renditionSchema = z
+  .object({
+    width: z.number().int().describe('Pixels, upright.'),
+    height: z.number().int().describe('Pixels, upright.'),
+    size: z.number().int().describe('Bytes.'),
+    contentType: z.string().meta({ example: 'image/webp' }),
+  })
+  .meta({ id: 'AttachmentRendition' });
+
 /** A file attached to a record. */
 export const attachmentSchema = z
   .object({
@@ -26,6 +36,20 @@ export const attachmentSchema = z
       .enum(['pending', 'clean'])
       .describe(
         '`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified.',
+      ),
+    renditionStatus: z
+      .enum(['pending', 'ready', 'failed'])
+      .nullable()
+      .describe(
+        'Only for JPEG, PNG, WebP and GIF uploads while IMAGE_PROCESSING is on, else null. `pending`: the thumbnail and preview are being made (after the malware scan, when it is on); the original can be downloaded meanwhile. `ready`: `renditions` has them. `failed`: the image could not be processed (more than IMAGE_MAX_PIXELS, damaged, over the time limit); the file stays as it was uploaded.',
+      ),
+    renditions: z
+      .object({
+        thumb: renditionSchema.optional(),
+        preview: renditionSchema.optional(),
+      })
+      .describe(
+        'Smaller WebP copies of an image, upright and without metadata: `thumb` fits in 256 × 256 pixels, `preview` in 1600 × 1600 (neither enlarges). Empty until `renditionStatus` is `ready`. Download one with `GET /v1/attachments/{id}/download?rendition=thumb|preview`.',
       ),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),

@@ -279,6 +279,37 @@ export const platformEnv = z.object({
   MALWARE_SCAN_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
 
   /**
+   * Image attachments (platform/images, docs/attachments.md, "Image
+   * renditions"): a queue job makes a thumbnail and a preview of each
+   * uploaded JPEG, PNG, WebP or GIF, after the malware scan found it clean,
+   * and removes the metadata (EXIF, GPS…) of the original. `off`: images
+   * are stored as uploaded, with no renditions.
+   */
+  IMAGE_PROCESSING: flag('on'),
+  /**
+   * Pixels of one frame (width × height) an image may have to be processed;
+   * more is refused from its header, before a pixel is decoded (a decompression
+   * bomb: 50 KB of PNG can claim gigapixels). The image stays as uploaded.
+   * Memory is about 4 bytes per pixel while one image is converted: raise it
+   * with WORKER_MEMORY.
+   */
+  IMAGE_MAX_PIXELS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(268_402_689)
+    .default(50_000_000),
+  /** One conversion's limit, in milliseconds; an image that takes longer stays as uploaded. */
+  IMAGE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30_000),
+  /**
+   * `on`: an original that carries metadata (EXIF, GPS, XMP, IPTC) is
+   * replaced by a copy without it (re-encoded: JPEG and WebP at quality 90,
+   * upright). `off`: originals stay byte for byte as uploaded; only the
+   * renditions are stripped.
+   */
+  IMAGE_STRIP_ORIGINALS: flag('on'),
+
+  /**
    * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`
    * in Compose. Unset: documents are off, and asking for one answers 503
    * `documents_unavailable`; nothing else needs it.
