@@ -39,6 +39,10 @@ x-app: &app
     CORS_ORIGINS: ${CORS_ORIGINS:-}
     SERVICE_NAME: ${SERVICE_NAME:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}
     APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+    # Forces the mode (normal, read-only, maintenance) over the operators'
+    # platform.mode setting (docs/settings.md). This file lists the variables
+    # the containers get (no env_file), so a variable missing here never arrives.
+    APP_MODE: ${APP_MODE:-}
     LOCALES: ${LOCALES:-en,de,ar,zh,ms}
     LOG_FORMAT: ${LOG_FORMAT:-}
     LOG_LEVEL: ${LOG_LEVEL:-log}

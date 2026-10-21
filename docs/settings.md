@@ -130,11 +130,18 @@ and `DELETE` of the same path returns to `normal`. Code: `apps/api/src/platform/
 Both refusals are problem documents with `Retry-After: 30`. Always working,
 in both modes (`@AllowInMaintenance()`, `core/http/maintenance.ts`):
 `/health`, `/metrics`, `GET /v1/features` (it carries `mode`, for a client to
-show a banner), sign-in and out (`/v1/auth`: `methods`, `sign-in`,
-`mfa/verify`, `sign-out`, `me`), `/v1/ops` and the two operator routes
+show a banner), signing in and out by every method (`/v1/auth`: `methods`,
+`sign-in`, `mfa/verify`, `sign-out`, `me`; `token`, `token/refresh` and
+`token/revoke`; `passkeys/sign-in/options`, `passkeys/sign-in` and
+`passkeys/token`; `oidc/{provider}/login` and `callback`; `sso/discover` and
+every SSO connection's login, callbacks and SAML routes; `magic-link/verify`),
+`/v1/ops` and the two operator routes
 `PUT`/`DELETE /v1/settings/{key}/platform`, so the operators can always turn
-the mode off again. Mark a route of your own the same way when it must keep
-working. A POST that only reads is refused in `read-only`.
+the mode off again, however they sign in, and token clients keep renewing
+their tokens. Asking for a magic link (`POST /v1/auth/magic-link`) is
+refused: its mail waits in the paused mail queue. Mark a route of your own
+the same way when it must keep working. A POST that only reads is refused in
+`read-only`.
 
 - **`APP_MODE`** forces the mode from the environment (`env.example`) and
   wins over the setting, which then refuses a new value
