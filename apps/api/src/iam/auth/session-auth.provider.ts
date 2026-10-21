@@ -8,6 +8,7 @@ import {
 import type { Principal } from './principal.js';
 import type { IamEnv } from '../iam.env.js';
 import { impersonationOf, sessionTenant } from './impersonation.js';
+import { SessionLifetime } from './session-lifetime.js';
 import { UsersRepository } from './users.repository.js';
 
 /** Users, signed in with the session cookie. */
@@ -16,6 +17,7 @@ export class SessionAuth extends SessionCookieProvider<Principal> {
   constructor(
     private readonly accounts: UsersRepository,
     private readonly config: ConfigService<IamEnv, true>,
+    private readonly lifetime: SessionLifetime,
     registry: AuthenticationRegistry,
   ) {
     super();
@@ -32,7 +34,20 @@ export class SessionAuth extends SessionCookieProvider<Principal> {
       sessionTenant(session),
     );
     const impersonation = impersonationOf(session);
-    if (!user || !impersonation) {
+    if (!user) {
+      return user;
+    }
+    // The tenant's session limits (auth.sessionIdleMinutes, auth.sessionMaxHours),
+    // under the environment's, which the package applied already. Not for
+    // an impersonation: it has its own time (below) and ends with the
+    // administrator's say.
+    if (
+      !impersonation &&
+      (await this.lifetime.expired(session, user.tenantId))
+    ) {
+      return null;
+    }
+    if (!impersonation) {
       return user;
     }
     // IMPERSONATION=off ends the running ones too.

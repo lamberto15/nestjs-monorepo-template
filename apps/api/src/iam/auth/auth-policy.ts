@@ -32,6 +32,10 @@ export interface AuthPolicySource {
    * out, and grants it has stop at once. Absent: allowed.
    */
   allowsBreakGlass?(tenantId: string): Promise<boolean>;
+  /** The tenant's idle timeout for sessions, in minutes, if it chose one. */
+  sessionIdleMinutes?(tenantId: string): Promise<number | undefined>;
+  /** The tenant's absolute session lifetime, in hours, if it chose one. */
+  sessionMaxHours?(tenantId: string): Promise<number | undefined>;
 }
 
 /** NIST SP 800-63B: the floor every password meets, whatever a tenant says. */
@@ -71,6 +75,48 @@ export const effectivePasswordMinLength = (
       ),
     ),
   );
+
+/** The session lifetimes the environment allows (SESSION_IDLE_MINUTES, SESSION_MAX_HOURS). */
+export interface SessionCeiling {
+  SESSION_IDLE_MINUTES: number;
+  SESSION_MAX_HOURS: number;
+}
+
+/** The shortest idle timeout a tenant may ask for: the web app warns two minutes before it. */
+export const SESSION_IDLE_MINUTES_FLOOR = 5;
+/** The longest idle timeout (a week) and absolute lifetime (30 days) a setting or the env may have. */
+export const SESSION_IDLE_MINUTES_LIMIT = 10_080;
+export const SESSION_MAX_HOURS_LIMIT = 720;
+
+/**
+ * A session limit under the ceiling: the tenant's choice when it is
+ * shorter, else the environment's. A non-number counts as no choice.
+ */
+export const effectiveSessionLimit = (
+  ceiling: number,
+  chosen: number | undefined,
+) =>
+  typeof chosen === 'number' && Number.isFinite(chosen) && chosen > 0
+    ? Math.min(ceiling, chosen)
+    : ceiling;
+
+/** Why a session limit can't be stored (over the ceiling), or undefined. */
+export function sessionCeilingRefusal(
+  ceiling: SessionCeiling,
+  key: 'sessionIdleMinutes' | 'sessionMaxHours',
+  value: unknown,
+): string | undefined {
+  if (typeof value !== 'number') {
+    return undefined;
+  }
+  if (key === 'sessionIdleMinutes' && value > ceiling.SESSION_IDLE_MINUTES) {
+    return `SESSION_IDLE_MINUTES is ${ceiling.SESSION_IDLE_MINUTES} in this deployment: a tenant may only shorten it.`;
+  }
+  if (key === 'sessionMaxHours' && value > ceiling.SESSION_MAX_HOURS) {
+    return `SESSION_MAX_HOURS is ${ceiling.SESSION_MAX_HOURS} in this deployment: a tenant may only shorten it.`;
+  }
+  return undefined;
+}
 
 /**
  * Why a value can't be set in this deployment (the ceiling), or undefined.

@@ -17629,6 +17629,21 @@ export interface operations {
                              */
                             recentUntil: string | null;
                         } | null;
+                        /** @description A browser session's lifetime, for a warning before it ends. Always sent; null for a token or an impersonation. */
+                        session?: {
+                            /** @description Minutes without a request after which this session ends: the tenant's auth.sessionIdleMinutes under the deployment's SESSION_IDLE_MINUTES. */
+                            idleMinutes: number;
+                            /**
+                             * Format: date-time
+                             * @description The last request this session made, as stored.
+                             */
+                            lastActiveAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When it ends however active: the tenant's auth.sessionMaxHours after the sign-in, under the deployment's SESSION_MAX_HOURS.
+                             */
+                            expiresAt: string;
+                        } | null;
                         /** @description Every action of the permission catalog as "Subject.action": true when any of the user's permissions allows it, on some records at least. */
                         can: {
                             [key: string]: boolean;
