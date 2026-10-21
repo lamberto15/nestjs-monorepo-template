@@ -412,7 +412,9 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
   default limits hold; raise `WORKER_MEMORY` with `IMAGE_MAX_PIXELS`, and
   `/tmp` if libvips spills a very large image there (`Read-only file system`
   or `No space left` in the worker's log). A worker killed at its limit
-  while converting leaves the image `pending`; the retry job queues it again.
+  while converting gets the job back once (BullMQ's stalled-job check);
+  killed on it again, the image ends `failed`, as uploaded, so one image
+  can't take the worker down over and over.
   sharp brings libvips prebuilt (the `@img/sharp-*` package for the platform
   and libc, an optional dependency with no install script): the glibc image
   (`apps/api/Dockerfile`) needs no extra package and no `allowBuilds` entry.

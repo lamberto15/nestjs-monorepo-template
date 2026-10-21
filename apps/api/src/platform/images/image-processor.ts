@@ -13,7 +13,9 @@ import {
  * again changes nothing: the attachment keeps the file as uploaded.
  * - `pixels`: more than IMAGE_MAX_PIXELS in one frame (a decompression
  *   bomb: a small file that inflates to gigabytes).
- * - `size`: a file larger than the worker will load (`MAX_INPUT_BYTES`).
+ * - `size`: a file larger than the worker will load (`MAX_INPUT_BYTES`), or
+ *   one whose copy without metadata would be much larger than it
+ *   (`MAX_GROWTH`).
  * - `format`: not JPEG, PNG, WebP or GIF, whatever it was called.
  * - `timeout`: a conversion over IMAGE_TIMEOUT_MS.
  * - `invalid`: damaged or truncated (the library refuses it, with its
@@ -48,8 +50,21 @@ export const MAX_INPUT_BYTES = 64 * 1024 * 1024;
 /** Bytes the storage package needs to recognize an image's signature. */
 const SNIFF_BYTES = 16;
 
-/** Quality of a re-encoded JPEG or WebP original: high, so that the loss is not visible. */
+/** Quality of a re-encoded JPEG or lossy WebP original: high, so that the loss is not visible. */
 const ORIGINAL_QUALITY = 90;
+
+/**
+ * How much larger than the original its copy without metadata may be: four
+ * times, plus 64 KiB for a tiny file. Re-encoding grows a heavily compressed
+ * original somewhat (measured: a JPEG of quality 10 written at 90, three
+ * times; a 1-bit PNG written with 8 bits, three and a half), but a PNG can be
+ * built to compress well only as it was uploaded (each row the one above
+ * plus a step its encoder's filters do not try): 10 KB that come out 2 MB,
+ * stored in place of the upload past what its size and the quota let in.
+ * Larger is refused (`size`), the original left as uploaded.
+ */
+const MAX_GROWTH = 4;
+const GROWTH_ALLOWANCE = 64 * 1024;
 
 export interface ProcessedRendition {
   data: Buffer;
@@ -65,7 +80,8 @@ export interface ProcessedImage {
    * The original without its metadata, same format and orientation baked
    * in. Only when it had metadata, stripping is on and re-encoding it is
    * sound (a JPEG, PNG or WebP of one frame and 8 bits per channel); else
-   * the original stays byte for byte as uploaded.
+   * the original stays byte for byte as uploaded. At most `MAX_GROWTH`
+   * times the original's size.
    */
   stripped?: { data: Buffer; removed: string[] };
 }
@@ -76,6 +92,8 @@ type SharpFactory = (typeof import('sharp'))['default'];
 const FORMATS: ReadonlySet<string> = new Set(['jpeg', 'png', 'webp', 'gif']);
 /** Of those, the ones whose metadata we remove (a GIF has no EXIF to leak). */
 const STRIPPABLE: ReadonlySet<string> = new Set(['jpeg', 'png', 'webp']);
+/** The kinds of metadata, in the order they are reported (`stripped.removed`). */
+const KINDS = ['exif', 'xmp', 'iptc', 'photoshop', 'comments'] as const;
 
 /**
  * Makes the renditions of an image and strips its metadata, with sharp
@@ -160,7 +178,11 @@ export class ImageProcessor {
       };
     }
 
-    const removed = metadataKinds(meta);
+    const found = new Set(metadataKinds(meta));
+    if (meta.format === 'png') {
+      for (const kind of pngMetadataKinds(input)) found.add(kind);
+    }
+    const removed = KINDS.filter((kind) => found.has(kind));
     if (
       !this.options.stripOriginals ||
       removed.length === 0 ||
@@ -173,16 +195,32 @@ export class ImageProcessor {
     }
     // Same format, rotated upright (the Orientation tag goes with the rest of
     // the EXIF, so the pixels must carry it), colours in sRGB (the library's
-    // default; the ICC profile goes too).
+    // default; the ICC profile goes too). A lossless original stays lossless.
     let pipeline = open().autoOrient();
     if (meta.format === 'jpeg') {
       pipeline = pipeline.jpeg({ quality: ORIGINAL_QUALITY });
     } else if (meta.format === 'webp') {
-      pipeline = pipeline.webp({ quality: ORIGINAL_QUALITY });
+      pipeline = pipeline.webp(
+        isLosslessWebp(input)
+          ? { lossless: true }
+          : { quality: ORIGINAL_QUALITY },
+      );
     } else {
-      pipeline = pipeline.png({ palette: meta.isPalette === true });
+      // Row filters chosen per row, as most encoders do: without them (the
+      // library's default) a PNG comes out several times larger.
+      pipeline = pipeline.png({
+        palette: meta.isPalette === true,
+        adaptiveFiltering: true,
+      });
     }
     const data = await attempt(() => pipeline.toBuffer());
+    const most = input.length * MAX_GROWTH + GROWTH_ALLOWANCE;
+    if (data.length > most) {
+      throw new ImageRejectedError(
+        'size',
+        `Without its metadata the image would be ${data.length} bytes, more than ${MAX_GROWTH} times its ${input.length}.`,
+      );
+    }
     return { renditions, stripped: { data, removed } };
   }
 
@@ -206,6 +244,56 @@ export function metadataKinds(meta: Metadata): string[] {
   if (meta.tifftagPhotoshop) kinds.push('photoshop');
   if (meta.comments?.length) kinds.push('comments');
   return kinds;
+}
+
+/** The keyword (and its terminating NUL) of the iTXt chunk that holds a PNG's XMP. */
+const XMP_KEYWORD = 'XML:com.adobe.xmp\0';
+
+/**
+ * The kinds of metadata in a PNG's EXIF and text chunks, wherever they are.
+ * Read here because the library reads only the chunks before the image data
+ * (IDAT), and a PNG may carry them after it as well (libpng writes there what
+ * is set late; ImageMagick puts its EXIF and text there): sharp's metadata
+ * would miss them, and the original would be kept with its GPS position.
+ */
+function pngMetadataKinds(input: Buffer): string[] {
+  const kinds = new Set<string>();
+  // After the 8-byte signature, chunks: length, type, data, CRC.
+  for (let at = 8; at + 8 <= input.length;) {
+    const length = input.readUInt32BE(at);
+    const type = input.toString('latin1', at + 4, at + 8);
+    if (type === 'IEND') break;
+    if (type === 'eXIf') {
+      kinds.add('exif');
+    } else if (
+      type === 'iTXt' &&
+      input.toString('latin1', at + 8, at + 8 + XMP_KEYWORD.length) ===
+        XMP_KEYWORD
+    ) {
+      kinds.add('xmp');
+    } else if (type === 'tEXt' || type === 'zTXt' || type === 'iTXt') {
+      kinds.add('comments');
+    }
+    at += 12 + length;
+  }
+  return [...kinds];
+}
+
+/**
+ * Whether a WebP is lossless: its image data is a `VP8L` chunk, not `VP8 `.
+ * sharp's metadata does not say, and a lossless original (a screenshot, line
+ * art) re-encoded lossy would lose sharp edges and text for good.
+ */
+function isLosslessWebp(input: Buffer): boolean {
+  // `RIFF`, the size, `WEBP`, then chunks: type, size (little-endian), data padded to even.
+  for (let at = 12; at + 8 <= input.length;) {
+    const type = input.toString('latin1', at, at + 4);
+    if (type === 'VP8L') return true;
+    if (type === 'VP8 ') return false;
+    const size = input.readUInt32LE(at + 4);
+    at += 8 + size + (size % 2);
+  }
+  return false;
 }
 
 /** Runs one conversion; the library's errors become an `ImageRejectedError` with the reason. */

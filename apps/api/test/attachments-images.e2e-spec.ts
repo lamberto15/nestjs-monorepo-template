@@ -1,20 +1,32 @@
 import { getQueueToken } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import { StorageDisk } from '@nestjs/storage';
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { Database } from '../src/core/database/drizzle.js';
 import { MetricsService } from '../src/core/metrics/metrics.service.js';
+import { TenantQuotas } from '../src/core/tenancy/tenant-quotas.js';
 import { auditLog } from '../src/iam/iam.tables.js';
 import { AttachmentImagesRetryJob } from '../src/platform/attachments/attachment-images-retry.job.js';
-import { ATTACHMENT_IMAGES } from '../src/platform/attachments/attachment-images.queue.js';
+import { AttachmentImagesProcessor } from '../src/platform/attachments/attachment-images.processor.js';
+import {
+  ATTACHMENT_IMAGES,
+  type AttachmentImagesJob,
+} from '../src/platform/attachments/attachment-images.queue.js';
 import { AttachmentImagesQueue } from '../src/platform/attachments/attachment-images.queue.js';
 import {
   AttachmentImagesService,
   RETRY_MS,
 } from '../src/platform/attachments/attachment-images.service.js';
+import { attachmentLimits } from '../src/platform/attachments/attachment-limits.js';
 import { attachments } from '../src/platform/attachments/attachments.tables.js';
 import { AttachmentSweepJob } from '../src/platform/attachments/attachment-sweep.job.js';
+import { STALLED_REASON } from '../src/platform/data-transfer/data-transfer.processor.js';
+import {
+  ImageProcessor,
+  MAX_INPUT_BYTES,
+} from '../src/platform/images/image-processor.js';
 import { SoftDeletePurgeJob } from '../src/iam/resources/soft-delete-purge.job.js';
 import { testItems } from './fixtures/test-items/test-items.tables.js';
 import { bootApp, connect, type TestApp } from './support.js';
@@ -124,6 +136,32 @@ describe('image attachments (e2e)', () => {
       );
     return line ? Number(line.split(' ').pop()) : 0;
   };
+
+  /** An upload whose job is never queued (the tests run it by hand, or a Redis that lost it leaves it so). */
+  async function pendingImage(file?: Buffer) {
+    const { editor, note } = await noteOfEditor();
+    const queue = node.app.get(AttachmentImagesQueue);
+    const enqueue = vi.spyOn(queue, 'enqueue').mockResolvedValue(undefined);
+    let added;
+    try {
+      added = await upload(
+        editor,
+        note.id,
+        file ?? (await photo()),
+        'lost.jpg',
+        'image/jpeg',
+      ).expect(201);
+    } finally {
+      enqueue.mockRestore();
+    }
+    return { editor, id: added.body.id as string };
+  }
+
+  /** What the queue hands the worker for an attachment. */
+  const jobOf = (attachmentId: string): AttachmentImagesJob => ({
+    tenantId: node.tenantId,
+    attachmentId,
+  });
 
   it('makes a thumb and a preview of an upload, strips its metadata, and serves them', async () => {
     const { editor, note } = await noteOfEditor();
@@ -469,26 +507,6 @@ describe('image attachments (e2e)', () => {
   });
 
   describe('a job that was lost, or processing switched off', () => {
-    /** An upload whose job is never queued: the way a Redis that lost it leaves it. */
-    async function pendingImage() {
-      const { editor, note } = await noteOfEditor();
-      const queue = node.app.get(AttachmentImagesQueue);
-      const enqueue = vi.spyOn(queue, 'enqueue').mockResolvedValue(undefined);
-      let added;
-      try {
-        added = await upload(
-          editor,
-          note.id,
-          await photo(),
-          'lost.jpg',
-          'image/jpeg',
-        ).expect(201);
-      } finally {
-        enqueue.mockRestore();
-      }
-      return { editor, id: added.body.id as string };
-    }
-
     it('queues an image that is still pending five minutes on, not before', async () => {
       const { editor, id } = await pendingImage();
       const queue = node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES));
@@ -534,6 +552,214 @@ describe('image attachments (e2e)', () => {
       } finally {
         off.mockRestore();
       }
+    });
+  });
+
+  describe('when processing fails', () => {
+    const images = () => node.app.get(AttachmentImagesService);
+
+    it('fails an image whose file is not on the disk (missing)', async () => {
+      const { id } = await pendingImage();
+      await disk.delete((await rowOf(id)).key);
+      expect(await images().process(jobOf(id))).toBe('failed');
+      expect((await rowOf(id)).renditionStatus).toBe('failed');
+    });
+
+    it('fails an image larger than a worker loads (size), without reading it', async () => {
+      const { id } = await pendingImage();
+      const before = await rowOf(id);
+      await db
+        .update(attachments)
+        .set({ size: MAX_INPUT_BYTES + 1 })
+        .where(eq(attachments.id, id));
+      const read = vi.spyOn(disk, 'getBuffer');
+      try {
+        expect(await images().process(jobOf(id))).toBe('failed');
+        expect(read).not.toHaveBeenCalled();
+      } finally {
+        read.mockRestore();
+      }
+      const row = await rowOf(id);
+      expect(row).toMatchObject({ renditionStatus: 'failed', key: before.key });
+      expect(await disk.exists(before.key)).toBe(true);
+    });
+
+    it('throws on a disk failure, so the queue tries again, and leaves none of its files behind', async () => {
+      const { id } = await pendingImage();
+      const before = await rowOf(id);
+      const errors = await metric('error');
+      const put = disk.put.bind(disk);
+      const keys: string[] = [];
+      // The stripped original is written, then the disk fails on the thumb.
+      const failing = vi
+        .spyOn(disk, 'put')
+        .mockImplementation(async (...args: Parameters<StorageDisk['put']>) => {
+          keys.push(args[0]);
+          if (keys.length === 2) throw new Error('The disk is away.');
+          return put(...args);
+        });
+      try {
+        await expect(images().process(jobOf(id))).rejects.toThrow(
+          'The disk is away.',
+        );
+      } finally {
+        failing.mockRestore();
+      }
+      expect(keys).toHaveLength(2);
+      for (const key of keys) expect(await disk.exists(key)).toBe(false);
+      expect(await rowOf(id)).toMatchObject({
+        renditionStatus: 'pending',
+        key: before.key,
+        size: before.size,
+        renditions: {},
+      });
+      expect(await disk.exists(before.key)).toBe(true);
+      expect(await metric('error')).toBeGreaterThan(errors);
+      // The next attempt finds it as it was.
+      expect(await images().process(jobOf(id))).toBe('ready');
+    });
+
+    it('tells the record\'s open pages when an image fails too (action "processed")', async () => {
+      const { editor, note } = await noteOfEditor();
+      const token = (
+        await node
+          .http()
+          .post('/v1/auth/token')
+          .send({ email: editor.email, password: editor.password })
+          .expect(200)
+      ).body.accessToken as string;
+      const socket = await connect(node, token);
+      const heard: { action: string; attachmentId: string }[] = [];
+      socket.on(
+        'record.attachments.changed',
+        (data: { action: string; attachmentId: string }) => heard.push(data),
+      );
+      try {
+        const added = await upload(
+          editor,
+          note.id,
+          DAMAGED_PNG,
+          'broken.png',
+          'image/png',
+        ).expect(201);
+        await vi.waitFor(
+          () =>
+            expect(heard.map((event) => event.action)).toEqual([
+              'added',
+              'processed',
+            ]),
+          { timeout: 20_000, interval: 100 },
+        );
+        expect((await rowOf(added.body.id)).renditionStatus).toBe('failed');
+      } finally {
+        socket.disconnect();
+      }
+    });
+
+    it('fails an image its worker died on twice (a stalled job), so that nothing queues it again', async () => {
+      const { id } = await pendingImage();
+      const host = node.app.get(AttachmentImagesProcessor);
+      const job = { id, data: jobOf(id) } as Job<AttachmentImagesJob>;
+
+      // Any other failure (retries spent on a disk error): the retry job's.
+      await host.onFailed(job, new Error('The disk is away.'));
+      expect((await rowOf(id)).renditionStatus).toBe('pending');
+
+      // BullMQ's own failure of a job whose runs never returned.
+      await host.onFailed(job, new Error(STALLED_REASON));
+      expect((await rowOf(id)).renditionStatus).toBe('failed');
+      const later = new Date(Date.now() + RETRY_MS + 1000);
+      await node.app.get(AttachmentImagesRetryJob).run(later);
+      const queue = node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES));
+      expect(
+        await queue.getJob(`${id}-${Math.floor(later.getTime() / RETRY_MS)}`),
+      ).toBeUndefined();
+      // A job gone meanwhile: nothing to do, and no error.
+      await host.onFailed(undefined, new Error(STALLED_REASON));
+    });
+
+    /** Has the processor return a stripped copy of `size` bytes, writes recorded. */
+    async function withStrippedCopy<T>(size: number, run: () => Promise<T>) {
+      const processor = node.app.get(ImageProcessor);
+      const convert = processor.process.bind(processor);
+      const process = vi
+        .spyOn(processor, 'process')
+        .mockImplementation(async (input) => ({
+          ...(await convert(input)),
+          stripped: { data: Buffer.alloc(size, 1), removed: ['exif'] },
+        }));
+      const put = vi.spyOn(disk, 'put');
+      try {
+        const result = await run();
+        return { result, written: put.mock.calls.map(([key]) => key) };
+      } finally {
+        process.mockRestore();
+        put.mockRestore();
+      }
+    }
+
+    it('fails an image whose stripped copy would be larger than ATTACHMENT_MAX_MB (size)', async () => {
+      const { id } = await pendingImage();
+      const before = await rowOf(id);
+      const { maxBytes } = attachmentLimits(node.app.get(ConfigService));
+      const { result, written } = await withStrippedCopy(maxBytes + 1, () =>
+        images().process(jobOf(id)),
+      );
+      expect(result).toBe('failed');
+      expect(written).toEqual([]);
+      expect(await rowOf(id)).toMatchObject({
+        renditionStatus: 'failed',
+        key: before.key,
+        size: before.size,
+      });
+    });
+
+    it("holds the tenant's storage quota for what a stripped copy adds", async () => {
+      const quotas = node.app.get(TenantQuotas);
+      const limit = quotas.limit.bind(quotas);
+      // The tenant is full: an upload, or anything that grows, is refused.
+      const full = () =>
+        vi
+          .spyOn(quotas, 'limit')
+          .mockImplementation(async (tenantId, resource, tx) =>
+            resource === 'storageBytes' ? 0 : limit(tenantId, resource, tx),
+          );
+
+      // A copy no larger than the original takes no room: it goes through.
+      const { id: smaller } = await pendingImage();
+      const original = await rowOf(smaller);
+      let spy = full();
+      try {
+        const { result } = await withStrippedCopy(original.size, () =>
+          images().process(jobOf(smaller)),
+        );
+        expect(result).toBe('ready');
+      } finally {
+        spy.mockRestore();
+      }
+
+      // A larger one needs room: failed, as uploaded, its files deleted.
+      const { id } = await pendingImage();
+      const before = await rowOf(id);
+      spy = full();
+      try {
+        const { result, written } = await withStrippedCopy(
+          before.size + 1000,
+          () => images().process(jobOf(id)),
+        );
+        expect(result).toBe('failed');
+        expect(written).toHaveLength(3);
+        for (const key of written) expect(await disk.exists(key)).toBe(false);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await rowOf(id)).toMatchObject({
+        renditionStatus: 'failed',
+        key: before.key,
+        size: before.size,
+        renditions: {},
+      });
+      expect(await disk.exists(before.key)).toBe(true);
     });
   });
 });

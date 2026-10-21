@@ -1,11 +1,15 @@
+import { randomBytes } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import sharp from 'sharp';
-import { describe, expect, it } from 'vitest';
+import type { ConfigService } from '@nestjs/config';
+import sharp, { type Sharp } from 'sharp';
+import { describe, expect, it, vi } from 'vitest';
+import type { PlatformEnv } from '../platform.env.js';
 import {
   ImageProcessor,
   type ImageProcessorOptions,
   ImageRejectedError,
 } from './image-processor.js';
+import { imageProcessor } from './image-processor.factory.js';
 
 const processor = (options: Partial<ImageProcessorOptions> = {}) =>
   new ImageProcessor({
@@ -41,29 +45,79 @@ const photo = (width = 400, height = 200) =>
 
 const meta = (bytes: Buffer) => sharp(bytes).metadata();
 
+const PNG_SIGNATURE = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
+/** One PNG chunk: length, type, data, CRC. */
+const pngChunk = (type: string, data: Buffer) => {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([length, body, crc]);
+};
+
+/** A PNG's chunks as they are in the file (each whole: length to CRC). */
+function pngChunks(png: Buffer) {
+  const chunks: { type: string; bytes: Buffer }[] = [];
+  for (let at = 8; at < png.length;) {
+    const end = at + 12 + png.readUInt32BE(at);
+    chunks.push({
+      type: png.toString('latin1', at + 4, at + 8),
+      bytes: png.subarray(at, end),
+    });
+    at = end;
+  }
+  return chunks;
+}
+
 /** A 1-bit PNG of `size` × `size` pixels: a few KB that inflate to megapixels. */
 function pngBomb(size: number) {
-  const chunk = (type: string, data: Buffer) => {
-    const length = Buffer.alloc(4);
-    length.writeUInt32BE(data.length);
-    const body = Buffer.concat([Buffer.from(type), data]);
-    const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(body));
-    return Buffer.concat([length, body, crc]);
-  };
   const header = Buffer.alloc(13);
   header.writeUInt32BE(size, 0);
   header.writeUInt32BE(size, 4);
   header[8] = 1; // bit depth; grayscale, no interlace
   const row = Buffer.alloc(1 + Math.ceil(size / 8));
   return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', header),
-    chunk(
+    PNG_SIGNATURE,
+    pngChunk('IHDR', header),
+    pngChunk(
       'IDAT',
       deflateSync(Buffer.concat(Array(size).fill(row)), { level: 9 }),
     ),
-    chunk('IEND', Buffer.alloc(0)),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/**
+ * An 8-bit RGBA PNG with a text chunk (so it gets stripped) whose rows
+ * compress well as written: a row of noise, then each row the one above
+ * plus `step` in every byte, stored with the Up filter (each row deflates
+ * to one repeated byte). Whether a re-encoded copy does depends on the
+ * filters its encoder picks.
+ */
+function pngGrowing(width: number, height: number, step: number) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8; // bit depth
+  header[9] = 6; // RGBA
+  const rowBytes = width * 4;
+  const raw = Buffer.alloc((rowBytes + 1) * height);
+  randomBytes(rowBytes).copy(raw, 1); // row 0, filter None
+  for (let y = 1; y < height; y++) {
+    const at = y * (rowBytes + 1);
+    raw[at] = 2; // Up
+    raw.fill(step, at + 1, at + 1 + rowBytes);
+  }
+  return Buffer.concat([
+    PNG_SIGNATURE,
+    pngChunk('IHDR', header),
+    pngChunk('tEXt', Buffer.from('Comment\0made by hand', 'latin1')),
+    pngChunk('IDAT', deflateSync(raw, { level: 9 })),
+    pngChunk('IEND', Buffer.alloc(0)),
   ]);
 }
 
@@ -186,6 +240,82 @@ describe('ImageProcessor', () => {
     expect((await meta(stripped!.data)).exif).toBeUndefined();
   });
 
+  it('strips a lossless WebP without changing a pixel (it stays lossless)', async () => {
+    // Line art: sharp edges that a lossy copy would blur.
+    const pixels = Buffer.alloc(64 * 48 * 3);
+    for (let at = 0; at < pixels.length; at++) {
+      pixels[at] = (at * 37) % 251 < 125 ? 0 : 255;
+    }
+    const original = await sharp(pixels, {
+      raw: { width: 64, height: 48, channels: 3 },
+    })
+      .withExif({ IFD0: { Make: 'ACME' } })
+      .webp({ lossless: true })
+      .toBuffer();
+    expect((await meta(original)).exif).toBeDefined();
+
+    const { stripped } = await processor().process(original);
+
+    expect(stripped?.removed).toEqual(['exif']);
+    expect((await meta(stripped!.data)).exif).toBeUndefined();
+    expect(stripped!.data.includes(Buffer.from('VP8L'))).toBe(true);
+    const before = await sharp(original).raw().toBuffer();
+    const after = await sharp(stripped!.data).raw().toBuffer();
+    expect(after.equals(before)).toBe(true);
+  });
+
+  it('strips a PNG whose metadata comes after the image data', async () => {
+    // EXIF, XMP and text where the library does not look: after IDAT.
+    const xmp =
+      '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:exif="http://ns.adobe.com/exif/1.0/" exif:GPSLatitude="48,51.5N"/></rdf:RDF></x:xmpmeta>';
+    const chunks = pngChunks(
+      await blank(40, 30).withExif(EXIF).png().toBuffer(),
+    );
+    const late = (type: string) => type === 'eXIf';
+    const original = Buffer.concat([
+      PNG_SIGNATURE,
+      ...chunks
+        .filter(({ type }) => type !== 'IEND' && !late(type))
+        .map(({ bytes }) => bytes),
+      ...chunks.filter(({ type }) => late(type)).map(({ bytes }) => bytes),
+      pngChunk('tEXt', Buffer.from('Location\0Paris', 'latin1')),
+      pngChunk(
+        'iTXt',
+        Buffer.from(`XML:com.adobe.xmp\0\0\0\0\0${xmp}`, 'latin1'),
+      ),
+      pngChunk('IEND', Buffer.alloc(0)),
+    ]);
+    const types = pngChunks(original).map(({ type }) => type);
+    expect(types.indexOf('eXIf')).toBeGreaterThan(types.indexOf('IDAT'));
+    // What the library reports of it: nothing.
+    const reported = await meta(original);
+    expect([reported.exif, reported.xmp, reported.comments]).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+
+    const { stripped } = await processor().process(original);
+
+    expect(stripped?.removed).toEqual(['exif', 'xmp', 'comments']);
+    for (const text of ['eXIf', 'tEXt', 'iTXt', 'ACME', 'GPS', 'Paris']) {
+      expect(original.includes(Buffer.from(text))).toBe(true);
+      expect(stripped!.data.includes(Buffer.from(text))).toBe(false);
+    }
+    const before = await sharp(original).raw().toBuffer();
+    const after = await sharp(stripped!.data).raw().toBuffer();
+    expect(after.equals(before)).toBe(true);
+  });
+
+  it('writes a stripped PNG with row filters, about as small as it was', async () => {
+    // Each row the one above plus 1: the Up filter, which an encoder that
+    // chooses its filters finds again. Unfiltered, 4 KB would become 1 MB.
+    const original = pngGrowing(512, 512, 1);
+    const { stripped } = await processor().process(original);
+    expect(stripped?.removed).toEqual(['comments']);
+    expect(stripped!.data.length).toBeLessThan(original.length * 2);
+  });
+
   it('makes renditions of a GIF from its first frame and leaves the GIF alone', async () => {
     const gif = await blank(500, 300).gif().toBuffer();
     const result = await processor().process(gif);
@@ -244,11 +374,61 @@ describe('ImageProcessor', () => {
       );
     });
 
+    it('a PNG whose stripped copy would be many times larger', async () => {
+      // Each row the one above plus 0x81: the Up filter would give one
+      // repeated byte, but an encoder's heuristic (the smallest sum of
+      // differences) never picks it, and rows longer than deflate's 32 KB
+      // window can't repeat one another. 33 KB that would be stored as 2 MB.
+      const original = pngGrowing(8200, 64, 0x81);
+      expect(original.length).toBeLessThan(40_000);
+      expect(await reason(original)).toBe('size');
+    });
+
+    it('a conversion over the time limit', async () => {
+      // A real one needs a picture that takes more than a whole second:
+      // the library's own error (`timeout: N% complete`) stands in for it.
+      const input = await photo();
+      const toBuffer = vi
+        .spyOn(sharp.prototype as Sharp, 'toBuffer')
+        .mockRejectedValueOnce(new Error('timeout: 40% complete'));
+      try {
+        expect(await reason(input)).toBe('timeout');
+      } finally {
+        toBuffer.mockRestore();
+      }
+    });
+
     it('a truncated picture', async () => {
       const whole = await photo();
       expect(
         await reason(whole.subarray(0, Math.floor(whole.length / 2))),
       ).toBe('invalid');
     });
+  });
+
+  it('gives the library the time limit of IMAGE_TIMEOUT_MS, in whole seconds, on every conversion', async () => {
+    const input = await photo();
+    const timeout = vi.spyOn(sharp.prototype as Sharp, 'timeout');
+    try {
+      await processor({ timeoutMs: 1000 }).process(input);
+      expect(timeout).toHaveBeenCalledWith({ seconds: 1 });
+
+      timeout.mockClear();
+      const settings: Partial<PlatformEnv> = {
+        IMAGE_MAX_PIXELS: 1_000_000,
+        IMAGE_TIMEOUT_MS: 2500,
+        IMAGE_STRIP_ORIGINALS: true,
+      };
+      const config = {
+        get: (key: keyof PlatformEnv) => settings[key],
+      } as unknown as ConfigService<PlatformEnv, true>;
+      await imageProcessor(config).process(input);
+      // The metadata, two renditions and the stripped copy: each one limited.
+      expect(timeout.mock.calls).toEqual(
+        Array.from({ length: 4 }, () => [{ seconds: 3 }]),
+      );
+    } finally {
+      timeout.mockRestore();
+    }
   });
 });

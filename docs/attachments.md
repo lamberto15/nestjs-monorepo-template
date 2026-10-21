@@ -193,9 +193,15 @@ nothing for it), loaded by a worker on its first image, never by the API.
   `img-src 'self'`).
 - **Metadata of the original:** an original that carries EXIF, XMP, IPTC,
   Photoshop resources or PNG text is replaced by a copy without it,
-  rotated upright, in the same format (JPEG and WebP re-encoded at quality
-  90, so a little larger or smaller; PNG without loss, a palette staying
-  one), colours in sRGB (the ICC profile goes too). The copy is written
+  rotated upright, in the same format (JPEG and lossy WebP re-encoded at
+  quality 90, so a little larger or smaller; PNG and lossless WebP without
+  loss, a palette staying one), colours in sRGB (the ICC profile goes too).
+  A PNG's EXIF and text chunks count wherever they are, after the image
+  data too (the library reads only the ones before it). A copy more than
+  four times the original's size (plus 64 KB: a PNG can be built to
+  compress only as uploaded), larger than `ATTACHMENT_MAX_MB`, or larger
+  than the original by more than the tenant's storage quota has room for
+  is not stored: the image ends `failed` (`size`, `quota`). The copy is written
   under a new key and the row changed in one transaction with the audit
   entry; the old file is deleted after the commit, so a download in
   between gets one whole file or the other and a failure leaves the
@@ -215,10 +221,14 @@ nothing for it), loaded by a worker on its first image, never by the API.
   instead of repairing it. An image that is refused, or is not what its
   bytes said, ends `failed`: **the original is as uploaded, its metadata
   included**, a warning is logged with the reason (`pixels`, `size`,
-  `format`, `timeout`, `invalid`, `missing`), and nothing tries again
-  (the same bytes fail the same way). A disk or database failure is not
-  that: the job is tried again (the queue's three attempts, with backoff),
-  then the retry job. One image at a time per worker process, and the
+  `format`, `timeout`, `invalid`, `missing`, `quota`, `stalled`), and
+  nothing tries again (the same bytes fail the same way). A disk or
+  database failure is not that: the job is tried again (the queue's three
+  attempts, with backoff), then the retry job. A worker that dies while
+  converting (killed at its memory limit, a crash in the library) gets the
+  job back once (BullMQ's stalled-job check); when it dies on it again the
+  image ends `failed` (`stalled`), so one upload can't take the worker down
+  every five minutes. One image at a time per worker process, and the
   memory it takes lives outside the V8 heap (measured: the whole process
   stays near 140 MB resident while it converts a 48-megapixel JPEG that
   needs rotating, with no temporary file): see "Resource limits" in
@@ -237,7 +247,8 @@ nothing for it), loaded by a worker on its first image, never by the API.
   attachments stored before are not processed (no backfill), so their
   originals keep their EXIF.
 - **Not counted:** the storage quota (`storageBytes`) counts the original's
-  size, not the renditions (derived, a few hundred KB at most each).
+  size (a stripped copy's once it replaces it), not the renditions
+  (derived, a few hundred KB at most each).
 - **Another format:** add its type to `IMAGE_INPUT_TYPES`
   (`platform/images/renditions.ts`) once the library reads it and the
   storage package recognizes it from its bytes.
