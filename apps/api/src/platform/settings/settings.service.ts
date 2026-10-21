@@ -146,6 +146,8 @@ export class SettingsService {
   private static readonly VERSION_KEY = 'settings:version';
   private static readonly PLATFORM_VERSION_KEY = 'settings:platform:version';
   private platformCache: CachedPlatform | undefined;
+  /** Told when the platform values change on this instance (`onPlatformChange()`). */
+  private readonly platformListeners: (() => void)[] = [];
   private static readonly FALLBACK_TTL_MS = 5_000;
   private static readonly MAX_AGE_MS = 5 * 60_000;
 
@@ -985,6 +987,7 @@ export class SettingsService {
   /** After a commit: this instance forgets the platform values, the others see a new version. */
   private async bumpPlatform() {
     this.platformCache = undefined;
+    for (const listener of this.platformListeners) listener();
     await this.redis
       .incr(SettingsService.PLATFORM_VERSION_KEY)
       .catch((error: unknown) =>
@@ -993,6 +996,15 @@ export class SettingsService {
           { error: String(error) },
         ),
       );
+  }
+
+  /**
+   * Calls `listener` after a platform value is written or removed on this
+   * instance, so a cache of one (the app mode) needn't wait for its own
+   * expiry here; other instances learn through the version in Redis.
+   */
+  onPlatformChange(listener: () => void) {
+    this.platformListeners.push(listener);
   }
 
   /** The operators' value of a setting for every tenant, if any. */

@@ -1,3 +1,4 @@
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import {
   BadRequestException,
   Body,
@@ -234,6 +235,7 @@ export class AuthController {
 
   @Public()
   @Get('methods')
+  @AllowInMaintenance()
   @ApiOperation({ summary: 'How users can sign in here, for the sign-in page' })
   @ApiOkResponse({ standardSchema: methodsSchema })
   methods() {
@@ -253,6 +255,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: minutes(15) } })
   @Captcha({ action: 'sign-in', count: 'failures' })
   @Post('sign-in')
+  @AllowInMaintenance()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Sign in with a password: sets the session cookie',
@@ -335,6 +338,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: minutes(15) } })
   @Captcha({ action: 'sign-in', count: 'failures', account: 'session' })
   @Post('mfa/verify')
+  @AllowInMaintenance()
   @HttpCode(200)
   @ApiOperation({ summary: 'Finish signing in with a two-factor code' })
   @ApiOkResponse({ standardSchema: signedInSchema })
@@ -356,6 +360,7 @@ export class AuthController {
   @DuringMfaEnrollment()
   @WithoutSso()
   @Post('sign-out')
+  @AllowInMaintenance()
   @HttpCode(204)
   @ApiOperation({ summary: "Sign out: ends this browser's session" })
   @ApiNoContentResponse()
@@ -375,6 +380,7 @@ export class AuthController {
   @DuringMfaEnrollment()
   @WithoutSso()
   @Get('me')
+  @AllowInMaintenance()
   @ApiCookieAuth('user-session')
   @ApiBearerAuth('user-token')
   @ApiOperation({ summary: 'The signed-in user and what they may do' })

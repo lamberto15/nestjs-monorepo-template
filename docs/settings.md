@@ -107,6 +107,46 @@ Operators only (`Access.manageSettings` in the operator tenant,
   `source: platform` when it decides) and whether the caller may change it
   (`canEditPlatform`).
 
+## Maintenance and read-only mode (`platform.mode`, `APP_MODE`)
+
+During a risky migration, a restore or an incident the deployment can be
+told to stop taking writes. `platform.mode` is a platform-only setting
+(`scopes: []`: no tenant has a value of its own) with three values; the
+operators set it like any platform value, `PUT /v1/settings/platform.mode/platform
+{ "value": "read-only" }` (audited as `setting.updated`, `scope: platform`),
+and `DELETE` of the same path returns to `normal`. Code: `apps/api/src/platform/mode/`.
+
+| Mode          | Requests                                                                | Queues and cron |
+| ------------- | ----------------------------------------------------------------------- | --------------- |
+| `normal`      | Everything works.                                                       | Run.            |
+| `read-only`   | GET, HEAD and OPTIONS work; every other method answers 503 `read_only`. | Paused, skipped |
+| `maintenance` | Everything answers 503 `maintenance`, but the routes below.             | Paused, skipped |
+
+Both refusals are problem documents with `Retry-After: 30`. Always working,
+in both modes (`@AllowInMaintenance()`, `core/http/maintenance.ts`):
+`/health`, `/metrics`, `GET /v1/features` (it carries `mode`, for a client to
+show a banner), sign-in and out (`/v1/auth`: `methods`, `sign-in`,
+`mfa/verify`, `sign-out`, `me`), `/v1/ops` and the two operator routes
+`PUT`/`DELETE /v1/settings/{key}/platform`, so the operators can always turn
+the mode off again. Mark a route of your own the same way when it must keep
+working. A POST that only reads is refused in `read-only`.
+
+- **`APP_MODE`** forces the mode from the environment (`env.example`) and
+  wins over the setting, which then refuses a new value
+  (`setting_not_allowed`). Use it when the API cannot be reached to set it.
+- **Cheap per request**: `ModeGuard`, a global guard, asks `ModeService`,
+  which keeps the mode for a second and refreshes at once when the
+  instance writes it; other instances see a change within a second or so.
+  A failed read keeps the mode last known.
+- **Queues and cron**: where workers run (`APP_ROLE` `worker` or `all`),
+  a restricted mode calls BullMQ's `pause()` on every queue (jobs wait in
+  Redis; running ones finish) and stops the `@Cron` jobs
+  (`CronJob.stop()`); `normal` resumes both. A worker started in `normal`
+  resumes queues a crash left paused.
+- **Metric** `app_mode{mode}`: 1 for the current mode, on `/metrics`.
+- Not covered: WebSocket messages, a running job, and Caddy's maintenance
+  page for the web app (a follow-up).
+
 ## Targeting rules (flags)
 
 A flag may be switched by attribute: an ordered list of rules at the tenant

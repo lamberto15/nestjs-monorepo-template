@@ -54,6 +54,18 @@ export const platformEnv = z.object({
   /** The socket.io gateway at /realtime and its Redis adapter. */
   REALTIME: flag('on'),
 
+  /**
+   * Forces the app mode (docs/settings.md, "Maintenance and read-only
+   * mode"): `normal`, `read-only` or `maintenance`. Unset: the operators'
+   * `platform.mode` setting decides. Set, it wins and the setting can't be
+   * changed (`setting_not_allowed`).
+   */
+  APP_MODE: z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    z.enum(['normal', 'read-only', 'maintenance']).optional(),
+  ),
+
   /** The hour (0–23, in each user's time zone) daily notification digests are mailed. */
   NOTIFICATIONS_DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   /** Read notifications older than this many days are deleted every night. */

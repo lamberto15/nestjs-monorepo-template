@@ -33,6 +33,7 @@ import { WebhooksEvents } from '@nestjs/webhooks';
 import { WorkflowEvents } from '@nestjs/workflows';
 import { filter, map, merge, type Observable } from 'rxjs';
 import { z } from 'zod';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { redactValue } from '../../core/logging/redaction.js';
 import { opsEvent } from './ops-events.js';
 import {
@@ -72,6 +73,7 @@ const idsSchema = z.object({ ids: z.array(z.string()).max(1000).optional() });
 @ApiForbiddenResponse({ description: 'Not allowed by your permissions.' })
 @UserOnly()
 @OperatorOnly()
+@AllowInMaintenance()
 @UseInterceptors(StandardSchemaSerializerInterceptor)
 @Controller('ops')
 export class OpsController {

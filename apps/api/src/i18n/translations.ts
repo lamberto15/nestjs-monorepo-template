@@ -2,6 +2,7 @@ import type approvals from './en/approvals.json';
 import type auth from './en/auth.json';
 import type documents from './en/documents.json';
 import type mail from './en/mail.json';
+import type mode from './en/mode.json';
 import type money from './en/money.json';
 import type notifications from './en/notifications.json';
 import type permissions from './en/permissions.json';
@@ -18,6 +19,7 @@ export interface Translations {
   auth: typeof auth;
   documents: typeof documents;
   mail: typeof mail;
+  mode: typeof mode;
   money: typeof money;
   notifications: typeof notifications;
   permissions: typeof permissions;

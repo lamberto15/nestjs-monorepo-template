@@ -59,6 +59,7 @@ export const allFeatures: Features = {
   documents: true,
   ai: true,
   exchangeRates: true,
+  mode: 'normal',
   tenancy: 'multi',
   locales: ['en', 'de', 'ar', 'zh', 'ms'],
 };

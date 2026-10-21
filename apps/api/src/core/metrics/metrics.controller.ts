@@ -1,3 +1,4 @@
+import { AllowInMaintenance } from '../http/maintenance.js';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import {
   Controller,
@@ -34,6 +35,7 @@ const sameSecret = (given: string, expected: string) =>
  */
 @ApiExcludeController()
 @Public()
+@AllowInMaintenance()
 @SkipThrottle()
 @Controller({ path: 'metrics', version: VERSION_NEUTRAL })
 export class MetricsController {

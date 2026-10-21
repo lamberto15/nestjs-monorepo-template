@@ -8,6 +8,7 @@ import {
 } from '@nestjs/terminus';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Redis } from 'ioredis';
+import { AllowInMaintenance } from '../http/maintenance.js';
 import { DatabaseHealth } from '../database/database-health.js';
 import { REDIS } from '../redis/redis.js';
 
@@ -20,6 +21,7 @@ import { REDIS } from '../redis/redis.js';
  */
 @ApiExcludeController()
 @Public()
+@AllowInMaintenance()
 @SkipThrottle()
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {

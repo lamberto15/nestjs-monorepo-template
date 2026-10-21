@@ -5,6 +5,7 @@ import type { IamEnv } from '../../iam/iam.env.js';
 import type { PlatformEnv } from '../platform.env.js';
 import { AiProvider } from '../ai/ai-provider.js';
 import { PdfRenderer } from '../documents/pdf-renderer.js';
+import { ModeService } from '../mode/mode.service.js';
 import { switchedOn } from '../switches.js';
 import type { Features } from './features.schemas.js';
 
@@ -27,6 +28,7 @@ export class FeaturesService {
     >,
     private readonly pdf: PdfRenderer,
     private readonly ai: AiProvider,
+    private readonly mode: ModeService,
   ) {}
 
   current(): Features {
@@ -47,6 +49,7 @@ export class FeaturesService {
       ai: this.ai.enabled,
       exchangeRates: get('EXCHANGE_RATES_FETCH'),
       tenancy: get('TENANCY'),
+      mode: this.mode.current(),
       locales: get('LOCALES'),
     };
   }
