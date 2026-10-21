@@ -283,7 +283,7 @@ workspace with Node.js 24 and pnpm 12.11.2 (the versions of `package.json`'s
     full cost made the suite several times slower. Same code path; never
     assert the production parameters in an e2e test.
   - One file: `pnpm test:e2e test/tags.e2e-spec.ts` (the path inside
-    `apps/api`). One shard, as CI runs it: `pnpm test:e2e --shard=1/2`.
+    `apps/api`). One shard, as CI runs it: `pnpm test:e2e --shard=1/6`.
     One unit test file: `pnpm --filter @nestjs-monorepo-template/api test
     src/core/http/route-key.spec.ts`.
 - **The platform's record is test-only** (`apps/api/test/fixtures`): the
