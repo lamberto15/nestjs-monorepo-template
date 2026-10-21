@@ -35,6 +35,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
+import { fileRoots, within } from '../cli-paths.mjs';
 
 /** squawk's release, tag and digest (linux/amd64 only: Docker emulates it on arm64). */
 export const SQUAWK_IMAGE =
@@ -49,6 +50,17 @@ export const JOURNAL = `${MIGRATIONS}/meta/_journal.json`;
  * was added after the head commit was pushed: a later push needs it again.
  */
 export const LABEL = 'destructive-migration';
+
+/**
+ * What the arguments may hold (#471), checked before git, GitHub or the file
+ * system see them. A commit to compare with: a branch, tag or SHA, with `~n`
+ * or `^n` after it (origin/main, HEAD~1); it starts with a letter or a digit,
+ * so it never reads as an option of git (`--end-of-options` says so too).
+ */
+const BASE = /^(?!.*\.\.)[A-Za-z0-9][\w./-]*(?:[~^]\d*)*$/;
+/** A pull request's number, and its head commit's SHA. */
+const PR = /^\d+$/;
+const SHA = /^[0-9a-f]{4,64}$/;
 
 const LATER = 'Stop using it in one release, then drop it in the next.';
 
@@ -401,7 +413,12 @@ export function changes({ base, cwd = process.cwd() }) {
   const history = [];
   const isMigration = (p) =>
     path.posix.dirname(p) === MIGRATIONS && p.endsWith('.sql');
-  const fork = git(cwd, ['merge-base', base, 'HEAD']).trim();
+  const fork = git(cwd, [
+    'merge-base',
+    '--end-of-options',
+    base,
+    'HEAD',
+  ]).trim();
 
   const diff = git(cwd, [
     'diff',
@@ -714,6 +731,36 @@ async function main() {
     );
     return 2;
   }
+  // Read and written files: in this checkout or a temp directory (CI: RUNNER_TEMP).
+  const roots = fileRoots();
+  const summaryFile = values.summary ? within(values.summary, roots) : null;
+  const annotationsFile = values.annotations
+    ? within(values.annotations, roots)
+    : null;
+  const refused = [
+    values.base !== undefined &&
+      !BASE.test(values.base) &&
+      `--base ${values.base}: a branch, tag or commit (origin/main)`,
+    values.pr !== undefined &&
+      !PR.test(values.pr) &&
+      `--pr ${values.pr}: a pull request's number`,
+    values.head !== undefined &&
+      !SHA.test(values.head) &&
+      `--head ${values.head}: a commit's SHA`,
+    values.summary &&
+      !summaryFile &&
+      `--summary ${values.summary}: a file under ${roots.join(' or ')}`,
+    values.annotations &&
+      !annotationsFile &&
+      `--annotations ${values.annotations}: a file under ${roots.join(' or ')}`,
+    ...positionals
+      .filter((file) => !file.endsWith('.sql') || !within(file, roots))
+      .map((file) => `${file}: a .sql file under ${roots.join(' or ')}`),
+  ].filter(Boolean);
+  if (refused.length) {
+    for (const reason of refused) console.error(reason);
+    return 2;
+  }
   const { added, history } = positionals.length
     ? { added: positionals, history: [] }
     : changes({ base: values.base });
@@ -742,11 +789,11 @@ async function main() {
     fail: failSetting === 'on',
     ...label,
   });
-  if (values.summary) appendFileSync(values.summary, `${result.summary}\n`);
+  if (summaryFile) appendFileSync(summaryFile, `${result.summary}\n`);
   else process.stdout.write(`${result.summary}\n`);
-  if (values.annotations)
+  if (annotationsFile)
     writeFileSync(
-      values.annotations,
+      annotationsFile,
       result.annotations.map((a) => `${a}\n`).join(''),
     );
   return result.exitCode;
