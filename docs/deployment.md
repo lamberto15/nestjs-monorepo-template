@@ -1561,10 +1561,12 @@ copies only: a lost disk loses them too, so set it.
   first backup at once instead of at the next schedule. With a less frequent schedule,
   raise `BACKUP_MAX_AGE_HOURS` to match.
 - **The image** (`backup/Dockerfile`): `postgres:18.6-alpine` without `gosu`
-  (never used: it runs as `postgres`), rclone, and supercronic built from
-  its release tag with a current Go, so Go's fixes reach it. CI scans it
-  like the app image. Dependabot raises the base images;
-  `SUPERCRONIC_VERSION` is raised by hand.
+  (never used: it runs as `postgres`), and rclone and supercronic, both
+  built from their release tags with a current Go, so Go's fixes reach them
+  (the official rclone image's binary carries the Go of its release, which
+  a scan can flag before a new release exists). CI scans it like the app
+  image. Dependabot raises the base images, the Go builder stages included;
+  `SUPERCRONIC_VERSION` and `RCLONE_TAG` are raised by hand.
 - **Kept:** `BACKUP_RETENTION_DAYS` (14) in the volume, older ones removed
   after each complete run (never after a failed one). Off the host, nothing
   is deleted: give the bucket a lifecycle rule (delete after 90 days, say).

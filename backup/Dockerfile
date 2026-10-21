@@ -9,14 +9,12 @@
 # for point-in-time recovery. CI scans it like the app
 # image (Trivy: no fixable high or critical vulnerability).
 
-FROM rclone/rclone:1.75.2 AS rclone
-
 # supercronic built from its release tag with a current Go: the release's
 # binaries carry the Go standard library they were built with, and its fixes
 # (CVEs) arrive here only when they are rebuilt. go install checks the
 # modules against Go's checksum database. Built on the build machine's
 # platform for the target's (no emulation).
-FROM --platform=$BUILDPLATFORM golang:1.27.2-alpine3.24 AS supercronic
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS supercronic
 ARG TARGETOS
 ARG TARGETARCH
 # https://github.com/aptible/supercronic/releases
@@ -25,9 +23,29 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
     go install -trimpath -ldflags="-s -w -X main.Version=$SUPERCRONIC_VERSION" "github.com/aptible/supercronic@$SUPERCRONIC_VERSION" \
  && install -m 755 "$(find /go/bin -type f -name supercronic)" /supercronic
 
+# rclone built the same way, from its release tag, instead of copied from the
+# official image (rclone/rclone): that binary carries the Go standard library
+# it was built with (1.27.2 in v1.75.2, the newest release), and CI's scan
+# fails on its fixable CVE-2026-111943. Once a release built with Go 1.27.3 or
+# newer exists, this can go back to `FROM rclone/rclone:<version> AS rclone`
+# and `COPY --from=rclone /usr/local/bin/rclone` (Dependabot raises that FROM).
+# Until then Dependabot doesn't see RCLONE_TAG: raise it by hand (not named
+# RCLONE_VERSION: rclone reads RCLONE_<FLAG> variables, and that one is its
+# --version flag). The build is rclone's own release build (its Makefile and
+# bin/cross-compile.go: no build tags, -trimpath, CGO off, and fs.Version set
+# to the tag, which is what `rclone version` reports).
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS rclone
+ARG TARGETOS
+ARG TARGETARCH
+# https://github.com/rclone/rclone/releases
+ARG RCLONE_TAG=v1.75.2
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
+    go install -trimpath -ldflags="-s -w -X github.com/rclone/rclone/fs.Version=$RCLONE_TAG" "github.com/rclone/rclone@$RCLONE_TAG" \
+ && install -m 755 "$(find /go/bin -type f -name rclone)" /rclone
+
 FROM postgres:18.6-alpine
 ENV TZ=UTC BACKUP_DIR=/backups BACKUP_STORAGE_DIR=/storage
-COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
+COPY --from=rclone /rclone /usr/local/bin/rclone
 COPY --from=supercronic /supercronic /usr/local/bin/supercronic
 COPY lib.sh /usr/local/lib/backup/lib.sh
 COPY --chmod=755 backup.sh /usr/local/bin/backup
