@@ -400,7 +400,10 @@ capabilities it gets back:
   it is; `hardened-stack` starts the stack on new volumes and fails when a
   container exits, restarts, is unhealthy or logs `Read-only file system`.
   Not started there: the production Caddy (its certificate needs a public
-  name; the job runs the stock Caddy image on plain HTTP) and Gotenberg.
+  name; the job runs the stock Caddy image on plain HTTP, with the
+  `caddy_data` and `caddy_config` volumes `compose.loadtest.yaml` names: the
+  stock image has no `VOLUME` there, so under `read_only` they would be
+  read-only) and Gotenberg.
 
 ## Staging
 
