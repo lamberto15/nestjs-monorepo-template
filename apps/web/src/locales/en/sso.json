@@ -1,7 +1,7 @@
 {
   "nav": "Single sign-on",
   "title": "Single sign-on",
-  "description": "Let your people sign in through your identity provider (SAML 2.0 or OpenID Connect) and keep them in sync over SCIM.",
+  "description": "Let your people sign in through your identity provider (SAML 2.0, OpenID Connect or a custom OAuth 2.0 provider) and keep them in sync over SCIM.",
   "tabs": {
     "connections": "Connections",
     "domains": "Domains",
@@ -10,7 +10,8 @@
   },
   "protocol": {
     "oidc": "OpenID Connect",
-    "saml": "SAML 2.0"
+    "saml": "SAML 2.0",
+    "oauth2": "OAuth 2.0 (custom)"
   },
   "copy": "Copy {{label}}",
   "copied": "Copied.",
@@ -40,7 +41,9 @@
     "updated": "Saved {{name}}.",
     "turnedOn": "{{name}} is on.",
     "turnedOff": "{{name}} is off.",
-    "mappings": "Group roles"
+    "mappings": "Group roles",
+    "oauth2Ready": "Ready: an OAuth 2.0 connection has no provider metadata to fetch.",
+    "oauth2Off": "Turn it on to let people sign in: an OAuth 2.0 connection has no provider metadata to fetch."
   },
   "details": {
     "redirectUri": "Redirect URI (register at the provider)",
@@ -88,7 +91,43 @@
     "enabled": "On",
     "enabledHint": "Off, the connection signs nobody in.",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "preset": "Provider preset",
+    "presetHint": "Fills in the endpoints and the response mapping. You can still edit them.",
+    "redirectHint": "After saving, the connection shows the redirect URI to register at the provider.",
+    "redirectHintEdit": "Register this redirect URI at the provider.",
+    "authorizationEndpoint": "Authorization URL",
+    "authorizationEndpointHint": "Where the browser is sent to sign in.",
+    "tokenEndpoint": "Token URL",
+    "tokenEndpointHint": "Where the code is exchanged for an access token (PKCE is always on).",
+    "userinfoEndpoint": "User info URL",
+    "userinfoEndpointHint": "Read once per sign-in with the access token.",
+    "authMethod": "Client authentication",
+    "authMethodHint": "How the client proves itself at the token URL.",
+    "publicClient": "A public client sends no secret.",
+    "scopes": "Scopes",
+    "scopesPlaceholder": "Add a scope",
+    "scopesHint": "Press Enter or a comma after each scope. None are asked for by default.",
+    "mappingTitle": "Response mapping",
+    "mappingHint": "Where the user info answer holds the person. Paths are names joined by dots, like data.open_id.",
+    "mappingRoot": "User object path",
+    "mappingRootHint": "Where the person is in the answer. Empty: the whole answer.",
+    "mappingSubject": "Subject path",
+    "mappingSubjectHint": "The provider’s stable id of the person, never an address.",
+    "mappingEmail": "Email path",
+    "mappingEmailHint": "The address, in the user object.",
+    "mappingName": "Name path",
+    "mappingNameHint": "The person’s name.",
+    "mappingPicture": "Picture path",
+    "mappingPictureHint": "Read, but not stored: accounts have no picture.",
+    "mappingGroups": "Groups path",
+    "mappingGroupsHint": "An array of group names, read for the group roles.",
+    "mappingErrorCode": "Error code path",
+    "mappingErrorCodeHint": "A field of the whole answer that marks a failure (Lark answers 200 with code not 0).",
+    "emailTrust": "Email trust",
+    "emailTrustHint": "Whether the provider vouches for the address.",
+    "emailVerifiedPath": "Verified field path",
+    "emailVerifiedPathHint": "A field of the user object that must be true."
   },
   "domains": {
     "title": "Email domains",
@@ -154,7 +193,8 @@
     "rolePlaceholder": "Choose a role",
     "add": "Add mapping",
     "incomplete": "Enter a group and choose a role.",
-    "saved": "Saved the group roles of {{name}}."
+    "saved": "Saved the group roles of {{name}}.",
+    "oauth2Groups": "This connection reads the groups from the “Groups path” of its response mapping. Edit the connection to change it."
   },
   "exemption": {
     "title": "Exempt a member",
@@ -167,5 +207,23 @@
     "reasonRequired": "Give a reason.",
     "save": "Exempt",
     "added": "Exempted {{name}}."
+  },
+  "preset": {
+    "custom": "Custom",
+    "lark": "Lark",
+    "feishu": "Feishu"
+  },
+  "authMethod": {
+    "client_secret_basic": "Client secret, HTTP Basic (default)",
+    "client_secret_post": "Client secret, in the request body",
+    "none": "None (public client)"
+  },
+  "emailTrust": {
+    "never": "Never trust",
+    "field": "A field says it’s verified",
+    "verified-domains": "Trust addresses in our verified domains",
+    "neverExplain": "The provider’s address is never taken as verified: a first sign-in is refused.",
+    "fieldExplain": "The address counts as verified when the field below is exactly true.",
+    "verified-domainsExplain": "The address counts as verified when its domain is one you verified here."
   }
 }

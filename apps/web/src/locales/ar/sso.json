@@ -1,7 +1,7 @@
 {
   "nav": "تسجيل الدخول الموحّد",
   "title": "تسجيل الدخول الموحّد",
-  "description": "اسمح لأفراد فريقك بتسجيل الدخول عبر مزوّد الهوية لديك (SAML 2.0 أو OpenID Connect) وأبقِهم متزامنين عبر SCIM.",
+  "description": "دع أعضاءك يسجّلون الدخول عبر مزوّد الهوية لديك (SAML 2.0 أو OpenID Connect أو مزوّد OAuth 2.0 مخصّص) وأبقِهم متزامنين عبر SCIM.",
   "tabs": {
     "connections": "الاتصالات",
     "domains": "النطاقات",
@@ -10,7 +10,8 @@
   },
   "protocol": {
     "oidc": "OpenID Connect",
-    "saml": "SAML 2.0"
+    "saml": "SAML 2.0",
+    "oauth2": "OAuth 2.0 (مخصّص)"
   },
   "copy": "نسخ {{label}}",
   "copied": "تم النسخ.",
@@ -40,7 +41,9 @@
     "updated": "تم حفظ {{name}}.",
     "turnedOn": "{{name}} مفعّل.",
     "turnedOff": "{{name}} متوقف.",
-    "mappings": "أدوار المجموعات"
+    "mappings": "أدوار المجموعات",
+    "oauth2Ready": "جاهز: لا توجد بيانات وصفية لمزوّد اتصال OAuth 2.0 ليتم جلبها.",
+    "oauth2Off": "شغّله ليتمكّن الأشخاص من تسجيل الدخول: لا توجد بيانات وصفية لمزوّد اتصال OAuth 2.0 ليتم جلبها."
   },
   "details": {
     "redirectUri": "عنوان إعادة التوجيه (سجّله لدى المزوّد)",
@@ -88,7 +91,43 @@
     "enabled": "مفعّل",
     "enabledHint": "وهو متوقف، لا يسجّل الاتصال دخول أحد.",
     "cancel": "إلغاء",
-    "save": "حفظ"
+    "save": "حفظ",
+    "preset": "قالب المزوّد",
+    "presetHint": "يملأ نقاط النهاية وتعيين الاستجابة. ما زال بإمكانك تعديلها.",
+    "redirectHint": "بعد الحفظ يعرض الاتصال عنوان إعادة التوجيه الذي يجب تسجيله لدى المزوّد.",
+    "redirectHintEdit": "سجّل عنوان إعادة التوجيه هذا لدى المزوّد.",
+    "authorizationEndpoint": "عنوان التفويض",
+    "authorizationEndpointHint": "المكان الذي يُرسل إليه المتصفح لتسجيل الدخول.",
+    "tokenEndpoint": "عنوان الرمز",
+    "tokenEndpointHint": "المكان الذي يُستبدل فيه الرمز برمز وصول (PKCE مفعّل دائمًا).",
+    "userinfoEndpoint": "عنوان معلومات المستخدم",
+    "userinfoEndpointHint": "يُقرأ مرة واحدة لكل تسجيل دخول برمز الوصول.",
+    "authMethod": "مصادقة العميل",
+    "authMethodHint": "كيف يثبت العميل نفسه عند عنوان الرمز.",
+    "publicClient": "العميل العام لا يرسل سرًّا.",
+    "scopes": "النطاقات (Scopes)",
+    "scopesPlaceholder": "أضف نطاقًا",
+    "scopesHint": "اضغط Enter أو فاصلة بعد كل نطاق. لا يُطلب أي نطاق افتراضيًا.",
+    "mappingTitle": "تعيين الاستجابة",
+    "mappingHint": "أين تحتوي استجابة معلومات المستخدم على الشخص. المسارات أسماء تفصلها نقاط، مثل data.open_id.",
+    "mappingRoot": "مسار كائن المستخدم",
+    "mappingRootHint": "أين الشخص في الاستجابة. فارغ: الاستجابة كلها.",
+    "mappingSubject": "مسار المعرّف (Subject)",
+    "mappingSubjectHint": "المعرّف الثابت للشخص لدى المزوّد، وليس عنوانًا.",
+    "mappingEmail": "مسار البريد الإلكتروني",
+    "mappingEmailHint": "العنوان في كائن المستخدم.",
+    "mappingName": "مسار الاسم",
+    "mappingNameHint": "اسم الشخص.",
+    "mappingPicture": "مسار الصورة",
+    "mappingPictureHint": "يُقرأ ولا يُخزَّن: الحسابات بلا صورة.",
+    "mappingGroups": "مسار المجموعات",
+    "mappingGroupsHint": "مصفوفة أسماء المجموعات، تُقرأ لأدوار المجموعات.",
+    "mappingErrorCode": "مسار رمز الخطأ",
+    "mappingErrorCodeHint": "حقل في الاستجابة كلها يدل على فشل (يردّ Lark بـ 200 وcode غير 0).",
+    "emailTrust": "الوثوق بالبريد الإلكتروني",
+    "emailTrustHint": "هل يضمن المزوّد العنوان.",
+    "emailVerifiedPath": "مسار حقل التوثيق",
+    "emailVerifiedPathHint": "حقل في كائن المستخدم يجب أن يكون true."
   },
   "domains": {
     "title": "نطاقات البريد الإلكتروني",
@@ -154,7 +193,8 @@
     "rolePlaceholder": "اختر دورًا",
     "add": "إضافة ارتباط",
     "incomplete": "أدخل مجموعة واختر دورًا.",
-    "saved": "تم حفظ أدوار مجموعات {{name}}."
+    "saved": "تم حفظ أدوار مجموعات {{name}}.",
+    "oauth2Groups": "يقرأ هذا الاتصال المجموعات من «مسار المجموعات» في تعيين الاستجابة. عدّل الاتصال لتغييره."
   },
   "exemption": {
     "title": "استثناء عضو",
@@ -167,5 +207,23 @@
     "reasonRequired": "اذكر السبب.",
     "save": "استثناء",
     "added": "تم استثناء {{name}}."
+  },
+  "preset": {
+    "custom": "مخصّص",
+    "lark": "Lark",
+    "feishu": "Feishu"
+  },
+  "authMethod": {
+    "client_secret_basic": "سرّ العميل، HTTP Basic (الافتراضي)",
+    "client_secret_post": "سرّ العميل في جسم الطلب",
+    "none": "بلا (عميل عام)"
+  },
+  "emailTrust": {
+    "never": "عدم الوثوق أبدًا",
+    "neverExplain": "لا يُعدّ عنوان المزوّد موثّقًا أبدًا: يُرفض أول تسجيل دخول.",
+    "field": "حقل يقول إنه موثّق",
+    "fieldExplain": "يُعدّ العنوان موثّقًا عندما يكون الحقل أدناه true تمامًا.",
+    "verified-domains": "الوثوق بالعناوين في نطاقاتنا الموثّقة",
+    "verified-domainsExplain": "يُعدّ العنوان موثّقًا عندما يكون نطاقه أحد النطاقات التي وثّقتها هنا."
   }
 }

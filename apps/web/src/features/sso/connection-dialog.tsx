@@ -15,11 +15,29 @@ import {
 } from '@nestjs-monorepo-template/ui/components/field';
 import { Input } from '@nestjs-monorepo-template/ui/components/input';
 import { Switch } from '@nestjs-monorepo-template/ui/components/switch';
+import {
+  TagsInput,
+  TagsInputInput,
+  TagsInputItem,
+  TagsInputLabel,
+  TagsInputList,
+} from '@nestjs-monorepo-template/ui/components/tags-input';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { applyFieldErrors, errorMessage } from '@/lib/errors';
 import { FormAlert, useAppForm } from '@/lib/form';
+import { CopyValue } from './copy-value';
+import {
+  AUTH_METHODS,
+  MAPPING_ERROR_FIELDS,
+  mappingOf,
+  presetValues,
+  valuesOf,
+  type EmailTrust,
+  type OAuth2Values,
+  type PresetChoice,
+} from './oauth2';
 import {
   useCreateConnection,
   useImportSamlMetadata,
@@ -39,9 +57,9 @@ function isUrl(value: string) {
 }
 
 /**
- * Add a connection (OIDC or SAML), or change one (docs/auth.md, "Enterprise
+ * Add a connection (OIDC, SAML or OAuth 2.0), or change one (docs/auth.md, "Enterprise
  * SSO"). A new connection starts off unless switched on here. The OIDC client
- * secret and the SAML certificates are never answered: left empty when
+ * secret (OAuth 2.0 too) and the SAML certificates are never answered: left empty when
  * editing they stay as they are. The protocol of a connection can't change.
  */
 export function ConnectionDialog(props: {
@@ -71,6 +89,9 @@ export function ConnectionDialog(props: {
       certificate: '',
       nextCertificate: '',
       allowIdpInitiated: connection?.saml?.allowIdpInitiated ?? false,
+      ...valuesOf(connection),
+      // The OAuth 2.0 client id is the OIDC one's field.
+      ...(connection?.oauth2 ? { clientId: connection.oauth2.clientId } : {}),
     },
     onSubmit: async ({ value }) => {
       setError(undefined);
@@ -89,6 +110,15 @@ export function ConnectionDialog(props: {
             changes.issuer = value.issuer.trim();
             changes.clientId = value.clientId.trim();
             if (value.clientSecret) changes.clientSecret = value.clientSecret;
+          } else if (connection.protocol === 'oauth2') {
+            changes.clientId = value.clientId.trim();
+            if (value.clientSecret) changes.clientSecret = value.clientSecret;
+            changes.authorizationEndpoint = value.authorizationEndpoint.trim();
+            changes.tokenEndpoint = value.tokenEndpoint.trim();
+            changes.userinfoEndpoint = value.userinfoEndpoint.trim();
+            changes.tokenEndpointAuthMethod = value.tokenEndpointAuthMethod;
+            changes.scopes = value.scopes;
+            changes.mapping = mappingOf(value);
           } else {
             changes.idpEntityId = value.idpEntityId.trim();
             changes.idpSsoUrl = value.idpSsoUrl.trim();
@@ -112,20 +142,46 @@ export function ConnectionDialog(props: {
                   clientId: value.clientId.trim(),
                   clientSecret: value.clientSecret,
                 }
-              : {
-                  ...common,
-                  protocol: 'saml',
-                  idpEntityId: value.idpEntityId.trim(),
-                  idpSsoUrl: value.idpSsoUrl.trim(),
-                  idpCertificates: certificates,
-                  allowIdpInitiated: value.allowIdpInitiated,
-                };
+              : value.protocol === 'oauth2'
+                ? {
+                    ...common,
+                    protocol: 'oauth2',
+                    // The preset names the provider; the fields (which it
+                    // filled and the administrator may have edited) override it.
+                    ...(value.preset === 'custom'
+                      ? {}
+                      : {
+                          preset: {
+                            name: 'lark' as const,
+                            region: value.preset,
+                          },
+                        }),
+                    authorizationEndpoint: value.authorizationEndpoint.trim(),
+                    tokenEndpoint: value.tokenEndpoint.trim(),
+                    userinfoEndpoint: value.userinfoEndpoint.trim(),
+                    clientId: value.clientId.trim(),
+                    ...(value.tokenEndpointAuthMethod === 'none' ||
+                    !value.clientSecret
+                      ? {}
+                      : { clientSecret: value.clientSecret }),
+                    tokenEndpointAuthMethod: value.tokenEndpointAuthMethod,
+                    scopes: value.scopes,
+                    mapping: mappingOf(value),
+                  }
+                : {
+                    ...common,
+                    protocol: 'saml',
+                    idpEntityId: value.idpEntityId.trim(),
+                    idpSsoUrl: value.idpSsoUrl.trim(),
+                    idpCertificates: certificates,
+                    allowIdpInitiated: value.allowIdpInitiated,
+                  };
           await create.mutateAsync(body);
           toast.success(t('connections.created', { name }));
         }
         props.onOpenChange(false);
       } catch (caught) {
-        if (!applyFieldErrors(form, caught)) {
+        if (!applyFieldErrors(form, caught, MAPPING_ERROR_FIELDS)) {
           setError(errorMessage(caught));
         }
       }
@@ -177,6 +233,272 @@ export function ConnectionDialog(props: {
     </form.Field>
   );
 
+  const mappingField = (
+    name:
+      | 'mappingRoot'
+      | 'mappingSubject'
+      | 'mappingEmail'
+      | 'mappingName'
+      | 'mappingPicture'
+      | 'mappingGroups'
+      | 'mappingErrorCode',
+    label: string,
+    hint: string,
+    placeholder: string,
+    mandatory = false,
+  ) => (
+    <form.AppField
+      name={name}
+      validators={mandatory ? required(t('form.required')) : undefined}
+    >
+      {(f) => (
+        <f.TextField
+          label={label}
+          description={hint}
+          placeholder={placeholder}
+        />
+      )}
+    </form.AppField>
+  );
+
+  // Picking a preset fills the endpoints and the mapping (still editable);
+  // "Custom" empties them. The client id and secret are left alone.
+  const pickPreset = (preset: PresetChoice) => {
+    const { preset: _preset, ...fields } = presetValues(preset);
+    for (const [name, value] of Object.entries(fields)) {
+      form.setFieldValue(name as keyof OAuth2Values, value as never);
+    }
+  };
+
+  const oauth2Fields = (
+    <>
+      {!connection && (
+        <form.AppField
+          name="preset"
+          listeners={{
+            onChange: ({ value }) => pickPreset(value as PresetChoice),
+          }}
+        >
+          {(f) => (
+            <f.SelectField
+              label={t('form.preset')}
+              description={t('form.presetHint')}
+              options={[
+                { value: 'custom', label: t('preset.custom') },
+                { value: 'lark', label: t('preset.lark') },
+                { value: 'feishu', label: t('preset.feishu') },
+              ]}
+            />
+          )}
+        </form.AppField>
+      )}
+      {connection?.oauth2 ? (
+        <CopyValue
+          label={t('details.redirectUri')}
+          value={connection.oauth2.redirectUri}
+        />
+      ) : null}
+      <p className="text-xs text-muted-foreground">
+        {connection ? t('form.redirectHintEdit') : t('form.redirectHint')}
+      </p>
+      <form.AppField
+        name="authorizationEndpoint"
+        validators={url(t('form.urlInvalid'))}
+      >
+        {(f) => (
+          <f.TextField
+            label={t('form.authorizationEndpoint')}
+            description={t('form.authorizationEndpointHint')}
+            placeholder="https://provider.example.com/oauth/authorize"
+          />
+        )}
+      </form.AppField>
+      <form.AppField
+        name="tokenEndpoint"
+        validators={url(t('form.urlInvalid'))}
+      >
+        {(f) => (
+          <f.TextField
+            label={t('form.tokenEndpoint')}
+            description={t('form.tokenEndpointHint')}
+            placeholder="https://provider.example.com/oauth/token"
+          />
+        )}
+      </form.AppField>
+      <form.AppField
+        name="userinfoEndpoint"
+        validators={url(t('form.urlInvalid'))}
+      >
+        {(f) => (
+          <f.TextField
+            label={t('form.userinfoEndpoint')}
+            description={t('form.userinfoEndpointHint')}
+            placeholder="https://provider.example.com/api/user"
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="clientId" validators={required(t('form.required'))}>
+        {(f) => <f.TextField label={t('form.clientId')} />}
+      </form.AppField>
+      <form.AppField name="tokenEndpointAuthMethod">
+        {(f) => (
+          <f.SelectField
+            label={t('form.authMethod')}
+            description={t('form.authMethodHint')}
+            options={AUTH_METHODS.map((method) => ({
+              value: method,
+              label: t(`authMethod.${method}`),
+            }))}
+          />
+        )}
+      </form.AppField>
+      <form.Subscribe
+        selector={(state) => state.values.tokenEndpointAuthMethod}
+      >
+        {(method) =>
+          method === 'none' ? (
+            <p className="text-xs text-muted-foreground">
+              {t('form.publicClient')}
+            </p>
+          ) : (
+            <form.AppField
+              name="clientSecret"
+              validators={{
+                onSubmit: ({ value, fieldApi }) =>
+                  connection ||
+                  value ||
+                  fieldApi.form.getFieldValue('tokenEndpointAuthMethod') ===
+                    'none'
+                    ? undefined
+                    : { message: t('form.required') },
+              }}
+            >
+              {(f) => (
+                <f.TextField
+                  label={t('form.clientSecret')}
+                  type="password"
+                  autoComplete="off"
+                  description={
+                    connection ? t('form.secretKeep') : t('form.secretHint')
+                  }
+                />
+              )}
+            </form.AppField>
+          )
+        }
+      </form.Subscribe>
+      <form.Field name="scopes">
+        {(field) => (
+          <Field>
+            {/* Dice UI's tags-input: a scope per tag, pasted lists split. */}
+            <TagsInput
+              className="w-full"
+              value={field.state.value}
+              onValueChange={(next) => field.handleChange(next)}
+              addOnPaste
+              blurBehavior="add"
+              delimiter=","
+            >
+              <TagsInputLabel>{t('form.scopes')}</TagsInputLabel>
+              <TagsInputList>
+                {field.state.value.map((scope) => (
+                  <TagsInputItem key={scope} value={scope}>
+                    {scope}
+                  </TagsInputItem>
+                ))}
+                <TagsInputInput placeholder={t('form.scopesPlaceholder')} />
+              </TagsInputList>
+            </TagsInput>
+            <FieldDescription>{t('form.scopesHint')}</FieldDescription>
+          </Field>
+        )}
+      </form.Field>
+
+      <h3 className="mt-2 text-sm font-medium">{t('form.mappingTitle')}</h3>
+      <p className="text-xs text-muted-foreground">{t('form.mappingHint')}</p>
+      {mappingField(
+        'mappingRoot',
+        t('form.mappingRoot'),
+        t('form.mappingRootHint'),
+        'data',
+      )}
+      {mappingField(
+        'mappingSubject',
+        t('form.mappingSubject'),
+        t('form.mappingSubjectHint'),
+        'data.open_id',
+        true,
+      )}
+      {mappingField(
+        'mappingEmail',
+        t('form.mappingEmail'),
+        t('form.mappingEmailHint'),
+        'email',
+      )}
+      {mappingField(
+        'mappingName',
+        t('form.mappingName'),
+        t('form.mappingNameHint'),
+        'name',
+      )}
+      {mappingField(
+        'mappingPicture',
+        t('form.mappingPicture'),
+        t('form.mappingPictureHint'),
+        'avatar_url',
+      )}
+      {mappingField(
+        'mappingGroups',
+        t('form.mappingGroups'),
+        t('form.mappingGroupsHint'),
+        'groups',
+      )}
+      {mappingField(
+        'mappingErrorCode',
+        t('form.mappingErrorCode'),
+        t('form.mappingErrorCodeHint'),
+        'code',
+      )}
+      <form.AppField name="emailTrust">
+        {(f) => (
+          <f.SelectField
+            label={t('form.emailTrust')}
+            description={t('form.emailTrustHint')}
+            options={(
+              ['never', 'field', 'verified-domains'] as EmailTrust[]
+            ).map((mode) => ({
+              value: mode,
+              label: t(`emailTrust.${mode}`),
+            }))}
+          />
+        )}
+      </form.AppField>
+      <form.Subscribe selector={(state) => state.values.emailTrust}>
+        {(trust) => (
+          <>
+            <p className="text-xs text-muted-foreground">
+              {t(`emailTrust.${trust}Explain`)}
+            </p>
+            {trust === 'field' && (
+              <form.AppField
+                name="emailVerifiedPath"
+                validators={required(t('form.required'))}
+              >
+                {(f) => (
+                  <f.TextField
+                    label={t('form.emailVerifiedPath')}
+                    description={t('form.emailVerifiedPathHint')}
+                    placeholder="email_verified"
+                  />
+                )}
+              </form.AppField>
+            )}
+          </>
+        )}
+      </form.Subscribe>
+    </>
+  );
+
   return (
     <Dialog open onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -205,6 +527,7 @@ export function ConnectionDialog(props: {
                     options={[
                       { value: 'oidc', label: t('protocol.oidc') },
                       { value: 'saml', label: t('protocol.saml') },
+                      { value: 'oauth2', label: t('protocol.oauth2') },
                     ]}
                   />
                 )}
@@ -219,7 +542,9 @@ export function ConnectionDialog(props: {
 
             <form.Subscribe selector={(state) => state.values.protocol}>
               {(protocol) =>
-                protocol === 'oidc' ? (
+                protocol === 'oauth2' ? (
+                  oauth2Fields
+                ) : protocol === 'oidc' ? (
                   <>
                     <form.AppField
                       name="issuer"

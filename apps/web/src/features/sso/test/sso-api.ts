@@ -22,6 +22,41 @@ export const oidc = (over: Partial<Connection> = {}): Connection => ({
     metadataError: null,
   },
   saml: null,
+  oauth2: null,
+  createdAt: '2026-10-17T09:00:00.000Z',
+  updatedAt: '2026-10-17T09:00:00.000Z',
+  ...over,
+});
+
+export const oauth2 = (over: Partial<Connection> = {}): Connection => ({
+  id: '77777777-7777-4777-8777-777777777777',
+  name: 'Lark',
+  protocol: 'oauth2',
+  enabled: true,
+  jitProvisioning: false,
+  loginUrl: `/v1/auth/sso/${TENANT}/77777777-7777-4777-8777-777777777777/login`,
+  oidc: null,
+  saml: null,
+  oauth2: {
+    authorizationEndpoint:
+      'https://accounts.larksuite.com/open-apis/authen/v1/authorize',
+    tokenEndpoint: 'https://open.larksuite.com/open-apis/authen/v2/oauth/token',
+    userinfoEndpoint:
+      'https://open.larksuite.com/open-apis/authen/v1/user_info',
+    clientId: 'cli_a1b2c3',
+    tokenEndpointAuthMethod: 'client_secret_post',
+    scopes: ['contact:user.email:readonly'],
+    mapping: {
+      root: 'data',
+      subject: 'open_id',
+      email: 'enterprise_email',
+      name: 'name',
+      emailVerified: 'verified-domains',
+      errorCode: 'code',
+    },
+    preset: { name: 'lark', region: 'lark' },
+    redirectUri: 'https://app.example.com/v1/auth/sso/oauth2/callback',
+  },
   createdAt: '2026-10-17T09:00:00.000Z',
   updatedAt: '2026-10-17T09:00:00.000Z',
   ...over,
@@ -35,6 +70,7 @@ export const saml = (over: Partial<Connection> = {}): Connection => ({
   jitProvisioning: true,
   loginUrl: `/v1/auth/sso/${TENANT}/33333333-3333-4333-8333-333333333333/login`,
   oidc: null,
+  oauth2: null,
   saml: {
     idpEntityId: 'https://sts.example.com/idp',
     idpSsoUrl: 'https://sts.example.com/sso',
@@ -109,7 +145,21 @@ export function useSsoApi(options: {
     http.post('/v1/sso/connections', async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;
       calls.created.push(body);
-      const made = (body.protocol === 'saml' ? saml : oidc)({
+      // A token URL on http is refused, as the API does (400 on its field).
+      if (
+        typeof body.tokenEndpoint === 'string' &&
+        body.tokenEndpoint.startsWith('http://')
+      ) {
+        return problem(400, 'validation_failed', {
+          errors: [
+            { path: 'tokenEndpoint', message: 'Must be an https URL.' },
+            { path: 'mapping.subject', message: 'Unknown path.' },
+          ],
+        });
+      }
+      const made = ({ saml, oauth2, oidc } as Record<string, typeof oidc>)[
+        body.protocol as string
+      ]!({
         id: '55555555-5555-4555-8555-555555555555',
         name: body.name as string,
         enabled: body.enabled === true,

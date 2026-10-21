@@ -1,7 +1,7 @@
 {
   "nav": "单点登录",
   "title": "单点登录",
-  "description": "让成员通过您的身份提供商登录（SAML 2.0 或 OpenID Connect），并通过 SCIM 保持同步。",
+  "description": "让成员通过您的身份提供商（SAML 2.0、OpenID Connect 或自定义 OAuth 2.0 提供商）登录，并通过 SCIM 保持同步。",
   "tabs": {
     "connections": "连接",
     "domains": "域名",
@@ -10,7 +10,8 @@
   },
   "protocol": {
     "oidc": "OpenID Connect",
-    "saml": "SAML 2.0"
+    "saml": "SAML 2.0",
+    "oauth2": "OAuth 2.0（自定义）"
   },
   "copy": "复制{{label}}",
   "copied": "已复制。",
@@ -40,7 +41,9 @@
     "updated": "已保存 {{name}}。",
     "turnedOn": "{{name}} 已开启。",
     "turnedOff": "{{name}} 已关闭。",
-    "mappings": "群组角色"
+    "mappings": "群组角色",
+    "oauth2Ready": "就绪：OAuth 2.0 连接没有需要获取的提供商元数据。",
+    "oauth2Off": "开启后成员才能登录：OAuth 2.0 连接没有需要获取的提供商元数据。"
   },
   "details": {
     "redirectUri": "重定向 URI（在提供商处登记）",
@@ -88,7 +91,43 @@
     "enabled": "开启",
     "enabledHint": "关闭时，此连接不允许任何人登录。",
     "cancel": "取消",
-    "save": "保存"
+    "save": "保存",
+    "preset": "提供商预设",
+    "presetHint": "填入端点和响应映射，之后仍可编辑。",
+    "redirectHint": "保存后，连接会显示需要在提供商处注册的重定向 URI。",
+    "redirectHintEdit": "请在提供商处注册此重定向 URI。",
+    "authorizationEndpoint": "授权 URL",
+    "authorizationEndpointHint": "浏览器登录时跳转的地址。",
+    "tokenEndpoint": "令牌 URL",
+    "tokenEndpointHint": "用授权码换取访问令牌的地址（始终启用 PKCE）。",
+    "userinfoEndpoint": "用户信息 URL",
+    "userinfoEndpointHint": "每次登录用访问令牌读取一次。",
+    "authMethod": "客户端认证",
+    "authMethodHint": "客户端在令牌 URL 上证明身份的方式。",
+    "publicClient": "公开客户端不发送密钥。",
+    "scopes": "范围（Scopes）",
+    "scopesPlaceholder": "添加范围",
+    "scopesHint": "每个范围后按回车或逗号。默认不请求任何范围。",
+    "mappingTitle": "响应映射",
+    "mappingHint": "用户信息响应中人员所在的位置。路径是用点连接的名称，例如 data.open_id。",
+    "mappingRoot": "用户对象路径",
+    "mappingRootHint": "人员在响应中的位置。留空：整个响应。",
+    "mappingSubject": "主体（Subject）路径",
+    "mappingSubjectHint": "提供商给该人员的稳定 ID，不要用地址。",
+    "mappingEmail": "邮箱路径",
+    "mappingEmailHint": "用户对象中的地址。",
+    "mappingName": "姓名路径",
+    "mappingNameHint": "此人的姓名。",
+    "mappingPicture": "头像路径",
+    "mappingPictureHint": "会读取但不保存：账户没有头像。",
+    "mappingGroups": "群组路径",
+    "mappingGroupsHint": "群组名称数组，供群组角色读取。",
+    "mappingErrorCode": "错误码路径",
+    "mappingErrorCodeHint": "整个响应中标示失败的字段（Lark 返回 200 且 code 不为 0）。",
+    "emailTrust": "邮箱信任",
+    "emailTrustHint": "提供商是否担保该地址。",
+    "emailVerifiedPath": "已验证字段路径",
+    "emailVerifiedPathHint": "用户对象中必须为 true 的字段。"
   },
   "domains": {
     "title": "邮箱域名",
@@ -154,7 +193,8 @@
     "rolePlaceholder": "选择角色",
     "add": "添加映射",
     "incomplete": "请输入群组并选择角色。",
-    "saved": "已保存 {{name}} 的群组角色。"
+    "saved": "已保存 {{name}} 的群组角色。",
+    "oauth2Groups": "此连接从其响应映射的“群组路径”读取群组。要更改请编辑该连接。"
   },
   "exemption": {
     "title": "豁免成员",
@@ -167,5 +207,23 @@
     "reasonRequired": "请填写原因。",
     "save": "豁免",
     "added": "已豁免 {{name}}。"
+  },
+  "preset": {
+    "custom": "自定义",
+    "lark": "Lark",
+    "feishu": "飞书"
+  },
+  "authMethod": {
+    "client_secret_basic": "客户端密钥，HTTP Basic（默认）",
+    "client_secret_post": "客户端密钥，放在请求体中",
+    "none": "无（公开客户端）"
+  },
+  "emailTrust": {
+    "never": "从不信任",
+    "neverExplain": "提供商的地址从不视为已验证：首次登录会被拒绝。",
+    "field": "由某个字段声明已验证",
+    "fieldExplain": "当下方字段恰好为 true 时，地址视为已验证。",
+    "verified-domains": "信任我们已验证域名下的地址",
+    "verified-domainsExplain": "当地址的域名是您在此验证过的域名时，视为已验证。"
   }
 }

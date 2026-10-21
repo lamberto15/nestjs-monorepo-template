@@ -6,7 +6,7 @@ import { nav, visibleGroups } from '@/nav';
 import { renderApp } from '@/test/render-app';
 import { server } from '@/test/server';
 import { findToast } from '@/test/toast';
-import { MEMBER_ID, ROLE_ID, oidc, useSsoApi } from './test/sso-api';
+import { MEMBER_ID, ROLE_ID, oauth2, oidc, useSsoApi } from './test/sso-api';
 
 const ADMIN = ['Access.manageSso'];
 
@@ -391,5 +391,209 @@ describe('exemptions', () => {
       ]),
     );
     expect(await findToast('Exempted Ann (ann@acme.com).')).toBeVisible();
+  });
+});
+
+describe('OAuth 2.0 connections', () => {
+  async function openOAuth2Dialog(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(
+      await screen.findByRole('button', { name: 'Add a connection' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('combobox', { name: 'Protocol' }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'OAuth 2.0 (custom)' }),
+    );
+    return dialog;
+  }
+
+  it('adds a Lark connection from the preset', async () => {
+    const { calls } = useSsoApi({ can: ADMIN, connections: [] });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    const dialog = await openOAuth2Dialog(user);
+    await user.click(
+      within(dialog).getByRole('combobox', { name: 'Provider preset' }),
+    );
+    await user.click(await screen.findByRole('option', { name: 'Lark' }));
+    // The preset filled the fields, still editable.
+    expect(within(dialog).getByLabelText('Token URL')).toHaveValue(
+      'https://open.larksuite.com/open-apis/authen/v2/oauth/token',
+    );
+    expect(within(dialog).getByLabelText('Subject path')).toHaveValue(
+      'open_id',
+    );
+    await user.type(within(dialog).getByLabelText('Name'), 'Lark');
+    await user.type(within(dialog).getByLabelText('Client ID'), 'cli_a1b2c3');
+    await user.type(within(dialog).getByLabelText('Client secret'), 's3cret');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.created).toHaveLength(1));
+    expect(calls.created[0]).toEqual({
+      protocol: 'oauth2',
+      name: 'Lark',
+      enabled: false,
+      jitProvisioning: false,
+      preset: { name: 'lark', region: 'lark' },
+      authorizationEndpoint:
+        'https://accounts.larksuite.com/open-apis/authen/v1/authorize',
+      tokenEndpoint:
+        'https://open.larksuite.com/open-apis/authen/v2/oauth/token',
+      userinfoEndpoint:
+        'https://open.larksuite.com/open-apis/authen/v1/user_info',
+      clientId: 'cli_a1b2c3',
+      clientSecret: 's3cret',
+      tokenEndpointAuthMethod: 'client_secret_post',
+      scopes: [],
+      mapping: {
+        root: 'data',
+        subject: 'open_id',
+        email: 'enterprise_email',
+        name: 'name',
+        picture: 'avatar_url',
+        errorCode: 'code',
+        emailVerified: 'verified-domains',
+      },
+    });
+  });
+
+  it('adds a custom connection with scopes and a verified-field email trust', async () => {
+    const { calls } = useSsoApi({ can: ADMIN, connections: [] });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    const dialog = await openOAuth2Dialog(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Inhouse');
+    await user.type(
+      within(dialog).getByLabelText('Authorization URL'),
+      'https://sso.acme.com/authorize',
+    );
+    await user.type(
+      within(dialog).getByLabelText('Token URL'),
+      'https://sso.acme.com/token',
+    );
+    await user.type(
+      within(dialog).getByLabelText('User info URL'),
+      'https://sso.acme.com/me',
+    );
+    await user.type(within(dialog).getByLabelText('Client ID'), 'web');
+    await user.type(within(dialog).getByLabelText('Client secret'), 'pw');
+    await user.type(within(dialog).getByLabelText('Scopes'), 'profile{Enter}');
+    await user.type(within(dialog).getByLabelText('Scopes'), 'email{Enter}');
+    await user.type(within(dialog).getByLabelText('Subject path'), 'sub');
+    await user.click(
+      within(dialog).getByRole('combobox', { name: 'Email trust' }),
+    );
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'A field says it’s verified',
+      }),
+    );
+    await user.type(
+      within(dialog).getByLabelText('Verified field path'),
+      'email_verified',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.created).toHaveLength(1));
+    expect(calls.created[0]).toEqual({
+      protocol: 'oauth2',
+      name: 'Inhouse',
+      enabled: false,
+      jitProvisioning: false,
+      authorizationEndpoint: 'https://sso.acme.com/authorize',
+      tokenEndpoint: 'https://sso.acme.com/token',
+      userinfoEndpoint: 'https://sso.acme.com/me',
+      clientId: 'web',
+      clientSecret: 'pw',
+      tokenEndpointAuthMethod: 'client_secret_basic',
+      scopes: ['profile', 'email'],
+      mapping: {
+        subject: 'sub',
+        emailVerified: { path: 'email_verified' },
+      },
+    });
+  });
+
+  it('shows the API field errors on their fields', async () => {
+    const { calls } = useSsoApi({ can: ADMIN, connections: [] });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    const dialog = await openOAuth2Dialog(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Inhouse');
+    await user.type(
+      within(dialog).getByLabelText('Authorization URL'),
+      'https://sso.acme.com/authorize',
+    );
+    // The form accepts http; the API refuses it (400 on the field).
+    await user.type(
+      within(dialog).getByLabelText('Token URL'),
+      'http://sso.acme.com/token',
+    );
+    await user.type(
+      within(dialog).getByLabelText('User info URL'),
+      'https://sso.acme.com/me',
+    );
+    await user.type(within(dialog).getByLabelText('Client ID'), 'web');
+    await user.type(within(dialog).getByLabelText('Client secret'), 'pw');
+    await user.type(within(dialog).getByLabelText('Subject path'), 'sub');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(
+      await within(dialog).findByText('Must be an https URL.'),
+    ).toBeVisible();
+    expect(within(dialog).getByText('Unknown path.')).toBeVisible();
+    expect(calls.created).toHaveLength(1);
+  });
+
+  it('edits one without re-sending the secret, and cannot change the protocol', async () => {
+    const { calls } = useSsoApi({ can: ADMIN, connections: [oauth2()] });
+    const user = userEvent.setup();
+    await renderApp('/sso');
+    await screen.findByText('Lark');
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).queryByRole('combobox', { name: 'Protocol' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('combobox', { name: 'Provider preset' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        'https://app.example.com/v1/auth/sso/oauth2/callback',
+      ),
+    ).toBeVisible();
+    const name = within(dialog).getByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'Lark prod');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.patched).toHaveLength(1));
+    const body = calls.patched[0]!.body;
+    expect(body).not.toHaveProperty('clientSecret');
+    expect(body).not.toHaveProperty('protocol');
+    expect(body).toMatchObject({
+      name: 'Lark prod',
+      clientId: 'cli_a1b2c3',
+      tokenEndpointAuthMethod: 'client_secret_post',
+      scopes: ['contact:user.email:readonly'],
+      mapping: {
+        root: 'data',
+        subject: 'open_id',
+        emailVerified: 'verified-domains',
+      },
+    });
+  });
+
+  it('lists one as ready, with no discovery badge or refresh', async () => {
+    useSsoApi({ can: ADMIN, connections: [oauth2()] });
+    await renderApp('/sso');
+    expect(await screen.findByText('Lark')).toBeVisible();
+    expect(screen.getByText(/^Ready:/)).toBeVisible();
+    expect(screen.queryByText(/Provider metadata/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Fetch metadata again' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText('https://app.example.com/v1/auth/sso/oauth2/callback'),
+    ).toBeVisible();
   });
 });
