@@ -265,7 +265,9 @@ services:
       # own directory, owned by its user).
       - loki_data:/loki
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3100/ready']
+      # The image is distroless (no shell, no wget): the binary checks itself
+      # (GET http://localhost:3100/ready), as in Grafana's own Compose file.
+      test: ['CMD', '/usr/bin/loki', '-health']
       interval: 30s
       timeout: 5s
       retries: 3

@@ -193,3 +193,19 @@ jobs:
           ALERT_WATCHDOG_URL_FILE="$RUNNER_TEMP/alert_watchdog_url" \
             docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml config --format json \
             | jq -e --arg f "$RUNNER_TEMP/alert_watchdog_url" '.secrets.alert_watchdog_url.file == $f'
+
+      - name: Loki becomes healthy through Compose (its healthcheck runs inside the distroless image)
+        run: |
+          # The image has no shell and no wget; a healthcheck that needs either
+          # never passes, and alloy (depends_on: loki: service_healthy) would
+          # never start. Only loki is started.
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          export CLOUDFLARE_API_TOKEN=ci
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)
+          METRICS_TOKEN=$(openssl rand -hex 24)
+          export POSTGRES_PASSWORD POSTGRES_APP_PASSWORD METRICS_TOKEN
+          export COMPOSE_PROJECT_NAME=monitoring-ci
+          compose="docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml --profile logs"
+          trap '$compose logs loki; $compose down --volumes' EXIT
+          $compose up --detach --wait --wait-timeout 120 loki
