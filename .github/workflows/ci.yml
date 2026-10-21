@@ -812,6 +812,10 @@ jobs:
           tags: backup:ci
           cache-from: type=gha,scope=backup
           cache-to: type=gha,scope=backup,mode=max
+      # Encryption (age) and point-in-time recovery, end to end in the image,
+      # on a throwaway PostgreSQL (backup/test-pitr.sh).
+      - name: Encryption and point-in-time recovery work
+        run: scripts/test-backup-pitr.sh backup:ci
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:

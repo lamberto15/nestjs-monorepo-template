@@ -94,3 +94,57 @@ secret_from_file() {
 # libpq's password (the stack's database) and the off-host copy's key.
 secret_from_file PGPASSWORD
 secret_from_file BACKUP_S3_SECRET_ACCESS_KEY
+# The age recipient(s) the backups are encrypted to (public keys: the server
+# can encrypt, never decrypt), from the file too.
+secret_from_file BACKUP_ENCRYPTION_KEY
+
+# Point-in-time recovery (compose.pitr.yaml): BACKUP_PITR=on|off.
+pitr_on() {
+  case ${BACKUP_PITR:-off} in
+    on) return 0 ;;
+    off | '') return 1 ;;
+    *)
+      log error "BACKUP_PITR must be on or off" value="$BACKUP_PITR"
+      exit 2
+      ;;
+  esac
+}
+WAL_DIR=${BACKUP_WAL_DIR:-/wal}
+
+# Client-side encryption with age (https://age-encryption.org): with
+# BACKUP_ENCRYPTION_KEY set (one or more recipients, "age1…" or ssh public
+# keys, separated by spaces), every dump, archive, base backup and WAL
+# segment is encrypted before it is kept or uploaded, so the bucket never
+# holds plaintext. Restoring needs the matching identity (BACKUP_DECRYPTION_KEY,
+# or a file: BACKUP_DECRYPTION_KEY_FILE), given at restore time only.
+encryption_on() { [ -n "${BACKUP_ENCRYPTION_KEY:-}" ]; }
+
+# age_encrypt <in> <out>
+age_encrypt() {
+  in=$1
+  out=$2
+  set --
+  for recipient in $BACKUP_ENCRYPTION_KEY; do set -- "$@" -r "$recipient"; done
+  age "$@" -o "$out" "$in"
+}
+
+# Sets IDENTITY to a file holding the age identity (a temporary one when it
+# came from the variable: IDENTITY_TMP, for the caller to remove).
+# shellcheck disable=SC2034 # IDENTITY, IDENTITY_TMP: for the callers
+age_identity() {
+  IDENTITY_TMP=''
+  if [ -n "${BACKUP_DECRYPTION_KEY_FILE:-}" ]; then
+    IDENTITY=$BACKUP_DECRYPTION_KEY_FILE
+  elif [ -n "${BACKUP_DECRYPTION_KEY:-}" ]; then
+    IDENTITY_TMP=$(umask 077 && mktemp)
+    printf '%s\n' "$BACKUP_DECRYPTION_KEY" >"$IDENTITY_TMP"
+    IDENTITY=$IDENTITY_TMP
+  else
+    log error "the backup is encrypted: set BACKUP_DECRYPTION_KEY (the age identity, AGE-SECRET-KEY-…) or BACKUP_DECRYPTION_KEY_FILE"
+    exit 2
+  fi
+  if [ ! -r "$IDENTITY" ]; then
+    log error "BACKUP_DECRYPTION_KEY_FILE: can't read the file" file="$IDENTITY"
+    exit 2
+  fi
+}
