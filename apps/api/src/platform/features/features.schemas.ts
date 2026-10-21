@@ -39,6 +39,11 @@ export const featuresSchema = z.object({
     .describe(
       'The AI helper has a provider (`ANTHROPIC_API_KEY`). Off: `POST /v1/ai/runs` answers 503 `ai_unavailable`. On, a tenant still opts in with the public setting `ai.enabled` (403 `ai_disabled`).',
     ),
+  exchangeRates: z
+    .boolean()
+    .describe(
+      'The ECB reference rates are fetched (`EXCHANGE_RATES_FETCH`). Off: no rates are stored, and the money conversions have none.',
+    ),
   tenancy: z
     .enum(['multi', 'single'])
     .describe('`single`: the first tenant is the only one.'),

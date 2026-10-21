@@ -181,6 +181,7 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
   "signUp": false,
   "magicLink": true,
   "documents": false,
+  "exchangeRates": true,
   "tenancy": "multi",
   "locales": ["en", "de", "ar", "zh", "ms"]
 }
@@ -192,6 +193,7 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
 | `impersonation`, `mfa`, `apiClients`       | `IMPERSONATION`, `AUTH_MFA`, `API_CLIENTS`                                 | their routes answer 404 `feature_off`                                                                  |
 | `passkeys`, `signUp`, `magicLink`          | `PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`                              | as in `GET /v1/auth/methods` (which also lists the providers and bot protection, and needs no sign-in) |
 | `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
+| `exchangeRates`                            | `EXCHANGE_RATES_FETCH`                                                     | no ECB rates are fetched (the money conversions have none)                                             |
 | `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
 | `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |
 

@@ -58,6 +58,7 @@ export const allFeatures: Features = {
   magicLink: true,
   documents: true,
   ai: true,
+  exchangeRates: true,
   tenancy: 'multi',
   locales: ['en', 'de', 'ar', 'zh', 'ms'],
 };
