@@ -240,11 +240,11 @@ export const REALTIME_EVENTS = {
   ),
   'record.attachments.changed': event(
     'RealtimeRecordAttachmentsChangedEvent',
-    'A file on a record you watch was uploaded, removed or issued (a PDF): ids only.',
+    'A file on a record you watch was uploaded, removed, issued (a PDF) or scanned clean (it can be downloaded now; MALWARE_SCANNER): ids only.',
     z.object({
       ...subjectRecord,
       attachmentId: z.string(),
-      action: z.enum(['added', 'removed']),
+      action: z.enum(['added', 'removed', 'scanned']),
     }),
   ),
 } as const;
