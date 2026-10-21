@@ -526,6 +526,10 @@ services:
       # instead of the app (caddy/Caddyfile, docs/deployment.md, "Maintenance
       # page"); the API's paths are untouched. Anything else: off.
       MAINTENANCE_PAGE: ${MAINTENANCE_PAGE:-off}
+      # With STORAGE_DRIVER=s3: the origin(s) of the bucket's signed links,
+      # added to the web app's `img-src` so attachment thumbnails load
+      # (caddy/Caddyfile, docs/deployment.md). Empty: the app's own origin only.
+      FILES_ORIGIN: ${FILES_ORIGIN:-}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

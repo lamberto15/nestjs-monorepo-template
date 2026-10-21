@@ -48,6 +48,13 @@
     "downloadShort": "Herunterladen",
     "scanning": "Wird gescannt…",
     "downloadScanning": "{{name}} herunterladen: verfügbar, sobald der Scan abgeschlossen ist",
+    "preparing": "Vorschau wird vorbereitet…",
+    "preview": "Vorschau von {{name}}",
+    "previewNote": "Eine verkleinerte Kopie des Bilds. Das Original bleibt unverändert.",
+    "previewLoading": "Vorschau wird geladen…",
+    "previewError": "Die Vorschau konnte nicht geladen werden. Das Original lässt sich weiterhin herunterladen.",
+    "close": "Schließen",
+    "downloadOriginal": "Original herunterladen",
     "delete": "Löschen",
     "deleteTitle": "Diese Datei löschen?",
     "deleteDescription": "„{{name}}“ wird vom Datensatz entfernt, samt der Datei."

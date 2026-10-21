@@ -54,7 +54,7 @@ Filling `.env` (each step is commented in `env.example`):
   (the API's responses keep helmet's own): `Content-Security-Policy`
   (`default-src 'self'`; scripts and frames also from `https://challenges.cloudflare.com`,
   Turnstile's only needs; `connect-src 'self'` covers the API and socket.io;
-  `img-src 'self' data:`; `style-src` keeps `'unsafe-inline'` because sonner and the theme
+  `img-src 'self' data:` (and `FILES_ORIGIN`, below); `style-src` keeps `'unsafe-inline'` because sonner and the theme
   provider inject `<style>` elements; no `'unsafe-eval'`, so `apps/web` imports `z` from `@/lib/zod`, which sets zod to
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
@@ -64,6 +64,23 @@ Filling `.env` (each step is commented in `env.example`):
   `<script>`, no `eval`. Check a change by loading the built app through Caddy (`docker
 build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviolation`
   events: there must be none.
+- **`FILES_ORIGIN`: images from the bucket** (`STORAGE_DRIVER=s3`). The attachments panel
+  shows an image's thumbnail and preview with an `<img>` on
+  `GET /v1/attachments/{id}/download?rendition=thumb|preview`, which answers 302 to a
+  signed link ([attachments](attachments.md), "Image renditions"). With
+  `STORAGE_DRIVER=local` the link is `https://<APP_DOMAIN>/files…`, the app's own origin
+  (`/files/*` goes to the API above), and `'self'` covers it. With S3 it is the
+  bucket's host, and an image may load only from an origin `img-src` names: set
+  `FILES_ORIGIN` in `.env` to it, space-separated for more than one
+  (`https://<bucket>.s3.<region>.amazonaws.com`, R2's
+  `https://<account>.r2.cloudflarestorage.com`, the CDN in front of the bucket), and
+  recreate Caddy (`docker compose up -d caddy`; the Caddyfile reads it at each request,
+  like `MAINTENANCE_PAGE`). Empty, nothing is added; a thumbnail that cannot load shows the
+  file icon, and the original still downloads (a download is a navigation, which
+  `img-src` does not govern). `caddy/entrypoint.sh` refuses to start with a value that is
+  not `https://host[:port]` origins (no path, wildcard, quote or semicolon: it goes into
+  the policy as written). The Helm chart's web Caddy has the same value
+  (`web.filesOrigin`).
 - **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
   path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
   the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more

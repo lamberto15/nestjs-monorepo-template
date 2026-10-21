@@ -134,6 +134,11 @@ web:
     tag: ""
     digest: ""
   replicas: 2
+  # With STORAGE_DRIVER=s3: the origin(s) of the bucket's signed links, space
+  # separated (https://<bucket>.s3.<region>.amazonaws.com, a CDN in front of
+  # it), added to the web app's img-src so attachment thumbnails load. Empty:
+  # the app's own origin only (docs/deployment.md, "FILES_ORIGIN").
+  filesOrigin: ""
   resources:
     requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 128Mi }
     limits: { cpu: 500m, memory: 128Mi, ephemeral-storage: 1Gi }

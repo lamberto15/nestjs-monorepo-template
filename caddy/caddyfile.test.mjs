@@ -284,6 +284,102 @@ describe(
   },
 );
 
+/** The `img-src` source list of a response's Content-Security-Policy. */
+const imgSources = (response) =>
+  /(?:^|;)\s*img-src ([^;]*)/
+    .exec(response.headers.get('content-security-policy') ?? '')?.[1]
+    ?.trim()
+    .split(/\s+/);
+
+describe('the web app, FILES_ORIGIN unset', { skip }, () => {
+  let caddy;
+  before(async () => (caddy = await startCaddy({})));
+  after(() => caddy.stop());
+
+  it('lets images come from the app and data: URLs only', async () => {
+    assert.deepEqual(imgSources(await get(caddy, '/')), ["'self'", 'data:']);
+  });
+});
+
+describe('the web app, FILES_ORIGIN set', { skip }, () => {
+  const bucket = 'https://files.s3.eu-west-1.amazonaws.com';
+  const cdn = 'https://cdn.example.com:8443';
+  let caddy;
+  before(async () => (caddy = await startCaddy({ FILES_ORIGIN: bucket })));
+  after(() => caddy.stop());
+
+  it("adds the bucket's origin to img-src, and to nothing else", async () => {
+    const response = await get(caddy, '/');
+    assert.deepEqual(imgSources(response), ["'self'", 'data:', bucket]);
+    const policy = response.headers.get('content-security-policy') ?? '';
+    assert.equal(policy.split(bucket).length, 2);
+    assert.match(policy, /connect-src 'self';/);
+  });
+
+  it('adds every origin of a list', async () => {
+    const two = await startCaddy({ FILES_ORIGIN: `${bucket} ${cdn}` });
+    try {
+      assert.deepEqual(imgSources(await get(two, '/')), [
+        "'self'",
+        'data:',
+        bucket,
+        cdn,
+      ]);
+    } finally {
+      await two.stop();
+    }
+  });
+});
+
+describe('the entrypoint checks FILES_ORIGIN', () => {
+  const entrypoint = fileURLToPath(new URL('./entrypoint.sh', import.meta.url));
+  const run = (FILES_ORIGIN) =>
+    spawnSync('sh', [entrypoint, 'true'], {
+      encoding: 'utf8',
+      env: {
+        PATH: process.env.PATH,
+        CLOUDFLARE_API_TOKEN: 'ci',
+        ...(FILES_ORIGIN === undefined ? {} : { FILES_ORIGIN }),
+      },
+    });
+
+  it('starts without it, with an empty one, and with https origins', () => {
+    for (const value of [
+      undefined,
+      '',
+      'https://files.s3.eu-west-1.amazonaws.com',
+      'https://a.example.com https://b.example.com:8443',
+      '  https://a.example.com  ',
+    ]) {
+      const result = run(value);
+      assert.equal(
+        result.status,
+        0,
+        `${JSON.stringify(value)}: ${result.stderr}`,
+      );
+    }
+  });
+
+  it('refuses anything that is not an https origin: it goes into the policy as written', () => {
+    for (const value of [
+      'http://files.example.com',
+      'files.example.com',
+      'https://',
+      'https://files.example.com/bucket',
+      'https://*.example.com',
+      "https://a.example.com; script-src 'unsafe-inline'",
+      'https://a.example.com; script-src',
+      "https://a.example.com'",
+      'https://a.example.com,https://b.example.com',
+      "'self'",
+    ]) {
+      const result = run(value);
+      assert.equal(result.status, 1, JSON.stringify(value));
+      assert.match(result.stderr, /FILES_ORIGIN: .* is not an https origin/);
+    }
+  });
+});
+
 describe('the maintenance page', () => {
   const page = readFileSync(maintenancePage, 'utf8');
 
