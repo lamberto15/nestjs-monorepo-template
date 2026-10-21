@@ -22,8 +22,10 @@ updates:
       - dependency-name: typescript
         versions: ['7.0.x']
   # apps/api/Dockerfile, caddy/Dockerfile, backup/Dockerfile,
-  # gotenberg/Dockerfile and the devcontainer's .devcontainer/Dockerfile. Not seen: backup's SUPERCRONIC_VERSION and
-  # gotenberg's GOTENBERG_VERSION and PDFCPU_VERSION build arguments, and the
+  # gotenberg/Dockerfile and the devcontainer's .devcontainer/Dockerfile. Not
+  # seen: backup's SUPERCRONIC_VERSION and RCLONE_TAG build arguments (rclone is
+  # built from its release tag, not copied from its image), gotenberg's
+  # GOTENBERG_VERSION and PDFCPU_VERSION build arguments, and the
   # golang.org/x versions it builds with (raised by hand; CI's gotenberg-image
   # job fails while GOTENBERG_VERSION isn't the FROM line's release).
   - package-ecosystem: docker

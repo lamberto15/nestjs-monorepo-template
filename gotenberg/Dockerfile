@@ -26,7 +26,7 @@ ARG PDFCPU_VERSION=v0.15.0
 # Built on the build machine's platform for the target's (no emulation). The
 # sources come through the Go module proxy, checked against Go's checksum
 # database, then the x modules are raised to fixed versions.
-FROM --platform=$BUILDPLATFORM golang:1.27.2-alpine3.24 AS binaries
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS binaries
 ARG TARGETOS
 ARG TARGETARCH
 ARG GOTENBERG_VERSION
