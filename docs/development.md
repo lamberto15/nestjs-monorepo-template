@@ -372,6 +372,12 @@ a socket.io check beside it, kept from run to run, so a change that makes one tw
 cost of tenancy's row-level security ([roadmap](roadmap.md), 1a) can be
 measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
 
+The same stack serves two more checks: the **restore drill**
+(`scripts/restore-drill.sh`, [deployment.md](deployment.md), "Restore drill")
+and **PgBouncer** (`LOADTEST_PGBOUNCER=on` adds `compose.pgbouncer.yaml`,
+"PgBouncer"). `loadtest/run.sh compose <args>` runs any `docker compose`
+command on it.
+
 | Scenario | Request | Load (one minute each, one after the other) |
 | --- | --- | --- |
 | `signIn` | `POST /v1/auth/sign-in`, 20 seeded users | 2/s (below) |

@@ -60,6 +60,17 @@
       "remove": "Kontingent entfernen",
       "none": "Kein Kontingent."
     },
+    "allowlist": {
+      "title": "IP-Zulassungsliste",
+      "description": "Die Adressen, von denen die Schlüssel dieses Clients genutzt werden dürfen: pro Zeile eine IPv4- oder IPv6-Adresse oder ein CIDR-Bereich (203.0.113.0/24, 2001:db8::/32). Eine Anfrage von anderswo wird mit 403 client_ip_not_allowed abgewiesen. Leer lassen, um jede Adresse zuzulassen.",
+      "label": "Erlaubte Adressen",
+      "placeholder": "203.0.113.9\n198.51.100.0/24",
+      "save": "Zulassungsliste speichern",
+      "saved": "Zulassungsliste gespeichert.",
+      "none": "Jede Adresse ist erlaubt.",
+      "invalid": "Zeile {{line}}: „{{value}}“ ist keine IPv4- oder IPv6-Adresse und kein CIDR-Bereich.",
+      "prefix": "Zeile {{line}}: „{{value}}“ hat eine Präfixlänge außerhalb von 0-{{max}}."
+    },
     "state": {
       "title": "Zugriff",
       "activeDescription": "Solange der Client gesperrt ist, wird jeder seiner Schlüssel abgelehnt.",

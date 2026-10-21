@@ -1,0 +1,85 @@
+# PgBouncer in front of PostgreSQL, optional (docs/deployment.md, "PgBouncer"):
+# api and worker connect to it, in transaction pooling mode, so many client
+# connections share a few server connections. Added to COMPOSE_FILE after
+# compose.yaml and compose.prod.yaml:
+#
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pgbouncer.yaml
+#
+# Only the app role's and the maintenance role's connections go through it
+# (api, worker). `migrate` (the owner: DDL, role grants), `backup` (pg_dump,
+# restore) and the monitoring exporter keep connecting to PostgreSQL itself:
+# pg_dump holds a snapshot across statements, which transaction pooling
+# does not allow.
+#
+# Needs the passwords in the environment (POSTGRES_APP_PASSWORD,
+# POSTGRES_MAINTENANCE_PASSWORD), as compose.prod.yaml builds the URLs from
+# them. With the *_URL_FILE secrets instead, change the host in those files
+# to `pgbouncer` and give this service the passwords too.
+#
+# The image is a maintained community build of PgBouncer (edoburu/pgbouncer,
+# Alpine, rebuilt for each release; pgbouncer.org lists no official image),
+# pinned by tag and digest: Dependabot's docker-compose updater raises both.
+
+# Bounded container logs, the same as compose.yaml's (an anchor can't cross files).
+x-logging: &logging
+  driver: ${DOCKER_LOG_DRIVER:-local}
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-20m}
+    max-file: '${DOCKER_LOG_MAX_FILE:-5}'
+    compress: 'true'
+
+services:
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.26.1-p0@sha256:488422e38cff912895d0d65d8963fcd306e6ac589a724398b6eb8e294e94d624
+    restart: unless-stopped
+    logging: *logging
+    # Writes its own configuration at start (pgbouncer/entrypoint.sh).
+    entrypoint: ['sh', '/etc/pgbouncer-scripts/entrypoint.sh']
+    environment:
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-app_runtime}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-}
+      POSTGRES_MAINTENANCE_USER: ${POSTGRES_MAINTENANCE_USER:-app_maintenance}
+      POSTGRES_MAINTENANCE_PASSWORD: ${POSTGRES_MAINTENANCE_PASSWORD:-}
+      # Server connections to PostgreSQL per role. The sum over both roles
+      # must stay under POSTGRES_MAX_CONNECTIONS − 10 with migrate, backup
+      # and the exporter (docs/deployment.md, "Database connections").
+      PGBOUNCER_POOL_SIZE: ${PGBOUNCER_POOL_SIZE:-20}
+      PGBOUNCER_MAINTENANCE_POOL_SIZE: ${PGBOUNCER_MAINTENANCE_POOL_SIZE:-3}
+      # Client connections (the apps' pools): API_REPLICAS × API_DATABASE_POOL_MAX
+      # + WORKER_REPLICAS × (WORKER_DATABASE_POOL_MAX + 3) must fit.
+      PGBOUNCER_MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-400}
+      PGBOUNCER_QUERY_WAIT_TIMEOUT: ${PGBOUNCER_QUERY_WAIT_TIMEOUT:-10}
+      # A managed PostgreSQL behind it (DATABASE_URL elsewhere): its host.
+      PGBOUNCER_DB_HOST: ${PGBOUNCER_DB_HOST:-postgres}
+      PGBOUNCER_DB_PORT: ${PGBOUNCER_DB_PORT:-5432}
+    volumes:
+      - ./pgbouncer:/etc/pgbouncer-scripts:ro
+    # pg_isready (in the image) gets an answer once PgBouncer accepts connections.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: '${PGBOUNCER_CPUS:-0.5}'
+          memory: ${PGBOUNCER_MEMORY:-128M}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_APP_USER:-app_runtime}:${POSTGRES_APP_PASSWORD:?set POSTGRES_APP_PASSWORD in .env}@pgbouncer:5432/${POSTGRES_DB:-app}}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
+  worker:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_APP_USER:-app_runtime}:${POSTGRES_APP_PASSWORD:?set POSTGRES_APP_PASSWORD in .env}@pgbouncer:5432/${POSTGRES_DB:-app}}
+      DATABASE_MAINTENANCE_URL: ${DATABASE_MAINTENANCE_URL:-${POSTGRES_MAINTENANCE_PASSWORD:+postgres://${POSTGRES_MAINTENANCE_USER:-app_maintenance}:${POSTGRES_MAINTENANCE_PASSWORD}@pgbouncer:5432/${POSTGRES_DB:-app}}}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy

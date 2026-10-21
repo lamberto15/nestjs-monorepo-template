@@ -1,0 +1,41 @@
+{{- if .Values.web.enabled }}
+# caddy/Caddyfile without the API proxy and TLS: the Ingress routes the API's
+# paths and ends TLS, so this Caddy only serves the built web app (/srv/web,
+# in the published Caddy image). The headers are the Caddyfile's.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "app.fullname" . }}-web
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+data:
+  Caddyfile: |
+    {
+      admin off
+      auto_https off
+      persist_config off
+    }
+    :8080 {
+      root * /srv/web
+      header {
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)"
+      }
+      handle /healthz {
+        respond "ok" 200
+      }
+      handle /assets/* {
+        @asset file
+        header @asset Cache-Control "public, max-age=31536000, immutable"
+        file_server
+      }
+      handle {
+        header Cache-Control "no-cache"
+        try_files {path} /index.html
+        file_server
+      }
+    }
+{{- end }}
