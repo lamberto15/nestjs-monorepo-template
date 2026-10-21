@@ -116,6 +116,45 @@ describe('rollingDeploy', () => {
     assert.doesNotMatch(d.calls.join('\n'), /compose build/);
   });
 
+  it('verifies the published images first when VERIFY_IMAGES is set', async () => {
+    const d = fakeDocker();
+    const seen = [];
+    await rollingDeploy(opts(), {
+      run: d.run,
+      ...quiet,
+      env: { APP_IMAGE: 'ghcr.io/o/r:abc', VERIFY_IMAGES: '1' },
+      verify: async () => (seen.push('verify'), 0),
+    });
+    assert.deepEqual(seen, ['verify']);
+  });
+
+  it('stops before pulling when verification fails', async () => {
+    const d = fakeDocker();
+    await assert.rejects(
+      rollingDeploy(opts(), {
+        run: d.run,
+        ...quiet,
+        env: { APP_IMAGE: 'ghcr.io/o/r:abc', VERIFY_IMAGES: '1' },
+        verify: async () => 1,
+      }),
+      DeployError,
+    );
+    assert.doesNotMatch(d.calls.join('\n'), /compose pull/);
+  });
+
+  it('does not verify unless VERIFY_IMAGES is set', async () => {
+    const d = fakeDocker();
+    await rollingDeploy(opts(), {
+      run: d.run,
+      ...quiet,
+      env: { APP_IMAGE: 'ghcr.io/o/r:abc' },
+      verify: async () => {
+        throw new Error('called');
+      },
+    });
+    assert.match(d.calls.join('\n'), /compose pull/);
+  });
+
   it('passes the project, files and env file to every compose call', async () => {
     const d = fakeDocker();
     await rollingDeploy(

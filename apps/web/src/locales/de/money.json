@@ -1,0 +1,22 @@
+{
+  "nav": "Wechselkurse",
+  "title": "Wechselkurse",
+  "description": "Die Euro-Referenzkurse der Europäischen Zentralbank, veröffentlicht an jedem Arbeitstag. Wählen Sie einen Tag, um die neuesten Kurse bis zu diesem Tag zu sehen.",
+  "date": "Tag",
+  "today": "Heute",
+  "search": "Währung suchen",
+  "empty": "Noch keine Wechselkurse.",
+  "none": "Keine Währung gefunden.",
+  "fetched": "Kurse vom {{day}}, Einheiten je {{base}} (Quelle: {{source}}).",
+  "currency": "Währung",
+  "name": "Name",
+  "perBase": "Je {{base}}",
+  "converter": {
+    "title": "Währungsrechner",
+    "amount": "Betrag",
+    "to": "Nach",
+    "badAmount": "Geben Sie einen Betrag wie 12.34 ein.",
+    "rate": "1 {{from}} = {{rate}} {{to}} (Kurse vom {{date}})",
+    "from": "Von"
+  }
+}

@@ -15,6 +15,18 @@
       ],
       "outputs": ["dist/**", "*.tsbuildinfo"]
     },
+    "size": {
+      "dependsOn": ["build"],
+      "inputs": ["dist/**", ".size-limit.json"]
+    },
+    "lighthouse": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "build-storybook": {
+      "dependsOn": ["^build"],
+      "outputs": ["storybook-static/**"]
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
