@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Built as the pnpm Docker guide recommends for a workspace
 # (https://pnpm.io/docker): the official pnpm image, Node from the root
-# package.json's devEngines.runtime, the store in a BuildKit cache mount, and
+# package.json's devEngines.runtime, the store in an image layer, and
 # `pnpm deploy` for the API's production dependencies alone. Built from the
 # repository root (compose.prod.yaml: context `.`, dockerfile
 # apps/api/Dockerfile; the root's .dockerignore applies).
@@ -11,24 +11,24 @@ WORKDIR /app
 
 FROM base AS build
 # Every package of the lockfile into the store, from the lockfile alone: this
-# layer stays cached until a dependency changes, whatever the code does.
+# layer stays cached until a dependency changes, whatever the code does. The
+# store is part of the layer, not a BuildKit cache mount: a mount's contents
+# can be pruned while the layer stays cached, and the offline install below
+# would then find an empty store (ERR_PNPM_NO_OFFLINE_TARBALL, #480).
 # pnpm-workspace.yaml: which dependencies may run install scripts (allowBuilds)
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 # CI=true here and in the install: lefthook's postinstall leaves git hooks
 # alone (the image has neither .git nor git).
-RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm \
-    CI=true pnpm fetch --store-dir /var/cache/pnpm
+RUN CI=true pnpm fetch --store-dir /pnpm-store
 COPY . .
-RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm \
-    CI=true pnpm install --store-dir /var/cache/pnpm --frozen-lockfile --offline
+RUN CI=true pnpm install --store-dir /pnpm-store --frozen-lockfile --offline
 RUN pnpm --filter @nestjs-monorepo-template/api build
 # The API as a package of its own: its package.json, the files it lists
 # (dist, drizzle) and a node_modules of its production dependencies only.
 # Not offline: it checks its own lockfile's packages against the registry's
 # metadata (supply-chain policy); the files come from the store.
-RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm \
-    pnpm --filter @nestjs-monorepo-template/api deploy --prod \
-      --store-dir /var/cache/pnpm /deploy/api
+RUN pnpm --filter @nestjs-monorepo-template/api deploy --prod \
+      --store-dir /pnpm-store /deploy/api
 
 # glibc like the pnpm image, so native modules installed above run here.
 FROM node:24.22.0-trixie-slim
