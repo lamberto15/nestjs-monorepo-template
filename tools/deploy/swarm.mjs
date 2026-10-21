@@ -20,6 +20,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toStack } from './render.mjs';
+import { verifyIfEnabled } from './verify.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const COMPOSE_FILES = [
@@ -112,6 +113,7 @@ export async function main(argv, deps = {}) {
       pollMs: deps.pollMs ?? 2000,
       graceMs: deps.graceMs ?? 20000,
       stack: options.stack ?? (deps.env ?? process.env).SWARM_STACK ?? 'app',
+      verify: deps.verify,
       options,
     };
     ctx.timeoutMs = (options.timeout ?? 600) * 1000;
@@ -276,6 +278,9 @@ async function deploy(ctx) {
   const deployId = ctx.env.SWARM_DEPLOY_ID || String(ctx.now());
   // The same in both renders: the migrate job's spec (so its rerun) changes once per deploy.
   ctx.env = { ...ctx.env, SWARM_DEPLOY_ID: deployId };
+
+  // VERIFY_IMAGES=1: signature, SBOM and provenance first (off by default).
+  await verifyIfEnabled(ctx, (m) => new DeployError(m));
 
   ctx.log(`rendering ${ctx.stack}`);
   const infra = await renderStack(ctx, { app: false });
