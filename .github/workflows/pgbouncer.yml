@@ -1,0 +1,72 @@
+# PgBouncer in front of PostgreSQL (docs/deployment.md, "PgBouncer"): the
+# optional compose.pgbouncer.yaml, tested once per change. The load test's
+# stack with the overlay on (api and worker connect through PgBouncer in
+# transaction mode), the k6 scenarios for a short phase each (sign-in, a
+# tenant-scoped list, create, export), then pgbouncer/check.sh: the server
+# connections stay inside the pool, the apps' statement and idle-transaction
+# limits take effect, tenant settings and advisory locks end at COMMIT.
+# Report-only for the k6 numbers (a short run is not a baseline); the checks
+# and the scenarios' own error thresholds fail the run.
+name: PgBouncer
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - compose.pgbouncer.yaml
+      - pgbouncer/**
+      - apps/api/src/core/database/**
+      - apps/api/src/core/tenancy/**
+      - loadtest/run.sh
+      - .github/workflows/pgbouncer.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pgbouncer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pgbouncer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      LOADTEST_PROJECT: loadtest-pgbouncer
+      LOADTEST_OUT: loadtest/results
+      LOADTEST_PGBOUNCER: 'on'
+      LOADTEST_REPLICAS: '2'
+      PHASE_SECONDS: '15'
+      APP_IMAGE: app:pgbouncer
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the production image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: app:pgbouncer
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+
+      - name: The stack, through PgBouncer
+        run: loadtest/run.sh up
+
+      - name: The scenarios
+        run: loadtest/run.sh run
+
+      - name: PgBouncer's checks
+        run: pgbouncer/check.sh
+
+      - name: The stack's log on failure
+        if: failure()
+        run: loadtest/run.sh compose logs --tail 80 pgbouncer migrate api worker
+
+      - name: Remove the stack
+        if: always()
+        run: loadtest/run.sh down
