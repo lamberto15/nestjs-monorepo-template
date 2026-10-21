@@ -87,6 +87,8 @@ export interface ClientInput {
   name: string;
   /** Requests a UTC day; none (or null): no quota. */
   dailyQuota?: number | null;
+  /** CIDRs the client's keys may be used from; none (or empty): any address. */
+  allowedCidrs?: string[];
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
   /** When the first key stops working (none: never). */
@@ -97,6 +99,8 @@ export interface ClientChanges {
   active?: boolean;
   /** Requests a UTC day; null removes the quota. */
   dailyQuota?: number | null;
+  /** Replaces the IP allowlist; empty removes it. */
+  allowedCidrs?: string[];
   roleIds?: string[];
   roleExpiresAt?: Record<string, string>;
 }
@@ -1037,6 +1041,15 @@ export class AccessAdminService {
       }
       if (changes.dailyQuota !== undefined) {
         await this.clients.setQuota(tx, actor, id, changes.dailyQuota, ip);
+      }
+      if (changes.allowedCidrs !== undefined) {
+        await this.clients.setAllowedCidrs(
+          tx,
+          actor,
+          id,
+          changes.allowedCidrs,
+          ip,
+        );
       }
       if (changes.roleIds && grants) {
         // Ended grants not given again are deleted here, never rewritten.

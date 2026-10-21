@@ -72,4 +72,4 @@ client's changes need a changeset: run `pnpm changeset` in your branch.
 
 Report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md). Everyone
 taking part follows the [code of conduct](CODE_OF_CONDUCT.md). The code is under the
-[MIT licence](LICENSE).
+[PolyForm Noncommercial 1.0.0 licence](LICENSE).

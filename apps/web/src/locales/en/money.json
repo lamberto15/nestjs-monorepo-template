@@ -1,0 +1,22 @@
+{
+  "nav": "Exchange rates",
+  "title": "Exchange rates",
+  "description": "The European Central Bank's euro reference rates, published each working day. Pick a day to see the newest rates on or before it.",
+  "date": "Day",
+  "today": "Today",
+  "search": "Search currency",
+  "empty": "No exchange rates yet.",
+  "none": "No currency matches.",
+  "fetched": "Rates of {{day}}, units per {{base}} (source: {{source}}).",
+  "currency": "Currency",
+  "name": "Name",
+  "perBase": "Per {{base}}",
+  "converter": {
+    "title": "Currency converter",
+    "amount": "Amount",
+    "to": "To",
+    "badAmount": "Enter an amount such as 12.34.",
+    "rate": "1 {{from}} = {{rate}} {{to}} (rates of {{date}})",
+    "from": "From"
+  }
+}

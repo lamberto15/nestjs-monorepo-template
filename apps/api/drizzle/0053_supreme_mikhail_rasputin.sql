@@ -1,0 +1,1 @@
+ALTER TABLE "api_clients" ADD COLUMN "allowed_cidrs" text[] DEFAULT '{}' NOT NULL;

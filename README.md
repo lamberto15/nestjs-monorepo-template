@@ -176,3 +176,8 @@ Releases and the roadmap
 - [Releases](docs/releases.md): template releases and their notes, the typed client's versions (Changesets)
 - [Upgrading](docs/upgrading.md): pulling template updates into your project (the merge, conflicts, migrations)
 - [Roadmap](docs/roadmap.md): what gets built next, and the status of what is done
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE): free for personal, research, education and other
+noncommercial use. Commercial use needs a separate licence from the copyright holder.

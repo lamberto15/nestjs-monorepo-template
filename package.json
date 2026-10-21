@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "NestJS 12 REST backend template: accounts (passwords, two-factor, OAuth, magic links, tokens, impersonation), roles with CASL, API keys, audit log, idempotency, outbox, webhooks, workflows, queues, mail, storage, realtime, i18n, Docker Compose for dev and production.",
   "private": true,
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
     "build": "turbo run build",

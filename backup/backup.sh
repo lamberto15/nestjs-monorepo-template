@@ -13,7 +13,8 @@
 #   backup              run now
 #   backup --if-stale   run only if the last run failed or the newest
 #                       successful backup is older than BACKUP_MAX_AGE_HOURS
-#                       (hourly: catches up after a missed schedule)
+#                       (hourly, and once when the container starts: catches up
+#                       after a missed schedule, and gives a new stack its first)
 #
 # The connection comes from libpq's variables (PGHOST, PGUSER, PGPASSWORD,
 # PGDATABASE), so the password never appears in a command line.
