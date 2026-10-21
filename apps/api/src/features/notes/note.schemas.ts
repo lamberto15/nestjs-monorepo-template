@@ -43,7 +43,8 @@ export const noteBulkSchema = bulkRequestSchema(
   ['delete', 'restore', 'update'],
   updateNoteSchema,
 );
-type NoteBulkDto = z.infer<typeof noteBulkSchema>;
+/** @public */
+export type NoteBulkDto = z.infer<typeof noteBulkSchema>;
 
 export const noteSchema = z.object({
   id: z.string(),

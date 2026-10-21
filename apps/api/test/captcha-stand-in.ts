@@ -69,5 +69,3 @@ export async function startSiteverify() {
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
-
-type Siteverify = Awaited<ReturnType<typeof startSiteverify>>;

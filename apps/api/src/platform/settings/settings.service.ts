@@ -53,7 +53,6 @@ import {
 import type {
   PlatformSettingValue,
   SettingDeclaration,
-  SettingOverride,
   SettingScope,
 } from './setting.types.js';
 import { platformSettingValues, settingOverrides } from './settings.tables.js';

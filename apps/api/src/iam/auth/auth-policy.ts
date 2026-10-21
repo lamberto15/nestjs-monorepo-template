@@ -36,8 +36,6 @@ export interface AuthPolicySource {
 
 /** NIST SP 800-63B: the floor every password meets, whatever a tenant says. */
 export const PASSWORD_MIN_LENGTH = 12;
-/** The longest password accepted (`newPassword`, account.schemas.ts). */
-const PASSWORD_MAX_LENGTH = 128;
 /** The highest minimum a tenant may ask for: a passphrase, still typeable. */
 export const PASSWORD_MIN_LENGTH_LIMIT = 64;
 

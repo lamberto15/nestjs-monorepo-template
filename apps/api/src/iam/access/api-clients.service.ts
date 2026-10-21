@@ -52,12 +52,6 @@ export interface ApiClientView {
   webhookEndpoints?: number;
 }
 
-/** The role grants of a change: ids, and when each one ends (none: never). */
-interface RoleGrants {
-  roleIds: string[];
-  roleExpiresAt?: Record<string, string>;
-}
-
 /**
  * The systems that call the API with a key. A key is shown once, when it is
  * made; only its public id and SHA-256 are stored. A client may hold several

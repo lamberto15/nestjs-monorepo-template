@@ -74,7 +74,8 @@ export const moneySchema = z
     currency: currencyCodeSchema,
   })
   .superRefine(checkMinorUnit);
-type MoneyInput = z.infer<typeof moneySchema>;
+/** @public */
+export type MoneyInput = z.infer<typeof moneySchema>;
 
 /** A money object in a response: the amount always with exactly the currency's decimals. */
 export const moneyResponseSchema = z

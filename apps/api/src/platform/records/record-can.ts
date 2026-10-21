@@ -229,8 +229,11 @@ export function withIncluded<T extends Record<string, unknown>>(
   return keys.length ? untagged({ ...shown, ...extra }, keys) : shown;
 }
 
-/** `withIncluded()` with only a `can`. */
-const withCan = <T extends Record<string, unknown>>(
+/**
+ * `withIncluded()` with only a `can`.
+ * @public
+ */
+export const withCan = <T extends Record<string, unknown>>(
   shown: T,
   can: Map<string, Record<string, boolean>>,
 ) => withIncluded(shown, { can });
