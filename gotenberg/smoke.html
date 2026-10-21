@@ -3,12 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <!-- CI's gotenberg-image job renders this page with the built image and
-         checks the PDF: the page of a document in small (layout.html's CSP,
-         nothing remote), with the scripts the fonts must cover. -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
-    />
+         checks the PDF: a small page with the scripts the fonts must cover
+         (no Content-Security-Policy: the layout's is the app's, not the image's). -->
     <title>Smoke</title>
     <style>
       @page {
