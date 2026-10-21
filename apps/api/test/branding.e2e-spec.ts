@@ -105,7 +105,7 @@ describe('tenant branding (e2e)', () => {
     'Name <attacker@example.com>',
     '"quoted"',
     'a@b.c',
-    'x‮y',
+    'x\u202Ey',
     '',
     '   ',
     'x'.repeat(61),

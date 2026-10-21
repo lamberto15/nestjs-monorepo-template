@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { uploadToDisk } from '@nestjs/storage';
-import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
   BrandingService,
@@ -32,10 +31,13 @@ export class BrandingLogoUpload implements NestInterceptor {
   constructor(private readonly branding: BrandingService) {
     this.multer = new Upload({
       storage: uploadToDisk({
-        // The tenant of the request's context (set from the authenticated
-        // principal before any interceptor runs), never anything the client
-        // sends.
-        key: () => BrandingService.logoKey(requireTenantId('A logo')),
+        // The request's tenant (the principal's, authenticated before any
+        // interceptor runs), never the client's.
+        key: (_file, req) =>
+          BrandingService.logoKey(
+            (req as unknown as { user: Principal & { tenantId: string } }).user
+              .tenantId,
+          ),
         contentTypes: [...LOGO_TYPES],
       }),
       limits: { fileSize: LOGO_MAX_BYTES, files: 1 },

@@ -57,7 +57,7 @@ describe('branding settings', () => {
     'a'.repeat(61),
     'Evil\r\nBcc: x@example.com',
     'a\u0000b',
-    'x‮y',
+    'x\u202Ey',
     'Name <a@b.c>',
     'a@b.c',
     '"quoted"',
