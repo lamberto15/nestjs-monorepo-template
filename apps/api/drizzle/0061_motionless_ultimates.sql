@@ -10,6 +10,7 @@ CREATE TABLE "attachment_uploads" (
 	"uploaded_by" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"completing_at" timestamp with time zone,
+	"completed_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
