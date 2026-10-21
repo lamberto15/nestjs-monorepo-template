@@ -34,7 +34,8 @@ const httpUrl = (v) =>
 const optionalUrl = (v) => (v === '' ? null : httpUrl(v));
 /** The VAPID contact: `mailto:` an address, or an https URL. */
 const vapidSubject = (v) =>
-  /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || /^https:\/\/[^\s/]+/.test(v)
+  (v.startsWith('mailto:') && EMAIL.test(v.slice('mailto:'.length))) ||
+  /^https:\/\/[^\s/]+/.test(v)
     ? null
     : 'mailto:ops@example.com or an https URL';
 /** Twilio's sender: a number in E.164 or a Messaging Service SID (MG...). */
