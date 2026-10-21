@@ -8,7 +8,7 @@ import { findToast } from '@/test/toast';
 import { allFeatures, problem, server, signedInUser } from '@/test/server';
 
 /** The signed-in user, with this picture, and the routes the profile page and the nav read. */
-function useAccount(state: { avatarUrl: string | null; puts: File[] }) {
+function useAccount(state: { avatarUrl: string | null; puts: string[] }) {
   server.use(
     http.get('/v1/auth/me', () =>
       HttpResponse.json({
@@ -29,12 +29,13 @@ function useAccount(state: { avatarUrl: string | null; puts: File[] }) {
 
 describe('the account picture', () => {
   it('shows the initials without a picture, uploads one with PUT and removes it', async () => {
-    const state = { avatarUrl: null as string | null, puts: [] as File[] };
+    const state = { avatarUrl: null as string | null, puts: [] as string[] };
     useAccount(state);
     server.use(
       http.put('/v1/account/avatar', async ({ request }) => {
-        const form = await request.formData();
-        state.puts.push(form.get('file') as File);
+        // `request.formData()` cannot read what the page sent: read the part's header.
+        const raw = await request.text();
+        state.puts.push(/filename="([^"]*)"/.exec(raw)?.[1] ?? '');
         state.avatarUrl = `/v1/people/${signedInUser.user.id}/avatar?v=abc`;
         return HttpResponse.json({ avatarUrl: state.avatarUrl });
       }),
@@ -58,9 +59,7 @@ describe('the account picture', () => {
       input,
       new File(['png'], 'me.png', { type: 'image/png' }),
     );
-    await waitFor(() =>
-      expect(state.puts.map((f) => f.name)).toEqual(['me.png']),
-    );
+    await waitFor(() => expect(state.puts).toEqual(['me.png']));
     await findToast('Picture saved.');
     // The page reads the account again and offers to change or remove it.
     await user.click(await screen.findByRole('button', { name: 'Remove' }));
