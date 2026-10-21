@@ -685,7 +685,7 @@ Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
 blackbox exporter 0.1 CPU and 64 MB). Logs are
 bounded like the rest of the stack (`DOCKER_LOG_*`).
 
-**The alerts** (45 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
+**The alerts** (46 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
 
 | Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
@@ -705,6 +705,7 @@ warning: look today):
 | `OutboxStuck`                                                | a due outbox message has waited over 5 min, for 5 min                                                                                                                               | critical          |
 | `OutboxDeadLetters`                                          | outbox dead letters wait for someone (requeue or purge in `/v1/ops`)                                                                                                                | warning           |
 | `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing`       | a due delivery waits over 10 min; deliveries failed for good in the last hour                                                                                                       | warning           |
+| `TenantStorageNearLimit` | a tenant stores over 90% of its storage limit for 15 min (`tenant_storage_bytes` / `tenant_storage_limit_bytes`; [Quotas](tenancy.md#quotas)) | warning |
 | `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                    | warning           |
 | `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                | warning           |
 | `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                   | warning           |
