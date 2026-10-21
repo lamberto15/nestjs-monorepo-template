@@ -369,6 +369,21 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
   `password_hashes_rejected_total{reason="full|queue-timeout"}` on
   `/metrics`; the `PasswordHashingSaturated` alert fires after 10 minutes of
   refusals. `AppRestarting` catches a process still killed at its limit.
+- **Images** ([attachments](attachments.md#image-renditions)): the worker
+  converts one uploaded image at a time, with sharp (libvips), whose memory is
+  outside the V8 heap and outside the formula above. A 48-megapixel JPEG that
+  needs rotating kept the whole process near 140 MB resident, with no
+  temporary file; the budget is about 4 bytes per pixel of
+  `IMAGE_MAX_PIXELS` (50 million: 200 MB) on top of the file itself (at most
+  64 MiB). The worker's 128 MiB "rest outside the heap" and the 768 MiB heap
+  seldom peak together, and it hashes at most one password at a time, so the
+  default limits hold; raise `WORKER_MEMORY` with `IMAGE_MAX_PIXELS`, and
+  `/tmp` if libvips spills a very large image there (`Read-only file system`
+  or `No space left` in the worker's log). A worker killed at its limit
+  while converting leaves the image `pending`; the retry job queues it again.
+  sharp brings libvips prebuilt (the `@img/sharp-*` package for the platform
+  and libc, an optional dependency with no install script): the glibc image
+  (`apps/api/Dockerfile`) needs no extra package and no `allowBuilds` entry.
 
 ### Container hardening
 
@@ -390,7 +405,8 @@ capabilities it gets back:
 - **The tmpfs counts against the container's memory limit** once used, so
   `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
   writes large temporary files (nothing in the app does today: exports and
-  attachments go through the storage driver).
+  attachments go through the storage driver, and the image library works in
+  memory at the default `IMAGE_MAX_PIXELS`).
 - **Adding a service or a write path:** give the service the same keys, mount
   a volume or tmpfs on every path it writes, and start it with the stack up
   (`docker compose logs <service>`): a `Read-only file system` error names
@@ -837,7 +853,7 @@ a counter per process: `rate()` and sum it), password hashing (`password_hashes_
 `password_hashes_queued`, `password_hashes_rejected_total{reason}`: per
 process, [Resource limits](#resource-limits)), mail (`mail_sent_total`,
 `mail_suppressed_total{reason}`, `mail_events_total{provider,type}`:
-[deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `attachments_scanned_total{result="clean|infected|error"}` (malware scans of uploads, a counter per worker: [attachments](attachments.md)), `encrypted_rows_on_old_key{column}`
+[deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `attachments_scanned_total{result="clean|infected|error"}` (malware scans of uploads, a counter per worker: [attachments](attachments.md)), `attachment_images_processed_total{result="ready|failed|error"}` (uploaded images processed, a counter per worker: [attachments](attachments.md#image-renditions)), `encrypted_rows_on_old_key{column}`
 ([encryption](encryption.md)), `exchange_rates_age_seconds`
 ([money](money.md)), Node's defaults (`process_cpu_seconds_total`,
 heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).
