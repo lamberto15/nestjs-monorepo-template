@@ -7,7 +7,8 @@ on:
   push:
     branches: [sonar-export]
 
-permissions: {}
+permissions:
+  pull-requests: read
 
 jobs:
   export:
@@ -16,14 +17,19 @@ jobs:
     env:
       API: https://sonarcloud.io/api
       KEY: lamberto15_nestjs-monorepo-template
-      PR: '507'
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Duplicated new lines per file on the pull request
+      - name: Each open pull request's gate, new issues and duplicated lines
         run: |
-          curl -fsS --retry 3 "$API/measures/component_tree?component=$KEY&pullRequest=$PR&metricKeys=new_duplicated_lines,new_lines&qualifiers=FIL&ps=500" > tree.json
-          jq -c '.components[] | {path, measures}' tree.json
-          for f in $(jq -r '.components[].key' tree.json); do
-            echo "=== DUPLICATIONS $f"
-            curl -fsS --retry 3 -G "$API/duplications/show" --data-urlencode "key=$f" --data-urlencode "pullRequest=$PR" > dup.json || continue
-            jq -r '.files as $files | .duplications[] | [.blocks[] | "\($files[.["_ref"]].name // .["_ref"]):\(.from)+\(.size)"] | join("  ==  ")' dup.json
+          for pr in $(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" --jq '.[].number'); do
+            echo "##### PR $pr"
+            curl -fsS --retry 3 "$API/qualitygates/project_status?projectKey=$KEY&pullRequest=$pr" \
+              | jq -r '.projectStatus | "gate \(.status): " + ([.conditions[] | select(.status != "OK") | "\(.metricKey)=\(.actualValue)"] | join(", "))' || continue
+            curl -fsS --retry 3 "$API/issues/search?componentKeys=$KEY&pullRequest=$pr&resolved=false&ps=500" \
+              | jq -r '.issues[] | "ISSUE \(.rule) | \(.component | sub("^[^:]*:"; "")):\(.line // 0) | \(.message)"'
+            curl -fsS --retry 3 "$API/measures/component_tree?component=$KEY&pullRequest=$pr&metricKeys=new_duplicated_lines&qualifiers=FIL&ps=500" > tree.json
+            for f in $(jq -r '.components[] | select(any(.measures[]; (.periods[0].value // "0") != "0")) | .key' tree.json); do
+              curl -fsS --retry 3 -G "$API/duplications/show" --data-urlencode "key=$f" --data-urlencode "pullRequest=$pr" \
+                | jq -r '.files as $files | .duplications[] | "DUP " + ([.blocks[] | "\($files[.["_ref"]].name // .["_ref"]):\(.from)+\(.size)"] | join("  ==  "))'
+            done
           done
