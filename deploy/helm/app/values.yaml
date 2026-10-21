@@ -53,6 +53,8 @@ secretFiles:
   common:
     DATABASE_URL_FILE: database_url
     JWT_SECRET_FILE: jwt_secret
+    # Required in production: the app refuses to start without it (openssl rand -base64 32).
+    MFA_ENCRYPTION_KEYS_FILE: mfa_encryption_keys
   api: {}
   worker:
     DATABASE_MAINTENANCE_URL_FILE: database_maintenance_url

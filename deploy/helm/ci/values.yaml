@@ -23,4 +23,5 @@ secret:
     database_url: postgres://app_runtime:ci@postgres:5432/app
     database_owner_url: postgres://app:ci@postgres:5432/app
     database_maintenance_url: postgres://app_maintenance:ci@postgres:5432/app
+    # mfa_encryption_keys: the smoke job generates it (openssl rand -base64 32).
     jwt_secret: ci-only-secret-ci-only-secret-ci-only-secret
