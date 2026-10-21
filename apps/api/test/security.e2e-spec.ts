@@ -653,6 +653,115 @@ describe('security (e2e)', () => {
       .expect(204);
   });
 
+  describe("an API client's IP allowlist (#407)", () => {
+    const allow = async (id: string, allowedCidrs: string[]) =>
+      node
+        .admin()
+        .patch(`/v1/access/clients/${id}`)
+        .send({ allowedCidrs })
+        .expect(200);
+    const call = (auth: string, forwardedFor?: string) => {
+      const req = node.http().get('/v1/usage').set('Authorization', auth);
+      return forwardedFor ? req.set('X-Forwarded-For', forwardedFor) : req;
+    };
+
+    it('serves only the allowed addresses; the rest get 403 client_ip_not_allowed', async () => {
+      const client = await node.client();
+      await call(client.auth).expect(200); // no list: any address
+      await allow(client.id, ['203.0.113.0/24', '2001:db8::/32']);
+      await call(client.auth, '203.0.113.9').expect(200);
+      await call(client.auth, '2001:db8::7').expect(200);
+      const refused = await call(client.auth, '198.51.100.7').expect(403);
+      expect(refused.body.code).toBe('client_ip_not_allowed');
+      // The test's own peer (loopback) is not on the list either.
+      await call(client.auth).expect(403);
+      // Emptied: any address again.
+      await allow(client.id, []);
+      await call(client.auth, '198.51.100.7').expect(200);
+    });
+
+    it('takes the address from the trusted proxy chain, never a header the caller wrote', async () => {
+      const client = await node.client();
+      await allow(client.id, ['203.0.113.0/24']);
+      // The caller prepends an allowed address; the proxy (the loopback peer)
+      // appended the real one, 198.51.100.7: that is req.ip.
+      await call(client.auth, '203.0.113.9, 198.51.100.7').expect(403);
+      // Other spellings of the same trick.
+      await call(client.auth, '198.51.100.7, 203.0.113.9, 10.0.0.1').expect(
+        200,
+      );
+      await node
+        .http()
+        .get('/v1/usage')
+        .set('Authorization', client.auth)
+        .set('X-Real-IP', '203.0.113.9')
+        .set('Forwarded', 'for=203.0.113.9')
+        .expect(403);
+    });
+
+    it('matches an IPv4-mapped IPv6 address against IPv4 rules', async () => {
+      const client = await node.client();
+      await allow(client.id, ['203.0.113.0/24']);
+      await call(client.auth, '::ffff:203.0.113.9').expect(200);
+      await call(client.auth, '::ffff:198.51.100.7').expect(403);
+    });
+
+    it('does not answer a wrong key differently from outside the list', async () => {
+      const client = await node.client();
+      await allow(client.id, ['203.0.113.0/24']);
+      const wrong = `${client.auth.slice(0, -4)}aaaa`;
+      await call(wrong, '198.51.100.7').expect(401);
+    });
+
+    it('audits a refusal once per client and address', async () => {
+      const client = await node.client();
+      await allow(client.id, ['203.0.113.0/24']);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await call(client.auth, '198.51.100.7').expect(403);
+      }
+      await call(client.auth, '198.51.100.8').expect(403);
+      const entries = await node.db
+        .select({ ip: auditLog.ip })
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.action, 'client.ip-denied'),
+            eq(auditLog.targetId, client.id),
+          ),
+        );
+      expect(
+        entries
+          .map((entry) => entry.ip)
+          .sort((a, b) => (a ?? '').localeCompare(b ?? '')),
+      ).toEqual(['198.51.100.7', '198.51.100.8']);
+    });
+
+    it('validates CIDRs on write (400 invalid_cidr) and stores them canonical', async () => {
+      const client = await node.client();
+      for (const bad of ['10.0.0.0/33', 'nope', '::/129', '10.0.0.0/8/8']) {
+        const refused = await node
+          .admin()
+          .patch(`/v1/access/clients/${client.id}`)
+          .send({ allowedCidrs: [bad] })
+          .expect(400);
+        expect(refused.body.code).toBe('invalid_cidr');
+        await node
+          .admin()
+          .post('/v1/access/clients')
+          .send({
+            name: `bad-${randomUUID().slice(0, 8)}`,
+            allowedCidrs: [bad],
+          })
+          .expect(400);
+      }
+      const saved = await allow(client.id, ['2001:DB8::/32', '203.0.113.9']);
+      expect(saved.body.allowedCidrs).toEqual([
+        '2001:db8::/32',
+        '203.0.113.9/32',
+      ]);
+    });
+  });
+
   it('rotates only the keys of clients the actor has authority over', async () => {
     const clientManager = await node.user([
       await role(['Access', 'manageClients']),
