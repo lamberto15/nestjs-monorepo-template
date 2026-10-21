@@ -119,7 +119,9 @@ told to stop taking writes. `platform.mode` is a platform-only setting
 (`scopes: []`: no tenant has a value of its own) with three values; the
 operators set it like any platform value, `PUT /v1/settings/platform.mode/platform
 { "value": "read-only" }` (audited as `setting.updated`, `scope: platform`),
-and `DELETE` of the same path returns to `normal`. Code: `apps/api/src/platform/mode/`.
+and `DELETE` of the same path returns to `normal` (it removes only the stored
+value: a mode forced by `APP_MODE`, below, stays, and the route still answers
+204). Code: `apps/api/src/platform/mode/`.
 
 | Mode          | Requests                                                                | Queues and cron |
 | ------------- | ----------------------------------------------------------------------- | --------------- |

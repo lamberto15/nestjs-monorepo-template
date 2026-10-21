@@ -100,23 +100,57 @@ describe('a read-only deployment', () => {
 describe('the mode, kept fresh', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('is asked again every minute (the API pushes nothing about it)', async () => {
-    // Only the interval is faked: waiting for the screen uses timeouts.
+  /** The user does something on the page (what the idle timeout counts). */
+  const input = () =>
+    act(async () => {
+      window.dispatchEvent(new Event('pointerdown'));
+    });
+
+  it('is not asked on a timer while normal: an unattended tab must time out', async () => {
+    // Any request is activity to the API (docs/auth.md, "Session lifetime"):
+    // a poll would keep an idle session signed in for ever.
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { asked } = useDeployment('normal');
+    await renderApp('/');
+    expect(await dashboard()).toBeVisible();
+    const before = asked.features;
+
+    await act(async () => {
+      vi.advanceTimersByTime(60 * MODE_POLL.normal);
+    });
+    expect(asked.features).toBe(before);
+  });
+
+  it('is asked again when the user does something, at most once a minute', async () => {
+    // Only the clock is faked: the answer's age decides whether to ask.
+    vi.useFakeTimers({ toFake: ['Date'] });
     const { state, asked } = useDeployment('normal');
     await renderApp('/');
     expect(await dashboard()).toBeVisible();
-    expect(screen.queryByText(/read-only right now/)).toBeNull();
     const before = asked.features;
 
+    // Just asked: the input costs no request.
     state.mode = 'read-only';
+    await input();
+    expect(asked.features).toBe(before);
+    expect(screen.queryByText(/read-only right now/)).toBeNull();
+
     await act(async () => {
       vi.advanceTimersByTime(MODE_POLL.normal);
     });
+    await input();
     expect(await screen.findByText(/read-only right now/)).toBeVisible();
-    expect(asked.features).toBeGreaterThan(before);
+    expect(asked.features).toBe(before + 1);
+  });
 
-    // Back to normal: asked more often while it is not.
+  it('is asked every 15 seconds while it is not normal, until it is', async () => {
+    // Only the interval is faked: waiting for the screen uses timeouts.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { state, asked } = useDeployment('read-only');
+    await renderApp('/');
+    expect(await screen.findByText(/read-only right now/)).toBeVisible();
+    const before = asked.features;
+
     state.mode = 'normal';
     await act(async () => {
       vi.advanceTimersByTime(MODE_POLL.restricted);
@@ -124,6 +158,14 @@ describe('the mode, kept fresh', () => {
     await waitFor(() =>
       expect(screen.queryByText(/read-only right now/)).toBeNull(),
     );
+    expect(asked.features).toBeGreaterThan(before);
+
+    // Normal again: the timer is off.
+    const after = asked.features;
+    await act(async () => {
+      vi.advanceTimersByTime(60 * MODE_POLL.normal);
+    });
+    expect(asked.features).toBe(after);
   });
 });
 
@@ -212,12 +254,16 @@ describe('a deployment in maintenance', () => {
     expect(await dashboard()).toBeVisible();
   });
 
-  it('says why when the mode cannot be ended that way (it is set in the environment)', async () => {
+  it('says it is still on when the environment sets the mode (APP_MODE)', async () => {
+    // The API answers 204 whatever it removed: the stored value goes (or
+    // there is none), the environment's mode stays.
     useDeployment('maintenance', ['Access.manageSettings']);
+    let removed = 0;
     server.use(
-      http.delete('/v1/settings/:key/platform', () =>
-        problem(404, 'not_found'),
-      ),
+      http.delete('/v1/settings/:key/platform', () => {
+        removed += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
     );
     await renderApp('/');
     await maintenanceTitle();
@@ -225,7 +271,9 @@ describe('a deployment in maintenance', () => {
     await userEvent
       .setup()
       .click(screen.getByRole('button', { name: 'End maintenance' }));
-    await findToast('not_found (test)');
+    await findToast(/The mode is still on/);
+    expect(removed).toBe(1);
+    expect(screen.queryByText('Maintenance mode is off.')).toBeNull();
     expect(
       screen.getByRole('heading', { name: 'Down for maintenance' }),
     ).toBeVisible();

@@ -189,11 +189,16 @@ web app needs the API, so `dev:web` alone suits an API already running.
   `components/maintenance-notice.tsx`): `GET /v1/features` carries `mode`
   ([settings](settings.md), "Maintenance and read-only mode"). The signed-in layout
   knows it before its first paint (`_app`'s `beforeLoad` fetches the switches; a
-  failure holds nothing back) and keeps it fresh with `useModeWatch()`: every minute
-  (every 15 s while it is not `normal`, about the `Retry-After` of the refusals),
-  when the tab returns after 30 s, and at once when any request is refused with 503
-  `read_only` or `maintenance` (`lib/errors.ts` asks again, and toasts once, however
-  many requests were refused). The sign-in page does not know it (the switches need a
+  failure holds nothing back) and keeps it fresh with `useModeWatch()`: when the
+  user does something (pointer, keys, scrolling) at least a minute after the last
+  answer, when the tab returns after 30 s, and at once when any request is refused
+  with 503 `read_only` or `maintenance` (`lib/errors.ts` asks again, and toasts once,
+  however many requests were refused). While it is `normal` there is **no timer**: the
+  API counts every request as activity, so a poll would keep an unattended tab signed
+  in and defeat the idle timeout ([auth](auth.md), "Session lifetime"). Only while it
+  is not `normal` it is asked every 15 s (about the `Retry-After` of the refusals, so
+  the notice turns into the app by itself); the session's absolute lifetime still ends
+  such a tab. The sign-in page does not know it (the switches need a
   session), and sign-in works in both modes.
   - **`read-only`:** `ModeBanner` (a status line like the other banners) and the
     writes are off. `useWritesPaused()` disables `SubmitButton` (every TanStack form),
@@ -208,8 +213,10 @@ web app needs the API, so `dev:web` alone suits an API already running.
   - **`maintenance`:** `MaintenanceNotice` replaces the whole layout (menu, page,
     socket), so nothing asks an API that refuses everything. It offers "Check again",
     "Sign out" and, to an operator who manages settings, "End maintenance"
-    (`DELETE /v1/settings/platform.mode/platform`; a mode forced by `APP_MODE` has no
-    value to remove, and the API's error is the toast).
+    (`DELETE /v1/settings/platform.mode/platform`). The API answers 204 whatever it
+    removed, so the notice asks for the mode afterwards: still `maintenance` (it is
+    forced by `APP_MODE`, which only the environment changes) is an error toast
+    saying so, not the success toast.
   - **Caddy** serves a static page for the web app's files while `MAINTENANCE_PAGE=on`
     ([deployment](deployment.md), "Maintenance page"); an installed app (the service
     worker) opens its cached shell and shows this notice.

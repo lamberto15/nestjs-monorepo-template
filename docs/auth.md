@@ -1394,7 +1394,11 @@ never loosen it. Unset, every policy is today's behaviour.
   (`SessionIdleWarning`) counts the user's own activity (pointer, keys,
   scrolling), tells the API about it with a `me` request at most once a
   minute, and with no input for `idleMinutes - 2` shows a dialog that
-  counts down and offers "Stay signed in" (another `me` request).
+  counts down and offers "Stay signed in" (another `me` request). Nothing else in
+  the signed-in layout may ask the API on a timer for an unattended tab (every
+  authenticated request is activity): the deployment mode's watch
+  (`useModeWatch`, [monorepo](monorepo.md), "Maintenance and read-only mode")
+  has no timer while the mode is `normal` for this reason.
 - **Who meets a minimum length.** A password is the account's, in every
   tenant: the strictest of the tenants it is an active member of; an
   invitation's new address, the inviting tenant's. A reset link is read

@@ -9,6 +9,7 @@
     "operator": {
       "end": "End maintenance",
       "ended": "Maintenance mode is off.",
+      "stillOn": "The mode is still on. It is set in the deployment's environment (APP_MODE), so it can only be changed there.",
       "hint": "Operators only. If the mode is set in the deployment's environment (APP_MODE), it can only be changed there."
     }
   }

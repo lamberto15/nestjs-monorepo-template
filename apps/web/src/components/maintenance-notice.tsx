@@ -18,7 +18,8 @@ import { useSignOut } from '@/lib/sign-out';
  * the page, which then ask for nothing. The mode is asked again by itself
  * (lib/mode.ts); "Check again" asks now. Signing out stays possible, and an
  * operator who may manage settings can end the mode here, by the route the
- * API keeps open for it (`DELETE /v1/settings/platform.mode/platform`).
+ * API keeps open for it (`DELETE /v1/settings/platform.mode/platform`), which
+ * removes the stored value only.
  */
 export function MaintenanceNotice() {
   const { t } = useTranslation('mode');
@@ -30,19 +31,24 @@ export function MaintenanceNotice() {
   const refresh = () =>
     queryClient.refetchQueries({ queryKey: featuresQuery.queryKey });
   const check = useMutation({ mutationFn: refresh });
-  // Only the platform value is the operators' to remove: an APP_MODE in the
-  // environment has none, and the API answers that with an error the global
-  // handler shows.
+  // The API answers 204 whatever it removed (nothing at all, when the mode
+  // comes from APP_MODE; a stored value that the environment overrides): only
+  // the mode asked for afterwards says whether maintenance is over.
   const end = useMutation({
-    mutationFn: () =>
-      unwrap(
+    mutationFn: async () => {
+      await unwrap(
         api.DELETE('/v1/settings/{key}/platform', {
           params: { path: { key: 'platform.mode' } },
         }),
-      ),
-    onSuccess: async () => {
+      );
+      return queryClient.fetchQuery({ ...featuresQuery, staleTime: 0 });
+    },
+    onSuccess: ({ mode }) => {
+      if (mode === 'maintenance') {
+        toast.error(t('maintenance.operator.stillOn'));
+        return;
+      }
       toast.success(t('maintenance.operator.ended'));
-      await refresh();
     },
   });
   return (

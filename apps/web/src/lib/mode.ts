@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { isApiError } from '@nestjs-monorepo-template/api-client';
 import { featuresQuery, type Features } from '@/lib/session';
 
@@ -10,8 +11,16 @@ import { featuresQuery, type Features } from '@/lib/session';
  */
 export type Mode = Features['mode'];
 
-/** How often the signed-in layout asks for the mode again (ms). */
+/**
+ * How often the signed-in layout asks for the mode again (ms): `restricted`
+ * is the interval while the mode is not `normal`; `normal` is the least time
+ * between two asks that the user's input causes (never a timer, see
+ * {@link useModeWatch}).
+ */
 export const MODE_POLL = { normal: 60_000, restricted: 15_000 } as const;
+
+/** What counts as the user being there (as `SessionIdleWarning` counts it). */
+const INPUT_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
 /**
  * The mode the page has now: `normal` until `GET /v1/features` answered. It
@@ -42,20 +51,48 @@ export function useWritesPaused(): boolean {
 
 /**
  * Keeps the mode fresh, once, in the signed-in layout: the API pushes nothing
- * about it, so it is asked again every minute (every 15 s while it is not
- * `normal`, about the `Retry-After` of its refusals), when the tab returns
- * after half a minute, and at once when a request is refused with 503
- * `read_only` or `maintenance` (lib/errors.ts). Undefined until known.
+ * about it. While it is not `normal`, it is asked again every 15 s (about the
+ * `Retry-After` of the refusals, and the maintenance notice promises to turn
+ * into the app by itself). While it is `normal`, there is no timer: it is
+ * asked when the user's input comes at least a minute after the last answer,
+ * when the tab returns after half a minute, and at once when a request is
+ * refused with 503 `read_only` or `maintenance` (lib/errors.ts). A timer
+ * would defeat the idle timeout (docs/auth.md, "Session lifetime"): the API
+ * counts every request, this one too, as activity, so an unattended tab
+ * would stay signed in for ever. Undefined until known.
  */
 export function useModeWatch(): Mode | undefined {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    // TanStack Query has no refetch on interaction. `fetchQuery` with a
+    // `staleTime` is the throttle: an answer under a minute old is returned
+    // as it is, without a request.
+    const onInput = () => {
+      void queryClient
+        .fetchQuery({
+          ...featuresQuery,
+          staleTime: MODE_POLL.normal,
+          meta: { errorToast: false },
+        })
+        .catch(() => undefined);
+    };
+    for (const event of INPUT_EVENTS) {
+      window.addEventListener(event, onInput, { passive: true });
+    }
+    return () => {
+      for (const event of INPUT_EVENTS) {
+        window.removeEventListener(event, onInput);
+      }
+    };
+  }, [queryClient]);
   return useQuery({
     ...featuresQuery,
     select: (features) => features.mode,
     staleTime: 30_000,
     refetchInterval: (query) =>
-      query.state.data?.mode === 'normal' || query.state.data === undefined
-        ? MODE_POLL.normal
-        : MODE_POLL.restricted,
+      query.state.data && query.state.data.mode !== 'normal'
+        ? MODE_POLL.restricted
+        : false,
     // A poll that fails (the API restarting) says nothing: the banner stays as it was.
     meta: { errorToast: false },
   }).data;

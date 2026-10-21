@@ -83,7 +83,9 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
     flag changed alone: `docker compose up -d caddy`, a few seconds without the web
     app). To end it, remove both and run it again. The two are separate on
     purpose: the page alone is for when the API is gone altogether (a restore), the
-    mode alone keeps the web app up for the operators to end it from its notice.
+    mode alone keeps the web app up and shows its notice. An operator can end only a
+    mode set by the `platform.mode` setting from that notice; one forced by `APP_MODE`
+    (as here) ends when it is removed from `.env`.
   - **An installed web app** (the service worker) still opens its cached shell, and
     then shows its own notice: the API answers 503 `maintenance`, which the app turns
     into a full-page notice ([monorepo](monorepo.md), "Maintenance and read-only

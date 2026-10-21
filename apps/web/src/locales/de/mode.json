@@ -9,6 +9,7 @@
     "operator": {
       "end": "Wartung beenden",
       "ended": "Der Wartungsmodus ist aus.",
+      "stillOn": "Der Modus ist weiterhin aktiv. Er ist in der Umgebung der Installation gesetzt (APP_MODE) und lässt sich nur dort ändern.",
       "hint": "Nur für Betreiber. Ist der Modus in der Umgebung der Installation gesetzt (APP_MODE), lässt er sich nur dort ändern."
     }
   }
