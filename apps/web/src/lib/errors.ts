@@ -24,6 +24,8 @@ export type ErrorHandlerTarget = {
   /** Whether that page is one of the signed-in app (not sign-in, a link's). */
   inApp(): boolean;
   toSignIn(redirect: string): void;
+  /** To the two-factor setup page (a no-op when already there). */
+  toMfaSetup(): void;
 };
 
 /**
@@ -51,6 +53,8 @@ export function endSession(
  *   A 401 while nobody is signed in (a wrong password) is the form's.
  * - 403 `reauthentication_required` never gets here unless the user gave up
  *   the re-authenticate dialog (lib/api.ts retries after it): nothing to say.
+ * - 403 `mfa_enrollment_required` (the tenant requires two-factor and the user
+ *   has none): to the setup page with one explanatory toast, not the raw error.
  * - Anything else: a toast with the problem's `detail` (in the request's
  *   language), unless the caller shows it (`meta: { errorToast: false }`).
  */
@@ -68,6 +72,16 @@ export function handleApiError(
       return;
     }
     if (error.code === 'reauthentication_required') {
+      return;
+    }
+    if (error.code === 'mfa_enrollment_required') {
+      if (target?.inApp()) {
+        // One toast however many queries failed with it (the id dedupes).
+        toast.info(i18n.t('account.mfa.redirected'), {
+          id: 'mfa-enrollment-required',
+        });
+        target.toMfaSetup();
+      }
       return;
     }
   }

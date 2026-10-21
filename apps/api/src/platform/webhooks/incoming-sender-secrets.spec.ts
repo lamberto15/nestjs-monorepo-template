@@ -30,7 +30,12 @@ describe('incoming senders’ secrets at rest', () => {
       new SenderSecretCipher([KEY_B]).open('sender-1', sealed),
     ).toBeUndefined();
     expect(new SenderSecretCipher().open('sender-1', sealed)).toBeUndefined();
-    expect(old.open('sender-1', `${sealed.slice(0, -2)}AA`)).toBeUndefined();
+    // A tampered tag: its first character changed (a fixed suffix could
+    // equal the real one, or differ only in base64's unused bits).
+    const parts = sealed.split('.');
+    const tag = parts.at(-1)!;
+    parts[parts.length - 1] = `${tag[0] === 'A' ? 'B' : 'A'}${tag.slice(1)}`;
+    expect(old.open('sender-1', parts.join('.'))).toBeUndefined();
   });
 
   it('stores as it is without keys, as the outgoing endpoints do, and opens a plaintext value after keys are set', () => {

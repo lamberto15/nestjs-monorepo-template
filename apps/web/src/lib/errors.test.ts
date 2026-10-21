@@ -8,12 +8,15 @@ import { createSession, meQuery } from '@/lib/session';
 import { problem, server, signedInUser } from '@/test/server';
 import { createApiClient, unwrap } from '@nestjs-monorepo-template/api-client';
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+}));
 
 const target = (inApp = true) => ({
   currentHref: () => '/notes?page=2',
   inApp: () => inApp,
   toSignIn: vi.fn(),
+  toMfaSetup: vi.fn(),
 });
 
 describe('the global error handler', () => {
@@ -75,6 +78,20 @@ describe('the global error handler', () => {
       undefined,
     );
     expect(to.toSignIn).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('sends a user who must set up two-factor to the setup page, once explained', () => {
+    const to = target();
+    const queryClient = createQueryClient(() => to);
+    handleApiError(
+      queryClient,
+      to,
+      new ApiError({ status: 403, code: 'mfa_enrollment_required' }),
+      undefined,
+    );
+    expect(to.toMfaSetup).toHaveBeenCalledOnce();
+    expect(toast.info).toHaveBeenCalledOnce();
     expect(toast.error).not.toHaveBeenCalled();
   });
 
