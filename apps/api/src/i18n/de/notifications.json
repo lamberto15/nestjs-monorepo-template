@@ -129,6 +129,13 @@
       "body": "{by} hat „{title}“ zurückgezogen: Es ist keine Entscheidung mehr nötig."
     }
   },
+  "attachment": {
+    "rejected": {
+      "label": "Datei abgelehnt",
+      "title": "Ihre Datei wurde abgelehnt",
+      "body": "„{name}“ wurde von {subject} entfernt: Der Malware-Scan hat sie beanstandet ({signature})."
+    }
+  },
   "system": {
     "test": {
       "label": "Testbenachrichtigung",

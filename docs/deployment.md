@@ -781,6 +781,41 @@ encrypted column's property with `declareFields()` ([encryption](encryption.md))
 What it is not: a guarantee. A secret logged under an innocent name, in a
 shape no pattern knows, is written as is. Log ids, not payloads.
 
+### ClamAV (malware scanning)
+
+Optional: [attachments](attachments.md) can be scanned for malware.
+`compose.clamav.yaml` adds a `clamav` service (the official `clamav/clamav`
+image, pinned, which runs clamd and freshclam) and turns the scanner on for
+`api` and `worker`:
+
+```bash
+# .env
+COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml
+docker compose up -d
+```
+
+- **The network:** `scanning`, its own; only `worker` joins it (besides
+  `default`) and clamd's port 3310 is not published. It is not `internal`:
+  freshclam downloads the signatures (the first start takes a minute or
+  two; `clamav_db` keeps them across restarts). Until clamd answers, scans
+  fail and are tried again, and uploads stay `pending`.
+- **Size:** clamd refuses a stream over `StreamMaxLength`; the file sets it
+  (and `MaxFileSize`) to `CLAMAV_STREAM_MAX_MB`, default `ATTACHMENT_MAX_MB`.
+  Raise `ATTACHMENT_MAX_MB` and it follows. Limits: `CLAMAV_CPUS` (1),
+  `CLAMAV_MEMORY` (3G: the loaded signatures are about 1.5 GB).
+- **Blue-green:** the colours (`api-blue`, `api-green`) extend
+  `compose.prod.yaml`'s `api`, so they never get what the file sets on `api`.
+  Put `MALWARE_SCANNER=clamav` and `CLAMAV_HOST=clamav` in `.env` as well:
+  every service reads them from there (CI renders the combination and checks
+  both colours). Forgotten, the colours run with the scanner off: their
+  uploads are `clean` at once, unscanned, and nothing says so.
+- **Off:** leave the file out of `COMPOSE_FILE` (`MALWARE_SCANNER=off`, the
+  default): no scan and no `pending` state, as without this feature. Turning
+  it on later leaves existing attachments `clean` (unscanned); turning it
+  back off releases the uploads still `pending` as `clean` within minutes
+  (nothing will scan them), audited as `attachments.released`.
+- **Metric:** `attachments_scanned_total{result}` ([below](#metrics)).
+
 ## Metrics
 
 `GET /metrics` serves Prometheus metrics (prom-client, `apps/api/src/core/metrics/`)
@@ -802,7 +837,7 @@ a counter per process: `rate()` and sum it), password hashing (`password_hashes_
 `password_hashes_queued`, `password_hashes_rejected_total{reason}`: per
 process, [Resource limits](#resource-limits)), mail (`mail_sent_total`,
 `mail_suppressed_total{reason}`, `mail_events_total{provider,type}`:
-[deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `encrypted_rows_on_old_key{column}`
+[deliverability](deliverability.md)), `deprecated_route_calls_total{route}` (calls to `@Deprecated()` routes: [api-conventions](api-conventions.md), "Deprecation"), `attachments_scanned_total{result="clean|infected|error"}` (malware scans of uploads, a counter per worker: [attachments](attachments.md)), `encrypted_rows_on_old_key{column}`
 ([encryption](encryption.md)), `exchange_rates_age_seconds`
 ([money](money.md)), Node's defaults (`process_cpu_seconds_total`,
 heap, event loop lag, GC) and the heap's limit (`nodejs_heap_size_limit_bytes`).

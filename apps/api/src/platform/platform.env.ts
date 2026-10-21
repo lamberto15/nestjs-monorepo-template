@@ -215,6 +215,22 @@ export const platformEnv = z.object({
   AVATAR_MAX_MB: z.coerce.number().int().min(1).max(50).default(2),
 
   /**
+   * Malware scanning of uploads (platform/attachments, docs/attachments.md).
+   * `off` (default): files are served as soon as they are stored. `clamav`:
+   * a queue job streams each upload to clamd (CLAMAV_HOST); it is `pending`
+   * (not downloadable) until clean, and an infected one is deleted.
+   * `memory`: tests (flags the EICAR test string).
+   */
+  MALWARE_SCANNER: choice(['off', 'clamav', 'memory'], 'off'),
+  /** clamd's host (`clamav` in Compose); required with MALWARE_SCANNER=clamav. */
+  CLAMAV_HOST: optional(),
+  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
+  /** One scan's limit, in milliseconds (connect, stream and answer); a scan that takes longer is tried again. */
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1000).default(60_000),
+  /** Tries per scan, the first included (exponential backoff from 5 s), before the attachment stays pending for the retry job (every 5 minutes) to queue again. */
+  MALWARE_SCAN_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
+
+  /**
    * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`
    * in Compose. Unset: documents are off, and asking for one answers 503
    * `documents_unavailable`; nothing else needs it.

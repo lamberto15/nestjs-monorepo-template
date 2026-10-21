@@ -134,6 +134,10 @@
       "label": "附件清理",
       "description": "每晚删除其记录已不存在的附件的文件和数据行。"
     },
+    "attachment-scan": {
+      "label": "附件恶意软件扫描",
+      "description": "扫描上传的文件是否含有恶意软件，并移除被感染的文件。"
+    },
     "revisions-retention": {
       "label": "修订保留",
       "description": "每晚删除早于 REVISIONS_RETENTION_DAYS 的记录修订（绝不删除记录的最新修订）。"
