@@ -15181,6 +15181,331 @@
         ]
       }
     },
+    "/v1/branding": {
+      "get": {
+        "description": "The brand colour (`#rrggbb`), the name mail is sent under, the logo’s path, whether the operators locked it and whether you may change it.",
+        "operationId": "BrandingController_get_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "The branding of your tenant",
+        "tags": [
+          "branding"
+        ]
+      },
+      "put": {
+        "description": "Who manages settings. Sets the colour and the sender name (the settings `branding.primaryColor` and `branding.mailFromName`, so audited as `setting.updated`): `null` removes one, an absent key stays. The colour is `#rrggbb` only. Answers 409 `branding_locked` while the operators have it locked.",
+        "operationId": "BrandingController_update_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "primaryColor": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "mailFromName": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "pattern": "^[^\\p{C}<>\"\\\\@;,:]+$"
+                  }
+                },
+                "additionalProperties": false,
+                "description": "A value sets it, `null` removes it (the default holds again), an absent key stays."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Change the branding of your tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/logo": {
+      "post": {
+        "description": "Who manages settings. Multipart, the field `file`: a PNG, JPEG or WebP of at most 512 KB, recognized by its bytes (never SVG). Replaces the logo. Audited (`branding.logo-changed`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_upload_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "primaryColor": {
+                      "nullable": true,
+                      "description": "`#rrggbb`, or null: the default theme.",
+                      "type": "string"
+                    },
+                    "mailFromName": {
+                      "nullable": true,
+                      "description": "The name mail is sent under, or null: the deployment’s.",
+                      "type": "string"
+                    },
+                    "logoUrl": {
+                      "nullable": true,
+                      "description": "The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null.",
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "The operators locked it: `PUT` and the logo routes answer 409."
+                    },
+                    "canEdit": {
+                      "type": "boolean",
+                      "description": "The caller may change it (and it is not locked)."
+                    }
+                  },
+                  "required": [
+                    "primaryColor",
+                    "mailFromName",
+                    "logoUrl",
+                    "locked",
+                    "canEdit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          },
+          "413": {
+            "description": "Larger than 512 KB (payload_too_large)."
+          },
+          "415": {
+            "description": "Not a PNG, JPEG or WebP (unsupported_media_type)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Set the logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      },
+      "delete": {
+        "description": "Who manages settings. The file goes too. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.",
+        "operationId": "BrandingController_remove_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "404": {
+            "description": "There is no logo."
+          },
+          "409": {
+            "description": "Locked by the operators (branding_locked)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Remove the logo of your tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
+    "/v1/branding/{tenantId}/logo": {
+      "get": {
+        "description": "No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).",
+        "operationId": "PublicBrandingController_logo_v1",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image."
+          },
+          "404": {
+            "description": "The tenant has no logo."
+          }
+        },
+        "summary": "The logo of a tenant",
+        "tags": [
+          "branding"
+        ]
+      }
+    },
     "/v1/subscriptions": {
       "get": {
         "description": "Filter with `?subject=Note`; newest first; cursor pages.",
@@ -29164,6 +29489,9 @@
           },
           "400": {
             "description": "Unknown, used or expired link; or `password_breached`: the password is in known data breaches (the link still works)."
+          },
+          "422": {
+            "description": "`password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works."
           }
         },
         "summary": "Set a new password with a reset or invitation link",
@@ -29211,6 +29539,9 @@
           },
           "403": {
             "description": "Wrong current password, or an administrator acting as you.\n\n`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "422": {
+            "description": "`password_reused`: the current password or one of the last ones (`auth.passwordHistory`)."
           }
         },
         "security": [

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
+import { useBranding } from '@/lib/branding';
 import { useFeatures, useMe } from '@/lib/features';
 import { createSession, tenantsQuery } from '@/lib/session';
 
@@ -59,13 +60,19 @@ export function TenantSwitcher() {
   const choosing = features?.tenancy === 'multi' && !me?.user.impersonator;
   const tenants = useQuery({ ...tenantsQuery, enabled: choosing });
   const switchTenant = useSwitchTenant();
+  const logoUrl = useBranding()?.logoUrl;
 
   const current = me?.tenant;
   const items = tenants.data?.items ?? [];
   const heading = (
     <>
-      <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-        <GalleryVerticalEndIcon className="size-4" />
+      <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+        {logoUrl ? (
+          // The tenant's logo (docs/branding.md); decorative, the name is beside it.
+          <img src={logoUrl} alt="" className="size-full object-contain" />
+        ) : (
+          <GalleryVerticalEndIcon className="size-4" />
+        )}
       </div>
       <div className="grid flex-1 text-start text-sm leading-tight">
         <span className="truncate font-medium">{t('app.name')}</span>

@@ -20,6 +20,7 @@ import { UnverifiedBanner } from '@/components/unverified-banner';
 import { SearchPalette } from '@/features/search/palette';
 import { NotificationsBell } from '@/features/notifications/bell';
 import { languages } from '@/i18n';
+import { BrandTheme } from '@/lib/branding';
 import { useModeWatch } from '@/lib/mode';
 import { RealtimeProvider } from '@/lib/realtime';
 import { featuresQuery, meQuery, saveLanguageKey } from '@/lib/session';
@@ -61,6 +62,8 @@ function AppLayout() {
   }
   return (
     <TooltipProvider>
+      {/* The tenant's colour on the theme; read again after a tenant switch. */}
+      <BrandTheme />
       <RealtimeProvider>
         <SidebarProvider>
           <AppSidebar />

@@ -1427,6 +1427,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The branding of your tenant
+         * @description The brand colour (`#rrggbb`), the name mail is sent under, the logo’s path, whether the operators locked it and whether you may change it.
+         */
+        get: operations["BrandingController_get_v1"];
+        /**
+         * Change the branding of your tenant
+         * @description Who manages settings. Sets the colour and the sender name (the settings `branding.primaryColor` and `branding.mailFromName`, so audited as `setting.updated`): `null` removes one, an absent key stays. The colour is `#rrggbb` only. Answers 409 `branding_locked` while the operators have it locked.
+         */
+        put: operations["BrandingController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the logo of your tenant
+         * @description Who manages settings. Multipart, the field `file`: a PNG, JPEG or WebP of at most 512 KB, recognized by its bytes (never SVG). Replaces the logo. Audited (`branding.logo-changed`). 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingController_upload_v1"];
+        /**
+         * Remove the logo of your tenant
+         * @description Who manages settings. The file goes too. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
+         */
+        delete: operations["BrandingController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/{tenantId}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The logo of a tenant
+         * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
+         */
+        get: operations["PublicBrandingController_logo_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/subscriptions": {
         parameters: {
             query?: never;
@@ -11719,6 +11787,227 @@ export interface operations {
             };
         };
     };
+    BrandingController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    primaryColor?: string | null;
+                    mailFromName?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_upload_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than 512 KB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description There is no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicBrandingController_logo_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     SubscriptionsController_list_v1: {
         parameters: {
             query?: {
@@ -18022,6 +18311,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description `password_reused`: one of the account's last passwords (`auth.passwordHistory`); the link still works. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     PasswordController_change_v1: {
@@ -18060,6 +18356,13 @@ export interface operations {
              *     `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user.
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `password_reused`: the current password or one of the last ones (`auth.passwordHistory`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

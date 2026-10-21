@@ -118,6 +118,14 @@
       "submit": "Batalkan pemadaman",
       "done": "Pemadaman dibatalkan: akaun anda kekal."
     },
+    "unsubscribe": {
+      "title": "Berhenti melanggan e-mel",
+      "description": "Sahkan bahawa anda tidak mahu menerima e-mel ini lagi",
+      "hint": "Anda tidak akan menerima jenis e-mel ini lagi. E-mel yang wajib kami hantar tentang akaun dan keselamatannya tetap sampai kepada anda, dan anda memilih apa yang diterima dalam tetapan pemberitahuan.",
+      "submit": "Berhenti melanggan",
+      "done": "Anda telah berhenti melanggan: kami tidak akan menghantar jenis e-mel ini kepada anda lagi.",
+      "invalid": "Pautan ini tidak sah atau telah tamat tempoh. Buka semula daripada e-mel, atau pilih apa yang anda terima dalam tetapan pemberitahuan."
+    },
     "links": {
       "missingToken": "Pautan ini tidak lengkap. Buka semula daripada e-mel.",
       "backToSignIn": "Kembali ke log masuk"
