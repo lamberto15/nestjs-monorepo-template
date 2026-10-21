@@ -29,6 +29,9 @@ const AMOUNT = /^-?\d+(\.\d+)?$/;
  * ECB's (the euro and the day's rates). Shown only with `exchangeRates` on.
  * The conversion is the server's: the page never computes with floats.
  */
+/** ISO 4217 codes in code-point order (the same in every locale). */
+const byCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 export function CurrencyConverter(props: {
   /** Start values. */
   defaultAmount?: string;
@@ -51,7 +54,7 @@ export function CurrencyConverter(props: {
     return null;
   }
   const currencies = rates.data
-    ? [rates.data.base, ...Object.keys(rates.data.rates)].toSorted()
+    ? [rates.data.base, ...Object.keys(rates.data.rates)].toSorted(byCode)
     : [from, to];
   const language = i18n.language;
   const picker = (
@@ -67,7 +70,7 @@ export function CurrencyConverter(props: {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {[...new Set([value, ...currencies])].toSorted().map((code) => (
+          {[...new Set([value, ...currencies])].toSorted(byCode).map((code) => (
             <SelectItem key={code} value={code}>
               {code}
               <span className="text-muted-foreground">
