@@ -15,7 +15,11 @@ import {
   inTransaction,
 } from '../../core/database/transactions.js';
 import { AuditService } from '../audit/audit.service.js';
-import { type UserPrincipal, principalKey } from '../auth/principal.js';
+import {
+  type Principal,
+  type UserPrincipal,
+  principalKey,
+} from '../auth/principal.js';
 import { UsersRepository } from '../auth/users.repository.js';
 import {
   IAM_NOTIFIER,
@@ -199,7 +203,7 @@ export class SecurityAlertsService implements OnApplicationShutdown {
    */
   async credentialsChanged(
     tx: Transaction,
-    actor: UserPrincipal | null,
+    actor: Principal | null,
     userId: string,
     change: CredentialChange,
   ) {

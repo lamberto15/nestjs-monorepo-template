@@ -159,6 +159,12 @@ export const platformEnv = z.object({
    */
   POSTMARK_WEBHOOK_SECRET: secret(optional()),
   /**
+   * Resend's signed webhooks (`POST /webhooks/mail/resend`): the endpoint's
+   * signing secret (`whsec_…`, shown in Resend's Webhooks page), verified the
+   * Svix way. Unset: refused (403).
+   */
+  RESEND_WEBHOOK_SECRET: secret(optional()),
+  /**
    * SendGrid's signed Event Webhook (`POST /webhooks/mail/sendgrid`): the
    * verification key the console shows (base64 SPKI). Public, not a secret.
    * Unset: refused (403).

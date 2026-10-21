@@ -8,7 +8,8 @@ import {
 import { randomUUID } from 'node:crypto';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { StorageDisk, type StoredUpload } from '@nestjs/storage';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, sql } from 'drizzle-orm';
+import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import { z } from 'zod';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
@@ -120,8 +121,18 @@ export class AttachmentsService implements PersonalDataSource {
     private readonly activity: RecordActivity,
     private readonly scans: AttachmentScanQueue,
     personalData: PersonalDataRegistry,
+    private readonly quotas: TenantQuotas,
   ) {
     personalData.register(this);
+    // The tenant's stored bytes: uploads and issued documents (their PDFs are attachments).
+    quotas.count('storageBytes', async (db) => {
+      const [row] = await db
+        .select({
+          bytes: sql<number>`coalesce(sum(${attachments.size}), 0)::float8`,
+        })
+        .from(attachments);
+      return row?.bytes ?? 0;
+    });
   }
 
   /**
@@ -195,6 +206,13 @@ export class AttachmentsService implements PersonalDataSource {
       await this.assertCanUpload(principal, record);
       assertOwnFile(file.key);
       const row = await inTransaction(this.txHost, async (tx) => {
+        // 422 `quota_exceeded` past the tenant's storage; the catch below deletes the file.
+        await this.quotas.assertRoom(
+          tx,
+          requireTenantId(),
+          'storageBytes',
+          file.size,
+        );
         const [row] = await tx
           .insert(attachments)
           .values({
@@ -252,6 +270,12 @@ export class AttachmentsService implements PersonalDataSource {
   ): Promise<AttachmentView> {
     assertOwnFile(file.key);
     return inTransaction(this.txHost, async (tx) => {
+      await this.quotas.assertRoom(
+        tx,
+        requireTenantId(),
+        'storageBytes',
+        file.size,
+      );
       const [row] = await tx
         .insert(attachments)
         .values({

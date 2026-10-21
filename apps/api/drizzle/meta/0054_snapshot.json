@@ -1,5 +1,5 @@
 {
-  "id": "45f9a391-6726-412a-bf2d-fdc93233bf7b",
+  "id": "c42e1a07-913f-4a3e-b2b2-689da1f0a549",
   "prevId": "80def971-e4bf-437d-b6e6-92ce1462d01d",
   "version": "7",
   "dialect": "postgresql",
@@ -224,6 +224,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "quotas": {
+          "name": "quotas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -7063,13 +7070,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "scan_status": {
-          "name": "scan_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'clean'"
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -7118,22 +7118,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "attachments_pending_idx": {
-          "name": "attachments_pending_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"attachments\".\"scan_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}

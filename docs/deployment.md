@@ -712,7 +712,7 @@ Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
 blackbox exporter 0.1 CPU and 64 MB). Logs are
 bounded like the rest of the stack (`DOCKER_LOG_*`).
 
-**The alerts** (45 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
+**The alerts** (46 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
 
 | Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
@@ -732,6 +732,7 @@ warning: look today):
 | `OutboxStuck`                                                | a due outbox message has waited over 5 min, for 5 min                                                                                                                               | critical          |
 | `OutboxDeadLetters`                                          | outbox dead letters wait for someone (requeue or purge in `/v1/ops`)                                                                                                                | warning           |
 | `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing`       | a due delivery waits over 10 min; deliveries failed for good in the last hour                                                                                                       | warning           |
+| `TenantStorageNearLimit` | a tenant stores over 90% of its storage limit for 15 min (`tenant_storage_bytes` / `tenant_storage_limit_bytes`; [Quotas](tenancy.md#quotas)) | warning |
 | `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                    | warning           |
 | `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                | warning           |
 | `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                   | warning           |
@@ -950,6 +951,78 @@ downleveled private fields and wrapped receivers like native `#` members;
 `@nestjs/locks` shouldn't key by instance identity): file them, then drop the
 exclusion.
 
+## Operator CLI
+
+The break-glass path when nobody can sign in: `pnpm ops <command>` in
+development, `docker compose run --rm api node dist/cli <command>` on a
+deployment (`src/cli`, [nest-commander](https://docs.nestjs.com/recipes/nest-commander)
+over the app's own services). It is a process of its own, not a route: it
+opens no port, runs no workers (`APP_ROLE=api`, as the demo seed) and is
+reachable only by whoever can run a container with the deployment's
+environment (the database URL, the keys). Nothing in the API calls it.
+
+| Command | What it does |
+| --- | --- |
+| `tenant:list` | the tenants: id, slug, members, active |
+| `user:list <tenant>` | a tenant's users (id or slug): roles, two-factor, active |
+| `admin:create <email> [--tenant <id\|slug>] [--name <name>]` | an administrator of a tenant (`--tenant` is optional when the deployment has one tenant). A new address gets an account (verified) and a one-time password; an existing account keeps its password and becomes the tenant's administrator |
+| `user:reset-password <email>` | a new one-time password; every session and token client of the account is signed out |
+| `user:remove-mfa <email>` | removes the authenticator and the recovery codes, clears the failed-code counter, revokes the account's tokens |
+| `user:unlock <email>` | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes |
+| `setting:delete <key> (--tenant <id\|slug> \| --platform)` | removes a stored value; the next scope's, or the default, holds again |
+
+- **Each command shows what it will do and asks** (`Proceed? (y/N)`).
+  `--yes` skips the question, for scripts; without it a terminal is needed
+  (`docker compose run` allocates one; with `-T` or a pipe, pass `--yes`).
+- **One-time passwords** are printed to the terminal once, from the
+  process's stdout, never through the application's logger (so in no log
+  line, whatever `LOG_LEVEL`) and in no audit entry (only the hash is
+  stored). They are 24 random characters; their owner changes them after
+  signing in.
+- **Audited as `system:ops`** ("System: Operator CLI"): each command writes
+  an `ops.*` entry (`ops.admin-created`, `ops.password-reset`,
+  `ops.mfa-removed`, `ops.user-unlocked`, `ops.setting-deleted`) with
+  `details.via = 'cli'` and `details.operator = { user, host }` (the OS
+  user of the shell, the container's host name), in the same transaction as
+  the change. The services it goes through add their own (`setting.reset`
+  and the like). An account's own change (a password, two-factor) is
+  recorded outside any tenant, as the account's own, and told to its owner
+  (a security notification, mail included) like any other change of their
+  credentials. Tenant work runs in that tenant ([tenancy](tenancy.md),
+  "The tenant of the work").
+- **Not a tenant's door:** the CLI changes accounts and a few values; it
+  reads no records, and `user:list` shows no secrets.
+
+```bash
+docker compose run --rm api node dist/cli tenant:list
+docker compose run --rm api node dist/cli user:reset-password admin@example.com
+docker compose run --rm api node dist/cli setting:delete auth.requireMfa --tenant acme --yes
+```
+
+On the Compose deployment (`.env` sets `COMPOSE_FILE`), `api` is
+`compose.prod.yaml`'s service; with blue-green, run it as `api-blue` (or
+`api-green`), which extends it. On Swarm, run the image on the stack's
+network: `docker run --rm -it --network <stack>_default --env-file .env
+$APP_IMAGE node dist/cli …` ([Swarm](deploy-swarm.md)). The command needs
+what the app starts with (`DATABASE_URL`, `REDIS_URL`, `DATA_ENCRYPTION_KEYS`,
+`MFA_ENCRYPTION_KEYS`, …: the same environment as `api`), nothing more, and runs against the live database: nothing is stopped.
+
+**Locked out (the 2026-10-21 case, #393).** The only administrator of a
+tenant set `auth.requireMfa` on without an authenticator, so no sign-in
+could reach the enrolment. Recover without SQL:
+
+```bash
+docker compose run --rm api node dist/cli tenant:list                       # the tenant's slug
+docker compose run --rm api node dist/cli setting:delete auth.requireMfa --tenant <slug>
+# the administrator signs in with the password again, enrolls, then turns the policy on
+```
+
+If the password is lost as well: `user:reset-password <email>`; with no
+administrator left at all: `admin:create <email> --tenant <slug>`. A
+second-factor device lost: `user:remove-mfa <email>`. An administrator's
+account locked by failed codes: `user:unlock <email>`. More:
+[auth](auth.md), "Locked out".
+
 ## Migrations
 
 `node dist/migrate` connects as the owner (`DATABASE_OWNER_URL`), applies
@@ -984,7 +1057,9 @@ copies only: a lost disk loses them too, so set it.
 - **When:** `BACKUP_SCHEDULE` (cron, UTC; `0 3 * * *`). An hourly check
   runs one when the last run failed or the newest backup is older than
   `BACKUP_MAX_AGE_HOURS` (25): a host that was off or asleep catches up,
-  and a failed run is retried every hour. With a less frequent schedule,
+  and a failed run is retried every hour. The same check runs once when
+  the container starts (after the database answers), so a new stack gets its
+  first backup at once instead of at the next schedule. With a less frequent schedule,
   raise `BACKUP_MAX_AGE_HOURS` to match.
 - **The image** (`backup/Dockerfile`): `postgres:18.6-alpine` without `gosu`
   (never used: it runs as `postgres`), rclone, and supercronic built from

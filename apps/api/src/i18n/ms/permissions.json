@@ -205,6 +205,10 @@
     "demo-seed": {
       "label": "Data demo",
       "description": "Mencipta pengguna demo, pasukan dan data demo ciri pada pangkalan data pembangunan (pnpm db:seed:demo); menolak yang lain."
+    },
+    "ops": {
+      "label": "CLI operator",
+      "description": "Perintah kecemasan yang dijalankan pada pelayan (pnpm ops): kata laluan sekali guna, mengalih keluar dua faktor, membuka kunci akaun, memadam tetapan, mencipta pentadbir."
     }
   }
 }

@@ -205,6 +205,10 @@
     "demo-seed": {
       "label": "Demodaten",
       "description": "Legt auf einer Entwicklungsdatenbank Demo-Benutzer, Teams und die Demodaten der Features an (pnpm db:seed:demo); verweigert jede andere."
+    },
+    "ops": {
+      "label": "Betreiber-CLI",
+      "description": "Notfallbefehle auf einem Server (pnpm ops): ein Einmalpasswort, Zwei-Faktor entfernen, ein Konto entsperren, eine Einstellung löschen, einen Administrator anlegen."
     }
   }
 }

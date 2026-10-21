@@ -205,6 +205,10 @@
     "demo-seed": {
       "label": "Demo seed",
       "description": "Creates demo users, teams and the features' demo data on a development database (pnpm db:seed:demo); refuses any other."
+    },
+    "ops": {
+      "label": "Operator CLI",
+      "description": "Break-glass commands run on a server (pnpm ops): a one-time password, removing two-factor, unlocking an account, deleting a setting, creating an administrator."
     }
   }
 }

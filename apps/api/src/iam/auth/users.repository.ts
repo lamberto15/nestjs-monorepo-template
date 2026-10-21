@@ -16,6 +16,7 @@ import {
 } from '../../core/http/pagination.js';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { tenants } from '../../core/tenancy/tenancy.tables.js';
+import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import {
   emailTokens,
   memberships,
@@ -49,7 +50,21 @@ export class UsersRepository {
     return database(this.txHost);
   }
 
-  constructor(private readonly txHost: TransactionHost<DrizzleTransactions>) {}
+  constructor(
+    private readonly txHost: TransactionHost<DrizzleTransactions>,
+    private readonly quotas: TenantQuotas,
+  ) {
+    // A seat is an active membership (invited, not yet accepted: none).
+    quotas.count('members', async (db, tenantId) => {
+      const [row] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(memberships)
+        .where(
+          and(eq(memberships.tenantId, tenantId), eq(memberships.active, true)),
+        );
+      return row?.n ?? 0;
+    });
+  }
 
   /**
    * The account as a principal acting in no tenant, or `null` when the
@@ -200,11 +215,22 @@ export class UsersRepository {
 
   /** Adds the user to the tenant (an active membership). */
   async addMembership(db: Db, tenantId: string, userId: string) {
+    await this.quotas.assertRoom(db, tenantId, 'members');
     await db.insert(memberships).values({ tenantId, userId });
   }
 
   /** Makes the user an active member of the tenant: a new membership, or one deactivated before. */
   async joinTenant(db: Db, tenantId: string, userId: string) {
+    const [existing] = await db
+      .select({ active: memberships.active })
+      .from(memberships)
+      .where(
+        and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)),
+      );
+    // Already a member: no new seat. Otherwise a 422 `quota_exceeded` at the limit.
+    if (!existing?.active) {
+      await this.quotas.assertRoom(db, tenantId, 'members');
+    }
     await db
       .insert(memberships)
       .values({ tenantId, userId })
@@ -248,6 +274,21 @@ export class UsersRepository {
     userId: string,
     active: boolean,
   ) {
+    if (active) {
+      const [current] = await db
+        .select({ active: memberships.active })
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.tenantId, tenantId),
+            eq(memberships.userId, userId),
+          ),
+        );
+      // Activating one that is off takes a seat again.
+      if (current && !current.active) {
+        await this.quotas.assertRoom(db, tenantId, 'members');
+      }
+    }
     await db
       .update(memberships)
       .set({ active, updatedAt: new Date() })

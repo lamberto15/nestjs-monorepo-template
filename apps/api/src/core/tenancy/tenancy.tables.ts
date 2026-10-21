@@ -5,12 +5,25 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { at, timestamps, uuidPk } from '../database/columns.js';
+
+/**
+ * A tenant's limits (docs/tenancy.md, "Quotas"). Each is a whole number;
+ * absent: the deployment's default. `maxRecords` is per feature, by the
+ * record's permission subject (`Note`).
+ */
+export interface TenantQuotaLimits {
+  maxMembers?: number;
+  maxApiClients?: number;
+  maxStorageBytes?: number;
+  maxRecords?: Record<string, number>;
+}
 
 /**
  * The customers: each one a contract, a billing and legal boundary, and the
@@ -71,6 +84,13 @@ export const tenants = pgTable(
     parentId: uuid('parent_id').references((): AnyPgColumn => tenants.id, {
       onDelete: 'restrict',
     }),
+    /**
+     * The limits the operators set for this tenant (`PUT /v1/tenants/{id}/quotas`,
+     * core/tenancy/tenant-quotas.ts); an absent key falls back to the
+     * deployment's default (the `quotas.*` platform settings), which is
+     * unlimited until an operator sets one.
+     */
+    quotas: jsonb('quotas').$type<TenantQuotaLimits>().notNull().default({}),
     ...timestamps(),
   },
   (t) => [
