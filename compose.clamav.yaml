@@ -28,7 +28,7 @@ services:
     # The official image, pinned (Dependabot proposes the update). It runs
     # clamd (port 3310, not published) and freshclam, which keeps the
     # signatures current: the first start downloads them (a minute or two).
-    image: clamav/clamav:1.4.3
+    image: clamav/clamav:1.5.3
     restart: unless-stopped
     logging: *logging
     # Hardened (docs/deployment.md, "Container hardening"): read-only, as the
