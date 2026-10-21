@@ -24,6 +24,7 @@ import { Link } from '@tanstack/react-router';
 import { DownloadIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useWritesPaused } from '@/lib/mode';
 import { catalogQuery, startExport, type TransferFormat } from './api';
 import { TransferStatus } from './transfer-status';
 
@@ -37,6 +38,8 @@ export function ExportButton(props: {
   filters: Record<string, string>;
 }) {
   const { t } = useTranslation('transfer');
+  // An export is a POST that makes a job: refused while the API is read-only.
+  const paused = useWritesPaused();
   const catalog = useQuery({ ...catalogQuery, meta: { errorToast: false } });
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<TransferFormat>('csv');
@@ -59,7 +62,7 @@ export function ExportButton(props: {
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="outline" disabled={paused} onClick={() => setOpen(true)}>
         <DownloadIcon />
         {t('export.action')}
       </Button>

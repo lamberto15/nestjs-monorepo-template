@@ -1,0 +1,15 @@
+{
+  "readOnly": {
+    "banner": "Der Dienst ist gerade schreibgeschützt. Sie können sich umsehen, aber Änderungen lassen sich erst wieder speichern, wenn er zurück ist."
+  },
+  "maintenance": {
+    "title": "Wartungsarbeiten",
+    "description": "Der Dienst wird gerade gewartet und ist bald wieder da. Diese Seite prüft von selbst erneut, Sie müssen nichts tun.",
+    "check": "Erneut prüfen",
+    "operator": {
+      "end": "Wartung beenden",
+      "ended": "Der Wartungsmodus ist aus.",
+      "hint": "Nur für Betreiber. Ist der Modus in der Umgebung der Installation gesetzt (APP_MODE), lässt er sich nur dort ändern."
+    }
+  }
+}
