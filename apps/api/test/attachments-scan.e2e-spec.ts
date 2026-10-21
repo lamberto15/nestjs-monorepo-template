@@ -1,8 +1,15 @@
+import { getQueueToken } from '@nestjs/bullmq';
 import { StorageDisk } from '@nestjs/storage';
+import type { Queue } from 'bullmq';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../src/core/database/drizzle.js';
 import { auditLog } from '../src/iam/iam.tables.js';
-import { AttachmentSweepJob } from '../src/platform/attachments/attachment-sweep.job.js';
+import { ATTACHMENT_SCAN } from '../src/platform/attachments/attachment-scan.queue.js';
+import { AttachmentScanRetryJob } from '../src/platform/attachments/attachment-scan-retry.job.js';
+import {
+  AttachmentScanService,
+  RETRY_MS,
+} from '../src/platform/attachments/attachment-scan.service.js';
 import { attachments } from '../src/platform/attachments/attachments.tables.js';
 import {
   EICAR,
@@ -35,6 +42,7 @@ describe('attachment malware scanning (e2e, MALWARE_SCANNER=memory)', () => {
   });
   afterEach(() => {
     scanner.down = false;
+    scanner.enabled = true;
   });
 
   async function noteOfEditor() {
@@ -155,36 +163,109 @@ describe('attachment malware scanning (e2e, MALWARE_SCANNER=memory)', () => {
     expect(await metric('infected')).toBeGreaterThan(0);
   });
 
-  it('lets the uploader remove a pending file, and the sweep queues the scans that never ran', async () => {
+  it('lets the uploader remove a pending file', async () => {
     const { editor, note } = await noteOfEditor();
     scanner.down = true;
     const pending = await upload(editor, note.id, TEXT, 'later.txt').expect(
       201,
     );
     await editor.agent.delete(`/v1/attachments/${pending.body.id}`).expect(204);
+    await editor.agent
+      .get(`/v1/attachments/${pending.body.id}/download`)
+      .expect(404);
+  });
 
+  it('queues a scan that never finished again within minutes, not at the nightly sweep', async () => {
+    const { editor, note } = await noteOfEditor();
+    const queue = node.app.get<Queue>(getQueueToken(ATTACHMENT_SCAN));
+    scanner.down = true;
     const stuck = await upload(editor, note.id, TEXT, 'stuck.txt').expect(201);
-    scanner.down = false;
-    // Made old, as if its job had been lost.
-    await db
-      .update(attachments)
-      .set({ createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) })
-      .where(eq(attachments.id, stuck.body.id));
-    await node.app.get(AttachmentSweepJob).run();
+    // Its job is lost once its first attempt failed (a Redis without persistence restarted).
     await vi.waitFor(
       async () => {
-        const [row] = await db
-          .select()
-          .from(attachments)
-          .where(eq(attachments.id, stuck.body.id));
-        expect(row!.scanStatus).toBe('clean');
+        expect(await (await queue.getJob(stuck.body.id))?.getState()).toBe(
+          'delayed',
+        );
+      },
+      { timeout: 10_000, interval: 100 },
+    );
+    await queue.remove(stuck.body.id);
+    scanner.down = false;
+
+    const retry = node.app.get(AttachmentScanRetryJob);
+    const retryJob = (at: Date) =>
+      queue.getJob(`${stuck.body.id}-${Math.floor(at.getTime() / RETRY_MS)}`);
+    // Just uploaded: not yet (its own job may still be on its way).
+    const now = new Date();
+    await retry.run(now);
+    expect(await retryJob(now)).toBeUndefined();
+    expect(await statusOf(stuck.body.id)).toBe('pending');
+
+    // Five minutes on, the next run of the job queues it again.
+    const scansBefore = scanner.scanned;
+    const later = new Date(now.getTime() + RETRY_MS + 1000);
+    expect(await retry.run(later)).toBeGreaterThanOrEqual(1);
+    expect(await retryJob(later)).toBeDefined();
+    await vi.waitFor(
+      async () => {
+        expect(await statusOf(stuck.body.id)).toBe('clean');
       },
       { timeout: 20_000, interval: 250 },
     );
+    expect(scanner.scanned).toBeGreaterThan(scansBefore);
     expect(
       await node.app.get(StorageDisk).exists(await keyOf(stuck.body.id)),
     ).toBe(true);
   });
+
+  it('releases the uploads still pending when scanning is switched back off', async () => {
+    const { editor, note } = await noteOfEditor();
+    scanner.down = true;
+    const pending = await upload(editor, note.id, TEXT, 'off.txt').expect(201);
+    expect(pending.body.scanStatus).toBe('pending');
+    await editor.agent
+      .get(`/v1/attachments/${pending.body.id}/download`)
+      .expect(409);
+
+    scanner.enabled = false; // MALWARE_SCANNER=off, restarted
+    // A queued scan ends quietly: it is not a failed scan to try again.
+    const scanned = scanner.scanned;
+    expect(
+      await node.app
+        .get(AttachmentScanService)
+        .scan({ tenantId: node.tenantId, attachmentId: pending.body.id }),
+    ).toBe('skipped');
+    expect(scanner.scanned).toBe(scanned);
+    expect(await statusOf(pending.body.id)).toBe('pending');
+
+    // The retry job releases what nothing will scan any more.
+    expect(
+      await node.app.get(AttachmentScanRetryJob).run(),
+    ).toBeGreaterThanOrEqual(1);
+    expect(await statusOf(pending.body.id)).toBe('clean');
+    await editor.agent
+      .get(`/v1/attachments/${pending.body.id}/download`)
+      .expect(302);
+    const entries = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'attachments.released'));
+    const released = entries.find((entry) =>
+      (entry.details as { attachments: string[] }).attachments.includes(
+        pending.body.id,
+      ),
+    );
+    expect(released?.actor).toBe('system:attachment-scan');
+    expect(released?.details).toMatchObject({ reason: 'scanner_off' });
+  });
+
+  async function statusOf(id: string) {
+    const [row] = await db
+      .select({ status: attachments.scanStatus })
+      .from(attachments)
+      .where(eq(attachments.id, id));
+    return row?.status;
+  }
 
   async function keyOf(id: string) {
     const [row] = await db

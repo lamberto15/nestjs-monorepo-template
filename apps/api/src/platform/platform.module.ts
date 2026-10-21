@@ -167,6 +167,7 @@ import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import { SequencesService } from './sequences/sequences.service.js';
 import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
+import { AttachmentScanRetryJob } from './attachments/attachment-scan-retry.job.js';
 import {
   ATTACHMENT_NOTIFICATIONS,
   AttachmentScanQueue,
@@ -616,6 +617,7 @@ export class PlatformModule {
         AttachmentScanQueue,
         AttachmentScanService,
         AttachmentScanProcessor,
+        AttachmentScanRetryJob,
         AttachmentsService,
         AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().

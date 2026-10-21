@@ -209,6 +209,30 @@ jobs:
           done
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
+      # Malware scanning (docs/deployment.md, "ClamAV (malware scanning)"):
+      # compose.clamav.yaml turns it on for api and worker; the blue-green
+      # colours extend compose.prod.yaml's api and never see an overlay's
+      # change to it, so they read .env (x-app) like every service.
+      - name: Malware scanning reaches every app service
+        run: |
+          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
+          setting() { jq -r ".services[\"$1\"].environment.$2" "$3"; }
+          COMPOSE_FILE=compose.yaml:compose.prod.yaml docker compose config --format json > scan-off.json
+          for service in api worker; do
+            test "$(setting $service MALWARE_SCANNER scan-off.json)" = off
+          done
+          COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml docker compose config --format json > scan-clamav.json
+          for service in api worker; do
+            test "$(setting $service MALWARE_SCANNER scan-clamav.json)" = clamav
+            test "$(setting $service CLAMAV_HOST scan-clamav.json)" = clamav
+          done
+          test "$(jq -r '.services.clamav.image | startswith("clamav/clamav:")' scan-clamav.json)" = true
+          # Blue-green: the colours, with the two settings in .env as the docs say.
+          MALWARE_SCANNER=clamav CLAMAV_HOST=clamav COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.blue-green.yaml:compose.clamav.yaml docker compose config --format json > scan-blue-green.json
+          for service in api-blue api-green worker; do
+            test "$(setting $service MALWARE_SCANNER scan-blue-green.json)" = clamav
+            test "$(setting $service CLAMAV_HOST scan-blue-green.json)" = clamav
+          done
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
 

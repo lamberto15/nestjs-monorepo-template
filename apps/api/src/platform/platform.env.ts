@@ -205,7 +205,7 @@ export const platformEnv = z.object({
   CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
   /** One scan's limit, in milliseconds (connect, stream and answer); a scan that takes longer is tried again. */
   CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1000).default(60_000),
-  /** Tries per scan, the first included (exponential backoff from 5 s), before the attachment stays pending for the sweep to queue again. */
+  /** Tries per scan, the first included (exponential backoff from 5 s), before the attachment stays pending for the retry job (every 5 minutes) to queue again. */
   MALWARE_SCAN_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
 
   /**

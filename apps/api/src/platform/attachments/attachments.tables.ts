@@ -62,7 +62,7 @@ export const attachments = pgTable(
   (table) => [
     index('attachments_record_idx').on(table.subject, table.recordId),
     index('attachments_uploaded_by_idx').on(table.uploadedBy),
-    // The sweep queues the scans that never ran (a pending file is rare).
+    // AttachmentScanRetryJob looks for the uploads stuck pending (a pending file is rare).
     index('attachments_pending_idx')
       .on(table.createdAt)
       .where(sql`${table.scanStatus} = 'pending'`),

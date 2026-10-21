@@ -44,9 +44,10 @@ export class AttachmentScanQueue {
   /**
    * Queues the scan of an attachment (in the current tenant's scope), after
    * the transaction that stored it committed. `again`: a name for the job
-   * when the sweep queues a scan that never ran (a job id is queued once).
-   * A failure is logged, not thrown: the file stays pending and the
-   * nightly sweep queues it again.
+   * when AttachmentScanRetryJob queues a scan that never finished (a job id
+   * is queued once, and a failed job is kept for a while). A failure is
+   * logged, not thrown: the file stays pending and the retry job queues it
+   * again within minutes.
    */
   async enqueue(attachmentId: string, again?: string) {
     try {
@@ -54,12 +55,19 @@ export class AttachmentScanQueue {
         jobId: again ? `${attachmentId}-${again}` : attachmentId,
         attempts: this.config.get('MALWARE_SCAN_ATTEMPTS', { infer: true }),
         backoff: { type: 'exponential', delay: 5000 },
+        // The retry job queues a pending file again every few minutes while
+        // the scanner is away: keep the failures bounded (the queues' default
+        // keeps them seven days).
+        removeOnFail: { age: 24 * 3600, count: 1000 },
       });
     } catch (error) {
-      this.logger.error('A scan could not be queued; the sweep will queue it', {
-        attachmentId,
-        error: String(error),
-      });
+      this.logger.error(
+        'A scan could not be queued; the retry job will queue it',
+        {
+          attachmentId,
+          error: String(error),
+        },
+      );
     }
   }
 }

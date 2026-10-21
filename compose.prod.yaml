@@ -153,6 +153,18 @@ x-app: &app
     # Encrypted columns and their blind indexes (docs/encryption.md)
     DATA_ENCRYPTION_KEYS: ${DATA_ENCRYPTION_KEYS:-}
     BLIND_INDEX_KEYS: ${BLIND_INDEX_KEYS:-}
+    # Malware scanning of uploads (docs/attachments.md, "Malware scanning"):
+    # off unless .env says clamav; compose.clamav.yaml adds clamd and sets it
+    # for api and worker. Here, in x-app, so every service built from it
+    # reads .env alike: the blue-green colours extend `api` as it is in this
+    # file, without any overlay's changes to it (docs/deployment.md, "ClamAV
+    # (malware scanning)"), and api needs it as much as the worker (it stores
+    # an upload `pending` and queues the scan, with the attempts below).
+    MALWARE_SCANNER: ${MALWARE_SCANNER:-off}
+    CLAMAV_HOST: ${CLAMAV_HOST:-}
+    CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+    CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-60000}
+    MALWARE_SCAN_ATTEMPTS: ${MALWARE_SCAN_ATTEMPTS:-5}
     # PDF documents (docs/documents.md): the gotenberg service below. Empty: documents off.
     GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
     GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}

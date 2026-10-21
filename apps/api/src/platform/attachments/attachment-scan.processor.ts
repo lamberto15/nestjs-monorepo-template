@@ -12,7 +12,7 @@ import { AttachmentScanService } from './attachment-scan.service.js';
  * Scans the uploads queued for it, on the workers (APP_ROLE worker or all),
  * in the upload's tenant (TenantWorkerHost). A failed scan (clamd away) is
  * tried again with backoff; after the last attempt the attachment stays
- * `pending` and the nightly sweep queues it once more.
+ * `pending` and AttachmentScanRetryJob queues it again within minutes.
  */
 @Processor(ATTACHMENT_SCAN, { concurrency: 4 })
 export class AttachmentScanProcessor extends TenantWorkerHost<AttachmentScanJob> {

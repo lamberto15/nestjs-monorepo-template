@@ -629,9 +629,17 @@ docker compose up -d
   (and `MaxFileSize`) to `CLAMAV_STREAM_MAX_MB`, default `ATTACHMENT_MAX_MB`.
   Raise `ATTACHMENT_MAX_MB` and it follows. Limits: `CLAMAV_CPUS` (1),
   `CLAMAV_MEMORY` (3G: the loaded signatures are about 1.5 GB).
+- **Blue-green:** the colours (`api-blue`, `api-green`) extend
+  `compose.prod.yaml`'s `api`, so they never get what the file sets on `api`.
+  Put `MALWARE_SCANNER=clamav` and `CLAMAV_HOST=clamav` in `.env` as well:
+  every service reads them from there (CI renders the combination and checks
+  both colours). Forgotten, the colours run with the scanner off: their
+  uploads are `clean` at once, unscanned, and nothing says so.
 - **Off:** leave the file out of `COMPOSE_FILE` (`MALWARE_SCANNER=off`, the
   default): no scan and no `pending` state, as without this feature. Turning
-  it on later leaves existing attachments `clean` (unscanned).
+  it on later leaves existing attachments `clean` (unscanned); turning it
+  back off releases the uploads still `pending` as `clean` within minutes
+  (nothing will scan them), audited as `attachments.released`.
 - **Metric:** `attachments_scanned_total{result}` ([below](#metrics)).
 
 ## Metrics

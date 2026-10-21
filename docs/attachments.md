@@ -69,9 +69,17 @@ upload(…, @UploadedFile() file: StoredUpload) { return this.attachments.upload
     uploader (`attachment.rejected`: in-app, realtime, mail, webhook).
   - **Scanner failing:** clamd away, a timeout or an error answer
     (`INSTREAM size limit exceeded`) is never "clean": the job is tried again
-    (`MALWARE_SCAN_ATTEMPTS`, exponential backoff from 5 s) and the file stays
-    `pending`. The nightly sweep queues scans of files still pending after an
-    hour (a lost job, or every attempt failed).
+    (`MALWARE_SCAN_ATTEMPTS`, exponential backoff from 5 s: about 75 s with
+    the default 5) and the file stays `pending`. Past that, and when the
+    scan could not even be queued, `AttachmentScanRetryJob` (every five
+    minutes, one instance, each tenant in turn) queues the scans of files
+    still pending after five minutes again: a clamd restart costs minutes
+    of `pending`, not a night.
+  - **Scanning switched off:** `MALWARE_SCANNER=off` while uploads are
+    `pending`: nothing will ever scan them, so the same job releases them as
+    `clean` (unscanned, like the files stored before scanning was switched
+    on) with an `attachments.released` audit entry (the ids) by
+    `system:attachment-scan`, and a queued scan job ends as `skipped`.
   - **Metric:** `attachments_scanned_total{result="clean|infected|error"}`
     (a counter per worker process: `rate()` and sum it).
   - **ClamAV:** `compose.clamav.yaml` adds the `clamav` service (the
