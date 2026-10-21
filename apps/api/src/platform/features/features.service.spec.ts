@@ -18,6 +18,7 @@ function service(
     PASSKEYS: true,
     AUTH_SIGN_UP: false,
     AUTH_MAGIC_LINK: true,
+    EXCHANGE_RATES_FETCH: true,
     TENANCY: 'multi',
     LOCALES: ['en', 'de'],
     ...env,
@@ -63,6 +64,7 @@ describe('FeaturesService', () => {
       magicLink: true,
       documents: false,
       ai: false,
+      exchangeRates: true,
       tenancy: 'multi',
       locales: ['en', 'de'],
     });

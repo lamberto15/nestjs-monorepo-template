@@ -34,6 +34,7 @@ describe('GET /v1/features (e2e)', () => {
       magicLink: true,
       documents: false,
       ai: false,
+      exchangeRates: false,
       tenancy: 'single',
       locales: ['en', 'de', 'ar', 'zh', 'ms'],
     });
