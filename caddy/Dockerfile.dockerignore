@@ -10,6 +10,7 @@
 !packages/api-client
 !packages/ui
 !caddy/entrypoint.sh
+!caddy/maintenance.html
 **/node_modules
 **/dist
 **/.turbo
