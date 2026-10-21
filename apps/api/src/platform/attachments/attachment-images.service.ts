@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { posix } from 'node:path';
 import { TransactionHost } from '@nestjs-cls/transactional';
@@ -11,6 +12,7 @@ import {
   inTransaction,
 } from '../../core/database/transactions.js';
 import { MetricsService } from '../../core/metrics/metrics.service.js';
+import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
@@ -23,12 +25,14 @@ import {
   RENDITION_NAMES,
   type StoredRenditions,
 } from '../images/renditions.js';
+import type { PlatformEnv } from '../platform.env.js';
 import { ATTACHMENT_IMAGES_JOB } from '../platform.jobs.js';
 import { tenantFileKey } from '../storage/storage.config.js';
 import {
   type AttachmentImagesJob,
   AttachmentImagesQueue,
 } from './attachment-images.queue.js';
+import { attachmentLimits } from './attachment-limits.js';
 import { AttachmentsService } from './attachments.service.js';
 import { type Attachment, attachments } from './attachments.tables.js';
 
@@ -57,7 +61,9 @@ const BATCH = 1000;
  * transaction. When the original carried metadata it is replaced by a
  * stripped copy at a new key, the old file going after the commit. A file the
  * processor refuses (more than IMAGE_MAX_PIXELS, damaged, over the time limit,
- * a format it does not take) ends `failed` with the original untouched.
+ * a format it does not take), a copy larger than an upload may be or than
+ * the tenant's storage quota leaves room for, and an image its worker died
+ * on twice (`stalled()`) end `failed` with the original untouched.
  */
 @Injectable()
 export class AttachmentImagesService {
@@ -65,6 +71,9 @@ export class AttachmentImagesService {
 
   /** `attachment_images_processed_total{result}`: ready, failed (refused, as uploaded), or error (a disk or database failure; tried again). */
   private readonly processed: Counter<'result'>;
+
+  /** The largest attachment (ATTACHMENT_MAX_MB), which a stripped copy may not pass either. */
+  private readonly maxBytes: number;
 
   private get db() {
     return database(this.txHost);
@@ -78,8 +87,11 @@ export class AttachmentImagesService {
     private readonly audit: AuditService,
     private readonly attachments: AttachmentsService,
     private readonly queue: AttachmentImagesQueue,
+    private readonly quotas: TenantQuotas,
+    config: ConfigService<PlatformEnv, true>,
     metrics: MetricsService,
   ) {
+    this.maxBytes = attachmentLimits(config).maxBytes;
     this.processed = new Counter({
       name: 'attachment_images_processed_total',
       help: 'Uploaded images processed, by result (ready, failed, error).',
@@ -126,6 +138,13 @@ export class AttachmentImagesService {
           image = await this.processor.process(
             await this.disk.getBuffer(row.key),
           );
+          // The copy takes the upload's place: no larger than an upload may be.
+          if (image.stripped && image.stripped.data.length > this.maxBytes) {
+            throw new ImageRejectedError(
+              'size',
+              `Without its metadata the image would be ${image.stripped.data.length} bytes; an attachment may have ${this.maxBytes}.`,
+            );
+          }
         } catch (error) {
           if (error instanceof ImageRejectedError) {
             return this.fail(row, error.reason, error.message, system);
@@ -143,12 +162,41 @@ export class AttachmentImagesService {
         }
 
         const stored = await this.store(row, image, system);
-        if (stored === 'skipped') {
-          return 'skipped';
+        if (stored === 'skipped' || stored === 'failed') {
+          return stored;
         }
         this.processed.inc({ result: 'ready' });
         this.attachments.changed(system, stored, stored.id, 'processed');
         return 'ready';
+      },
+      { transaction: false, tenantId: job.tenantId },
+    );
+  }
+
+  /**
+   * An image whose job BullMQ failed as stalled: its worker died while
+   * converting it (killed at its memory limit, a crash in the library), and
+   * died again on the run that followed (AttachmentImagesProcessor.onFailed).
+   * It ends `failed`, as uploaded; left pending, the retry job would queue it,
+   * and it would take the worker down, every five minutes for good.
+   */
+  async stalled(job: AttachmentImagesJob): Promise<'failed' | 'skipped'> {
+    return this.system.run(
+      ATTACHMENT_IMAGES_JOB,
+      async (system) => {
+        const [row] = await this.db
+          .select()
+          .from(attachments)
+          .where(eq(attachments.id, job.attachmentId));
+        if (!row || row.renditionStatus !== 'pending') {
+          return 'skipped';
+        }
+        return this.fail(
+          row,
+          'stalled',
+          'The worker stopped while converting it, twice.',
+          system,
+        );
       },
       { transaction: false, tenantId: job.tenantId },
     );
@@ -234,12 +282,15 @@ export class AttachmentImagesService {
    * keys, never the ones another job on the same image just committed:
    * two jobs can run on one pending image (a retry job's duplicate, a
    * stalled job run again), and the loser must not take the winner's files.
+   * A stripped copy larger than the original needs room in the tenant's
+   * storage quota for the difference (checked in the same transaction, as
+   * the upload is): without it the image is `failed`, as uploaded.
    */
   private async store(
     row: Attachment,
     image: ProcessedImage,
     system: Parameters<AttachmentsService['changed']>[0],
-  ): Promise<Attachment | 'skipped'> {
+  ): Promise<Attachment | 'skipped' | 'failed'> {
     const tenantId = requireTenantId();
     const written: string[] = [];
     let updated: Attachment | undefined;
@@ -276,6 +327,15 @@ export class AttachmentImagesService {
       }
 
       updated = await inTransaction(this.txHost, async (tx) => {
+        // 422 `quota_exceeded` when the tenant has no room for what the copy adds.
+        if (size > row.size) {
+          await this.quotas.assertRoom(
+            tx,
+            tenantId,
+            'storageBytes',
+            size - row.size,
+          );
+        }
         const [done] = await tx
           .update(attachments)
           .set({ key, size, renditions, renditionStatus: 'ready' })
@@ -313,6 +373,10 @@ export class AttachmentImagesService {
       });
     } catch (error) {
       await this.dispose(written);
+      if (isQuotaExceeded(error)) {
+        // Not the disk's fault: trying again would find the tenant as full.
+        return this.fail(row, 'quota', error.message, system);
+      }
       this.processed.inc({ result: 'error' });
       throw error;
     }
@@ -367,4 +431,14 @@ export class AttachmentImagesService {
       }),
     );
   }
+}
+
+/** The quota check's refusal (422 `quota_exceeded`, TenantQuotas.assertRoom). */
+function isQuotaExceeded(error: unknown): error is HttpException {
+  if (!(error instanceof HttpException)) return false;
+  const response = error.getResponse();
+  return (
+    typeof response === 'object' &&
+    (response as { code?: unknown }).code === 'quota_exceeded'
+  );
 }

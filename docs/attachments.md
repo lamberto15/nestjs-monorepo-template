@@ -257,7 +257,7 @@ nothing for it), loaded by a worker on its first image, never by the API.
   transparency), upright (the EXIF orientation applied to the pixels),
   without metadata, never enlarged: `thumb` fits in 256 × 256 pixels
   (quality 75), `preview` in 1600 × 1600 (quality 80), the proportions
-  kept. An animated GIF or WebP gives its first frame. They are stored
+  kept. An animated GIF, WebP or PNG gives its first frame. They are stored
   under the tenant's prefix like the original, at keys unique to the
   processing run (`attachments/<uuid>.thumb.webp`, `<uuid>.preview.webp`;
   a stripped original of the same run is `<uuid>.jpg`): two jobs on one
@@ -277,15 +277,23 @@ nothing for it), loaded by a worker on its first image, never by the API.
   `img-src 'self'`).
 - **Metadata of the original:** an original that carries EXIF, XMP, IPTC,
   Photoshop resources or PNG text is replaced by a copy without it,
-  rotated upright, in the same format (JPEG and WebP re-encoded at quality
-  90, so a little larger or smaller; PNG without loss, a palette staying
-  one), colours in sRGB (the ICC profile goes too). The copy is written
+  rotated upright, in the same format (JPEG and lossy WebP re-encoded at
+  quality 90, so a little larger or smaller; PNG and lossless WebP without
+  loss, a palette staying one), colours in sRGB (the ICC profile goes too).
+  A PNG's EXIF and text chunks count wherever they are, after the image
+  data too (the library reads only the ones before it). A copy more than
+  four times the original's size (plus 64 KB: a PNG can be built to
+  compress only as uploaded), larger than `ATTACHMENT_MAX_MB`, or larger
+  than the original by more than the tenant's storage quota has room for
+  is not stored: the image ends `failed` (`size`, `quota`). The copy is written
   under a new key and the row changed in one transaction with the audit
   entry; the old file is deleted after the commit, so a download in
   between gets one whole file or the other and a failure leaves the
   original where it was. `size` becomes the copy's. An original **without**
   metadata stays byte for byte as uploaded, as do a GIF (it has no EXIF),
-  an animated WebP and an image of more than 8 bits per channel.
+  an animated WebP or PNG (a copy would be a still; the library loads only
+  an APNG's first image, so the `acTL` chunk is how it is told) and an
+  image of more than 8 bits per channel.
   `IMAGE_STRIP_ORIGINALS=off` keeps every original as uploaded (evidence,
   a legal copy); the renditions are stripped whatever it says. A JPEG whose
   only metadata is a COM comment is not touched: the library does not
@@ -299,10 +307,14 @@ nothing for it), loaded by a worker on its first image, never by the API.
   instead of repairing it. An image that is refused, or is not what its
   bytes said, ends `failed`: **the original is as uploaded, its metadata
   included**, a warning is logged with the reason (`pixels`, `size`,
-  `format`, `timeout`, `invalid`, `missing`), and nothing tries again
-  (the same bytes fail the same way). A disk or database failure is not
-  that: the job is tried again (the queue's three attempts, with backoff),
-  then the retry job. One image at a time per worker process, and the
+  `format`, `timeout`, `invalid`, `missing`, `quota`, `stalled`), and
+  nothing tries again (the same bytes fail the same way). A disk or
+  database failure is not that: the job is tried again (the queue's three
+  attempts, with backoff), then the retry job. A worker that dies while
+  converting (killed at its memory limit, a crash in the library) gets the
+  job back once (BullMQ's stalled-job check); when it dies on it again the
+  image ends `failed` (`stalled`), so one upload can't take the worker down
+  every five minutes. One image at a time per worker process, and the
   memory it takes lives outside the V8 heap (measured: the whole process
   stays near 140 MB resident while it converts a 48-megapixel JPEG that
   needs rotating, with no temporary file): see "Resource limits" in
@@ -321,7 +333,8 @@ nothing for it), loaded by a worker on its first image, never by the API.
   attachments stored before are not processed (no backfill), so their
   originals keep their EXIF.
 - **Not counted:** the storage quota (`storageBytes`) counts the original's
-  size, not the renditions (derived, a few hundred KB at most each).
+  size (a stripped copy's once it replaces it), not the renditions
+  (derived, a few hundred KB at most each).
 - **Another format:** add its type to `IMAGE_INPUT_TYPES`
   (`platform/images/renditions.ts`) once the library reads it and the
   storage package recognizes it from its bytes.
