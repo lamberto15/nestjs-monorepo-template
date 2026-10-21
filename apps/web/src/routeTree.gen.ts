@@ -17,9 +17,11 @@ import { Route as MagicLinkRouteImport } from './routes/magic-link'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppBrandingRouteImport } from './routes/_app/branding'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
 import { Route as AppExchangeRatesRouteImport } from './routes/_app/exchange-rates'
 import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
@@ -105,6 +107,11 @@ const SignUpRoute = SignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
   path: '/verify-email',
@@ -118,6 +125,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBrandingRoute = AppBrandingRouteImport.update({
+  id: '/branding',
+  path: '/branding',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
@@ -357,8 +369,10 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
+  '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
@@ -413,8 +427,10 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
+  '/branding': typeof AppBrandingRoute
   '/custom-fields': typeof AppCustomFieldsRoute
   '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
@@ -472,8 +488,10 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/audit': typeof AppAuditRoute
+  '/_app/branding': typeof AppBrandingRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
   '/_app/exchange-rates': typeof AppExchangeRatesRoute
   '/_app/legal-holds': typeof AppLegalHoldsRoute
@@ -532,8 +550,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/unsubscribe'
     | '/verify-email'
     | '/audit'
+    | '/branding'
     | '/custom-fields'
     | '/exchange-rates'
     | '/legal-holds'
@@ -588,8 +608,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/unsubscribe'
     | '/verify-email'
     | '/audit'
+    | '/branding'
     | '/custom-fields'
     | '/exchange-rates'
     | '/legal-holds'
@@ -646,8 +668,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/unsubscribe'
     | '/verify-email'
     | '/_app/audit'
+    | '/_app/branding'
     | '/_app/custom-fields'
     | '/_app/exchange-rates'
     | '/_app/legal-holds'
@@ -705,6 +729,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
 }
 
@@ -766,6 +791,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify-email': {
       id: '/verify-email'
       path: '/verify-email'
@@ -785,6 +817,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/branding': {
+      id: '/_app/branding'
+      path: '/branding'
+      fullPath: '/branding'
+      preLoaderRoute: typeof AppBrandingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/custom-fields': {
@@ -1107,6 +1146,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
+  AppBrandingRoute: typeof AppBrandingRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
   AppExchangeRatesRoute: typeof AppExchangeRatesRoute
   AppLegalHoldsRoute: typeof AppLegalHoldsRoute
@@ -1157,6 +1197,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
+  AppBrandingRoute: AppBrandingRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
   AppExchangeRatesRoute: AppExchangeRatesRoute,
   AppLegalHoldsRoute: AppLegalHoldsRoute,
@@ -1216,6 +1257,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   VerifyEmailRoute: VerifyEmailRoute,
 }
 export const routeTree = rootRouteImport

@@ -152,7 +152,7 @@ engine: Handlebars' syntax, without helpers.
 - **Fonts:** Gotenberg's image has Noto Sans (Latin, Greek, Cyrillic), Noto
   Sans Arabic and Noto Naskh Arabic, Noto Sans CJK (SC, TC, JP, KR) and Noto
   Color Emoji; the layout lists them in that order, and picks the CJK one
-  by `lang`. A brand font goes in as a `data:` URL in `@font-face`.
+  by `lang`. A brand font goes in as a `data:` URL in `@font-face`. The tenant's colour, name and logo are `brand` in every context ([branding](branding.md)).
 
 **How it runs** (`DocumentsService`, `DocumentsProcessor`, queue `documents`):
 the request checks, stores the document (`queued`) with its audit entry,
