@@ -1,0 +1,22 @@
+{
+  "nav": "汇率",
+  "title": "汇率",
+  "description": "欧洲央行每个工作日发布的欧元参考汇率。选择一天，查看该日或之前的最新汇率。",
+  "date": "日期",
+  "today": "今天",
+  "search": "搜索货币",
+  "empty": "暂无汇率。",
+  "none": "没有匹配的货币。",
+  "fetched": "{{day}} 的汇率，每 {{base}} 的单位数（来源：{{source}}）。",
+  "currency": "货币",
+  "name": "名称",
+  "perBase": "每 {{base}}",
+  "converter": {
+    "title": "货币换算器",
+    "amount": "金额",
+    "to": "到",
+    "badAmount": "请输入如 12.34 的金额。",
+    "rate": "1 {{from}} = {{rate}} {{to}}（{{date}} 的汇率）",
+    "from": "从"
+  }
+}
