@@ -33227,6 +33227,13 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
                           },
+                          "allowedCidrs": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "CIDRs its keys may be used from; empty: any address."
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -33324,6 +33331,7 @@
                           "name",
                           "active",
                           "dailyQuota",
+                          "allowedCidrs",
                           "createdAt",
                           "updatedAt",
                           "keys",
@@ -33387,6 +33395,16 @@
                     "minimum": 1,
                     "maximum": 9007199254740991
                   },
+                  "allowedCidrs": {
+                    "description": "IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
                   "roleIds": {
                     "default": [],
                     "description": "Roles on top of what every client may do (clientPermissions).",
@@ -33445,6 +33463,13 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
                     },
                     "createdAt": {
                       "type": "string",
@@ -33547,6 +33572,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",
@@ -33624,6 +33650,13 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
                     },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -33721,6 +33754,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",
@@ -33784,6 +33818,16 @@
                     "minimum": 1,
                     "maximum": 9007199254740991
                   },
+                  "allowedCidrs": {
+                    "description": "IPv4/IPv6 CIDRs (a bare address is /32 or /128) the client’s keys may be used from; a request from elsewhere gets 403 client_ip_not_allowed. Empty: any address. A malformed one: 400 invalid_cidr.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
                   "roleIds": {
                     "type": "array",
                     "items": {
@@ -33831,6 +33875,13 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
                     },
                     "createdAt": {
                       "type": "string",
@@ -33929,6 +33980,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",
@@ -33957,7 +34009,7 @@
             "user-session": []
           }
         ],
-        "summary": "Revoke (active: false) or reactivate a client; change its roles or daily quota",
+        "summary": "Revoke (active: false) or reactivate a client; change its roles, daily quota or IP allowlist",
         "tags": [
           "access"
         ]
@@ -34067,6 +34119,13 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
                     },
+                    "allowedCidrs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CIDRs its keys may be used from; empty: any address."
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -34168,6 +34227,7 @@
                     "name",
                     "active",
                     "dailyQuota",
+                    "allowedCidrs",
                     "createdAt",
                     "updatedAt",
                     "keys",

@@ -1,33 +1,58 @@
-import { type ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import {
+  type ExecutionContext,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ApiKeyProvider, AuthenticationRegistry } from '@nestjs/authentication';
 import { ConfigService } from '@nestjs/config';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import type { Request } from 'express';
+import type { Redis } from 'ioredis';
 import type { Database } from '../../core/database/drizzle.js';
+import { REDIS } from '../../core/redis/redis.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { tenants } from '../../core/tenancy/tenancy.tables.js';
 import type { IamEnv } from '../iam.env.js';
 import { apiClients, apiKeys } from '../iam.tables.js';
+import { AuditService } from '../audit/audit.service.js';
+import { ipAllowed } from './client-ip.js';
 import { API_KEY_PREFIX } from './api-keys.js';
 import type { Principal } from './principal.js';
 
 /** How often a key's last use is written: at most once a minute per key. */
 const LAST_USED_EVERY_MS = 60_000;
 
+/** A refusal is audited once per client and address in this long. */
+const DENIED_AUDIT_EVERY_SECONDS = 3600;
+
 /**
  * API clients: `Authorization: Bearer <prefix>_<id>_<secret>`. The package
  * compares the key's SHA-256 with the stored one in constant time. A key
  * works while it isn't revoked or expired and its client is active: a
  * revoked key or client stops on its next request.
+ *
+ * A client with `allowedCidrs` is served only from those addresses: the
+ * address is Express's `req.ip`, so the app's `trust proxy` setting decides
+ * which X-Forwarded-For hops count (core/http/http-setup.ts); the header
+ * itself is never read here. Otherwise 403 `client_ip_not_allowed`, audited
+ * once per address and hour.
  */
 @Injectable()
 export class ApiKeyAuth extends ApiKeyProvider<Principal> {
   private readonly logger = new Logger('ApiKeys');
+  /** The allowlist of the client findKey returned, read back by authenticate (the same object). */
+  private readonly allowlists = new WeakMap<object, string[]>();
 
   constructor(
     @InjectDrizzle() private readonly db: Database,
     private readonly config: ConfigService<IamEnv, true>,
     private readonly tenancy: Tenancy,
+    private readonly audit: AuditService,
+    @Inject(REDIS) private readonly redis: Redis,
     registry: AuthenticationRegistry,
   ) {
     super({ prefix: API_KEY_PREFIX, realm: 'api' });
@@ -64,25 +89,80 @@ export class ApiKeyAuth extends ApiKeyProvider<Principal> {
     if (!client?.active) {
       return null;
     }
-    return {
-      hash: key.key.keyHash,
-      user: {
-        kind: 'client' as const,
-        id: client.id,
-        name: client.name,
-        dailyQuota: client.dailyQuota,
-        tenantId: client.tenantId,
-      },
+    const user = {
+      kind: 'client' as const,
+      id: client.id,
+      name: client.name,
+      dailyQuota: client.dailyQuota,
+      tenantId: client.tenantId,
     };
+    this.allowlists.set(user, client.allowedCidrs);
+    return { hash: key.key.keyHash, user };
   }
 
   /** After the package verified the secret: record the use (findKey runs before that). */
   override async authenticate(context: ExecutionContext) {
     const result = await super.authenticate(context);
+    if (result?.user) {
+      await this.checkAddress(
+        context,
+        result.user as Principal & { kind: 'client' },
+      );
+    }
     if (result?.session?.keyId) {
       this.touch(result.session.keyId, new Date());
     }
     return result;
+  }
+
+  /** Refuses a request from outside the client's allowlist (after the secret is verified, so a wrong key learns nothing). */
+  private async checkAddress(
+    context: ExecutionContext,
+    client: Principal & { kind: 'client' },
+  ) {
+    const cidrs = this.allowlists.get(client) ?? [];
+    const ip = context.switchToHttp().getRequest<Request>().ip;
+    if (ipAllowed(ip, cidrs)) {
+      return;
+    }
+    await this.auditDenied(client, ip);
+    throw new ForbiddenException({
+      code: 'client_ip_not_allowed',
+      message: 'This API client may not be used from this address.',
+    });
+  }
+
+  /** One audit entry per client and address an hour (Redis NX), so a flood doesn't fill the log. */
+  private async auditDenied(
+    client: Principal & { kind: 'client' },
+    ip: string | undefined,
+  ) {
+    try {
+      const key = `client-ip-denied:${client.id}:${createHash('sha256')
+        .update(ip ?? '')
+        .digest('hex')}`;
+      const first = await this.redis.set(
+        key,
+        '1',
+        'EX',
+        DENIED_AUDIT_EVERY_SECONDS,
+        'NX',
+      );
+      if (first === 'OK') {
+        await this.tenancy.run(client.tenantId, () =>
+          this.audit.record(client, {
+            action: 'client.ip-denied',
+            targetType: 'client',
+            targetId: client.id,
+            details: { name: client.name },
+            ip,
+          }),
+        );
+      }
+    } catch (error) {
+      // The refusal stands even if the audit entry can't be written.
+      this.logger.warn(`Refusal not audited: ${(error as Error).message}`);
+    }
   }
 
   /** Records the use, without making the request wait for it. */
