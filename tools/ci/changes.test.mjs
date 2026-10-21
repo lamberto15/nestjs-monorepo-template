@@ -297,6 +297,39 @@ function expectJobs(t, files, expected, options) {
 
 const ALWAYS = ['changes', 'compose-images', 'security'];
 const PUSH_ONLY = ['publish', 'publish-gotenberg', 'publish-caddy', 'release'];
+// The jobs each output of `changes` switches on: the workflow's job-level `if`s
+// read as groups. A job gated on several outputs is in each of their groups
+// (`only` counts it once). A case expects ALWAYS plus the groups of the
+// outputs its paths set; the images that build one thing (backup, Caddy,
+// Gotenberg) are named in the case.
+/** `code`: any path a job reads: lint and knip, the build, the migrations. */
+const CODE = ['check'];
+/** `services`: the suites that run on CI's PostgreSQL and Redis (compose.yaml). */
+const SERVICES = [
+  'e2e',
+  'e2e-telemetry',
+  'e2e-web',
+  'feature-smoke',
+  'template-without-notes',
+];
+/**
+ * `api`: the API's unit tests, the services suites (they run on its code), the
+ * app image, the OpenAPI diff, the hardened stack.
+ */
+const API = [
+  'unit-api',
+  'coverage',
+  ...SERVICES,
+  'openapi-diff',
+  'image',
+  'hardened-stack',
+];
+/** `web`: the web app's unit tests (coverage follows) and the browser tests. */
+const WEB = ['unit-web', 'coverage', 'e2e-web', 'template-without-notes'];
+/** `tools`: the generator's smoke test and the template check. */
+const TOOLS = ['feature-smoke', 'template-without-notes'];
+/** `stack`: the Compose secrets, the Swarm render, the hardened stack. */
+const STACK = ['compose-secrets', 'swarm-stack', 'hardened-stack'];
 /** The workflow's jobs in order, filtered by a list (keeps the order). */
 const only = (...ids) =>
   jobs(TEXT)
@@ -332,51 +365,19 @@ test('a web-only pull request skips the API side and the stack', (t) => {
   expectJobs(
     t,
     ['apps/web/src/main.tsx'],
-    only(
-      ALWAYS,
-      'check',
-      'unit-web',
-      'coverage',
-      'e2e-web',
-      'template-without-notes',
-      'caddy-image',
-    ),
+    only(ALWAYS, CODE, WEB, 'caddy-image'),
   );
 });
 
 test('an API-only pull request skips the web unit tests and the images it does not build', (t) => {
-  expectJobs(
-    t,
-    ['apps/api/src/main.ts'],
-    only(
-      ALWAYS,
-      'check',
-      'unit-api',
-      'coverage',
-      'e2e',
-      'e2e-telemetry',
-      'e2e-web',
-      'feature-smoke',
-      'template-without-notes',
-      'openapi-diff',
-      'image',
-      'hardened-stack',
-    ),
-  );
+  expectJobs(t, ['apps/api/src/main.ts'], only(ALWAYS, CODE, API));
 });
 
 test('a backup-only pull request builds the backup image and checks the stack', (t) => {
   expectJobs(
     t,
     ['backup/backup.sh'],
-    only(
-      ALWAYS,
-      'compose-secrets',
-      'swarm-stack',
-      'check',
-      'backup-image',
-      'hardened-stack',
-    ),
+    only(ALWAYS, CODE, STACK, 'backup-image'),
   );
 });
 
@@ -384,20 +385,9 @@ test('a Compose-only pull request checks the stack, and Gotenberg for compose.pr
   expectJobs(
     t,
     ['compose.prod.yaml'],
-    only(
-      ALWAYS,
-      'compose-secrets',
-      'swarm-stack',
-      'check',
-      'hardened-stack',
-      'gotenberg-image',
-    ),
+    only(ALWAYS, CODE, STACK, 'gotenberg-image'),
   );
-  expectJobs(
-    t,
-    ['compose.monitoring.yaml'],
-    only(ALWAYS, 'compose-secrets', 'swarm-stack', 'check', 'hardened-stack'),
-  );
+  expectJobs(t, ['compose.monitoring.yaml'], only(ALWAYS, CODE, STACK));
 });
 
 test("compose.yaml runs every suite on CI's PostgreSQL and Redis: compose-images reads them from it", (t) => {
@@ -406,18 +396,7 @@ test("compose.yaml runs every suite on CI's PostgreSQL and Redis: compose-images
   const outputs = expectJobs(
     t,
     ['compose.yaml'],
-    only(
-      ALWAYS,
-      'compose-secrets',
-      'swarm-stack',
-      'check',
-      'e2e',
-      'e2e-telemetry',
-      'e2e-web',
-      'feature-smoke',
-      'template-without-notes',
-      'hardened-stack',
-    ),
+    only(ALWAYS, CODE, STACK, SERVICES),
   );
   assert.equal(outputs.services, 'true');
   // Only the root's: the devcontainer's compose.yaml is devcontainer.yml's.
@@ -446,42 +425,15 @@ test('every job whose services run compose.yaml images reads the services output
 });
 
 test("a change to the generator's tools runs feature-smoke and the template check", (t) => {
-  expectJobs(
-    t,
-    ['tools/feature/add.mjs'],
-    only(ALWAYS, 'check', 'feature-smoke', 'template-without-notes'),
-  );
-  expectJobs(
-    t,
-    ['tools/deploy/swarm.mjs'],
-    only(
-      ALWAYS,
-      'compose-secrets',
-      'swarm-stack',
-      'check',
-      'feature-smoke',
-      'template-without-notes',
-      'hardened-stack',
-    ),
-  );
+  expectJobs(t, ['tools/feature/add.mjs'], only(ALWAYS, CODE, TOOLS));
+  expectJobs(t, ['tools/deploy/swarm.mjs'], only(ALWAYS, CODE, TOOLS, STACK));
 });
 
 test("the Caddyfile runs the web unit tests (one reads it) and Caddy's image", (t) => {
   expectJobs(
     t,
     ['caddy/Caddyfile'],
-    only(
-      ALWAYS,
-      'compose-secrets',
-      'swarm-stack',
-      'check',
-      'unit-web',
-      'coverage',
-      'e2e-web',
-      'template-without-notes',
-      'hardened-stack',
-      'caddy-image',
-    ),
+    only(ALWAYS, CODE, STACK, WEB, 'caddy-image'),
   );
 });
 
@@ -489,27 +441,12 @@ test('the lockfile runs everything that installs or builds the workspace', (t) =
   expectJobs(
     t,
     ['pnpm-lock.yaml'],
-    only(
-      ALWAYS,
-      'check',
-      'unit-api',
-      'unit-web',
-      'coverage',
-      'e2e',
-      'e2e-telemetry',
-      'e2e-web',
-      'feature-smoke',
-      'template-without-notes',
-      'openapi-diff',
-      'image',
-      'hardened-stack',
-      'caddy-image',
-    ),
+    only(ALWAYS, CODE, API, WEB, 'caddy-image'),
   );
 });
 
 test('another workflow runs check: knip reads the workflows', (t) => {
-  expectJobs(t, ['.github/workflows/web.yml'], only(ALWAYS, 'check'));
+  expectJobs(t, ['.github/workflows/web.yml'], only(ALWAYS, CODE));
 });
 
 test('ci.yml itself runs every pull request job', (t) => {
