@@ -3,7 +3,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import { ConfigService } from '@nestjs/config';
 import { OnOneInstance, WithoutOverlapping } from '@nestjs/locks';
 import { Cron } from '@nestjs/schedule';
-import { lt } from 'drizzle-orm';
+import { and, eq, lt, ne, or } from 'drizzle-orm';
 import {
   database,
   type DrizzleTransactions,
@@ -12,7 +12,7 @@ import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { MESSAGING_RETENTION_JOB } from '../platform.jobs.js';
 import type { PlatformEnv } from '../platform.env.js';
-import { utcDay } from './messaging.policy.js';
+import { previousMonthStart, utcDay } from './messaging.policy.js';
 import { MessagingService } from './messaging.service.js';
 import { messagingUsage } from './messaging.tables.js';
 
@@ -20,7 +20,8 @@ import { messagingUsage } from './messaging.tables.js';
  * Every night at 03:45 in APP_TIMEZONE, on one instance: removes the devices
  * not seen for DEVICES_RETENTION_DAYS (a phone gone, an app uninstalled: its
  * provider never said so) and the cap counters of days before yesterday
- * (the counters are per UTC day; yesterday's stay for the metrics).
+ * (the counters are per UTC day; yesterday's stay for the metrics) and the
+ * monthly spend of months before the last.
  */
 @Injectable()
 export class MessagingRetentionJob {
@@ -58,9 +59,20 @@ export class MessagingRetentionJob {
           const counters = await this.db
             .delete(messagingUsage)
             .where(
-              lt(
-                messagingUsage.day,
-                utcDay(new Date(now.getTime() - 86_400_000)),
+              or(
+                // The daily counters are of yesterday and before ...
+                and(
+                  ne(messagingUsage.counter, 'spend'),
+                  lt(
+                    messagingUsage.day,
+                    utcDay(new Date(now.getTime() - 86_400_000)),
+                  ),
+                ),
+                // ... the month's spend stays through the next month (for the alert's history).
+                and(
+                  eq(messagingUsage.counter, 'spend'),
+                  lt(messagingUsage.day, previousMonthStart(now)),
+                ),
               ),
             )
             .returning({ id: messagingUsage.id });

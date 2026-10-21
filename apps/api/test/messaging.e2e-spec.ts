@@ -615,6 +615,201 @@ describe('push and SMS (e2e)', () => {
     });
   });
 
+  describe('the per-IP allowance and the spend cap', () => {
+    /** Reboots the app with other limits (the environment is read at boot). */
+    async function rebootWith(env: Record<string, string>) {
+      await node.close();
+      Object.assign(process.env, env);
+      node = await bootApp();
+    }
+    afterEach(() => {
+      delete process.env.SMS_DAILY_LIMIT_PER_IP;
+      delete process.env.SMS_MONTHLY_BUDGET_MINOR;
+      delete process.env.SMS_PRICES;
+    });
+
+    it('refuses a number past the day’s codes for one client IP (429 sms_ip_limit), and counts it', async () => {
+      await rebootWith({ SMS_DAILY_LIMIT_PER_IP: '2' });
+      const user = await node.user(['editor']);
+      await user.agent
+        .put('/v1/messaging/phone')
+        .send({ phone: NUMBER })
+        .expect(200);
+      await user.agent
+        .put('/v1/messaging/phone')
+        .send({ phone: '+4915187654321' })
+        .expect(200);
+      const refused = await user.agent
+        .put('/v1/messaging/phone')
+        .send({ phone: NUMBER })
+        .expect(429);
+      expect(refused.body.code).toBe('sms_ip_limit');
+      await work();
+      const counters = await db().select().from(messagingUsage);
+      expect(
+        counters.find((row) => row.counter === 'blocked:ip_limit')?.count,
+      ).toBe(1);
+      // The IP is kept only as a hash.
+      const ip = counters.find((row) => row.counter.startsWith('ip:'));
+      expect(ip?.count).toBe(2);
+      expect(ip?.counter).toMatch(/^ip:[0-9a-f]{24}$/);
+      // The refused request changed nothing: the second number is still the one stored.
+      expect(
+        (await user.agent.get('/v1/messaging/phone').expect(200)).body.phone,
+      ).toMatch(/•+21$/);
+    });
+
+    it('stops sending at the month’s budget, by the price of the prefix', async () => {
+      // +49 costs 100 a segment; the budget is 250: two SMS, the third is refused.
+      await rebootWith({
+        SMS_MONTHLY_BUDGET_MINOR: '250',
+        SMS_PRICES: '+49=100,+44=500',
+      });
+      const user = await userWithPhone(); // the code: 100
+      await enable(user.agent, { sms: true });
+      await notifyOwner(user.agent);
+      expect(await work()).toEqual([{ status: 'sent' }]); // 200
+      await notifyOwner(user.agent);
+      expect(await work()).toEqual([
+        { status: 'blocked', reason: 'budget_exceeded' },
+      ]);
+      const counters = await db().select().from(messagingUsage);
+      const spend = counters.find((row) => row.counter === 'spend');
+      // The refused SMS spent nothing (its reservation rolled back).
+      expect(spend?.count).toBe(200);
+      expect(spend?.day).toMatch(/^\d{4}-\d{2}-01$/);
+      expect(
+        counters.find((row) => row.counter === 'blocked:budget_exceeded')
+          ?.count,
+      ).toBe(1);
+      // The sweep keeps this month's spend.
+      await node.app.get(MessagingRetentionJob).run();
+      expect(
+        (await db().select().from(messagingUsage)).some(
+          (row) => row.counter === 'spend',
+        ),
+      ).toBe(true);
+    });
+
+    it('has no cap without a budget', async () => {
+      const user = await userWithPhone();
+      await enable(user.agent, { sms: true });
+      await notifyOwner(user.agent);
+      expect(await work()).toEqual([{ status: 'sent' }]);
+      expect(
+        (await db().select().from(messagingUsage)).some(
+          (row) => row.counter === 'spend',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('quiet hours', () => {
+    const clock = (time: Date) => time.toISOString().slice(11, 16);
+
+    it('sets, reads, clears and validates the window; it is a person’s own and audited', async () => {
+      const user = await node.user(['editor']);
+      expect(
+        (await user.agent.get('/v1/notifications/quiet-hours').expect(200))
+          .body,
+      ).toEqual({ quietHours: null });
+      const set = await user.agent
+        .put('/v1/notifications/quiet-hours')
+        .send({ start: '22:00', end: '07:00' })
+        .expect(200);
+      expect(set.body.quietHours).toEqual({
+        start: '22:00',
+        end: '07:00',
+        timezone: expect.any(String),
+      });
+      expect(
+        (await user.agent.get('/v1/notifications/quiet-hours').expect(200))
+          .body,
+      ).toEqual(set.body);
+      // Preferences are untouched by it, and it survives them being replaced.
+      await enable(user.agent, { push: true });
+      expect(
+        (await user.agent.get('/v1/notifications/quiet-hours').expect(200))
+          .body,
+      ).toEqual(set.body);
+
+      for (const bad of [
+        { start: '22:00', end: '22:00' },
+        { start: '25:00', end: '07:00' },
+        { start: '22:00' },
+        { start: '8am', end: '9am' },
+      ]) {
+        await user.agent
+          .put('/v1/notifications/quiet-hours')
+          .send(bad)
+          .expect(400);
+      }
+      await user.agent.delete('/v1/notifications/quiet-hours').expect(200);
+      expect(
+        (await user.agent.get('/v1/notifications/quiet-hours').expect(200))
+          .body,
+      ).toEqual({ quietHours: null });
+      const client = await node.client();
+      await node
+        .http()
+        .get('/v1/notifications/quiet-hours')
+        .set('Authorization', client.auth)
+        .expect(403);
+      expect(
+        (await db().select().from(auditLog)).filter(
+          (entry) => entry.action === 'notificationQuietHours.updated',
+        ),
+      ).toHaveLength(2);
+    });
+
+    it('holds a push and an SMS inside the window until it ends, and sends them outside it', async () => {
+      const user = await userWithPhone();
+      await user.agent
+        .put('/v1/devices')
+        .send({
+          platform: 'web',
+          name: 'A',
+          token: JSON.stringify({ endpoint: 'https://push.example/q' }),
+        })
+        .expect(200);
+      await user.agent
+        .patch('/v1/auth/me')
+        .send({ timezone: 'UTC' })
+        .expect(200);
+      await enable(user.agent, { push: true, sms: true });
+
+      // A window around now (UTC): from an hour ago to an hour from now.
+      const now = Date.now();
+      await user.agent
+        .put('/v1/notifications/quiet-hours')
+        .send({
+          start: clock(new Date(now - 3_600_000)),
+          end: clock(new Date(now + 3_600_000)),
+        })
+        .expect(200);
+      await notifyOwner(user.agent);
+      const held = await queue().getJobs(['delayed']);
+      expect(held.map((job) => job.name).sort()).toEqual(['push', 'sms']);
+      for (const job of held) {
+        expect(job.opts.delay).toBeGreaterThan(30 * 60_000);
+        expect(job.opts.delay).toBeLessThanOrEqual(3_600_000);
+      }
+      expect(push().sent).toHaveLength(0);
+      await Promise.all(held.map((job) => job.remove()));
+
+      // A window that is not now: delivered at once.
+      await user.agent
+        .put('/v1/notifications/quiet-hours')
+        .send({
+          start: clock(new Date(now + 3 * 3_600_000)),
+          end: clock(new Date(now + 4 * 3_600_000)),
+        })
+        .expect(200);
+      await notifyOwner(user.agent);
+      expect(await work()).toEqual([{ status: 'sent' }, { status: 'sent' }]);
+    });
+  });
+
   describe('STOP and START', () => {
     const sign = (fields: Record<string, string>, token = twilio.authToken) =>
       createHmac('sha1', token)

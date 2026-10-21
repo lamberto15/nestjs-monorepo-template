@@ -313,11 +313,13 @@ describe('the environment (env.ts)', () => {
       [
         'ADMIN_PASSWORD',
         'ANTHROPIC_API_KEY',
+        'APNS_PRIVATE_KEY',
         'AWS_SECRET_ACCESS_KEY',
         'AWS_SESSION_TOKEN',
         'BLIND_INDEX_KEYS',
         'CURSOR_KEYS',
         'DATA_ENCRYPTION_KEYS',
+        'FCM_PRIVATE_KEY',
         'DATABASE_MAINTENANCE_URL',
         'DATABASE_OWNER_URL',
         'DATABASE_URL',

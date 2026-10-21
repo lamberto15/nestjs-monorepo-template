@@ -886,6 +886,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/quiet-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your quiet hours
+         * @description While the clock of your time zone is inside the window, push and SMS wait for it to end (types marked `urgent` do not). In-app, realtime and email are unaffected.
+         */
+        get: operations["NotificationsController_quietHours_v1"];
+        /**
+         * Set your quiet hours
+         * @description A window on the clock of your time zone (`PATCH /auth/me { timezone }`, else the deployment’s), as `HH:MM`; one past midnight (`22:00` to `07:00`) is fine. Push and SMS of a non-urgent notification arriving inside it are sent when it ends. Audited.
+         */
+        put: operations["NotificationsController_setQuietHours_v1"];
+        post?: never;
+        /** Remove your quiet hours */
+        delete: operations["NotificationsController_clearQuietHours_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications/{id}/read": {
         parameters: {
             query?: never;
@@ -9164,6 +9189,8 @@ export interface operations {
                             label: string;
                             /** @description Its channels cannot be switched off (their frequency may change). */
                             mandatory: boolean;
+                            /** @description Push and SMS go through quiet hours at once. */
+                            urgent: boolean;
                             /** @description The defaults of the channels you may set (in-app and realtime are always on). */
                             channels: {
                                 /** @description Users only: `false` (no mail), `immediate`, or bundled into an `hourly` or `daily` digest. */
@@ -9308,6 +9335,142 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_quietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client has no quiet hours. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_setQuietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 22:00 */
+                    start: string;
+                    /** @example 07:00 */
+                    end: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description validation_failed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_clearQuietHours_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        quietHours: {
+                            start: string;
+                            end: string;
+                            /** @description The time zone whose clock the window follows: yours, else the deployment’s. */
+                            timezone: string;
+                        } | null;
+                    };
+                };
             };
             /** @description No valid API key or session. */
             401: {

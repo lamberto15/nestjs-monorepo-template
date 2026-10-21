@@ -50,6 +50,7 @@ export class PushChannel implements NotificationChannel<boolean> {
     recipient,
     setting,
     rendered,
+    quietUntil,
   }: NotificationDelivery) {
     if (recipient.kind !== 'user' || setting !== true) return;
     const tenantId = notification.tenantId ?? recipient.tenantId;
@@ -66,6 +67,10 @@ export class PushChannel implements NotificationChannel<boolean> {
       };
       await this.queue.add('push', job, {
         jobId: `push-${notification.id}-${deviceId}`,
+        // Quiet hours: pushed when they end.
+        ...(quietUntil
+          ? { delay: Math.max(0, quietUntil.getTime() - Date.now()) }
+          : {}),
       });
     }
   }

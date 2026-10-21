@@ -366,6 +366,46 @@ tests:
               summary: The exchange rates are stale
               description: "The newest stored ECB reference rates are +Inf old (+Inf: none was ever fetched). The worker's ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md)."
 
+  - name: sms refusals and spend
+    interval: 1m
+    input_series:
+      # Two workers report the same counts; a toll-fraud cap is hit from the 3rd minute, the allowlist never.
+      - series: 'sms_blocked_today{job="worker",instance="10.0.0.4:3000",reason="tenant_limit"}'
+        values: '0 0 0 4x30'
+      - series: 'sms_blocked_today{job="worker",instance="10.0.0.5:3000",reason="tenant_limit"}'
+        values: '0 0 0 4x30'
+      - series: 'sms_blocked_today{job="worker",instance="10.0.0.4:3000",reason="prefix_not_allowed"}'
+        values: '0x30'
+      # The biggest tenant is at 70 % and reaches 85 % at the 10th minute.
+      - series: 'sms_budget_used_ratio{job="worker",instance="10.0.0.4:3000"}'
+        values: '0.7x9 0.85x20'
+      - series: 'sms_budget_used_ratio{job="worker",instance="10.0.0.5:3000"}'
+        values: '0.7x9 0.85x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: SmsBlocked
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: SmsBlocked
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              reason: tenant_limit
+            exp_annotations:
+              summary: 'SMS refused today: tenant_limit'
+              description: '4 SMS were refused today (UTC) for "tenant_limit": a toll-fraud cap, the country allowlist (prefix_not_allowed) or the monthly spend cap (budget_exceeded). The worker logs each as an error ("SMS blocked by the toll-fraud caps"); check who asked for them before raising a limit.'
+      - eval_time: 12m
+        alertname: SmsBudgetNearCap
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: SmsBudgetNearCap
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: A tenant has used 85% of its monthly SMS budget
+              description: At 100% (SMS_MONTHLY_BUDGET_MINOR) the tenant's SMS stop until next month (sms_blocked_today{reason="budget_exceeded"}). Check the spend is real (a pumping attack looks like this), then raise the budget or wait for the month to end.
+
   - name: outbox and webhooks
     interval: 1m
     input_series:

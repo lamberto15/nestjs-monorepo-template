@@ -114,12 +114,34 @@ export const platformEnv = z.object({
   TWILIO_WEBHOOK_URL: optional(),
   /** Twilio's REST API (a stub on loopback in tests). */
   TWILIO_API_URL: baseUrl('https://api.twilio.com'),
-  /** Push provider: `off`, `web-push` (VAPID), or `memory` (tests). */
-  PUSH_PROVIDER: choice(['off', 'web-push', 'memory'], 'off'),
+  /**
+   * Push providers, comma-separated: `off` (default), `web-push` (VAPID),
+   * `apns` (iOS), `fcm` (Android), `memory` (tests). `web-push,apns,fcm`
+   * serves all three platforms; each device goes to the provider of its platform.
+   */
+  PUSH_PROVIDER: list().pipe(
+    z
+      .array(z.enum(['off', 'web-push', 'apns', 'fcm', 'memory']))
+      .transform((values) => values.filter((value) => value !== 'off')),
+  ),
   WEB_PUSH_VAPID_PUBLIC_KEY: optional(),
   WEB_PUSH_VAPID_PRIVATE_KEY: secret(optional()),
   /** The VAPID contact: `mailto:ops@example.com` or an https URL. */
   WEB_PUSH_SUBJECT: optional(),
+  /** APNs (token-based auth): the .p8 key's id and contents (PEM; `\n` for newlines), the Apple team id, the app's bundle id. */
+  APNS_KEY_ID: optional(),
+  APNS_PRIVATE_KEY: secret(optional()),
+  APNS_TEAM_ID: optional(),
+  APNS_BUNDLE_ID: optional(),
+  /** APNs' host: production by default; `https://api.sandbox.push.apple.com` for development builds (a stub on loopback in tests). */
+  APNS_API_URL: baseUrl('https://api.push.apple.com'),
+  /** FCM (HTTP v1): the Firebase project id and the service account's `client_email` and `private_key` (PEM; `\n` for newlines). */
+  FCM_PROJECT_ID: optional(),
+  FCM_CLIENT_EMAIL: optional(),
+  FCM_PRIVATE_KEY: secret(optional()),
+  FCM_API_URL: baseUrl('https://fcm.googleapis.com'),
+  /** Google's OAuth2 token endpoint (a stub on loopback in tests). */
+  FCM_TOKEN_URL: baseUrl('https://oauth2.googleapis.com/token'),
   /**
    * Toll fraud: the destination country-calling-code prefixes SMS may go to
    * (`+1,+44,+49`). Empty: none, so no SMS is sent until the deployment
@@ -132,6 +154,32 @@ export const platformEnv = z.object({
   SMS_DAILY_LIMIT_PER_PREFIX: z.coerce.number().int().min(0).default(100),
   /** SMS one user may be sent per day (codes included). */
   SMS_DAILY_LIMIT_PER_USER: z.coerce.number().int().min(0).default(10),
+  /** Codes one client IP may have texted per day in a tenant (the route also has its own throttle). */
+  SMS_DAILY_LIMIT_PER_IP: z.coerce.number().int().min(0).default(20),
+  /** A tenant's SMS spend cap per UTC month, in minor units of one currency; 0 is no cap. Sending stops at the cap; 80 % is logged as an error and shown by `sms_budget_used_ratio`. */
+  SMS_MONTHLY_BUDGET_MINOR: z.coerce.number().int().min(0).default(0),
+  /** The price of one SMS segment per prefix, minor units: `+1=79,+44=120`. */
+  SMS_PRICES: list().transform((entries, ctx) => {
+    const prices: Record<string, number> = {};
+    for (const entry of entries) {
+      const [prefix, price] = entry.split('=').map((part) => part.trim());
+      if (
+        !prefix ||
+        !/^\+[1-9]\d{0,5}$/.test(prefix) ||
+        !/^\d+$/.test(price ?? '')
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `"${entry}" is not <+prefix>=<minor units>`,
+        });
+        return z.NEVER;
+      }
+      prices[prefix] = Number(price);
+    }
+    return prices;
+  }),
+  /** The price of one SMS segment to a prefix SMS_PRICES does not list. */
+  SMS_PRICE_DEFAULT_MINOR: z.coerce.number().int().min(0).default(0),
   /** The longest SMS text, in characters; a longer one is cut. */
   SMS_MAX_LENGTH: z.coerce.number().int().min(1).max(1600).default(320),
   /** The longest push payload, in bytes (web push allows about 4 KB); a longer body is cut. */
