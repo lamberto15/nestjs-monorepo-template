@@ -9,6 +9,8 @@ import { dashboard } from './registry';
 
 function QuickActions() {
   const { t } = useTranslation('dashboard');
+  // The labels are `common` keys unless they name a namespace, like the menu's.
+  const { t: translate } = useTranslation();
   const features = useFeatures();
   const me = useMe();
   const actions = visible(dashboard.actions, features, me?.can);
@@ -27,7 +29,7 @@ function QuickActions() {
             render={<Link to={action.to} />}
           >
             <action.icon aria-hidden />
-            {t(action.label)}
+            {translate(action.label)}
           </Button>
         ))}
       </div>

@@ -119,7 +119,10 @@ export function NotesPerWeekCard() {
               axisLine={false}
               allowDecimals={false}
             />
-            <ChartTooltip content={<ChartTooltipContent labelKey="week" />} />
+            {/* No `labelKey`: it looks the header up in the ChartConfig, which
+                has no entry for a week, so the header would be empty. Without
+                it the header is the x value, the week's Monday. */}
+            <ChartTooltip content={<ChartTooltipContent />} />
             <Bar dataKey="count" fill="var(--color-count)" radius={3} />
           </BarChart>
         </ChartContainer>

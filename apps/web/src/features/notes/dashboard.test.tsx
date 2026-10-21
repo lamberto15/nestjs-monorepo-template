@@ -1,4 +1,10 @@
-import { screen, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/render-app';
@@ -65,6 +71,56 @@ describe('the notes on the dashboard', () => {
     expect(
       within(quick).getByRole('button', { name: 'New note' }),
     ).toBeVisible();
+  });
+
+  it('names the week of a bar in its tooltip', async () => {
+    // Gives the chart a size (jsdom measures none), so recharts draws it.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+        }
+        observe(target: Element) {
+          this.callback(
+            [
+              {
+                target,
+                contentRect: { width: 480, height: 224 },
+              } as ResizeObserverEntry,
+            ],
+            this as unknown as ResizeObserver,
+          );
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    useSignedIn(['Note.read']);
+    useNotes();
+    await renderApp('/');
+
+    const surface = await waitFor(() => {
+      const found = document.querySelector<SVGElement>('.recharts-surface');
+      expect(found).not.toBeNull();
+      return found as SVGElement;
+    });
+    // jsdom's mouse can't aim at a bar; the keyboard can (`accessibilityLayer`).
+    act(() => surface.focus());
+    fireEvent.keyDown(surface, { key: 'ArrowRight' });
+    const tooltip = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '.recharts-tooltip-wrapper',
+      );
+      expect(found?.textContent).toContain('Notes');
+      return found as HTMLElement;
+    });
+    // The header names the week (its Monday); a `labelKey` made it vanish.
+    const header = within(tooltip).getByText(/^\d{4}-\d{2}-\d{2}$/);
+    expect(weekRanges().map((range) => range.week)).toContain(
+      header.textContent,
+    );
   });
 
   it('shows nothing of the notes without Note.read, and asks nothing', async () => {

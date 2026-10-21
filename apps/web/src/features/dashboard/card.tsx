@@ -48,6 +48,14 @@ export function DashboardCardFrame(props: {
   );
 }
 
+// Dice UI's Stat and Timeline (packages/ui) were looked at and not used here.
+// Stat is a bordered tile with its own padding and shadow, so inside a Card it
+// would be a card in a card, and the counts ("Assigned to you: 3") are plural
+// sentences in the card's description, translated in five languages. Timeline
+// puts a dot and a connector on each item and spaces them 2rem apart, for the
+// few steps of a history (revisions, an approval's stages), not for five
+// compact rows that approvals, notifications and notes share, which are not
+// histories. The rows below are a plain list for that reason.
 /** A list card: rows, a spinner while loading, or one line when there are none. */
 export function DashboardListCard(props: {
   title: string;
