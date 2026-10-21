@@ -13,9 +13,11 @@
 #   --wal-dir DIR      where the WAL goes for the recovery (default /restore/wal): the
 #                      server must see it at this same path (restore_command reads it)
 #
-# The base backup is looked up in /backups like `restore`; encrypted ones
-# need BACKUP_DECRYPTION_KEY(_FILE). Run it as root (`--user root`) so the
-# files keep the server's owner. Nothing here touches a running database.
+# The base backup is looked up in /backups like `restore`; encrypted ones, and
+# encrypted WAL in the bucket (even beside a plaintext base backup: encryption
+# can be turned on after it was taken), need BACKUP_DECRYPTION_KEY(_FILE). Run
+# it as root (`--user root`) so the files keep the server's owner. Nothing here
+# touches a running database.
 set -eu
 # shellcheck source=lib.sh
 . /usr/local/lib/backup/lib.sh
@@ -71,6 +73,7 @@ if [ -d "$pgdata" ] && [ -n "$(ls -A "$pgdata")" ]; then
 fi
 
 trap 'if [ -n "${IDENTITY_TMP:-}" ]; then rm -f "$IDENTITY_TMP"; fi' EXIT
+IDENTITY=''
 encrypted=off
 case $name in *.age)
   encrypted=on
@@ -81,23 +84,17 @@ esac
 started=$(date -u +%s)
 log info "pitr restore started" base="$name" pgdata="$pgdata" target_time="${target:-latest}"
 
-# 1. The base backup.
-mkdir -p "$pgdata"
-chmod 700 "$pgdata"
-if [ "$encrypted" = on ]; then
-  age --decrypt --identity "$IDENTITY" "$base" | tar -xz -C "$pgdata" --numeric-owner
-else
-  tar -xzf "$base" -C "$pgdata" --numeric-owner
-fi
-
-# 2. The WAL: from the volume, or the bucket (decrypted segment by segment,
-# since restore_command only copies).
+# 1. The WAL: from the volume, or the bucket (decrypted segment by segment,
+# since restore_command only copies). Before the base backup is unpacked, so a
+# missing identity or a damaged segment stops the run with --pgdata untouched.
 mkdir -p "$recovery_wal"
 if [ "$offsite" = on ]; then
   offsite_setup
   rclone copy --quiet "$OFFSITE/wal" "$recovery_wal"
   for f in "$recovery_wal"/*.age; do
     [ -e "$f" ] || continue
+    # The bucket's WAL may be encrypted although the base backup is not.
+    [ -n "$IDENTITY" ] || age_identity
     age --decrypt --identity "$IDENTITY" --output "${f%.age}" "$f"
     rm -f "$f"
   done
@@ -109,6 +106,15 @@ else
   for f in "$WAL_DIR"/*; do
     [ -f "$f" ] && cp -p "$f" "$recovery_wal"/
   done
+fi
+
+# 2. The base backup.
+mkdir -p "$pgdata"
+chmod 700 "$pgdata"
+if [ "$encrypted" = on ]; then
+  age --decrypt --identity "$IDENTITY" "$base" | tar -xz -C "$pgdata" --numeric-owner
+else
+  tar -xzf "$base" -C "$pgdata" --numeric-owner
 fi
 
 # 3. Recovery settings: PostgreSQL's documented way (continuous archiving,

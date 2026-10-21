@@ -75,6 +75,18 @@ age-keygen -o "$T/identity" >/dev/null 2>&1
 export BACKUP_ENCRYPTION_KEY=$(age-keygen -y "$T/identity")
 export BACKUP_DECRYPTION_KEY_FILE=$T/identity
 
+# An SSH public key is a recipient too: a whole line (it has spaces in it),
+# beside an age key on another. The key is a throwaway public one.
+ssh_recipient_works() (
+  . /usr/local/lib/backup/lib.sh
+  BACKUP_ENCRYPTION_KEY=$(printf '%s\n%s\n' "$BACKUP_ENCRYPTION_KEY" 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGG4L7YS3TkZ0ltPZi+A0dzUy7T8kB32oP9fjBGr87F/ ci test key')
+  echo hello >"$T/hello"
+  age_encrypt "$T/hello" "$T/hello.age" &&
+    age --decrypt --identity "$T/identity" "$T/hello.age" | grep -q hello &&
+    grep -aq -- '-> ssh-ed25519' "$T/hello.age"
+)
+check "an SSH public key works as a recipient, beside an age key" ssh_recipient_works
+
 q() { psql --no-psqlrc -At -v ON_ERROR_STOP=1 -c "$1"; }
 archived() { q "select archived_count from pg_stat_archiver"; }
 wait_archived() { # wait_archived <count before>
@@ -113,6 +125,16 @@ BACKUP_ENCRYPTION_KEY='' BACKUP_PITR=off backup >"$T/plain.log" 2>&1 || { cat "$
 plain=$(ls -t "$T"/backups/db-*.dump | head -n 1)
 check "without a key the dump is plain and valid" sh -c "pg_restore --list '$plain' >/dev/null && test -s '$plain.sha256'"
 
+# Encryption turned on after PITR was: a plaintext base backup (rows A,B,C),
+# while the bucket's WAL is encrypted. Restoring it needs the identity for the WAL.
+sleep 1
+BACKUP_ENCRYPTION_KEY='' backup >"$T/plainbase.log" 2>&1 || { cat "$T/plainbase.log" >&2; bad "plaintext base backup runs"; }
+plainbase=$(ls -t "$T"/backups/base-*.tar.gz | head -n 1)
+before=$(archived)
+q "select pg_switch_wal()" >/dev/null
+wait_archived "$before"
+backup-wal-ship >"$T/ship2.log" 2>&1 || { cat "$T/ship2.log" >&2; bad "wal-ship runs again"; }
+
 # Point-in-time restore from the bucket's copy: A and B, not C.
 pg_ctl -D "$T/pgdata" -m fast -w stop >/dev/null
 restore-pitr "$(ls "$T"/backups/base-*.tar.gz.age | head -n 1)" --pgdata "$T/restored" \
@@ -133,6 +155,18 @@ PGDATABASE=restore_check restore "$(ls "$T"/backups/db-*.dump.age | head -n 1)" 
 rows=$(psql --no-psqlrc -At -d restore_check -c "select string_agg(v, ',' order by v) from t" || true)
 if [ "$rows" = "A" ]; then ok "the encrypted dump restores (A)"; else bad "dump rows: '$rows', expected A"; fi
 check "no decrypted copy is left behind" sh -c "! ls -A '$T'/backups | grep -q '^\.restore\.'"
+
+# The plaintext base backup from the bucket's encrypted WAL, replayed to the end.
+pg_ctl -D "$T/restored" -m fast -w stop >/dev/null
+restore-pitr "$plainbase" --pgdata "$T/restored2" --offsite --wal-dir "$T/rwal2" >"$T/pitr2.log" 2>&1 || { cat "$T/pitr2.log" >&2; bad "restore-pitr of a plaintext base backup with encrypted WAL runs"; }
+pg_ctl -D "$T/restored2" -w -l "$T/restored2.log" -o "-c archive_mode=off" start >/dev/null || { cat "$T/restored2.log" >&2; bad "the second restored server starts"; }
+n=0
+while [ "$(q 'select pg_is_in_recovery()' || echo t)" = t ] && [ "$n" -lt 60 ]; do
+  n=$((n + 1))
+  sleep 0.5
+done
+rows=$(q "select string_agg(v, ',' order by v) from t" || true)
+if [ "$rows" = "A,B,C" ]; then ok "a plaintext base backup recovers from encrypted WAL: A,B,C"; else bad "recovered rows: '$rows', expected A,B,C"; fi
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures check(s) failed" >&2

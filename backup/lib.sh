@@ -112,19 +112,33 @@ pitr_on() {
 WAL_DIR=${BACKUP_WAL_DIR:-/wal}
 
 # Client-side encryption with age (https://age-encryption.org): with
-# BACKUP_ENCRYPTION_KEY set (one or more recipients, "age1…" or ssh public
-# keys, separated by spaces), every dump, archive, base backup and WAL
-# segment is encrypted before it is kept or uploaded, so the bucket never
-# holds plaintext. Restoring needs the matching identity (BACKUP_DECRYPTION_KEY,
-# or a file: BACKUP_DECRYPTION_KEY_FILE), given at restore time only.
+# BACKUP_ENCRYPTION_KEY set (one or more recipients), every dump, archive,
+# base backup and WAL segment is encrypted before it is kept or uploaded, so
+# the bucket never holds plaintext. Restoring needs the matching identity
+# (BACKUP_DECRYPTION_KEY, or a file: BACKUP_DECRYPTION_KEY_FILE), given at
+# restore time only.
+#
+# The recipients are read a line at a time: a line starting with "age1" may
+# hold several keys, separated by spaces; any other line is ONE recipient,
+# whole, because an ssh public key has spaces in it ("ssh-ed25519 AAAA… me@laptop").
+# Blank lines and # comments are skipped, as in age's own recipients files.
 encryption_on() { [ -n "${BACKUP_ENCRYPTION_KEY:-}" ]; }
 
 # age_encrypt <in> <out>
 age_encrypt() {
   in=$1
   out=$2
+  recipients=$(printf '%s\n' "$BACKUP_ENCRYPTION_KEY" | tr -d '\r')
   set --
-  for recipient in $BACKUP_ENCRYPTION_KEY; do set -- "$@" -r "$recipient"; done
+  while read -r line; do
+    case $line in
+      '' | '#'*) ;;
+      age1*) for recipient in $line; do set -- "$@" -r "$recipient"; done ;;
+      *) set -- "$@" -r "$line" ;;
+    esac
+  done <<EOF
+$recipients
+EOF
   age "$@" -o "$out" "$in"
 }
 

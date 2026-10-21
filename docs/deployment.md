@@ -173,6 +173,7 @@ reads.
 | `POSTGRES_REPORTING_PASSWORD_FILE` | `migrate` only (creates the reporting role with it) | `POSTGRES_REPORTING_PASSWORD` |
 | `CLOUDFLARE_API_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                   | Caddy (`caddy/entrypoint.sh`)                                                                                                                         | `CLOUDFLARE_API_TOKEN`                              |
 | `BACKUP_S3_SECRET_ACCESS_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                            | the backup                                                                                                                                            | `BACKUP_S3_SECRET_ACCESS_KEY`                       |
+| `BACKUP_ENCRYPTION_KEY_FILE` | the backup (the age recipients, public keys, one per line) | `BACKUP_ENCRYPTION_KEY` |
 | `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
 | `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |
 | `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate)                                                                                                                        | the variable without `_FILE`                        |
@@ -1259,10 +1260,12 @@ loads it into a database `restore_check` beside the app's. Look at it
 Off by default. With `BACKUP_ENCRYPTION_KEY` set, every dump, files archive,
 base backup and WAL segment is encrypted with [age](https://age-encryption.org)
 before it is kept or uploaded: the volume and the bucket hold `…​.age` files
-only (checksums are of the encrypted file). The key is a **public** recipient
-(`age1…`, or an SSH public key; several, separated by spaces, so a second
-person can decrypt too), so the server can encrypt and never decrypt: a
-stolen host or bucket gives away no backup.
+only (checksums are of the encrypted file). The key is a **public** recipient,
+so the server can encrypt and never decrypt: a stolen host or bucket gives
+away no backup. It is `age1…` (several on one line, separated by spaces, so a
+second person can decrypt too) or an SSH public key, a whole line
+(`BACKUP_ENCRYPTION_KEY="ssh-ed25519 AAAA… me@laptop"`). To mix them, or give
+several SSH keys, use `BACKUP_ENCRYPTION_KEY_FILE`: one recipient per line.
 
 ```bash
 age-keygen -o backup.key        # keep it OFF the server (password manager, safe)
@@ -1274,7 +1277,8 @@ backup unreadable: store it somewhere that outlives the host, and try a
 restore from the bucket now and then. Existing plaintext backups stay as they
 are (old ones age out by `BACKUP_RETENTION_DAYS`; the bucket's lifecycle rule
 removes the rest). `BACKUP_ENCRYPTION_KEY_FILE` is read too, for a mounted
-file. To restore, give the identity for that one command only:
+file (a Docker secret, [Secrets in files](#secrets-in-files)). To restore,
+give the identity for that one command only:
 
 ```bash
 docker compose run --rm -e BACKUP_DECRYPTION_KEY="$(cat backup.key)" backup restore db-<time>.dump.age
@@ -1343,8 +1347,10 @@ so it is the last resort after a dump restore isn't enough:
          --wal-dir /var/lib/postgresql/pitr-wal --target-time "2026-10-21 09:30:00+00" --offsite'
    ```
 
-   (Without encryption, drop the key and the `.age`; without `--offsite`, the
-   WAL comes from the `wal_archive` volume: add `-v wal_archive:/wal`.)
+   (Without encryption, drop the key and the `.age`; keep the key when the
+   bucket's WAL is encrypted, even for a plaintext base backup taken before
+   encryption was turned on. Without `--offsite`, the WAL comes from the
+   `wal_archive` volume: add `-v wal_archive:/wal`.)
    `restore-pitr` unpacks the base backup, puts the WAL where the server
    reads it, and writes `restore_command`, `recovery_target_time` and
    `recovery.signal`.
@@ -1362,7 +1368,7 @@ backup fails (use an older base backup).
 
 **Try it** like a dump restore, now and then: `scripts/test-backup-pitr.sh`
 runs the whole round trip (encrypted base backup and WAL, a target between two
-writes, an encrypted dump) against a throwaway PostgreSQL in the backup image; CI
+writes, a plaintext base backup with encrypted WAL, an encrypted dump) against a throwaway PostgreSQL in the backup image; CI
 runs it in `backup-image`.
 
 ### Restore drill
