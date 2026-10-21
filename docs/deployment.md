@@ -120,6 +120,10 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
   Secure cookie and `trust proxy` rely on that.
 - Local file storage is a volume shared by the replicas of one host. More hosts:
   `STORAGE_DRIVER=s3`.
+  With S3 the web app uploads straight to the bucket (presigned PUT): the
+  bucket needs a CORS rule for the web app's origin
+  ([attachments](attachments.md#direct-uploads-s3)); without one it uploads
+  through the API instead.
 - Logs are JSON on stdout (`docker compose logs`). `X-Request-Id` follows a
   request through Caddy, the logs and NestJS Observe. Credentials are
   masked before a line is written ([Log redaction](#log-redaction)).

@@ -420,7 +420,12 @@ fields value onChange errors />` is a typed input per field (the drafts and
 
   Which panels a subject takes is the API's `capabilities` in
   `GET /v1/lists/{subject}` (from its `<item>.record.ts`), and uploads are
-  held to its `attachmentLimits` (size, types). @mentions search
+  held to its `attachmentLimits` (size, types). With
+  `presignedUploads` on (`GET /v1/features`, `STORAGE_DRIVER=s3`) the
+  dropzone sends files straight to the bucket (`uploadAttachment()` in
+  `panels/api.ts`: presign, a PUT with progress, complete) and falls back to the
+  API's multipart upload when the bucket cannot be reached
+  ([attachments](attachments.md#direct-uploads-s3)). @mentions search
   `GET /v1/people?q=` (any member) and write `@user:<id>`; authors are the
   API's `authorName` and `changedByName`. Comments and files reload on the
   realtime events `record.commented` and `record.attachments.changed`
