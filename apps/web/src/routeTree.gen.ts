@@ -21,6 +21,7 @@ import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppCustomFieldsRouteImport } from './routes/_app/custom-fields'
+import { Route as AppExchangeRatesRouteImport } from './routes/_app/exchange-rates'
 import { Route as AppLegalHoldsRouteImport } from './routes/_app/legal-holds'
 import { Route as AppMailSuppressionsRouteImport } from './routes/_app/mail-suppressions'
 import { Route as AppNamingSeriesRouteImport } from './routes/_app/naming-series'
@@ -123,6 +124,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
 const AppCustomFieldsRoute = AppCustomFieldsRouteImport.update({
   id: '/custom-fields',
   path: '/custom-fields',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppExchangeRatesRoute = AppExchangeRatesRouteImport.update({
+  id: '/exchange-rates',
+  path: '/exchange-rates',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLegalHoldsRoute = AppLegalHoldsRouteImport.update({
@@ -360,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
@@ -416,6 +423,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/audit': typeof AppAuditRoute
   '/custom-fields': typeof AppCustomFieldsRoute
+  '/exchange-rates': typeof AppExchangeRatesRoute
   '/legal-holds': typeof AppLegalHoldsRoute
   '/mail-suppressions': typeof AppMailSuppressionsRoute
   '/naming-series': typeof AppNamingSeriesRoute
@@ -475,6 +483,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/custom-fields': typeof AppCustomFieldsRoute
+  '/_app/exchange-rates': typeof AppExchangeRatesRoute
   '/_app/legal-holds': typeof AppLegalHoldsRoute
   '/_app/mail-suppressions': typeof AppMailSuppressionsRoute
   '/_app/naming-series': typeof AppNamingSeriesRoute
@@ -535,6 +544,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/audit'
     | '/custom-fields'
+    | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
     | '/naming-series'
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/audit'
     | '/custom-fields'
+    | '/exchange-rates'
     | '/legal-holds'
     | '/mail-suppressions'
     | '/naming-series'
@@ -649,6 +660,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_app/audit'
     | '/_app/custom-fields'
+    | '/_app/exchange-rates'
     | '/_app/legal-holds'
     | '/_app/mail-suppressions'
     | '/_app/naming-series'
@@ -792,6 +804,13 @@ declare module '@tanstack/react-router' {
       path: '/custom-fields'
       fullPath: '/custom-fields'
       preLoaderRoute: typeof AppCustomFieldsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/exchange-rates': {
+      id: '/_app/exchange-rates'
+      path: '/exchange-rates'
+      fullPath: '/exchange-rates'
+      preLoaderRoute: typeof AppExchangeRatesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/legal-holds': {
@@ -1108,6 +1127,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppCustomFieldsRoute: typeof AppCustomFieldsRoute
+  AppExchangeRatesRoute: typeof AppExchangeRatesRoute
   AppLegalHoldsRoute: typeof AppLegalHoldsRoute
   AppMailSuppressionsRoute: typeof AppMailSuppressionsRoute
   AppNamingSeriesRoute: typeof AppNamingSeriesRoute
@@ -1158,6 +1178,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppCustomFieldsRoute: AppCustomFieldsRoute,
+  AppExchangeRatesRoute: AppExchangeRatesRoute,
   AppLegalHoldsRoute: AppLegalHoldsRoute,
   AppMailSuppressionsRoute: AppMailSuppressionsRoute,
   AppNamingSeriesRoute: AppNamingSeriesRoute,
