@@ -50,3 +50,6 @@ days (400 `validation_failed` otherwise, or when `from` is after `to`).
   `run(day)` rolls up one day (today's counters are copied and kept).
   Reports merge the rows with the live counters (the larger count per route
   wins), so today, and a day not rolled up yet, are always included.
+
+A tenant's own limits (members, storage, records, API clients) are a different
+thing, 422 `quota_exceeded`: [tenancy](tenancy.md#quotas).

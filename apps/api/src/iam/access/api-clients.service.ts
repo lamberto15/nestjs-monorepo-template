@@ -10,7 +10,7 @@ import {
   type DrizzleTransactions,
   inTransaction,
 } from '../../core/database/transactions.js';
-import { and, asc, eq, gt, inArray, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import { apiKeyId, generateApiKey, hashApiKey } from '../auth/api-keys.js';
 import { principalKey, type UserPrincipal } from '../auth/principal.js';
@@ -18,6 +18,7 @@ import { SecurityAlertsService } from '../account/security-alerts.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { ApiClientCountsRegistry } from './api-client-counts.registry.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
+import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import { apiClientRoles, apiClients, apiKeys } from '../iam.tables.js';
 
 /** A key as the access API shows it: never the key or its hash. */
@@ -69,7 +70,15 @@ export class ApiClientsService {
     private readonly audit: AuditService,
     private readonly securityAlerts: SecurityAlertsService,
     private readonly counts: ApiClientCountsRegistry,
-  ) {}
+    private readonly quotas: TenantQuotas,
+  ) {
+    quotas.count('apiClients', async (db) => {
+      const [row] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(apiClients);
+      return row?.n ?? 0;
+    });
+  }
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
   private get db() {
@@ -102,6 +111,8 @@ export class ApiClientsService {
     input: { name: string; keyExpiresAt?: string; dailyQuota?: number | null },
     ip?: string,
   ) {
+    // 422 `quota_exceeded` at the tenant's limit, under its lock.
+    await this.quotas.assertRoom(tx, requireTenantId(), 'apiClients');
     const [client] = await tx
       .insert(apiClients)
       .values({ name: input.name, dailyQuota: input.dailyQuota ?? null })

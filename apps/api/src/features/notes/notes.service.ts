@@ -12,7 +12,16 @@ import {
 import type { IncomingWebhook } from '@nestjs/webhooks';
 import { Webhooks } from '@nestjs/webhooks';
 import { WorkflowClient } from '@nestjs/workflows';
-import { and, eq, getTableColumns, isNotNull, isNull, SQL } from 'drizzle-orm';
+import {
+  and,
+  eq,
+  getTableColumns,
+  isNotNull,
+  isNull,
+  SQL,
+  sql,
+} from 'drizzle-orm';
+import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import {
   afterCursor,
   countPage,
@@ -69,9 +78,18 @@ export class NotesService {
     private readonly approvals: ApprovalsService,
     private readonly tenancy: Tenancy,
     private readonly holds: LegalHoldsService,
+    private readonly quotas: TenantQuotas,
     incomingEvents: IncomingEventHandlers,
     retention: RetentionRegistry,
   ) {
+    // The tenant's limit on notes (docs/tenancy.md, "Quotas"); the recycle bin is not counted.
+    quotas.count('records:Note', async (db) => {
+      const [row] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(notes)
+        .where(isNull(notes.deletedAt));
+      return row?.n ?? 0;
+    });
     // Notes are purged after the days a tenant sets (off until it turns the rule on).
     retention.register({
       name: 'note',
@@ -139,6 +157,8 @@ export class NotesService {
       'create',
     );
     const note = await inTransaction(this.txHost, async (tx) => {
+      // 422 `quota_exceeded` at the tenant's limit of notes, under its lock.
+      await this.quotas.assertRoom(tx, this.tenancy.tenantId(), 'records:Note');
       // Its number: gapless, in this transaction, from the naming series the
       // body names, else the first whose conditions hold for it, else the
       // default (NOTE-2026-00042 without any).

@@ -1,6 +1,16 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, getTableColumns, isNotNull, isNull, SQL } from 'drizzle-orm';
+import {
+  and,
+  eq,
+  getTableColumns,
+  isNotNull,
+  isNull,
+  SQL,
+  sql,
+} from 'drizzle-orm';
+import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
+import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { Database, Transaction } from '../../core/database/drizzle.js';
 import {
@@ -46,7 +56,20 @@ export class RecordStore {
     private readonly teams: TeamsService,
     private readonly lifecycle: RecordLifecycle,
     private readonly holds: LegalHoldsService,
-  ) {}
+    private readonly quotas: TenantQuotas,
+  ) {
+    // The tenant's limit on this feature's records (docs/tenancy.md, "Quotas").
+    // The recycle bin is not counted: those are deleted.
+    const { subject, softDelete } = declaration;
+    quotas.count(`records:${subject}`, async (db) => {
+      const table = this.table;
+      const [row] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(table)
+        .where(softDelete ? isNull(table.deletedAt!) : undefined);
+      return row?.n ?? 0;
+    });
+  }
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
   private get db() {
@@ -55,9 +78,17 @@ export class RecordStore {
 
   /**
    * The columns a new record's owner sets: `ownerId`, and with teams the
-   * owner's team (a user's first one; none for an API client).
+   * owner's team (a user's first one; none for an API client). Every
+   * create calls it, in its transaction, so it is also where the tenant's
+   * record limit for this feature is enforced (422 `quota_exceeded`, under
+   * the limit's lock): a hook every generated service already has.
    */
   async owner(owner: Principal, tx: Transaction) {
+    await this.quotas.assertRoom(
+      tx,
+      requireTenantId(),
+      `records:${this.declaration.subject}`,
+    );
     return {
       ownerId: principalKey(owner),
       ...(this.declaration.team && {
