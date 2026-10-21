@@ -30,6 +30,7 @@ import type { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import { AccessPolicy } from '../../iam/access/policies.js';
+import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { OperatorOnly } from '../../iam/auth/operator-only.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import {
@@ -132,6 +133,7 @@ export class SettingsController {
   }
 
   @Put(':key/platform')
+  @AllowInMaintenance() // operators turn the mode off again
   @Can(AccessPolicy, 'manageSettings')
   @OperatorOnly()
   @ApiOperation({
@@ -156,6 +158,7 @@ export class SettingsController {
   }
 
   @Delete(':key/platform')
+  @AllowInMaintenance() // operators turn the mode off again
   @HttpCode(HttpStatus.NO_CONTENT)
   @Can(AccessPolicy, 'manageSettings')
   @OperatorOnly()

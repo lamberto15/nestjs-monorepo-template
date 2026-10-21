@@ -190,6 +190,20 @@ web app needs the API, so `dev:web` alone suits an API already running.
   `useLivePoll()` makes the poll a fallback: 1 s (2 s in lists) without one
   (`useRealtimeConnected()`), and fast again for a job whose end event came
   but which the queue still reports running. Tests play it with `fake.emit('connect')` / `emit('disconnect')`.
+- **The dashboard** (`features/dashboard`, the home page `/`): cards for the
+  approvals assigned to the user, their unread notifications, the latest audit
+  entries (`Access.readAudit`), the notes changed last and a bar chart of notes
+  created per week over eight weeks (`Note.read`), and a quick-actions card.
+  Like the menu, the features contribute them: `features/<feature>/dashboard.ts`
+  (default export `{ cards, actions }`; a card has an `id`, an `order`, optional
+  `feature`, `permission` and `wide`, and a lazy `component`; an action a `to`,
+  an i18n `label`, an `icon`), collected by `features/dashboard/registry.ts`,
+  so removing a feature takes its cards. A card without its permission or switch
+  is not rendered and asks for nothing; each asks only the existing routes
+  (`/v1/notes` with `count=true` per week, as there is no aggregate route), its
+  failures are quiet (no toast), and its texts are the feature's own namespace
+  (`dashboard.*`). The frame, rows and spinner are `features/dashboard/card.tsx`.
+
 - **Lists** (`components/list-page.tsx`): `<ListPage subject path columns
 title …>` is a server-paginated, filterable, sortable list of any subject;
   its filters, sorts, custom-field columns and tag filter come from
@@ -505,6 +519,32 @@ CI runs these in `.github/workflows/web.yml` (pull requests touching
   summary and the reports in the `lighthouse` artifact. It audits the signed-out
   shell of the static build (no API behind it). Make it blocking by changing
   `warn` to `error` once the scores are stable.
+
+### Installable and offline (PWA)
+
+`vite-plugin-pwa` (`apps/web/vite.config.ts`, the documented `generateSW`
+setup) writes the web manifest and a Workbox service worker at build time;
+`src/main.tsx` registers it (`registerType: 'prompt'`: a new version waits
+until the user taps "Reload" in the toast, so no page is swapped under them).
+The worker **precaches the built shell only** (scripts, styles, icons) and has
+no runtime caching, so no API response (user data) is ever stored by it;
+navigations fall back to the shell except for the paths Caddy sends to the API
+(`apps/web/pwa-paths.ts`: `/v1`, `/health`, `/metrics`, `/api`, `/api-json`,
+`/api-yaml`, `/files`, `/socket.io`, `/.well-known`; a test keeps it in step
+with the Caddyfile's `@api` matcher, so an export or attachment link reaches
+the server). It is not active under `pnpm dev`.
+
+- **Icons** are generated from `public/favicon.svg`: `pnpm --filter
+  @nestjs-monorepo-template/web pwa:icons` (`@vite-pwa/assets-generator`,
+  `pwa-assets.config.ts`). Name, colours: the `manifest` in `vite.config.ts`.
+- **Install**: the user menu (`NavUser`) shows "Install the app" while the
+  browser offers it (`beforeinstallprompt`, `src/lib/pwa.ts`, listened for
+  from the first page load: the browser fires it once, before the menu
+  exists); Safari and Firefox never do, there the user adds it from the
+  browser's menu.
+- **Offline banner** (`OfflineBanner`, in the `_app` layout): shown when
+  `navigator.onLine` is false, or online with the realtime socket dropped.
+- Strings: the `pwa` namespace, in all five languages.
 
 ### Adding a page for a feature
 

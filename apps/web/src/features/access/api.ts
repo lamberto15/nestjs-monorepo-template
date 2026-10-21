@@ -195,15 +195,3 @@ export async function deleteTeam(id: string) {
 export function invalidateAccess(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: accessKeys.all });
 }
-
-/**
- * The role grants of a member as `roleExpiresAt`: every end date kept,
- * since the API replaces all of them when the map is sent.
- */
-export function expiriesOf(grants: readonly Grant[]): Record<string, string> {
-  return Object.fromEntries(
-    grants.flatMap((grant) =>
-      grant.expiresAt ? [[grant.roleId, grant.expiresAt]] : [],
-    ),
-  );
-}

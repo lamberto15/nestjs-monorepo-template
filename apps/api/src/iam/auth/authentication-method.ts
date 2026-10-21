@@ -50,7 +50,10 @@ export function methodMetadata(
   };
 }
 
-/** `SignInService.signIn()`'s options for a sign-in by `method`: the event's method, and the session's. */
+/**
+ * `SignInService.signIn()`'s options for a sign-in by `method`: the event's method, and the session's.
+ * @public
+ */
 export const signInOptions = (method: string) => ({
   method,
   metadata: methodMetadata(method),

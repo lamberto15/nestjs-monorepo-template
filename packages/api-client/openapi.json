@@ -7318,6 +7318,15 @@
                       ],
                       "description": "`single`: the first tenant is the only one."
                     },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "normal",
+                        "read-only",
+                        "maintenance"
+                      ],
+                      "description": "`platform.mode` / `APP_MODE`. `read-only`: writes answer 503 `read_only`. `maintenance`: everything but health, sign-in and the operators' routes answers 503 `maintenance`. Both carry `Retry-After`."
+                    },
                     "locales": {
                       "type": "array",
                       "items": {
@@ -7341,6 +7350,7 @@
                     "ai",
                     "exchangeRates",
                     "tenancy",
+                    "mode",
                     "locales"
                   ],
                   "additionalProperties": false
@@ -14338,6 +14348,90 @@
         ]
       }
     },
+    "/v1/account/avatar": {
+      "put": {
+        "description": "Multipart, the field `file`: a PNG, JPEG, WebP or GIF, recognized from its bytes (not the name or the declared type), at most AVATAR_MAX_MB (2). Replaces the one you had. The answer is the `avatarUrl` to show it by (also on GET /v1/auth/me and GET /v1/people). Audited (account.avatar-changed). Never while acting as another user.",
+        "operationId": "AvatarController_set_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "avatarUrl": {
+                      "type": "string",
+                      "description": "Where the picture is shown from (a path on this API, for an `<img>`)."
+                    }
+                  },
+                  "required": [
+                    "avatarUrl"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file (validation_failed)."
+          },
+          "401": {
+            "description": "Not signed in as a user."
+          },
+          "403": {
+            "description": "Acting as another user."
+          },
+          "413": {
+            "description": "Larger than AVATAR_MAX_MB (payload_too_large)."
+          },
+          "415": {
+            "description": "Not a PNG, JPEG, WebP or GIF, or not the type declared (unsupported_media_type)."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Set your picture",
+        "tags": [
+          "account"
+        ]
+      },
+      "delete": {
+        "description": "The file goes too. Without a picture, nothing happens. Audited (account.avatar-removed). Never while acting as another user.",
+        "operationId": "AvatarController_remove_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "Not signed in as a user."
+          },
+          "403": {
+            "description": "Acting as another user."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Remove your picture",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/v1/account/deletion/cancel": {
       "post": {
         "description": "No sign-in: the token of the link in the deletion mail. It works once, for the request it was sent for, until the deletion is carried out. Audited (`account.deletion-cancelled`, `via: link`).",
@@ -16033,11 +16127,17 @@
                           "name": {
                             "type": "string",
                             "example": "Maya Patel"
+                          },
+                          "avatarUrl": {
+                            "nullable": true,
+                            "description": "Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address.",
+                            "type": "string"
                           }
                         },
                         "required": [
                           "key",
-                          "name"
+                          "name",
+                          "avatarUrl"
                         ],
                         "additionalProperties": false
                       }
@@ -16070,6 +16170,85 @@
           }
         ],
         "summary": "Your tenant's people, by name or by key: for @mentions and pickers",
+        "tags": [
+          "people"
+        ]
+      }
+    },
+    "/v1/people/{id}/avatar": {
+      "get": {
+        "description": "The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.",
+        "operationId": "PeopleController_avatar_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "v",
+            "required": false,
+            "in": "query",
+            "description": "The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read.",
+            "schema": {
+              "description": "The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read.",
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture: a PNG, JPEG, WebP or GIF.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session or user token."
+          },
+          "403": {
+            "description": "Your session acts in no tenant (tenant_required)."
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "A person's picture",
         "tags": [
           "people"
         ]
@@ -16261,6 +16440,9 @@
           },
           "404": {
             "description": ""
+          },
+          "409": {
+            "description": "The malware scan has not finished (attachment_scan_pending): try again shortly."
           }
         },
         "security": [
@@ -28323,6 +28505,11 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "avatarUrl": {
+                      "description": "Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address.",
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "tenantId": {
                       "nullable": true,
                       "description": "The tenant this session or token acts in (GET /auth/tenants, POST /auth/tenant); null: none (no membership yet).",
@@ -28509,6 +28696,11 @@
                           "type": "string"
                         },
                         "timezone": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "avatarUrl": {
+                          "description": "Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address.",
                           "nullable": true,
                           "type": "string"
                         },
@@ -28778,6 +28970,11 @@
                       "type": "string"
                     },
                     "timezone": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "description": "Their picture (PUT /v1/account/avatar): a path on this API to put in an `<img>` (sign-in required, the same session or token); null: none. A new picture is a new address.",
                       "nullable": true,
                       "type": "string"
                     },
@@ -32792,6 +32989,11 @@
                             "description": "Their IANA time zone, or null (APP_TIMEZONE).",
                             "type": "string"
                           },
+                          "avatarUrl": {
+                            "description": "Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none.",
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "active": {
                             "type": "boolean",
                             "description": "The membership in this tenant and the account, together."
@@ -33095,6 +33297,11 @@
                     "timezone": {
                       "nullable": true,
                       "description": "Their IANA time zone, or null (APP_TIMEZONE).",
+                      "type": "string"
+                    },
+                    "avatarUrl": {
+                      "description": "Their picture (an `<img>` path, GET /v1/people/{id}/avatar); null: none.",
+                      "nullable": true,
                       "type": "string"
                     },
                     "active": {
@@ -45247,6 +45454,18 @@
             }
           },
           {
+            "name": "scanStatus",
+            "required": false,
+            "in": "query",
+            "description": "Filter: scanStatus =",
+            "schema": {
+              "description": "Filter: scanStatus =",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
             "name": "size.gte",
             "required": false,
             "in": "query",
@@ -45338,9 +45557,9 @@
             "name": "filter",
             "required": false,
             "in": "query",
-            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
+            "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
             "schema": {
-              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
+              "description": "Conditions in and/or groups, JSON: a condition { field, op, value } or a group { \"and\": [...] } / { \"or\": [...] }, 3 groups deep and 30 conditions at most. Example: {\"or\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":…},{…}]}. Fields and operators: name (eq, contains); contentType (eq, in, startsWith); scanStatus (eq); size (gte, lte); createdAt (gte, lt, between); updatedAt (gte, lt, between).",
               "type": "string",
               "maxLength": 20000
             }
@@ -45360,9 +45579,9 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
             "schema": {
-              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, createdAt, updatedAt.",
+              "description": "Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: id, subject, recordId, name, size, contentType, uploadedBy, locked, scanStatus, createdAt, updatedAt.",
               "type": "string"
             }
           }
@@ -48154,6 +48373,14 @@
             "type": "boolean",
             "description": "An issued document (a generated PDF): it never changes and cannot be removed; it goes with its record."
           },
+          "scanStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "clean"
+            ],
+            "description": "`pending`: the malware scan has not finished (MALWARE_SCANNER is on) and the file cannot be downloaded yet (409 `attachment_scan_pending`). `clean` otherwise, always when scanning is off. An infected file is rejected: the attachment is deleted and its uploader notified."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -48174,6 +48401,7 @@
           "contentType",
           "uploadedBy",
           "locked",
+          "scanStatus",
           "createdAt",
           "updatedAt"
         ],
@@ -49173,7 +49401,8 @@
             "type": "string",
             "enum": [
               "added",
-              "removed"
+              "removed",
+              "scanned"
             ]
           }
         },
@@ -49309,7 +49538,7 @@
       }
     },
     "record.attachments.changed": {
-      "description": "A file on a record you watch was uploaded, removed or issued (a PDF): ids only.",
+      "description": "A file on a record you watch was uploaded, removed, issued (a PDF) or scanned clean (it can be downloaded now; MALWARE_SCANNER): ids only.",
       "payload": {
         "$ref": "#/components/schemas/RealtimeRecordAttachmentsChangedEvent"
       }

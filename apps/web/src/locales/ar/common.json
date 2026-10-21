@@ -6,10 +6,6 @@
     "platform": "المنصة",
     "dashboard": "لوحة التحكم"
   },
-  "dashboard": {
-    "title": "لوحة التحكم",
-    "description": "ستظهر نظرتك العامة هنا."
-  },
   "auth": {
     "signIn": {
       "title": "تسجيل الدخول",
@@ -172,6 +168,16 @@
       "emailHint": "عنوان تسجيل دخولك.",
       "timezone": "المنطقة الزمنية",
       "saved": "تم حفظ الملف الشخصي."
+    },
+    "avatar": {
+      "title": "الصورة",
+      "choose": "اختر صورة",
+      "change": "تغيير الصورة",
+      "remove": "إزالة",
+      "hint": "PNG أو JPEG أو WebP أو GIF. تظهر لأعضاء مؤسساتك.",
+      "saved": "تم حفظ الصورة.",
+      "removed": "تمت إزالة الصورة.",
+      "rejected": "لم يتم استخدام {{name}}: {{reason}}"
     },
     "security": {
       "title": "الأمان"

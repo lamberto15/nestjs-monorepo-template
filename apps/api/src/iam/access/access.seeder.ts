@@ -19,9 +19,6 @@ import { PermissionCatalog } from './permission-catalog.js';
 import { ADMINISTRATOR_ROLE, TenantsService } from './tenants.service.js';
 import { SystemContext } from './system-context.js';
 
-// Moved to tenants.service.ts (every tenant gets the roles); kept here for imports.
-export { ADMINISTRATOR_ROLE } from './tenants.service.js';
-
 /**
  * On the first start: the first tenant (ADMIN_TENANT_NAME, the operators',
  * docs/tenancy.md) with Administrator and the roles the declarations seed

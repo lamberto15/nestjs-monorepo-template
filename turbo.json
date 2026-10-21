@@ -54,6 +54,10 @@
         "PGPASSWORD",
         "TEST_LOGS"
       ]
+    },
+    "test:cov": {
+      "dependsOn": ["^build"],
+      "outputs": [".vitest/**", "coverage/**"]
     }
   }
 }

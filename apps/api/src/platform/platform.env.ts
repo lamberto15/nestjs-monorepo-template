@@ -54,6 +54,18 @@ export const platformEnv = z.object({
   /** The socket.io gateway at /realtime and its Redis adapter. */
   REALTIME: flag('on'),
 
+  /**
+   * Forces the app mode (docs/settings.md, "Maintenance and read-only
+   * mode"): `normal`, `read-only` or `maintenance`. Unset: the operators'
+   * `platform.mode` setting decides. Set, it wins and the setting can't be
+   * changed (`setting_not_allowed`).
+   */
+  APP_MODE: z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    z.enum(['normal', 'read-only', 'maintenance']).optional(),
+  ),
+
   /** The hour (0–23, in each user's time zone) daily notification digests are mailed. */
   NOTIFICATIONS_DIGEST_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   /**
@@ -198,6 +210,25 @@ export const platformEnv = z.object({
   ATTACHMENT_ALLOWED_TYPES: list().transform((types) =>
     types.length > 0 ? types : DEFAULT_ATTACHMENT_TYPES,
   ),
+
+  /** Users' pictures (PUT /v1/account/avatar): the largest, in MB. */
+  AVATAR_MAX_MB: z.coerce.number().int().min(1).max(50).default(2),
+
+  /**
+   * Malware scanning of uploads (platform/attachments, docs/attachments.md).
+   * `off` (default): files are served as soon as they are stored. `clamav`:
+   * a queue job streams each upload to clamd (CLAMAV_HOST); it is `pending`
+   * (not downloadable) until clean, and an infected one is deleted.
+   * `memory`: tests (flags the EICAR test string).
+   */
+  MALWARE_SCANNER: choice(['off', 'clamav', 'memory'], 'off'),
+  /** clamd's host (`clamav` in Compose); required with MALWARE_SCANNER=clamav. */
+  CLAMAV_HOST: optional(),
+  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
+  /** One scan's limit, in milliseconds (connect, stream and answer); a scan that takes longer is tried again. */
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1000).default(60_000),
+  /** Tries per scan, the first included (exponential backoff from 5 s), before the attachment stays pending for the retry job (every 5 minutes) to queue again. */
+  MALWARE_SCAN_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
 
   /**
    * PDF documents (platform/documents): Gotenberg's URL, `http://gotenberg:3000`

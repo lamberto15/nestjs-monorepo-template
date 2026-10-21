@@ -30,6 +30,7 @@ import {
   userIdentities,
   users,
 } from '../iam.tables.js';
+import { avatarUrl } from '../account/avatar-url.js';
 import type { UserPrincipal } from './principal.js';
 
 export interface UserView extends UserPrincipal {
@@ -187,6 +188,7 @@ export class UsersRepository {
         emailVerified: false,
         locale: null,
         timezone: null,
+        avatarKey: null,
         active: false,
         // Deleted, not deprovisioned: nothing brings it back.
         deprovisionedAt: null,
@@ -507,6 +509,33 @@ export class UsersRepository {
     return row ? toView(row) : null;
   }
 
+  /** The file of the user's picture (users.avatar_key), or null. */
+  async avatarKey(id: string, db: Db = this.db) {
+    const [row] = await db
+      .select({ key: users.avatarKey })
+      .from(users)
+      .where(eq(users.id, id));
+    return row?.key ?? null;
+  }
+
+  /**
+   * Sets (or, with null, clears) the user's picture, under the account's
+   * lock; answers the file it replaced, for the caller to delete once the
+   * change has committed. Undefined: no such active account.
+   */
+  async setAvatarKey(
+    tx: Transaction,
+    id: string,
+    key: string | null,
+  ): Promise<{ previous: string | null } | undefined> {
+    if (!(await this.lockAccount(tx, id))) {
+      return undefined;
+    }
+    const previous = await this.avatarKey(id, tx);
+    await tx.update(users).set({ avatarKey: key }).where(eq(users.id, id));
+    return { previous };
+  }
+
   async updatePasswordHash(id: string, passwordHash: string, db: Db = this.db) {
     await db.update(users).set({ passwordHash }).where(eq(users.id, id));
   }
@@ -604,6 +633,7 @@ const toPrincipal = (row: Row): UserPrincipal => ({
   emailVerified: row.emailVerified,
   locale: row.locale,
   timezone: row.timezone,
+  avatarUrl: avatarUrl(row.id, row.avatarKey),
   tenantId: null,
 });
 

@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmButton } from '@/components/confirm-button';
+import { PersonAvatar, UserAvatar } from '@/components/user-avatar';
 import { RelativeTime } from '@/features/notifications/relative-time';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { useMe } from '@/lib/features';
@@ -99,6 +100,11 @@ function CommentEditor(props: {
           <MentionContent>
             {people.map((person) => (
               <MentionItem key={person.key} value={person.key}>
+                <UserAvatar
+                  size="sm"
+                  name={person.name}
+                  src={person.avatarUrl}
+                />
                 <span className="truncate">{person.name}</span>
               </MentionItem>
             ))}
@@ -167,7 +173,14 @@ function CommentItem(props: {
       data-comment={comment.id}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-sm font-medium">
+        <span className="flex items-center gap-2 text-sm font-medium">
+          {comment.author.startsWith('user:') && (
+            <PersonAvatar
+              size="sm"
+              value={comment.author}
+              name={authorName(comment, me, t)}
+            />
+          )}
           {authorName(comment, me, t)}
         </span>
         <span className="flex items-baseline gap-2">

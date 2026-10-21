@@ -59,6 +59,7 @@ export const allFeatures: Features = {
   documents: true,
   ai: true,
   exchangeRates: true,
+  mode: 'normal',
   tenancy: 'multi',
   locales: ['en', 'de', 'ar', 'zh', 'ms'],
 };
@@ -76,6 +77,10 @@ export const handlers = [
   // The sidebar's approvals badge asks for its count on every signed-in page.
   http.get('/v1/approvals', () =>
     HttpResponse.json({ items: [], nextCursor: null, total: 0 }),
+  ),
+  // The dashboard's unread-notifications card asks on the home page.
+  http.get('/v1/notifications', () =>
+    HttpResponse.json({ items: [], nextCursor: null }),
   ),
   http.get('/v1/auth/tenants', () =>
     HttpResponse.json({

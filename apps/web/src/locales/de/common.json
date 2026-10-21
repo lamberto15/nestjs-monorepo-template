@@ -6,10 +6,6 @@
     "platform": "Plattform",
     "dashboard": "Dashboard"
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "description": "Hier erscheint Ihre Übersicht."
-  },
   "auth": {
     "signIn": {
       "title": "Anmelden",
@@ -172,6 +168,16 @@
       "emailHint": "Ihre Anmeldeadresse.",
       "timezone": "Zeitzone",
       "saved": "Profil gespeichert."
+    },
+    "avatar": {
+      "title": "Bild",
+      "choose": "Bild auswählen",
+      "change": "Bild ändern",
+      "remove": "Entfernen",
+      "hint": "PNG, JPEG, WebP oder GIF. Sichtbar für die Mitglieder Ihrer Organisationen.",
+      "saved": "Bild gespeichert.",
+      "removed": "Bild entfernt.",
+      "rejected": "{{name}} wurde nicht verwendet: {{reason}}"
     },
     "security": {
       "title": "Sicherheit"

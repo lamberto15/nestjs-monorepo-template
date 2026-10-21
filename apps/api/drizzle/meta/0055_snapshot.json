@@ -1,5 +1,5 @@
 {
-  "id": "0e20146a-0887-4dad-909e-a1fb391076af",
+  "id": "3832b0f4-b0d8-4909-b551-32be33f83e58",
   "prevId": "c42e1a07-913f-4a3e-b2b2-689da1f0a549",
   "version": "7",
   "dialect": "postgresql",
@@ -1905,81 +1905,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.password_history": {
-      "name": "password_history",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "password_hash": {
-          "name": "password_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "password_history_user_id_idx": {
-          "name": "password_history_user_id_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "password_history_user_id_users_id_fk": {
-          "name": "password_history_user_id_users_id_fk",
-          "tableFrom": "password_history",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.refresh_tokens": {
       "name": "refresh_tokens",
       "schema": "",
@@ -3193,6 +3118,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "avatar_key": {
+          "name": "avatar_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "deprovisioned_at": {
           "name": "deprovisioned_at",

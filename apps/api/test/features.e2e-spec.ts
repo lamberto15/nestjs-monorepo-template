@@ -28,6 +28,7 @@ describe('GET /v1/features (e2e)', () => {
       usage: true,
       impersonation: true,
       mfa: true,
+      mode: 'normal',
       apiClients: true,
       passkeys: true,
       signUp: true,

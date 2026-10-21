@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { PersonName, TeamName } from '@/components/person-name';
 import { peopleHandler, teamsHandler } from '@/test/people';
 import { server } from '@/test/server';
-import { usePeopleNames } from './people';
+import { usePeopleAvatars, usePeopleNames } from './people';
 
 const id = (n: number, prefix = '0199a3f2-0000-7000-8000-') =>
   `${prefix}${String(n).padStart(12, '0')}`;
@@ -137,6 +137,31 @@ describe('people and team names', () => {
     wrap(<Probe />);
     expect(screen.getByText('undefined|true')).toBeVisible();
     expect(await screen.findByText('Person 1|false')).toBeVisible();
+  });
+
+  it('gets the pictures with the names, in the same request', async () => {
+    const asked: URLSearchParams[] = [];
+    const withPicture = {
+      ...people[0]!,
+      avatarUrl: `/v1/people/${people[0]!.id}/avatar?v=a1`,
+    };
+    server.use(peopleHandler([withPicture, people[1]!], [], asked));
+    const keys = [`user:${people[0]!.id}`, `user:${people[1]!.id}`];
+    function Probe() {
+      const names = usePeopleNames(keys);
+      const { avatarUrl } = usePeopleAvatars(keys);
+      return (
+        <p>
+          {names.name(keys[0]!)}|{String(avatarUrl(keys[0]))}|
+          {String(avatarUrl(keys[1]))}
+        </p>
+      );
+    }
+    wrap(<Probe />);
+    expect(
+      await screen.findByText(`Person 1|${withPicture.avatarUrl}|undefined`),
+    ).toBeVisible();
+    expect(asked).toHaveLength(1);
   });
 
   it('names teams by id in one request', async () => {
