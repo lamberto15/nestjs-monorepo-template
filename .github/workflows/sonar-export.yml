@@ -16,7 +16,7 @@ jobs:
     env:
       API: https://sonarcloud.io/api
       KEY: lamberto15_nestjs-monorepo-template
-      PR: '469'
+      PR: '507'
     steps:
       - name: Duplicated new lines per file on the pull request
         run: |
