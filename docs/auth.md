@@ -1290,6 +1290,36 @@ and the typed client either way (each lists the 404).
 Impersonation is a privileged support tool, so it is opt in: set
 `IMPERSONATION=on` (the development example does).
 
+## Administrator onboarding
+
+The first administrator is made from `ADMIN_EMAIL` (default
+`admin@example.com`, an address nobody reads) and `ADMIN_PASSWORD` (generated
+and logged once when unset). Left like that, no reset mail reaches the only
+administrator. So the seed marks the account (`users.onboarding_email` for a
+placeholder address, `users.onboarding_password` for a generated password;
+`ADMIN_ONBOARDING=off` marks nothing: tests, scripted installs, local
+development) and `OnboardingGuard` (a global guard after
+`MfaEnrollmentGuard`) answers 403 `onboarding_required` on every route but
+those marked `@DuringOnboarding()`, until both are done. Nothing is stored on
+the session: it is a normal one the moment the last step is.
+
+- `GET /v1/auth/me` has `onboardingRequired`: `{ email, password }` while
+  something is pending, `null` otherwise.
+- `POST /v1/auth/email/change { email, currentPassword }` (202): the address
+  changes at once, unproved, and the verification link goes to it
+  (`POST /v1/auth/email/verify`). 409 when no email step is pending; 400
+  `placeholder_email` for another placeholder (`example.*`, `.test`, `.invalid`,
+  `localhost`). Signing in with the unproved address stays possible while the
+  step is pending, so a typo is corrected, not a lock-out.
+- `POST /v1/auth/password/change` ends the password step (so does a reset link).
+- Reachable meanwhile: `me`, sign-out, the features, the email and password
+  routes above, re-authentication, the two-factor routes (`/auth/mfa`) and
+  the passkey registration routes, switching tenant. The routes shared with
+  the two-factor enrolment (`auth.requireMfa`) carry both decorators, so
+  the two guards never lock each other out.
+- API clients and impersonations are never restricted.
+- `pnpm setup` warns when a production `ADMIN_EMAIL` is a placeholder.
+
 ## Policies
 
 Auth rules a tenant's administrators change at runtime, as settings

@@ -106,6 +106,15 @@ export const users = pgTable('users', {
   timezone: text('timezone'),
   active: boolean('active').notNull().default(true),
   /**
+   * First administrator's onboarding (docs/auth.md, "Administrator
+   * onboarding"): the seeded address is a placeholder (or unproved) and must
+   * be replaced by a real, verified one. Cleared once it is. False for
+   * everyone else.
+   */
+  onboardingEmail: boolean('onboarding_email').notNull().default(false),
+  /** Likewise: the seeded password was generated and must be changed. */
+  onboardingPassword: boolean('onboarding_password').notNull().default(false),
+  /**
    * When an identity provider's deprovisioning (SCIM) ended the account's
    * last active membership and so deactivated it; null otherwise. Only an
    * account deactivated this way comes back when a membership does

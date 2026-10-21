@@ -9,6 +9,7 @@ import { PasswordHasher } from '@nestjs/authentication';
 import { ConfigService } from '@nestjs/config';
 import type { IamEnv } from '../iam.env.js';
 import { count, eq, sql } from 'drizzle-orm';
+import { isPlaceholderEmail } from '../auth/onboarding.js';
 import { normalizeEmail } from '../auth/users.repository.js';
 import { AuditService } from '../audit/audit.service.js';
 import { BreachedPasswordsService } from '../account/breached-passwords.service.js';
@@ -67,6 +68,7 @@ export class AccessSeeder implements OnModuleInit {
     const email = normalizeEmail(
       this.config.get('ADMIN_EMAIL', { infer: true }),
     );
+    const onboarding = this.config.get('ADMIN_ONBOARDING', { infer: true });
     const tenantName = this.config.get('ADMIN_TENANT_NAME', { infer: true });
     // The first tenant: the operators' (docs/tenancy.md), with every role
     // and the first administrator, made in its own scope (TenantsService).
@@ -86,6 +88,10 @@ export class AccessSeeder implements OnModuleInit {
                   name: 'Administrator',
                   passwordHash,
                   emailVerified: true,
+                  // The first sign-in must replace a placeholder address
+                  // and a generated password (OnboardingGuard).
+                  onboardingEmail: onboarding && isPlaceholderEmail(email),
+                  onboardingPassword: onboarding && !configured,
                 })
                 .returning({ id: users.id });
               await tx

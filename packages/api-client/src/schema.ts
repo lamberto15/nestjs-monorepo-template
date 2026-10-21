@@ -2527,6 +2527,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/email/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the first administrator's placeholder email
+         * @description Only while onboarding asks for it (`GET /auth/me` `onboardingRequired.email`): 409 otherwise. Wants the current password. The address changes at once and is unproved until its link (WEB_URL/verify-email?token=…) is opened; signing in stays possible meanwhile, so a typo can be corrected by calling this again.
+         */
+        post: operations["EmailController_change_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/email/verification/resend": {
         parameters: {
             query?: never;
@@ -17284,6 +17304,11 @@ export interface operations {
                         hasPassword: boolean;
                         /** @description true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`. */
                         mfaEnrollmentRequired: boolean;
+                        /** @description Not null: the first administrator still has to replace the placeholder email (POST /auth/email/change, then the link mailed to it) and/or the generated password (POST /auth/password/change); until then other routes answer 403 `onboarding_required`. Null: nothing to do. */
+                        onboardingRequired: {
+                            email: boolean;
+                            password: boolean;
+                        } | null;
                         authentication: {
                             /** @enum {string} */
                             via: "session" | "token";
@@ -17578,6 +17603,50 @@ export interface operations {
                         accepted: true;
                     };
                 };
+            };
+        };
+    };
+    EmailController_change_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example ada@example.com */
+                    email: string;
+                    currentPassword: string;
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        accepted: true;
+                    };
+                };
+            };
+            /** @description `placeholder_email`: the address is a placeholder. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No email onboarding pending, or the address is taken. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

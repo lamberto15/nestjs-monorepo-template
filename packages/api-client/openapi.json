@@ -27974,6 +27974,24 @@
                       "type": "boolean",
                       "description": "true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`."
                     },
+                    "onboardingRequired": {
+                      "nullable": true,
+                      "description": "Not null: the first administrator still has to replace the placeholder email (POST /auth/email/change, then the link mailed to it) and/or the generated password (POST /auth/password/change); until then other routes answer 403 `onboarding_required`. Null: nothing to do.",
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "type": "boolean"
+                        },
+                        "password": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "email",
+                        "password"
+                      ],
+                      "additionalProperties": false
+                    },
                     "authentication": {
                       "nullable": true,
                       "type": "object",
@@ -28044,6 +28062,7 @@
                     "mfaEnabled",
                     "hasPassword",
                     "mfaEnrollmentRequired",
+                    "onboardingRequired",
                     "authentication",
                     "can"
                   ],
@@ -28492,6 +28511,80 @@
           }
         ],
         "summary": "Send the verification link again",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/email/change": {
+      "post": {
+        "description": "Only while onboarding asks for it (`GET /auth/me` `onboardingRequired.email`): 409 otherwise. Wants the current password. The address changes at once and is unproved until its link (WEB_URL/verify-email?token=…) is opened; signing in stays possible meanwhile, so a typo can be corrected by calling this again.",
+        "operationId": "EmailController_change_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "example": "ada@example.com",
+                    "type": "string"
+                  },
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "email",
+                  "currentPassword"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "accepted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`placeholder_email`: the address is a placeholder."
+          },
+          "409": {
+            "description": "No email onboarding pending, or the address is taken."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Replace the first administrator's placeholder email",
         "tags": [
           "account"
         ]

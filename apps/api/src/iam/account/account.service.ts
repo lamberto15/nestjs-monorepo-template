@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -29,7 +30,8 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
-import { UsersRepository } from '../auth/users.repository.js';
+import { isPlaceholderEmail } from '../auth/onboarding.js';
+import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
 import { userIdentities, users } from '../iam.tables.js';
 import {
   authenticationOf,
@@ -143,6 +145,57 @@ export class AccountService {
     );
   }
 
+  /**
+   * The first administrator's onboarding (docs/auth.md): the placeholder
+   * address becomes `email`, unproved, and its verification link goes there.
+   * Wants the current password, only while the onboarding asks for it. The
+   * change and its audit entry are one transaction; the mail follows.
+   */
+  async changeOnboardingEmail(
+    user: UserPrincipal,
+    input: { email: string; currentPassword: string },
+  ) {
+    if (!user.onboarding?.email) {
+      throw new ConflictException(t('auth.onboardingNotPending'));
+    }
+    const email = normalizeEmail(input.email);
+    if (isPlaceholderEmail(email)) {
+      throw new BadRequestException({
+        code: 'placeholder_email',
+        message: t('auth.placeholderEmail'),
+        errors: [{ path: 'email', message: t('auth.placeholderEmail') }],
+      });
+    }
+    const found = await this.users.findActiveByEmail(user.email);
+    const valid = await this.passwordHasher.verify(
+      input.currentPassword,
+      found?.passwordHash ?? undefined,
+    );
+    if (!valid || !found?.passwordHash) {
+      throw new ForbiddenException(t('auth.wrongPassword'));
+    }
+    if (email !== user.email && (await this.users.findActiveByEmail(email))) {
+      throw new ConflictException(t('auth.emailTaken'));
+    }
+    await inTransaction(this.txHost, async (tx) => {
+      await tx
+        .update(users)
+        .set({ email, emailVerified: false })
+        .where(eq(users.id, user.id));
+      await this.audit.record(
+        user,
+        {
+          action: 'user.email-changed',
+          targetType: 'user',
+          targetId: user.id,
+          details: { from: user.email, to: email, via: 'onboarding' },
+        },
+        tx,
+      );
+    });
+    await this.emailVerification.send({ id: user.id, email });
+  }
+
   updateProfile(userId: string, changes: ProfileChanges) {
     return this.users.update(this.db, userId, changes);
   }
@@ -217,7 +270,14 @@ export class AccountService {
     const told = await inTransaction(this.txHost, async (tx) => {
       await tx
         .update(users)
-        .set({ emailVerified: true })
+        // A reset link also replaces the generated password and proved the
+        // address: the first administrator's onboarding is done as far as it can be.
+        .set({
+          emailVerified: true,
+          onboardingPassword: false,
+          ...(user &&
+            !isPlaceholderEmail(user.email) && { onboardingEmail: false }),
+        })
         .where(eq(users.id, userId));
       return this.securityAlerts.credentialsChanged(tx, user, userId, {
         action: 'auth.password-reset',

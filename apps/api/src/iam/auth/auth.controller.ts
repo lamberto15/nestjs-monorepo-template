@@ -66,6 +66,7 @@ import { SIGN_IN_METHODS } from './authentication-method.js';
 import type { UserPrincipal } from './principal.js';
 import { SessionOnly, UserOnly } from './user-only.decorator.js';
 import { DuringMfaEnrollment } from './mfa-enrollment.guard.js';
+import { DuringOnboarding } from './onboarding.js';
 import { AuthPolicyService } from './auth-policy.service.js';
 import { SignUpTenant } from '../access/sign-up-tenant.js';
 import { UsersRepository } from './users.repository.js';
@@ -143,6 +144,12 @@ const meSchema = z.object({
     .boolean()
     .describe(
       'true: this tenant requires two-factor (auth.requireMfa) and you have none: set it up (POST /auth/mfa/enroll, then /confirm); until then other routes answer 403 `mfa_enrollment_required`.',
+    ),
+  onboardingRequired: z
+    .object({ email: z.boolean(), password: z.boolean() })
+    .nullable()
+    .describe(
+      'Not null: the first administrator still has to replace the placeholder email (POST /auth/email/change, then the link mailed to it) and/or the generated password (POST /auth/password/change); until then other routes answer 403 `onboarding_required`. Null: nothing to do.',
     ),
   authentication: z
     .object({
@@ -354,6 +361,7 @@ export class AuthController {
 
   @Public()
   @DuringMfaEnrollment()
+  @DuringOnboarding()
   @WithoutSso()
   @Post('sign-out')
   @HttpCode(204)
@@ -373,6 +381,7 @@ export class AuthController {
   @UserOnly()
   @Can.Anyone()
   @DuringMfaEnrollment()
+  @DuringOnboarding()
   @WithoutSso()
   @Get('me')
   @ApiCookieAuth('user-session')
@@ -404,6 +413,7 @@ export class AuthController {
       hasPassword:
         (await this.accounts.findView(user.id))?.hasPassword ?? false,
       mfaEnrollmentRequired: await this.authPolicy.mfaEnrollmentRequired(user),
+      onboardingRequired: user.onboarding ?? null,
       authentication: authentication && {
         ...authentication,
         authenticatedAt: authentication.authenticatedAt?.toISOString() ?? null,

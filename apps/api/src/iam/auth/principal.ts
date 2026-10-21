@@ -16,6 +16,12 @@ export interface UserPrincipal {
    * query of the request runs in it.
    */
   tenantId: string | null;
+  /**
+   * Set (only while something is pending) on the first administrator until
+   * they replaced the placeholder address and the generated password
+   * (OnboardingGuard, docs/auth.md "Administrator onboarding").
+   */
+  onboarding?: { email: boolean; password: boolean };
   /** Set while an administrator acts as this user (POST /access/users/{id}/impersonate). */
   impersonator?: { id: string; email: string };
   /**

@@ -118,6 +118,7 @@ import { JwtAuth } from './auth/jwt-auth.provider.js';
 import { PrincipalGuard } from './auth/principal.guard.js';
 import { AuthPolicyService } from './auth/auth-policy.service.js';
 import { MfaEnrollmentGuard } from './auth/mfa-enrollment.guard.js';
+import { OnboardingGuard } from './auth/onboarding.guard.js';
 import { SsoRequiredGuard } from './sso/sso-required.guard.js';
 import { SessionAuth } from './auth/session-auth.provider.js';
 import { UsersRepository } from './auth/users.repository.js';
@@ -335,6 +336,9 @@ export class IamModule {
         // two-factor of, without one, reaches only the enrollment routes
         // (auth.requireMfa, docs/auth.md "Policies").
         { provide: APP_GUARD, useClass: MfaEnrollmentGuard },
+        // And the first administrator's onboarding: a placeholder address or
+        // a generated password first (docs/auth.md, "Administrator onboarding").
+        { provide: APP_GUARD, useClass: OnboardingGuard },
         // After it: "SSO required" (docs/auth.md), on the principal's own
         // session and tenant: before a break-glass grant moves the request.
         { provide: APP_GUARD, useClass: SsoRequiredGuard },

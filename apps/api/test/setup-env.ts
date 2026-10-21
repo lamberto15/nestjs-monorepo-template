@@ -22,6 +22,8 @@ Object.assign(process.env, {
   LOCALES: 'en,de,ar,zh,ms',
   ADMIN_EMAIL: 'admin@example.com',
   ADMIN_PASSWORD: randomBytes(18).toString('base64url'),
+  // The suites sign in as the seeded administrator at once; onboarding.e2e-spec.ts turns it on.
+  ADMIN_ONBOARDING: 'off',
   // The fixtures declare an encrypted column (test/fixtures/encrypted): its
   // keys are required at boot (docs/encryption.md).
   DATA_ENCRYPTION_KEYS: randomBytes(32).toString('base64'),

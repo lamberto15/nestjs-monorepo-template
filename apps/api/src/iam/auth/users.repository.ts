@@ -28,6 +28,7 @@ import {
   userIdentities,
   users,
 } from '../iam.tables.js';
+import { isPlaceholderEmail } from './onboarding.js';
 import type { UserPrincipal } from './principal.js';
 
 export interface UserView extends UserPrincipal {
@@ -463,7 +464,11 @@ export class UsersRepository {
   }
 
   async updatePasswordHash(id: string, passwordHash: string, db: Db = this.db) {
-    await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+    // A new password also ends the first administrator's password onboarding.
+    await db
+      .update(users)
+      .set({ passwordHash, onboardingPassword: false })
+      .where(eq(users.id, id));
   }
 
   /**
@@ -538,7 +543,11 @@ export class UsersRepository {
   ): Promise<boolean> {
     const rows = await db
       .update(users)
-      .set({ emailVerified: true })
+      // A real address proved ends the first administrator's email onboarding.
+      .set({
+        emailVerified: true,
+        ...(!isPlaceholderEmail(email) && { onboardingEmail: false }),
+      })
       .where(and(eq(users.id, id), eq(users.email, normalizeEmail(email))))
       .returning({ id: users.id });
     return rows.length === 1;
@@ -560,6 +569,14 @@ const toPrincipal = (row: Row): UserPrincipal => ({
   locale: row.locale,
   timezone: row.timezone,
   tenantId: null,
+  ...(row.onboardingEmail || row.onboardingPassword
+    ? {
+        onboarding: {
+          email: row.onboardingEmail,
+          password: row.onboardingPassword,
+        },
+      }
+    : {}),
 });
 
 /** Users who are members of `tenantId` (the `memberships` join's condition and the filter). */

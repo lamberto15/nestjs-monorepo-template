@@ -9,6 +9,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { DuringMfaEnrollment } from '../../iam/auth/mfa-enrollment.guard.js';
+import { DuringOnboarding } from '../../iam/auth/onboarding.js';
 import { featuresSchema } from './features.schemas.js';
 import { FeaturesService } from './features.service.js';
 
@@ -26,6 +27,7 @@ export class FeaturesController {
   @Can.Anyone() // Any signed-in caller: it says nothing about the data.
   // Deployment-wide switches: the web shell reads them to draw the two-factor setup.
   @DuringMfaEnrollment()
+  @DuringOnboarding()
   @ApiOperation({
     summary: 'Which switches are on in this deployment',
     description:
