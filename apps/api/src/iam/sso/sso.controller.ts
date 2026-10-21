@@ -167,8 +167,11 @@ export class SsoController {
   @HttpCode(202)
   @ApiOperation({
     summary: "Fetch an OpenID Connect connection's discovery document again",
+    description:
+      'Only an OpenID Connect connection has one: a SAML connection gets 400, an OAuth 2.0 one 409 `sso_no_discovery` (its endpoints are its own fields, usable as soon as it is on).',
   })
   @ApiAcceptedResponse({ standardSchema: acceptedSchema })
+  @ApiConflictResponse()
   @ApiNotFoundResponse()
   async refreshConnection(@Param('id', ParseUUIDPipe) id: string) {
     await this.connections.refreshMetadata(id);

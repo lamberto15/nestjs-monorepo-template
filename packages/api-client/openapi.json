@@ -37713,7 +37713,8 @@
                             "type": "string",
                             "enum": [
                               "oidc",
-                              "saml"
+                              "saml",
+                              "oauth2"
                             ]
                           },
                           "enabled": {
@@ -37889,6 +37890,174 @@
                             ],
                             "additionalProperties": false
                           },
+                          "oauth2": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "authorizationEndpoint": {
+                                "type": "string"
+                              },
+                              "tokenEndpoint": {
+                                "type": "string"
+                              },
+                              "userinfoEndpoint": {
+                                "type": "string"
+                              },
+                              "clientId": {
+                                "type": "string"
+                              },
+                              "tokenEndpointAuthMethod": {
+                                "type": "string",
+                                "enum": [
+                                  "client_secret_post",
+                                  "client_secret_basic",
+                                  "none"
+                                ]
+                              },
+                              "scopes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "mapping": {
+                                "type": "object",
+                                "properties": {
+                                  "root": {
+                                    "description": "Where the user object is in the answer (`data` for Lark); the whole answer when absent.",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                                  },
+                                  "subject": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                                    "description": "The provider's stable id of the person (a string or a number), in the user object."
+                                  },
+                                  "email": {
+                                    "description": "The address, in the user object.",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                                  },
+                                  "picture": {
+                                    "description": "Read, not stored yet: accounts have no picture.",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                                  },
+                                  "groups": {
+                                    "description": "An array of strings, in the user object: the groups `roleMappings` read. None when absent.",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                                  },
+                                  "emailVerified": {
+                                    "default": "never",
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "path": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 256,
+                                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                                            "description": "A field of the user object that must be the boolean `true`."
+                                          }
+                                        },
+                                        "required": [
+                                          "path"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "verified-domains"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "never"
+                                        ]
+                                      }
+                                    ],
+                                    "description": "Whether the provider vouches for the address: `{ \"path\" }` (a field that must be `true`), `\"verified-domains\"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `\"never\"` (a first sign-in is refused, `email_unverified`)."
+                                  },
+                                  "errorCode": {
+                                    "description": "A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in.",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                                  }
+                                },
+                                "required": [
+                                  "subject",
+                                  "emailVerified"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "preset": {
+                                "nullable": true,
+                                "description": "The preset that filled the fields at creation, if any.",
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "enum": [
+                                      "lark"
+                                    ],
+                                    "description": "Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0."
+                                  },
+                                  "region": {
+                                    "default": "lark",
+                                    "description": "`lark` (larksuite.com) or `feishu` (feishu.cn).",
+                                    "type": "string",
+                                    "enum": [
+                                      "lark",
+                                      "feishu"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "region"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "redirectUri": {
+                                "type": "string",
+                                "description": "The redirect URI to register at the provider."
+                              }
+                            },
+                            "required": [
+                              "authorizationEndpoint",
+                              "tokenEndpoint",
+                              "userinfoEndpoint",
+                              "clientId",
+                              "tokenEndpointAuthMethod",
+                              "scopes",
+                              "mapping",
+                              "preset",
+                              "redirectUri"
+                            ],
+                            "additionalProperties": false
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -37963,7 +38132,7 @@
                         "maxLength": 120
                       },
                       "groupsAttribute": {
-                        "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.",
+                        "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says.",
                         "nullable": true,
                         "type": "string",
                         "minLength": 1,
@@ -38053,7 +38222,7 @@
                         "maxLength": 120
                       },
                       "groupsAttribute": {
-                        "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.",
+                        "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says.",
                         "nullable": true,
                         "type": "string",
                         "minLength": 1,
@@ -38141,6 +38310,244 @@
                       "idpSsoUrl",
                       "idpCertificates"
                     ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "protocol": {
+                        "type": "string",
+                        "enum": [
+                          "oauth2"
+                        ]
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "groupsAttribute": {
+                        "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says.",
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "roleMappings": {
+                        "description": "The roles a group gives: at each sign-in, the person gets the roles of the groups the IdP lists, and loses those a mapping gave that it no longer lists. Roles you give or take yourself stay yours. You must be able to grant each role.",
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "description": "The IdP's group (a value of `groupsAttribute`), compared exactly: a name, or the IdP's group id (Entra ID sends ids)."
+                            },
+                            "roleId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "roleId"
+                          ]
+                        }
+                      },
+                      "defaultRoleIds": {
+                        "description": "The roles a member provisioned just in time gets at their first sign-in (once). You must be able to grant each.",
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
+                      "enabled": {
+                        "description": "Off by default: the connection signs nobody in until on.",
+                        "type": "boolean"
+                      },
+                      "jitProvisioning": {
+                        "description": "A person of a verified domain who is not a member yet becomes one at their first sign-in. Off by default.",
+                        "type": "boolean"
+                      },
+                      "preset": {
+                        "description": "A provider's defaults for the fields below (each field given overrides its default): `lark` fills Lark/Feishu v2's endpoints, `client_secret_post` and the mapping. Only when creating.",
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "enum": [
+                              "lark"
+                            ],
+                            "description": "Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0."
+                          },
+                          "region": {
+                            "default": "lark",
+                            "description": "`lark` (larksuite.com) or `feishu` (feishu.cn).",
+                            "type": "string",
+                            "enum": [
+                              "lark",
+                              "feishu"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "authorizationEndpoint": {
+                        "description": "Where the browser is sent to sign in. Required without a preset.",
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri"
+                      },
+                      "tokenEndpoint": {
+                        "description": "Where the code is exchanged (RFC 6749, PKCE). Required without a preset.",
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri"
+                      },
+                      "userinfoEndpoint": {
+                        "description": "Read once per sign-in with the access token; `mapping` reads its answer. Required without a preset.",
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri"
+                      },
+                      "clientId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "clientSecret": {
+                        "description": "Stored encrypted, never returned. Required unless `tokenEndpointAuthMethod` is `none`.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096
+                      },
+                      "tokenEndpointAuthMethod": {
+                        "description": "How the client authenticates at the token endpoint: `client_secret_basic` by default (RFC 6749), `client_secret_post`, or `none` (a public client). PKCE is always on.",
+                        "type": "string",
+                        "enum": [
+                          "client_secret_post",
+                          "client_secret_basic",
+                          "none"
+                        ]
+                      },
+                      "scopes": {
+                        "description": "The scopes asked for (none by default).",
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"
+                        }
+                      },
+                      "mapping": {
+                        "description": "Where the user-info answer holds the person. Required without a preset. Paths are dots between names (`data.open_id`), read in the user object at `root`; `errorCode` in the whole answer.",
+                        "type": "object",
+                        "properties": {
+                          "root": {
+                            "description": "Where the user object is in the answer (`data` for Lark); the whole answer when absent.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                          },
+                          "subject": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                            "description": "The provider's stable id of the person (a string or a number), in the user object."
+                          },
+                          "email": {
+                            "description": "The address, in the user object.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                          },
+                          "picture": {
+                            "description": "Read, not stored yet: accounts have no picture.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                          },
+                          "groups": {
+                            "description": "An array of strings, in the user object: the groups `roleMappings` read. None when absent.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                          },
+                          "emailVerified": {
+                            "default": "never",
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "path": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                                    "description": "A field of the user object that must be the boolean `true`."
+                                  }
+                                },
+                                "required": [
+                                  "path"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "verified-domains"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "never"
+                                ]
+                              }
+                            ],
+                            "description": "Whether the provider vouches for the address: `{ \"path\" }` (a field that must be `true`), `\"verified-domains\"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `\"never\"` (a first sign-in is refused, `email_unverified`)."
+                          },
+                          "errorCode": {
+                            "description": "A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in.",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                          }
+                        },
+                        "required": [
+                          "subject"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "protocol",
+                      "name",
+                      "clientId"
+                    ]
                   }
                 ]
               }
@@ -38167,7 +38574,8 @@
                       "type": "string",
                       "enum": [
                         "oidc",
-                        "saml"
+                        "saml",
+                        "oauth2"
                       ]
                     },
                     "enabled": {
@@ -38340,6 +38748,174 @@
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "oauth2": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "authorizationEndpoint": {
+                          "type": "string"
+                        },
+                        "tokenEndpoint": {
+                          "type": "string"
+                        },
+                        "userinfoEndpoint": {
+                          "type": "string"
+                        },
+                        "clientId": {
+                          "type": "string"
+                        },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "client_secret_post",
+                            "client_secret_basic",
+                            "none"
+                          ]
+                        },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "mapping": {
+                          "type": "object",
+                          "properties": {
+                            "root": {
+                              "description": "Where the user object is in the answer (`data` for Lark); the whole answer when absent.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                              "description": "The provider's stable id of the person (a string or a number), in the user object."
+                            },
+                            "email": {
+                              "description": "The address, in the user object.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "picture": {
+                              "description": "Read, not stored yet: accounts have no picture.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "groups": {
+                              "description": "An array of strings, in the user object: the groups `roleMappings` read. None when absent.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "emailVerified": {
+                              "default": "never",
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "path": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 256,
+                                      "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                                      "description": "A field of the user object that must be the boolean `true`."
+                                    }
+                                  },
+                                  "required": [
+                                    "path"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "verified-domains"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "never"
+                                  ]
+                                }
+                              ],
+                              "description": "Whether the provider vouches for the address: `{ \"path\" }` (a field that must be `true`), `\"verified-domains\"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `\"never\"` (a first sign-in is refused, `email_unverified`)."
+                            },
+                            "errorCode": {
+                              "description": "A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            }
+                          },
+                          "required": [
+                            "subject",
+                            "emailVerified"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "preset": {
+                          "nullable": true,
+                          "description": "The preset that filled the fields at creation, if any.",
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "enum": [
+                                "lark"
+                              ],
+                              "description": "Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0."
+                            },
+                            "region": {
+                              "default": "lark",
+                              "description": "`lark` (larksuite.com) or `feishu` (feishu.cn).",
+                              "type": "string",
+                              "enum": [
+                                "lark",
+                                "feishu"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "region"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "redirectUri": {
+                          "type": "string",
+                          "description": "The redirect URI to register at the provider."
+                        }
+                      },
+                      "required": [
+                        "authorizationEndpoint",
+                        "tokenEndpoint",
+                        "userinfoEndpoint",
+                        "clientId",
+                        "tokenEndpointAuthMethod",
+                        "scopes",
+                        "mapping",
+                        "preset",
+                        "redirectUri"
                       ],
                       "additionalProperties": false
                     },
@@ -38425,7 +39001,8 @@
                       "type": "string",
                       "enum": [
                         "oidc",
-                        "saml"
+                        "saml",
+                        "oauth2"
                       ]
                     },
                     "enabled": {
@@ -38598,6 +39175,174 @@
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "oauth2": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "authorizationEndpoint": {
+                          "type": "string"
+                        },
+                        "tokenEndpoint": {
+                          "type": "string"
+                        },
+                        "userinfoEndpoint": {
+                          "type": "string"
+                        },
+                        "clientId": {
+                          "type": "string"
+                        },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "client_secret_post",
+                            "client_secret_basic",
+                            "none"
+                          ]
+                        },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "mapping": {
+                          "type": "object",
+                          "properties": {
+                            "root": {
+                              "description": "Where the user object is in the answer (`data` for Lark); the whole answer when absent.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                              "description": "The provider's stable id of the person (a string or a number), in the user object."
+                            },
+                            "email": {
+                              "description": "The address, in the user object.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "picture": {
+                              "description": "Read, not stored yet: accounts have no picture.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "groups": {
+                              "description": "An array of strings, in the user object: the groups `roleMappings` read. None when absent.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "emailVerified": {
+                              "default": "never",
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "path": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 256,
+                                      "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                                      "description": "A field of the user object that must be the boolean `true`."
+                                    }
+                                  },
+                                  "required": [
+                                    "path"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "verified-domains"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "never"
+                                  ]
+                                }
+                              ],
+                              "description": "Whether the provider vouches for the address: `{ \"path\" }` (a field that must be `true`), `\"verified-domains\"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `\"never\"` (a first sign-in is refused, `email_unverified`)."
+                            },
+                            "errorCode": {
+                              "description": "A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            }
+                          },
+                          "required": [
+                            "subject",
+                            "emailVerified"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "preset": {
+                          "nullable": true,
+                          "description": "The preset that filled the fields at creation, if any.",
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "enum": [
+                                "lark"
+                              ],
+                              "description": "Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0."
+                            },
+                            "region": {
+                              "default": "lark",
+                              "description": "`lark` (larksuite.com) or `feishu` (feishu.cn).",
+                              "type": "string",
+                              "enum": [
+                                "lark",
+                                "feishu"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "region"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "redirectUri": {
+                          "type": "string",
+                          "description": "The redirect URI to register at the provider."
+                        }
+                      },
+                      "required": [
+                        "authorizationEndpoint",
+                        "tokenEndpoint",
+                        "userinfoEndpoint",
+                        "clientId",
+                        "tokenEndpointAuthMethod",
+                        "scopes",
+                        "mapping",
+                        "preset",
+                        "redirectUri"
                       ],
                       "additionalProperties": false
                     },
@@ -38722,8 +39467,138 @@
                   "requireEncryptedAssertions": {
                     "type": "boolean"
                   },
+                  "authorizationEndpoint": {
+                    "description": "Where the browser is sent to sign in. Required without a preset.",
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "tokenEndpoint": {
+                    "description": "Where the code is exchanged (RFC 6749, PKCE). Required without a preset.",
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "userinfoEndpoint": {
+                    "description": "Read once per sign-in with the access token; `mapping` reads its answer. Required without a preset.",
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "tokenEndpointAuthMethod": {
+                    "description": "How the client authenticates at the token endpoint: `client_secret_basic` by default (RFC 6749), `client_secret_post`, or `none` (a public client). PKCE is always on.",
+                    "type": "string",
+                    "enum": [
+                      "client_secret_post",
+                      "client_secret_basic",
+                      "none"
+                    ]
+                  },
+                  "scopes": {
+                    "description": "The scopes asked for (none by default).",
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256,
+                      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"
+                    }
+                  },
+                  "mapping": {
+                    "description": "Replaces the whole mapping.",
+                    "type": "object",
+                    "properties": {
+                      "root": {
+                        "description": "Where the user object is in the answer (`data` for Lark); the whole answer when absent.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                      },
+                      "subject": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                        "description": "The provider's stable id of the person (a string or a number), in the user object."
+                      },
+                      "email": {
+                        "description": "The address, in the user object.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                      },
+                      "picture": {
+                        "description": "Read, not stored yet: accounts have no picture.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                      },
+                      "groups": {
+                        "description": "An array of strings, in the user object: the groups `roleMappings` read. None when absent.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                      },
+                      "emailVerified": {
+                        "default": "never",
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                                "description": "A field of the user object that must be the boolean `true`."
+                              }
+                            },
+                            "required": [
+                              "path"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "verified-domains"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "never"
+                            ]
+                          }
+                        ],
+                        "description": "Whether the provider vouches for the address: `{ \"path\" }` (a field that must be `true`), `\"verified-domains\"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `\"never\"` (a first sign-in is refused, `email_unverified`)."
+                      },
+                      "errorCode": {
+                        "description": "A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                      }
+                    },
+                    "required": [
+                      "subject"
+                    ],
+                    "additionalProperties": false
+                  },
                   "groupsAttribute": {
-                    "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null.",
+                    "description": "Where the IdP lists the groups: a SAML attribute or an ID token claim. `groups` when null. Not for an OAuth 2.0 connection: its `mapping.groups` says.",
                     "nullable": true,
                     "type": "string",
                     "minLength": 1,
@@ -38789,7 +39664,8 @@
                       "type": "string",
                       "enum": [
                         "oidc",
-                        "saml"
+                        "saml",
+                        "oauth2"
                       ]
                     },
                     "enabled": {
@@ -38962,6 +39838,174 @@
                         "spEntityId",
                         "acsUrl",
                         "metadataUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "oauth2": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "authorizationEndpoint": {
+                          "type": "string"
+                        },
+                        "tokenEndpoint": {
+                          "type": "string"
+                        },
+                        "userinfoEndpoint": {
+                          "type": "string"
+                        },
+                        "clientId": {
+                          "type": "string"
+                        },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "client_secret_post",
+                            "client_secret_basic",
+                            "none"
+                          ]
+                        },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "mapping": {
+                          "type": "object",
+                          "properties": {
+                            "root": {
+                              "description": "Where the user object is in the answer (`data` for Lark); the whole answer when absent.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                              "description": "The provider's stable id of the person (a string or a number), in the user object."
+                            },
+                            "email": {
+                              "description": "The address, in the user object.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "picture": {
+                              "description": "Read, not stored yet: accounts have no picture.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "groups": {
+                              "description": "An array of strings, in the user object: the groups `roleMappings` read. None when absent.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            },
+                            "emailVerified": {
+                              "default": "never",
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "path": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 256,
+                                      "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+                                      "description": "A field of the user object that must be the boolean `true`."
+                                    }
+                                  },
+                                  "required": [
+                                    "path"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "verified-domains"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "never"
+                                  ]
+                                }
+                              ],
+                              "description": "Whether the provider vouches for the address: `{ \"path\" }` (a field that must be `true`), `\"verified-domains\"` (trusted because its domain is one the tenant verified, as a SAML assertion is), or `\"never\"` (a first sign-in is refused, `email_unverified`)."
+                            },
+                            "errorCode": {
+                              "description": "A field of the whole answer that marks a failure (Lark answers 200 with `code` not 0): a non-zero number or any other truthy value refuses the sign-in.",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256,
+                              "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+                            }
+                          },
+                          "required": [
+                            "subject",
+                            "emailVerified"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "preset": {
+                          "nullable": true,
+                          "description": "The preset that filled the fields at creation, if any.",
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "enum": [
+                                "lark"
+                              ],
+                              "description": "Lark (Feishu) v2. More presets may come for providers whose code exchange is not standard OAuth 2.0."
+                            },
+                            "region": {
+                              "default": "lark",
+                              "description": "`lark` (larksuite.com) or `feishu` (feishu.cn).",
+                              "type": "string",
+                              "enum": [
+                                "lark",
+                                "feishu"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "region"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "redirectUri": {
+                          "type": "string",
+                          "description": "The redirect URI to register at the provider."
+                        }
+                      },
+                      "required": [
+                        "authorizationEndpoint",
+                        "tokenEndpoint",
+                        "userinfoEndpoint",
+                        "clientId",
+                        "tokenEndpointAuthMethod",
+                        "scopes",
+                        "mapping",
+                        "preset",
+                        "redirectUri"
                       ],
                       "additionalProperties": false
                     },
@@ -39131,6 +40175,7 @@
     },
     "/v1/sso/connections/{id}/refresh": {
       "post": {
+        "description": "Only an OpenID Connect connection has one: a SAML connection gets 400, an OAuth 2.0 one 409 `sso_no_discovery` (its endpoints are its own fields, usable as soon as it is on).",
         "operationId": "SsoController_refreshConnection_v1",
         "parameters": [
           {
@@ -39166,6 +40211,9 @@
             }
           },
           "404": {
+            "description": ""
+          },
+          "409": {
             "description": ""
           }
         },
@@ -40015,9 +41063,71 @@
         "responses": {
           "302": {
             "description": "To the web app: signed in, or `?error=sso_failed` (the reason is audited)."
+          },
+          "404": {
+            "description": "No such tenant or connection, it is off, or it is not an OpenID Connect connection."
           }
         },
         "summary": "Where an OpenID Connect IdP sends the browser back",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sso/{tenantId}/{connectionId}/oauth2/callback": {
+      "get": {
+        "operationId": "SsoAuthController_oauth2Callback_v1",
+        "parameters": [
+          {
+            "name": "code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "iss",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "session_state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To the web app: signed in, or `?error=sso_failed` (the reason is audited)."
+          },
+          "404": {
+            "description": "No such tenant or connection, it is off, or it is not an OAuth 2.0 connection."
+          }
+        },
+        "summary": "Where an OAuth 2.0 provider sends the browser back",
         "tags": [
           "auth"
         ]

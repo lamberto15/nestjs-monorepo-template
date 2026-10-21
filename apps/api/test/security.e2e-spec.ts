@@ -27,7 +27,22 @@ import { SoftwareAuthenticator } from './software-authenticator.js';
 import { accountDeletions } from '../src/platform/account/account.tables.js';
 import { UsersRepository } from '../src/iam/auth/users.repository.js';
 import { stillActive } from '../src/platform/queues/still-active.js';
+import { SSO_TXT_RESOLVER } from '../src/iam/sso/sso.queue.js';
+import { ssoConnections } from '../src/iam/sso/sso.tables.js';
+import {
+  fakeDns,
+  larkUser,
+  local,
+  oauth2Idp,
+  verifyDomain,
+} from './sso-support.js';
 import { bootApp, type TestApp } from './support.js';
+
+// Read when AppModule loads: the OAuth 2.0 provider of the SSO tests is
+// plain HTTP on loopback. Private and link-local addresses stay refused.
+vi.hoisted(() => {
+  process.env.SSO_ALLOW_LOOPBACK = 'on';
+});
 
 /**
  * The rules that keep one account from gaining rights through another:
@@ -35,9 +50,13 @@ import { bootApp, type TestApp } from './support.js';
  */
 describe('security (e2e)', () => {
   let node: TestApp;
+  // The SSO tests' DNS (domain verification); nothing else looks TXT records up.
+  const dns = fakeDns();
 
   beforeEach(async () => {
-    node = await bootApp();
+    node = await bootApp(undefined, (builder) =>
+      builder.overrideProvider(SSO_TXT_RESOLVER).useValue(dns.resolver),
+    );
   });
   afterEach(() => node.close());
 
@@ -125,6 +144,302 @@ describe('security (e2e)', () => {
       .expect(200);
     const user = users.body.items.find((u: { id: string }) => u.id === id);
     expect(new Date(user.roles[0].expiresAt).toISOString()).toBe(end);
+  });
+
+  describe('OAuth 2.0 SSO connections: no takeover, no SSRF, no leak (#381)', () => {
+    const DOMAIN = 'acme.test';
+    let idp: Awaited<ReturnType<typeof oauth2Idp>>;
+
+    beforeEach(async () => {
+      idp = await oauth2Idp();
+      await verifyDomain(node, dns, node.admin(), node.tenantId, DOMAIN);
+    });
+    afterEach(() => idp.close());
+
+    /** A Lark-preset connection to the test's provider, on, provisioning just in time. */
+    async function connection(extra: Record<string, unknown> = {}) {
+      const created = await node
+        .admin()
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'oauth2',
+          name: `lark-${randomUUID().slice(0, 8)}`,
+          preset: { name: 'lark' },
+          ...idp.endpoints,
+          clientId: 'cli_sec',
+          clientSecret: `secret-${randomUUID()}`,
+          jitProvisioning: true,
+          enabled: true,
+          ...extra,
+        })
+        .expect(201);
+      return created.body as { id: string; loginUrl: string };
+    }
+
+    /** A sign-in whose user info answers `answer`: the browser and where it landed. */
+    async function ssoSignIn(
+      target: { id: string; loginUrl: string },
+      answer: Parameters<typeof idp.issue>[1],
+    ) {
+      const browser = request.agent(node.app.getHttpServer());
+      const login = await browser.get(local(target.loginUrl)).expect(302);
+      const params = idp.issue(login.headers.location as string, answer);
+      const landed = await browser
+        .get(
+          `/v1/auth/sso/${node.tenantId}/${target.id}/oauth2/callback?${new URLSearchParams(params)}`,
+        )
+        .expect(302);
+      return { browser, location: landed.headers.location as string };
+    }
+
+    const lastRefusal = async () =>
+      (
+        (await node.auditEntries({ action: 'auth.sign-in-failed' }))[0]
+          ?.details as { reason?: string } | undefined
+      )?.reason;
+
+    /** An account of `email` (invited, accepted: its address proved), and its id. */
+    async function account(email: string) {
+      await node.acceptAsNew(
+        await node.invite(node.admin(), { email, name: email }),
+      );
+      const [row] = await node.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email));
+      return row.id;
+    }
+
+    const identitiesOf = (userId: string) =>
+      node.db
+        .select()
+        .from(userIdentities)
+        .where(eq(userIdentities.userId, userId));
+
+    it('an address the provider does not vouch for never links an existing account', async () => {
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const userId = await account(email);
+      // The provider says whether it verified it: here, it didn't.
+      const vouching = await connection({
+        mapping: {
+          root: 'data',
+          subject: 'open_id',
+          email: 'email',
+          emailVerified: { path: 'email_verified' },
+        },
+      });
+      const unvouched = await ssoSignIn(
+        vouching,
+        larkUser({ open_id: 'ou_1', email, email_verified: 'true' }),
+      );
+      expect(new URL(unvouched.location).searchParams.get('error')).toBe(
+        'sso_failed',
+      );
+      expect(await lastRefusal()).toBe('email_unverified');
+      await unvouched.browser.get('/v1/auth/me').expect(401);
+      // The default mode, never: no first sign-in at all.
+      const never = await connection({
+        mapping: { root: 'data', subject: 'open_id', email: 'email' },
+      });
+      await ssoSignIn(never, larkUser({ open_id: 'ou_2', email }));
+      expect(await lastRefusal()).toBe('email_unverified');
+      // Trusted by domain, but the account never proved its own address.
+      await node.db
+        .update(users)
+        .set({ emailVerified: false })
+        .where(eq(users.id, userId));
+      const lark = await connection();
+      const unproved = await ssoSignIn(
+        lark,
+        larkUser({ open_id: 'ou_3', enterprise_email: email }),
+      );
+      await unproved.browser.get('/v1/auth/me').expect(401);
+      expect(await lastRefusal()).toBe('account_unverified');
+      expect(await identitiesOf(userId)).toEqual([]);
+    });
+
+    it("an address outside the tenant's verified domains is refused", async () => {
+      const lark = await connection();
+      const email = `${randomUUID().slice(0, 8)}@elsewhere.test`;
+      const { browser } = await ssoSignIn(
+        lark,
+        larkUser({ open_id: 'ou_4', enterprise_email: email }),
+      );
+      await browser.get('/v1/auth/me').expect(401);
+      expect(await lastRefusal()).toBe('domain_unverified');
+      expect(
+        await node.db.select().from(users).where(eq(users.email, email)),
+      ).toEqual([]);
+    });
+
+    it('endpoints on private, link-local or metadata addresses are refused, saved or stored', async () => {
+      for (const url of [
+        'https://169.254.169.254/latest/meta-data',
+        'https://10.0.0.1/token',
+        'https://[fd00:ec2::254]/token',
+        'http://idp.example.com/token',
+      ]) {
+        for (const field of [
+          'authorizationEndpoint',
+          'tokenEndpoint',
+          'userinfoEndpoint',
+        ]) {
+          const refused = await node
+            .admin()
+            .post('/v1/sso/connections')
+            .send({
+              protocol: 'oauth2',
+              name: `ssrf-${randomUUID().slice(0, 8)}`,
+              preset: { name: 'lark' },
+              ...idp.endpoints,
+              [field]: url,
+              clientId: 'cli',
+              clientSecret: 'secret-value',
+            })
+            .expect(400);
+          expect(refused.body.errors[0].path).toBe(field);
+        }
+      }
+      // A stored endpoint (changed by hand, past the API) is still checked
+      // where it resolves to, at the request (core/http/safe-fetch.ts).
+      const lark = await connection();
+      await node.db
+        .update(ssoConnections)
+        .set({ tokenEndpoint: 'https://169.254.169.254/token' })
+        .where(eq(ssoConnections.id, lark.id));
+      await ssoSignIn(lark, larkUser({ open_id: 'ou_5' }));
+      expect(await lastRefusal()).toBe('token_rejected:unsafe_destination');
+      await node.db
+        .update(ssoConnections)
+        .set({
+          tokenEndpoint: idp.endpoints.tokenEndpoint,
+          userinfoEndpoint: 'https://[fd00:ec2::254]/user_info',
+        })
+        .where(eq(ssoConnections.id, lark.id));
+      await ssoSignIn(lark, larkUser({ open_id: 'ou_6' }));
+      expect(await lastRefusal()).toBe('userinfo_failed:unsafe_destination');
+    });
+
+    it("a redirect from the user-info endpoint isn't followed", async () => {
+      const lark = await connection();
+      const { browser, location } = await ssoSignIn(lark, {
+        redirect: '/elsewhere',
+      });
+      expect(new URL(location).searchParams.get('error')).toBe('sso_failed');
+      expect(await lastRefusal()).toBe('userinfo_failed:302');
+      expect(idp.elsewhere).toBe(0);
+      await browser.get('/v1/auth/me').expect(401);
+    });
+
+    it("one tenant's connection signs nobody into another tenant", async () => {
+      const lark = await connection();
+      const other = await node.otherTenant();
+      // Under the other tenant's id, the connection doesn't exist.
+      for (const path of ['login', 'oauth2/callback?code=x&state=y']) {
+        await node
+          .http()
+          .get(`/v1/auth/sso/${other.id}/${lark.id}/${path}`)
+          .expect(404);
+      }
+      await other.admin.get(`/v1/sso/connections/${lark.id}`).expect(404);
+      // Through its own tenant, the session acts there only.
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const { browser } = await ssoSignIn(
+        lark,
+        larkUser({ open_id: 'ou_7', enterprise_email: email }),
+      );
+      const me = await browser.get('/v1/auth/me').expect(200);
+      expect(me.body.user.tenantId).toBe(node.tenantId);
+      await browser
+        .post('/v1/auth/tenant')
+        .send({ tenantId: other.id })
+        .expect((response) =>
+          expect(response.status).toBeGreaterThanOrEqual(400),
+        );
+    });
+
+    it('the client secret never appears in responses, the audit log or logs', async () => {
+      const logged: string[] = [];
+      const capture = (...parts: unknown[]) =>
+        logged.push(parts.map((part) => JSON.stringify(part)).join(' '));
+      node.app.useLogger({
+        log: capture,
+        error: capture,
+        warn: capture,
+        debug: capture,
+        verbose: capture,
+        fatal: capture,
+      });
+      const secret = `secret-${randomUUID()}`;
+      const created = await node
+        .admin()
+        .post('/v1/sso/connections')
+        .send({
+          protocol: 'oauth2',
+          name: `basic-${randomUUID().slice(0, 8)}`,
+          preset: { name: 'lark' },
+          ...idp.endpoints,
+          tokenEndpointAuthMethod: 'client_secret_basic',
+          clientId: 'cli_basic',
+          clientSecret: secret,
+          jitProvisioning: true,
+          enabled: true,
+        })
+        .expect(201);
+      const target = created.body as { id: string; loginUrl: string };
+      const answers = [
+        JSON.stringify(created.body),
+        JSON.stringify(
+          (await node.admin().get('/v1/sso/connections').expect(200)).body,
+        ),
+        JSON.stringify(
+          (
+            await node
+              .admin()
+              .patch(`/v1/sso/connections/${target.id}`)
+              .send({ clientSecret: secret })
+              .expect(200)
+          ).body,
+        ),
+      ];
+      // A sign-in, and one the provider refuses (a code it doesn't know).
+      const email = `${randomUUID().slice(0, 8)}@${DOMAIN}`;
+      const { browser } = await ssoSignIn(
+        target,
+        larkUser({ open_id: 'ou_8', enterprise_email: email }),
+      );
+      await browser.get('/v1/auth/me').expect(200);
+      const refusedBrowser = request.agent(node.app.getHttpServer());
+      const login = await refusedBrowser.get(local(target.loginUrl));
+      await refusedBrowser.get(
+        `/v1/auth/sso/${node.tenantId}/${target.id}/oauth2/callback?code=bad&state=${new URL(login.headers.location as string).searchParams.get('state')}`,
+      );
+      // client_secret_basic: the secret went to the provider, in the header only.
+      const sent = idp.tokenRequests.at(-1)!;
+      expect(sent.form.get('client_secret')).toBeNull();
+      // RFC 6749 §2.3.1: each part form-encoded before base64.
+      expect(
+        decodeURIComponent(
+          Buffer.from(sent.authorization!.replace(/^Basic /, ''), 'base64')
+            .toString()
+            .split(':')[1],
+        ),
+      ).toBe(secret);
+      const audit = JSON.stringify([
+        ...(await node.auditEntries({ targetId: target.id })),
+        ...(await node.auditEntries({ action: 'auth.sign-in-failed' })),
+      ]);
+      expect(audit).toContain('token_rejected');
+      const [stored] = await node.db
+        .select({ value: ssoConnections.clientSecret })
+        .from(ssoConnections)
+        .where(eq(ssoConnections.id, target.id));
+      // The logger saw the sign-ins (the member provisioned just in time).
+      expect(logged.join('\n')).toContain('provisioned');
+      for (const text of [...answers, audit, ...logged, String(stored.value)]) {
+        expect(text).not.toContain(secret);
+      }
+    });
   });
 
   describe('an ended temporary grant is gone, never revived (#114)', () => {

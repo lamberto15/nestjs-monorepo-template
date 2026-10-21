@@ -23,15 +23,16 @@ import { ssoRoleGrants, ssoRoleMappings } from './sso.tables.js';
 import { emailDomain, SsoDomainsService } from './sso-domains.service.js';
 import type { SsoConnection } from './sso-connections.service.js';
 
-/** Who the IdP says signed in, from a verified ID token or a verified assertion. */
+/** Who the IdP says signed in: from a verified ID token, a verified assertion, or an OAuth 2.0 provider's user-info answer. */
 export interface SsoIdentity {
   /** The IdP's immutable subject (`sub`, the persistent NameID). */
   subject: string;
   email?: string;
   /**
    * The IdP asserted the address belongs to the person: OIDC's
-   * `email_verified`; SAML has no such claim, and the tenant's verified
-   * domain is what makes its word count.
+   * `email_verified`; an OAuth 2.0 connection's mapping (a field that must
+   * be true, or `verified-domains`); SAML has no such claim, and the
+   * tenant's verified domain is what makes its word count.
    */
   emailVerified: boolean;
   name?: string;
@@ -58,8 +59,8 @@ export const ssoProvider = (connectionId: string) => `sso:${connectionId}`;
  *
  * - a known identity (`sso:<connection>` + subject): its account, while it
  *   is active, and its membership, unless deactivated (deprovisioned);
- * - else only an address of a domain the tenant verified, and, for OIDC,
- *   one the IdP says is verified;
+ * - else only an address of a domain the tenant verified, and, for OIDC
+ *   and OAuth 2.0, one the IdP says is verified;
  * - an existing account with that address is linked only when its own
  *   address is proved (else someone who registered it first, with a
  *   password of their choosing, would get the person's sign-ins);
@@ -139,10 +140,14 @@ export class SsoAccounts {
       if (!email) {
         throw new SsoRefused('no_email');
       }
+      // Before `emailVerified` is read: `verified-domains` relies on it.
       if (!(await this.domains.isVerified(emailDomain(email)))) {
         throw new SsoRefused('domain_unverified');
       }
-      if (connection.protocol === 'oidc' && !identity.emailVerified) {
+      // SAML has no such claim: the verified domain above is its trust. An
+      // OAuth 2.0 connection says by its mapping (`emailVerified`), whose
+      // `verified-domains` mode is that same trust.
+      if (connection.protocol !== 'saml' && !identity.emailVerified) {
         throw new SsoRefused('email_unverified');
       }
       const existing = await this.users.findByEmail(email, tx);

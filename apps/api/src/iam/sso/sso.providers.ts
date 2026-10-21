@@ -1,5 +1,6 @@
 import { Resolver } from 'node:dns/promises';
 import { BullModule } from '@nestjs/bullmq';
+import { Oauth2Sso } from './oauth2-sso.service.js';
 import { OidcSso } from './oidc-sso.service.js';
 import { SamlMetadataImport } from './saml-metadata.service.js';
 import { SamlSso } from './saml-sso.service.js';
@@ -42,6 +43,7 @@ export const ssoProviders = [
   SsoDiscovery,
   SsoAccounts,
   OidcSso,
+  Oauth2Sso,
   SamlSso,
   SamlMetadataImport,
   SsoConnectionGuard,

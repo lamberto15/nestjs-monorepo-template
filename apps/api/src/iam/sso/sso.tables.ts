@@ -22,10 +22,11 @@ import {
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
 import { memberships, roles, teams, userRoles } from '../iam.tables.js';
+import type { Oauth2Mapping, Oauth2Preset } from './oauth2-mapping.js';
 
 /**
  * A tenant's enterprise sign-in (docs/auth.md, "Enterprise SSO"): an OpenID
- * Connect or a SAML 2.0 identity provider of its own. Off until an
+ * Connect, a SAML 2.0 or a plain OAuth 2.0 identity provider of its own. Off until an
  * administrator turns it on. Identities it signs in are keyed
  * `sso:<connection id>` + the IdP's subject in `user_identities`: two
  * tenants' Okta instances never share a key.
@@ -36,7 +37,7 @@ export const ssoConnections = pgTable(
     id: uuidPk(),
     tenantId: tenantColumn(),
     name: text('name').notNull(),
-    protocol: text('protocol', { enum: ['oidc', 'saml'] }).notNull(),
+    protocol: text('protocol', { enum: ['oidc', 'saml', 'oauth2'] }).notNull(),
     /** Signs people in only when on (an OIDC connection also needs its discovery document). */
     enabled: boolean('enabled').notNull().default(false),
     /**
@@ -56,6 +57,21 @@ export const ssoConnections = pgTable(
     metadataFetchedAt: at('metadata_fetched_at'),
     /** Why the last fetch failed (null once one succeeds). */
     metadataError: text('metadata_error'),
+    // OAuth 2.0 (no OpenID Connect: no discovery, no ID token); clientId and
+    // clientSecret above.
+    authorizationEndpoint: text('authorization_endpoint'),
+    tokenEndpoint: text('token_endpoint'),
+    /** Where the person is read from (one GET with the access token). */
+    userinfoEndpoint: text('userinfo_endpoint'),
+    /** How the client authenticates at the token endpoint (PKCE is always on). */
+    tokenEndpointAuthMethod: text('token_endpoint_auth_method', {
+      enum: ['client_secret_post', 'client_secret_basic', 'none'],
+    }),
+    scopes: jsonb('scopes').$type<string[]>(),
+    /** Where the user-info answer holds the person (iam/sso/oauth2-mapping.ts). */
+    mapping: jsonb('mapping').$type<Oauth2Mapping>(),
+    /** The preset whose defaults filled the fields at creation, if any. */
+    preset: jsonb('preset').$type<Oauth2Preset>(),
     // SAML 2.0
     /** The IdP's entity id: the assertions' `Issuer`. */
     idpEntityId: text('idp_entity_id'),
@@ -84,10 +100,11 @@ export const ssoConnections = pgTable(
     spPrivateKey: encryptedText('sp_private_key'),
     /** Its self-signed certificate (PEM), published in our SP metadata. */
     spCertificate: text('sp_certificate'),
-    // Both protocols
+    // SAML and OpenID Connect
     /**
      * Where the IdP lists the person's groups: a SAML attribute's name or an
      * ID token claim (`groups` when null). Read for `sso_role_mappings`.
+     * OAuth 2.0 connections name theirs in `mapping.groups`.
      */
     groupsAttribute: text('groups_attribute'),
     ...timestamps(),
