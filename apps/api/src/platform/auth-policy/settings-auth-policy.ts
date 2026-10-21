@@ -6,6 +6,7 @@ import { Tenancy } from '../../core/tenancy/tenancy.service.js';
 import {
   type AuthPolicySource,
   ceilingRefusal,
+  sessionCeilingRefusal,
 } from '../../iam/auth/auth-policy.js';
 import type { IamEnv } from '../../iam/iam.env.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
@@ -15,6 +16,8 @@ import {
   AUTH_PASSWORD_HISTORY,
   AUTH_PASSWORD_MIN_LENGTH,
   AUTH_REQUIRE_MFA,
+  AUTH_SESSION_IDLE_MINUTES,
+  AUTH_SESSION_MAX_HOURS,
 } from './auth-settings.js';
 
 /**
@@ -25,6 +28,11 @@ import {
  * ceiling on top (AuthPolicyService); this refuses, when they are set,
  * values the ceiling would ignore, so an administrator learns at once.
  */
+const sessionCeiling = (config: ConfigService<IamEnv, true>) => ({
+  SESSION_IDLE_MINUTES: config.get('SESSION_IDLE_MINUTES', { infer: true }),
+  SESSION_MAX_HOURS: config.get('SESSION_MAX_HOURS', { infer: true }),
+});
+
 @Injectable()
 export class SettingsAuthPolicy implements AuthPolicySource {
   constructor(
@@ -41,6 +49,17 @@ export class SettingsAuthPolicy implements AuthPolicySource {
         'requireMfa',
         value,
       ),
+    );
+    // The session limits may only shorten the deployment's.
+    settings.restrict(AUTH_SESSION_IDLE_MINUTES, (value) =>
+      sessionCeilingRefusal(
+        sessionCeiling(config),
+        'sessionIdleMinutes',
+        value,
+      ),
+    );
+    settings.restrict(AUTH_SESSION_MAX_HOURS, (value) =>
+      sessionCeilingRefusal(sessionCeiling(config), 'sessionMaxHours', value),
     );
     // Turning it on for a scope that covers a caller who has no
     // authenticator locks that caller out of the settings they are using
@@ -98,6 +117,18 @@ export class SettingsAuthPolicy implements AuthPolicySource {
   passwordHistory(tenantId: string): Promise<number | undefined> {
     return this.tenancy.run(tenantId, () =>
       this.settings.get(AUTH_PASSWORD_HISTORY),
+    );
+  }
+
+  sessionIdleMinutes(tenantId: string): Promise<number | undefined> {
+    return this.tenancy.run(tenantId, () =>
+      this.settings.get(AUTH_SESSION_IDLE_MINUTES),
+    );
+  }
+
+  sessionMaxHours(tenantId: string): Promise<number | undefined> {
+    return this.tenancy.run(tenantId, () =>
+      this.settings.get(AUTH_SESSION_MAX_HOURS),
     );
   }
 

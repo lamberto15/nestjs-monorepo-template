@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  SESSION_IDLE_MINUTES_FLOOR,
+  SESSION_IDLE_MINUTES_LIMIT,
+  SESSION_MAX_HOURS_LIMIT,
+} from './auth/auth-policy.js';
 import { TURNSTILE_VERIFY_URL } from './captcha/captcha.providers.js';
 import {
   baseUrl,
@@ -35,6 +40,30 @@ export const iamEnv = z.object({
   SIGN_UP_ROLES: list(),
   /** Off only for tests over plain HTTP; the cookie is then named "sid". */
   SESSION_COOKIE_SECURE: flag('on'),
+  /**
+   * A browser session ends after this many minutes without a request. The
+   * deployment's ceiling: a tenant's `auth.sessionIdleMinutes` may only
+   * shorten it (docs/auth.md, "Policies"). At least 5, so the web app can
+   * warn before it ends.
+   */
+  SESSION_IDLE_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(SESSION_IDLE_MINUTES_FLOOR)
+    .max(SESSION_IDLE_MINUTES_LIMIT)
+    .default(120),
+  /**
+   * A browser session ends this many hours after its sign-in, however
+   * active. The deployment's ceiling: a tenant's `auth.sessionMaxHours` may
+   * only shorten it, and it shortens token clients' refresh-token families
+   * too (which otherwise last 90 days).
+   */
+  SESSION_MAX_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(SESSION_MAX_HOURS_LIMIT)
+    .default(12),
 
   /**
    * Anyone may create an account (POST /auth/sign-up, and a first sign-in

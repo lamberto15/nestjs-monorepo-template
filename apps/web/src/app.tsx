@@ -10,6 +10,7 @@ import { ThemeProvider } from '@nestjs-monorepo-template/ui/components/theme-pro
 import { Toaster } from '@nestjs-monorepo-template/ui/components/sonner';
 import { NotFound } from '@/components/not-found';
 import { ReauthDialog } from '@/components/reauth-dialog';
+import { RouteError } from '@/components/route-error';
 import { createQueryClient } from '@/lib/errors';
 import { createSession } from '@/lib/session';
 import { routeTree } from '@/routeTree.gen';
@@ -23,6 +24,7 @@ export function createAppRouter(
     routeTree,
     context: { queryClient, session: createSession(queryClient) },
     defaultNotFoundComponent: NotFound,
+    defaultErrorComponent: RouteError,
     defaultPreload: 'intent',
     ...(history && { history }),
   });

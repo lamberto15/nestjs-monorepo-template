@@ -19,7 +19,6 @@
     "format": "格式",
     "start": "开始导出",
     "mine": "你的导出与导入",
-    "done_one": "已导出 {{count}} 行。",
     "done_other": "已导出 {{count}} 行。",
     "download": "下载（{{format}}）"
   },
@@ -86,13 +85,11 @@
     "row": "行",
     "field": "字段",
     "message": "原因",
-    "moreErrors_one": "报告中还有 {{count}} 行。",
     "moreErrors_other": "报告中还有 {{count}} 行。",
     "downloadErrors": "下载被拒绝的行（CSV）"
   },
   "status": {
     "queued": "等待工作进程…",
-    "running_one": "处理中… 目前 {{count}} 行。",
     "running_other": "处理中… 目前 {{count}} 行。",
     "progressLabel": "进度",
     "failed": "失败了。请重试。",

@@ -118,6 +118,10 @@ import { DrizzleAuthenticationStore } from './auth/drizzle-authentication.store.
 import { JwtAuth } from './auth/jwt-auth.provider.js';
 import { PrincipalGuard } from './auth/principal.guard.js';
 import { AuthPolicyService } from './auth/auth-policy.service.js';
+import {
+  ACCESS_TOKEN_TTL_MS,
+  SessionLifetime,
+} from './auth/session-lifetime.js';
 import { MfaEnrollmentGuard } from './auth/mfa-enrollment.guard.js';
 import { SsoRequiredGuard } from './sso/sso-required.guard.js';
 import { SessionAuth } from './auth/session-auth.provider.js';
@@ -220,8 +224,10 @@ export class IamModule {
               };
               return {
                 session: {
-                  absoluteTtl: '12h', // a user session ends after a working day
-                  idleTtl: '2h', // or after two hours without a request
+                  // The deployment's ceiling (a tenant's auth.sessionMaxHours /
+                  // auth.sessionIdleMinutes only shorten it: SessionLifetime).
+                  absoluteTtl: `${config.get('SESSION_MAX_HOURS', { infer: true })}h`,
+                  idleTtl: `${config.get('SESSION_IDLE_MINUTES', { infer: true })}m`,
                   // Without Secure (tests only), the cookie is named "sid", not "__Host-sid".
                   cookie,
                   // The web app on another origin may use the cookie (same list as CSRF).
@@ -257,7 +263,7 @@ export class IamModule {
                   key: await loadOrCreateSecret(db, 'JWT_SECRET', random256),
                   issuer: api,
                   audience: config.get('SERVICE_NAME', { infer: true }),
-                  ttl: '15m',
+                  ttl: ACCESS_TOKEN_TTL_MS,
                 },
                 // The pages of the web app the emails link to; each POSTs the token back.
                 passwordReset: { url: `${web}/reset-password` },
@@ -345,6 +351,8 @@ export class IamModule {
         BreakGlassService,
         // The auth policies: the platform's settings (AUTH_POLICY) under the env's ceiling.
         AuthPolicyService,
+        // A tenant's session limits on top of it (SessionAuth, token refresh).
+        SessionLifetime,
         // Authentication: the credential providers and the store of everything they keep.
         DrizzleAuthenticationStore,
         SessionAuth,

@@ -1,0 +1,68 @@
+// Grafana Alloy for the Compose stack (compose.monitoring.yaml, profile
+// "logs"): reads the stack's containers' logs through the Docker API and
+// pushes them to Loki. Promtail, which this replaces, reached end of life on
+// 2026-03-02. Redaction is unchanged: the app masks secrets before it writes
+// a line, so what is shipped is what Docker stores. docs/deployment.md, "Logs".
+
+// The containers of this Compose project only (LOG_COMPOSE_PROJECT is set by
+// compose.monitoring.yaml).
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=" + sys.env("LOG_COMPOSE_PROJECT")]
+  }
+}
+
+// Low-cardinality labels: the Compose service (api, worker, caddy, ...) and
+// the container's name.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  labels     = { job = "docker" }
+  forward_to = [loki.process.app.receiver]
+}
+
+// The app writes one JSON object per line in production (LOG_FORMAT=json).
+// level becomes a label (a handful of values); requestId stays out of the
+// labels (unbounded) and becomes structured metadata, so
+// {service="api"} | request_id="<id>" finds a request without parsing every
+// line. A line that is not JSON (Caddy's access log is, PostgreSQL's is not)
+// passes through unchanged.
+loki.process "app" {
+  stage.json {
+    expressions = { level = "level", request_id = "requestId" }
+  }
+
+  stage.labels {
+    values = { level = "" }
+  }
+
+  stage.structured_metadata {
+    values = { request_id = "" }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
