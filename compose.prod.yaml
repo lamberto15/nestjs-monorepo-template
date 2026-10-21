@@ -515,6 +515,10 @@ services:
       SECURITY_EXPIRES: ${SECURITY_EXPIRES:-}
       SECURITY_POLICY: ${SECURITY_POLICY:-https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md}
       SECURITY_PREFERRED_LANGUAGES: ${SECURITY_PREFERRED_LANGUAGES:-en}
+      # on: the web app's paths answer the static maintenance page (503)
+      # instead of the app (caddy/Caddyfile, docs/deployment.md, "Maintenance
+      # page"); the API's paths are untouched. Anything else: off.
+      MAINTENANCE_PAGE: ${MAINTENANCE_PAGE:-off}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

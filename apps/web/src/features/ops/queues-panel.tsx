@@ -78,6 +78,8 @@ export function QueuesPanel() {
                   {canManage && queue.counts.failed > 0 && (
                     <ConfirmButton
                       size="sm"
+                      // /v1/ops answers in read-only and maintenance mode too.
+                      allowInMaintenance
                       title={t('queues.retryTitle', { name: queue.name })}
                       description={t('queues.retryDescription', {
                         count: queue.counts.failed,

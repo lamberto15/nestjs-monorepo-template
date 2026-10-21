@@ -72,6 +72,38 @@ build -f caddy/Dockerfile .`) in a browser and listening for `securitypolicyviol
   keep one date), `SECURITY_POLICY` (the `SECURITY.md` URL; the default is this template's
   on GitHub, so set your own) and `SECURITY_PREFERRED_LANGUAGES` (`en`). Check it after a
   deploy: `curl -i https://<APP_DOMAIN>/.well-known/security.txt`.
+- **Maintenance page** (`MAINTENANCE_PAGE=on`). Maintenance and read-only mode
+  ([settings](settings.md), "Maintenance and read-only mode") stops the API taking
+  requests, but the web app's files are still Caddy's to serve. With the flag on,
+  every path of the web app (`/`, its routes, `/assets/*`, the manifest) answers the
+  static `caddy/maintenance.html` instead: status 503, `Retry-After: 30`,
+  `Cache-Control: no-store` and the web app's security headers, so not even the shell
+  is served. The page has no script and makes no request; it carries the five
+  languages and reloads itself every 30 seconds, so it turns into the app when the
+  flag goes off. Nothing else changes: the API's paths (`@api` below), `/metrics`
+  (404) and `security.txt` answer as before, so a client or a probe still sees the
+  API's own 503 `maintenance`. Caddyfile: a `handle @maintenance` first in the web
+  app's block, a `file_server { status 503 }` on a rewrite to the page, the flag read
+  as `{env.MAINTENANCE_PAGE}` at each request ([Caddyfile
+  concepts](https://caddyserver.com/docs/caddyfile/concepts#environment-variables),
+  the `expression` matcher). Exactly `on` turns it on; unset or anything else is off.
+  - **Planned maintenance:** set `APP_MODE=maintenance` and `MAINTENANCE_PAGE=on` in
+    `.env` and `docker compose up -d` (it recreates `api`, `worker` and `caddy`; a
+    flag changed alone: `docker compose up -d caddy`, a few seconds without the web
+    app). To end it, remove both and run it again. The two are separate on
+    purpose: the page alone is for when the API is gone altogether (a restore), the
+    mode alone keeps the web app up and shows its notice. An operator can end only a
+    mode set by the `platform.mode` setting from that notice; one forced by `APP_MODE`
+    (as here) ends when it is removed from `.env`.
+  - **An installed web app** (the service worker) still opens its cached shell, and
+    then shows its own notice: the API answers 503 `maintenance`, which the app turns
+    into a full-page notice ([monorepo](monorepo.md), "Maintenance and read-only
+    mode"). Only first visits and other clients see Caddy's page.
+  - **Swarm** gets the flag through the same service environment. The Kubernetes
+    chart's `web` does not have it (its Ingress is where that is done).
+  - **Test:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs` runs
+    the real Caddyfile (the TLS block and Docker names edited out) under a real Caddy;
+    CI's `caddy-image` job runs it with the image's own binary.
 - **Replacing an earlier deployment's Caddy?** Its token and email:
   `docker inspect --format '{{json .Config.Env}}' <caddy container>`.
 
@@ -381,11 +413,12 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
 
 ### Container hardening
 
-Every service of compose.prod.yaml runs with `read_only: true`,
-`cap_drop: [ALL]` and `no-new-privileges`, and a `tmpfs` for what it writes
-(Gotenberg's were the first). A compromised process then can't change the
-image, plant a binary, or gain privileges. What each one may write, and the
-capabilities it gets back:
+Every service of compose.prod.yaml, and of the optional overlays
+`compose.clamav.yaml` and `compose.monitoring.yaml` (log shipping included),
+runs with `read_only: true`, `cap_drop: [ALL]` and `no-new-privileges`, and a
+`tmpfs` for what it writes (Gotenberg's were the first). A compromised
+process then can't change the image, plant a binary, or gain privileges.
+What each one may write, and the capabilities it gets back:
 
 | Service | Writable (besides the image: none) | Capabilities added back |
 | --- | --- | --- |
@@ -395,6 +428,15 @@ capabilities it gets back:
 | `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m) | `NET_BIND_SERVICE`: ports 80 and 443 |
 | `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
 | `gotenberg` | `/tmp` and its home, in memory (see above) | none |
+| `clamav` ([ClamAV](#clamav-malware-scanning)) | the `clamav_db` volume; `/tmp` (512m, `CLAMAV_TMP_SIZE`) and `/var/log/clamav` (8m) in memory | none: it runs as `clamav`, started by `clamav/entrypoint.sh` instead of the image's `/init` (see below) |
+| `prometheus` | the `prometheus_data` volume, `/tmp` (16m) in memory; **the root filesystem is writable: the one exception** (see below) | none |
+| `alertmanager` | the `alertmanager_data` volume, `/tmp` (16m) in memory: `render-config.sh` writes the configuration, with the SMTP password, there | none |
+| `postgres-exporter`, `redis-exporter`, `node-exporter` | `/tmp` (16m), unused | none |
+| `blackbox-exporter` | `/tmp` (16m): `render-config.sh` writes the module there | none: its HTTP probe needs no `NET_RAW` |
+| `backup-metrics` | `/www` (the metrics file) and `/tmp` (1m) in memory; `backups` is read only | none |
+| `loki` | the `loki_data` volume, `/tmp` (64m) in memory, unused | none |
+| `alloy` | the `alloy_data` volume (the read positions), `/tmp` (16m) in memory, unused | `DAC_OVERRIDE`: the process is root (it reads the Docker socket) and the volume's directory belongs to the image's `alloy` user, mode 770; root without it is neither owner nor in the group |
+| `grafana` | the `grafana_data` volume (the database, the plugins it downloads), `/tmp` (64m) in memory | none (`GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false`, below) |
 
 - **The tmpfs counts against the container's memory limit** once used, so
   `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
@@ -405,9 +447,43 @@ capabilities it gets back:
   (`docker compose logs <service>`): a `Read-only file system` error names
   the path to add. Add a capability only when the service fails without it,
   and say why in a comment.
-- **Not covered:** the optional `compose.monitoring.yaml` services, and
-  `compose.yaml` / `compose.dev.yaml` alone (development), which keep the
-  images' defaults.
+- **The exception:** `prometheus` keeps a writable root filesystem. Its
+  bearer token for the app's `/metrics` is a Compose secret made from the
+  `METRICS_TOKEN` variable, and Compose creates such a secret (one that is
+  not a file) by copying it into the container, which it refuses for a
+  read-only service (`cannot create secret "metrics_token" in read-only
+  service`). Everything else applies: it runs as `nobody`, writes
+  `/prometheus` only, has no capability and no way to gain one. A token in a
+  file (`secrets: file:`, as every other secret of the stack) would lift the
+  exception. CI's list of exceptions is in the "Every service is hardened"
+  step; it fails when an exception is no longer needed.
+- **ClamAV** can't run read-only as the image starts it: its `/init`
+  chowns the signatures, creates `/run/clamav` and edits `/etc/clamav/*.conf`
+  with `sed -i` from `CLAMD_CONF_*`. The image's `/init-unprivileged`
+  ([ClamAV's Docker documentation](https://docs.clamav.net/manual/Installing/Docker.html),
+  "Running ClamD using non-root user") does none of that, and none of the
+  variables either, so `clamav/entrypoint.sh` does what it does, after
+  applying `CLAMD_CONF_*` and `FRESHCLAM_CONF_*` to copies of the
+  configuration in `/tmp` (`--config-file`): the settings in
+  `compose.clamav.yaml` work as before. clamd writes every stream it scans to
+  `/tmp` first (and unpacks archives there): size `CLAMAV_TMP_SIZE` for the
+  largest attachment (`ATTACHMENT_MAX_MB`), with `CLAMAV_MEMORY` to match, as
+  a tmpfs counts against the memory limit once used. Its `/var/log/clamav`
+  tmpfs names the owner (`uid=100,gid=101`, the image's `clamav`): a tmpfs
+  belongs to root otherwise, and clamd cannot open its log.
+- **Grafana** installs a set of plugins when it starts (Explore Logs and
+  the like, into the `grafana_data` volume) and, by default, also replaces
+  the ones its image bundles (OpenTSDB, Elasticsearch, Cloud Monitoring)
+  with newer builds: it stops each, then fails to delete its directory from
+  the read-only image (`Failed to install plugin ... read-only file
+  system`). `GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false` skips plugins that are
+  already there, so the image's version of a bundled plugin stays (the image
+  is the unit of update), and the ones in the volume stay at the version
+  first downloaded: remove `/var/lib/grafana/plugins` from the volume to get
+  newer ones.
+- **Not covered:** `compose.pgbouncer.yaml` and `compose.pitr.yaml` (their
+  services keep the images' defaults, and CI doesn't render them), and
+  `compose.yaml` / `compose.dev.yaml` alone (development).
 - **Swarm** ([deploy-swarm.md](deploy-swarm.md)) renders these files, so it
   inherits `read_only` and the capabilities. `docker stack deploy` ignores a
   service's `tmpfs:` list, so `tools/deploy/render.mjs` turns each entry into
@@ -415,14 +491,25 @@ capabilities it gets back:
   Swarm equivalent, the mount is writable by anyone). `security_opt` is
   dropped there.
 - **CI** (`.github/workflows/ci.yml`): `compose-secrets` fails when a service
-  of `compose.yaml` + `compose.prod.yaml` lacks the keys, whichever service
-  it is; `hardened-stack` starts the stack on new volumes and fails when a
-  container exits, restarts, is unhealthy or logs `Read-only file system`.
-  Not started there: the production Caddy (its certificate needs a public
-  name; the job runs the stock Caddy image on plain HTTP, with the
+  lacks the keys (`read_only`, `cap_drop`, `no-new-privileges`, a `/tmp`
+  tmpfs), whichever service it is. It renders `compose.yaml` +
+  `compose.prod.yaml` alone, then with each overlay on top (`clamav`,
+  `monitoring` with every profile, `blue-green`), and checks that the overlay's
+  services are in the render. The exceptions are a list in that step, by
+  service and key. `hardened-stack` starts the stack on new volumes and fails
+  when a container exits, restarts, is unhealthy or logs `Read-only file
+  system`. Not started there: the production Caddy (its certificate needs a
+  public name; the job runs the stock Caddy image on plain HTTP, with the
   `caddy_data` and `caddy_config` volumes `compose.loadtest.yaml` names: the
   stock image has no `VOLUME` there, so under `read_only` they would be
-  read-only) and Gotenberg.
+  read-only) and Gotenberg. The overlays are started where they change:
+  `.github/workflows/monitoring.yml` starts every service of
+  `compose.monitoring.yaml` (Loki, Alloy and Grafana included) and checks
+  that none restarts, logs `Read-only file system`, and that Alloy's lines
+  reach Loki; `.github/workflows/clamav.yml` starts `clamav`, checks its
+  user, capabilities and read-only image, and scans the EICAR test file and a
+  stream over `StreamMaxLength`. Both run only on pull requests and pushes
+  that touch the overlay or its files.
 
 ## Staging
 
@@ -815,6 +902,16 @@ docker compose up -d
   (and `MaxFileSize`) to `CLAMAV_STREAM_MAX_MB`, default `ATTACHMENT_MAX_MB`.
   Raise `ATTACHMENT_MAX_MB` and it follows. Limits: `CLAMAV_CPUS` (1),
   `CLAMAV_MEMORY` (3G: the loaded signatures are about 1.5 GB).
+- **Hardened** like the rest of the stack ([Container
+  hardening](#container-hardening)): read-only, as the user `clamav`, no
+  capability. `clamav/entrypoint.sh` starts freshclam and clamd (the image's
+  `/init-unprivileged`, with the settings above applied). clamd writes every
+  stream it scans, and the files it unpacks from an archive, to `/tmp`, a
+  tmpfs of `CLAMAV_TMP_SIZE` (512m) that counts against `CLAMAV_MEMORY`:
+  raise both with `ATTACHMENT_MAX_MB`, or the scan of a large upload fails
+  for lack of space and the file stays `pending`. An existing `clamav_db`
+  volume is used as it is. `.github/workflows/clamav.yml` starts
+  the container and scans the EICAR test file whenever the overlay changes.
 - **Blue-green:** the colours (`api-blue`, `api-green`) extend
   `compose.prod.yaml`'s `api`, so they never get what the file sets on `api`.
   Put `MALWARE_SCANNER=clamav` and `CLAMAV_HOST=clamav` in `.env` as well:
@@ -905,7 +1002,9 @@ volume: 30 days, at most 4 GB (`monitoring/prometheus/prometheus.yml`).
 Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
 `ALERTMANAGER_MEMORY`; the exporters get 0.25 CPU and 128 MB each (the
 blackbox exporter 0.1 CPU and 64 MB). Logs are
-bounded like the rest of the stack (`DOCKER_LOG_*`).
+bounded like the rest of the stack (`DOCKER_LOG_*`). Every service runs
+hardened ([Container hardening](#container-hardening)): read-only (Prometheus
+excepted, and why is there), no capabilities, `no-new-privileges`.
 
 **The alerts** (46 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
@@ -1142,7 +1241,8 @@ docker compose up -d
   `DOCKER_LOG_DRIVER=json-file` only for a collector that tails the files in
   `/var/lib/docker/containers` (Promtail-style, or Vector); Alloy doesn't
   need it. The socket gives Alloy the whole Docker API, even read only, so it
-  runs as root; it is not published.
+  runs as root (with `DAC_OVERRIDE` as its one capability, to write its
+  volume: [Container hardening](#container-hardening)); it is not published.
 - **Retention.** `LOKI_RETENTION` (default `720h`, 30 days), enforced by
   Loki's compactor (`retention_enabled`, `monitoring/loki/loki.yml`). The
   chunks live in the `loki_data` volume; budget the disk for it. Change the
@@ -1178,7 +1278,9 @@ Without Grafana the UI is missing, not the data: it stays in Loki, and
 
 **Checks.** `.github/workflows/monitoring.yml` verifies `loki.yml`
 (`loki -verify-config`) and parses `config.alloy` (`alloy fmt`) on every
-change, with the images `compose.monitoring.yaml` pins.
+change, with the images `compose.monitoring.yaml` pins, then starts every
+service of the file under its hardening and checks that Alloy's lines reach
+Loki.
 
 ## Redis
 
@@ -1703,7 +1805,7 @@ merged migration fails it already):
 | `unit`                   | the unit tests beside `check`: the API's in 3 shards (`--shard=1/3`..`3/3`), the web app's in 3, the packages' in one job |
 | `e2e`                    | the e2e tests in 6 shards (`--shard=1/6`..`6/6`), each on its own runner with PostgreSQL and Redis, beside `check`; every app runs as the app role, made by an owner that is no superuser ([Database roles](#database-roles)) |
 | `e2e-web` | the web app's browser tests (`pnpm test:e2e:web`, Playwright on the built API and web app, with an axe accessibility scan), with its own PostgreSQL and Redis; not a dependency of `publish` (development.md, "Browser tests") |
-| `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `compose-secrets`        | the production stack's secrets with the values in `.env` and with every one in a file, as Compose renders them (the monitoring stack too); that every service of the stack and of each overlay (`clamav`, `monitoring`, `blue-green`) is hardened ([Container hardening](#container-hardening)); then the shell readers in their images (`scripts/test-secret-readers.sh`)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `swarm-stack`            | `compose.swarm.yaml` rendered with dummy values and accepted by `docker stack config` (`pnpm deploy:swarm check`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `feature-smoke`          | the feature generator's tests, then two features generated with every option, which must build, lint, migrate and pass their generated e2e tests ([adding a feature](adding-a-feature.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `e2e-telemetry` | one shard of the e2e suite (`--shard=1/6`) with OpenTelemetry and Sentry on, against a stub collector (`apps/api/test/telemetry-stub.mjs`), then the built app (`node dist/main`) against one of its own; fails if the instrumentation breaks the app or no span of a request served arrives ([Telemetry](#telemetry)) |

@@ -119,7 +119,9 @@ told to stop taking writes. `platform.mode` is a platform-only setting
 (`scopes: []`: no tenant has a value of its own) with three values; the
 operators set it like any platform value, `PUT /v1/settings/platform.mode/platform
 { "value": "read-only" }` (audited as `setting.updated`, `scope: platform`),
-and `DELETE` of the same path returns to `normal`. Code: `apps/api/src/platform/mode/`.
+and `DELETE` of the same path returns to `normal` (it removes only the stored
+value: a mode forced by `APP_MODE`, below, stays, and the route still answers
+204). Code: `apps/api/src/platform/mode/`.
 
 | Mode          | Requests                                                                | Queues and cron |
 | ------------- | ----------------------------------------------------------------------- | --------------- |
@@ -156,8 +158,13 @@ the same way when it must keep working. A POST that only reads is refused in
   (`CronJob.stop()`); `normal` resumes both. A worker started in `normal`
   resumes queues a crash left paused.
 - **Metric** `app_mode{mode}`: 1 for the current mode, on `/metrics`.
-- Not covered: WebSocket messages, a running job, and Caddy's maintenance
-  page for the web app (a follow-up).
+- **The web app** shows what the mode means ([monorepo](monorepo.md),
+  "Maintenance and read-only mode"): a banner while `read-only`, with the
+  forms' submit buttons and confirmations turned off; a full-page notice
+  while `maintenance`. **Caddy's maintenance page** keeps the web app's files
+  from being served at all (`MAINTENANCE_PAGE=on`, [deployment](deployment.md),
+  "Maintenance page").
+- Not covered: WebSocket messages and a running job.
 
 ## Targeting rules (flags)
 

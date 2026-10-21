@@ -3,8 +3,10 @@
 # tests in monitoring/prometheus/tests), the Alertmanager configuration that
 # render-config.sh writes (amtool, with the Watchdog's route; its inhibition
 # rules against a running Alertmanager), the blackbox
-# exporter's module, Loki's and Alloy's (log shipping) and the Compose file. The images are the
-# ones compose.monitoring.yaml pins, so a version bump is checked here too.
+# exporter's module, Loki's and Alloy's (log shipping) and the Compose file,
+# then every service of it started under its hardening (docs/deployment.md,
+# "Container hardening"). The images are the ones compose.monitoring.yaml pins,
+# so a version bump is checked here too.
 name: Monitoring
 
 on:
@@ -32,7 +34,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -194,18 +196,52 @@ jobs:
             docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml config --format json \
             | jq -e --arg f "$RUNNER_TEMP/alert_watchdog_url" '.secrets.alert_watchdog_url.file == $f'
 
-      - name: Loki becomes healthy through Compose (its healthcheck runs inside the distroless image)
+      - name: Every service starts read-only and stays up (Loki's healthcheck runs inside the distroless image)
         run: |
-          # The image has no shell and no wget; a healthcheck that needs either
-          # never passes, and alloy (depends_on: loki: service_healthy) would
-          # never start. Only loki is started.
+          # compose.monitoring.yaml hardens its services (read_only, no
+          # capabilities, no-new-privileges: ci.yml's "Every service is
+          # hardened" reads the keys): only a start shows that they run under
+          # them. Loki's image has no shell and no wget; a healthcheck that
+          # needs either never passes, and alloy (depends_on: loki:
+          # service_healthy) would never start. Only the monitoring services
+          # start (--no-deps): their targets (api, PostgreSQL, Redis) are not
+          # needed for them to run, only for their scrapes to succeed.
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           export CLOUDFLARE_API_TOKEN=ci
           POSTGRES_PASSWORD=$(openssl rand -hex 24)
           POSTGRES_APP_PASSWORD=$(openssl rand -hex 24)
+          POSTGRES_MONITOR_PASSWORD=$(openssl rand -hex 24)
           METRICS_TOKEN=$(openssl rand -hex 24)
-          export POSTGRES_PASSWORD POSTGRES_APP_PASSWORD METRICS_TOKEN
+          GRAFANA_ADMIN_PASSWORD=$(openssl rand -hex 24)
+          export POSTGRES_PASSWORD POSTGRES_APP_PASSWORD POSTGRES_MONITOR_PASSWORD METRICS_TOKEN GRAFANA_ADMIN_PASSWORD
           export COMPOSE_PROJECT_NAME=monitoring-ci
-          compose="docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml --profile logs"
-          trap '$compose logs loki; $compose down --volumes' EXIT
-          $compose up --detach --wait --wait-timeout 120 loki
+          compose="docker compose -f compose.yaml -f compose.prod.yaml -f compose.monitoring.yaml --profile logs --profile grafana"
+          services=(prometheus alertmanager postgres-exporter redis-exporter backup-metrics blackbox-exporter node-exporter loki alloy grafana)
+          trap 'status=$?; if [ "$status" -ne 0 ]; then $compose logs --no-color --tail 60; fi; $compose down --volumes' EXIT
+          $compose up --detach --no-deps --wait --wait-timeout 240 "${services[@]}"
+          # Alloy reads the project's containers through the Docker socket and
+          # pushes them to Loki, which stores them on its volume: a line
+          # logged now (prometheus restarts) shows up as a `service` label.
+          sleep 15
+          $compose restart prometheus
+          shipped=false
+          for _ in $(seq 1 30); do
+            if $compose exec -T grafana wget -qO- http://loki:3100/loki/api/v1/label/service/values | grep -q '"prometheus"'; then
+              shipped=true
+              break
+            fi
+            sleep 2
+          done
+          test "$shipped" = true || { echo "::error::Alloy shipped no log line to Loki"; exit 1; }
+          # Up, none restarted, none writing to the read-only filesystem.
+          for service in "${services[@]}"; do
+            id=$($compose ps -q "$service")
+            test -n "$id" || { echo "::error::$service is not running"; exit 1; }
+            state=$(docker inspect -f '{{.State.Status}} restarts={{.RestartCount}}' "$id")
+            echo "$service: $state"
+            test "$state" = "running restarts=0" || { echo "::error::$service: $state"; exit 1; }
+          done
+          if $compose logs --no-color 2>&1 | grep -i 'read-only file system'; then
+            echo "::error::a service wrote to the read-only filesystem"
+            exit 1
+          fi

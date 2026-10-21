@@ -32,6 +32,7 @@ import { ImportButton } from '@/features/transfer/import-button';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { TagBadge } from '@/lib/tags';
 import { Can, useCan } from '@/lib/features';
+import { useWritesPaused } from '@/lib/mode';
 import { useRecordCan } from '@/lib/records';
 import { useDateTimeFormat } from '@/lib/date-time';
 import type { DataTableFeatures } from '@/lib/data-table-features';
@@ -53,6 +54,9 @@ function Notes() {
   const canDelete = useCan('Note.delete');
   const canRestore = useCan('Note.restore');
   const canOf = useRecordCan('Note');
+  // While the API refuses writes (read-only, maintenance) the actions that
+  // write stay in sight but off; the banner says why.
+  const paused = useWritesPaused();
   const { ask, restore, dialog } = useNoteDelete();
 
   // The selection's actions (POST /v1/notes/bulk): what the user may do here.
@@ -175,6 +179,7 @@ function Notes() {
           {bin.deleted ? (
             can.restore && (
               <DropdownMenuItem
+                disabled={paused}
                 onClick={() => void restore(note).catch(() => {})}
               >
                 {t('actions.restore')}
@@ -184,6 +189,7 @@ function Notes() {
             <>
               {can.update && (
                 <DropdownMenuItem
+                  disabled={paused}
                   render={
                     <Link to="/notes/$id/edit" params={{ id: note.id }} />
                   }
@@ -196,6 +202,7 @@ function Notes() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
+                    disabled={paused}
                     onClick={() => ask(note)}
                   >
                     {t('actions.delete')}
@@ -207,7 +214,7 @@ function Notes() {
         </>
       );
     },
-    [t, bin.deleted, canOf, ask, restore],
+    [t, bin.deleted, canOf, ask, restore, paused],
   );
 
   return (
@@ -234,7 +241,11 @@ function Notes() {
               />
             </Can>
             <Can permission="Note.create">
-              <Button nativeButton={false} render={<Link to="/notes/new" />}>
+              <Button
+                nativeButton={false}
+                disabled={paused}
+                render={<Link to="/notes/new" />}
+              >
                 <PlusIcon />
                 {t('new.action')}
               </Button>

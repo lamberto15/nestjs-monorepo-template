@@ -688,6 +688,11 @@ pages, ETags. Usage, the bell-icon recipe included:
   their merge base, and its new journal entries must still come after
   `main`'s), or `node tools/migration-lint/lint.mjs apps/api/drizzle/*.sql` for
   given files; its tests: `node --test tools/migration-lint/lint.test.mjs`.
+- **The Caddyfile:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs`
+  runs the real Caddyfile (its TLS block and Docker names edited out, every
+  edit checked) under a real Caddy: the app, the maintenance page, the API's
+  paths. Without a binary the tests are skipped; CI's `caddy-image` job runs them
+  with the image's own ([deployment](deployment.md), "Maintenance page").
 - **A new feature:** `pnpm feature:add <plural> --fields "…"`
   (`tools/feature/`, [adding a feature](adding-a-feature.md)); its tests:
   `node --test tools/feature/add.test.mjs`. CI's `feature-smoke` job

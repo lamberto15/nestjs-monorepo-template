@@ -12,8 +12,14 @@ import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Spinner } from '@nestjs-monorepo-template/ui/components/spinner';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useWritesPaused } from '@/lib/mode';
 
-/** A button whose action is asked about first (shadcn's AlertDialog). */
+/**
+ * A button whose action is asked about first (shadcn's AlertDialog).
+ * Disabled while the API refuses writes (read-only or maintenance mode),
+ * unless the action's route stays open in both (`allowInMaintenance`, as the
+ * API's `@AllowInMaintenance()`: the ops routes, the operators' settings).
+ */
 export function ConfirmButton(props: {
   children: ReactNode;
   title: ReactNode;
@@ -27,8 +33,11 @@ export function ConfirmButton(props: {
   label?: string;
   /** Called when the dialog opens: refresh what the question is about. */
   onOpen?: () => void;
+  /** The action's route answers in read-only and maintenance mode too. */
+  allowInMaintenance?: boolean;
 }) {
   const { t } = useTranslation();
+  const paused = useWritesPaused() && !props.allowInMaintenance;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   return (
@@ -37,7 +46,7 @@ export function ConfirmButton(props: {
         type="button"
         variant={props.variant ?? 'outline'}
         size={props.size}
-        disabled={props.disabled}
+        disabled={props.disabled || paused}
         aria-label={props.label}
         onClick={() => {
           setOpen(true);
@@ -56,7 +65,7 @@ export function ConfirmButton(props: {
             <AlertDialogCancel>{t('account.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={busy}
+              disabled={busy || paused}
               onClick={async () => {
                 setBusy(true);
                 try {

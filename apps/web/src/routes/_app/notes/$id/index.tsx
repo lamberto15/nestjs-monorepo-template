@@ -24,6 +24,7 @@ import { noteQuery, setNoteWatching, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useRichText } from '@/features/notes/use-rich-text';
 import { useDateTimeFormat } from '@/lib/date-time';
+import { useWritesPaused } from '@/lib/mode';
 import { useRecordCan } from '@/lib/records';
 
 export const Route = createFileRoute('/_app/notes/$id/')({
@@ -69,6 +70,8 @@ function NoteView({ note }: { note: Note }) {
   // The note's own `can`: its conditions too, not only the permission.
   const { richText, pending: settingsPending } = useRichText();
   const { update: canUpdate, delete: canDelete } = useRecordCan('Note')(note);
+  // Off while the API refuses writes (read-only, maintenance); the banner says why.
+  const paused = useWritesPaused();
   const { ask, dialog } = useNoteDelete({
     onDeleted: () => void navigate({ to: '/notes' }),
     onRestored: (restored) =>
@@ -110,6 +113,7 @@ function NoteView({ note }: { note: Note }) {
               <DropdownMenuContent align="end">
                 {canUpdate && (
                   <DropdownMenuItem
+                    disabled={paused}
                     render={
                       <Link to="/notes/$id/edit" params={{ id: note.id }} />
                     }
@@ -121,6 +125,7 @@ function NoteView({ note }: { note: Note }) {
                 {canDelete && (
                   <DropdownMenuItem
                     variant="destructive"
+                    disabled={paused}
                     onClick={() => ask(note)}
                   >
                     {t('actions.delete')}
